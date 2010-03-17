@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<project name="deg">
+	<target name="drv-env-gen.jar">
+		<echo>Building driver environment generator...</echo>
+	</target>
+	<target name="clean">
+		<echo>Cleaning...</echo>
+	</target>
+</project>

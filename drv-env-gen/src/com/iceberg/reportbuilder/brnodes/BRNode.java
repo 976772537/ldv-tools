@@ -61,11 +61,11 @@ public abstract class BRNode {
 		System.out.print(line);
 	}
 
-	private void __printOnlySelected(String line) {
+	//private void __printOnlySelected(String line) {
 		/*if(this.getType() != BRNodeType.BRTYPE_Block &&
 				this.getType() != BRNodeType.BRTYPE_Pred)*/
-		System.out.println(line);
-	}
+		//System.out.println(line);
+	//}
 
 
 	protected void __printFreeLine(int space, String line) {

@@ -2,8 +2,6 @@ package com.iceberg.reportbuilder.brnodes;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class BRNodeIncluded extends BRNode implements BRNodeInterface {
 

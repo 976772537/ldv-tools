@@ -17,8 +17,6 @@ import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
 public class Model0049 {
 
-	private static int trigger = 0;
-
 	public static void main(String[] args) {
 		long startf = System.currentTimeMillis();
 		if(args.length != 3) {
@@ -185,24 +183,7 @@ public class Model0049 {
 					recursiveFlag =true;
 				}
 			}
-
-			/*String afterPath;
-			if(recursiveFlag==false) {
-				afterPath = tfd.getName();
-			} else {
-				afterPath = tfd.getName() + " RECURSIVE";
-			}*/
-
-			/* составим строку пути */
 			stackIterator = tfdstack.iterator();
-			/*StringBuffer sbs = new StringBuffer("");
-			while(stackIterator.hasNext()) {
-				TokenFunctionDecl tfdsl;
-				tfdsl = (TokenFunctionDecl) stackIterator.next();
-				sbs.append(tfdsl.getName()+"->");
-			}*/
-			//sbs.append(afterPath);
-			//System.out.println(sbs);
 			if(recursiveFlag==false) {
 				tfdstack.add(tfd);
 				if(tfd.getTokens()!=null && tfd.getTokens().size()>0)

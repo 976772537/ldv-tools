@@ -9,7 +9,6 @@ import com.iceberg.cbase.parsers.options.Options;
 import com.iceberg.cbase.parsers.options.ParserOptions;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.Token;
-import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
 
 /**
