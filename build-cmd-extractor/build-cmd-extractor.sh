@@ -18,8 +18,8 @@ bce_print() {
         echo "$LOG_PREFIX$1" >> $WORK_DIR/$GLOBAL_LOG;
 }
 
-if [ $# -ne 3 ]; then
-	echo "USAGE: buil-cmd-extractor workdir kernel_src_dir driver_dir";
+if [ $# -ne 3 -a $# -ne 4 ]; then
+	echo "USAGE: build-cmd-extractor workdir kernel_src_dir driver_dir <xml_file>";
 	exit 1;
 fi;
 WORK_DIR=`readlink -f $1`;
@@ -54,6 +54,19 @@ fi;
 if [ ! -d "$DRIVER_DIR" ]; then
 	bce_print "Driver directory does not exists: \"$DRIVER_DIR\".";
 	exit 1;
+fi;
+
+if [ $# -eq 4 ]; then
+	CMD_XML_FILE=`readlink -f $4`;
+	if [ $? -ne 0 ]; then
+		bce_print "Failed to read abs path for: \"$4\"."
+		exit 1;
+	fi;
+	touch $CMD_XML_FILE;
+	if [ $? -ne 0 ]; then
+		bce_print "Failed to create empty XML file: \"$4\"."
+		exit 1;
+	fi;
 fi;
 
 #
@@ -202,7 +215,12 @@ fi;
 #
 # and now create xml file from build-trace-file
 #
-CMD_XML="$WORK_DIR/$XML_FILENAME";
+if [ -n "$CMD_XML_FILE" ]; then
+	CMD_XML=$CMD_XML_FILE;
+else
+	CMD_XML="$WORK_DIR/$XML_FILENAME";
+fi;
+
 echo "<basedir>$WORK_DIR</basedir>" > $CMD_XML;
 k=1;
 cat $TRACE_FILE | while read line; do
