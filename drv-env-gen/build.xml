@@ -7,6 +7,7 @@
 	<property name="src" location="src"/>
 	<property name="build" location="build"/>
 	<property name="dist"  location="dist"/>
+	<property name="lib"  location="${src}/lib"/>
 
 	<target name="init">
 		<!-- <tstamp/> -->
@@ -15,14 +16,18 @@
 	</target>
 
 	<target name="compile" depends="init" description="compile the source">
-		<javac srcdir="${src}" destdir="${build}"/>
+		<javac srcdir="${src}" destdir="${build}">
+			<classpath>
+				<pathelement path="${lib}/xmlParserAPIs-2.6.2.jar"/>
+			</classpath>
+		</javac>
 	</target>
 
 	<target name="dist" depends="compile" description="generate the distribution">
 		<jar jarfile="${dist}/drv-env-gen.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
-				<attribute name="Main-class" value="com.iceberg.generators.MainGenerator"/>
+				<attribute name="Main-class" value="com.iceberg.generators.DEG"/>
 			</manifest>
 		</jar>
 	</target>

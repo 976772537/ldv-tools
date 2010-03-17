@@ -54,17 +54,26 @@ public class MainGenerator {
 
 
 	public static void generate(String filename) {
-		generateByIndex(filename, -1);
+		generateByIndex(filename, -1, null);
+	}
+	
+	public static void generate(String source, String destionation ) {
+		generateByIndex(source, -1, destionation);
+	}
+	
+	public static boolean deg(String filename, int counter) {
+		return generateByIndex(filename, counter, filename);
 	}
 
-	public static boolean generateByIndex(String filename, int index) {
+	public static boolean generateByIndex(String filename, int index, String destFilename) {
 		Matcher matcher = pattern.matcher(filename);
 		if(!matcher.find()) {
 			System.out.println("could not match C-extension");
 			System.out.println("USAGE: java -ea -jar mgenerator.jar <*>.c");
 			return false;
 		}
-		String destFilename = filename.replaceAll("\\.c$", ".c.ldv.c");
+		if(destFilename == null)
+			destFilename = filename.replaceAll("\\.c$", ".c.ldv.c");
 		FileReader reader = null;
 		try {
 			reader = new FileReader(filename);
@@ -338,7 +347,7 @@ public class MainGenerator {
 					sb.append("\n");
 				}
 			}
-
+			
 			sb.append("\n\n\n\tcheck_final_state();\n");
 			sb.append("\treturn;\n}\n");
 

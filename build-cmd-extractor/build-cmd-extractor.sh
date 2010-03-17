@@ -31,6 +31,13 @@ if [ ! -d "$WORK_DIR" ]; then
 	echo "Working directory does not exists: \"$WORK_DIR\".";
 	exit 1;
 fi;
+NEXT_BASE_DIR=$WORK_DIR/"deg_tempdir";
+mkdir $NEXT_BASE_DIR;
+if [ $? -ne 0 ]; then
+	echo "Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
+	exit 1;
+fi;
+NEXT_DIRVER_DIR=$NEXT_BASE_DIR/"driver";
 WORK_DIR=$WORK_DIR"/bce_tempdir";
 mkdir $WORK_DIR;
 if [ $? -ne 0 ]; then
@@ -55,7 +62,6 @@ if [ ! -d "$DRIVER_DIR" ]; then
 	bce_print "Driver directory does not exists: \"$DRIVER_DIR\".";
 	exit 1;
 fi;
-
 if [ $# -eq 4 ]; then
 	CMD_XML_FILE=`readlink -f $4`;
 	if [ $? -ne 0 ]; then
@@ -67,6 +73,15 @@ if [ $# -eq 4 ]; then
 		bce_print "Failed to create empty XML file: \"$4\"."
 		exit 1;
 	fi;
+fi;
+
+#
+# copy driver sources for next instrument
+#
+cp -r $DRIVER_DIR $NEXT_DIRVER_DIR;
+if [ $? -ne 0 ]; then
+	bce_print "Failed to copy driver sources for next instrument."
+	exit 1;
 fi;
 
 #
@@ -205,9 +220,10 @@ IS_MULTIPLE=`grep '^LDFLAGS_FOR_FILE' $TRACE_FILE`;
 if [ ! -n "$IS_MULTIPLE" ]; then
 	cat $TRACE_FILE | while read line; do
 		MODULE_TAG=`echo $line | grep '^MODULE\ =\ '`;
-		CUR_MODULE=`echo $MODULE_TAG | sed 's/^MODULE = //' | sed 's/\.ko$/.o/'`;
+#		CUR_MODULE=`echo $MODULE_TAG | sed 's/^MODULE = //' | sed 's/\.ko$/.o/'`;
+		CUR_MODULE=`echo $MODULE_TAG | sed 's/^MODULE = //'`;
 		if [ -n "$CUR_MODULE" ]; then		
-			echo "LDFLAGS_FOR_FILE = $CUR_MODULE LDFLAGS = -r -o DEPS = $CUR_MODULE" >> $TRACE_FILE;
+			echo "LDFLAGS_FOR_FILE = $CUR_MODULE LDFLAGS = -r -o DEPS = "`echo $CUR_MODULE | sed 's/\.ko$/.o/'` >> $TRACE_FILE;
 		fi;
 	done;
 fi;
@@ -221,8 +237,18 @@ else
 	CMD_XML="$WORK_DIR/$XML_FILENAME";
 fi;
 
-echo "<basedir>$WORK_DIR</basedir>" > $CMD_XML;
+echo "<?xml version=\"1.0\"?>" > $CMD_XML;
+echo "<cmdstream>" >> $CMD_XML;
+
+echo -e "\t<basedir>$NEXT_BASE_DIR</basedir>" >> $CMD_XML;
 k=1;
+
+#  xml.replace("&", "&amp;"); 
+#  xml.replace("<", "&lt;"); 
+#  xml.replace(">", "&gt;"); 
+#  xml.replace(" ", "&apos;"); 
+#  xml.replace("\"", "&quot;"); 
+
 cat $TRACE_FILE | while read line; do
 	CC_FILE_ABS=`echo $line | grep ^CFLAGS_FOR_FILE | sed 's/^CFLAGS_FOR_FILE = //' | sed 's/ CFLAGS = .*//'`;
 	LD_FILE_ABS=`echo $line | grep ^LDFLAGS_FOR_FILE | sed 's/^LDFLAGS_FOR_FILE = //' | sed 's/ LDFLAGS = .*//'`;
@@ -232,28 +258,28 @@ cat $TRACE_FILE | while read line; do
 #		SQUARED_WOR_DIR_EXT="$SQUARED_WORK_DIR$XML_CWD\\/";
 #		FILE_O=`echo $CC_FILE_ABS | sed "s/$SQUARED_WOR_DIR_EXT//"`;
 #		FILE_C=`echo $FILE_O | sed 's/\.o$/\.c/'`;
-		echo -e "<cc id=\"$k\">" >> $CMD_XML;
-		echo -e "\t<cwd>$KERNEL_DIR</cwd>" >> $CMD_XML;
-		echo -e "\t<in>"`echo $CC_FILE_ABS | sed 's/\.o/.c/'`"</in>" >> $CMD_XML;
+		echo -e "\t<cc id=\"$k\">" >> $CMD_XML;
+		echo -e "\t\t<cwd>$KERNEL_DIR</cwd>" >> $CMD_XML;
+		echo -e "\t\t<in>"`echo $CC_FILE_ABS | sed 's/\.o/.c/' | sed 's/bce_tempdir/deg_tempdir/'`"</in>" >> $CMD_XML;
 		for j in `echo $line | sed 's/^CFLAGS_FOR_FILE = .* CFLAGS = //'`; do
-			echo -e "\t<opt>$j</opt>" >> $CMD_XML;
+			echo -e "\t\t<opt>$j</opt>" >> $CMD_XML;
 		done;
-		echo -e "\t<out>$CC_FILE_ABS</out>" >> $CMD_XML;
-		echo -e "</cc>" >> $CMD_XML; 
+		echo -e "\t\t<out>"`echo $CC_FILE_ABS | sed 's/bce_tempdir/deg_tempdir/'`"</out>" >> $CMD_XML;
+		echo -e "\t</cc>" >> $CMD_XML; 
 		let k=$k+1;
 	elif [ "$LD_FILE_ABS" ]; then
 		LD_FLAGS=`echo $line | sed 's/^LDFLAGS_FOR_FILE = .* LDFLAGS = //' | sed 's/DEPS = .*$//'`;
-		echo -e "<ld id=\"$k\">" >> $CMD_XML;
-		echo -e "\t<cwd>$KERNEL_DIR</cwd>" >> $CMD_XML;
+		echo -e "\t<ld id=\"$k\">" >> $CMD_XML;
+		echo -e "\t\t<cwd>$KERNEL_DIR</cwd>" >> $CMD_XML;
 		for j in `echo $line | sed 's/^LDFLAGS_FOR_FILE = .* DEPS = //'`; do
-			echo -e "\t<in>$j</in>" >> $CMD_XML;
+			echo -e "\t\t<in>"`echo $j | sed 's/bce_tempdir/deg_tempdir/'`"</in>" >> $CMD_XML;
 		done;
 		for j in `echo $line | sed 's/^LDFLAGS_FOR_FILE = .* LDFLAGS = //' | sed 's/DEPS = .*$//'`; do
-			echo -e "\t<opt>$j</opt>" >> $CMD_XML;
+			echo -e "\t\t<opt>$j</opt>" >> $CMD_XML;
 		done;
-		echo -e "\t<out>$LD_FILE_ABS</out>" >> $CMD_XML;
-		echo -e "</ld>" >> $CMD_XML; 
+		echo -e "\t\t<out>"`echo $LD_FILE_ABS | sed 's/bce_tempdir/deg_tempdir/'`"</out>" >> $CMD_XML;
+		echo -e "\t</ld>" >> $CMD_XML; 
 		let k=$k+1;
 	fi;
 done;
-
+echo -e "</cmdstream>" >> $CMD_XML;
