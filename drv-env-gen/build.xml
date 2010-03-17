@@ -9,6 +9,7 @@
 	<property name="dist"  location="dist"/>
 
 	<target name="init">
+		<!-- <tstamp/> -->
 		<mkdir dir="${build}"/>
 		<mkdir dir="${dist}"/>
 	</target>

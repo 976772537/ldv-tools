@@ -91,8 +91,7 @@ public class Model0049 {
 		System.out.println("EXCEPTION_COUNTER:" + ExtendedParserFunction.parseExceptionCounter);
 		System.out.println("\n");
 
-		List<String> callgToken = new ArrayList(100000);
-
+		List<String> callgToken = new ArrayList<String>(100000);
 		callgToken = printGraph(tokens, new ArrayList<Token>(), funname, callgToken);
 		/* теперь выведем весь список на консоль */
 		System.out.println("\n_______________________________________________________\n");
