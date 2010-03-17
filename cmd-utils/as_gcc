@@ -1,0 +1,121 @@
+#!/usr/bin/perl -w
+
+# Usage:
+# As compiler:
+# 	as_gcc file.c -DDEFINE -o file.o -c
+# As linker:
+# 	as_gcc file.o file2.o -o file
+# As both:
+# 	as_gcc file.c -DDEFINE -o file
+
+use strict;
+
+use Fcntl qw(LOCK_EX SEEK_SET);
+
+# If we have ID-pool, open it in a thread-safe way.
+my $lock_file = $ENV{'POOL'};
+my $peeked_id = 1;
+my $LOCK;
+if ($lock_file){
+	# Open and lock
+	open $LOCK, "+>>".$lock_file or die "Failed to open file '$lock_file' for writing: $!";
+	flock($LOCK, LOCK_EX);
+	seek($LOCK, 0, SEEK_SET);
+	# Read id
+	($peeked_id) = (<$LOCK>);
+	$peeked_id ||= 0;
+
+	# It's ok not to release lock here -- if the process abnormally terminates, the lock will be released.
+}
+
+# Get next id
+$peeked_id++;
+
+# What will be done in the file
+my $compile = undef;
+my $link = undef;
+my $outfile = undef;
+my @opts = ();
+my @infiles = ();
+
+my $output = '';	# whether next option is an output file
+my $argument = '';	#whether next option is an argument to some other option
+my %argopts = (	# options, which are followed by an argument.
+	# The list of options is taken from lsbcc compiler wrapper, and, well, actually, it was me who put them there :-)
+	"-o" => "filename",
+	"-I" => "path",
+	"-isystem" => "path",
+	"-x" => "language",
+	"-aux-info" => "filename",
+	"--param" => "name=value",
+	"-idirafter" => "dir",
+	"-include" => "file",
+	"-Xpreprocessor" => "option",
+	"-Xassembler" => "option",
+	"-Xlinker" => "option",
+	"-u" => "symbol",
+	"-V" => "version",
+	"-b" => "machine",
+	"-G" => "num",
+);
+
+while ($_ = shift @ARGV){
+	if ($argopts{$_}){ #options that's followed by an argument
+		push @opts,$_;
+		$argument = 1;
+		if (/^-o$/){
+			$output = 1;
+			pop @opts;
+		}
+	}elsif(/^-c$/){	# Compilation only
+		push @opts,$_;
+		$link = '';
+	}elsif(/^[^-].*/ && !$argument){	#just a file, outsile all arguments -- that's an input file
+		push @infiles,$_;
+		if (/.*\.c$/){	# .c file encountered
+			$compile = 1;
+			$link = 1 unless defined $link;
+		}
+		if(/\.o$/){	# .o file
+			$link = 1;
+		}
+	}elsif(/^[^-].*/ && $output){	#output file
+		$outfile = $_;
+		if(/\.o$/){	# .o file
+			$link = '';
+		}
+	}else{	# reset state
+		push @opts,$_;
+		$argument = '';
+		$output = '';
+	}
+}
+
+# Sanity check
+defined $outfile or die "I didn't catch output file... did you actually mean it's a.out?";
+
+# Determine output files
+my $compile_cmd = { head=>'cc', in => \@infiles, out =>$outfile, opts => \@opts};
+my $link_cmd = { head=>'ld', in => \@infiles, out =>$outfile, opts => \@opts};
+if ($compile && $link) {
+	die "Can't compile and link at once -- unimplemented";
+}else{
+	#Default settings are already set
+}
+
+# Ok, we've determined what is done there.  Now, print the XML
+use XML::Twig;
+sub print_cmd
+{
+	my $cmd = shift or die;
+	my $tcmd = XML::Twig::Elt->new($cmd->{head},{'id' => $peeked_id++});
+	local $_;
+	XML::Twig::Elt->new("out",$cmd->{out})->paste('last_child',$tcmd);
+	XML::Twig::Elt->new("in",$_)->paste('last_child',$tcmd) for @{$cmd->{in}};
+	XML::Twig::Elt->new("opt",$_)->paste('last_child',$tcmd) for @{$cmd->{opts}};
+	$tcmd->print('indented');
+}
+
+print_cmd($compile_cmd) if $compile;
+print_cmd($link_cmd) if $link;
+
