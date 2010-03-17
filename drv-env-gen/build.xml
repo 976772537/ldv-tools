@@ -18,7 +18,12 @@
 	</target>
 
 	<target name="dist" depends="compile" description="generate the distribution">
-		<jar jarfile="${dist}/drv-env-gen.jar" basedir="${build}"/>
+		<jar jarfile="${dist}/drv-env-gen.jar" basedir="${build}">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+				<attribute name="Main-class" value="com.iceberg.generators.MainGenerator"/>
+			</manifest>
+		</jar>
 	</target>
 
 	<target name="clean" description="clean up">
