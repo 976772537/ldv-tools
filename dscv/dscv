@@ -1,0 +1,199 @@
+#!/usr/bin/perl
+#=============================================
+=head1 NAME
+
+dscv - verify C program against one or several properties from a property database.
+
+DSCV stands for B<Domain-Specific C Verifier>.  This is a working title.
+
+=head1 SYNOPSIS
+
+Compilation commands must be passed to the tool (all at once or sequentially), as well as a list of properties, and working directory. 
+
+For now it only supports cmdfile interface.
+
+	$ LDV_RULE_DB=/path/to/rule_db LDV_WORK_DIR=/path/to/workdir \
+	    dscv --cmdfile=commands.xml --rules=0032a,0039
+
+=head1 DESCRIPTION
+
+TODO
+
+=cut
+
+use strict;
+
+=head1 COMMAND LINE OPTIONS
+
+=over 8
+
+=cut
+
+use Pod::Usage;
+use Getopt::Long;
+
+# Configuration structure
+my $config={
+	dir=>'./',
+};
+
+my %optionSpecs = ();
+
+=item B<--cmdfile>
+
+File with build commands.  The format is standard for LDV project.  Must be specified, at the current state of art.
+
+=cut
+$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
+
+=item B<--property=property_id>, B<--propertis=prop_id,prop_id,...>
+
+Properties to check.  They are looked for in property datbase.
+
+=cut
+$config->{property} = [];
+$config->{properties} = [];
+$optionSpecs{'property=s@'} = \$config->{property};
+$optionSpecs{'properties=s@'} = \$config->{properties};
+
+=item B<--verifier>
+
+Properties to check.  They are looked for in property datbase.
+
+=cut
+$optionSpecs{'verifier=s'} = \$config->{verifier};
+
+
+=back
+
+=head1 ENVIRONMENT VARIABLES
+
+=over 8
+
+=cut
+
+=item B<LDV_RULE_DB>
+
+Rule database address.  It is interpreted by rule interpreter.  Also, the rule database should contain installing script, C<install> that prepares an instance of rule database for Rule Instrumentator to work.
+
+=cut
+$config->{rule_db_dir} = $ENV{'LDV_RULE_DB'};
+
+=item B<LDV_WORK_DIR>
+
+Working directory for a current instance of LDV scripts.  For now, it should be specified.
+
+=cut
+$config->{work_dir} = $ENV{'LDV_WORK_DIR'};
+
+=item B<RULE_INSTRUMENTOR>
+
+Specify custom rule instrumentor.  Unless specified, a program C<instrument-rule> is searched for in C<PATH> environemnt variable.
+
+=cut
+$config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || 'instrument-rule';
+
+=back
+
+=cut
+
+sub usage
+{
+	my $msg=shift;
+	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
+}
+
+GetOptions(%optionSpecs) or usage("Unrecognized options!");
+
+# Sanity check
+
+$config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
+$config->{rule_db_dir} or usage("LDV_RULE_DB is not specified!\n");
+-d $config->{rule_db_dir} or usage("LDV_RULE_DB is not a directory!\n");
+$config->{rule_install_exe} = "$config->{rule_db_dir}/install";
+-x $config->{rule_install_exe} or usage("$config->{rule_install_exe} is not an executable file!\n");
+$config->{work_dir} or usage("LDV_WORK_DIR is not specified!\n");
+use File::Path qw(mkpath);
+mkpath ($config->{work_dir});
+
+$config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->{properties}})))];
+
+unless (scalar @{$config->{properties}}){
+	usage("You should specify at least one property to verify!  Did you forget about it?\n");
+}
+
+
+# Actual work.
+
+# Create basic directory structure
+my $dscv_base_dir = "$config->{work_dir}/dscv";
+mkpath($dscv_base_dir);
+my $dscv_tmp_dir = "$config->{work_dir}/tmp/dscv";
+mkpath($dscv_tmp_dir);
+
+# Prepare running environment
+use FindBin;
+my $shared_dir = $FindBin::RealBin;
+my $rcv_frontends_dir = "$shared_dir/rcv";
+
+# Send cmdfile to Instrumentor for each rule.
+
+use XML::Twig;
+
+# For now we just pass the whole file to Instrumentor
+# This is just a simple check that XML is correct
+my $process_input = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd });
+
+sub execute_cmd
+{
+	my ($twig, $cmdT) = @_;
+	#my $TMP_FH = get_tmp_cmd()
+	#$cmdT->print(
+}
+$process_input->parsefile($config->{cmdfile});
+
+# Prepare working dirs
+my $out_cmd_dir = "$dscv_base_dir/cmdfiles";
+mkdir $out_cmd_dir;
+
+# TODO : copy driver into it
+my $ri_basedir = "$dscv_base_dir/dscv";
+
+$" = ' ';	# For error reporting
+
+# Get list of properties to check
+my @properties = @{$config->{properties}};
+
+for my $property (@properties){
+	# make outcmdfile
+	my $outfile = "$out_cmd_dir/cmd$property.xml";
+	my @rule_instr_args = ($config->{rule_ins},
+		"--model-dir=$config->{rule_db_dir}",
+		"--basedir=$ri_basedir",
+		"--model-id=$property",
+		"--cmd-xml=$config->{cmdfile}",
+		"--cmd-xml-out=$outfile"
+	);
+	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
+	# Call C verifier
+	# TODO: parallelize
+	my @rcv_args = ("$rcv_frontends_dir/$config->{verifier}",
+		"--cmdfile=$outfile"
+	);
+	system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
+}
+
+
+=head1 DOCUMENTATION FOR DEVELOPERS
+
+=cut
+
+=head1 AUTHORS
+
+The DSCV component was implemented by
+
+Pavel Shved L<shved@ispras.ru>, 2010
+
+ISP RAS L<http://ispras.ru/>, 2010
+
+

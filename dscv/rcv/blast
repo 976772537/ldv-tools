@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+
+# RCV Frontend for blast tool.
+
+use strict;
+use Pod::Usage;
+use Getopt::Long;
+
+my $config={
+	cmdfile=>'',
+};
+
+my %optionSpecs = ();
+$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
+
+GetOptions(%optionSpecs) or die("Unrecognized options!");
+
+# Prepare running environment
+use FindBin;
+my $shared_dir = $FindBin::RealBin;
+my $backend_dir = "$shared_dir/backends/$config->{verifier}";
+
+-d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
+-f $config->{cmdfile} or die "BLAST's command file $config->{cmdfile} is not found";
+
+# Add path for blast's supplementary scripts.
+$ENV{'PATH'} .= ":$backend_dir/blast/bin";
+
+# We should have parsed the command file, get dependencies, etc, etc...  but now we just check if it's a valid XML.
+use XML::Twig;
+my $check_input_file = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd});
+sub execute_cmd
+{
+	my ($twig, $cmdT) = @_;
+	# ok.  Do nothing.
+}
+$check_input_file->parsefile($config->{cmdfile});
+
+# Call blast
+$" = ' ';	# For error reporting
+my @blast_args = ("pblast.opt","-help");
+system @blast_args and die "INTEGRATION ERROR.  Cmdline: @blast_args";
+
+
+
+
