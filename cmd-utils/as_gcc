@@ -5,8 +5,10 @@
 # 	as_gcc file.c -DDEFINE -o file.o -c
 # As linker:
 # 	as_gcc file.o file2.o -o file
-# As both:
+# As both (doesn't work for now):
 # 	as_gcc file.c -DDEFINE -o file
+# Thge order of arguments may be arbitrary.  If argument needs a value, it's correctly parsed.
+# 	as_gcc -march=x86 -I include/path -o file.o -Ddefine -Dqwetyr file1.c -I another/dir file2.c
 
 use strict;
 
