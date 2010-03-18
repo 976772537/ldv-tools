@@ -50,3 +50,7 @@ if ($fpid == 0){
 # Parent
 # Parend for now does nothing as well
 
+# ! PREPROCESS!
+
+print "Verifier $0 is run!\n";
+
