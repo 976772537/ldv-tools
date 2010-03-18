@@ -1,0 +1,3 @@
+[submodule "dscv/rcv/backends/blast"]
+	path = dscv/rcv/backends/blast
+	url = git://itgdev.igroup.ispras.ru/blast.git
