@@ -8,6 +8,7 @@ use Getopt::Long;
 Getopt::Long::Configure('posix_default', 'no_ignore_case');
 use strict;
 use XML::Twig;
+use XML::Writer;
 
 
 ################################################################################
@@ -164,19 +165,41 @@ get_model_info();
 
 # Print standard xml file header.
 print($file_xml_out "<?xml version=\"1.0\"?>\n");
-# Print root node open tag.
-print($file_xml_out "<cmdstream>\n");
-# Print rule instrumentor basedir in aspect mode.
+
+my $xml_writer;
+
+# In aspect mode prepare special xml writer. 
 if ($kind_isaspect)
 {
-  print($file_xml_out "  <basedir>$opt_basedir</basedir>\n\n");
+  $xml_writer = new XML::Writer(OUTPUT => $file_xml_out, NEWLINES => 1);
+  
+  $xml_writer->startTag('cmdstream');
+  
+  # Print rule instrumentor basedir tags.
+  $xml_writer->dataElement('basedir' => $opt_basedir);
+}
+else
+{
+  # Print root node open tag.
+  print($file_xml_out "<cmdstream>\n");	
 }
 
 # Process commands step by step.
 process_cmds();
 
-# Print root node close tag.
-print($file_xml_out "</cmdstream>\n");
+if ($kind_isaspect)
+{
+  # Close cmdstream tag.	
+  $xml_writer->endTag();
+  
+  # Perform final checks.
+  $xml_writer->end();
+}
+else
+{
+  # Print root node close tag.
+  print($file_xml_out "</cmdstream>\n");
+}
 
 close($file_xml_out) 
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
@@ -416,29 +439,45 @@ sub process_cmd_ld()
   
     # Come back.
     chdir($tool_working_dir);
-    
-    # Print corresponding commands to output xml file.
-    print($file_xml_out "  <cc id=\"$cmd{'id'}-llvm-cc\">\n");
-    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");
-    print($file_xml_out "    <in>$c_out</in>\n");
+
+    # Print corresponding commands to output xml file. 
+    # TODO: choose format of printing. Direct printing is commented and special writer is used instead of it.
+#    print($file_xml_out "  <cc id=\"$cmd{'id'}-llvm-cc\">\n");
+    $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
+#    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");
+    $xml_writer->dataElement('cwd' => $opt_basedir);
+#    print($file_xml_out "    <in>$c_out</in>\n");
+    $xml_writer->dataElement('in' => $c_out);
     # Use here the first input file name to relate with corresponding ld 
     # command.    
-    print($file_xml_out "    <out>${$cmd{'ins'}}[0]</out>\n"); 
-    print($file_xml_out "  </cc>\n\n");
-
-    print($file_xml_out "  <ld id=\"$cmd{'id'}-llvm-ld\">\n");
-    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");    
-    print($file_xml_out "    <in>${$cmd{'ins'}}[0]</in>\n");  
-    print($file_xml_out "    <out>$cmd{'out'}</out>\n"); 
-    print($file_xml_out "    <engine>$model{'engine'}</engine>\n");
+#    print($file_xml_out "    <out>${$cmd{'ins'}}[0]</out>\n");
+    $xml_writer->dataElement('out' => ${$cmd{'ins'}}[0]); 
+#    print($file_xml_out "  </cc>\n\n");
+    # Close cc tag.
+    $xml_writer->endTag();
+     
+#    print($file_xml_out "  <ld id=\"$cmd{'id'}-llvm-ld\">\n");
+    $xml_writer->startTag('ld', 'id' => "$cmd{'id'}-llvm-ld");
+#    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");
+    $xml_writer->dataElement('cwd' => $opt_basedir);    
+#    print($file_xml_out "    <in>${$cmd{'ins'}}[0]</in>\n");
+    $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);  
+#    print($file_xml_out "    <out>$cmd{'out'}</out>\n"); 
+    $xml_writer->dataElement('out' => $cmd{'out'});
+#    print($file_xml_out "    <engine>$model{'engine'}</engine>\n");
+    $xml_writer->dataElement('engine' => $model{'engine'}); 
   
     foreach my $entry_point (@{$cmd{'entry point'}})
     {
-      print($file_xml_out "    <main>$entry_point</main>\n");
+#      print($file_xml_out "    <main>$entry_point</main>\n");
+       $xml_writer->dataElement('main' => $entry_point);
     }
    
-    print($file_xml_out "    <hints>$model{'hints'}</hints>\n");  
-    print($file_xml_out "  </ld>\n\n");
+#    print($file_xml_out "    <hints>$model{'hints'}</hints>\n");  
+    $xml_writer->dataElement('hints' => $model{'hints'});
+#    print($file_xml_out "  </ld>\n\n");
+    # Close ld tag.
+    $xml_writer->endTag();
   }
 }
 
@@ -454,6 +493,9 @@ sub process_cmds()
   # Iterate over all commands to execute them and write output xml file.
   foreach my $cmd (@cmds)
   {
+	# To print out user friendly xml output.  
+	$cmd->set_pretty_print('indented');
+	  
     # At the beginning instrumentor basedir must be specified.
     if ($cmd->gi eq $xml_cmd_basedir)
     {
