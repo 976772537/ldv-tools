@@ -117,7 +117,7 @@ fi;
 
 echo "<?xml version=\"1.0\"?>" > $CMD_XML;
 echo "<cmdstream>" >> $CMD_XML;
-echo -e "\t<basedir>$KERNEL_DIR</basedir>" >> $CMD_XML;
+echo -e "\t<basedir>$NEXT_BASE_DIR</basedir>" >> $CMD_XML;
 
 
 #

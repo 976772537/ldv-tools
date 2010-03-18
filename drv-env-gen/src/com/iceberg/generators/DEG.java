@@ -28,7 +28,8 @@ public class DEG {
 	private static String defaultxml = "cmd.xml";
 	
 	private static String nextInstrumentDir = "dscv_tempdir";
-	private static String myInstrumentDir = "bce_tempdir";
+	private static String myInstrumentDir = "deg_tempdir";
+	private static String replacedInstrumentDir = "bce_tempdir";
 	
 	private static String rootTag = "cmdstream";
 	private static String basedirTag = "basedir";
@@ -81,7 +82,7 @@ public class DEG {
 							if (ldNodes.item(j).getNodeType() == Node.ELEMENT_NODE) {
 								if(ldNodes.item(j).getNodeName().equals(inTag)) {
 									String inTagContent = ldNodes.item(j).getTextContent();
-									String newinTagContent = inTagContent.replace(myInstrumentDir, nextInstrumentDir);
+									String newinTagContent = inTagContent.replace(replacedInstrumentDir, nextInstrumentDir);
 									ldNodes.item(j).setTextContent(newinTagContent);
 									File inFile = new File(inTagContent);
 									if(inFile.exists()) {
@@ -95,7 +96,7 @@ public class DEG {
 								//} else if(ccNodes.item(j).getNodeName().equals(optTag)) {
 								} else if(ldNodes.item(j).getNodeName().equals(outTag)) {
 									String inTagContent = ldNodes.item(j).getTextContent();
-									String newinTagContent = inTagContent.replace(myInstrumentDir, nextInstrumentDir);
+									String newinTagContent = inTagContent.replace(replacedInstrumentDir, nextInstrumentDir);
 									ldNodes.item(j).setTextContent(newinTagContent);
 								} 
 							}
@@ -126,7 +127,7 @@ public class DEG {
 						int local_counter=main_counter;
 						for(Node in : ins) {
 							String inTagContent = in.getTextContent();
-							String newinTagContent = inTagContent.replace(myInstrumentDir, nextInstrumentDir);
+							String newinTagContent = inTagContent.replace(replacedInstrumentDir, nextInstrumentDir);
 							if(MainGenerator.deg(newinTagContent,local_counter++))
 								isgenerated = true;
 							in.setTextContent(newinTagContent);
@@ -134,7 +135,7 @@ public class DEG {
 							
 						assert out!=null;
 						String outTagContent = out.getTextContent();
-						String newoutTagContent = out.getTextContent().replace(myInstrumentDir, nextInstrumentDir);
+						String newoutTagContent = out.getTextContent().replace(replacedInstrumentDir, nextInstrumentDir);
 						out.setTextContent(newoutTagContent);
 						// if c-file conatins main -> then create o-file in old
 						// dir, that contains info
