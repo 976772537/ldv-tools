@@ -1,6 +1,7 @@
 #! /usr/bin/perl -w
 
 
+use Cwd('abs_path', 'cwd');
 use English;
 use Env('LDV_ASPECTATOR', 'LDV_LLVM_C_BACKEND', 'LDV_LLVM_GCC', 'LDV_LLVM_LINKER');
 use Getopt::Long;
@@ -64,11 +65,18 @@ my $error_semantics = 2;
 # File handlers.
 my $file_xml_out;
 
+# Kind of instrumentation.
+my $kind_isplain = 0;
+my $kind_isaspect = 0;
+
 # Options to be passed to llvm c backend.
-my $llvm_c_backend_opts='-f -march=c';
+my $llvm_c_backend_opts = '-f -march=c';
+
+# Suffix for llvm c backend production.
+my $llvm_c_backend_suffix = '.cbe.c';
 
 # Options to be passed to llvm linker.
-my $llvm_linker_opts='-f';
+my $llvm_linker_opts = '-f';
 
 # Information on needed model.
 my %model;
@@ -84,6 +92,9 @@ my $opt_cmd_xml_out;
 my $opt_help;
 my $opt_model_dir;
 my $opt_model_id;
+
+# Absolute path to working directory of this tool. 
+my $tool_working_dir;
 
 # Xml nodes names.
 my $xml_cmd_basedir = 'basedir';
@@ -109,6 +120,9 @@ my $xml_model_db_model = 'model';
 ################################################################################
 # Main section.
 ################################################################################
+
+# Remember absolute path to the current working directory. 
+$tool_working_dir = Cwd::cwd();
 
 # Check whethe needed tools are specified trough environment variables.
 unless ($LDV_ASPECTATOR)
@@ -152,8 +166,11 @@ get_model_info();
 print($file_xml_out "<?xml version=\"1.0\"?>\n");
 # Print root node open tag.
 print($file_xml_out "<cmdstream>\n");
-# Print rule instrumentor basedir.
-print($file_xml_out "  <basedir>$opt_basedir</basedir>\n");
+# Print rule instrumentor basedir in aspect mode.
+if ($kind_isaspect)
+{
+  print($file_xml_out "  <basedir>$opt_basedir</basedir>\n\n");
+}
 
 # Process commands step by step.
 process_cmds();
@@ -192,7 +209,7 @@ sub get_model_info()
     }
   
     # Model is found!
-    if ($id_attr == $opt_model_id)
+    if ($id_attr eq $opt_model_id)
     { 
 	  # Read model information.
 	  my $engine = $model->first_child_text($xml_model_db_engine);
@@ -220,10 +237,28 @@ sub get_model_info()
         'id' => $id_attr, 
         'kind' => \@kinds,
         'aspect' => $aspect,
-        'commmon' => $common,
+        'common' => $common,
         'filter' => $filter,
         'engine' => $engine, 
         'hints' => $hints);
+     
+      foreach my $kind (@kinds)
+      {
+		if ($kind eq 'aspect')
+		{
+		  $kind_isaspect = 1;
+		}
+		elsif ($kind eq 'plain')
+		{
+		  $kind_isplain = 1;
+		}
+		else
+		{
+#          warn("Kind '$kind' can't be processed"); 	
+
+#          exit($error_semantics);			
+		}
+	  }
      
       # Finish models iteration after the first one is found and processed.
       last;
@@ -270,14 +305,7 @@ sub get_opt()
     
     help();
   }
-  
-  unless($opt_model_id =~ /^\d+$/)
-  {
-    warn("Value of option --model-id must be an integer number");
-    
-    help();
-  }
-  
+
   unless(-d $opt_basedir)
   {
     warn("Directory specified through option --basedir doesn't exist");
@@ -336,8 +364,8 @@ OPTIONS
     <file> is absolute path to xml file containing commands for tool.
 
   -m, --model-id <number>
-    <number> is integer model id that specify model to be instrumented
-    with source code.
+    <number> is model id that specify model to be instrumented with 
+    source code.
 
   -o, --cmd-xml-out <file>
     <file> is absolute path to xml file that will contain commands
@@ -350,40 +378,68 @@ EOM
 
 sub process_cmd_cc()
 {
-  # On each cc command we run aspectator on corresponding file with 
-  # corresponding model aspect and options.	
-  `LDV_LLVM_GCC=$LDV_LLVM_GCC $LDV_ASPECTATOR ${$cmd{'ins'}}[0] $opt_model_dir/$model{'aspect'} @{$cmd{'opts'}}`;
-	
-  # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectator_suffix with llvm
-  # object code. Copy them to $cmd{'out'} files.
-  `cp ${$cmd{'ins'}}[0]$aspectator_suffix $cmd{'out'}`;
+  if ($kind_isaspect)
+  {	
+    # Go to base directory to execute cc command.
+    chdir($opt_basedir);
   
-  # Cc command doesn't produce anything to output xml file.
+    # On each cc command we run aspectator on corresponding file with 
+    # corresponding model aspect and options.	
+    `LDV_LLVM_GCC=$LDV_LLVM_GCC $LDV_ASPECTATOR ${$cmd{'ins'}}[0] $opt_model_dir/$model{'aspect'} @{$cmd{'opts'}}`;
+	
+    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectator_suffix with llvm
+    # object code. Copy them to $cmd{'out'} files.
+    `cp ${$cmd{'ins'}}[0]$aspectator_suffix $cmd{'out'}`;
+  
+    # Come back.
+    chdir($tool_working_dir);
+  }
 }
 
 sub process_cmd_ld()
 {
-  # On each ld command we run llvm linker for all input files together to 
-  # produce one linked file.	
-  `$LDV_LLVM_LINKER $llvm_linker_opts @{$cmd{'ins'}} -o $cmd{'out'}`;
+  if ($kind_isaspect)
+  {	
+    # Go to base directory to execute ld command.
+    chdir($opt_basedir);
+  
+    # On each ld command we run llvm linker for all input files together to 
+    # produce one linked file.	
+    `$LDV_LLVM_LINKER $llvm_linker_opts @{$cmd{'ins'}} -o $cmd{'out'}`;
 
-  # Linked file is converted to c by means of llvm c backend.
-  `$LDV_LLVM_C_BACKEND $llvm_c_backend_opts $cmd{'out'}`;
+    # Make name for c file corresponding to the linked one. 
+    $cmd{'out'} =~ /\.[^\.]*$/;
+    my $c_out = "$PREMATCH$llvm_c_backend_suffix";
   
+    # Linked file is converted to c by means of llvm c backend.
+    `$LDV_LLVM_C_BACKEND $llvm_c_backend_opts $cmd{'out'} -o $c_out`;
   
+    # Come back.
+    chdir($tool_working_dir);
+    
+    # Print corresponding commands to output xml file.
+    print($file_xml_out "  <cc id=\"$cmd{'id'}-llvm-cc\">\n");
+    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");
+    print($file_xml_out "    <in>$c_out</in>\n");
+    # Use here the first input file name to relate with corresponding ld 
+    # command.    
+    print($file_xml_out "    <out>${$cmd{'ins'}}[0]</out>\n"); 
+    print($file_xml_out "  </cc>\n\n");
+
+    print($file_xml_out "  <ld id=\"$cmd{'id'}-llvm-ld\">\n");
+    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");    
+    print($file_xml_out "    <in>${$cmd{'ins'}}[0]</in>\n");  
+    print($file_xml_out "    <out>$cmd{'out'}</out>\n"); 
+    print($file_xml_out "    <engine>$model{'engine'}</engine>\n");
   
-#	<ld id="4">
-#		<cwd>/kernel</cwd>
-##		<in>/tempdir/after_envgen/driver/mousepad_usb.o</in>
-##		<in>/tempdir/after_envgen/driver/common.o</in>
-##		<out>/tempdir/after_envgen/driver/mousepad_usb.ko</out>
-#		<main>entry_point_1</main>
-#	</ld>  
-  
-  
-  
-	# Print rule instrumentor basedir.
-#print($file_xml_out "  <basedir>$opt_basedir</basedir>\n");
+    foreach my $entry_point (@{$cmd{'entry point'}})
+    {
+      print($file_xml_out "    <main>$entry_point</main>\n");
+    }
+   
+    print($file_xml_out "    <hints>$model{'hints'}</hints>\n");  
+    print($file_xml_out "  </ld>\n\n");
+  }
 }
 
 sub process_cmds()
@@ -402,10 +458,32 @@ sub process_cmds()
     if ($cmd->gi eq $xml_cmd_basedir)
     {
 	  $cmd_basedir = $cmd->text;
+	  
+	  if ($kind_isplain)
+      {
+        $cmd->print($file_xml_out);
+        
+        print($file_xml_out "\n\n");
+      }
     }
     # Interpret cc and ld commands.
     elsif ($cmd->gi eq $xml_cmd_cc or $cmd->gi eq $xml_cmd_ld)
     {
+	  # For nonaspect mode (plain mode) just copy and modify a bit input xml.	
+	  if ($kind_isplain)
+      {
+		# Add additional input model file for each ld command.   
+		if ($cmd->gi eq $xml_cmd_ld)
+		{
+		  my $xml_common_model = new XML::Twig::Elt('in', "$opt_model_dir/$model{'common'}");	
+		  $xml_common_model->paste('last_child', $cmd);
+		}  
+		  
+        $cmd->print($file_xml_out);
+        
+        print($file_xml_out "\n\n");
+      }			
+		
 	  # General commands section.  
 	  my $id_attr = $cmd->att($xml_cmd_attr_id);
 	  my $cwd = $cmd->first_child_text($xml_cmd_cwd);
