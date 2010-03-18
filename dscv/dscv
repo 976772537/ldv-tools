@@ -152,14 +152,20 @@ sub execute_cmd
 }
 $process_input->parsefile($config->{cmdfile});
 
+$" = ' ';	# For error reporting
+
 # Prepare working dirs
+
 my $out_cmd_dir = "$dscv_base_dir/cmdfiles";
-mkdir $out_cmd_dir;
+mkpath ($out_cmd_dir);
 
 # TODO : copy driver into it
 my $ri_basedir = "$dscv_base_dir/dscv";
 
-$" = ' ';	# For error reporting
+# Copy rules
+my $rules_dir = "$dscv_base_dir/rules";
+my @rule_install_args = ("$config->{rule_install_exe}", $rules_dir);
+system @rule_install_args and die "INTEGRATION ERROR.  Cmdline: @rule_install_args";
 
 # Get list of properties to check
 my @properties = @{$config->{properties}};
@@ -168,13 +174,14 @@ for my $property (@properties){
 	# make outcmdfile
 	my $outfile = "$out_cmd_dir/cmd$property.xml";
 	my @rule_instr_args = ($config->{rule_ins},
-		"--model-dir=$config->{rule_db_dir}",
+		"--model-dir=$rules_dir",
 		"--basedir=$ri_basedir",
 		"--model-id=$property",
 		"--cmd-xml=$config->{cmdfile}",
 		"--cmd-xml-out=$outfile"
 	);
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
+	#system "cp $config->{cmdfile} $outfile";
 	# Call C verifier
 	# TODO: parallelize
 	my @rcv_args = ("$rcv_frontends_dir/$config->{verifier}",

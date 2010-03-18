@@ -39,8 +39,14 @@ $check_input_file->parsefile($config->{cmdfile});
 # Call blast
 $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
-system @blast_args and die "INTEGRATION ERROR.  Cmdline: @blast_args";
-
-
-
+my $blast_out_FH;
+my $fpid = open $blast_out_FH,"-|",@blast_args;
+defined $fpid or die "INTEGRATION ERROR.  Cmdline: @blast_args";
+if ($fpid == 0){
+	# child
+	# chew the output.  Do nothing
+	exit;
+}
+# Parent
+# Parend for now does nothing as well
 
