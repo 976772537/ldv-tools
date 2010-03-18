@@ -107,6 +107,7 @@ if ($compile && $link) {
 
 # Ok, we've determined what is done there.  Now, print the XML
 use XML::Twig;
+use Cwd;
 sub print_cmd
 {
 	my $cmd = shift or die;
@@ -114,6 +115,7 @@ sub print_cmd
 	local $_;
 	XML::Twig::Elt->new("out",$cmd->{out})->paste('last_child',$tcmd);
 	XML::Twig::Elt->new("in",$_)->paste('last_child',$tcmd) for @{$cmd->{in}};
+	XML::Twig::Elt->new("cwd",getcwd())->paste('last_child',$tcmd);
 	XML::Twig::Elt->new("opt",$_)->paste('last_child',$tcmd) for @{$cmd->{opts}};
 	$tcmd->print('indented');
 }
