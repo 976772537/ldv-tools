@@ -8,18 +8,20 @@
 	<property name="build" location="build"/>
 	<property name="dist"  location="dist"/>
 	<property name="lib"  location="${src}/lib"/>
+	<property name="xerces.jar"  location="${lib}/xmlParserAPIs-2.6.2.jar"/>
+
+	<path id="deg.classpath">
+		<pathelement location="${xerces.jar}"/>
+	</path>
 
 	<target name="init">
-		<!-- <tstamp/> -->
 		<mkdir dir="${build}"/>
 		<mkdir dir="${dist}"/>
 	</target>
 
 	<target name="compile" depends="init" description="compile the source">
 		<javac srcdir="${src}" destdir="${build}">
-			<classpath>
-				<pathelement path="${lib}/xmlParserAPIs-2.6.2.jar"/>
-			</classpath>
+			<classpath refid="deg.classpath" />
 		</javac>
 	</target>
 
@@ -37,4 +39,3 @@
 		<delete dir="${dist}"/>
 	</target>
 </project>
-

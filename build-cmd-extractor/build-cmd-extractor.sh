@@ -6,7 +6,9 @@ TRACE_FILENAME="build_trace";
 XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
-XML_CREATOR="../cmd-utils/as_gcc"
+REPO_PATH=`pwd`"/../";
+XGCC=`echo $REPO_PATH | sed 's/\//\\\\\//g'`;
+#XGCC="\\/home\\/iceberg\\/ldv-tools\\/cmd-utils\\/as_gcc";
 
 bce_print() {
 	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
@@ -104,6 +106,19 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
+#
+# and now create xml file from build-trace-file
+#
+if [ -n "$CMD_XML_FILE" ]; then
+        CMD_XML=$CMD_XML_FILE;
+else
+        CMD_XML="$WORK_DIR/$XML_FILENAME";
+fi;
+
+echo "<?xml version=\"1.0\"?>" > $CMD_XML;
+echo "<cmdstream>" >> $CMD_XML;
+echo -e "\t<basedir>$KERNEL_DIR</basedir>" >> $CMD_XML;
+
 
 #
 # try to find "scripts/Makefile.build" in kernel source directory
@@ -153,7 +168,9 @@ fi;
 #
 #***************************************************************************************
 # I.
-sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = echo \"CFLAGS_FOR_FILE = \"\$@\" CFLAGS = \"'\$(c_flags)' >> \$(BUILDFILE); \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
+#sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = $XGCC \$< \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) >> \$(BUILDFILE); \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
+export POOL=1;
+sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = $XGCC \$< \$(c_flags) -c -o \$(@D)\/\$(@F) >> \$(BUILDFILE); \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	bce_print "Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
@@ -161,15 +178,15 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 # II.
-sed -i -e "s/\scat \$m;, echo kernel\/\$m;))/cat \$m;, echo \"MODULE = \$m\" >> \$(BUILDFILE); echo kernel\/\$m;))/g" $KERNEL_MAKEFILE_BUILD;
-if [ $? -ne 0 ]; then
-	bce_print "Failed patch (II. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
-	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
-	if [ $? -ne 0 ]; then bce_print "ATTENSION: Can't recover Makefile.build !"; fi;
-	exit 1;
-fi;
+#sed -i -e "s/\scat \$m;, echo kernel\/\$m;))/cat \$m;, echo \"MODULE = \$m\" >> \$(BUILDFILE); echo kernel\/\$m;))/g" $KERNEL_MAKEFILE_BUILD;
+#if [ $? -ne 0 ]; then
+#	bce_print "Failed patch (II. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+#	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+#	if [ $? -ne 0 ]; then bce_print "ATTENSION: Can't recover Makefile.build !"; fi;
+#	exit 1;
+#fi;
 # III.
-sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = echo \"LDFLAGS_FOR_FILE = \$@ LDFLAGS = -r -o \$(ld_flags) DEPS = \$(link_multi_deps)\" >> \$(BUILDFILE); \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
+sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = $XGCC \$(ld_flags) \$(link_multi_deps) -r -o \$@ >> \$(BUILDFILE); \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	bce_print "Failed patch (III. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
@@ -188,7 +205,7 @@ if [ $? -ne 0 ]; then
 	if [ $? -ne 0 ]; then bce_print "ATTENSION: Can't recover Makefile.build !"; fi;
 	exit 1;
 fi;
-make $DRIVER_TRACE_DIR/ BUILDFILE=$TRACE_FILE > $KERNEL_COMPILE_LOG 2>&1;
+make $DRIVER_TRACE_DIR/ BUILDFILE=$CMD_XML > $KERNEL_COMPILE_LOG 2>&1;
 if [ $? -ne 0 ]; then
 	bce_print "Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
@@ -203,6 +220,37 @@ if [ $? -ne 0 ]; then
 	bce_print "ATTENSION: Can't recover Makefile.build !"; 
 	exit 1; 
 fi;
+echo -e "</cmdstream>" >> $CMD_XML;
+
+#
+# fix format - add one tab before <cc> and <ld> tags and...
+#
+sed -i -e 's/^<cc/\t<cc/g' $CMD_XML; 
+sed -i -e 's/^<\/cc/\t<\/cc/g' $CMD_XML; 
+sed -i -e 's/^<ld/\t<ld/g' $CMD_XML; 
+sed -i -e 's/^<\/ld/\t<\/ld/g' $CMD_XML; 
+sed -i -e 's/^  <in>/\t\t<in>/g' $CMD_XML; 
+sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $CMD_XML; 
+sed -i -e 's/^  <out>/\t\t<out>/g' $CMD_XML; 
+sed -i -e 's/^  <opt>/\t\t<opt>/g' $CMD_XML; 
+
+#
+# fix id numbers
+#
+#k=1;
+#cat $CMD_XML | while read iline; do 
+#	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
+#		replacement=`echo \"$iline\" | sed s/'<'cc' 'id=\"[0-9]\"'>'/'<'cc' 'id=\"$k\"'>'/`;
+#		sed -i -e s/'<'cc' 'id="[0-9]"'>'/'<'cc' 'id="$k"'>'/`;
+#		let k=$k+1;
+#	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
+#	replacement=`echo $iline | sed \"s/<cc id="[0-9]">/<cc id="$k">/\"`
+#	echo $iline | sed 's/<ld id="[0-9]">/<ld id="$k">/'
+#		let k=$k+1;
+#	fi; 
+#done;
+
+exit 0;
 
 #
 # test - trace file created or not...
@@ -255,11 +303,6 @@ cat $TRACE_FILE | while read line; do
 	CC_FILE_ABS=`echo $line | grep ^CFLAGS_FOR_FILE | sed 's/^CFLAGS_FOR_FILE = //' | sed 's/ CFLAGS = .*//'`;
 	LD_FILE_ABS=`echo $line | grep ^LDFLAGS_FOR_FILE | sed 's/^LDFLAGS_FOR_FILE = //' | sed 's/ LDFLAGS = .*//'`;
 	if [ "$CC_FILE_ABS" ]; then
-#		SQUARED_WORK_DIR=`echo $WORK_DIR | sed 's/\//\\\\\\//g'`"\\/";
-#		XML_CWD=`dirname $CC_FILE_ABS | sed "s/$SQUARED_WORK_DIR//"`;
-#		SQUARED_WOR_DIR_EXT="$SQUARED_WORK_DIR$XML_CWD\\/";
-#		FILE_O=`echo $CC_FILE_ABS | sed "s/$SQUARED_WOR_DIR_EXT//"`;
-#		FILE_C=`echo $FILE_O | sed 's/\.o$/\.c/'`;
 		echo -e "\t<cc id=\"$k\">" >> $CMD_XML;
 		echo -e "\t\t<cwd>$KERNEL_DIR</cwd>" >> $CMD_XML;
 		echo -e "\t\t<in>"`echo $CC_FILE_ABS | sed 's/\.o/.c/' | sed 's/bce_tempdir/deg_tempdir/'`"</in>" >> $CMD_XML;

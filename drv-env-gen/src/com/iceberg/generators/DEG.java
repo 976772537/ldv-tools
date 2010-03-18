@@ -18,8 +18,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.iceberg.FSOperationsBase;
-import com.iceberg.cbase.generators.cmdstream.CmdNode;
-import com.iceberg.cbase.generators.cmdstream.CmdStream;
 import com.sun.org.apache.xml.internal.serialize.DOMSerializer;
 import com.sun.org.apache.xml.internal.serialize.OutputFormat;
 import com.sun.org.apache.xml.internal.serialize.XMLSerializer;
@@ -30,7 +28,7 @@ public class DEG {
 	private static String defaultxml = "cmd.xml";
 	
 	private static String nextInstrumentDir = "dscv_tempdir";
-	private static String myInstrumentDir = "deg_tempdir";
+	private static String myInstrumentDir = "bce_tempdir";
 	
 	private static String rootTag = "cmdstream";
 	private static String basedirTag = "basedir";
@@ -49,7 +47,7 @@ public class DEG {
 		}
 		String outXmlFile = args[0]+'/'+defaultdir+'/'+defaultxml;
 		if(args.length == 3)
-			outXmlFile = args[0];
+			outXmlFile = args[2];
 		
 		try {
 			DocumentBuilder xml = DocumentBuilderFactory.newInstance().newDocumentBuilder();
@@ -73,6 +71,9 @@ public class DEG {
 						File sourceDir = new File(lbasedir);
 						File destinationDir = new File(args[0]+'/'+nextInstrumentDir);
 						FSOperationsBase.copyDirectory(sourceDir, destinationDir);
+						
+						String newinTagContent = lbasedir.replace(myInstrumentDir, nextInstrumentDir);
+						cmdstreamNodeList.item(i).setTextContent(newinTagContent);
 					} else if(cmdstreamNodeList.item(i).getNodeName().equals(ldTag)) {
 						NodeList ldNodes = cmdstreamNodeList.item(i).getChildNodes();
 						//boolean isgenerated = false;
@@ -86,6 +87,7 @@ public class DEG {
 									if(inFile.exists()) {
 										String buffer = FSOperationsBase.readFileCRLF(inTagContent);
 										if(buffer.length()>=9) {
+											//mainList.add(buffer);
 											String main_number = buffer.replace("ldv_main","").trim();
 											mainList.add(main_number);
 										}
@@ -108,35 +110,45 @@ public class DEG {
 					} else if(cmdstreamNodeList.item(i).getNodeName().equals(ccTag)) {
 						NodeList ccNodes = cmdstreamNodeList.item(i).getChildNodes();
 						boolean isgenerated = false;
+						List<Node> ins = new ArrayList<Node>();
+						Node out = null;
 						for(int j=1; j<ccNodes.getLength(); j++) {
 							if (ccNodes.item(j).getNodeType() == Node.ELEMENT_NODE) {
 								if(ccNodes.item(j).getNodeName().equals(inTag)) {
-									String inTagContent = ccNodes.item(j).getTextContent();
-									String newinTagContent = inTagContent.replace(myInstrumentDir, nextInstrumentDir);
-									if(MainGenerator.deg(newinTagContent,main_counter))
-										isgenerated = true;
-									ccNodes.item(j).setTextContent(newinTagContent);
-								//} else if(ccNodes.item(j).getNodeName().equals(optTag)) {
+									ins.add(ccNodes.item(j)); 
+								} else if(ccNodes.item(j).getNodeName().equals(optTag)) {
+									//TODO ifdef opt
 								} else if(ccNodes.item(j).getNodeName().equals(outTag)) {
-									String inTagContent = ccNodes.item(j).getTextContent();
-									String newinTagContent = ccNodes.item(j).getTextContent().replace(myInstrumentDir, nextInstrumentDir);
-									ccNodes.item(j).setTextContent(newinTagContent);
-									// if c-file conatins main -> then create o-file in old
-									// dir, that contains info
-									if(isgenerated) {
-										FileWriter fw = new FileWriter(inTagContent);
-										fw.write("ldv_main"+main_counter++);
-										fw.close();
-									}
+									out = ccNodes.item(j);
 								} 
 							}
+						}
+						int local_counter=main_counter;
+						for(Node in : ins) {
+							String inTagContent = in.getTextContent();
+							String newinTagContent = inTagContent.replace(myInstrumentDir, nextInstrumentDir);
+							if(MainGenerator.deg(newinTagContent,local_counter++))
+								isgenerated = true;
+							in.setTextContent(newinTagContent);
+						}
+							
+						assert out!=null;
+						String outTagContent = out.getTextContent();
+						String newoutTagContent = out.getTextContent().replace(myInstrumentDir, nextInstrumentDir);
+						out.setTextContent(newoutTagContent);
+						// if c-file conatins main -> then create o-file in old
+						// dir, that contains info
+						if(isgenerated) {
+							FileWriter fw = new FileWriter(outTagContent);
+							//for(; main_counter!=local_counter; main_counter++)
+								fw.write("ldv_main" + main_counter++);
+							fw.close();
 						}
 					}
 				}
 			}
 			OutputFormat format = new OutputFormat();
 			format.setIndenting(true);
-			
 			File xmlOutFile = new File(outXmlFile);
 			FileOutputStream os = new FileOutputStream(xmlOutFile);
 			DOMSerializer serializer = new XMLSerializer(os, format);
