@@ -61,6 +61,7 @@ my %argopts = (	# options, which are followed by an argument.
 	"-G" => "num",
 );
 
+# TODO: logic that determines what staged GCC invokes is crippled.  For now it only supports .c -> .o compilation and .o -> .o linking
 while ($_ = shift @ARGV){
 	if ($argopts{$_}){ #options that's followed by an argument
 		push @opts,$_;
@@ -76,16 +77,12 @@ while ($_ = shift @ARGV){
 		push @infiles,$_;
 		if (/.*\.c$/){	# .c file encountered
 			$compile = 1;
-			$link = 1 unless defined $link;
 		}
 		if(/\.o$/){	# .o file
 			$link = 1;
 		}
 	}elsif(/^[^-].*/ && $output){	#output file
 		$outfile = $_;
-		if(/\.o$/){	# .o file
-			$link = '';
-		}
 	}else{	# reset state
 		push @opts,$_;
 		$argument = '';
