@@ -7,7 +7,9 @@ XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
 REPO_PATH=`pwd`"/../";
-XGCC=`echo $REPO_PATH | sed 's/\//\\\\\//g'`;
+XGCC=`echo $REPO_PATH | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+#echo $XGCC;
+#exit;
 #XGCC="\\/home\\/iceberg\\/ldv-tools\\/cmd-utils\\/as_gcc";
 
 bce_print() {
@@ -220,7 +222,6 @@ if [ $? -ne 0 ]; then
 	bce_print "ATTENSION: Can't recover Makefile.build !"; 
 	exit 1; 
 fi;
-echo -e "</cmdstream>" >> $CMD_XML;
 
 #
 # fix format - add one tab before <cc> and <ld> tags and...
@@ -235,48 +236,49 @@ sed -i -e 's/^  <out>/\t\t<out>/g' $CMD_XML;
 sed -i -e 's/^  <opt>/\t\t<opt>/g' $CMD_XML; 
 
 #
-# fix id numbers
-#
-#k=1;
-#cat $CMD_XML | while read iline; do 
-#	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
-#		replacement=`echo \"$iline\" | sed s/'<'cc' 'id=\"[0-9]\"'>'/'<'cc' 'id=\"$k\"'>'/`;
-#		sed -i -e s/'<'cc' 'id="[0-9]"'>'/'<'cc' 'id="$k"'>'/`;
-#		let k=$k+1;
-#	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
-#	replacement=`echo $iline | sed \"s/<cc id="[0-9]">/<cc id="$k">/\"`
-#	echo $iline | sed 's/<ld id="[0-9]">/<ld id="$k">/'
-#		let k=$k+1;
-#	fi; 
-#done;
-
-exit 0;
-
-#
-# test - trace file created or not...
-#
-if [ ! -f "$TRACE_FILE" ]; then
-	bce_print "Can't find build trace file: \"$TRACE_FILE\" .";
-	exit 1;
-fi;
-
-#
 # Is it single-driver ?
 #
 # TODO: 1. find MODULE - test if LDFLAGS_FOR_FILE not exists for this module then add it
 #
-IS_MULTIPLE=`grep '^LDFLAGS_FOR_FILE' $TRACE_FILE`;
-# driver single - then fix trace file - add LDFLAGS_FOR_FILE
-if [ ! -n "$IS_MULTIPLE" ]; then
-	cat $TRACE_FILE | while read line; do
-		MODULE_TAG=`echo $line | grep '^MODULE\ =\ '`;
-#		CUR_MODULE=`echo $MODULE_TAG | sed 's/^MODULE = //' | sed 's/\.ko$/.o/'`;
-		CUR_MODULE=`echo $MODULE_TAG | sed 's/^MODULE = //'`;
-		if [ -n "$CUR_MODULE" ]; then		
-			echo "LDFLAGS_FOR_FILE = $CUR_MODULE LDFLAGS = -r -o DEPS = "`echo $CUR_MODULE | sed 's/\.ko$/.o/'` >> $TRACE_FILE;
+IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $CMD_XML`;
+# driver single - then fix trace file - add <ld> for all cc
+if [ ! -n "$IS_WITHOUT_LD" ]; then
+	cat $CMD_XML | while read line; do
+		CC_FILE=`echo $line | grep -E '<out>.*</out>'`;
+		if [ -n "$CC_FILE" ]; then
+			CC_FILE=`echo $CC_FILE | sed 's/<out>//' | sed 's/<\/out>//'`;
+#
+# if c-file for this not existst then we pass it
+#
+			if [ -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
+				echo -e "\t<ld id=\"1\">" >> $CMD_XML;
+				echo -e "\t\t<in>$CC_FILE</in>" >> $CMD_XML;
+				echo -e "\t\t<out>"`echo $CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $CMD_XML;
+				echo -e "\t</ld>" >> $CMD_XML;
+			fi;
 		fi;
 	done;
 fi;
+
+echo -e "</cmdstream>" >> $CMD_XML;
+
+#
+# fix id numbers
+#
+k=1;
+cat $CMD_XML | while read iline; do 
+	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
+		sed -i -e "s/$iline/<cc id=\"$k\">/" $CMD_XML;
+		let k=$k+1;
+	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
+		sed -i -e "s/$iline/<ld id=\"$k\">/" $CMD_XML;
+		let k=$k+1;
+	fi; 
+done;
+
+#cat $CMD_XML;
+exit;
+
 
 #
 # and now create xml file from build-trace-file

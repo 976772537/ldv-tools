@@ -56,12 +56,12 @@ $config->{properties} = [];
 $optionSpecs{'property=s@'} = \$config->{property};
 $optionSpecs{'properties=s@'} = \$config->{properties};
 
-=item B<--verifier>
+=item B<--verifier=backend>
 
-Properties to check.  They are looked for in property datbase.
+Overrides the verifier passed by rule instrumentor.
 
 =cut
-$optionSpecs{'verifier=s'} = \$config->{verifier};
+$optionSpecs{'verifier=s'} = \$config->{verifier_override};
 
 
 =back
@@ -162,7 +162,8 @@ my $for_rcv_dir = "$dscv_base_dir/cmdfiles/rcv";
 mkpath ($for_rcv_dir);
 
 # TODO : copy driver into it
-my $ri_basedir = "$dscv_base_dir/dscv";
+my $ri_basedir = "$dscv_base_dir/ri";
+mkpath ($ri_basedir);
 
 # Copy rules
 my $rules_dir = "$dscv_base_dir/rules";
@@ -179,7 +180,7 @@ for my $property (@properties){
 		"--model-dir=$rules_dir",
 		"--basedir=$ri_basedir",
 		"--model-id=$property",
-		"--cmd-xml=$config->{cmdfile}",
+		"--cmd-xml-in=$config->{cmdfile}",
 		"--cmd-xml-out=$outfile"
 	);
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
@@ -194,6 +195,8 @@ for my $property (@properties){
 			my ($twig, $cmdT) = @_;
 			my $id = $cmdT->att('id');
 			my $verifier = $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification";
+			# Override verifier if necessary
+			$verifier = $config->{verifier_override} if defined $config->{verifier_override};
 
 			# Print tag to temporary file
 			my $cmdfile = "$dir/model$property-$verifier-$id.xml";

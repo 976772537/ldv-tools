@@ -31,8 +31,14 @@ BCE="$BCE_DIR/build-cmd-extractor.sh";
 DEG_DIR="$REPO_PATH/drv-env-gen";
 DEG="java -ea -jar $DEG_DIR/dist/drv-env-gen.jar";
 
-if [ $# -ne 3 ]; then
-	echo "USAGE: ldv.sh workdir kerneldir driver"
+DSCV_DIR="$REPO_PATH/dscv";
+DSCV="$DSCV_DIR/dscv";
+
+RINSTR_DIR="$REPO_PATH/rule-instrumentor";
+RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
+
+if [ $# -ne 5 ]; then
+	echo "USAGE: ldv.sh workdir kerneldir driver ldv_rule_db ruleslist"
 	exit 1;
 fi;
 
@@ -122,8 +128,12 @@ if [ $? -ne 0 ]; then
         ldv_print "Drv-env-gen failed."
         exit 1;
 fi;
-
-
+echo "LDV_RULE_DB=$4 LDV_WORK_DIR=$GLOBAL_WORK_DIR/dscv_tempdir $DSCV --cmdfile=$CMD_XML --properties=$5;";
+RULE_INSTRUMENTOR=$RINSTR LDV_RULE_DB=$4 LDV_WORK_DIR=$GLOBAL_WORK_DIR/dscv_tempdir $DSCV --cmdfile=$CMD_XML --properties=$5;
+if [ $? -ne 0 ]; then
+        ldv_print "DSCV failed."
+        exit 1;
+fi;
 
 
 
