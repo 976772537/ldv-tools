@@ -407,8 +407,11 @@ sub process_cmd_cc()
     chdir($opt_basedir);
   
     # On each cc command we run aspectator on corresponding file with 
-    # corresponding model aspect and options.	
-    `LDV_LLVM_GCC=$LDV_LLVM_GCC $LDV_ASPECTATOR ${$cmd{'ins'}}[0] $opt_model_dir/$model{'aspect'} @{$cmd{'opts'}}`;
+    # corresponding model aspect and options.
+    # TODO: choose command format
+    my @args = ($LDV_ASPECTATOR, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'aspect'}", @{$cmd{'opts'}});
+    system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
+    #`LDV_LLVM_GCC=$LDV_LLVM_GCC $LDV_ASPECTATOR ${$cmd{'ins'}}[0] $opt_model_dir/$model{'aspect'} @{$cmd{'opts'}}`;
 	
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectator_suffix with llvm
     # object code. Copy them to $cmd{'out'} files.
@@ -427,7 +430,8 @@ sub process_cmd_ld()
     chdir($opt_basedir);
   
     # On each ld command we run llvm linker for all input files together to 
-    # produce one linked file.	
+    # produce one linked file.
+    # TODO: choose command format	
     `$LDV_LLVM_LINKER $llvm_linker_opts @{$cmd{'ins'}} -o $cmd{'out'}`;
 
     # Make name for c file corresponding to the linked one. 
@@ -435,6 +439,7 @@ sub process_cmd_ld()
     my $c_out = "$PREMATCH$llvm_c_backend_suffix";
   
     # Linked file is converted to c by means of llvm c backend.
+    # TODO: choose command format
     `$LDV_LLVM_C_BACKEND $llvm_c_backend_opts $cmd{'out'} -o $c_out`;
   
     # Come back.
