@@ -1,5 +1,6 @@
 package com.iceberg.generators;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.FileWriter;
@@ -62,6 +63,9 @@ public class MainGenerator {
 	}
 	
 	public static boolean deg(String filename, int counter) {
+		File file = new File(filename);
+		if(!file.exists())
+			return false;
 		return generateByIndex(filename, counter, filename);
 	}
 
