@@ -162,7 +162,8 @@ my $for_rcv_dir = "$dscv_base_dir/cmdfiles/rcv";
 mkpath ($for_rcv_dir);
 
 # TODO : copy driver into it
-my $ri_basedir = "$dscv_base_dir/dscv";
+my $ri_basedir = "$dscv_base_dir/ri";
+mkpath ($ri_basedir);
 
 # Copy rules
 my $rules_dir = "$dscv_base_dir/rules";
