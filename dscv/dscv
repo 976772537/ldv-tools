@@ -56,12 +56,12 @@ $config->{properties} = [];
 $optionSpecs{'property=s@'} = \$config->{property};
 $optionSpecs{'properties=s@'} = \$config->{properties};
 
-=item B<--verifier>
+=item B<--verifier=backend>
 
-Properties to check.  They are looked for in property datbase.
+Overrides the verifier passed by rule instrumentor.
 
 =cut
-$optionSpecs{'verifier=s'} = \$config->{verifier};
+$optionSpecs{'verifier=s'} = \$config->{verifier_override};
 
 
 =back
@@ -194,6 +194,8 @@ for my $property (@properties){
 			my ($twig, $cmdT) = @_;
 			my $id = $cmdT->att('id');
 			my $verifier = $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification";
+			# Override verifier if necessary
+			$verifier = $config->{verifier_override} if defined $config->{verifier_override};
 
 			# Print tag to temporary file
 			my $cmdfile = "$dir/model$property-$verifier-$id.xml";
