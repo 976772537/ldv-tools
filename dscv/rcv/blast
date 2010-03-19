@@ -24,7 +24,7 @@ my $backend_dir = "$shared_dir/backends/$config->{verifier}";
 -f $config->{cmdfile} or die "BLAST's command file $config->{cmdfile} is not found";
 
 # Add path for blast's supplementary scripts.
-$ENV{'PATH'} .= ":$backend_dir/blast/bin";
+$ENV{'PATH'} = "$backend_dir/blast/bin:".$ENV{'PATH'};
 
 # We should have parsed the command file, get dependencies, etc, etc...  but now we just check if it's a valid XML.
 use XML::Twig;
