@@ -5,11 +5,13 @@ DRIVERS_DIR="/home/iceberg/Documents/linuxtesting/0032-serial-unsafe";
 #DRIVERS_DIR="/home/iceberg/Documents/linuxtesting";
 WORK_DIR="/home/iceberg/newrepo/tasktest";
 KERNEL_DIR="/home/iceberg/newrepo/linux-2.6.32.10";
-RULES_LIST="0032a,0039";
+RULES_LIST="32_1";
 RULES_DB="/home/iceberg/kernel-rules";
 
-
-export 
+export LDV_ASPECTATOR="/home/iceberg/projects/LDV/ldv/model/instrumenter/llvm-2.6/aspectator/aspectator.sh"
+export LDV_LLVM_C_BACKEND="/usr/share/llvm/llvm-2.6-bin/bin/llc"
+export LDV_LLVM_GCC="/usr/share/llvm/llvm-gcc-2.6-bin/bin/gcc"
+export LDV_LLVM_LINKER="/usr/share/llvm/llvm-2.6-bin/bin/llvm-link"
 
 rm -fr $WORK_DIR/*;
 

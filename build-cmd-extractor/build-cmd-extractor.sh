@@ -7,7 +7,9 @@ XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
 REPO_PATH=`pwd`"/../";
-XGCC=`echo $REPO_PATH | sed 's/\//\\\\\//g'`;
+XGCC=`echo $REPO_PATH | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+#echo $XGCC;
+#exit;
 #XGCC="\\/home\\/iceberg\\/ldv-tools\\/cmd-utils\\/as_gcc";
 
 bce_print() {
