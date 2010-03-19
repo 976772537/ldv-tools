@@ -179,7 +179,7 @@ for my $property (@properties){
 		"--model-dir=$rules_dir",
 		"--basedir=$ri_basedir",
 		"--model-id=$property",
-		"--cmd-xml=$config->{cmdfile}",
+		"--cmd-xml-in=$config->{cmdfile}",
 		"--cmd-xml-out=$outfile"
 	);
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
