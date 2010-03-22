@@ -27,8 +27,8 @@ public class DEG {
 	private static String defaultdir = "deg_tempdir";
 	private static String defaultxml = "cmd.xml";
 	
-	private static String nextInstrumentDir = "dscv_tempdir";
-	private static String myInstrumentDir = "deg_tempdir";
+	private static String nextInstrumentDir = "deg_tempdir";
+	private static String myInstrumentDir = "bce_tempdir";
 	private static String replacedInstrumentDir = "bce_tempdir";
 	
 	private static String rootTag = "cmdstream";

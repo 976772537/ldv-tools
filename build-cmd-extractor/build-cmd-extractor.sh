@@ -1,33 +1,35 @@
 #!/bin/sh
 
-GLOBAL_LOG="global.log";
+BCE_TEMPDIR_NAME="bce_tempdir"
+LDV_TEMPDIR_NAME="ldv_tempdir"
+
+GLOBAL_LOG="bce_global.log";
 KERNEL_COMPILE_LOG_FILENAME="ckc.log";
 TRACE_FILENAME="build_trace";
 XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
+
 REPO_PATH=`pwd`"/../";
 XGCC=`echo $REPO_PATH | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
-#echo $XGCC;
-#exit;
-#XGCC="\\/home\\/iceberg\\/ldv-tools\\/cmd-utils\\/as_gcc";
 
 bce_print() {
 	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-        if [ ! -f "$WORK_DIR/$GLOBAL_LOG" ];  then
-                touch $WORK_DIR/$GLOBAL_LOG;
+        if [ ! -f "$LDV_WORK_DIR/$GLOBAL_LOG" ];  then
+                touch $LDV_WORK_DIR/$GLOBAL_LOG;
                 if [ $? -ne 0 ]; then 
 			echo "ERROR: can't create log file.";
 			exit 1; 
 		fi;
         fi;
-        echo "$LOG_PREFIX$1" >> $WORK_DIR/$GLOBAL_LOG;
+        echo "$LOG_PREFIX$1" >> $LDV_WORK_DIR/$GLOBAL_LOG;
 }
 
 if [ $# -ne 3 -a $# -ne 4 ]; then
 	echo "USAGE: build-cmd-extractor workdir kernel_src_dir driver_dir <xml_file>";
 	exit 1;
 fi;
+
 WORK_DIR=`readlink -f $1`;
 if [ $? -ne 0 ]; then
 	echo "Failed to read abs-path for working dir: \"$1\"."
@@ -37,19 +39,14 @@ if [ ! -d "$WORK_DIR" ]; then
 	echo "Working directory does not exists: \"$WORK_DIR\".";
 	exit 1;
 fi;
-NEXT_BASE_DIR=$WORK_DIR/"deg_tempdir";
+LDV_WORK_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
+NEXT_BASE_DIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
 mkdir $NEXT_BASE_DIR;
 if [ $? -ne 0 ]; then
 	echo "Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
 	exit 1;
 fi;
 NEXT_DIRVER_DIR=$NEXT_BASE_DIR/"driver";
-WORK_DIR=$WORK_DIR"/bce_tempdir";
-mkdir $WORK_DIR;
-if [ $? -ne 0 ]; then
-	echo "Failed to create bce tempdir: \"$WORK_DIR\".";
-	exit 1;
-fi;
 KERNEL_DIR=`readlink -f $2`;
 if [ $? -ne 0 ]; then
 	bce_print "Failed to read abs-path for kernel dir: \"$2\"."
@@ -68,13 +65,15 @@ if [ ! -d "$DRIVER_DIR" ]; then
 	bce_print "Driver directory does not exists: \"$DRIVER_DIR\".";
 	exit 1;
 fi;
+
+CMD_XML=$LDV_WORK_DIR/$XML_FILENAME;
 if [ $# -eq 4 ]; then
-	CMD_XML_FILE=`readlink -f $4`;
+	CMD_XML=`readlink -f $4`;
 	if [ $? -ne 0 ]; then
 		bce_print "Failed to read abs path for: \"$4\"."
 		exit 1;
 	fi;
-	touch $CMD_XML_FILE;
+	touch $CMD_XML;
 	if [ $? -ne 0 ]; then
 		bce_print "Failed to create empty XML file: \"$4\"."
 		exit 1;
@@ -88,33 +87,6 @@ cp -r $DRIVER_DIR $NEXT_DIRVER_DIR;
 if [ $? -ne 0 ]; then
 	bce_print "Failed to copy driver sources for next instrument."
 	exit 1;
-fi;
-
-#
-# create directory for driver build
-#
-DRIVER_TRACE_DIR=$WORK_DIR"/driver";
-mkdir $DRIVER_TRACE_DIR;
-if [ $? -ne 0 ]; then
-	bce_print "Failed to create dir for driver in tempdir: \"$DRIVER_TRACE_DIR\".";
-	exit 1;
-fi;
-#
-# copy driver sources to tempdir 
-#
-cp -r $DRIVER_DIR/* $DRIVER_TRACE_DIR/
-if [ $? -ne 0 ]; then
-	bce_print "Failed to copy driver sources.";
-	exit 1;
-fi;
-
-#
-# and now create xml file from build-trace-file
-#
-if [ -n "$CMD_XML_FILE" ]; then
-        CMD_XML=$CMD_XML_FILE;
-else
-        CMD_XML="$WORK_DIR/$XML_FILENAME";
 fi;
 
 echo "<?xml version=\"1.0\"?>" > $CMD_XML;
@@ -170,8 +142,6 @@ fi;
 #
 #***************************************************************************************
 # I.
-#sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = $XGCC \$< \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) >> \$(BUILDFILE); \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
-export POOL=1;
 sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = $XGCC \$< \$(c_flags) -c -o \$(@D)\/\$(@F) >> \$(BUILDFILE); \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	bce_print "Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
@@ -179,15 +149,6 @@ if [ $? -ne 0 ]; then
 	if [ $? -ne 0 ]; then bce_print "ATTENSION: Can't recover Makefile.build !"; fi;
 	exit 1;
 fi;
-# II.
-#sed -i -e "s/\scat \$m;, echo kernel\/\$m;))/cat \$m;, echo \"MODULE = \$m\" >> \$(BUILDFILE); echo kernel\/\$m;))/g" $KERNEL_MAKEFILE_BUILD;
-#if [ $? -ne 0 ]; then
-#	bce_print "Failed patch (II. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
-#	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
-#	if [ $? -ne 0 ]; then bce_print "ATTENSION: Can't recover Makefile.build !"; fi;
-#	exit 1;
-#fi;
-# III.
 sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = $XGCC \$(ld_flags) \$(link_multi_deps) -r -o \$@ >> \$(BUILDFILE); \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	bce_print "Failed patch (III. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
@@ -198,8 +159,8 @@ fi;
 #
 # Ok, and now try to start make for driver (driver must be prepared for make)
 #
-TRACE_FILE="$WORK_DIR/$TRACE_FILENAME";
-KERNEL_COMPILE_LOG="$WORK_DIR/$KERNEL_COMPILE_LOG_FILENAME";	
+TRACE_FILE=$LDV_WORK_DIR/$TRACE_FILENAME;
+KERNEL_COMPILE_LOG=$LDV_WORK_DIR/$KERNEL_COMPILE_LOG_FILENAME;	
 cd $KERNEL_DIR;
 if [ $? -ne 0 ]; then
 	bce_print "Failed change dir to: \"$KERNEL_DIR\".";
@@ -207,7 +168,7 @@ if [ $? -ne 0 ]; then
 	if [ $? -ne 0 ]; then bce_print "ATTENSION: Can't recover Makefile.build !"; fi;
 	exit 1;
 fi;
-make $DRIVER_TRACE_DIR/ BUILDFILE=$CMD_XML > $KERNEL_COMPILE_LOG 2>&1;
+make $DRIVER_DIR/ BUILDFILE=$CMD_XML > $KERNEL_COMPILE_LOG 2>&1;
 if [ $? -ne 0 ]; then
 	bce_print "Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
@@ -226,6 +187,7 @@ fi;
 #
 # fix format - add one tab before <cc> and <ld> tags and...
 #
+sed -i -e 's/ldv_tempdir/bce_tempdir/g' $CMD_XML; 
 sed -i -e 's/^<cc/\t<cc/g' $CMD_XML; 
 sed -i -e 's/^<\/cc/\t<\/cc/g' $CMD_XML; 
 sed -i -e 's/^<ld/\t<ld/g' $CMD_XML; 
