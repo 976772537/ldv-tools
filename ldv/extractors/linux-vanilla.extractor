@@ -56,11 +56,25 @@ fi;
 # find dir with makefile
 KERNEL_MAKEFILE=`find $DSCR_DEST -maxdepth 2 -regex '.*Makefile$'`;
 KERNEL_MAKEFILE_ABS=`readlink -f $KERNEL_MAKEFILE`;
+if [ $? -ne 0 ]; then
+        echo "extractor failed: Can not find makefile."
+        exit 1;
+fi;
 KERNEL_MAKEFILE_DIR=`dirname $KERNEL_MAKEFILE_ABS`;
 # prepare it
 cd $KERNEL_MAKEFILE_DIR;
 make allyesconfig;
+if [ $? -ne 0 ]; then
+        echo "extractor failed: make allyesconfig failed."
+        exit 1;
+fi;
 make init;
+if [ $? -ne 0 ]; then
+        echo "extractor failed: make init failed."
+        exit 1;
+fi;
+echo "kernel-make-dir=$KERNEL_MAKEFILE_DIR" >> $1;
+echo "status=prepared" >> $1;
 
 
 
