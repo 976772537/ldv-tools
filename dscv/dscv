@@ -93,14 +93,15 @@ Base directory, into which DSCV-related scripts and backends are installed.  Set
 
 =cut
 use FindBin;
-$config->{dscv_dir} = $ENV{'DSCV_HOME'} || "$FindBin::Bin/../dscv";
+$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
+$config->{dscv_dir} = $ENV{'DSCV_HOME'};
 
 =item B<RULE_INSTRUMENTOR>
 
 Specify custom rule instrumentor.  Unless specified, the program is deduced from C<DSCV_HOME> environment or taken from path.
 
 =cut
-$config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'DSCV_HOME'}/rule-instrumenter/rule-instrumenter.pl" || 'instrument-rule.pl';
+$config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'DSCV_HOME'}/../rule-instrumentor" || 'rule-instrumentor';
 
 =back
 
@@ -191,8 +192,8 @@ for my $property (@properties){
 		"--cmdfile=$config->{cmdfile}",
 		"--cmdfile-out=$outfile"
 	);
-	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
-	#system "cp $config->{cmdfile} $outfile";
+	#system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
+	system "cp $config->{cmdfile} $outfile";
 	# Call C verifier
 
 	# Understand what C verfifier to call.

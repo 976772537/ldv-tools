@@ -20,7 +20,7 @@ GetOptions(%optionSpecs) or die("Unrecognized options!");
 use FindBin;
 my $shared_dir = "$ENV{'DSCV_HOME'}" or die;
 my $backend_dir = "$shared_dir/rcv/backends/blast";
-my $blast = "$backend_dir/blast/bin/pblast.opt";
+my $blast = "$backend_dir/bin/pblast.opt";
 my $basedir = $config->{basedir};
 
 -f $config->{cmdfile} or die "BLAST's command file $config->{cmdfile} is not found";
@@ -29,7 +29,7 @@ my $basedir = $config->{basedir};
 -d $basedir or die "--basedir=$config->{basedir} is not a directory!";
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
-$ENV{'PATH'} = "$backend_dir/blast/bin:".$ENV{'PATH'};
+$ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 
 # We should have parsed the command file, get dependencies, etc, etc...  but now we just check if it's a valid XML.
 use XML::Twig;
@@ -48,7 +48,7 @@ $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
 my $blast_out_FH;
 my $fpid = open $blast_out_FH,"-|",@blast_args;
-defined $fpid or die "INTEGRATION ERROR.  Cmdline: @blast_args";
+defined $fpid or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
 if ($fpid == 0){
 	# child
 	# chew the output.  Do nothing
