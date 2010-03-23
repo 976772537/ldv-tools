@@ -53,4 +53,14 @@ else
 	        exit 1;
 	fi;
 fi;
+# find dir with makefile
+KERNEL_MAKEFILE=`find $DSCR_DEST -maxdepth 2 -regex '.*Makefile$'`;
+KERNEL_MAKEFILE_ABS=`readlink -f $KERNEL_MAKEFILE`;
+KERNEL_MAKEFILE_DIR=`dirname $KERNEL_MAKEFILE_ABS`;
+# prepare it
+cd $KERNEL_MAKEFILE_DIR;
+make allyesconfig;
+make init;
+
+
 

@@ -59,6 +59,7 @@ case $1 in
 		if [ $? -ne 0 ]; then
 			echo "ldv-kmanager: ERROR: extractor: \"$EXTRACTOR\" - failed.";
 			rm $NEW_DESCRIPTION;
+			rm -fr $LDV_ENVS_DIR/$k;
 			exit 1;
 		fi;
 		echo "description id = $k"
@@ -69,6 +70,8 @@ case $1 in
 			echo "ldv-kmanager: ERROR: can't find find description: \"$DESCRIPTION_TO_REMOVE\".";
 			exit 1;
 		fi;
+		DSCR_DEST=`cat $DESCRIPTION_TO_REMOVE | grep ^dest | sed 's/^dest=//'`
+		rm -fr $DSCR_DEST;
 		rm $DESCRIPTION_TO_REMOVE;
                 echo "ldv-kmanager: Ok";;
         *)
