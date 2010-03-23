@@ -1,12 +1,95 @@
 #!/bin/sh
 
+#
+#
+# ldv-task driver workdir=workdir env:rule,rule env:rule,rule ...
+#
+#
+
+
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
+LDV_KMANAGER=$LDV_DIR/ldv-kmanager;
+LDV_CORE_DIR=$LDV_HOME/ldv-core;
+LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 
-echo $@
+DRIVER_ABS=`readlink -f $2`;
+if [ $? -ne 0 ]; then
+	echo "ldv-task: ERROR:  can't find abs-path for driver.";
+	exit 1;
+fi;
 
-#if [ $# -ne 1 ]; then
-#        echo "USAGE: ldv task|kmanager ...";
-#        exit;
-#fi;
+TEMP_LDV_WORKDIR=$LDV_DIR/ldv_temp;
+if [ ! -d "$TEMP_LDV_WORKDIR" ]; then
+	mkdir $TEMP_LDV_WORKDIR;
+	if [ $? -ne 0 ]; then
+		echo "ldv-task: ERROR: can't create default ldv-tempdir: \"$TEMP_LDV_WORKDIR\"."
+		exit 1;
+	fi;
+fi;
+
+USER_WORKDIR=`echo $2 | sed 's/workdir=//'`
+if [ ! -d "$USER_WORKDIR" ]; then
+	echo "WARNING: User workdir not set or not exists: \"$1\". Try to use default ldv-tempdir: \"$TEMP_LDV_WORKDIR\".";
+	if [ ! -d "$TEMP_LDV_WORKDIR" ]; then
+		mkdir $TEMP_LDV_WORKDIR;
+		if [ $? -ne 0 ]; then
+			echo "ldv-task: ERROR: can't create default ldv-tempdir: \"$TEMP_LDV_WORKDIR\"."
+			exit 1;
+		fi;
+	fi;
+	# get last task number;
+	k=0;
+	for TASK_ID in `find $TEMP_LDV_WORKDIR -maxdepth 1 -regex '.*/[0-9]+$' -type d | sed 's/.*\/.*\///g'`; do
+		if [ $k -le $TASK_ID ]; then let k=$TASK_ID; fi;
+	done;
+	let k=$k+1;
+	# ok, and now create workdir
+	WORK_DIR=$TEMP_LDV_WORKDIR/$k;
+	mkdir $WORK_DIR;
+	if [ $? -ne 0 ]; then
+		echo "ldv-task: ERROR: can't create tempdir for task: \"$WORK_DIR\".";
+		exit 1;
+	fi;
+else
+	WORK_DIR=$USER_WORKDIR;
+fi;
+echo "ldv-task: INFO: temp workdir: $WORK_DIR";
+# all temp dirs created... 
+k=2;
+for i in $@; do
+	if [ -n "$USER_WORKDIR" -a $k -eq 2 ]; then let k=$k+1; continue; fi;
+	# create dir for this stage
+	WORK_DIR_LOCAL=$WORK_DIR/$k;
+	mkdir $WORK_DIR_LOCAL;
+	if [ $? -ne 0 ]; then
+		echo "ldv-task: ERROR: can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
+		unset WORK_DIR_LOCAL;
+		let k=$k+1;
+		exit 1;
+	fi;
+	# get KERNELDIR for this environment;
+	# kernel-manager return path if kernel-environment exists and correct prepared
+	ENV_ID=`echo $i | sed 's/:.*//'`;
+	echo "ldv-task: INFO: env_id: $ENV_ID";
+	echo "ldv-task: INFO: workdir: $WORK_DIR_LOCAL";
+	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
+	if [ $? -ne 0 ]; then
+		echo "ldv-task: ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
+		unset ENV_ID;
+		unset KERNEL_PATH;
+		unset WORK_DIR_LOCAL;
+		let k=$k+1;
+		exit 1;
+	fi;
+	echo "Ok - next iterate";
+#	$LDV_CORE_EXEC $WORK_DIR_LOCAL $KERNEL_DIR $DRIVER
+	unset ENV_ID;
+	unset KERNEL_PATH;
+	unset WORK_DIR_LOCAL;
+	let k=$k+1;
+done;
+
+
+
 
