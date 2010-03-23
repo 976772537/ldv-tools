@@ -42,8 +42,7 @@ RINSTR_DIR="$LDV_HOME/rule-instrumentor";
 RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 
 if [ $# -ne 3 ]; then
-	echo "USAGE: ldv.sh workdir kerneldir driver"
-	
+	echo "USAGE: ldv-core workdir kerneldir driver"
 fi;
 
 WORK_DIR=`readlink -f $1`;

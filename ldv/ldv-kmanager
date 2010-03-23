@@ -80,13 +80,14 @@ case $1 in
 			echo "ldv-kmanager: ERROR: can't find description: \"$DESCRIPTION_TO_VIEW\".";
 			exit 1;
 		fi;
-		ENV_STATUS=`cat $DESCRIPTION_TO_VIEW | grep 's/status=//' | sed 's/status=//'`;
+		
+		ENV_STATUS=`cat $DESCRIPTION_TO_VIEW | grep ^status= | sed 's/status=//'`;
 		if [ ! "$ENV_STATUS" == "prepared" ]; then
-			echo "ldv-kmanager: ERROR: wrong status for getpath.";
+			echo "ldv-kmanager: ERROR: wrong status for getpath: \"$ENV_STATUS\".";
 			exit 1;
 		fi;
-		DSCR_KMD=`cat $DESCRIPTION_TO_VIEW | grep 's/kernel-make-dir=//' | sed 's/kernel-make-dir=//'`;
-		if [ ! -d "DSCR_KMD" ]; then
+		DSCR_KMD=`cat $DESCRIPTION_TO_VIEW | grep ^kernel-make-dir= | sed 's/kernel-make-dir=//'`;
+		if [ ! -d "$DSCR_KMD" ]; then
 			echo "ldv-kmanager: ERROR: kernel environment \"$DESCRIPTION_TO_VIEW\" - is bad.";
 			# TODO: set status bad - and try to reintsall kernel
 			exit 1;
