@@ -1,0 +1,12 @@
+#!/bin/sh
+
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
+LDV_DIR=$LDV_HOME/ldv;
+
+echo $@
+
+#if [ $# -ne 1 ]; then
+#        echo "USAGE: ldv task|kmanager ...";
+#        exit;
+#fi;
+

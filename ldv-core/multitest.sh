@@ -21,7 +21,7 @@ for i in `find $DRIVERS_DIR -regex '.*\.tar\.bz2$'`; do
 	echo "********** run test for driver: $i:$k ************";
 	CURRENT_TASK_DIR="$WORK_DIR/$k";
 	mkdir $CURRENT_TASK_DIR;
-	sh ldv.sh $CURRENT_TASK_DIR $KERNEL_DIR $i;
+	sh ldv-core $CURRENT_TASK_DIR $KERNEL_DIR $i;
 	let k=$k+1;
 done;
 

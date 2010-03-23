@@ -24,26 +24,26 @@ ldv_print() {
 }
 
 
-REPO_PATH=`pwd`"/../";
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
 DRIVERDIIR_NAME="driver";
 
-BCE_DIR="$REPO_PATH/build-cmd-extractor";
+BCE_DIR="$LDV_HOME/build-cmd-extractor";
 BCE="$BCE_DIR/build-cmd-extractor.sh";
 
-DEG_DIR="$REPO_PATH/drv-env-gen";
+DEG_DIR="$LDV_HOME/drv-env-gen";
 DEG="java -ea -jar $DEG_DIR/dist/drv-env-gen.jar";
 
-DSCV_DIR="$REPO_PATH/dscv";
+DSCV_DIR="$LDV_HOME/dscv";
 DSCV="$DSCV_DIR/dscv";
 
-RINSTR_DIR="$REPO_PATH/rule-instrumentor";
+RINSTR_DIR="$LDV_HOME/rule-instrumentor";
 RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 
 if [ $# -ne 3 ]; then
 	echo "USAGE: ldv.sh workdir kerneldir driver"
-	exit 1;
+	
 fi;
 
 WORK_DIR=`readlink -f $1`;

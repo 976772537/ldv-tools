@@ -10,16 +10,17 @@ XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
 
-REPO_PATH=`pwd`"/../";
-XGCC=`echo $REPO_PATH | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
+
+XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
 
 bce_print() {
 	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-        if [ ! -f "$LDV_WORK_DIR/$GLOBAL_LOG" ];  then
-                touch $LDV_WORK_DIR/$GLOBAL_LOG;
-                if [ $? -ne 0 ]; then 
-			echo "ERROR: can't create log file.";
-			exit 1; 
+	if [ ! -f "$LDV_WORK_DIR/$GLOBAL_LOG" ];  then
+		touch $LDV_WORK_DIR/$GLOBAL_LOG;
+	if [ $? -ne 0 ]; then 
+		echo "ERROR: can't create log file.";
+	exit 1; 
 		fi;
         fi;
         echo "$LOG_PREFIX$1" >> $LDV_WORK_DIR/$GLOBAL_LOG;
