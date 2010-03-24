@@ -1,11 +1,5 @@
-INSTALL_DIR = `readlink -f ~`/opt/ldv
-
 LDV_BUILD_CMD_EXTRACTOR_DIR = build-cmd-extractor
 LDV_BUILD_CMD_EXTRACTOR_SCRIPT = build-cmd-extractor
-
-ifndef prefix
-prefix = `readlink -f $(INSTALL_DIR)`
-endif
 
 # Top level hierarchy
 exec_prefix = ${prefix}

@@ -1,14 +1,8 @@
-INSTALL_DIR = `readlink -f ~`/opt/ldv
-
 LDV_DIR = ldv
 LDV_MAIN_SCRIPT = ldv
 LDV_TASK_SCRIPT = ldv-task
 LDV_KMANAGER_SCRIPT = ldv-kmanager
 LDV_EXTRACTORS_DIR = extractors
-
-ifndef prefix
-prefix = `readlink -f $(INSTALL_DIR)`
-endif
 
 # Top level hierarchy
 exec_prefix = ${prefix}

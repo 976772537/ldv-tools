@@ -1,11 +1,5 @@
-INSTALL_DIR = `readlink -f ~`/opt/ldv
-
 DRV_ENV_GEN_DIR = drv-env-gen
 DRV_ENV_GEN_JAR = drv-env-gen.jar
-
-ifndef prefix
-prefix = `readlink -f $(INSTALL_DIR)`
-endif
 
 # Top level hierarchy
 exec_prefix = ${prefix}

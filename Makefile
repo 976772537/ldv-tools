@@ -1,10 +1,27 @@
-prefix=/opt/ldv
 srcdir=.
 
 .PHONY: build-cmd-extractor rule-instrumentor drv-env-gen ldv-core ldv
 
-taget: build-cmd-extractor rule-instrumentor drv-env-gen ldv-core ldv
+target: pre-install build-cmd-extractor rule-instrumentor drv-env-gen ldv-core ldv
 	echo "all installed"
+
+pre-install:
+	@$(call test_prefix)
+
+define test_prefix
+	if [ -n "$(prefix)" ]; then                                  \
+		true;                                                \
+	else                                                         \
+		echo $(prefix); 				     \
+		echo " "; 					     \
+		echo "******************** ERROR *****************"; \
+		echo " USAGE: prefix=/install/dir make            "; \
+		echo "********************************************"; \
+		echo " "; 					     \
+		false;                                               \
+        fi
+endef
+	
 
 build-cmd-extractor:
 	@echo "installing build-cmd-extractor"

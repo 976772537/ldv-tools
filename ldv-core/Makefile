@@ -1,12 +1,5 @@
-INSTALL_DIR = `readlink -f ~`/opt/ldv
-
 LDV_CORE_DIR = ldv-core
 LDV_CORE_SCRIPT = ldv-core
-
-ifndef prefix
-prefix = `readlink -f $(INSTALL_DIR)`
-endif
-
 
 # Top level hierarchy
 exec_prefix = ${prefix}
