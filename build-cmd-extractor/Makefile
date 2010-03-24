@@ -11,11 +11,10 @@ target:
 
 install:
 	mkdir $(prefix)/build-cmd-extractor
-	mkdir $(prefix)/build-cmd-extractor/bin/
-	cp $(srcdir)/bin/build-cmd-extractor $(prefix)/build-cmd-extractor/bin/
+	cp $(srcdir)/build-cmd-extractor $(prefix)/build-cmd-extractor/
 
 clean:
-	rm -fr $(prefix)/build-cmd-extractor;
+	rm -fr $(prefix)/build-cmd-extractor
 
 
 

@@ -11,11 +11,10 @@ target:
 
 install:
 	mkdir $(prefix)/ldv-core
-	mkdir $(prefix)/ldv-core/bin
-	cp $(srcdir)/bin/ldv-core $(prefix)/ldv-core/bin/
+	cp $(srcdir)/ldv-core $(prefix)/ldv-core/
 
 clean:
-	rm -fr $(prefix)/ldv-core;
+	rm -fr $(prefix)/ldv-core
 
 
 

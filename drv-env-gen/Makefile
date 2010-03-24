@@ -10,10 +10,12 @@ target:
 	ant
 
 install:
-	cp $(srcdir)/dist/drv-env-gen.jar $(bindir)/
+	ant
+	mkdir $(prefix)/drv-env-gen/
+	cp $(srcdir)/dist/drv-env-gen.jar $(prefix)/drv-env-gen/
 
 clean:
-	rm $(bindir)/dist/drv-env-gen.jar
+	rm -fr $(prefix)/drv-env-gen
 
 
 
