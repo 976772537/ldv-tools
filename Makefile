@@ -12,7 +12,6 @@ define test_prefix
 	if [ -n "$(prefix)" ]; then                                  \
 		true;                                                \
 	else                                                         \
-		echo $(prefix); 				     \
 		echo " "; 					     \
 		echo "******************** ERROR *****************"; \
 		echo " USAGE: prefix=/install/dir make            "; \
@@ -43,5 +42,8 @@ ldv:
 	@echo "installing ldv"
 	@cd $(srcdir)/ldv; prefix=$(prefix) make install
 
-clean:
-	@rm -fr /opt/ldv/*
+clean: pre-install
+	@rm -fr $(prefix)/* 
+
+
+
