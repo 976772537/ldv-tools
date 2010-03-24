@@ -19,7 +19,7 @@ srcdir = .
 .PHONY: install clean
 
 install:
-	mkdir $(prefix)/$(LDV_CORE_DIR)
+	if [[ ! -d $(prefix)/$(LDV_CORE_DIR) ]]; then mkdir -p $(prefix)/$(LDV_CORE_DIR); fi
 	cp $(srcdir)/$(LDV_CORE_SCRIPT) $(prefix)/$(LDV_CORE_DIR)
 
 clean:
