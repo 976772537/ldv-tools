@@ -1,0 +1,20 @@
+# Top level hierarchy
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+# Pathname of directory to install the binary
+bindir = @bindir@
+# Pathname of directory to install the man page
+mandir = @mandir@
+srcdir = @srcdir@
+
+target:
+	ant
+
+install:
+	cp $(srcdir)/dist/drv-env-gen.jar $(bindir)/
+
+clean:
+	rm $(bindir)/dist/drv-env-gen.jar
+
+
+
