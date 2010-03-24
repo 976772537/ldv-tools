@@ -1,0 +1,22 @@
+# Top level hierarchy
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+# Pathname of directory to install the binary
+bindir = @bindir@
+# Pathname of directory to install the man page
+mandir = @mandir@
+srcdir = @srcdir@
+
+target:
+	@echo "ok";
+
+install:
+	mkdir $(prefix)/ldv-core
+	mkdir $(prefix)/ldv-core/bin
+	cp $(srcdir)/bin/ldv-core $(prefix)/ldv-core/bin/
+
+clean:
+	rm -fr $(prefix)/ldv-core;
+
+
+

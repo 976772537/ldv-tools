@@ -1,0 +1,21 @@
+# Top level hierarchy
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+# Pathname of directory to install the binary
+bindir = @bindir@
+# Pathname of directory to install the man page
+mandir = @mandir@
+srcdir = @srcdir@
+
+target:
+	echo "ok";
+
+install:
+	mkdir $(prefix)/ldv
+	cp -r $(srcdir)/* $(prefix)/ldv/
+
+clean:
+	rm -fr $(prefix)/ldv;
+
+
+

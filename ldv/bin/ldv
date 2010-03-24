@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LDV_HOME=`readlink -f \`dirname $0\`/../`;
+LDV_HOME=`readlink -f \`dirname $0\`/../../`;
 LDV_DIR=$LDV_HOME/ldv;
 
 if [ $# -eq 0 ]; then

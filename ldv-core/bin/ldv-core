@@ -24,7 +24,7 @@ ldv_print() {
 }
 
 
-LDV_HOME=`readlink -f \`dirname $0\`/../`;
+LDV_HOME=`readlink -f \`dirname $0\`/../../`;
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
 DRIVERDIIR_NAME="driver";

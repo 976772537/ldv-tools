@@ -7,7 +7,7 @@
 #
 
 
-LDV_HOME=`readlink -f \`dirname $0\`/../`;
+LDV_HOME=`readlink -f \`dirname $0\`/../../`;
 LDV_DIR=$LDV_HOME/ldv;
 LDV_KMANAGER=$LDV_DIR/ldv-kmanager;
 LDV_CORE_DIR=$LDV_HOME/ldv-core;
