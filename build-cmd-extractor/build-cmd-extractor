@@ -10,7 +10,7 @@ XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
 
-LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
 XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
 

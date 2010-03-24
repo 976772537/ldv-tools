@@ -1,3 +1,15 @@
+INSTALL_DIR = __install
+
+LDV_DIR = ldv
+LDV_MAIN_SCRIPT = ldv
+LDV_TASK_SCRIPT = ldv-task
+LDV_KMANAGER_SCRIPT = ldv-kmanager
+LDV_EXTRACTORS_DIR = extractors
+
+ifndef prefix
+prefix = `readlink -f $(INSTALL_DIR)`
+endif
+
 # Top level hierarchy
 exec_prefix = ${prefix}
 # Pathname of directory to install the binary
@@ -6,16 +18,15 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/share/man
 srcdir = .
 
+.PHONY: install clean
+
 install:
-	cp $(srcdir)/ldv $(bindir)
-	mkdir $(prefix)/ldv
-	cp $(srcdir)/ldv-task $(prefix)/ldv/
-	cp $(srcdir)/ldv-kmanager $(prefix)/ldv/
-	cp -r $(srcdir)/extractors $(prefix)/ldv/
+	cp $(srcdir)/$(LDV_MAIN_SCRIPT) $(bindir)
+	mkdir $(prefix)/$(LDV_DIR)
+	cp $(srcdir)/$(LDV_TASK_SCRIPT) $(prefix)/$(LDV_DIR)
+	cp $(srcdir)/$(LDV_KMANAGER_SCRIPT) $(prefix)/$(LDV_DIR)
+	cp -r $(srcdir)/$(LDV_EXTRACTORS_DIR) $(prefix)/$(LDV_DIR)/
 
 clean:
-	rm -fr $(prefix)/ldv;
-	rm $(bindir)/ldv
-
-
-
+	rm -fr $(prefix)/$(LDV_DIR);
+	rm $(bindir)/$(LDV_MAIN_SCRIPT)

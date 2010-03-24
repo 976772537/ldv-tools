@@ -1,3 +1,13 @@
+INSTALL_DIR = __install
+
+LDV_CORE_DIR = ldv-core
+LDV_CORE_SCRIPT = ldv-core
+
+ifndef prefix
+prefix = `readlink -f $(INSTALL_DIR)`
+endif
+
+
 # Top level hierarchy
 exec_prefix = ${prefix}
 # Pathname of directory to install the binary
@@ -6,15 +16,11 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/share/man
 srcdir = .
 
-target:
-	@echo "ok";
+.PHONY: install clean
 
 install:
-	mkdir $(prefix)/ldv-core
-	cp $(srcdir)/ldv-core $(prefix)/ldv-core/
+	mkdir $(prefix)/$(LDV_CORE_DIR)
+	cp $(srcdir)/$(LDV_CORE_SCRIPT) $(prefix)/$(LDV_CORE_DIR)
 
 clean:
-	rm -fr $(prefix)/ldv-core
-
-
-
+	rm -fr $(prefix)/$(LDV_CORE_DIR)

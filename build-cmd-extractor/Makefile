@@ -1,3 +1,12 @@
+INSTALL_DIR = __install
+
+LDV_BUILD_CMD_EXTRACTOR_DIR = build-cmd-extractor
+LDV_BUILD_CMD_EXTRACTOR_SCRIPT = build-cmd-extractor
+
+ifndef prefix
+prefix = `readlink -f $(INSTALL_DIR)`
+endif
+
 # Top level hierarchy
 exec_prefix = ${prefix}
 # Pathname of directory to install the binary
@@ -6,15 +15,11 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/share/man
 srcdir = .
 
-target:
-	@echo "ok";
+.PHONY: install clean
 
 install:
-	mkdir $(prefix)/build-cmd-extractor
-	cp $(srcdir)/build-cmd-extractor $(prefix)/build-cmd-extractor/
+	mkdir $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
+	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_SCRIPT) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 
 clean:
-	rm -fr $(prefix)/build-cmd-extractor
-
-
-
+	rm -fr $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)

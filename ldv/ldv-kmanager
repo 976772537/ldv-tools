@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
 LDV_DESCRIPTIONS_DIR=$LDV_DIR/descriptions;
 if [ ! -d "$LDV_DESCRIPTIONS_DIR" ]; then
