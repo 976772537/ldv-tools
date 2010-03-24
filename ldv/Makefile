@@ -1,5 +1,4 @@
 # Top level hierarchy
-prefix = /usr/local
 exec_prefix = ${prefix}
 # Pathname of directory to install the binary
 bindir = ${exec_prefix}/bin
@@ -8,7 +7,7 @@ mandir = ${prefix}/share/man
 srcdir = .
 
 target:
-	echo "ok";
+	@echo "ok";
 
 install:
 	mkdir $(prefix)/ldv
