@@ -3,7 +3,6 @@
 
 use Cwd('abs_path', 'cwd');
 use English;
-use Env('LDV_HOME');
 use Getopt::Long;
 Getopt::Long::Configure('posix_default', 'no_ignore_case');
 use strict;
@@ -70,13 +69,22 @@ my $file_xml_out;
 my $kind_isplain = 0;
 my $kind_isaspect = 0;
 
-# Check whether LDV_HOME is specified through environment variables.
-unless ($LDV_HOME)
-{
-  warn("LDV home directory isn't specified through environment variable LDV_HOME");
-	
-  exit($error_syntax);	
-}
+# LDV_HOME is obtained through directory of rule-instrumentor.
+# It is assumed that there is such organization of LDV_HOME directory:
+# LDV_HOME
+#   bin
+#     rule_instrumentor.pl (this script)
+#   rule_instrumentor
+#     aspectator
+#       bin
+#         symlinks to aspectator script, gcc, linker and c-backend.
+my $ldv_rule_instrumentor_abs = `readlink -f $0`;
+my $ldv_rule_instrumentor_dir = `dirname $ldv_rule_instrumentor_abs`;
+
+# Obtain LDV_HOME as earlier as possible.
+$ldv_rule_instrumentor_dir =~ /\/bin$/;
+
+my $LDV_HOME = $PREMATCH;
 
 # Directory where all rule instrumentor auxiliary instruments (such as 
 # aspectator) are placed.
@@ -279,9 +287,9 @@ sub get_model_info()
 		}
 		else
 		{
-#          warn("Kind '$kind' can't be processed"); 	
+          warn("Kind '$kind' can't be processed"); 	
 
-#          exit($error_semantics);			
+          exit($error_semantics);			
 		}
 	  }
      
