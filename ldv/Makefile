@@ -1,4 +1,4 @@
-INSTALL_DIR = __install
+INSTALL_DIR = `readlink -f ~`/opt/ldv
 
 LDV_DIR = ldv
 LDV_MAIN_SCRIPT = ldv

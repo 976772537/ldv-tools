@@ -1,4 +1,4 @@
-INSTALL_DIR = __install
+INSTALL_DIR = `readlink -f ~`/opt/ldv
 
 LDV_BUILD_CMD_EXTRACTOR_DIR = build-cmd-extractor
 LDV_BUILD_CMD_EXTRACTOR_SCRIPT = build-cmd-extractor

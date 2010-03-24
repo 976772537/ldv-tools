@@ -1,4 +1,4 @@
-INSTALL_DIR = __install
+INSTALL_DIR = `readlink -f ~`/opt/ldv
 
 LDV_CORE_DIR = ldv-core
 LDV_CORE_SCRIPT = ldv-core
