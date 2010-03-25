@@ -12,7 +12,7 @@ my $config={
 
 my %optionSpecs = ();
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
-$optionSpecs{'basedir=s'} = \$config->{basedir};
+$optionSpecs{'workdir=s'} = \$config->{workdir};
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
@@ -21,12 +21,12 @@ use FindBin;
 my $shared_dir = "$ENV{'DSCV_HOME'}" or die;
 my $backend_dir = "$shared_dir/rcv/backends/blast";
 my $blast = "$backend_dir/bin/pblast.opt";
-my $basedir = $config->{basedir};
+my $workdir = $config->{workdir};
 
 -f $config->{cmdfile} or die "BLAST's command file $config->{cmdfile} is not found";
 -d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
 -x $blast or die "BLAST's toplevel executable $blast is not an executable file";
--d $basedir or die "--basedir=$config->{basedir} is not a directory!";
+-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
@@ -38,12 +38,113 @@ sub execute_cc
 {
 	my ($twig, $cmdT) = @_;
 	# Flush the list of all .c files to the .o file being checked
-
-
+	local $_;
+	my @c_files_raw = $cmdT->children_text('in');
+	my $o_file_raw = $cmdT->child_text('out');
+	my $o_file = "$workdir/$o_file";
+	# Write the list to o-file
+	my $children_FH; open $children_FH,">",$o_file or die "Dead while trying to open $o_file for writing";
+	$cmdT->print($children_FH);
+	#local $,="\n";
+	#print $children_FH @c_files_raw;
+	close $children_FH;
 }
-$check_input_file->parsefile($config->{cmdfile});
+sub execute_ld
+{
+	my ($twig, $cmdT) = @_;
+	# Get the list of c files for current linked file
+	# We assume that each c-file is included into any executable file only once (otherwise there would have been undefined references).
+	local $_;
+	my @o_files_raw = $cmdT->children_text('in');
+	my $target = $cmdT->child_text('out');
+	# Informaiton about C files should be a reference, for it to be accessible from within subs
+	my $c_files_info = [];
+	# List of c files that were processed.  Used in tracking the assersion that each c file is processed only once.  Value is an o-file, in which the c file was first encountered.
+	my %c_files_Sanity = ();
+	for $o_file_raw (@o_files_raw){
+		# From each o-file local copy, which contains list of c-files in that object one, get these files
+		my $o_file = "$workdir/$o_file";
+
+		# Get information about this object file
+		my $c_files = [];
+		# Compiler options to build this particular o-file.  We *know* that there's only *one* command in this file, so there's no need to distpatch this level as well.
+		my $aux_opts = [];
+		my $cwd = undef;
+		my $obj_file = undef;
+		XML::Twig->new( twig_handlers=> {
+			'opt' => sub { push @$aux_opts,$_->[1]->text(); },
+			'in' => sub { push @$c_files,$_->[1]->text(); },
+			'out' => sub { $$obj_file = $_->[1]->text(); },
+			'cwd' => sub { $$cwd = $_->[1]->text(); },
+		})->parsefile($o_file);
+
+		# Propagate the information gathered to c_files_info arrays
+		local $_;
+		for my $c_file (@$c_files){
+			# Sanity check
+			my $c_file_already_encountered = $c_files_Sanity{$c_file};
+			$c_file_already_encountered and die "C file $c_file is used twice, when compiling $outfile: in $c_file_already_encountered and $$obj_file"; 
+			$c_files_Sanity{$c_file} = $$obj_file; 
+
+			# Prepare record
+			my $new_record = {c_file=>$_, opts=>$aux_opts, cwd=>$$cwd};
+			# Preprocess file if necessary
+			my $i_file = $c_file; $i_file =~ s/\.c$/.i/;
+			$new_record->{i_file} = $i_file;
+			preprocess_file($new_record);
+
+			push @$c_files, $new_record;
+		}
+	}
+
+	# Call blast for all of the preprocessed c-files gotten at once, and and supply the additional arguments fetched from the tag record.
+
+	# Get hints tag first 
+	my $hintsT = $cmdT->first_child('hints');
+	# Get entry points
+	my @mains = $cmdT->children_text('main');
+	# Get list of files to analyze:
+	my @files = map {$_->{i_file}} @$c_files_info;
+
+	# TODO: add a separate report file
+	call_blast(files => \@files, hints=>$hintsT, main=>$_) for @mains; 
+	
+}
 
 # Call blast
+sub call_blast
+{
+	my %args = @_;
+	# Options that will be passed to the blast tool
+	my @blast_options = ("pblast.opt",@{$args{files}});
+	# Set default options
+	# These are: -alias bdd -cref -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0 -nomusts -const
+	push @blast_options,
+		"-predH","7","-cref","-craig","2",	# Default heuristics on
+		"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
+		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
+	;
+
+	# Interpret hints
+	my $hintsT = $args{hints};
+	# Cldepth
+	if (my $cld = $hintsT->first_child_text('cldepth')){
+		push @blast_options,"-cldepth",$cld;
+	}else{
+		# Temporarly set cldepth to zero
+		push @blast_options,"-cldepth","0";
+	}
+	if (my $ali = $hintsT->first_child_text('alias')){
+		if ($ali eq 'none'){
+		}else{
+			die "Uninterpreted <alias> hint value: $ali";
+		}
+	}else{
+		push @blast_options,
+			"-alias","bdd"	# Turn alias analysis on
+		;
+	}
+}
 $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
 my $blast_out_FH;
@@ -60,5 +161,25 @@ if ($fpid == 0){
 # ! PREPROCESS!
 
 print "Verifier $0 is run!\n";
-system "touch","$basedir/sign";
+system "touch","$workdir/sign";
 
+
+use Cwd;
+sub preprocess_file
+{
+	my $info = shift or die;
+	# Change dir to cwd; then change back
+	my $current_dir = getcwd();
+	chdir $info->{cwd} or die;
+	my @cpp_args = ("gcc","-E",
+		"-o","$info->{cwd}/$info->{i_file}",	#Output file
+		"$info->{cwd}/$info->{c_file}",	#Input file
+		@{$info->{opts}},	#Options
+	);
+	local $"; $"=' ';
+	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
+	chdir $info;
+}
+
+# Now all subroutines are initialized.  Let's start processing the cmdfile.
+$check_input_file->parsefile($config->{cmdfile});

@@ -221,7 +221,7 @@ for my $property (@properties){
 			# Run RCV
 			my @rcv_args = ("$rcv_frontends_dir/$verifier",
 				"--cmdfile=$outfile",
-				"--basedir=$dir"
+				"--workdir=$dir"
 			);
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
 		};
