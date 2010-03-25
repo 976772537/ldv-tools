@@ -1,6 +1,7 @@
 
 # Compilation
-#@echo kernel-rules doesn\'t require compilation
+all: 
+	@echo kernel-rules doesn\'t require compilation
 
 # Installation
 KERNEL_RULES_DIR=kernel-rules
