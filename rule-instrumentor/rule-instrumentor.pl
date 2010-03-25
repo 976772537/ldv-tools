@@ -440,9 +440,11 @@ sub process_cmd_cc()
     `cp ${$cmd{'ins'}}[0]$llvm_bitcode_suffix $cmd{'out'}`;
   
     # Also do this with general aspect. Don't forget to add -I option with 
-    # models directory needed to find appropriate headers. 
+    # models directory needed to find appropriate headers for common aspect.
+    my $model_dir_abs = `readlink -f "$opt_model_dir/$model{'common'}"`;
+    my $model_dir = `dirname $model_dir_abs`;
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
-    @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'general'}", @{$cmd{'opts'}}, "-I$opt_model_dir/files");
+    @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'general'}", @{$cmd{'opts'}}, "-I$model_dir");
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 	
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
