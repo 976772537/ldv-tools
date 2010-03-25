@@ -30,7 +30,7 @@ clean:
 
 # Install needed executables to specified path.
 install:
-	if [[ ! -d $(bindir) ]]; then mkdir -p $(bindir); fi
-	if [[ ! -d $(mandir) ]]; then mkdir -p $(mandir); fi
+	if [ ! -d $(bindir) ]; then mkdir -p $(bindir); fi
+	if [ ! -d $(mandir) ]; then mkdir -p $(mandir); fi
 	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir)
 	export prefix="$(prefix)/$(RULE_INSTRUMENTOR_DIR)/$(ASPECTATOR_DIR)"; cd $(ASPECTATOR_PATH); $(MAKE) $@
