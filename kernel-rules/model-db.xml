@@ -8,7 +8,7 @@
 		<description></description>
 		<files>
 			<aspect>./files/model0008-blast.aspect</aspect>
-			<common>./files/model0008-blast.c</common>
+			<common>./files/model0008-blast.common</common>
 			<filter>./files/model0008-blast.sh</filter>
 		</files>
 		<hints></hints>
