@@ -1,0 +1,15 @@
+before: file ("$this")
+{
+extern int ldv_env_get_order(unsigned long size);
+}
+
+before : execution(static inline int get_order(unsigned long int size))
+{
+ldv_env_get_order($arg1);
+}
+
+/* was for test aspect
+before : execution(static int net_close(struct net_device *dev))
+{
+	return 13;
+}*/

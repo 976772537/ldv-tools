@@ -1,0 +1,22 @@
+before: file ("$this")
+{
+extern void ldv_probe_irq_on(void);
+extern void ldv_probe_irq_off(void);
+extern void ldv_udelay(void);
+}
+ 
+before: call(unsigned long probe_irq_on(void))
+{
+ldv_probe_irq_on()
+}
+
+before: call(int probe_irq_off(unsigned long))
+{
+ldv_probe_irq_off()
+}
+
+around: define(udelay(n))
+{
+ldv_udelay()
+}
+

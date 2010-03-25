@@ -1,0 +1,13 @@
+before: file ("$this")
+{
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slub_def.h>
+
+extern void ldv_env_kmalloc(size_t size, gfp_t flags);
+}
+
+before: execution(static inline void *kmalloc(..))
+{
+  ldv_env_kmalloc($arg1,$arg2);
+}

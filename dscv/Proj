@@ -3,8 +3,11 @@
 ===================
 
 dscv
+Makefile
 rcv/
+	Makefile
   blast
 	backends/
 	  blast/
+			Makefile
 
