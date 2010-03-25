@@ -110,6 +110,16 @@ my $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
 # Linker.
 my $ldv_linker = "$ldv_aspectator_bin_dir/linker";
 
+# Directory contains rules models database and their source code.
+my $ldv_model_dir = "$LDV_HOME/kernel-rules";
+
+# Name of xml file containing models database. Name is relative to models 
+# directory. 
+my $ldv_model_db_xml = 'model-db.xml';
+
+# Information on needed model.
+my %ldv_model;
+
 # Suffix of llvm bitcode files. 
 my $llvm_bitcode_suffix = '.bc';
 
@@ -125,19 +135,11 @@ my $llvm_c_backend_suffix = '.cbe.c';
 # Options to be passed to llvm linker.
 my $llvm_linker_opts = '-f';
 
-# Information on needed model.
-my %model;
-
-# Name of xml file containing models database. Name is relative to models 
-# directory. 
-my $model_db_xml = 'model-db.xml';
-
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_basedir;
 my $opt_cmd_xml_in;
 my $opt_cmd_xml_out;
 my $opt_help;
-my $opt_model_dir;
 my $opt_model_id;
 
 # Absolute path to working directory of this tool. 
@@ -171,8 +173,30 @@ my $xml_model_db_model = 'model';
 # Remember absolute path to the current working directory. 
 $tool_working_dir = Cwd::cwd();
 
+# Check whether models are installed properly. 
+unless(-d $ldv_model_dir)
+{
+  warn("Directory specified through model directory variable doesn't exist");
+    
+  help();	  
+}
+  
+unless(-f "$ldv_model_dir/$ldv_model_db_xml")
+{
+  warn("Directory '$ldv_model_dir' must contain models database xml file '$ldv_model_db_xml'");
+    
+  help();
+}
+
 # Get and parse command-line options.
 get_opt();
+
+# Copy models dir to base directory since it'll be affected a bit.
+`cp -r $ldv_model_dir $opt_basedir`;
+
+# Change models dir.
+$ldv_model_dir =~ /([^\/]+)$/;
+$ldv_model_dir = "$opt_basedir/$1";
 
 # Prepare twig xml parser for models database and input commands.
 my $xml_twig = new XML::Twig;
@@ -229,7 +253,7 @@ close($file_xml_out)
 sub get_model_info()
 {
   # Read models database xml file.
-  $xml_twig->parsefile("$opt_model_dir/$model_db_xml");
+  $xml_twig->parsefile("$ldv_model_dir/$ldv_model_db_xml");
   my $model_db = $xml_twig->root;
 
   # Obtain all models.
@@ -273,7 +297,7 @@ sub get_model_info()
       my $filter = $files->first_child_text($xml_model_db_files_filter);
     
       # Store model information into hash.
-      %model = (
+      %ldv_model = (
         'id' => $id_attr, 
         'kind' => \@kinds,
         'aspect' => $aspect,
@@ -303,15 +327,15 @@ sub get_model_info()
       my $file_aspect_general;
       
       # Create general aspect for the given model.
-      $model{'general'} = "$model{'aspect'}$aspect_general_suffix";
-      `cat "$opt_model_dir/$model{'aspect'}" "$opt_model_dir/$model{'common'}" > "$opt_model_dir/$model{'general'}`;
+      $ldv_model{'general'} = "$ldv_model{'aspect'}$aspect_general_suffix";
+      `cat "$ldv_model_dir/$ldv_model{'aspect'}" "$ldv_model_dir/$ldv_model{'common'}" > "$ldv_model_dir/$ldv_model{'general'}`;
      
       # Finish models iteration after the first one is found and processed.
       last;
     }
   }
 
-  unless (%model)
+  unless (%ldv_model)
   {
     warn("Specified through option model id '$opt_model_id' doesn't exist in models database"); 	
 
@@ -334,7 +358,6 @@ sub get_opt()
     'cmd-xml-in|i=s' => \$opt_cmd_xml_in,
     'cmd-xml-out|o=s' => \$opt_cmd_xml_out,
     'help|h' => \$opt_help,
-    'model-dir|d=s' => \$opt_model_dir,
     'model-id|m=s' => \$opt_model_id))
   {
     warn("Incorrect options may completely change the meaning! Please run " .
@@ -345,9 +368,9 @@ sub get_opt()
  
   help() if ($opt_help);
   
-  unless ($opt_basedir && $opt_cmd_xml_in && $opt_cmd_xml_out && $opt_model_dir && $opt_model_id) 
+  unless ($opt_basedir && $opt_cmd_xml_in && $opt_cmd_xml_out && $opt_model_id) 
   {
-    warn("You must specify options --basedir, --cmd-xml-in, --cmd-xml-out, --model-dir, --model-id in command-line");
+    warn("You must specify options --basedir, --cmd-xml-in, --cmd-xml-out, --model-id in command-line");
     
     help();
   }
@@ -368,20 +391,6 @@ sub get_opt()
   
   open($file_xml_out, '>', "$opt_cmd_xml_out")
     or die("Couldn't open file '$opt_cmd_xml_out' for write: $ERRNO");
-  
-  unless(-d $opt_model_dir)
-  {
-    warn("Directory specified through option --model-dir doesn't exist");
-    
-    help();	  
-  }
-  
-  unless(-f "$opt_model_dir/$model_db_xml")
-  {
-	warn("Directory '$opt_model_dir' specified through option --model-dir must contain models database xml file '$model_db_xml'");
-    
-    help();
-  }
 }
 
 sub help()
@@ -399,9 +408,6 @@ OPTIONS
 
   -b, --basedir <dir>
     <dir> is absolute path to tool working directory.
-
-  -d, --model-dir <dir>
-    <dir> is absolute path to directory containing model database xml.
 
   -h, --help
     Print this help and exit with syntax error.
@@ -432,7 +438,7 @@ sub process_cmd_cc()
     # On each cc command we run aspectator on corresponding file with 
     # corresponding model aspect and options.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
-    my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'aspect'}", @{$cmd{'opts'}});
+    my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}});
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 	
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
@@ -441,10 +447,10 @@ sub process_cmd_cc()
   
     # Also do this with general aspect. Don't forget to add -I option with 
     # models directory needed to find appropriate headers for common aspect.
-    my $model_dir_abs = `readlink -f "$opt_model_dir/$model{'common'}"`;
+    my $model_dir_abs = `readlink -f "$ldv_model_dir/$ldv_model{'common'}"`;
     my $model_dir = `dirname $model_dir_abs`;
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
-    @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'general'}", @{$cmd{'opts'}}, "-I$model_dir");
+    @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$model_dir");
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 	
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
@@ -494,14 +500,14 @@ sub process_cmd_ld()
     $xml_writer->dataElement('cwd' => $opt_basedir);    
     $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);  
     $xml_writer->dataElement('out' => $cmd{'out'});
-    $xml_writer->dataElement('engine' => $model{'engine'}); 
+    $xml_writer->dataElement('engine' => $ldv_model{'engine'}); 
   
     foreach my $entry_point (@{$cmd{'entry point'}})
     {
        $xml_writer->dataElement('main' => $entry_point);
     }
    
-    $xml_writer->dataElement('hints' => $model{'hints'});
+    $xml_writer->dataElement('hints' => $ldv_model{'hints'});
     # Close ld tag.
     $xml_writer->endTag();
   }
@@ -543,7 +549,7 @@ sub process_cmds()
 		# Add additional input model file for each ld command.   
 		if ($cmd->gi eq $xml_cmd_ld)
 		{
-		  my $xml_common_model = new XML::Twig::Elt('in', "$opt_model_dir/$model{'common'}");	
+		  my $xml_common_model = new XML::Twig::Elt('in', "$ldv_model_dir/$ldv_model{'common'}");	
 		  $xml_common_model->paste('last_child', $cmd);
 		}  
 		  
