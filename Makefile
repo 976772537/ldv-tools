@@ -10,21 +10,29 @@ SUBDIRS = $(BUILD_SUBDIRS)
 INSTALL_SUBDIRS = $(SUBDIRS)
 CLEAN_SUBDIRS = $(SUBDIRS)
 
-target: pre_tests
-	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE}; ) ; done
-	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE} install; ) ; done
+# Export prefix to sub-make invocations for subdirectories
+export prefix
 
-all: pre_tests
-	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE} all ) ; done
+# Dependencies names generator. 
+forall_subdirs=$(patsubst %,%-subdir-$2,$1)
+# Generic rule for descending into subdirectories.  Used for eval-ing
+define mksubdir
+$1-subdir-%: pre_tests
+	$$(MAKE) -C $1 $$*
 
-install: pre_tests
-	for dir in ${INSTALL_SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE} install ) ; done
+endef
 
-clean: pre_tests
-	for dir in ${CLEAN_SUBDIRS} ; do ( cd $$dir ; ${MAKE} clean ) ; done
+all: pre_tests $(call forall_subdirs,$(SUBDIRS),all)
 
+install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
+
+clean: pre_tests $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
 distclean: clean
+
+# Let's instantiate rules for subdirs:
+$(foreach subdir,$(SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+
 
 pre_tests:
 	@$(call test_var_prefix)
