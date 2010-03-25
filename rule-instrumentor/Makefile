@@ -20,17 +20,17 @@ mandir = ${prefix}/man
 
 # Building, testing and cleaning aren't needed for rule-instrumentor itself. Just for subdirectories.
 all:
-	cd $(ASPECTATOR_PATH); $(MAKE) $@
+	cd $(ASPECTATOR_PATH) || exit 1; $(MAKE) $@ || exit 1
 
 test:
-	cd $(ASPECTATOR_PATH); $(MAKE) $@
+	cd $(ASPECTATOR_PATH) || exit 1; $(MAKE) $@ || exit 1
 
 clean:
-	cd $(ASPECTATOR_PATH); $(MAKE) $@
+	cd $(ASPECTATOR_PATH) || exit 1; $(MAKE) $@ || exit 1
 
 # Install needed executables to specified path.
 install:
-	if [ ! -d $(bindir) ]; then mkdir -p $(bindir); fi
-	if [ ! -d $(mandir) ]; then mkdir -p $(mandir); fi
-	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir)
-	export prefix="$(prefix)/$(RULE_INSTRUMENTOR_DIR)/$(ASPECTATOR_DIR)"; cd $(ASPECTATOR_PATH); $(MAKE) $@
+	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
+	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
+	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir) || exit 1
+	export prefix="$(prefix)/$(RULE_INSTRUMENTOR_DIR)/$(ASPECTATOR_DIR)" || exit 1; cd $(ASPECTATOR_PATH) || exit 1; $(MAKE) $@ || exit 1
