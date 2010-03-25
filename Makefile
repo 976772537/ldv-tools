@@ -3,7 +3,7 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core rule-instrumentor
+BUILD_SUBDIRS = kernel-rules cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core rule-instrumentor
 DEBUG_MAKEFILE_SUBDIRS = build-cmd-extractor cmd-utils  drv-env-gen kernel-rules ldv  ldv-core
 
 SUBDIRS = $(BUILD_SUBDIRS)
