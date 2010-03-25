@@ -6,4 +6,4 @@
 	url = git://itgdev.igroup.ispras.ru/aspectator.git
 [submodule "kernel-rules"]
 	path = kernel-rules
-	url = git@itgdev.igroup.ispras.ru:kernel-rules.git
+	url = git://itgdev.igroup.ispras.ru/kernel-rules.git

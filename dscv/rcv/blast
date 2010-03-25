@@ -12,27 +12,34 @@ my $config={
 
 my %optionSpecs = ();
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
+$optionSpecs{'basedir=s'} = \$config->{basedir};
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
 # Prepare running environment
 use FindBin;
-my $shared_dir = $FindBin::RealBin;
-my $backend_dir = "$shared_dir/backends/$config->{verifier}";
+my $shared_dir = "$ENV{'DSCV_HOME'}" or die;
+my $backend_dir = "$shared_dir/rcv/backends/blast";
+my $blast = "$backend_dir/bin/pblast.opt";
+my $basedir = $config->{basedir};
 
--d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
 -f $config->{cmdfile} or die "BLAST's command file $config->{cmdfile} is not found";
+-d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
+-x $blast or die "BLAST's toplevel executable $blast is not an executable file";
+-d $basedir or die "--basedir=$config->{basedir} is not a directory!";
 
-# Add path for blast's supplementary scripts.
-$ENV{'PATH'} = "$backend_dir/blast/bin:".$ENV{'PATH'};
+# Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
+$ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 
 # We should have parsed the command file, get dependencies, etc, etc...  but now we just check if it's a valid XML.
 use XML::Twig;
-my $check_input_file = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd});
-sub execute_cmd
+my $check_input_file = XML::Twig->new( twig_handlers => { cc => \&execute_cc, ld=>\&execute_ld});
+sub execute_cc
 {
 	my ($twig, $cmdT) = @_;
-	# ok.  Do nothing.
+	# Flush the list of all .c files to the .o file being checked
+
+
 }
 $check_input_file->parsefile($config->{cmdfile});
 
@@ -41,7 +48,7 @@ $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
 my $blast_out_FH;
 my $fpid = open $blast_out_FH,"-|",@blast_args;
-defined $fpid or die "INTEGRATION ERROR.  Cmdline: @blast_args";
+defined $fpid or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
 if ($fpid == 0){
 	# child
 	# chew the output.  Do nothing
@@ -53,4 +60,5 @@ if ($fpid == 0){
 # ! PREPROCESS!
 
 print "Verifier $0 is run!\n";
+system "touch","$basedir/sign";
 

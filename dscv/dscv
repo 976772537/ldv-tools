@@ -46,15 +46,15 @@ File with build commands.  The format is standard for LDV project.  Must be spec
 =cut
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 
-=item B<--property=property_id>, B<--propertis=prop_id,prop_id,...>
+=item B<--rule-model=model_id>, B<--rule-models=model_id,model_id,...>
 
 Properties to check.  They are looked for in property datbase.
 
 =cut
 $config->{property} = [];
 $config->{properties} = [];
-$optionSpecs{'property=s@'} = \$config->{property};
-$optionSpecs{'properties=s@'} = \$config->{properties};
+$optionSpecs{'rule-model=s@'} = \$config->{property};
+$optionSpecs{'rule-models=s@'} = \$config->{properties};
 
 =item B<--verifier=backend>
 
@@ -79,19 +79,29 @@ Rule database address.  It is interpreted by rule interpreter.  Also, the rule d
 =cut
 $config->{rule_db_dir} = $ENV{'LDV_RULE_DB'};
 
-=item B<LDV_WORK_DIR>
+=item B<WORK_DIR>
 
-Working directory for a current instance of LDV scripts.  For now, it should be specified.
+Working directory for a current instance of LDV scripts.  Unless specified, a current working dir is taken as working.
 
 =cut
-$config->{work_dir} = $ENV{'LDV_WORK_DIR'};
+use Cwd;
+$config->{work_dir} = $ENV{'WORK_DIR'} || getcwd();
+
+=item B<DSCV_HOME>
+
+Base directory, into which DSCV-related scripts and backends are installed.  Set automatically, but may be overridden.
+
+=cut
+use FindBin;
+$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
+$config->{dscv_dir} = $ENV{'DSCV_HOME'};
 
 =item B<RULE_INSTRUMENTOR>
 
-Specify custom rule instrumentor.  Unless specified, a program C<instrument-rule> is searched for in C<PATH> environemnt variable.
+Specify custom rule instrumentor.  Unless specified, the program is deduced from C<DSCV_HOME> environment or taken from path.
 
 =cut
-$config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || 'instrument-rule';
+$config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'DSCV_HOME'}/../rule-instrumentor" || 'rule-instrumentor';
 
 =back
 
@@ -108,10 +118,11 @@ GetOptions(%optionSpecs) or usage("Unrecognized options!");
 # Sanity check
 
 $config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
-$config->{rule_db_dir} or usage("LDV_RULE_DB is not specified!\n");
--d $config->{rule_db_dir} or usage("LDV_RULE_DB is not a directory!\n");
-$config->{rule_install_exe} = "$config->{rule_db_dir}/install";
--x $config->{rule_install_exe} or usage("$config->{rule_install_exe} is not an executable file!\n");
+# Rule DB installation is not necessary:  rule instrumentor will be doing it
+#$config->{rule_db_dir} or usage("LDV_RULE_DB is not specified!\n");
+#-d $config->{rule_db_dir} or usage("LDV_RULE_DB is not a directory!\n");
+#$config->{rule_install_exe} = "$config->{rule_db_dir}/install";
+#-x $config->{rule_install_exe} or usage("$config->{rule_install_exe} is not an executable file!\n");
 $config->{work_dir} or usage("LDV_WORK_DIR is not specified!\n");
 use File::Path qw(mkpath);
 mkpath ($config->{work_dir});
@@ -132,8 +143,7 @@ my $dscv_tmp_dir = "$config->{work_dir}/tmp/dscv";
 mkpath($dscv_tmp_dir);
 
 # Prepare running environment
-use FindBin;
-my $shared_dir = $FindBin::RealBin;
+my $shared_dir = $config->{dscv_dir};
 my $rcv_frontends_dir = "$shared_dir/rcv";
 
 # Send cmdfile to Instrumentor for each rule.
@@ -179,12 +189,12 @@ for my $property (@properties){
 	my @rule_instr_args = ($config->{rule_ins},
 		"--model-dir=$rules_dir",
 		"--basedir=$ri_basedir",
-		"--model-id=$property",
-		"--cmd-xml-in=$config->{cmdfile}",
-		"--cmd-xml-out=$outfile"
+		"--rule-model=$property",
+		"--cmdfile=$config->{cmdfile}",
+		"--cmdfile-out=$outfile"
 	);
-	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
-	#system "cp $config->{cmdfile} $outfile";
+	#system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
+	system "cp $config->{cmdfile} $outfile";
 	# Call C verifier
 
 	# Understand what C verfifier to call.
@@ -194,9 +204,13 @@ for my $property (@properties){
 		return sub{
 			my ($twig, $cmdT) = @_;
 			my $id = $cmdT->att('id');
-			my $verifier = $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification";
-			# Override verifier if necessary
-			$verifier = $config->{verifier_override} if defined $config->{verifier_override};
+			# Get verifier from command and override it if necessary
+			my $verifier = $config->{verifier_override} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --verifier option is not set";
+			if (defined $cmdT->first_child('engine')){
+				$cmdT->first_child('engine')->set_text($verifier);
+			}else{
+				XML::Twig::Elt->new('engine',{},$verifier)->paste($cmdT);
+			}
 
 			# Print tag to temporary file
 			my $cmdfile = "$dir/model$property-$verifier-$id.xml";
@@ -206,12 +220,15 @@ for my $property (@properties){
 
 			# Run RCV
 			my @rcv_args = ("$rcv_frontends_dir/$verifier",
-				"--cmdfile=$outfile"
+				"--cmdfile=$outfile",
+				"--basedir=$dir"
 			);
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
 		};
 	};
-	my $verify_Twig = XML::Twig->new( twig_handlers => { cc => $get_verifier_handler->($for_rcv_dir), ld=>$get_verifier_handler->($for_rcv_dir) });
+	my $verifier_dir = "$for_rcv_dir/$property";
+	mkpath($verifier_dir);
+	my $verify_Twig = XML::Twig->new( twig_handlers => { cc => $get_verifier_handler->($verifier_dir), ld=>$get_verifier_handler->($verifier_dir) });
 
 	$verify_Twig->parsefile($outfile);
 
