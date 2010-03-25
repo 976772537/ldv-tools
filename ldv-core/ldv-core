@@ -1,7 +1,8 @@
 #!/bin/sh
 
 #
-# ldv.sh workdir kerneldir driver
+# env var WORK_DIR
+# ldv.sh --basedir=basedir --env=envdir --driver=driver
 #
 
 GLOBAL_LOG="global.log";
@@ -10,24 +11,24 @@ XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
 BCE_WORK_DIRNAME="bce_tempdir";
 LOG_PREFIX="ldv: ";
 LOG_MIRROR_TO_CONSOLE=1;
+DRIVER_DIR_NAME="driver";
 
 ldv_print() {
         if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-        if [ ! -f "$NEXT_WORK_DIR/$GLOBAL_LOG" ];  then
-                touch $NEXT_WORK_DIR/$GLOBAL_LOG;
+        if [ ! -f "$NEXT_BASE_DIR/$GLOBAL_LOG" ];  then
+                touch $NEXT_BASE_DIR/$GLOBAL_LOG;
                 if [ $? -ne 0 ]; then
                         echo "ERROR: can't create log file.";
                         exit 1;
                 fi;
         fi;
-        echo "$LOG_PREFIX$1" >> $NEXT_WORK_DIR/$GLOBAL_LOG;
+        echo "$LOG_PREFIX$1" >> $NEXT_BASE_DIR/$GLOBAL_LOG;
 }
 
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
-DRIVERDIIR_NAME="driver";
 
 BCE_DIR="$LDV_HOME/build-cmd-extractor";
 BCE="$BCE_DIR/build-cmd-extractor";
@@ -41,95 +42,149 @@ DSCV="$DSCV_DIR/dscv";
 RINSTR_DIR="$LDV_HOME/rule-instrumentor";
 RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 
-if [ $# -ne 3 ]; then
-	echo "USAGE: ldv-core workdir kerneldir driver"
-fi;
+#
+# read and test environment variables
+#
+print_usage_and_exit() {
+		echo "USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath"
+		exit 1;
+}
+if [ $# -ne 3 ]; then print_usage_and_exit; fi;
 
-WORK_DIR=`readlink -f $1`;
+if [ ! -n "$WORK_DIR" ]; then
+	echo "ldv-core: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
+	exit 1;
+fi;
+WORK_DIR=`readlink -f $WORK_DIR`;
 if [ $? -ne 0 ]; then
-        echo "Failed to read abs-path for working dir: \"$1\"."
+        echo "ldv-core: ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
         exit 1;
 fi;
 if [ ! -d "$WORK_DIR" ]; then
-        echo "Working directory does not exists: \"$WORK_DIR\".";
+        echo "ldv-core: ERROR: Working directory does not exists: \"$WORK_DIR\".";
         exit 1;
 fi;
 
-NEXT_WORK_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
-mkdir $NEXT_WORK_DIR;
+#
+# scan and test command line parameters
+#
+for arg in $@; do
+        case $arg in
+                --basedir=*)
+                	rbasedir=`echo $arg | sed 's/--basedir=//g'`
+			if [ ! -n "$rbasedir" ]; then
+				echo "ldv-core: ERROR: Parameter \"--basedir\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			basedir=`readlink -f $rbasedir`;
+			if [ $? -ne 0 ]; then
+				echo "ldv-core: ERROR: Failed to read abs-path for basedir: \"$rbasedir\"."
+			        exit 1;
+			fi;
+			if [ ! -d "$basedir" ]; then
+			        echo "ldv-core: ERROR: Basedir not exists: \"$basedir\".";
+			        exit 1;
+			fi;
+                ;;
+                --env=*)
+                	renv=`echo $arg | sed 's/--env=//g'`
+			if [ ! -n "$renv" ]; then
+				echo "ldv-core: ERROR: Parameter \"--env\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			env=`readlink -f $renv`;
+			if [ $? -ne 0 ]; then
+				echo "ldv-core: ERROR: Failed to read abs-path for environment dir: \"$renv\"."
+			        exit 1;
+			fi;
+			if [ ! -d "$env" ]; then
+			        echo "ldv-core: ERROR: Environment dir not exists: \"$env\".";
+			        exit 1;
+			fi;
+                ;;
+                --driver=*)
+                	rdriver=`echo $arg | sed 's/--driver=//g'`
+			if [ ! -n "$rdriver" ]; then
+				echo "ldv-core: ERROR: Parameter \"--driver\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			driver=`readlink -f $rdriver`;
+			if [ $? -ne 0 ]; then
+				echo "ldv-core: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+			        exit 1;
+			fi;
+# TODO: add for dirs	if [ ! -d "$driver" -a ! -f "$driver" ]; then
+			if [ ! -f "$driver" ]; then
+			        echo "ldv-core: ERROR: Driver sources not exists: \"$driver\".";
+			        exit 1;
+			fi;
+                ;;
+                *)
+                        echo "ldv-core: ERROR: Unknown options: '$arg'.";
+			print_usage_and_exit;
+                ;;
+        esac
+done
+
+NEXT_BASE_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
+mkdir $NEXT_BASE_DIR;
 if [ $? -ne 0 ]; then
-        echo "Failed to create next working dir for bce: \"$3\"."
+        echo "ldv-core: ERROR: Failed to create next working dir for bce: \"$NEXT_BASE_DIR\"."
         exit 1;
 fi;
 
-KERNEL_DIR=`readlink -f $2`;
-if [ $? -ne 0 ]; then
-        ldv_print "Failed to read abs-path for kernel dir: \"$2\"."
-        exit 1;
-fi;
-if [ ! -d "$KERNEL_DIR" ]; then
-        ldv_print "Kernel directory does not exists: \"$KERNEL_DIR\".";
-        exit 1;
-fi;
-
-DRIVER_FILE=`readlink -f $3`;
-if [ $? -ne 0 ]; then
-        ldv_print "Failed to read abs-path for driver: \"$3\"."
-        exit 1;
-fi;
-if [ ! -f "$DRIVER_FILE" ]; then
-        ldv_print "File with driver does not exists: \"$DRIVER_FILE\".";
-        exit 1;
-fi;
-
-DRIVER_DIR=$NEXT_WORK_DIR/$DRIVERDIIR_NAME;
+DRIVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
 mkdir $DRIVER_DIR;
 if [ $? -ne 0 ]; then
-        ldv_print "Failed to create driver dir: \"$2\"."
+        ldv_print "Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
         exit 1;
 fi;
 
 #
 # test format for driver file and unpack driver
 #
-case `file -b $DRIVER_FILE --mime-type` in
+case `file -b $driver --mime-type` in
 	application/x-bzip2)
-		tar xvjpf $DRIVER_FILE -C $DRIVER_DIR;; 
+		tar xvjpf $driver -C $DRIVER_DIR;; 
 	application/x-gzip)
-		tar xvzpf $DRIVER_FILE -C $DRIVER_DIR;; 
+		tar xvzpf $driver -C $DRIVER_DIR;; 
 	*)
-		ldv_print "Unknown driver file type.";
+		ldv_print "Unknown driver source type.";
 		exit 1;;
 esac
 if [ $? -ne 0 ]; then
-        ldv_print "Failed to unpached archive: \"$DRIVER_FILE\"."
+        ldv_print "ERROR: Failed to unpacked archive: \"$driver\"."
         exit 1;
 fi;
 
-$BCE $WORK_DIR $KERNEL_DIR $DRIVER_DIR;
+XML_AFTER_BCE=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_BCE;
+echo "WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
+WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 if [ $? -ne 0 ]; then
-        ldv_print "Cmd extractor failed."
+        ldv_print "ERROR: Cmd extractor failed."
         exit 1;
 fi;
-BCE_WORK_DIR=$WORK_DIR/$BCE_WORK_DIRNAME;
+
+exit;
+
+#BCE_WORK_DIR=$WORK_DIR/$BCE_WORK_DIRNAME;
 #
 # run DEG:
 #
-CMD_XML=$NEXT_WORK_DIR/"cmd.xml";
+CMD_XML=$NEXT_BASE_DIR/"cmd.xml";
 CMD_XML_BCE=$BCE_WORK_DIR/"cmd.xml";
 
-echo "$DEG $WORK_DIR $CMD_XML $CMD_XML_BCE;";
 $DEG $WORK_DIR $CMD_XML $CMD_XML_BCE;
 if [ $? -ne 0 ]; then
         ldv_print "Drv-env-gen failed."
         exit 1;
 fi;
 
-RULE_INSTRUMENTOR=$RINSTR LDV_RULE_DB=$4 LDV_WORK_DIR=$WORK_DIR/deg_tempdir $DSCV --cmdfile=$CMD_XML_BCE --properties=$5;
-if [ $? -ne 0 ]; then
-        ldv_print "DSCV failed."
-        exit 1;
-fi;
+#RULE_INSTRUMENTOR=$RINSTR LDV_RULE_DB=$4 LDV_WORK_DIR=$WORK_DIR/deg_tempdir $DSCV --cmdfile=$CMD_XML_BCE --properties=$5;
+#if [ $? -ne 0 ]; then
+#        ldv_print "DSCV failed."
+#        exit 1;
+#fi;
 
 
 
