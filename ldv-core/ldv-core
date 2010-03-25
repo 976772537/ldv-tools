@@ -24,18 +24,18 @@ ldv_print() {
 }
 
 
-LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
 DRIVERDIIR_NAME="driver";
 
 BCE_DIR="$LDV_HOME/build-cmd-extractor";
-BCE="$BCE_DIR/build-cmd-extractor.sh";
+BCE="$BCE_DIR/build-cmd-extractor";
 
 DEG_DIR="$LDV_HOME/drv-env-gen";
-DEG="java -ea -jar $DEG_DIR/dist/drv-env-gen.jar";
+DEG="java -ea -jar $DEG_DIR/drv-env-gen.jar";
 
-DSCV_DIR="$LDV_HOME/dscv";
+DSCV_DIR="$LDV_HOME/bin/";
 DSCV="$DSCV_DIR/dscv";
 
 RINSTR_DIR="$LDV_HOME/rule-instrumentor";

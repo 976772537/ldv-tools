@@ -1,5 +1,12 @@
 #!/bin/sh
 
+print_extractors() {
+	echo "Select extractor from exists:"
+	for i in `find $LDV_EXTRACTORS_DIR -maxdepth 1 -regex '.*\.extractor$' -type f | sed 's/.*\/.*\///g' | sed 's/\.extractor$//'`; do
+		echo $i;
+	done;
+}
+
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
 LDV_DESCRIPTIONS_DIR=$LDV_DIR/descriptions;
@@ -19,6 +26,7 @@ if [ ! -d "$LDV_ENVS_DIR" ]; then
 	fi;
 fi;
 LDV_EXTRACTORS_DIR=$LDV_DIR/extractors;
+
 
 
 #
@@ -52,6 +60,7 @@ case $1 in
 		EXTRACTOR=$LDV_EXTRACTORS_DIR/$3.extractor;
 		if [ ! -f "$EXTRACTOR" ]; then
 			echo "ldv-kmanager: ERROR: Can't find extractor: \"$EXTRACTOR\".";
+			print_extractors;
 			rm $NEW_DESCRIPTION;
 			exit 1;
 		fi;

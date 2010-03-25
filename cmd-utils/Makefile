@@ -15,8 +15,9 @@ all:
 	@echo "building - ok";
 
 install:
-	if [ ! -d $(bindir)/$(CMD_UTILS_DIR) ]; then mkdir -p $(bindir)/$(CMD_UTILS_DIR); fi
-	cp $(srcdir)/$(AS_GCC_SCRIPT) $(bindir)/$(CMD_UTILS_DIR)
+	if [ ! -d $(prefix)/$(CMD_UTILS_DIR) ]; then mkdir -p $(prefix)/$(CMD_UTILS_DIR); fi
+	cp $(srcdir)/$(AS_GCC_SCRIPT) $(prefix)/$(CMD_UTILS_DIR)
 
 clean:
-	rm -fr $(prefix)/$(CMD_UTILS_DIR);
+	@echo "cleaning - ok"
+#	rm -fr $(prefix)/$(CMD_UTILS_DIR);

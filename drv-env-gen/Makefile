@@ -9,18 +9,19 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/share/man
 srcdir = .
 
-.PHONY: install clean
+.PHONY: all install clean
 
 all:
 	ant
 
 install:
+	ant
 	if [ ! -d $(prefix)/$(DRV_ENV_GEN_DIR) ]; then mkdir -p $(prefix)/$(DRV_ENV_GEN_DIR); fi
 	cp $(srcdir)/dist/$(DRV_ENV_GEN_JAR) $(prefix)/$(DRV_ENV_GEN_DIR)
 
 clean:
-	rm -fr $(prefix)/$(DRV_ENV_GEN_DIR)
 	ant clean
+#	rm -fr $(prefix)/$(DRV_ENV_GEN_DIR)
 
 
 

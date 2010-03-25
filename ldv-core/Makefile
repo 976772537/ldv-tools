@@ -9,7 +9,7 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/share/man
 srcdir = .
 
-.PHONY: install clean
+.PHONY: all install clean
 
 all:
 	@echo "building - Ok"
@@ -19,4 +19,5 @@ install:
 	cp $(srcdir)/$(LDV_CORE_SCRIPT) $(prefix)/$(LDV_CORE_DIR)
 
 clean:
-	rm -fr $(prefix)/$(LDV_CORE_DIR)
+	@echo "cleaning - ok"
+#	rm -fr $(prefix)/$(LDV_CORE_DIR)
