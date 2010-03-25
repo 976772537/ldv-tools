@@ -15,9 +15,9 @@ srcdir = .
 .PHONY: install clean
 
 install:
-	if [[ ! -d $(bindir) ]]; then mkdir -p $(bindir); fi
+	if [ ! -d $(bindir) ]; then mkdir -p $(bindir); fi
 	cp $(srcdir)/$(LDV_MAIN_SCRIPT) $(bindir)
-	if [[ ! -d $(prefix)/$(LDV_DIR) ]]; then mkdir -p $(prefix)/$(LDV_DIR); fi
+	if [ ! -d $(prefix)/$(LDV_DIR) ]; then mkdir -p $(prefix)/$(LDV_DIR); fi
 	cp $(srcdir)/$(LDV_TASK_SCRIPT) $(prefix)/$(LDV_DIR)
 	cp $(srcdir)/$(LDV_KMANAGER_SCRIPT) $(prefix)/$(LDV_DIR)
 	cp -r $(srcdir)/$(LDV_EXTRACTORS_DIR) $(prefix)/$(LDV_DIR)/
