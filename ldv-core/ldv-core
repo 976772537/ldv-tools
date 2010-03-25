@@ -9,6 +9,7 @@ GLOBAL_LOG="global.log";
 XML_FILENAME_AFTER_BCE="cmd_after_bce.xml";
 XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
 BCE_WORK_DIRNAME="bce_tempdir";
+DEG_WORK_DIRNAME="deg_tempdir";
 LOG_PREFIX="ldv: ";
 LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
@@ -164,19 +165,27 @@ if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
         exit 1;
 fi;
-exit;
+
 #
 # run DEG:
 #
-XML_AFTER_DEG=$NEXT_BASE_DIR/"cmd.xml";
-CMD_XML_BCE=$BCE_WORK_DIR/"cmd.xml";
+NEXT_NEXT_BASEDIR=$WORK_DIR/$DEG_WORK_DIRNAME;
+mkdir $NEXT_NEXT_BASEDIR;
+if [ $? -ne 0 ]; then
+        ldv_print "ERROR: Can not create outdir for deg: \"$NEXT_NEXT_BASEDIR\"."
+        exit 1;
+fi;
 
-$DEG $WORK_DIR $CMD_XML $CMD_XML_BCE;
+XML_AFTER_DEG=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_DEG;
+
+
+echo "WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
+WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
 if [ $? -ne 0 ]; then
         ldv_print "Drv-env-gen failed."
         exit 1;
 fi;
-
+exit;
 #RULE_INSTRUMENTOR=$RINSTR LDV_RULE_DB=$4 LDV_WORK_DIR=$WORK_DIR/deg_tempdir $DSCV --cmdfile=$CMD_XML_BCE --properties=$5;
 #if [ $? -ne 0 ]; then
 #        ldv_print "DSCV failed."
