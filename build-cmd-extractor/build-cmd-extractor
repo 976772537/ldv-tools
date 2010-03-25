@@ -213,16 +213,18 @@ fi;
 #
 # Ok, and now try to start make for driver (driver must be prepared for make)
 #
-TRACE_FILE=$NEXT_BASE_DIR/$TRACE_FILENAME;
-KERNEL_COMPILE_LOG=$LDV_BASE_DIR/$KERNEL_COMPILE_LOG_FILENAME;
+# TRACE_FILE=$basedir/$TRACE_FILENAME;
+KERNEL_COMPILE_LOG=$basedir/$KERNEL_COMPILE_LOG_FILENAME;
 cd $env;
 if [ $? -ne 0 ]; then
-	bce_print "Failed change dir to: \"$KERNEL_DIR\".";
+	bce_print "Failed change dir to: \"$env\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
 	if [ $? -ne 0 ]; then bce_print "ATTENSION: Can't recover Makefile.build !"; fi;
 	exit 1;
 fi;
-make $DRIVER_DIR/ BUILDFILE=$CMD_XML > $KERNEL_COMPILE_LOG 2>&1;
+
+echo "make $driver/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+make $driver/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;
 if [ $? -ne 0 ]; then
 	bce_print "Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
@@ -241,108 +243,56 @@ fi;
 #
 # fix format - add one tab before <cc> and <ld> tags and...
 #
-sed -i -e 's/ldv_tempdir/bce_tempdir/g' $CMD_XML; 
-sed -i -e 's/^<cc/\t<cc/g' $CMD_XML; 
-sed -i -e 's/^<\/cc/\t<\/cc/g' $CMD_XML; 
-sed -i -e 's/^<ld/\t<ld/g' $CMD_XML; 
-sed -i -e 's/^<\/ld/\t<\/ld/g' $CMD_XML; 
-sed -i -e 's/^  <in>/\t\t<in>/g' $CMD_XML; 
-sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $CMD_XML; 
-sed -i -e 's/^  <out>/\t\t<out>/g' $CMD_XML; 
-sed -i -e 's/^  <opt>/\t\t<opt>/g' $CMD_XML; 
+sed -i -e 's/ldv_tempdir/bce_tempdir/g' $cmdfileout; 
+sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
+sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
+sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
+sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout; 
+sed -i -e 's/^  <in>/\t\t<in>/g' $cmdfileout; 
+sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $cmdfileout; 
+sed -i -e 's/^  <out>/\t\t<out>/g' $cmdfileout; 
+sed -i -e 's/^  <opt>/\t\t<opt>/g' $cmdfileout; 
 
 #
 # Is it single-driver ?
 #
 # TODO: 1. find MODULE - test if LDFLAGS_FOR_FILE not exists for this module then add it
 #
-IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $CMD_XML`;
+IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $cmdfileout`;
 # driver single - then fix trace file - add <ld> for all cc
 if [ ! -n "$IS_WITHOUT_LD" ]; then
-	cat $CMD_XML | while read line; do
+	cat $cmdfileout | while read line; do
 		CC_FILE=`echo $line | grep -E '<out>.*</out>'`;
-		if [ -n "$CC_FILE" ]; then
+		if [ -n "$cmdfileout" ]; then
 			CC_FILE=`echo $CC_FILE | sed 's/<out>//' | sed 's/<\/out>//'`;
 #
 # if c-file for this not existst then we pass it
 #
 			if [ -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
-				echo -e "\t<ld id=\"1\">" >> $CMD_XML;
-				echo -e "\t\t<in>$CC_FILE</in>" >> $CMD_XML;
-				echo -e "\t\t<out>"`echo $CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $CMD_XML;
-				echo -e "\t</ld>" >> $CMD_XML;
+				echo -e "\t<ld id=\"1\">" >> $cmdfileout;
+				echo -e "\t\t<in>$CC_FILE</in>" >> $cmdfileout;
+				echo -e "\t\t<out>"`echo $CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
+				echo -e "\t</ld>" >> $cmdfileout;
 			fi;
 		fi;
 	done;
 fi;
 
-echo -e "</cmdstream>" >> $CMD_XML;
+echo -e "</cmdstream>" >> $cmdfileout;
 
 #
 # fix id numbers
 #
 k=1;
-cat $CMD_XML | while read iline; do 
+cat $cmdfileout | while read iline; do 
 	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
-		sed -i -e "s/$iline/<cc id=\"$k\">/" $CMD_XML;
+		sed -i -e "s/$iline/<cc id=\"$k\">/" $cmdfileout;
 		let k=$k+1;
 	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
-		sed -i -e "s/$iline/<ld id=\"$k\">/" $CMD_XML;
+		sed -i -e "s/$iline/<ld id=\"$k\">/" $cmdfileout;
 		let k=$k+1;
 	fi; 
 done;
 
 #cat $CMD_XML;
 exit;
-
-
-#
-# and now create xml file from build-trace-file
-#
-if [ -n "$CMD_XML_FILE" ]; then
-	CMD_XML=$CMD_XML_FILE;
-else
-	CMD_XML="$WORK_DIR/$XML_FILENAME";
-fi;
-
-echo "<?xml version=\"1.0\"?>" > $CMD_XML;
-echo "<cmdstream>" >> $CMD_XML;
-
-echo -e "\t<basedir>$NEXT_BASE_DIR</basedir>" >> $CMD_XML;
-k=1;
-
-#  xml.replace("&", "&amp;"); 
-#  xml.replace("<", "&lt;"); 
-#  xml.replace(">", "&gt;"); 
-#  xml.replace(" ", "&apos;"); 
-#  xml.replace("\"", "&quot;"); 
-
-cat $TRACE_FILE | while read line; do
-	CC_FILE_ABS=`echo $line | grep ^CFLAGS_FOR_FILE | sed 's/^CFLAGS_FOR_FILE = //' | sed 's/ CFLAGS = .*//'`;
-	LD_FILE_ABS=`echo $line | grep ^LDFLAGS_FOR_FILE | sed 's/^LDFLAGS_FOR_FILE = //' | sed 's/ LDFLAGS = .*//'`;
-	if [ "$CC_FILE_ABS" ]; then
-		echo -e "\t<cc id=\"$k\">" >> $CMD_XML;
-		echo -e "\t\t<cwd>$KERNEL_DIR</cwd>" >> $CMD_XML;
-		echo -e "\t\t<in>"`echo $CC_FILE_ABS | sed 's/\.o/.c/' | sed 's/bce_tempdir/deg_tempdir/'`"</in>" >> $CMD_XML;
-		for j in `echo $line | sed 's/^CFLAGS_FOR_FILE = .* CFLAGS = //'`; do
-			echo -e "\t\t<opt>$j</opt>" >> $CMD_XML;
-		done;
-		echo -e "\t\t<out>"`echo $CC_FILE_ABS | sed 's/bce_tempdir/deg_tempdir/'`"</out>" >> $CMD_XML;
-		echo -e "\t</cc>" >> $CMD_XML; 
-		let k=$k+1;
-	elif [ "$LD_FILE_ABS" ]; then
-		LD_FLAGS=`echo $line | sed 's/^LDFLAGS_FOR_FILE = .* LDFLAGS = //' | sed 's/DEPS = .*$//'`;
-		echo -e "\t<ld id=\"$k\">" >> $CMD_XML;
-		echo -e "\t\t<cwd>$KERNEL_DIR</cwd>" >> $CMD_XML;
-		for j in `echo $line | sed 's/^LDFLAGS_FOR_FILE = .* DEPS = //'`; do
-			echo -e "\t\t<in>"`echo $j | sed 's/bce_tempdir/deg_tempdir/'`"</in>" >> $CMD_XML;
-		done;
-		for j in `echo $line | sed 's/^LDFLAGS_FOR_FILE = .* LDFLAGS = //' | sed 's/DEPS = .*$//'`; do
-			echo -e "\t\t<opt>$j</opt>" >> $CMD_XML;
-		done;
-		echo -e "\t\t<out>"`echo $LD_FILE_ABS | sed 's/bce_tempdir/deg_tempdir/'`"</out>" >> $CMD_XML;
-		echo -e "\t</ld>" >> $CMD_XML; 
-		let k=$k+1;
-	fi;
-done;
-echo -e "</cmdstream>" >> $CMD_XML;
