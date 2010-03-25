@@ -2,6 +2,7 @@
 
 BCE_TEMPDIR_NAME="bce_tempdir"
 LDV_TEMPDIR_NAME="ldv_tempdir"
+DRIVER_DIR_NAME="driver"
 
 GLOBAL_LOG="bce_global.log";
 KERNEL_COMPILE_LOG_FILENAME="ckc.log";
@@ -25,80 +26,132 @@ bce_print() {
         fi;
         echo "$LOG_PREFIX$1" >> $LDV_WORK_DIR/$GLOBAL_LOG;
 }
+#---------------------------------------------------------------------------
+#
+# read and test environment variables
+#
+print_usage_and_exit() {
+		echo "USAGE: WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
+		exit 1;
+}
+if [ $# -ne 4 ]; then print_usage_and_exit; fi;
 
-if [ $# -ne 3 -a $# -ne 4 ]; then
-	echo "USAGE: build-cmd-extractor workdir kernel_src_dir driver_dir <xml_file>";
+if [ ! -n "$WORK_DIR" ]; then
+	echo "bce: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
 	exit 1;
 fi;
-
-WORK_DIR=`readlink -f $1`;
+WORK_DIR=`readlink -f $WORK_DIR`;
 if [ $? -ne 0 ]; then
-	echo "Failed to read abs-path for working dir: \"$1\"."
-	exit 1;
+        echo "bce: ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
+        exit 1;
 fi;
 if [ ! -d "$WORK_DIR" ]; then
-	echo "Working directory does not exists: \"$WORK_DIR\".";
-	exit 1;
+        echo "bce: ERROR: Working directory does not exists: \"$WORK_DIR\".";
+        exit 1;
 fi;
-LDV_WORK_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
+
+#
+# scan and test command line parameters
+#
+for arg in $@; do
+        case $arg in
+                --cmdfile-out=*)
+                	rcmdfileout=`echo $arg | sed 's/--cmdfile-out=//g'`
+			if [ ! -n "$rcmdfileout" ]; then
+				echo "bce: ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			cmdfileout=`readlink -f $rcmdfileout`;
+			if [ $? -ne 0 ]; then
+				echo "bce: ERROR: Failed to read abs-path for out cmd file: \"$cmdfileout\"."
+			        exit 1;
+			fi;
+			if [ -f "$cmdfileout" ]; then
+			        echo "bce: ERROR: Cmd file out already exists: \"$cmdfileout\".";
+			        exit 1;
+			fi;
+		;;
+                --basedir=*)
+                	rbasedir=`echo $arg | sed 's/--basedir=//g'`
+			if [ ! -n "$rbasedir" ]; then
+				echo "bce: ERROR: Parameter \"--basedir\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			basedir=`readlink -f $rbasedir`;
+			if [ $? -ne 0 ]; then
+				echo "bce: ERROR: Failed to read abs-path for basedir: \"$rbasedir\"."
+			        exit 1;
+			fi;
+			if [ ! -d "$basedir" ]; then
+			        echo "bce: ERROR: Basedir not exists: \"$basedir\".";
+			        exit 1;
+			fi;
+                ;;
+                --env=*)
+                	renv=`echo $arg | sed 's/--env=//g'`
+			if [ ! -n "$renv" ]; then
+				echo "bce: ERROR: Parameter \"--env\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			env=`readlink -f $renv`;
+			if [ $? -ne 0 ]; then
+				echo "bce: ERROR: Failed to read abs-path for environment dir: \"$renv\"."
+			        exit 1;
+			fi;
+			if [ ! -d "$env" ]; then
+			        echo "bce: ERROR: Environment dir not exists: \"$env\".";
+			        exit 1;
+			fi;
+                ;;
+                --driver=*)
+                	rdriver=`echo $arg | sed 's/--driver=//g'`
+			if [ ! -n "$rdriver" ]; then
+				echo "bce: ERROR: Parameter \"--driver\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			driver=`readlink -f $rdriver`;
+			if [ $? -ne 0 ]; then
+				echo "bce: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+			        exit 1;
+			fi;
+# TODO: add for dirs	if [ ! -d "$driver" -a ! -f "$driver" ]; then
+			if [ ! -d "$driver" ]; then
+			        echo "bce: ERROR: Driver unpacked sources not exists: \"$driver\".";
+			        exit 1;
+			fi;
+                ;;
+                *)
+                        echo "bce: ERROR: Unknown options: '$arg'.";
+			print_usage_and_exit;
+                ;;
+        esac
+done
+#---------------------------------------------------------------------------
+
 NEXT_BASE_DIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
 mkdir $NEXT_BASE_DIR;
 if [ $? -ne 0 ]; then
-	echo "Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
+	echo "ERROR: Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
 	exit 1;
 fi;
-NEXT_DIRVER_DIR=$NEXT_BASE_DIR/"driver";
-KERNEL_DIR=`readlink -f $2`;
-if [ $? -ne 0 ]; then
-	bce_print "Failed to read abs-path for kernel dir: \"$2\"."
-	exit 1;
-fi;
-if [ ! -d "$KERNEL_DIR" ]; then
-	bce_print "Kernel directory does not exists: \"$KERNEL_DIR\".";
-	exit 1;
-fi;
-DRIVER_DIR=`readlink -f $3`;
-if [ $? -ne 0 ]; then
-	bce_print "Failed to read abs-path for driver dir: \"$3\"."
-	exit 1;
-fi;
-if [ ! -d "$DRIVER_DIR" ]; then
-	bce_print "Driver directory does not exists: \"$DRIVER_DIR\".";
-	exit 1;
-fi;
-
-CMD_XML=$LDV_WORK_DIR/$XML_FILENAME;
-if [ $# -eq 4 ]; then
-	CMD_XML=`readlink -f $4`;
-	if [ $? -ne 0 ]; then
-		bce_print "Failed to read abs path for: \"$4\"."
-		exit 1;
-	fi;
-	touch $CMD_XML;
-	if [ $? -ne 0 ]; then
-		bce_print "Failed to create empty XML file: \"$4\"."
-		exit 1;
-	fi;
-fi;
-
+NEXT_DIRVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
 #
 # copy driver sources for next instrument
 #
-cp -r $DRIVER_DIR $NEXT_DIRVER_DIR;
+cp -r $driver $NEXT_DIRVER_DIR;
 if [ $? -ne 0 ]; then
-	bce_print "Failed to copy driver sources for next instrument."
+	bce_print "ERROR: Failed to copy driver sources for next instrument to: \"$NEXT_DIRVER_DIR\"."
 	exit 1;
 fi;
 
-echo "<?xml version=\"1.0\"?>" > $CMD_XML;
-echo "<cmdstream>" >> $CMD_XML;
-echo -e "\t<basedir>$NEXT_BASE_DIR</basedir>" >> $CMD_XML;
-
+echo "<?xml version=\"1.0\"?>" > $cmdfileout;
+echo "<cmdstream>" >> $cmdfileout;
+echo -e "\t<basedir>$NEXT_BASE_DIR</basedir>" >> $cmdfileout;
 
 #
 # try to find "scripts/Makefile.build" in kernel source directory
 # 
-KERNEL_MAKEFILE_BUILD=$KERNEL_DIR"/scripts/Makefile.build";
+KERNEL_MAKEFILE_BUILD=$env"/scripts/Makefile.build";
 if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
 	bce_print "Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	exit 1;
@@ -107,7 +160,7 @@ fi;
 #
 # copy Makefile for last recovery...
 #
-KERNEL_BACKUP_MAKEFILE_BUILD=$KERNEL_DIR"/scripts/Makefile.build.bcebackup";
+KERNEL_BACKUP_MAKEFILE_BUILD=$env"/scripts/Makefile.build.bcebackup";
 cp $KERNEL_MAKEFILE_BUILD $KERNEL_BACKUP_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	bce_print "Failed to copy Makefile: \"$KERNEL_MAKEFILE_BUILD\" to \"$KERNEL_BACKUP_MAKEFILE_BUILD\".";
@@ -160,9 +213,9 @@ fi;
 #
 # Ok, and now try to start make for driver (driver must be prepared for make)
 #
-TRACE_FILE=$LDV_WORK_DIR/$TRACE_FILENAME;
-KERNEL_COMPILE_LOG=$LDV_WORK_DIR/$KERNEL_COMPILE_LOG_FILENAME;	
-cd $KERNEL_DIR;
+TRACE_FILE=$NEXT_BASE_DIR/$TRACE_FILENAME;
+KERNEL_COMPILE_LOG=$LDV_BASE_DIR/$KERNEL_COMPILE_LOG_FILENAME;
+cd $env;
 if [ $? -ne 0 ]; then
 	bce_print "Failed change dir to: \"$KERNEL_DIR\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
