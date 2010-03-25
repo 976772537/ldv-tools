@@ -3,7 +3,6 @@
 
 use Cwd('abs_path', 'cwd');
 use English;
-use Env('LDV_ASPECTATOR', 'LDV_LLVM_C_BACKEND', 'LDV_LLVM_GCC', 'LDV_LLVM_LINKER');
 use Getopt::Long;
 Getopt::Long::Configure('posix_default', 'no_ignore_case');
 use strict;
@@ -70,10 +69,50 @@ my $file_xml_out;
 my $kind_isplain = 0;
 my $kind_isaspect = 0;
 
-# Options to be passed to llvm c backend.
+# LDV_HOME is obtained through directory of rule-instrumentor.
+# It is assumed that there is such organization of LDV_HOME directory:
+# LDV_HOME
+#   bin
+#     rule_instrumentor.pl (this script)
+#   rule_instrumentor
+#     aspectator
+#       bin
+#         symlinks to aspectator script, gcc, linker and c-backend.
+my $ldv_rule_instrumentor_abs = `readlink -f $0`;
+my $ldv_rule_instrumentor_dir = `dirname $ldv_rule_instrumentor_abs`;
+
+# Obtain LDV_HOME as earlier as possible.
+$ldv_rule_instrumentor_dir =~ /\/bin$/;
+
+my $LDV_HOME = $PREMATCH;
+
+# Directory where all rule instrumentor auxiliary instruments (such as 
+# aspectator) are placed.
+my $ldv_rule_instrumentor = "$LDV_HOME/rule-instrumentor";
+
+# Directory contains all binaries needed by aspectator.
+my $ldv_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/bin";
+
+# Aspectator script.
+my $ldv_aspectator = "$ldv_aspectator_bin_dir/compiler";
+
+# Environment variable that will keep path to GCC executable. 
+my $ldv_aspectator_gcc = 'LDV_LLVM_GCC';
+
+# C backend.
+my $ldv_c_backend = "$ldv_aspectator_bin_dir/c-backend";
+
+# GCC compiler with aspectator extensions that is used by aspectator
+# script.
+my $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
+
+# Linker.
+my $ldv_linker = "$ldv_aspectator_bin_dir/linker";
+
+# Options to be passed to llvm C backend.
 my $llvm_c_backend_opts = '-f -march=c';
 
-# Suffix for llvm c backend production.
+# Suffix for llvm C backend production.
 my $llvm_c_backend_suffix = '.cbe.c';
 
 # Options to be passed to llvm linker.
@@ -124,35 +163,6 @@ my $xml_model_db_model = 'model';
 
 # Remember absolute path to the current working directory. 
 $tool_working_dir = Cwd::cwd();
-
-# Check whethe needed tools are specified trough environment variables.
-unless ($LDV_ASPECTATOR)
-{
-  warn("Aspectator script isn't specified through environment variable LDV_ASPECTATOR");
-	
-  exit($error_syntax);	
-}
-
-unless ($LDV_LLVM_C_BACKEND)
-{
-  warn("Ldv llvm c backend isn't specified through environment variable LDV_LLVM_C_BACKEND");
-	
-  exit($error_syntax);	
-}
-
-unless ($LDV_LLVM_GCC)
-{
-  warn("Ldv llvm gcc isn't specified through environment variable LDV_LLVM_GCC");
-	
-  exit($error_syntax);	
-}
-
-unless ($LDV_LLVM_LINKER)
-{
-  warn("Ldv llvm linker isn't specified through environment variable LDV_LLVM_LINKER");
-	
-  exit($error_syntax);	
-}
 
 # Get and parse command-line options.
 get_opt();
@@ -277,9 +287,9 @@ sub get_model_info()
 		}
 		else
 		{
-#          warn("Kind '$kind' can't be processed"); 	
+          warn("Kind '$kind' can't be processed"); 	
 
-#          exit($error_semantics);			
+          exit($error_semantics);			
 		}
 	  }
      
@@ -408,10 +418,9 @@ sub process_cmd_cc()
   
     # On each cc command we run aspectator on corresponding file with 
     # corresponding model aspect and options.
-    # TODO: choose command format
-    my @args = ($LDV_ASPECTATOR, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'aspect'}", @{$cmd{'opts'}});
+    $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+    my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'aspect'}", @{$cmd{'opts'}});
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
-    #`LDV_LLVM_GCC=$LDV_LLVM_GCC $LDV_ASPECTATOR ${$cmd{'ins'}}[0] $opt_model_dir/$model{'aspect'} @{$cmd{'opts'}}`;
 	
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectator_suffix with llvm
     # object code. Copy them to $cmd{'out'} files.
@@ -432,7 +441,7 @@ sub process_cmd_ld()
     # On each ld command we run llvm linker for all input files together to 
     # produce one linked file.
     # TODO: choose command format	
-    `$LDV_LLVM_LINKER $llvm_linker_opts @{$cmd{'ins'}} -o $cmd{'out'}`;
+    `$ldv_linker $llvm_linker_opts @{$cmd{'ins'}} -o $cmd{'out'}`;
 
     # Make name for c file corresponding to the linked one. 
     $cmd{'out'} =~ /\.[^\.]*$/;
@@ -440,47 +449,33 @@ sub process_cmd_ld()
   
     # Linked file is converted to c by means of llvm c backend.
     # TODO: choose command format
-    `$LDV_LLVM_C_BACKEND $llvm_c_backend_opts $cmd{'out'} -o $c_out`;
+    `$ldv_c_backend $llvm_c_backend_opts $cmd{'out'} -o $c_out`;
   
     # Come back.
     chdir($tool_working_dir);
 
     # Print corresponding commands to output xml file. 
-    # TODO: choose format of printing. Direct printing is commented and special writer is used instead of it.
-#    print($file_xml_out "  <cc id=\"$cmd{'id'}-llvm-cc\">\n");
     $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
-#    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");
     $xml_writer->dataElement('cwd' => $opt_basedir);
-#    print($file_xml_out "    <in>$c_out</in>\n");
     $xml_writer->dataElement('in' => $c_out);
     # Use here the first input file name to relate with corresponding ld 
     # command.    
-#    print($file_xml_out "    <out>${$cmd{'ins'}}[0]</out>\n");
     $xml_writer->dataElement('out' => ${$cmd{'ins'}}[0]); 
-#    print($file_xml_out "  </cc>\n\n");
     # Close cc tag.
     $xml_writer->endTag();
      
-#    print($file_xml_out "  <ld id=\"$cmd{'id'}-llvm-ld\">\n");
     $xml_writer->startTag('ld', 'id' => "$cmd{'id'}-llvm-ld");
-#    print($file_xml_out "    <cwd>$opt_basedir</cwd>\n");
     $xml_writer->dataElement('cwd' => $opt_basedir);    
-#    print($file_xml_out "    <in>${$cmd{'ins'}}[0]</in>\n");
     $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);  
-#    print($file_xml_out "    <out>$cmd{'out'}</out>\n"); 
     $xml_writer->dataElement('out' => $cmd{'out'});
-#    print($file_xml_out "    <engine>$model{'engine'}</engine>\n");
     $xml_writer->dataElement('engine' => $model{'engine'}); 
   
     foreach my $entry_point (@{$cmd{'entry point'}})
     {
-#      print($file_xml_out "    <main>$entry_point</main>\n");
        $xml_writer->dataElement('main' => $entry_point);
     }
    
-#    print($file_xml_out "    <hints>$model{'hints'}</hints>\n");  
     $xml_writer->dataElement('hints' => $model{'hints'});
-#    print($file_xml_out "  </ld>\n\n");
     # Close ld tag.
     $xml_writer->endTag();
   }

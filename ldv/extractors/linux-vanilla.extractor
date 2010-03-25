@@ -1,0 +1,80 @@
+#!/bin/sh
+echo "Linux Vanilla extractor.";
+
+#
+# extractor kernel-description
+#
+
+if [ ! -f "$1" ]; then
+	echo "extractor error: can't find description file \"$1\".";
+	exit 1;
+fi;
+
+# read field from description;
+DSCR_SOURCE=`cat $1 | grep ^source |  sed 's/^source=//'`;
+DSCR_DEST=`cat $1 | grep ^dest |  sed 's/^dest=//'`;
+
+# test kernel source type:
+mkdir $DSCR_DEST;
+if [ $? -ne 0 ]; then
+        echo "extractor failed: Failed to create destination dir: \"$DSCR_DEST\"."
+        exit 1;
+fi;
+
+#
+# test format for driver file and unpack driver
+#
+SOURCE_TYPE=`file -b $DSCR_SOURCE --mime-type`;
+if [ $? -ne 0 ]; then 
+	# test - is it internet source?	
+#if [ -n "`echo $DSCR_SOURCE | grep ^http://`" ]; then
+#	cd $DSCR_DEST;
+#	wget $DSCR_SOURCE;
+#	if [ $? -ne 0 ];
+#	        echo "extractor failed: Failed to get and unpack source: \"$DSCR_SOURCE\"."
+#       		exit 1;
+#	fi;
+#else
+        echo "extractor failed: Failed to get and unpack source: \"$DSCR_SOURCE\"."
+        exit 1;
+#fi;
+else
+	case $SOURCE_TYPE in
+	        application/x-bzip2)
+	                tar xvjpf $DSCR_SOURCE -C $DSCR_DEST;;
+	        application/x-gzip)
+	                tar xvzpf $DSCR_SOURCE -C $DSCR_DEST;;
+	        *)
+	                echo "extractor failed: Unknown source type.";
+	                exit 1;;
+	esac
+	if [ $? -ne 0 ]; then
+	        echo "extractor failed: Failed to get and unpack source: \"$DSCR_SOURCE\"."
+	        exit 1;
+	fi;
+fi;
+# find dir with makefile
+KERNEL_MAKEFILE=`find $DSCR_DEST -maxdepth 2 -regex '.*Makefile$'`;
+KERNEL_MAKEFILE_ABS=`readlink -f $KERNEL_MAKEFILE`;
+if [ $? -ne 0 ]; then
+        echo "extractor failed: Can not find makefile."
+        exit 1;
+fi;
+KERNEL_MAKEFILE_DIR=`dirname $KERNEL_MAKEFILE_ABS`;
+# prepare it
+cd $KERNEL_MAKEFILE_DIR;
+make allyesconfig;
+if [ $? -ne 0 ]; then
+        echo "extractor failed: make allyesconfig failed."
+        exit 1;
+fi;
+make init;
+if [ $? -ne 0 ]; then
+        echo "extractor failed: make init failed."
+        exit 1;
+fi;
+echo "kernel-make-dir=$KERNEL_MAKEFILE_DIR" >> $1;
+echo "status=prepared" >> $1;
+
+
+
