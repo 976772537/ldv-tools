@@ -92,13 +92,27 @@ for i in $@; do
 		let k=$k+1;
 		exit 1;
 	fi;
-	$LDV_CORE_EXEC $WORK_DIR_LOCAL $KERNEL_PATH $DRIVER_ABS;
+	WORK_DIR_NEXT_INSTRUMENT=$WORK_DIR_LOCAL/lvc_tempdir;
+	mkdir $WORK_DIR_NEXT_INSTRUMENT;
+	if [ $? -ne 0 ]; then
+		echo "ldv-task: ERROR: can not create environment-dir from task: \"$WORK_DIR_NEXT_INSTRUMENT\".";
+		unset WORK_DIR_LOCAL;
+		unset WORK_DIR_NEXT_INSTRUMENT;
+		let k=$k+1;
+		let tid=$tid+1;
+		exit 1;
+	fi;
+
+
+	echo "WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --basedir=$WORK_DIR_NEXT_INSTRUMENT --env=$KERNEL_PATH --driver=$DRIVER_ABS;"
+	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --basedir=$WORK_DIR_NEXT_INSTRUMENT --env=$KERNEL_PATH --driver=$DRIVER_ABS;
 	if [ $? -ne 0 ]; then
 		echo "ldv-task: ERROR: ldv-core failed.";
 	fi;
 	unset ENV_ID;
 	unset KERNEL_PATH;
 	unset WORK_DIR_LOCAL;
+	unset WORK_DIR_NEXT_INSTRUMENT;
 	let k=$k+1;
 	let tid=$tid+1;
 done;
