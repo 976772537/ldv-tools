@@ -1,0 +1,19 @@
+before: file ("$this")
+{
+#include <linux/kernel.h>
+extern char *ldv_env_strncat(char *dest, const char *src, size_t count, size_t size_of_dest);
+}
+
+
+before: call(extern char * strncat(char *, const char *, __kernel_size_t))
+{
+/*
+  $arg_size1 is an array size of the first parameter in case when it's a
+  stack variable having an one-dimensional array type with known size. 
+  Otherwise it's -1.
+*/
+  if($arg_size1 !=- 1) 
+  {
+    ldv_env_strncat($arg1, $arg2, $arg3, $arg_size1);
+  }
+}

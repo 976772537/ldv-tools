@@ -1,0 +1,2 @@
+/* Aspect is useless for this rule, since there are functions prototypes
+   in header file include/linux/blkdev.h. */

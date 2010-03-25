@@ -1,0 +1,12 @@
+/* Aspect is useless for this rule, since there is just free_irq
+   prototype in header file. 
+before: file ("$this")
+{
+extern void ldv_free_irq(void);
+}
+
+before: execution(void free_irq(unsigned int, void *))
+{
+  ldv_free_irq();
+}
+*/

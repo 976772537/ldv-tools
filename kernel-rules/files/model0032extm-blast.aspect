@@ -1,0 +1,44 @@
+before: file ("$this")
+{
+#include <linux/kernel.h>
+#include <linux/mutex.h>
+
+extern int ldv_mutex_lock_interruptible(struct mutex *lock);
+extern int ldv_mutex_lock_killable(struct mutex *lock); 
+extern void ldv_mutex_lock(struct mutex *lock);
+}
+
+around: define(mutex_lock_interruptible(lock))
+{
+ldv_mutex_lock_interruptible(lock)
+}
+
+around: define(mutex_lock_killable(lock))
+{
+ldv_mutex_lock_killable(lock)
+}
+
+around: define(mutex_lock(lock))
+{
+ldv_mutex_lock(lock)
+}
+
+before: call(extern int mutex_lock_interruptible(struct mutex *))
+{
+ldv_mutex_lock_interruptible($arg1);
+}
+
+before: call(extern int mutex_lock_killable(struct mutex *))
+{
+ldv_mutex_lock_killable($arg1);
+}
+
+before: call(extern void mutex_lock(struct mutex *))
+{
+ldv_mutex_lock($arg1);
+}
+
+after: introduce(struct mutex)
+{
+int ldv_islocked;
+}

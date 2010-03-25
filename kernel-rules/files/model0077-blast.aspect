@@ -1,0 +1,32 @@
+before: file ("$this")
+{
+extern void ldv_usb_lock(void);
+extern void ldv_usb_unlock(void);
+extern int ldv_usb_trylock(void);
+
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slub_def.h>
+
+extern void ldv_kmalloc(gfp_t flags);
+}
+
+before: execution(static inline void *kmalloc(..))
+{
+  ldv_kmalloc($arg2);
+}
+
+around: define(usb_lock_device(udev))
+{
+ldv_usb_lock()
+}
+
+around: define(usb_unlock_device(udev))
+{
+ldv_usb_unlock()
+}
+
+around: define(usb_trylock_device(udev))
+{
+ldv_usb_trylock()
+}

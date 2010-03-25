@@ -50,8 +50,9 @@ sub process_cmds();
 # Global variables.
 ################################################################################
 
-# Suffix to files 
-my $aspectator_suffix = '.bc';
+# Suffix for file that will contain general aspect consisting of usual and 
+# common aspects.
+my $aspect_general_suffix = '.general';
 
 # Information on current command.
 my %cmd;
@@ -108,6 +109,12 @@ my $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
 
 # Linker.
 my $ldv_linker = "$ldv_aspectator_bin_dir/linker";
+
+# Suffix of llvm bitcode files. 
+my $llvm_bitcode_suffix = '.bc';
+
+# Suffix of llvm bitcode files instrumented with general aspect.
+my $llvm_bitcode_general_suffix = '.general';
 
 # Options to be passed to llvm C backend.
 my $llvm_c_backend_opts = '-f -march=c';
@@ -293,6 +300,12 @@ sub get_model_info()
 		}
 	  }
      
+      my $file_aspect_general;
+      
+      # Create general aspect for the given model.
+      $model{'general'} = "$model{'aspect'}$aspect_general_suffix";
+      `cat "$opt_model_dir/$model{'aspect'}" "$opt_model_dir/$model{'common'}" > "$opt_model_dir/$model{'general'}`;
+     
       # Finish models iteration after the first one is found and processed.
       last;
     }
@@ -422,9 +435,21 @@ sub process_cmd_cc()
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'aspect'}", @{$cmd{'opts'}});
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 	
-    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectator_suffix with llvm
+    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
     # object code. Copy them to $cmd{'out'} files.
-    `cp ${$cmd{'ins'}}[0]$aspectator_suffix $cmd{'out'}`;
+    `cp ${$cmd{'ins'}}[0]$llvm_bitcode_suffix $cmd{'out'}`;
+  
+    # Also do this with general aspect. Don't forget to add -I option with 
+    # models directory needed to find appropriate headers for common aspect.
+    my $model_dir_abs = `readlink -f "$opt_model_dir/$model{'common'}"`;
+    my $model_dir = `dirname $model_dir_abs`;
+    $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+    @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$opt_model_dir/$model{'general'}", @{$cmd{'opts'}}, "-I$model_dir");
+    system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
+	
+    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
+    # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
+    `cp ${$cmd{'ins'}}[0]$llvm_bitcode_suffix "$cmd{'out'}$llvm_bitcode_general_suffix"`;
   
     # Come back.
     chdir($tool_working_dir);
@@ -439,16 +464,17 @@ sub process_cmd_ld()
     chdir($opt_basedir);
   
     # On each ld command we run llvm linker for all input files together to 
-    # produce one linked file.
-    # TODO: choose command format	
-    `$ldv_linker $llvm_linker_opts @{$cmd{'ins'}} -o $cmd{'out'}`;
+    # produce one linked file. Note that excact one file to be linked must be
+    # generally (i.e. with usual and common aspects) instrumented. We choose the
+    # first one here.
+    my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]);
+    `$ldv_linker $llvm_linker_opts @ins -o $cmd{'out'}`;
 
     # Make name for c file corresponding to the linked one. 
     $cmd{'out'} =~ /\.[^\.]*$/;
     my $c_out = "$PREMATCH$llvm_c_backend_suffix";
   
     # Linked file is converted to c by means of llvm c backend.
-    # TODO: choose command format
     `$ldv_c_backend $llvm_c_backend_opts $cmd{'out'} -o $c_out`;
   
     # Come back.
