@@ -40,19 +40,60 @@ public class DEG {
 	private static String optTag = "opt";
 	private static String mainTag = "main";
 	
+	private static String basedir = null;
+	private static String outdir = null;
+	private static String cmdfile = null;
+	private static String cmdfileout = null;
+	
 	public static void main(String[] args) {
+
 		long startf = System.currentTimeMillis();
-		if(args.length != 2 && args.length != 3) {
-			System.out.println("USAGE: java -ea -jar drv-env-gen.jar work_dir command_file.xml <out_command_file.xml>");
+		if(args.length != 4 ) {
+			System.out.println("USAGE: java -ea -jar drv-env-gen.jar --basedir=basedir --outdir=outdir --cmdfile=cmdxml --cmdfile-out=cmdfileout");
+			return;
+		}	
+		
+		for(int i=0; i<args.length; i++) {
+			if(args[i].contains("--basedir=")) {
+				basedir = args[i].replace("--basedir=", "").trim();
+			} else
+			if(args[i].contains("--outdir=")) {
+				outdir = args[i].replace("--outdir=", "").trim();
+			} else
+			if(args[i].contains("--cmdfile=")) {
+				cmdfile = args[i].replace("--cmdfile=", "").trim();
+			} else
+			if(args[i].contains("--cmdfile-out=")) {
+				cmdfileout = args[i].replace("--cmdfile-out=", "").trim();
+			} else {
+				System.out.println("Unknown parameter: \""+args[i]+"\".");
+				System.out.println("USAGE: java -ea -jar drv-env-gen.jar --basedir=basedir --outdir=outdir --cmdfile=cmdxml --cmdfile-out=cmdfileout");
+				return;
+			}
+		}
+			
+		if(basedir == null || basedir.length() == 0) {
+			System.out.println("DEG: --basedir - is null. Please, setup it.");
 			return;
 		}
-		String outXmlFile = args[0]+'/'+defaultdir+'/'+defaultxml;
-		if(args.length == 3)
-			outXmlFile = args[2];
+		if(outdir == null || outdir.length() == 0) {
+			System.out.println("DEG: --outdir - is null. Please, setup it.");
+			return;
+		}
+		if(cmdfile == null || cmdfile.length() == 0) {
+			System.out.println("DEG: --cmdfile - is null. Please, setup it.");
+			return;
+		}
+		if(cmdfileout == null || cmdfileout.length() == 0) {
+			System.out.println("DEG: --cmdfile-out - is null. Please, setup it.");
+			return;
+		}
 		
+	
+
 		try {
 			DocumentBuilder xml = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-			Document doc = xml.parse(new File(args[1]));
+			Document doc = xml.parse(new File(cmdfile));
 			Element xmlRoot=doc.getDocumentElement();
 			if (!xmlRoot.getTagName().equals(rootTag)) {
 				System.out.println("Can not find root tag:\""+rootTag+"\"");
@@ -70,7 +111,7 @@ public class DEG {
 						// TODO: add test for errors
 						lbasedir = cmdstreamNodeList.item(i).getTextContent();
 						File sourceDir = new File(lbasedir);
-						File destinationDir = new File(args[0]+'/'+nextInstrumentDir);
+						File destinationDir = new File(outdir);
 						FSOperationsBase.copyDirectory(sourceDir, destinationDir);
 						
 						String newinTagContent = lbasedir.replace(myInstrumentDir, nextInstrumentDir);
@@ -150,7 +191,7 @@ public class DEG {
 			}
 			OutputFormat format = new OutputFormat();
 			format.setIndenting(true);
-			File xmlOutFile = new File(outXmlFile);
+			File xmlOutFile = new File(cmdfileout);
 			FileOutputStream os = new FileOutputStream(xmlOutFile);
 			DOMSerializer serializer = new XMLSerializer(os, format);
 			serializer.serialize(xmlRoot);
