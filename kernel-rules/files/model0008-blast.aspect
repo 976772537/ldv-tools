@@ -1,0 +1,20 @@
+before: file ("$this")
+{
+extern void ldv_module_get(void);
+extern void ldv_module_put(void);
+}
+
+after: call(static inline int try_module_get(..))
+{
+  /* Check whether function works properly (i.e. is there such module at all. */
+  if ($res == 1)
+  {
+    ldv_module_get();
+  }
+}
+
+after: call(void module_put(..))
+{
+  ldv_module_put()
+}
+

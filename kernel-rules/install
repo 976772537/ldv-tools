@@ -1,0 +1,21 @@
+#!/bin/bash
+
+function usage {
+cat 1>&2 <<usage_ends
+Usage:
+	install /dir/to/install/to
+
+Installs rule database into the directory specified.  Creates it if necessary.
+usage_ends
+exit 1;
+}
+
+source_dir=`dirname $0`
+target_dir=$1
+test -z "$target_dir" && usage
+
+mkdir -p "$target_dir"
+cp -r -f "$source_dir/"* "$target_dir"
+
+
+

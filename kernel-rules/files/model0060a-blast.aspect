@@ -1,0 +1,18 @@
+before: file ("$this")
+{
+#include <linux/list.h>
+
+extern void ldv_list_add(struct list_head *, struct list_head *);
+extern void ldv_list_del(struct list_head *);
+}
+
+around: execution(static inline void list_add(struct list_head *, struct list_head *))
+{
+  ldv_list_add($arg1, $arg2);
+}
+
+around: execution(static inline void list_del(struct list_head *)) 
+  || call(extern void list_del(struct list_head *))
+{
+  ldv_list_del($arg1);
+}

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model-db>
+	<model id="8_1">
+		<rule>0008</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0008-blast.aspect</aspect>
+			<common>./files/model0008-blast.c</common>
+			<filter>./files/model0008-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="29_1">
+		<rule>0029</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0029-blast.aspect</aspect>
+			<common>./files/model0029-blast.c</common>
+			<filter>./files/model0029-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="32_1">
+		<rule>0032</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0032-blast.c</common>
+			<filter>./files/model0032-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="32_2">
+		<rule>0032</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0032a-blast.aspect</aspect>
+			<common>./files/model0032a-blast.c</common>
+			<filter>./files/model0032a-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="37_1">
+		<rule>0037</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0037-blast.aspect</aspect>
+			<common>./files/model0037-blast.c</common>
+			<filter>./files/model0037-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="39_1">
+		<rule>0039</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0039-blast.c</common>
+			<filter>./files/model0039-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="43_1">
+		<rule>0043</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0043-blast.aspect</aspect>
+			<common>./files/model0043-blast.c</common>
+			<filter>./files/model0043-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="60_1">
+		<rule>0060</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0060-blast.c</common>
+			<filter>./files/model0060-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="68_1">
+		<rule>0068</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0068-blast.c</common>
+			<filter>./files/model0068-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="77_1">
+		<rule>0077</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0077-blast.aspect</aspect>
+			<common>./files/model0077-blast.c</common>
+			<filter>./files/model0077-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+</model-db>
+
+
