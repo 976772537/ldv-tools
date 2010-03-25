@@ -14,6 +14,9 @@ srcdir = .
 
 .PHONY: install clean
 
+all:
+	@echo "building - ok";
+
 install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir); fi
 	cp $(srcdir)/$(LDV_MAIN_SCRIPT) $(bindir)
