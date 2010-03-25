@@ -164,14 +164,11 @@ if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
         exit 1;
 fi;
-
 exit;
-
-#BCE_WORK_DIR=$WORK_DIR/$BCE_WORK_DIRNAME;
 #
 # run DEG:
 #
-CMD_XML=$NEXT_BASE_DIR/"cmd.xml";
+XML_AFTER_DEG=$NEXT_BASE_DIR/"cmd.xml";
 CMD_XML_BCE=$BCE_WORK_DIR/"cmd.xml";
 
 $DEG $WORK_DIR $CMD_XML $CMD_XML_BCE;
