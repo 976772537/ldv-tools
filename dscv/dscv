@@ -118,10 +118,11 @@ GetOptions(%optionSpecs) or usage("Unrecognized options!");
 # Sanity check
 
 $config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
-$config->{rule_db_dir} or usage("LDV_RULE_DB is not specified!\n");
--d $config->{rule_db_dir} or usage("LDV_RULE_DB is not a directory!\n");
-$config->{rule_install_exe} = "$config->{rule_db_dir}/install";
--x $config->{rule_install_exe} or usage("$config->{rule_install_exe} is not an executable file!\n");
+# Rule DB installation is not necessary:  rule instrumentor will be doing it
+#$config->{rule_db_dir} or usage("LDV_RULE_DB is not specified!\n");
+#-d $config->{rule_db_dir} or usage("LDV_RULE_DB is not a directory!\n");
+#$config->{rule_install_exe} = "$config->{rule_db_dir}/install";
+#-x $config->{rule_install_exe} or usage("$config->{rule_install_exe} is not an executable file!\n");
 $config->{work_dir} or usage("LDV_WORK_DIR is not specified!\n");
 use File::Path qw(mkpath);
 mkpath ($config->{work_dir});
