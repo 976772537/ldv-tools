@@ -11,8 +11,8 @@ INSTALL_SUBDIRS = $(SUBDIRS)
 CLEAN_SUBDIRS = $(SUBDIRS)
 
 target: pre_tests
-	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE}; if [ $? -eq 0 ]; then exit 1; fi; ) ; done
-	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE} install; if [ $? -eq 0 ]; then exit 1; fi; ) ; done
+	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE}; ) ; done
+	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE} install; ) ; done
 
 all: pre_tests
 	for dir in ${SUBDIRS} ; do ( cd $$dir ; export prefix=${prefix}; ${MAKE} all ) ; done
