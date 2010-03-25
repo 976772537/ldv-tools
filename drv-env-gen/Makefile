@@ -11,9 +11,11 @@ srcdir = .
 
 .PHONY: install clean
 
-install:
+all:
 	ant
-	if [[ ! -d $(prefix)/$(DRV_ENV_GEN_DIR) ]]; then mkdir -p $(prefix)/$(DRV_ENV_GEN_DIR); fi
+
+install:
+	if [ ! -d $(prefix)/$(DRV_ENV_GEN_DIR) ]; then mkdir -p $(prefix)/$(DRV_ENV_GEN_DIR); fi
 	cp $(srcdir)/dist/$(DRV_ENV_GEN_JAR) $(prefix)/$(DRV_ENV_GEN_DIR)
 
 clean:
