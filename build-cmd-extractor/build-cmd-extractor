@@ -1,0 +1,292 @@
+#!/bin/sh
+
+BCE_TEMPDIR_NAME="bce_tempdir"
+LDV_TEMPDIR_NAME="ldv_tempdir"
+DRIVER_DIR_NAME="driver"
+
+GLOBAL_LOG="bce_global.log";
+KERNEL_COMPILE_LOG_FILENAME="ckc.log";
+TRACE_FILENAME="build_trace";
+XML_FILENAME="cmd.xml";
+LOG_PREFIX="build-cmd-extractor: ";
+LOG_MIRROR_TO_CONSOLE=1;
+
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
+
+XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+
+bce_print() {
+	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
+	if [ ! -f "$basedir/$GLOBAL_LOG" ];  then
+		touch $basedir/$GLOBAL_LOG;
+	if [ $? -ne 0 ]; then 
+		echo "$LOG_PREFIX: ERROR: can't create log file.";
+	exit 1; 
+		fi;
+        fi;
+        echo "$LOG_PREFIX$1" >> $basedir/$GLOBAL_LOG;
+}
+#---------------------------------------------------------------------------
+#
+# read and test environment variables
+#
+print_usage_and_exit() {
+		echo "$LOG_PREFIX: USAGE: WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
+		exit 1;
+}
+if [ $# -ne 4 ]; then print_usage_and_exit; fi;
+
+if [ ! -n "$WORK_DIR" ]; then
+	echo "$LOG_PREFIX: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
+	exit 1;
+fi;
+WORK_DIR=`readlink -f $WORK_DIR`;
+if [ $? -ne 0 ]; then
+        echo "$LOG_PREFIX: ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
+        exit 1;
+fi;
+if [ ! -d "$WORK_DIR" ]; then
+        echo "$LOG_PREFIX: ERROR: Working directory does not exists: \"$WORK_DIR\".";
+        exit 1;
+fi;
+
+#
+# scan and test command line parameters
+#
+for arg in $@; do
+        case $arg in
+                --cmdfile-out=*)
+                	rcmdfileout=`echo $arg | sed 's/--cmdfile-out=//g'`
+			if [ ! -n "$rcmdfileout" ]; then
+				echo "$LOG_PREFIX: ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			cmdfileout=`readlink -f $rcmdfileout`;
+			if [ $? -ne 0 ]; then
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for out cmd file: \"$cmdfileout\"."
+			        exit 1;
+			fi;
+			if [ -f "$cmdfileout" ]; then
+			        echo "$LOG_PREFIX: ERROR: Cmd file out already exists: \"$cmdfileout\".";
+			        exit 1;
+			fi;
+		;;
+                --basedir=*)
+                	rbasedir=`echo $arg | sed 's/--basedir=//g'`
+			if [ ! -n "$rbasedir" ]; then
+				echo "$LOG_PREFIX: ERROR: Parameter \"--basedir\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			basedir=`readlink -f $rbasedir`;
+			if [ $? -ne 0 ]; then
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for basedir: \"$rbasedir\"."
+			        exit 1;
+			fi;
+			if [ ! -d "$basedir" ]; then
+			        echo "$LOG_PREFIX: ERROR: Basedir not exists: \"$basedir\".";
+			        exit 1;
+			fi;
+                ;;
+                --env=*)
+                	renv=`echo $arg | sed 's/--env=//g'`
+			if [ ! -n "$renv" ]; then
+				echo "$LOG_PREFIX: ERROR: Parameter \"--env\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			env=`readlink -f $renv`;
+			if [ $? -ne 0 ]; then
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for environment dir: \"$renv\"."
+			        exit 1;
+			fi;
+			if [ ! -d "$env" ]; then
+			        echo "$LOG_PREFIX: ERROR: Environment dir not exists: \"$env\".";
+			        exit 1;
+			fi;
+                ;;
+                --driver=*)
+                	rdriver=`echo $arg | sed 's/--driver=//g'`
+			if [ ! -n "$rdriver" ]; then
+				echo "$LOG_PREFIX: ERROR: Parameter \"--driver\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			driver=`readlink -f $rdriver`;
+			if [ $? -ne 0 ]; then
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+			        exit 1;
+			fi;
+# TODO: add for dirs	if [ ! -d "$driver" -a ! -f "$driver" ]; then
+			if [ ! -d "$driver" ]; then
+			        echo "$LOG_PREFIX: ERROR: Driver unpacked sources not exists: \"$driver\".";
+			        exit 1;
+			fi;
+                ;;
+                *)
+                        echo "$LOG_PREFIX: ERROR: Unknown options: '$arg'.";
+			print_usage_and_exit;
+                ;;
+        esac
+done
+#---------------------------------------------------------------------------
+
+NEXT_BASE_DIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
+mkdir $NEXT_BASE_DIR;
+if [ $? -ne 0 ]; then
+	echo "$LOG_PREFIX: ERROR: Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
+	exit 1;
+fi;
+NEXT_DIRVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
+#
+# copy driver sources for next instrument
+#
+cp -r $driver $NEXT_DIRVER_DIR;
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Failed to copy driver sources for next instrument to: \"$NEXT_DIRVER_DIR\"."
+	exit 1;
+fi;
+
+echo "<?xml version=\"1.0\"?>" > $cmdfileout;
+echo "<cmdstream>" >> $cmdfileout;
+echo "<basedir>$NEXT_BASE_DIR</basedir>" >> $cmdfileout;
+
+#
+# try to find "scripts/Makefile.build" in kernel source directory
+# 
+KERNEL_MAKEFILE_BUILD=$env"/scripts/Makefile.build";
+if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
+	bce_print "ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+	exit 1;
+fi;
+
+KERNEL_COMPILE_LOG=$basedir/$KERNEL_COMPILE_LOG_FILENAME;
+cd $env;
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Failed change dir to: \"$env\".";
+	exit 1;
+fi;
+
+#
+# find correct Makefile in driver dir...
+#
+#
+# When kernel make driver:
+#    1     It find Kbuid on top level dir
+#    1.1   If Kbuild exists - it test for obj-m...
+#    1.2   If Kbuild contains obj-m then kernel start to build this driver and exit
+#    2     It find Makefile on top level dir
+#    2.1   If Makefile exists - it test for obj-m...
+#    2.2   If Makefile contains obj-m, then kernel start to build this driver and exit
+#    3     Kernel print error
+#
+bce_print "INFO: Try to find Kbuild with obj-m...";
+FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
+for l in $FIND_KBUILD_FILE_OPERATION; do
+	bce_print "INFO: next Kbuild: \"$l\".";
+	if [ -n "`grep obj-m $l`" ]; then
+		CORRECT_MAKEFILE=`readlink -f $l`;
+		if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
+                bce_print "INFO: Correct Kbuild file is: \"$l\".";
+		break;
+	fi;
+done;
+if [ ! -n "$CORRECT_MAKEFILE" ]; then
+	bce_print "INFO: Kbuild not found.";
+	bce_print "INFO: Try to find Makefile with obj-m...";
+	FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
+	for l in $FIND_MAKEFILE_FILE_OPERATION; do
+		bce_print "INFO: next Makefile: \"$l\".";
+		if [ -n "`grep obj-m $l`" ]; then
+			CORRECT_MAKEFILE=`readlink -f $l`;
+			if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
+        	        bce_print "INFO: Correct Makefile is: \"$l\".";
+			break;
+		fi;
+	done;
+fi;
+if [ ! -n "$CORRECT_MAKEFILE" ]; then
+	bce_print "ERROR: Can't find correct Makefile or Kbuild file.";
+	exit 1;
+fi;
+DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
+	exit 1;
+fi;
+
+
+bce_print "DEBUG: Try to call kernel make..."
+bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;
+if [ $? -ne 0 ]; then
+	bce_print "Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
+	exit 1;
+fi;
+
+#
+# fix format - add one tab before <cc> and <ld> tags and...
+#
+sed -i -e 's/ldv_tempdir/bce_tempdir/g' $cmdfileout; 
+sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
+sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
+sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
+sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout; 
+sed -i -e 's/^  <in>/\t\t<in>/g' $cmdfileout; 
+sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $cmdfileout; 
+sed -i -e 's/^  <out>/\t\t<out>/g' $cmdfileout; 
+sed -i -e 's/^  <opt>/\t\t<opt>/g' $cmdfileout; 
+sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
+
+#
+# Is it single-driver ?
+#
+# TODO: 1. find MODULE - test if LDFLAGS_FOR_FILE not exists for this module then add it
+#
+IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $cmdfileout`;
+# driver single - then fix trace file - add <ld> for all cc
+if [ ! -n "$IS_WITHOUT_LD" ]; then
+	cat $cmdfileout | while read line; do
+		CC_FILE=`echo $line | grep -E '<out>.*</out>'`;
+		if [ -n "$cmdfileout" ]; then
+			CC_FILE=`echo $CC_FILE | sed 's/<out>//' | sed 's/<\/out>//'`;
+#
+# if c-file for this not existst then we pass it
+#
+			if [ -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
+				echo "<ld id=\"1\">" >> $cmdfileout;
+				echo "  <in>$CC_FILE</in>" >> $cmdfileout;
+				echo "  <out>"`echo $CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
+				echo "</ld>" >> $cmdfileout;
+			fi;
+		fi;
+	done;
+fi;
+
+echo "</cmdstream>" >> $cmdfileout;
+
+#
+# fix format - add one tab before <cc> and <ld> tags and...
+#
+sed -i -e 's/ldv_tempdir/bce_tempdir/g' $cmdfileout; 
+sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
+sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
+sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
+sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout; 
+sed -i -e 's/^  <in>/\t\t<in>/g' $cmdfileout; 
+sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $cmdfileout; 
+sed -i -e 's/^  <out>/\t\t<out>/g' $cmdfileout; 
+sed -i -e 's/^  <opt>/\t\t<opt>/g' $cmdfileout; 
+
+
+
+#
+# fix id numbers
+#
+k=1;
+cat $cmdfileout | while read iline; do 
+	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
+		sed -i -e "s/$iline/<cc id=\"$k\">/" $cmdfileout;
+		k=`expr $k + 1`;
+	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
+		sed -i -e "s/$iline/<ld id=\"$k\">/" $cmdfileout;
+		k=`expr $k + 1`;
+	fi; 
+done;
