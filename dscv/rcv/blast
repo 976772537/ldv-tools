@@ -156,6 +156,9 @@ sub call_blast
 		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
 	;
 
+	# Add mains and error locations
+	push @blast_options, "-main",$args{main} if $args{main};
+
 	# Interpret hints
 	my $hintsT = $args{hints};
 	# Cldepth
@@ -176,7 +179,7 @@ sub call_blast
 		;
 	}
 	vsay 20,@blast_options;
-	system @blast_options or die;
+	system @blast_options and die;
 }
 $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
