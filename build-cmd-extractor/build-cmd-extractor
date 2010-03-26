@@ -223,9 +223,58 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
+#
+# find correct Makefile in driver dir...
+#
+#
+# When kernel make driver:
+#    1     It find Kbuid on top level dir
+#    1.1   If Kbuild exists - it test for obj-m...
+#    1.2   If Kbuild contains obj-m then kernel start to build this driver and exit
+#    2     It find Makefile on top level dir
+#    2.1   If Makefile exists - it test for obj-m...
+#    2.2   If Makefile contains obj-m, then kernel start to build this driver and exit
+#    3     Kernel print error
+#
+bce_print "INFO: Try to find Kbuild with obj-m...";
+FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
+for l in $FIND_KBUILD_FILE_OPERATION; do
+	bce_print "INFO: next Kbuild: \"$l\".";
+	if [ -n "`grep obj-m $l`" ]; then
+		CORRECT_MAKEFILE=`readlink -f $l`;
+		if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
+                bce_print "INFO: Correct Kbuild file is: \"$l\".";
+		break;
+	fi;
+done;
+if [ ! -n "$CORRECT_MAKEFILE" ]; then
+	bce_print "INFO: Kbuild not found.";
+	bce_print "INFO: Try to find Makefile with obj-m...";
+	FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
+	for l in $FIND_MAKEFILE_FILE_OPERATION; do
+		bce_print "INFO: next Makefile: \"$l\".";
+		if [ -n "`grep obj-m $l`" ]; then
+			CORRECT_MAKEFILE=`readlink -f $l`;
+			if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
+        	        bce_print "INFO: Correct Makefile is: \"$l\".";
+			break;
+		fi;
+	done;
+fi;
+if [ ! -n "$CORRECT_MAKEFILE" ]; then
+	bce_print "ERROR: Can't find correct Makefile or Kbuild file.";
+	exit 1;
+fi;
+DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
+	exit 1;
+fi;
+
+
 bce_print "DEBUG: Try to call kernel make..."
-bce_print "DEBUG: make $driver/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-make $driver/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;
+bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;
 if [ $? -ne 0 ]; then
 	bce_print "Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
