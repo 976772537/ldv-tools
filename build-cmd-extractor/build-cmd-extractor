@@ -17,14 +17,14 @@ XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
 
 bce_print() {
 	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-	if [ ! -f "$LDV_WORK_DIR/$GLOBAL_LOG" ];  then
-		touch $LDV_WORK_DIR/$GLOBAL_LOG;
+	if [ ! -f "$basedir/$GLOBAL_LOG" ];  then
+		touch $basedir/$GLOBAL_LOG;
 	if [ $? -ne 0 ]; then 
 		echo "ERROR: can't create log file.";
 	exit 1; 
 		fi;
         fi;
-        echo "$LOG_PREFIX$1" >> $LDV_WORK_DIR/$GLOBAL_LOG;
+        echo "$LOG_PREFIX$1" >> $basedir/$GLOBAL_LOG;
 }
 #---------------------------------------------------------------------------
 #
@@ -287,10 +287,10 @@ k=1;
 cat $cmdfileout | while read iline; do 
 	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
 		sed -i -e "s/$iline/<cc id=\"$k\">/" $cmdfileout;
-		let k=$k+1;
+		k=`expr $k + 1`;
 	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
 		sed -i -e "s/$iline/<ld id=\"$k\">/" $cmdfileout;
-		let k=$k+1;
+		k=`expr $k + 1`;
 	fi; 
 done;
 
