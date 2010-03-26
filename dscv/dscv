@@ -148,7 +148,7 @@ use XML::Twig;
 
 # For now we just pass the whole file to Instrumentor
 # This is just a simple check that XML is correct
-my $process_input = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd });
+my $process_input = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd, basedir=>\&get_driver_dir });
 
 sub execute_cmd
 {
@@ -156,7 +156,22 @@ sub execute_cmd
 	#my $TMP_FH = get_tmp_cmd()
 	#$cmdT->print(
 }
+my $driver_dir = undef;
+sub get_driver_dir
+{
+	my $bdT = $_[1];
+	$driver_dir = $bdT->text();
+}
 $process_input->parsefile($config->{cmdfile});
+
+# Function that copies driver
+use File::Copy::Recursive qw(dircopy);
+my $copy_driver = sub
+{
+	my $to = shift or die;
+	defined $driver_dir or die;
+	dircopy($driver_dir,$to) or die $!;
+};
 
 $" = ' ';	# For error reporting
 
@@ -167,7 +182,6 @@ mkpath ($out_cmd_dir);
 my $for_rcv_dir = "$dscv_base_dir/cmdfiles/rcv";
 mkpath ($for_rcv_dir);
 
-# TODO : copy driver into it
 my $ri_basedir = "$dscv_base_dir/ri";
 mkpath ($ri_basedir);
 
@@ -178,8 +192,14 @@ my @properties = @{$config->{properties}};
 for my $property (@properties){
 	# make outcmdfile
 	my $outfile = "$out_cmd_dir/cmd$property.xml";
+	# Prepare directory
+	my $ri_basedir_for_rule = "$ri_basedir/$property";
+	mkpath($ri_basedir_for_rule);
+	# Copy driver
+	$copy_driver->($ri_basedir_for_rule);
+
 	my @rule_instr_args = ($config->{rule_ins},
-		"--basedir=$ri_basedir",
+		"--basedir=$ri_basedir_for_rule",
 		"--rule-model=$property",
 		"--cmdfile=$config->{cmdfile}",
 		"--cmdfile-out=$outfile"
