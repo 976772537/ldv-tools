@@ -93,9 +93,16 @@ Base directory, into which DSCV-related scripts and backends are installed.  Set
 
 =cut
 use FindBin;
-$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
-$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+BEGIN {
+	$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
+	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+}
 $config->{dscv_dir} = $ENV{'DSCV_HOME'};
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+}
 
 =item B<RULE_INSTRUMENTOR>
 
