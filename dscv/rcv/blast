@@ -13,6 +13,14 @@ my $config={
 my %optionSpecs = ();
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
+$optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
+
+sub vsay
+{
+	my $verbosity = shift;
+	local $,=' ';
+	print @_,"\n" if $verbosity <= $config->{verbosity};
+}
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
@@ -144,6 +152,8 @@ sub call_blast
 			"-alias","bdd"	# Turn alias analysis on
 		;
 	}
+	vsay 20,@blast_options;
+	system @blast_options or die;
 }
 $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
@@ -160,9 +170,6 @@ if ($fpid == 0){
 
 # ! PREPROCESS!
 
-print "Verifier $0 is run!\n";
-system "touch","$workdir/sign";
-
 
 use Cwd;
 sub preprocess_file
@@ -176,6 +183,7 @@ sub preprocess_file
 		"$info->{cwd}/$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options
 	);
+	vsay 20,@cpp_args;
 	local $"; $"=' ';
 	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
 	chdir $info;

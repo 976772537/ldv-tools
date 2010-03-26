@@ -63,6 +63,13 @@ Overrides the verifier passed by rule instrumentor.
 =cut
 $optionSpecs{'verifier=s'} = \$config->{verifier_override};
 
+=item B<--debug>
+
+Print debugging information about the scripts called to stdout.
+
+=cut
+$optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
+
 
 =back
 
@@ -119,6 +126,12 @@ sub usage
 {
 	my $msg=shift;
 	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
+}
+
+sub vsay
+{
+	my $verbosity = shift;
+	print @_ if $verbosity <= $config->{verbosity};
 }
 
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
@@ -211,6 +224,7 @@ for my $property (@properties){
 		"--cmdfile=$config->{cmdfile}",
 		"--cmdfile-out=$outfile"
 	);
+	vsay 20, "@rule_instr_args\n";
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
 	#system "cp $config->{cmdfile} $outfile";
 	# Call C verifier
@@ -239,8 +253,10 @@ for my $property (@properties){
 			# Run RCV
 			my @rcv_args = ("$rcv_frontends_dir/$verifier",
 				"--cmdfile=$outfile",
-				"--workdir=$dir"
+				"--workdir=$dir",
 			);
+			push @rcv_args,'--debug' if $config->{verbosity}>=20;
+			vsay 20, "@rcv_args\n";
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
 		};
 	};
