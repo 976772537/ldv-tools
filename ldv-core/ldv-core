@@ -2,7 +2,7 @@
 
 #
 # env var WORK_DIR
-# ldv.sh --basedir=basedir --env=envdir --driver=driver
+# ldv-core --basedir=basedir --env=envdir --driver=driver --rule-models=rules
 #
 
 GLOBAL_LOG="global.log";
@@ -31,6 +31,9 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
 
+LDV_RULE_DB_DIRNAME="kernel-rules";
+LDV_RULE_DB=$LDV_HOME/$LDV_RULE_DB_DIRNAME;
+
 BCE_DIR="$LDV_HOME/build-cmd-extractor";
 BCE="$BCE_DIR/build-cmd-extractor";
 
@@ -47,10 +50,10 @@ RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath"
+		echo "USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath --rule-models=rulemodels"
 		exit 1;
 }
-if [ $# -ne 3 ]; then print_usage_and_exit; fi;
+if [ $# -ne 4 ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	echo "ldv-core: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -87,7 +90,14 @@ for arg in $@; do
 			        exit 1;
 			fi;
                 ;;
-                --env=*)
+                --rule-models=*)
+                	rulemodels=`echo $arg | sed 's/--rule-models=//g'`
+			if [ ! -n "$rulemodels" ]; then
+				echo "ldv-core: ERROR: Parameter \"--rule-models\" - is null. Setup it.";
+			        exit 1;
+			fi;
+                ;;
+		--env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
 				echo "ldv-core: ERROR: Parameter \"--env\" - is null. Setup it.";
@@ -182,15 +192,22 @@ XML_AFTER_DEG=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_DEG;
 echo "WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
 WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
 if [ $? -ne 0 ]; then
-        ldv_print "Drv-env-gen failed."
+        ldv_print "ERROR: Drv-env-gen failed."
         exit 1;
 fi;
-exit;
-#RULE_INSTRUMENTOR=$RINSTR LDV_RULE_DB=$4 LDV_WORK_DIR=$WORK_DIR/deg_tempdir $DSCV --cmdfile=$CMD_XML_BCE --properties=$5;
-#if [ $? -ne 0 ]; then
-#        ldv_print "DSCV failed."
-#        exit 1;
-#fi;
+
+if [ ! -f "$XML_AFTER_DEG" ]; then
+	ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
+	exit 1;
+fi;
+
+echo "TODO: dscv - replace LDV_WORK_DIR with WORK_DIR !";
+echo "LDV_RULE_DB=$LDV_RULE_DB LDV_WORK_DIR=$WORK_DIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
+LDV_RULE_DB=$LDV_RULE_DB LDV_WORK_DIR=$WORK_DIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
+if [ $? -ne 0 ]; then
+        ldv_print "DRROR: DSCV failed."
+        exit 1;
+fi;
 
 
 
