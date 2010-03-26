@@ -45,9 +45,9 @@ case $1 in
 		# get last number in envs
 		k=0;
 		for ENV_ID in `find $LDV_DESCRIPTIONS_DIR -maxdepth 1 -regex '.*/[0-9]+$' -type f | sed 's/.*\/.*\///g'`; do
-			if [ $k -le $ENV_ID ]; then let k=$ENV_ID; fi;
+			if [ $k -le $ENV_ID ]; then k=$ENV_ID; fi;
 		done;
-		let k=$k+1;
+		k=`expr $k + 1`;
 		
 		# add new description		
 		NEW_DESCRIPTION=$LDV_DESCRIPTIONS_DIR/$k;
