@@ -10,16 +10,26 @@ XML_FILENAME_AFTER_BCE="cmd_after_bce.xml";
 XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
 BCE_WORK_DIRNAME="bce_tempdir";
 DEG_WORK_DIRNAME="deg_tempdir";
-LOG_PREFIX="ldv: ";
 LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
+EXTRACTOR_LOG_FILENAME="unarch.log";
+
+
+#
+# log variables
+#
+LOG_PREFIX="ldv-core: ";
+PREFIX_ERROR="ERROR: ";
+PREFIX_WARNING=" WARN: ";
+PREFIX_DEBUG="DEBUG: ";
+PREFIX_INFO=" INFO: ";
 
 ldv_print() {
         if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
         if [ ! -f "$NEXT_BASE_DIR/$GLOBAL_LOG" ];  then
                 touch $NEXT_BASE_DIR/$GLOBAL_LOG;
                 if [ $? -ne 0 ]; then
-                        echo "ERROR: can't create log file.";
+                        echo "ldv-core: ERROR: can't create log file.";
                         exit 1;
                 fi;
         fi;
@@ -50,7 +60,7 @@ RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath --rule-models=rulemodels"
+		echo "ldv-core: USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath --rule-models=rulemodels"
 		exit 1;
 }
 if [ $# -ne 4 ]; then print_usage_and_exit; fi;
@@ -147,20 +157,26 @@ fi;
 DRIVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
 mkdir $DRIVER_DIR;
 if [ $? -ne 0 ]; then
-        ldv_print "Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
+        ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
         exit 1;
 fi;
 
+UNARCH_LOG=$basedir/$EXTRACTOR_LOG_FILENAME;
+touch $UNARCH_LOG;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Failed to create log for unarchiver: \"$UNARCH_LOG\".";
+	exit 1;
+fi;
 #
 # test format for driver file and unpack driver
 #
 case `file -b $driver --mime-type` in
 	application/x-bzip2)
-		tar xvjpf $driver -C $DRIVER_DIR;; 
+		tar xvjpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
 	application/x-gzip)
-		tar xvzpf $driver -C $DRIVER_DIR;; 
+		tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
 	*)
-		ldv_print "Unknown driver source type.";
+		ldv_print "ERROR: Unknown driver source type.";
 		exit 1;;
 esac
 if [ $? -ne 0 ]; then
@@ -169,7 +185,8 @@ if [ $? -ne 0 ]; then
 fi;
 
 XML_AFTER_BCE=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_BCE;
-echo "WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
+ldv_print "DEBUG: *********** Try to call Build Command Extractor ***********";
+ldv_print "DEBUG: WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
 WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
@@ -189,20 +206,20 @@ fi;
 XML_AFTER_DEG=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_DEG;
 
 
-echo "WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
+ldv_print "DEBUG: *********** Try to call Driver Environment Generator  ***********";
+ldv_print "DEBUG: WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
 WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Drv-env-gen failed."
         exit 1;
 fi;
-
 if [ ! -f "$XML_AFTER_DEG" ]; then
 	ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
 	exit 1;
 fi;
 
-echo "TODO: dscv - replace LDV_WORK_DIR with WORK_DIR !";
-echo "LDV_RULE_DB=$LDV_RULE_DB LDV_WORK_DIR=$WORK_DIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
+ldv_print "DEBUG: *********** Try to call Domain Speicific C-Verifier ***********";
+ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$WORK_DIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
 LDV_RULE_DB=$LDV_RULE_DB LDV_WORK_DIR=$WORK_DIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
 if [ $? -ne 0 ]; then
         ldv_print "DRROR: DSCV failed."
