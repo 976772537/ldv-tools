@@ -222,20 +222,6 @@ if [ $? -ne 0 ]; then
 fi;
 
 #
-# fix format - add one tab before <cc> and <ld> tags and...
-#
-sed -i -e 's/ldv_tempdir/bce_tempdir/g' $cmdfileout; 
-sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
-sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
-sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
-sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout; 
-sed -i -e 's/^  <in>/\t\t<in>/g' $cmdfileout; 
-sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $cmdfileout; 
-sed -i -e 's/^  <out>/\t\t<out>/g' $cmdfileout; 
-sed -i -e 's/^  <opt>/\t\t<opt>/g' $cmdfileout; 
-sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
-
-#
 # Is it single-driver ?
 #
 # TODO: 1. find MODULE - test if LDFLAGS_FOR_FILE not exists for this module then add it
@@ -274,7 +260,7 @@ sed -i -e 's/^  <in>/\t\t<in>/g' $cmdfileout;
 sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $cmdfileout; 
 sed -i -e 's/^  <out>/\t\t<out>/g' $cmdfileout; 
 sed -i -e 's/^  <opt>/\t\t<opt>/g' $cmdfileout; 
-
+sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
 
 
 #
