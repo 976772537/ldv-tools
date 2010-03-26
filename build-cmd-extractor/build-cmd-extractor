@@ -20,7 +20,7 @@ bce_print() {
 	if [ ! -f "$basedir/$GLOBAL_LOG" ];  then
 		touch $basedir/$GLOBAL_LOG;
 	if [ $? -ne 0 ]; then 
-		echo "ERROR: can't create log file.";
+		echo "$LOG_PREFIX: ERROR: can't create log file.";
 	exit 1; 
 		fi;
         fi;
@@ -31,22 +31,22 @@ bce_print() {
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "USAGE: WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
+		echo "$LOG_PREFIX: USAGE: WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
 		exit 1;
 }
 if [ $# -ne 4 ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
-	echo "bce: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
+	echo "$LOG_PREFIX: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
 	exit 1;
 fi;
 WORK_DIR=`readlink -f $WORK_DIR`;
 if [ $? -ne 0 ]; then
-        echo "bce: ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
+        echo "$LOG_PREFIX: ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
         exit 1;
 fi;
 if [ ! -d "$WORK_DIR" ]; then
-        echo "bce: ERROR: Working directory does not exists: \"$WORK_DIR\".";
+        echo "$LOG_PREFIX: ERROR: Working directory does not exists: \"$WORK_DIR\".";
         exit 1;
 fi;
 
@@ -58,70 +58,70 @@ for arg in $@; do
                 --cmdfile-out=*)
                 	rcmdfileout=`echo $arg | sed 's/--cmdfile-out=//g'`
 			if [ ! -n "$rcmdfileout" ]; then
-				echo "bce: ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
+				echo "$LOG_PREFIX: ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			cmdfileout=`readlink -f $rcmdfileout`;
 			if [ $? -ne 0 ]; then
-				echo "bce: ERROR: Failed to read abs-path for out cmd file: \"$cmdfileout\"."
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for out cmd file: \"$cmdfileout\"."
 			        exit 1;
 			fi;
 			if [ -f "$cmdfileout" ]; then
-			        echo "bce: ERROR: Cmd file out already exists: \"$cmdfileout\".";
+			        echo "$LOG_PREFIX: ERROR: Cmd file out already exists: \"$cmdfileout\".";
 			        exit 1;
 			fi;
 		;;
                 --basedir=*)
                 	rbasedir=`echo $arg | sed 's/--basedir=//g'`
 			if [ ! -n "$rbasedir" ]; then
-				echo "bce: ERROR: Parameter \"--basedir\" - is null. Setup it.";
+				echo "$LOG_PREFIX: ERROR: Parameter \"--basedir\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			basedir=`readlink -f $rbasedir`;
 			if [ $? -ne 0 ]; then
-				echo "bce: ERROR: Failed to read abs-path for basedir: \"$rbasedir\"."
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for basedir: \"$rbasedir\"."
 			        exit 1;
 			fi;
 			if [ ! -d "$basedir" ]; then
-			        echo "bce: ERROR: Basedir not exists: \"$basedir\".";
+			        echo "$LOG_PREFIX: ERROR: Basedir not exists: \"$basedir\".";
 			        exit 1;
 			fi;
                 ;;
                 --env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
-				echo "bce: ERROR: Parameter \"--env\" - is null. Setup it.";
+				echo "$LOG_PREFIX: ERROR: Parameter \"--env\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			env=`readlink -f $renv`;
 			if [ $? -ne 0 ]; then
-				echo "bce: ERROR: Failed to read abs-path for environment dir: \"$renv\"."
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for environment dir: \"$renv\"."
 			        exit 1;
 			fi;
 			if [ ! -d "$env" ]; then
-			        echo "bce: ERROR: Environment dir not exists: \"$env\".";
+			        echo "$LOG_PREFIX: ERROR: Environment dir not exists: \"$env\".";
 			        exit 1;
 			fi;
                 ;;
                 --driver=*)
                 	rdriver=`echo $arg | sed 's/--driver=//g'`
 			if [ ! -n "$rdriver" ]; then
-				echo "bce: ERROR: Parameter \"--driver\" - is null. Setup it.";
+				echo "$LOG_PREFIX: ERROR: Parameter \"--driver\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			driver=`readlink -f $rdriver`;
 			if [ $? -ne 0 ]; then
-				echo "bce: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
 			        exit 1;
 			fi;
 # TODO: add for dirs	if [ ! -d "$driver" -a ! -f "$driver" ]; then
 			if [ ! -d "$driver" ]; then
-			        echo "bce: ERROR: Driver unpacked sources not exists: \"$driver\".";
+			        echo "$LOG_PREFIX: ERROR: Driver unpacked sources not exists: \"$driver\".";
 			        exit 1;
 			fi;
                 ;;
                 *)
-                        echo "bce: ERROR: Unknown options: '$arg'.";
+                        echo "$LOG_PREFIX: ERROR: Unknown options: '$arg'.";
 			print_usage_and_exit;
                 ;;
         esac
@@ -131,7 +131,7 @@ done
 NEXT_BASE_DIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
 mkdir $NEXT_BASE_DIR;
 if [ $? -ne 0 ]; then
-	echo "ERROR: Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
+	echo "$LOG_PREFIX: ERROR: Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
 	exit 1;
 fi;
 NEXT_DIRVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
@@ -153,7 +153,7 @@ echo -e "\t<basedir>$NEXT_BASE_DIR</basedir>" >> $cmdfileout;
 # 
 KERNEL_MAKEFILE_BUILD=$env"/scripts/Makefile.build";
 if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
-	bce_print "Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+	bce_print "ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	exit 1;
 fi;
 
@@ -223,7 +223,8 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
-echo "make $driver/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+bce_print "DEBUG: Try to call kernel make..."
+bce_print "DEBUG: make $driver/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
 make $driver/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;
 if [ $? -ne 0 ]; then
 	bce_print "Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";

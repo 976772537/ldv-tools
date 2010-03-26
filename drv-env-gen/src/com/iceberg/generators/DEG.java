@@ -23,10 +23,7 @@ import com.sun.org.apache.xml.internal.serialize.OutputFormat;
 import com.sun.org.apache.xml.internal.serialize.XMLSerializer;
 
 public class DEG {
-	
-	private static String defaultdir = "deg_tempdir";
-	private static String defaultxml = "cmd.xml";
-	
+
 	private static String nextInstrumentDir = "deg_tempdir";
 	private static String myInstrumentDir = "bce_tempdir";
 	private static String replacedInstrumentDir = "bce_tempdir";
@@ -114,7 +111,7 @@ public class DEG {
 						File destinationDir = new File(outdir);
 						FSOperationsBase.copyDirectory(sourceDir, destinationDir);
 						
-						String newinTagContent = lbasedir.replace(myInstrumentDir, nextInstrumentDir);
+						String newinTagContent = lbasedir.replace(myInstrumentDir, nextInstrumentDir+"/driver");
 						cmdstreamNodeList.item(i).setTextContent(newinTagContent);
 					} else if(cmdstreamNodeList.item(i).getNodeName().equals(ldTag)) {
 						NodeList ldNodes = cmdstreamNodeList.item(i).getChildNodes();
@@ -159,7 +156,7 @@ public class DEG {
 								if(ccNodes.item(j).getNodeName().equals(inTag)) {
 									ins.add(ccNodes.item(j)); 
 								} else if(ccNodes.item(j).getNodeName().equals(optTag)) {
-									//TODO ifdef opt
+									// TODO: add opts
 								} else if(ccNodes.item(j).getNodeName().equals(outTag)) {
 									out = ccNodes.item(j);
 								} 
@@ -182,7 +179,12 @@ public class DEG {
 						// dir, that contains info
 						if(isgenerated) {
 							FileWriter fw = new FileWriter(outTagContent);
-							//for(; main_counter!=local_counter; main_counter++)
+								//for(; main_counter!=local_counter; main_counter++)
+								// add opt
+								Node debugOptNode = doc.createElement(optTag);
+								Node debugOptTextNode = doc.createTextNode("-DLDV_MAIN"+main_counter);
+								debugOptNode.appendChild(debugOptTextNode);
+								cmdstreamNodeList.item(i).appendChild(debugOptNode);
 								fw.write("ldv_main" + main_counter++);
 							fw.close();
 						}

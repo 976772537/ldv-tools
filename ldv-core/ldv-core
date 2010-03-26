@@ -2,7 +2,7 @@
 
 #
 # env var WORK_DIR
-# ldv.sh --basedir=basedir --env=envdir --driver=driver
+# ldv-core --basedir=basedir --env=envdir --driver=driver --rule-models=rules
 #
 
 GLOBAL_LOG="global.log";
@@ -10,16 +10,27 @@ XML_FILENAME_AFTER_BCE="cmd_after_bce.xml";
 XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
 BCE_WORK_DIRNAME="bce_tempdir";
 DEG_WORK_DIRNAME="deg_tempdir";
-LOG_PREFIX="ldv: ";
+DSCV_WORK_DIRNAME="dscv_tempdir";
 LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
+EXTRACTOR_LOG_FILENAME="unarch.log";
+
+
+#
+# log variables
+#
+LOG_PREFIX="ldv-core: ";
+PREFIX_ERROR="ERROR: ";
+PREFIX_WARNING=" WARN: ";
+PREFIX_DEBUG="DEBUG: ";
+PREFIX_INFO=" INFO: ";
 
 ldv_print() {
         if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
         if [ ! -f "$NEXT_BASE_DIR/$GLOBAL_LOG" ];  then
                 touch $NEXT_BASE_DIR/$GLOBAL_LOG;
                 if [ $? -ne 0 ]; then
-                        echo "ERROR: can't create log file.";
+                        echo "ldv-core: ERROR: can't create log file.";
                         exit 1;
                 fi;
         fi;
@@ -30,6 +41,9 @@ ldv_print() {
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
+
+LDV_RULE_DB_DIRNAME="kernel-rules";
+LDV_RULE_DB=$LDV_HOME/$LDV_RULE_DB_DIRNAME;
 
 BCE_DIR="$LDV_HOME/build-cmd-extractor";
 BCE="$BCE_DIR/build-cmd-extractor";
@@ -47,10 +61,10 @@ RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath"
+		echo "ldv-core: USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath --rule-models=rulemodels"
 		exit 1;
 }
-if [ $# -ne 3 ]; then print_usage_and_exit; fi;
+if [ $# -ne 4 ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	echo "ldv-core: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -87,7 +101,14 @@ for arg in $@; do
 			        exit 1;
 			fi;
                 ;;
-                --env=*)
+                --rule-models=*)
+                	rulemodels=`echo $arg | sed 's/--rule-models=//g'`
+			if [ ! -n "$rulemodels" ]; then
+				echo "ldv-core: ERROR: Parameter \"--rule-models\" - is null. Setup it.";
+			        exit 1;
+			fi;
+                ;;
+		--env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
 				echo "ldv-core: ERROR: Parameter \"--env\" - is null. Setup it.";
@@ -137,20 +158,26 @@ fi;
 DRIVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
 mkdir $DRIVER_DIR;
 if [ $? -ne 0 ]; then
-        ldv_print "Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
+        ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
         exit 1;
 fi;
 
+UNARCH_LOG=$basedir/$EXTRACTOR_LOG_FILENAME;
+touch $UNARCH_LOG;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Failed to create log for unarchiver: \"$UNARCH_LOG\".";
+	exit 1;
+fi;
 #
 # test format for driver file and unpack driver
 #
 case `file -b $driver --mime-type` in
 	application/x-bzip2)
-		tar xvjpf $driver -C $DRIVER_DIR;; 
+		tar xvjpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
 	application/x-gzip)
-		tar xvzpf $driver -C $DRIVER_DIR;; 
+		tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
 	*)
-		ldv_print "Unknown driver source type.";
+		ldv_print "ERROR: Unknown driver source type.";
 		exit 1;;
 esac
 if [ $? -ne 0 ]; then
@@ -159,7 +186,8 @@ if [ $? -ne 0 ]; then
 fi;
 
 XML_AFTER_BCE=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_BCE;
-echo "WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
+ldv_print "DEBUG: *********** Try to call Build Command Extractor ***********";
+ldv_print "DEBUG: WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
 WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
@@ -179,18 +207,31 @@ fi;
 XML_AFTER_DEG=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_DEG;
 
 
-echo "WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
+ldv_print "DEBUG: *********** Try to call Driver Environment Generator  ***********";
+ldv_print "DEBUG: WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
 WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
 if [ $? -ne 0 ]; then
-        ldv_print "Drv-env-gen failed."
+        ldv_print "ERROR: Drv-env-gen failed."
         exit 1;
 fi;
-exit;
-#RULE_INSTRUMENTOR=$RINSTR LDV_RULE_DB=$4 LDV_WORK_DIR=$WORK_DIR/deg_tempdir $DSCV --cmdfile=$CMD_XML_BCE --properties=$5;
-#if [ $? -ne 0 ]; then
-#        ldv_print "DSCV failed."
-#        exit 1;
-#fi;
+if [ ! -f "$XML_AFTER_DEG" ]; then
+	ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
+	exit 1;
+fi;
+
+DSCV_TEMPDIR=$WORK_DIR/$DSCV_WORK_DIRNAME;
+mkdir $DSCV_TEMPDIR;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
+	exit 1;
+fi;
+ldv_print "DEBUG: *********** Try to call Domain Speicific C-Verifier ***********";
+ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
+LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
+if [ $? -ne 0 ]; then
+        ldv_print "DRROR: DSCV failed."
+        exit 1;
+fi;
 
 
 
