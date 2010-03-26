@@ -521,7 +521,10 @@ sub process_cmd_ld()
     {
        $xml_writer->dataElement('main' => $entry_point);
     }
-   
+    
+    # TODO: obtain value from models db!
+    $xml_writer->dataElement('error' => 'llvm_cbe_ERROR');
+    
     $xml_writer->dataElement('hints' => $ldv_model{'hints'});
     # Close ld tag.
     $xml_writer->endTag();
@@ -565,6 +568,9 @@ sub process_cmds()
 		if ($cmd->gi eq $xml_cmd_ld)
 		{
 		  my $xml_common_model = new XML::Twig::Elt('in', "$ldv_model_dir/$ldv_model{'common'}");	
+		  $xml_common_model->paste('last_child', $cmd);
+		  # TODO: get value from models db.
+		  $xml_common_model = new XML::Twig::Elt('error', 'ERROR');
 		  $xml_common_model->paste('last_child', $cmd);
 		}  
 		  
