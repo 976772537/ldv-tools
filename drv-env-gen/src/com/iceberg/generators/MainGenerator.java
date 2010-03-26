@@ -55,21 +55,21 @@ public class MainGenerator {
 
 
 	public static void generate(String filename) {
-		generateByIndex(filename, -1, null);
+		generateByIndex(filename, -1, null, false);
 	}
 	
 	public static void generate(String source, String destionation ) {
-		generateByIndex(source, -1, destionation);
+		generateByIndex(source, -1, destionation, false);
 	}
 	
 	public static boolean deg(String filename, int counter) {
 		File file = new File(filename);
 		if(!file.exists())
 			return false;
-		return generateByIndex(filename, counter, filename);
+		return generateByIndex(filename, counter, filename, true);
 	}
 
-	public static boolean generateByIndex(String filename, int index, String destFilename) {
+	public static boolean generateByIndex(String filename, int index, String destFilename, boolean isgenerateIfdefAroundMains) {
 		Matcher matcher = pattern.matcher(filename);
 		if(!matcher.find()) {
 			System.out.println("could not match C-extension");
@@ -99,8 +99,10 @@ public class MainGenerator {
 			fw.write(ccontent);
 			StringBuffer sb = new StringBuffer();
 			sb.append("\n\n\n\n\n");
+			if (isgenerateIfdefAroundMains)
+				sb.append("#ifdef LDV_MAIN"+index+"\n");
 			sb.append("\t/*###########################################################################*/\n");
-			sb.append("\t/*############################ MAIN GENERATOR v2 ############################*/\n");
+			sb.append("\t/*############## Driver Environment Generator 0.1 output ####################*/\n");
 			sb.append("\t/*###########################################################################*/\n");
 			sb.append("\n\n");
 
@@ -354,6 +356,8 @@ public class MainGenerator {
 			
 			sb.append("\n\n\n\tcheck_final_state();\n");
 			sb.append("\treturn;\n}\n");
+			if (isgenerateIfdefAroundMains)
+				sb.append("#endif\n");
 
 			fw.write(sb.toString());
 			fw.close();

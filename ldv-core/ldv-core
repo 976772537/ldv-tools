@@ -10,6 +10,7 @@ XML_FILENAME_AFTER_BCE="cmd_after_bce.xml";
 XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
 BCE_WORK_DIRNAME="bce_tempdir";
 DEG_WORK_DIRNAME="deg_tempdir";
+DSCV_WORK_DIRNAME="dscv_tempdir";
 LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
 EXTRACTOR_LOG_FILENAME="unarch.log";
@@ -218,9 +219,15 @@ if [ ! -f "$XML_AFTER_DEG" ]; then
 	exit 1;
 fi;
 
+DSCV_TEMPDIR=$WORK_DIR/$DSCV_WORK_DIRNAME;
+mkdir $DSCV_TEMPDIR;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
+	exit 1;
+fi;
 ldv_print "DEBUG: *********** Try to call Domain Speicific C-Verifier ***********";
-ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$WORK_DIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
-LDV_RULE_DB=$LDV_RULE_DB LDV_WORK_DIR=$WORK_DIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
+ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
+LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
 if [ $? -ne 0 ]; then
         ldv_print "DRROR: DSCV failed."
         exit 1;
