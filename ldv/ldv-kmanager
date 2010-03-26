@@ -91,7 +91,7 @@ case $1 in
 		fi;
 		
 		ENV_STATUS=`cat $DESCRIPTION_TO_VIEW | grep ^status= | sed 's/status=//'`;
-		if [ ! "$ENV_STATUS" == "prepared" ]; then
+		if [ "$ENV_STATUS" != "prepared" ]; then
 			echo "ldv-kmanager: ERROR: wrong status for getpath: \"$ENV_STATUS\".";
 			exit 1;
 		fi;
