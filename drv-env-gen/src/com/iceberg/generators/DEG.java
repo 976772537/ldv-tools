@@ -114,7 +114,7 @@ public class DEG {
 						File destinationDir = new File(outdir);
 						FSOperationsBase.copyDirectory(sourceDir, destinationDir);
 						
-						String newinTagContent = lbasedir.replace(myInstrumentDir, nextInstrumentDir);
+						String newinTagContent = lbasedir.replace(myInstrumentDir, nextInstrumentDir+"/driver");
 						cmdstreamNodeList.item(i).setTextContent(newinTagContent);
 					} else if(cmdstreamNodeList.item(i).getNodeName().equals(ldTag)) {
 						NodeList ldNodes = cmdstreamNodeList.item(i).getChildNodes();
