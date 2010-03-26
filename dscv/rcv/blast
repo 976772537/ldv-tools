@@ -136,9 +136,11 @@ sub execute_ld
 	my @mains = $cmdT->children_text('main');
 	# Get list of files to analyze:
 	my @files = map {$_->{i_file}} @$c_files_info;
+	# List of error locations
+	my @errlocs = $cmdT->children_text('error');
 
 	# TODO: add a separate report file
-	call_blast(files => \@files, hints=>$hintsT, main=>$_) for @mains; 
+	call_blast(files => \@files, hints=>$hintsT, main=>$_, errlocs=>\@errlocs) for @mains; 
 	
 }
 
@@ -158,6 +160,10 @@ sub call_blast
 
 	# Add mains and error locations
 	push @blast_options, "-main",$args{main} if $args{main};
+	# For now, only one error location is supported by BLAST
+	(scalar @{$args{errlocs}} > 1) and die;
+	my $errloc = shift @{$args{errlocs}};
+	push @blast_options, "-L",$errloc if $errloc;
 
 	# Interpret hints
 	my $hintsT = $args{hints};
