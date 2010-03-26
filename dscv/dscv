@@ -63,6 +63,13 @@ Overrides the verifier passed by rule instrumentor.
 =cut
 $optionSpecs{'verifier=s'} = \$config->{verifier_override};
 
+=item B<--debug>
+
+Print debugging information about the scripts called to stdout.
+
+=cut
+$optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
+
 
 =back
 
@@ -93,9 +100,16 @@ Base directory, into which DSCV-related scripts and backends are installed.  Set
 
 =cut
 use FindBin;
-$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
-$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+BEGIN {
+	$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
+	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+}
 $config->{dscv_dir} = $ENV{'DSCV_HOME'};
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+}
 
 =item B<RULE_INSTRUMENTOR>
 
@@ -112,6 +126,12 @@ sub usage
 {
 	my $msg=shift;
 	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
+}
+
+sub vsay
+{
+	my $verbosity = shift;
+	print @_ if $verbosity <= $config->{verbosity};
 }
 
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
@@ -148,7 +168,7 @@ use XML::Twig;
 
 # For now we just pass the whole file to Instrumentor
 # This is just a simple check that XML is correct
-my $process_input = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd });
+my $process_input = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd, basedir=>\&get_driver_dir });
 
 sub execute_cmd
 {
@@ -156,7 +176,22 @@ sub execute_cmd
 	#my $TMP_FH = get_tmp_cmd()
 	#$cmdT->print(
 }
+my $driver_dir = undef;
+sub get_driver_dir
+{
+	my $bdT = $_[1];
+	$driver_dir = $bdT->text();
+}
 $process_input->parsefile($config->{cmdfile});
+
+# Function that copies driver
+use File::Copy::Recursive qw(dircopy);
+my $copy_driver = sub
+{
+	my $to = shift or die;
+	defined $driver_dir or die;
+	dircopy($driver_dir,$to) or die $!;
+};
 
 $" = ' ';	# For error reporting
 
@@ -167,7 +202,6 @@ mkpath ($out_cmd_dir);
 my $for_rcv_dir = "$dscv_base_dir/cmdfiles/rcv";
 mkpath ($for_rcv_dir);
 
-# TODO : copy driver into it
 my $ri_basedir = "$dscv_base_dir/ri";
 mkpath ($ri_basedir);
 
@@ -178,12 +212,19 @@ my @properties = @{$config->{properties}};
 for my $property (@properties){
 	# make outcmdfile
 	my $outfile = "$out_cmd_dir/cmd$property.xml";
+	# Prepare directory
+	my $ri_basedir_for_rule = "$ri_basedir/$property";
+	mkpath($ri_basedir_for_rule);
+	# Copy driver
+	$copy_driver->($ri_basedir_for_rule);
+
 	my @rule_instr_args = ($config->{rule_ins},
-		"--basedir=$ri_basedir",
+		"--basedir=$ri_basedir_for_rule",
 		"--rule-model=$property",
 		"--cmdfile=$config->{cmdfile}",
 		"--cmdfile-out=$outfile"
 	);
+	vsay 20, "@rule_instr_args\n";
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
 	#system "cp $config->{cmdfile} $outfile";
 	# Call C verifier
@@ -212,8 +253,10 @@ for my $property (@properties){
 			# Run RCV
 			my @rcv_args = ("$rcv_frontends_dir/$verifier",
 				"--cmdfile=$outfile",
-				"--workdir=$dir"
+				"--workdir=$dir",
 			);
+			push @rcv_args,'--debug' if $config->{verbosity}>=20;
+			vsay 20, "@rcv_args\n";
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
 		};
 	};

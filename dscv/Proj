@@ -2,6 +2,9 @@
 =      DSCV       =
 ===================
 
+perl-shared/
+	File/Copy/
+	  Recursive.pm
 dscv
 Makefile
 rcv/

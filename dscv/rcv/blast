@@ -13,6 +13,14 @@ my $config={
 my %optionSpecs = ();
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
+$optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
+
+sub vsay
+{
+	my $verbosity = shift;
+	local $,=' ';
+	print @_,"\n" if $verbosity <= $config->{verbosity};
+}
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
@@ -31,18 +39,37 @@ my $workdir = $config->{workdir};
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 
+# Base Dir of system being checked
+my $base_dir = undef;
+sub get_base_dir
+{
+	my ($twig, $cmdT) = @_;
+	$base_dir = $cmdT->text();
+}
+# Remove basedir to get a raw file name
+sub unbasedir
+{
+	my $from = shift or die;
+	my $rslt = $from;
+	$rslt =~ s/^$base_dir\/*//;
+	return $rslt;
+}
+use File::Basename;
+use File::Path qw(mkpath);
+
 # We should have parsed the command file, get dependencies, etc, etc...  but now we just check if it's a valid XML.
 use XML::Twig;
-my $check_input_file = XML::Twig->new( twig_handlers => { cc => \&execute_cc, ld=>\&execute_ld});
+my $check_input_file = XML::Twig->new( twig_handlers => { basedir=>\&get_base_dir, cc => \&execute_cc, ld=>\&execute_ld});
 sub execute_cc
 {
 	my ($twig, $cmdT) = @_;
 	# Flush the list of all .c files to the .o file being checked
 	local $_;
-	my @c_files_raw = $cmdT->children_text('in');
-	my $o_file_raw = $cmdT->child_text('out');
-	my $o_file = "$workdir/$o_file";
+	my @c_files_raw = unbasedir($cmdT->children_text('in'));
+	my $o_file_raw = unbasedir($cmdT->first_child_text('out'));
+	my $o_file = "$workdir/$o_file_raw";
 	# Write the list to o-file
+	mkpath(dirname($o_file));
 	my $children_FH; open $children_FH,">",$o_file or die "Dead while trying to open $o_file for writing";
 	$cmdT->print($children_FH);
 	#local $,="\n";
@@ -55,15 +82,15 @@ sub execute_ld
 	# Get the list of c files for current linked file
 	# We assume that each c-file is included into any executable file only once (otherwise there would have been undefined references).
 	local $_;
-	my @o_files_raw = $cmdT->children_text('in');
-	my $target = $cmdT->child_text('out');
+	my @o_files_raw = map {unbasedir($_)} $cmdT->children_text('in');
+	my $target = unbasedir($cmdT->first_child_text('out'));
 	# Informaiton about C files should be a reference, for it to be accessible from within subs
 	my $c_files_info = [];
 	# List of c files that were processed.  Used in tracking the assersion that each c file is processed only once.  Value is an o-file, in which the c file was first encountered.
 	my %c_files_Sanity = ();
-	for $o_file_raw (@o_files_raw){
+	for my $o_file_raw (@o_files_raw){
 		# From each o-file local copy, which contains list of c-files in that object one, get these files
-		my $o_file = "$workdir/$o_file";
+		my $o_file = "$workdir/$o_file_raw";
 
 		# Get information about this object file
 		my $c_files = [];
@@ -72,10 +99,12 @@ sub execute_ld
 		my $cwd = undef;
 		my $obj_file = undef;
 		XML::Twig->new( twig_handlers=> {
-			'opt' => sub { push @$aux_opts,$_->[1]->text(); },
-			'in' => sub { push @$c_files,$_->[1]->text(); },
-			'out' => sub { $$obj_file = $_->[1]->text(); },
-			'cwd' => sub { $$cwd = $_->[1]->text(); },
+			'opt' => sub { push @$aux_opts,$_[1]->text(); },
+			# Input files are taking without change
+			'in' => sub { push @$c_files,$_[1]->text(); },
+			# Output files are tuned to be in-rcv
+			'out' => sub { $$obj_file = "$workdir/".unbasedir($_[1]->text()); },
+			'cwd' => sub { $$cwd = $_[1]->text(); },
 		})->parsefile($o_file);
 
 		# Propagate the information gathered to c_files_info arrays
@@ -83,17 +112,19 @@ sub execute_ld
 		for my $c_file (@$c_files){
 			# Sanity check
 			my $c_file_already_encountered = $c_files_Sanity{$c_file};
-			$c_file_already_encountered and die "C file $c_file is used twice, when compiling $outfile: in $c_file_already_encountered and $$obj_file"; 
+			$c_file_already_encountered and die "C file $c_file is used twice, when linking $target: in $c_file_already_encountered and $$obj_file"; 
 			$c_files_Sanity{$c_file} = $$obj_file; 
 
 			# Prepare record
-			my $new_record = {c_file=>$_, opts=>$aux_opts, cwd=>$$cwd};
+			my $new_record = {c_file=>$c_file, opts=>$aux_opts, cwd=>$$cwd};
 			# Preprocess file if necessary
-			my $i_file = $c_file; $i_file =~ s/\.c$/.i/;
+			my $preprocess_dir = "$workdir/preprocessed";
+			mkpath($preprocess_dir);
+			my $i_file = $c_file; $i_file =~ s/\.c$/.i/; $i_file =~ s/\//-/g; $i_file = "$preprocess_dir/$i_file";
 			$new_record->{i_file} = $i_file;
 			preprocess_file($new_record);
 
-			push @$c_files, $new_record;
+			push @$c_files_info, $new_record;
 		}
 	}
 
@@ -105,9 +136,11 @@ sub execute_ld
 	my @mains = $cmdT->children_text('main');
 	# Get list of files to analyze:
 	my @files = map {$_->{i_file}} @$c_files_info;
+	# List of error locations
+	my @errlocs = $cmdT->children_text('error');
 
 	# TODO: add a separate report file
-	call_blast(files => \@files, hints=>$hintsT, main=>$_) for @mains; 
+	call_blast(files => \@files, hints=>$hintsT, main=>$_, errlocs=>\@errlocs) for @mains; 
 	
 }
 
@@ -124,6 +157,13 @@ sub call_blast
 		"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
 		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
 	;
+
+	# Add mains and error locations
+	push @blast_options, "-main",$args{main} if $args{main};
+	# For now, only one error location is supported by BLAST
+	(scalar @{$args{errlocs}} > 1) and die;
+	my $errloc = shift @{$args{errlocs}};
+	push @blast_options, "-L",$errloc if $errloc;
 
 	# Interpret hints
 	my $hintsT = $args{hints};
@@ -144,6 +184,8 @@ sub call_blast
 			"-alias","bdd"	# Turn alias analysis on
 		;
 	}
+	vsay 20,@blast_options;
+	system @blast_options and die;
 }
 $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
@@ -160,9 +202,6 @@ if ($fpid == 0){
 
 # ! PREPROCESS!
 
-print "Verifier $0 is run!\n";
-system "touch","$workdir/sign";
-
 
 use Cwd;
 sub preprocess_file
@@ -172,10 +211,11 @@ sub preprocess_file
 	my $current_dir = getcwd();
 	chdir $info->{cwd} or die;
 	my @cpp_args = ("gcc","-E",
-		"-o","$info->{cwd}/$info->{i_file}",	#Output file
-		"$info->{cwd}/$info->{c_file}",	#Input file
+		"-o","$info->{i_file}",	#Output file
+		"$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options
 	);
+	vsay 20,@cpp_args;
 	local $"; $"=' ';
 	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
 	chdir $info;
