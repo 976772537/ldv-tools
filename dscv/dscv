@@ -12,7 +12,7 @@ Compilation commands must be passed to the tool (all at once or sequentially), a
 
 For now it only supports cmdfile interface.
 
-	$ LDV_RULE_DB=/path/to/rule_db LDV_WORK_DIR=/path/to/workdir \
+	$ LDV_RULE_DB=/path/to/rule_db WORK_DIR=/path/to/workdir \
 	    dscv --cmdfile=commands.xml --rules=0032a,0039
 
 =head1 DESCRIPTION
@@ -94,6 +94,7 @@ Base directory, into which DSCV-related scripts and backends are installed.  Set
 =cut
 use FindBin;
 $ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
+$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
 $config->{dscv_dir} = $ENV{'DSCV_HOME'};
 
 =item B<RULE_INSTRUMENTOR>
@@ -101,7 +102,7 @@ $config->{dscv_dir} = $ENV{'DSCV_HOME'};
 Specify custom rule instrumentor.  Unless specified, the program is deduced from C<DSCV_HOME> environment or taken from path.
 
 =cut
-$config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'DSCV_HOME'}/../rule-instrumentor" || 'rule-instrumentor';
+$config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'LDV_HOME'}/bin/rule-instrumentor.pl" || 'rule-instrumentor.pl';
 
 =back
 
@@ -118,12 +119,7 @@ GetOptions(%optionSpecs) or usage("Unrecognized options!");
 # Sanity check
 
 $config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
-# Rule DB installation is not necessary:  rule instrumentor will be doing it
-#$config->{rule_db_dir} or usage("LDV_RULE_DB is not specified!\n");
-#-d $config->{rule_db_dir} or usage("LDV_RULE_DB is not a directory!\n");
-#$config->{rule_install_exe} = "$config->{rule_db_dir}/install";
-#-x $config->{rule_install_exe} or usage("$config->{rule_install_exe} is not an executable file!\n");
-$config->{work_dir} or usage("LDV_WORK_DIR is not specified!\n");
+$config->{work_dir} or usage("WORK_DIR is not specified!\n");
 use File::Path qw(mkpath);
 mkpath ($config->{work_dir});
 
@@ -175,10 +171,6 @@ mkpath ($for_rcv_dir);
 my $ri_basedir = "$dscv_base_dir/ri";
 mkpath ($ri_basedir);
 
-# Copy rules
-#my $rules_dir = "$dscv_base_dir/rules";
-#my @rule_install_args = ("$config->{rule_install_exe}", $rules_dir);
-#system @rule_install_args and die "INTEGRATION ERROR.  Cmdline: @rule_install_args";
 
 # Get list of properties to check
 my @properties = @{$config->{properties}};
@@ -187,7 +179,6 @@ for my $property (@properties){
 	# make outcmdfile
 	my $outfile = "$out_cmd_dir/cmd$property.xml";
 	my @rule_instr_args = ($config->{rule_ins},
-		"--model-dir=$rules_dir",
 		"--basedir=$ri_basedir",
 		"--rule-model=$property",
 		"--cmdfile=$config->{cmdfile}",
