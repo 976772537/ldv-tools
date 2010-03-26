@@ -176,9 +176,9 @@ my $ri_basedir = "$dscv_base_dir/ri";
 mkpath ($ri_basedir);
 
 # Copy rules
-my $rules_dir = "$dscv_base_dir/rules";
-my @rule_install_args = ("$config->{rule_install_exe}", $rules_dir);
-system @rule_install_args and die "INTEGRATION ERROR.  Cmdline: @rule_install_args";
+#my $rules_dir = "$dscv_base_dir/rules";
+#my @rule_install_args = ("$config->{rule_install_exe}", $rules_dir);
+#system @rule_install_args and die "INTEGRATION ERROR.  Cmdline: @rule_install_args";
 
 # Get list of properties to check
 my @properties = @{$config->{properties}};
