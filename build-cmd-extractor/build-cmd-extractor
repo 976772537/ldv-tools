@@ -287,10 +287,10 @@ k=1;
 cat $cmdfileout | while read iline; do 
 	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
 		sed -i -e "s/$iline/<cc id=\"$k\">/" $cmdfileout;
-		let k=$k+1;
+		k=`expr $k + 1`;
 	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
 		sed -i -e "s/$iline/<ld id=\"$k\">/" $cmdfileout;
-		let k=$k+1;
+		k=`expr $k + 1`;
 	fi; 
 done;
 
