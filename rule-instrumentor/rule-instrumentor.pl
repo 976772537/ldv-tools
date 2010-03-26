@@ -336,7 +336,7 @@ sub get_model_info()
       if ($kind_isaspect)
       {
         $ldv_model{'general'} = "$ldv_model{'aspect'}$aspect_general_suffix";
-        `cat "$ldv_model_dir/$ldv_model{'aspect'}" "$ldv_model_dir/$ldv_model{'common'}" > "$ldv_model_dir/$ldv_model{'general'}`;
+        `cat "$ldv_model_dir/$ldv_model{'aspect'}" "$ldv_model_dir/$ldv_model{'common'}" > "$ldv_model_dir/$ldv_model{'general'}"`;
       }
       
       # Finish models iteration after the first one is found and processed.
