@@ -243,6 +243,12 @@ if [ ! -n "$IS_WITHOUT_LD" ]; then
 					exit 1;
 				fi;
 				echo "<ld id=\"1\">" >> $cmdfileout;
+#        <in>elf_x86_64</in>
+#        <in>/home/iceberg/testrepo/lab/1/deg_tempdir/driver/console.o</in>
+#        <in>/home/iceberg/testrepo/lab/1/deg_tempdir/driver/usb-serial.o</in>
+				echo "  <cwd>$env</cwd>" >> $cmdfileout;
+				echo "  <opt>-m</opt>" >> $cmdfileout;
+				echo "  <opt>-r</opt>" >> $cmdfileout;
 				echo "  <in>$ABS_CC_FILE</in>" >> $cmdfileout;
 				echo "  <out>"`echo $ABS_CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
 				echo "</ld>" >> $cmdfileout;
@@ -291,6 +297,9 @@ sed -i -e 's/^<cwd>/\t\t<cwd>/g' $cmdfileout;
 sed -i -e 's/^<out>/\t\t<out>/g' $cmdfileout; 
 sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout; 
 sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
+# while bug exists !
+sed -i -e 's/<in>elf_x86_64<\/in>/\t<opt>elf_x86_64<\/opt>/g' $cmdfileout; 
+#<in>elf_x86_64</in>
 
 exit;
 
