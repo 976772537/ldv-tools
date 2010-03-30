@@ -59,6 +59,7 @@ my %argopts = (	# options, which are followed by an argument.
 	"-V" => "version",
 	"-b" => "machine",
 	"-G" => "num",
+	"-m" => "arch",
 );
 
 # TODO: logic that determines what staged GCC invokes is crippled.  For now it only supports .c -> .o compilation and .o -> .o linking
