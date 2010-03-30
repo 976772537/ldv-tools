@@ -22,7 +22,7 @@ $1-subdir-%: pre_tests
 
 endef
 
-all: pre_tests $(call forall_subdirs,$(SUBDIRS),all)
+all: $(call forall_subdirs,$(SUBDIRS),all)
 
 install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
 
