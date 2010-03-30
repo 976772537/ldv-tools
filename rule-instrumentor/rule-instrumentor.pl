@@ -452,8 +452,8 @@ sub process_cmd_cc()
   if ($kind_isaspect)
   {	
     # Go to base directory to execute cc command.
-    chdir($opt_basedir)
-      or die("Can't change directory to '$opt_basedir'");
+    chdir($cmd{'cwd'})
+      or die("Can't change directory to '$cmd{'cwd'}'");
   
     # On each cc command we run aspectator on corresponding file with 
     # corresponding model aspect and options.
@@ -491,8 +491,8 @@ sub process_cmd_ld()
   if ($kind_isaspect)
   {	
     # Go to base directory to execute ld command.
-    chdir($opt_basedir)
-      or die("Can't change directory to '$opt_basedir'");
+    chdir($cmd{'cwd'})
+      or die("Can't change directory to '$cmd{'cwd'}'");
   
     # On each ld command we run llvm linker for all input files together to 
     # produce one linked file. Note that excact one file to be linked must be
@@ -516,7 +516,7 @@ sub process_cmd_ld()
 
     # Print corresponding commands to output xml file. 
     $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
-    $xml_writer->dataElement('cwd' => $opt_basedir);
+    $xml_writer->dataElement('cwd' => $cmd{'cwd'});
     $xml_writer->dataElement('in' => $c_out);
     # Use here the first input file name to relate with corresponding ld 
     # command.    
@@ -525,7 +525,7 @@ sub process_cmd_ld()
     $xml_writer->endTag();
      
     $xml_writer->startTag('ld', 'id' => "$cmd{'id'}-llvm-ld");
-    $xml_writer->dataElement('cwd' => $opt_basedir);    
+    $xml_writer->dataElement('cwd' => $cmd{'cwd'});    
     $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);  
     $xml_writer->dataElement('out' => $cmd{'out'});
     $xml_writer->dataElement('engine' => $ldv_model{'engine'}); 
