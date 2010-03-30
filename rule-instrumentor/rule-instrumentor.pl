@@ -162,6 +162,7 @@ my $xml_cmd_opt = 'opt';
 my $xml_cmd_out = 'out';
 my $xml_model_db_attr_id = 'id';
 my $xml_model_db_engine = 'engine';
+my $xml_model_db_error = 'error';
 my $xml_model_db_files = 'files';
 my $xml_model_db_files_aspect = 'aspect';
 my $xml_model_db_files_common = 'common';
@@ -289,6 +290,7 @@ sub get_model_info()
     { 
 	  # Read model information.
 	  my $engine = $model->first_child_text($xml_model_db_engine);
+	  my $error = $model->first_child_text($xml_model_db_error);
 	  my $hints = $model->first_child_text($xml_model_db_hints);
     
       my @kinds;
@@ -315,7 +317,8 @@ sub get_model_info()
         'aspect' => $aspect,
         'common' => $common,
         'filter' => $filter,
-        'engine' => $engine, 
+        'engine' => $engine,
+        'error' => $error, 
         'hints' => $hints);
      
       foreach my $kind (@kinds)
@@ -537,7 +540,7 @@ sub process_cmd_ld()
     }
     
     # TODO: obtain value from models db!
-    $xml_writer->dataElement('error' => 'llvm_cbe_ERROR');
+    $xml_writer->dataElement('error' => $ldv_model{'error'});
     
     $xml_writer->dataElement('hints' => $ldv_model{'hints'});
     # Close ld tag.
@@ -584,7 +587,7 @@ sub process_cmds()
 		  my $xml_common_model = new XML::Twig::Elt('in', "$ldv_model_dir/$ldv_model{'common'}");	
 		  $xml_common_model->paste('last_child', $cmd);
 		  # TODO: get value from models db.
-		  $xml_common_model = new XML::Twig::Elt('error', 'ERROR');
+		  $xml_common_model = new XML::Twig::Elt('error', $ldv_model{'error'});
 		  $xml_common_model->paste('last_child', $cmd);
 		}
 		
