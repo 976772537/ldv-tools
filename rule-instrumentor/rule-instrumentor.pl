@@ -101,6 +101,10 @@ my $ldv_aspectator = "$ldv_aspectator_bin_dir/compiler";
 # Environment variable that will keep path to GCC executable. 
 my $ldv_aspectator_gcc = 'LDV_LLVM_GCC';
 
+# Environment variable that says that options passed to gcc compiler aren't
+# quoted.
+my $ldv_no_quoted = 'LDV_NO_QUOTED';
+
 # C backend.
 my $ldv_c_backend = "$ldv_aspectator_bin_dir/c-backend";
 
@@ -448,11 +452,13 @@ sub process_cmd_cc()
   if ($kind_isaspect)
   {	
     # Go to base directory to execute cc command.
-    chdir($opt_basedir);
+    chdir($opt_basedir)
+      or die("Can't change directory to '$opt_basedir'");
   
     # On each cc command we run aspectator on corresponding file with 
     # corresponding model aspect and options.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+    $ENV{$ldv_no_quoted} = 1;
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}});
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 	
@@ -464,7 +470,9 @@ sub process_cmd_cc()
     # models directory needed to find appropriate headers for common aspect.
     my $model_dir_abs = `readlink -f "$ldv_model_dir/$ldv_model{'common'}"`;
     my $model_dir = `dirname $model_dir_abs`;
+    chomp($model_dir);
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+    $ENV{$ldv_no_quoted} = 1;
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$model_dir");
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 	
@@ -473,7 +481,8 @@ sub process_cmd_cc()
     `cp ${$cmd{'ins'}}[0]$llvm_bitcode_suffix "$cmd{'out'}$llvm_bitcode_general_suffix"`;
   
     # Come back.
-    chdir($tool_working_dir);
+    chdir($tool_working_dir)
+      or die("Can't change directory to '$tool_working_dir'");
   }
 }
 
@@ -482,24 +491,28 @@ sub process_cmd_ld()
   if ($kind_isaspect)
   {	
     # Go to base directory to execute ld command.
-    chdir($opt_basedir);
+    chdir($opt_basedir)
+      or die("Can't change directory to '$opt_basedir'");
   
     # On each ld command we run llvm linker for all input files together to 
     # produce one linked file. Note that excact one file to be linked must be
     # generally (i.e. with usual and common aspects) instrumented. We choose the
     # first one here.
     my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]);
-    `$ldv_linker $llvm_linker_opts @ins -o $cmd{'out'}`;
+    my @args = ($ldv_linker, $llvm_linker_opts, @ins, '-o', $cmd{'out'});
+    system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 
     # Make name for c file corresponding to the linked one. 
     $cmd{'out'} =~ /\.[^\.]*$/;
     my $c_out = "$PREMATCH$llvm_c_backend_suffix";
   
     # Linked file is converted to c by means of llvm c backend.
-    `$ldv_c_backend $llvm_c_backend_opts $cmd{'out'} -o $c_out`;
-  
+    @args = ($ldv_c_backend, $llvm_c_backend_opts, $cmd{'out'}, '-o', $c_out);
+    system(@args) == 0 or die("System '@args' call failed: $ERRNO");
+    
     # Come back.
-    chdir($tool_working_dir);
+    chdir($tool_working_dir)
+      or die("Can't change directory to '$tool_working_dir'");
 
     # Print corresponding commands to output xml file. 
     $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
