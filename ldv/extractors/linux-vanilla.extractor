@@ -106,7 +106,7 @@ if [ ! -w "$KERNEL_MAKEFILE_BUILD" ]; then
 fi;
 
 # I.
-sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = $XGCC \$< \$(c_flags) -c -o \$(@D)\/\$(@F) >> \$(BUILDFILE); \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
+sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = $XGCC \`readlink -f \$<\` \$(c_flags) -c -o \`readlink -f \$(@D)\/\$(@F)\` >> \$(BUILDFILE); \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	echo "extractor: ERROR: Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;

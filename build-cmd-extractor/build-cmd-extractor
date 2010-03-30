@@ -253,6 +253,31 @@ fi;
 
 echo "</cmdstream>" >> $cmdfileout;
 
+cmdfileout_tmp=$cmdfileout"_tmp";
+touch $cmdfileout_tmp;
+if [ $? -ne 0 ] ; then 
+	bce_print "ERROR: Can't create temp cmdfile.";
+	exit 1;
+fi;
+
+k=1;
+cat $cmdfileout | while read iline; do
+	if [ -n "`echo $iline | grep '<cc id='`" ]; then
+		echo "<cc id=\"$k\">" >> $cmdfileout_tmp;
+		k=`expr $k + 1`;
+	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
+		echo "<ld id=\"$k\">" >> $cmdfileout_tmp;
+		k=`expr $k + 1`;
+	else
+		echo "$iline" >> $cmdfileout_tmp;
+	fi;
+done;
+mv $cmdfileout_tmp $cmdfileout;
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Can't replace cmdfile with temp cmdfile.";
+	exit 1;
+fi;
+
 #
 # fix format - add one tab before <cc> and <ld> tags and...
 #
@@ -261,23 +286,11 @@ sed -i -e 's/^<cc/\t<cc/g' $cmdfileout;
 sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
 sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
 sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout; 
-sed -i -e 's/^  <in>/\t\t<in>/g' $cmdfileout; 
-sed -i -e 's/^  <cwd>/\t\t<cwd>/g' $cmdfileout; 
-sed -i -e 's/^  <out>/\t\t<out>/g' $cmdfileout; 
-sed -i -e 's/^  <opt>/\t\t<opt>/g' $cmdfileout; 
+sed -i -e 's/^<in>/\t\t<in>/g' $cmdfileout; 
+sed -i -e 's/^<cwd>/\t\t<cwd>/g' $cmdfileout; 
+sed -i -e 's/^<out>/\t\t<out>/g' $cmdfileout; 
+sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout; 
 sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
 
+exit;
 
-#
-# fix id numbers
-#
-k=1;
-cat $cmdfileout | while read iline; do 
-	if [ -n "`echo $iline | grep '<cc id='`" ]; then 
-		sed -i -e "s/$iline/<cc id=\"$k\">/" $cmdfileout;
-		k=`expr $k + 1`;
-	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
-		sed -i -e "s/$iline/<ld id=\"$k\">/" $cmdfileout;
-		k=`expr $k + 1`;
-	fi; 
-done;
