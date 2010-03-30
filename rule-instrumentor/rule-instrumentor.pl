@@ -521,6 +521,7 @@ sub process_cmd_ld()
     # Use here the first input file name to relate with corresponding ld 
     # command.    
     $xml_writer->dataElement('out' => ${$cmd{'ins'}}[0]); 
+    $xml_writer->dataElement('engine' => $ldv_model{'engine'}); 
     # Close cc tag.
     $xml_writer->endTag();
      
@@ -577,7 +578,7 @@ sub process_cmds()
 	  # For nonaspect mode (plain mode) just copy and modify a bit input xml.	
 	  if ($kind_isplain)
       {
-		# Add additional input model file for each ld command.   
+		# Add additional input model file and error tat for each ld command.   
 		if ($cmd->gi eq $xml_cmd_ld)
 		{
 		  my $xml_common_model = new XML::Twig::Elt('in', "$ldv_model_dir/$ldv_model{'common'}");	
@@ -585,8 +586,15 @@ sub process_cmds()
 		  # TODO: get value from models db.
 		  $xml_common_model = new XML::Twig::Elt('error', 'ERROR');
 		  $xml_common_model->paste('last_child', $cmd);
-		}  
-		  
+		}
+		
+		# Add engine tag for both cc and ld commands.
+		if ($cmd->gi eq $xml_cmd_ld or $cmd->gi eq $xml_cmd_cc)
+		{
+		  my $xml_common_model = new XML::Twig::Elt('engine', $ldv_model{'engine'});	
+		  $xml_common_model->paste('last_child', $cmd);
+	    }
+			  
         $cmd->print($file_xml_out);
         
         print($file_xml_out "\n\n");
