@@ -132,13 +132,13 @@ my $llvm_bitcode_suffix = '.bc';
 my $llvm_bitcode_general_suffix = '.general';
 
 # Options to be passed to llvm C backend.
-my $llvm_c_backend_opts = '-f -march=c';
+my @llvm_c_backend_opts = ('-f', '-march=c');
 
 # Suffix for llvm C backend production.
 my $llvm_c_backend_suffix = '.cbe.c';
 
 # Options to be passed to llvm linker.
-my $llvm_linker_opts = '-f';
+my @llvm_linker_opts = ('-f');
 
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_basedir;
@@ -499,7 +499,7 @@ sub process_cmd_ld()
     # generally (i.e. with usual and common aspects) instrumented. We choose the
     # first one here.
     my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]);
-    my @args = ($ldv_linker, $llvm_linker_opts, @ins, '-o', $cmd{'out'});
+    my @args = ($ldv_linker, @llvm_linker_opts, @ins, '-o', $cmd{'out'});
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 
     # Make name for c file corresponding to the linked one. 
@@ -507,7 +507,7 @@ sub process_cmd_ld()
     my $c_out = "$PREMATCH$llvm_c_backend_suffix";
   
     # Linked file is converted to c by means of llvm c backend.
-    @args = ($ldv_c_backend, $llvm_c_backend_opts, $cmd{'out'}, '-o', $c_out);
+    @args = ($ldv_c_backend, @llvm_c_backend_opts, $cmd{'out'}, '-o', $c_out);
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");
     
     # Come back.
