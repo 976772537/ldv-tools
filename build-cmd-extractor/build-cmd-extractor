@@ -217,7 +217,7 @@ bce_print "DEBUG: Try to call kernel make..."
 bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
 make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;
 if [ $? -ne 0 ]; then
-	bce_print "Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
+	bce_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	exit 1;
 fi;
 
@@ -234,12 +234,17 @@ if [ ! -n "$IS_WITHOUT_LD" ]; then
 		if [ -n "$cmdfileout" ]; then
 			CC_FILE=`echo $CC_FILE | sed 's/<out>//' | sed 's/<\/out>//'`;
 #
-# if c-file for this not existst then we pass it
+# if c-file for this not existst then we pass it 
 #
-			if [ -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
+			if [ -n "$CC_FILE" -a -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
+				ABS_CC_FILE=`readlink -f $CC_FILE`;	
+				if [ $? -ne 0 ]; then
+					bec_print "ERROR: Can't get abs path for ld-file.";
+					exit 1;
+				fi;
 				echo "<ld id=\"1\">" >> $cmdfileout;
-				echo "  <in>$CC_FILE</in>" >> $cmdfileout;
-				echo "  <out>"`echo $CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
+				echo "  <in>$ABS_CC_FILE</in>" >> $cmdfileout;
+				echo "  <out>"`echo $ABS_CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
 				echo "</ld>" >> $cmdfileout;
 			fi;
 		fi;
