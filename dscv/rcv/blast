@@ -162,7 +162,7 @@ sub call_blast
 	push @blast_options, "-main",$args{main} if $args{main};
 	# For now, only one error location is supported by BLAST
 	(scalar @{$args{errlocs}} > 1) and die;
-	my $errloc = shift @{$args{errlocs}};
+	my $errloc = (@{$args{errlocs}})[0];
 	push @blast_options, "-L",$errloc if $errloc;
 
 	# Interpret hints
