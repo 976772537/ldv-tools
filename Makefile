@@ -24,9 +24,9 @@ endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
-install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
+install: $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
 
-clean: pre_tests $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
+clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
 distclean: clean
 
