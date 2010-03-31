@@ -19,12 +19,12 @@ forall_subdirs=$(patsubst %,%-subdir-$2,$1)
 define mksubdir
 $1-subdir-%:
 	$$(MAKE) -C $1 $$*
+
 endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
-install: pre_tests 
-	$(call forall_subdirs,$(INSTALL_SUBDIRS),install)
+install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
