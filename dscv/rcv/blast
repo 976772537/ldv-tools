@@ -11,6 +11,7 @@ my $config={
 };
 
 my %optionSpecs = ();
+$config->{verbosity} = 10;
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
@@ -186,8 +187,10 @@ sub call_blast
 	}
 	vsay 20,@blast_options;
 	system(@blast_options) == -1 and die;
+	vsay 10,"Error return value: $?\n";
 	my $blast_rv = $? >> 8;
-	if ($blast_rv == 2){
+	# NOTE that exit code 2 is for OCaml unhandled exceptions
+	if ($blast_rv == 5){
 		# BLAST didn't find input file -- integration error
 		die "BLAST couldn't find some input files";
 	}elsif($blast_rv == 3){
@@ -195,7 +198,7 @@ sub call_blast
 	}elsif($? == 0){
 		warn "BLAST OK";
 	}else{
-		warn "BLAST failed.  But who cares?";
+		warn "BLAST failed with exit code $blast_rv.  But who cares?";
 	}
 }
 $" = ' ';	# For error reporting
