@@ -17,14 +17,14 @@ export prefix
 forall_subdirs=$(patsubst %,%-subdir-$2,$1)
 # Generic rule for descending into subdirectories.  Used for eval-ing
 define mksubdir
-$1-subdir-%: pre_tests
+$1-subdir-%:
 	$$(MAKE) -C $1 $$*
-
 endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
-install: $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
+install: pre_tests 
+	$(call forall_subdirs,$(INSTALL_SUBDIRS),install)
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
