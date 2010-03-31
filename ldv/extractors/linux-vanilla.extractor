@@ -2,6 +2,9 @@
 
 
 LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+LDV_VDIR=$HOME/.ldv/ldv
+
+
 XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
 
 
