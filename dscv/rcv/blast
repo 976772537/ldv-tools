@@ -11,6 +11,7 @@ my $config={
 };
 
 my %optionSpecs = ();
+$config->{verbosity} = 10;
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
@@ -186,6 +187,7 @@ sub call_blast
 	}
 	vsay 20,@blast_options;
 	system(@blast_options) == -1 and die;
+	vsay 10,"Error return value: $?\n";
 	my $blast_rv = $? >> 8;
 	if ($blast_rv == 2){
 		# BLAST didn't find input file -- integration error
