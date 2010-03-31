@@ -4,6 +4,8 @@ BCE_TEMPDIR_NAME="bce_tempdir"
 LDV_TEMPDIR_NAME="ldv_tempdir"
 DRIVER_DIR_NAME="driver"
 
+KERNEL_ENV_PREFIX=".ldv\/ldv\/envs\/";
+
 GLOBAL_LOG="bce_global.log";
 KERNEL_COMPILE_LOG_FILENAME="ckc.log";
 TRACE_FILENAME="build_trace";
@@ -242,10 +244,9 @@ if [ ! -n "$IS_WITHOUT_LD" ]; then
 					bec_print "ERROR: Can't get abs path for ld-file.";
 					exit 1;
 				fi;
+
+				if [ -n "`echo $ABS_CC_FILE | grep \"$KERNEL_ENV_PREFIX\"`" ]; then continue; fi;
 				echo "<ld id=\"1\">" >> $cmdfileout;
-#        <in>elf_x86_64</in>
-#        <in>/home/iceberg/testrepo/lab/1/deg_tempdir/driver/console.o</in>
-#        <in>/home/iceberg/testrepo/lab/1/deg_tempdir/driver/usb-serial.o</in>
 				echo "  <cwd>$env</cwd>" >> $cmdfileout;
 				echo "  <opt>-m</opt>" >> $cmdfileout;
 				echo "  <opt>-r</opt>" >> $cmdfileout;
@@ -297,9 +298,6 @@ sed -i -e 's/^<cwd>/\t\t<cwd>/g' $cmdfileout;
 sed -i -e 's/^<out>/\t\t<out>/g' $cmdfileout; 
 sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout; 
 sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
-# while bug exists !
-sed -i -e 's/<in>elf_x86_64<\/in>/\t<opt>elf_x86_64<\/opt>/g' $cmdfileout; 
-#<in>elf_x86_64</in>
 
 exit;
 

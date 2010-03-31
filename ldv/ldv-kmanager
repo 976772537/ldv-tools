@@ -9,17 +9,18 @@ print_extractors() {
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
-LDV_DESCRIPTIONS_DIR=$LDV_DIR/descriptions;
+LDV_VDIR=$HOME/.ldv/ldv;
+LDV_DESCRIPTIONS_DIR=$LDV_VDIR/descriptions;
 if [ ! -d "$LDV_DESCRIPTIONS_DIR" ]; then
-	mkdir $LDV_DESCRIPTIONS_DIR;
+	mkdir -p $LDV_DESCRIPTIONS_DIR;
 	if [ $? -ne 0 ]; then
 		echo "ldv-kmanager: ERROR: Can't create descriptions dir: \"$LDV_DESCRIPTIONS_DIR\".";
 		exit 1;
 	fi;
 fi;
-LDV_ENVS_DIR=$LDV_DIR/envs;
+LDV_ENVS_DIR=$LDV_VDIR/envs;
 if [ ! -d "$LDV_ENVS_DIR" ]; then
-	mkdir $LDV_ENVS_DIR;
+	mkdir -p $LDV_ENVS_DIR;
 	if [ $? -ne 0 ]; then
 		echo "ldv-kmanager: ERROR: Can't create environmnet dir: \"$LDV_ENVS_DIR\".";
 		exit 1;

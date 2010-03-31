@@ -38,6 +38,8 @@ public class DEG {
 	private static String optTag = "opt";
 	private static String mainTag = "main";
 	
+	private static String ldv_conf_prefix = ".ldv/ldv/envs";
+	
 	private static String basedir = null;
 	private static String outdir = null;
 	private static String cmdfile = null;
@@ -136,6 +138,11 @@ public class DEG {
 							if (ldNodes.item(j).getNodeType() == Node.ELEMENT_NODE) {
 								if(ldNodes.item(j).getNodeName().equals(inTag)) {
 									String inTagContent = ldNodes.item(j).getTextContent();
+									if (inTagContent.contains(ldv_conf_prefix)) {
+										//xmlRoot.removeChild(cmdstreamNodeList.item(i));
+										continue;	
+									}
+									
 									String newinTagContent = inTagContent.replace(replacedInstrumentDir, nextInstrumentDir);
 									ldNodes.item(j).setTextContent(newinTagContent);
 									File inFile = new File(inTagContent);
@@ -150,6 +157,10 @@ public class DEG {
 								//} else if(ccNodes.item(j).getNodeName().equals(optTag)) {
 								} else if(ldNodes.item(j).getNodeName().equals(outTag)) {
 									String inTagContent = ldNodes.item(j).getTextContent();
+									if (inTagContent.contains(ldv_conf_prefix)) {
+										//xmlRoot.removeChild(cmdstreamNodeList.item(i));
+										continue;
+									}
 									String newinTagContent = inTagContent.replace(replacedInstrumentDir, nextInstrumentDir);
 									ldNodes.item(j).setTextContent(newinTagContent);
 								} 
@@ -170,10 +181,19 @@ public class DEG {
 						for(int j=1; j<ccNodes.getLength(); j++) {
 							if (ccNodes.item(j).getNodeType() == Node.ELEMENT_NODE) {
 								if(ccNodes.item(j).getNodeName().equals(inTag)) {
+									//String dbgstring = ccNodes.item(j).getTextContent(); 
+									if (ccNodes.item(j).getTextContent().contains(ldv_conf_prefix)) {
+										//xmlRoot.removeChild(cmdstreamNodeList.item(i));
+										continue;
+									}
 									ins.add(ccNodes.item(j)); 
 								} else if(ccNodes.item(j).getNodeName().equals(optTag)) {
 									// TODO: add opts
 								} else if(ccNodes.item(j).getNodeName().equals(outTag)) {
+									if (ccNodes.item(j).getTextContent().contains(ldv_conf_prefix)) {
+										xmlRoot.removeChild(cmdstreamNodeList.item(i));
+										continue;
+									}
 									out = ccNodes.item(j);
 								} 
 							}
@@ -187,22 +207,23 @@ public class DEG {
 							in.setTextContent(newinTagContent);
 						}
 							
-						assert out!=null;
-						String outTagContent = out.getTextContent();
-						String newoutTagContent = out.getTextContent().replace(replacedInstrumentDir, nextInstrumentDir);
-						out.setTextContent(newoutTagContent);
-						// if c-file conatins main -> then create o-file in old
-						// dir, that contains info
-						if(isgenerated) {
-							FileWriter fw = new FileWriter(outTagContent);
-								//for(; main_counter!=local_counter; main_counter++)
-								// add opt
+						if(out!=null) {
+							String outTagContent = out.getTextContent();
+							String newoutTagContent = out.getTextContent().replace(replacedInstrumentDir, nextInstrumentDir);
+							out.setTextContent(newoutTagContent);
+							// if c-file conatins main -> then create o-file in old
+							// dir, that contains info
+							if(isgenerated) {
+								FileWriter fw = new FileWriter(outTagContent);
+								//	for(; main_counter!=local_counter; main_counter++)
+								// 	add opt
 								Node debugOptNode = doc.createElement(optTag);
 								Node debugOptTextNode = doc.createTextNode("-DLDV_MAIN"+main_counter);
 								debugOptNode.appendChild(debugOptTextNode);
 								cmdstreamNodeList.item(i).appendChild(debugOptNode);
 								fw.write("ldv_main" + main_counter++);
-							fw.close();
+								fw.close();
+							}
 						}
 					}
 				}
