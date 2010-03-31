@@ -1,14 +1,17 @@
 #! /usr/bin/perl -w
 
 
-use Cwd('abs_path', 'cwd');
+use Cwd qw(abs_path cwd);
 use English;
-use Env('LDV_KERNEL_RULES');
-use Getopt::Long;
-Getopt::Long::Configure('posix_default', 'no_ignore_case');
+use Env qw(LDV_KERNEL_RULES);
+use File::Basename qw(basename fileparse);
+#use File::Cat qw(cat);
+#use File::Copy::Recursive qw(rcopy);
+use Getopt::Long qw(GetOptions);
+Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
-use XML::Twig;
-use XML::Writer;
+use XML::Twig qw();
+use XML::Writer qw();
 
 
 ################################################################################
@@ -30,6 +33,11 @@ sub get_opt();
 # args: no.
 # retn: nothing.
 sub help();
+
+# Obtain needed files and dirs and check their presence.
+# args: no.
+# retn: nothing.
+sub prepare_files_and_dirs();
 
 # Process single cc command from input xml file.
 # args: no.
@@ -71,52 +79,25 @@ my $file_xml_out;
 my $kind_isplain = 0;
 my $kind_isaspect = 0;
 
-# LDV_HOME is obtained through directory of rule-instrumentor.
-# It is assumed that there is such organization of LDV_HOME directory:
-# LDV_HOME
-#   bin
-#     rule_instrumentor.pl (this script)
-#   rule_instrumentor
-#     aspectator
-#       bin
-#         symlinks to aspectator script, gcc, linker and c-backend.
-my $ldv_rule_instrumentor_abs = `readlink -f $0`;
-my $ldv_rule_instrumentor_dir = `dirname $ldv_rule_instrumentor_abs`;
-
-# Obtain LDV_HOME as earlier as possible.
-$ldv_rule_instrumentor_dir =~ /\/bin$/;
-
-my $LDV_HOME = $PREMATCH;
-
-# Directory where all rule instrumentor auxiliary instruments (such as 
-# aspectator) are placed.
-my $ldv_rule_instrumentor = "$LDV_HOME/rule-instrumentor";
-
-# Directory contains all binaries needed by aspectator.
-my $ldv_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/bin";
-
-# Aspectator script.
-my $ldv_aspectator = "$ldv_aspectator_bin_dir/compiler";
-
-# Environment variable that will keep path to GCC executable. 
-my $ldv_aspectator_gcc = 'LDV_LLVM_GCC';
-
+my $ldv_rule_instrumentor_abs;
+my @ldv_rule_instrumentor_path;
+my $ldv_rule_instrumentor_dir;
+my $LDV_HOME;
+my $ldv_rule_instrumentor;
+my $ldv_aspectator_bin_dir;
+my $ldv_aspectator;
 # Environment variable that says that options passed to gcc compiler aren't
 # quoted.
 my $ldv_no_quoted = 'LDV_NO_QUOTED';
-
-# C backend.
-my $ldv_c_backend = "$ldv_aspectator_bin_dir/c-backend";
-
-# GCC compiler with aspectator extensions that is used by aspectator
-# script.
-my $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
-
+# Environment variable that will keep path to GCC executable. 
+my $ldv_aspectator_gcc = 'LDV_LLVM_GCC';
+my $ldv_c_backend;
+my $ldv_gcc;
 # Linker.
-my $ldv_linker = "$ldv_aspectator_bin_dir/linker";
+my $ldv_linker;
 
 # Directory contains rules models database and their source code.
-my $ldv_model_dir = "$LDV_HOME/kernel-rules";
+my $ldv_model_dir;
 
 # Name of xml file containing models database. Name is relative to models 
 # directory. 
@@ -124,6 +105,10 @@ my $ldv_model_db_xml = 'model-db.xml';
 
 # Information on needed model.
 my %ldv_model;
+
+# Options that are obtained for the version of gcc compiler (version 4.4 or may
+# be higher). Note that this is array of options patterns to be excluded.
+my @llvm_gcc_4_4_opts = ('-Wframe-larger-than=\d+', '-fno-dwarf2-cfi-asm', '-fconserve-stack');
 
 # Suffix of llvm bitcode files. 
 my $llvm_bitcode_suffix = '.bc';
@@ -179,37 +164,12 @@ my $xml_model_db_model = 'model';
 # Remember absolute path to the current working directory. 
 $tool_working_dir = Cwd::cwd();
 
-# Use environment variable for models instead of standard placement in LDV_HOME.
-if ($LDV_KERNEL_RULES)
-{
-  $ldv_model_dir = $LDV_KERNEL_RULES;
-}
-
-# Check whether models are installed properly. 
-unless(-d $ldv_model_dir)
-{
-  warn("Directory specified through model directory variable doesn't exist");
-    
-  help();	  
-}
-  
-unless(-f "$ldv_model_dir/$ldv_model_db_xml")
-{
-  warn("Directory '$ldv_model_dir' must contain models database xml file '$ldv_model_db_xml'");
-    
-  help();
-}
-
 # Get and parse command-line options.
 get_opt();
 
-# Copy models dir to base directory since it'll be affected a bit.
-`cp -r $ldv_model_dir $opt_basedir`;
-
-# Change models dir.
-$ldv_model_dir =~ /\/*$/;
-$PREMATCH =~ /([^\/]+)$/;
-$ldv_model_dir = "$opt_basedir/$1";
+# Check presence of needed files and directories. Copy needed files and 
+# directories.
+prepare_files_and_dirs();
 
 # Prepare twig xml parser for models database and input commands.
 my $xml_twig = new XML::Twig;
@@ -228,7 +188,7 @@ if ($kind_isaspect)
   $xml_writer = new XML::Writer(OUTPUT => $file_xml_out, NEWLINES => 1);
   
   $xml_writer->startTag('cmdstream');
-  
+    
   # Print rule instrumentor basedir tags.
   $xml_writer->dataElement('basedir' => $opt_basedir);
 }
@@ -393,20 +353,20 @@ sub get_opt()
 
   unless(-d $opt_basedir)
   {
-    warn("Directory specified through option --basedir doesn't exist");
+    warn("Directory specified through option --basedir|-b doesn't exist");
     
     help();	  
   }     
   
   unless(-f $opt_cmd_xml_in)
   {
-    warn("File specified through option --cmd-xml-in doesn't exist");
+    warn("File specified through option --cmdfile|-c doesn't exist");
     
     help();	  
   }
   
   open($file_xml_out, '>', "$opt_cmd_xml_out")
-    or die("Couldn't open file '$opt_cmd_xml_out' for write: $ERRNO");
+    or die("Couldn't open file '$opt_cmd_xml_out' specified through option --cmdfile-out|-o for write: $ERRNO");
 }
 
 sub help()
@@ -450,6 +410,138 @@ EOM
   exit($error_syntax);
 }
 
+sub prepare_files_and_dirs()
+{
+  # LDV_HOME is obtained through directory of rule-instrumentor.
+  # It is assumed that there is such organization of LDV_HOME directory:
+  # /LDV_HOME/
+  #   bin/
+  #     rule_instrumentor.pl (this script)
+  #   rule_instrumentor/
+  #     aspectator/
+  #       bin/
+  #         symlinks to aspectator script, gcc, linker, c-backend and so on.
+  $ldv_rule_instrumentor_abs = abs_path($0) 
+    or die("Can't obtain absolute path of '$0'");
+
+  @ldv_rule_instrumentor_path = fileparse($ldv_rule_instrumentor_abs)
+    or die("Can't find directory of file '$ldv_rule_instrumentor_abs'");
+
+  $ldv_rule_instrumentor_dir = $ldv_rule_instrumentor_path[1];
+
+  # Obtain LDV_HOME as earlier as possible.
+  $ldv_rule_instrumentor_dir =~ /\/bin\/*$/;
+
+  $LDV_HOME = $PREMATCH;
+
+  unless(-d $LDV_HOME)
+  {
+    warn("Directory '$LDV_HOME' (LDV home directory) doesn't exist");
+    
+    help();	  
+  }
+
+  # Directory where all rule instrumentor auxiliary instruments (such as 
+  # aspectator) are placed.
+  $ldv_rule_instrumentor = "$LDV_HOME/rule-instrumentor";
+
+  unless(-d $ldv_rule_instrumentor)
+  {
+    warn("Directory '$ldv_rule_instrumentor' (rule instrumentor directory) doesn't exist");
+    
+    help();	  
+  }
+
+  # Directory contains all binaries needed by aspectator.
+  $ldv_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/bin";
+
+  unless(-d $ldv_aspectator_bin_dir)
+  {
+    warn("Directory '$ldv_aspectator_bin_dir' (aspectator binaries directory) doesn't exist");
+    
+    help();	  
+  }
+
+  # Aspectator script.
+  $ldv_aspectator = "$ldv_aspectator_bin_dir/compiler";
+
+  unless(-f $ldv_aspectator)
+  {
+    warn("File '$ldv_aspectator' (aspectator) doesn't exist");
+    
+    help();	  
+  }
+
+  # C backend.
+  $ldv_c_backend = "$ldv_aspectator_bin_dir/c-backend";
+
+  unless(-f $ldv_c_backend)
+  {
+    warn("File '$ldv_c_backend' (LLVM C backend) doesn't exist");
+    
+    help();	  
+  }
+
+  # GCC compiler with aspectator extensions that is used by aspectator
+  # script.
+  $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
+
+  unless(-f $ldv_gcc)
+  {
+    warn("File '$ldv_gcc' (GCC compiler) doesn't exist");
+    
+    help();	  
+  }
+
+  # Linker.
+  $ldv_linker = "$ldv_aspectator_bin_dir/linker";
+
+  unless(-f $ldv_linker)
+  {
+    warn("File '$ldv_linker' (LLVM linker) doesn't exist");
+    
+    help();	  
+  }
+
+  # Use environment variable for models instead of standard placement in LDV_HOME.
+  if ($LDV_KERNEL_RULES)
+  {
+    $ldv_model_dir = $LDV_KERNEL_RULES;
+  }
+  else
+  {
+    $ldv_model_dir = "$LDV_HOME/kernel-rules";	  
+  }
+
+  # Check whether models are installed properly. 
+  unless(-d $ldv_model_dir)
+  {
+    warn("Directory '$ldv_model_dir' (kernel rules models) doesn't exist");
+    
+    help();	  
+  }
+  
+  unless(-f "$ldv_model_dir/$ldv_model_db_xml")
+  {
+    warn("Directory '$ldv_model_dir' doesn't contain models database xml file '$ldv_model_db_xml'");
+    
+    help();
+  }
+  
+  # Copy models dir to base directory since it'll be affected a bit.
+# TODO Require Recursive.pm
+#  copy($opt_primitives,
+#            "$FindBin::RealBin/$settings3::name_file_primitive")
+#                or die("Couldn't copy file '$opt_primitives' to file " .
+#                    "'$FindBin::RealBin/$settings3::name_file_primitive': $ERRNO");
+  `cp -r $ldv_model_dir $opt_basedir`;
+#  rcopy($ldv_model_dir, $opt_basedir)
+#    or die("Can't copy directory '$ldv_model_dir' to directory '$opt_basedir'");;
+  # Change models dir.
+
+  $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
+}
+
 sub process_cmd_cc()
 {
   if ($kind_isaspect)
@@ -471,13 +563,17 @@ sub process_cmd_cc()
   
     # Also do this with general aspect. Don't forget to add -I option with 
     # models directory needed to find appropriate headers for common aspect.
-    my $model_dir_abs = `readlink -f "$ldv_model_dir/$ldv_model{'common'}"`;
-    my $model_dir = `dirname $model_dir_abs`;
-    chomp($model_dir);
+    my $model_dir_abs = abs_path("$ldv_model_dir/$ldv_model{'common'}")
+      or die("Can't obtain absolute path of '$ldv_model_dir/$ldv_model{'common'}'");
+    my @model_dir_path = fileparse($model_dir_abs)
+      or die("Can't find directory of file '$model_dir_abs'");
+    my $model_dir = $model_dir_path[1];
+    
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$model_dir");
-    system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
+    system(@args) == 0 
+      or die("System '@args' call failed: $ERRNO");	
 	
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
     # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
@@ -619,16 +715,32 @@ sub process_cmds()
 	    last if ($in->is_last_child($xml_cmd_in));
 	  }  
     
-      my @opts;
       # Read array of options.
+      my @opts;
+      
       for (my $opt = $cmd->first_child($xml_cmd_opt)
         ; $opt
         ; $opt = $opt->next_elt($xml_cmd_opt))
       {
-	    push(@opts, $opt->text);
+		my $opt_text = $opt->text;
+		
+		# Exclude options for the new gcc compiler.
+		foreach my $llvm_gcc_4_4_opt (@llvm_gcc_4_4_opts)
+		{
+		  if ($opt_text =~ /^$llvm_gcc_4_4_opt$/)
+		  {
+			$opt_text = '';
+			last;
+		  }
+		}
+		  
+		next unless ($opt_text);
+		  
+	    push(@opts, $opt_text);
 	  
 	    last if ($opt->is_last_child($xml_cmd_opt));
-	  }  
+	  }
+	  
 	  # Replace maingen directory prefix with the rule instrumentor one.
 	  @ins = map {$_ =~ s/^$cmd_basedir/$opt_basedir/; $_} @ins;
 
