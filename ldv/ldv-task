@@ -19,38 +19,9 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
-TEMP_LDV_WORKDIR=$LDV_DIR/ldv_temp;
-if [ ! -d "$TEMP_LDV_WORKDIR" ]; then
-	mkdir $TEMP_LDV_WORKDIR;
-	if [ $? -ne 0 ]; then
-		echo "ldv-task: ERROR: can't create default ldv-tempdir: \"$TEMP_LDV_WORKDIR\"."
-		exit 1;
-	fi;
-fi;
-
 USER_WORKDIR=`echo $2 | sed 's/workdir=//'`
 if [ ! -d "$USER_WORKDIR" ]; then
-	echo "ldv-task: WARNING: User workdir not set or not exists: \"$1\". Try to use default ldv-tempdir: \"$TEMP_LDV_WORKDIR\".";
-	if [ ! -d "$TEMP_LDV_WORKDIR" ]; then
-		mkdir $TEMP_LDV_WORKDIR;
-		if [ $? -ne 0 ]; then
-			echo "ldv-task: ERROR: can't create default ldv-tempdir: \"$TEMP_LDV_WORKDIR\"."
-			exit 1;
-		fi;
-	fi;
-	# get last task number;
-	k=0;
-	for TASK_ID in `find $TEMP_LDV_WORKDIR -maxdepth 1 -regex '.*/[0-9]+$' -type d | sed 's/.*\/.*\///g'`; do
-		if [ $k -le $TASK_ID ]; then k=$TASK_ID; fi;
-	done;
-	k=`expr $k + 1`;
-	# ok, and now create workdir
-	WORK_DIR=$TEMP_LDV_WORKDIR/$k;
-	mkdir $WORK_DIR;
-	if [ $? -ne 0 ]; then
-		echo "ldv-task: ERROR: can't create tempdir for task: \"$WORK_DIR\".";
-		exit 1;
-	fi;
+	echo "ldv-task: ERROR: Workdir not exists: \"$WORK_DIR\".";
 else
 	WORK_DIR=`readlink -f $USER_WORKDIR`;
 fi;
