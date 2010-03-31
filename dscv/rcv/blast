@@ -185,7 +185,18 @@ sub call_blast
 		;
 	}
 	vsay 20,@blast_options;
-	system @blast_options and die;
+	system(@blast_options) == -1 and die;
+	my $blast_rv = $? >> 8;
+	if ($blast_rv == 2){
+		# BLAST didn't find input file -- integration error
+		die "BLAST couldn't find some input files";
+	}elsif($blast_rv == 3){
+		die "BLAST couldn't find entry point/error location";
+	}elsif($? == 0){
+		warn "BLAST OK";
+	}else{
+		warn "BLAST failed.  But who cares?";
+	}
 }
 $" = ' ';	# For error reporting
 my @blast_args = ("pblast.opt","-help");
