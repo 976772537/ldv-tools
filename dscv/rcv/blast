@@ -255,5 +255,27 @@ sub preprocess_file
 	chdir $info;
 }
 
+
+# Perform BLAST quick check before running any verifications
+
+$" = ' ';      # For error reporting
+vsay 10, "Trying to run blast without arguments to see it it works\n";
+my @blast_args = ("pblast.opt","-help");
+my $CHEW_BLAST_OUT;
+my $fpid = open $CHEW_BLAST_OUT,"-|";
+defined $fpid or die "Can't fork?  Wtf";
+if ($fpid == 0){
+       # child
+       # Run blast
+       exec @blast_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
+       exit 1;
+}
+# Parent
+# Chew blast's output
+close($CHEW_BLAST_OUT);
+$? == 0 or die die "INTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
+
+
+
 # Now all subroutines are initialized.  Let's start processing the cmdfile.
 $check_input_file->parsefile($config->{cmdfile});
