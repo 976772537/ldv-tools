@@ -201,6 +201,28 @@ sub call_blast
 	}
 	vsay 20,@blast_options;
 	system(@blast_options) == -1 and die;
+
+	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
+	# Open file to redirect
+	my $BLAST_REPORT;
+	open $BLAST_REPORT, ">", $args{report} or die "Can't open report $args{report}: $!";
+	my ($BLAST_IN,$BLAST_OUT,$BLAST_ERR);
+	# Fork blast
+	local $"=" ";
+	my $fpid = IPC::open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
+
+	# Process output and redirect it to file
+	local $_;
+	print $BLAST_REPORT while <$BLAST_OUT>;
+	print $BLAST_REPORT while <$BLAST_ERR>;
+	# TODO: perhaps, here we can process it at once with filters?
+	# TODO: add GZIPping as well
+
+	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
+	waitpid $fpid,0;
+	close $BLAST_REPORT;
+
+  vsay 20,"BLAST open3 return value: $?\n";
 	vsay 10,"Error return value: $?\n";
 	my $blast_rv = $? >> 8;
 	# NOTE that exit code 2 is for OCaml unhandled exceptions
