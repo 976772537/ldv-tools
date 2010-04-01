@@ -5,18 +5,30 @@ use Cwd qw(abs_path cwd);
 use English;
 use Env qw(LDV_KERNEL_RULES);
 use File::Basename qw(basename fileparse);
-#use File::Cat qw(cat);
-#use File::Copy::Recursive qw(rcopy);
+use File::Copy qw(mv);
+use FindBin;
+
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 use XML::Twig qw();
 use XML::Writer qw();
 
+# Add some local Perl packages.
+use lib("$FindBin::RealBin/../rule-instrumentor/lib");
+
+use File::Cat qw(cat);
+use File::Copy::Recursive qw(rcopy);
+
 
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+# Merge usual and common aspects in aspect mode.
+# args: no.
+# retn: nothing.
+sub create_general_aspect();
 
 # Obtain information for required model from models database xml.
 # args: no.
@@ -110,11 +122,17 @@ my %ldv_model;
 # be higher). Note that this is array of options patterns to be excluded.
 my @llvm_gcc_4_4_opts = ('-Wframe-larger-than=\d+', '-fno-dwarf2-cfi-asm', '-fconserve-stack');
 
-# Suffix of llvm bitcode files. 
+# Suffix of llvm bitcody files.
 my $llvm_bitcode_suffix = '.bc';
 
 # Suffix of llvm bitcode files instrumented with general aspect.
 my $llvm_bitcode_general_suffix = '.general';
+
+# Suffix of linked llvm bitcode files. 
+my $llvm_bitcode_linked_suffix = '.linked';
+
+# Suffix of llvm bitcode files instrumented with usual aspect. 
+my $llvm_bitcode_usual_suffix = '.usual';
 
 # Options to be passed to llvm C backend.
 my @llvm_c_backend_opts = ('-f', '-march=c');
@@ -177,6 +195,9 @@ my $xml_twig = new XML::Twig;
 # Get and store information on required model.
 get_model_info();
 
+# Obtain general aspect if needed.
+create_general_aspect();
+
 # Print standard xml file header.
 print($file_xml_out "<?xml version=\"1.0\"?>\n");
 
@@ -195,7 +216,7 @@ if ($kind_isaspect)
 else
 {
   # Print root node open tag.
-  print($file_xml_out "<cmdstream>\n");	
+  print($file_xml_out "<cmdstream>");	
 }
 
 # Process commands step by step.
@@ -212,7 +233,7 @@ if ($kind_isaspect)
 else
 {
   # Print root node close tag.
-  print($file_xml_out "</cmdstream>\n");
+  print($file_xml_out "\n</cmdstream>\n");
 }
 
 close($file_xml_out) 
@@ -222,6 +243,26 @@ close($file_xml_out)
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub create_general_aspect()
+{
+  if ($kind_isaspect)
+  {
+    $ldv_model{'general'} = "$ldv_model{'aspect'}$aspect_general_suffix";
+
+    open(my $file_aspect_general, '>', "$ldv_model_dir/$ldv_model{'general'}")
+      or die("Couldn't open file '$ldv_model_dir/$ldv_model{'general'}' for write: $ERRNO");
+
+    cat("$ldv_model_dir/$ldv_model{'aspect'}", $file_aspect_general)
+      or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'aspect'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
+
+    cat("$ldv_model_dir/$ldv_model{'common'}", $file_aspect_general)
+      or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
+
+    close($file_aspect_general) 
+      or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
+  }
+}
 
 sub get_model_info()
 {
@@ -236,21 +277,17 @@ sub get_model_info()
   foreach my $model (@models)
   {
     # Try to read id attribute foreach model to find corresponding one.	
-    my $id_attr = $model->att($xml_model_db_attr_id);
-  
-    unless ($id_attr)
-    {
-	  warn("Models database doesn't contain id attribute for model");
-	
-	  exit($error_syntax);
-    }
+    my $id_attr = $model->att($xml_model_db_attr_id) 
+      or die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
   
     # Model is found!
     if ($id_attr eq $opt_model_id)
     { 
 	  # Read model information.
-	  my $engine = $model->first_child_text($xml_model_db_engine);
-	  my $error = $model->first_child_text($xml_model_db_error);
+	  my $engine = $model->first_child_text($xml_model_db_engine)
+	    or die("Models database doesn't contain '$xml_model_db_engine' tag for '$id_attr' model");
+	  my $error = $model->first_child_text($xml_model_db_error)
+	    or die("Models database doesn't contain '$xml_model_db_error' tag for '$id_attr' model");
 	  my $hints = $model->first_child_text($xml_model_db_hints);
     
       my @kinds;
@@ -263,11 +300,25 @@ sub get_model_info()
 	  
 	    last if ($kind->is_last_child($xml_model_db_kind));
       }
+      
+      die("Models database doesn't contain '$xml_model_db_kind' tag for '$id_attr' model") 
+        unless (scalar(@kinds));
 
       # Read files.
-      my $files = $model->first_child($xml_model_db_files);
+      my $files = $model->first_child($xml_model_db_files)
+	    or die("Models database doesn't contain '$xml_model_db_files' tag for '$id_attr' model");
+      
+      # Aspect file is optional but it's needed in aspect mode.
       my $aspect = $files->first_child_text($xml_model_db_files_aspect);
-      my $common = $files->first_child_text($xml_model_db_files_common);
+      
+      # Common file (either plain C or aspect file) must be always presented.
+      my $common = $files->first_child_text($xml_model_db_files_common)
+	    or die("Models database doesn't contain '$xml_model_db_files_common' tag for '$id_attr' model");
+	    
+      die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
+        unless (-f "$ldv_model_dir/$common");
+
+      # Filter is optional as i think.
       my $filter = $files->first_child_text($xml_model_db_files_filter);
     
       # Store model information into hash.
@@ -281,11 +332,18 @@ sub get_model_info()
         'error' => $error, 
         'hints' => $hints);
      
+      # Make some mode specific actions and checks.
       foreach my $kind (@kinds)
       {
 		if ($kind eq 'aspect')
 		{
 		  $kind_isaspect = 1;
+		  
+          die("Models database doesn't contain '$xml_model_db_files_aspect' tag for '$id_attr' model") 
+            unless ($aspect);
+            
+          die("Aspect file '$ldv_model_dir/$aspect' doesn't exist (for '$id_attr' model)")
+            unless (-f "$ldv_model_dir/$aspect");    		  
 		}
 		elsif ($kind eq 'plain')
 		{
@@ -298,14 +356,13 @@ sub get_model_info()
           exit($error_semantics);			
 		}
 	  }
-     
-      # Create general aspect for the given model in aspect mode.
-      if ($kind_isaspect)
-      {
-        $ldv_model{'general'} = "$ldv_model{'aspect'}$aspect_general_suffix";
-        `cat "$ldv_model_dir/$ldv_model{'aspect'}" "$ldv_model_dir/$ldv_model{'common'}" > "$ldv_model_dir/$ldv_model{'general'}"`;
-      }
+	  
+      die("Don't specify both 'plain' and 'aspect' kind for '$id_attr' model") 
+        if ($kind_isaspect and $kind_isplain);
       
+      die("Neither 'plain' nor 'aspect' kind was specified for '$id_attr' model")
+        unless ($kind_isaspect or $kind_isplain);
+        
       # Finish models iteration after the first one is found and processed.
       last;
     }
@@ -529,16 +586,10 @@ sub prepare_files_and_dirs()
   }
   
   # Copy models dir to base directory since it'll be affected a bit.
-# TODO Require Recursive.pm
-#  copy($opt_primitives,
-#            "$FindBin::RealBin/$settings3::name_file_primitive")
-#                or die("Couldn't copy file '$opt_primitives' to file " .
-#                    "'$FindBin::RealBin/$settings3::name_file_primitive': $ERRNO");
-  `cp -r $ldv_model_dir $opt_basedir`;
-#  rcopy($ldv_model_dir, $opt_basedir)
-#    or die("Can't copy directory '$ldv_model_dir' to directory '$opt_basedir'");;
-  # Change models dir.
+  rcopy($ldv_model_dir, "$opt_basedir/" . basename($ldv_model_dir))
+    or die("Can't copy directory '$ldv_model_dir' to directory '$opt_basedir'");
 
+  # Change models dir.
   $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
 }
 
@@ -546,20 +597,30 @@ sub process_cmd_cc()
 {
   if ($kind_isaspect)
   {	
-    # Go to base directory to execute cc command.
-    chdir($cmd{'cwd'})
-      or die("Can't change directory to '$cmd{'cwd'}'");
-  
     # On each cc command we run aspectator on corresponding file with 
     # corresponding model aspect and options.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
+    
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}});
+
+    # Go to build directory to execute cc command.
+    chdir($cmd{'cwd'})
+      or die("Can't change directory to '$cmd{'cwd'}'");
+  
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 	
+    # Come back.
+    chdir($tool_working_dir)
+      or die("Can't change directory to '$tool_working_dir'");	
+	
+	die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
+	  unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+	
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-    # object code. Copy them to $cmd{'out'} files.
-    `cp ${$cmd{'ins'}}[0]$llvm_bitcode_suffix $cmd{'out'}`;
+    # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
+    mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
+      or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
   
     # Also do this with general aspect. Don't forget to add -I option with 
     # models directory needed to find appropriate headers for common aspect.
@@ -572,12 +633,21 @@ sub process_cmd_cc()
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$model_dir");
+
+    # Go to build directory to execute cc command.
+    chdir($cmd{'cwd'})
+      or die("Can't change directory to '$cmd{'cwd'}'");
+  
     system(@args) == 0 
       or die("System '@args' call failed: $ERRNO");	
 	
+	die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
+	  unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+		
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
     # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
-    `cp ${$cmd{'ins'}}[0]$llvm_bitcode_suffix "$cmd{'out'}$llvm_bitcode_general_suffix"`;
+    mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
+      or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
   
     # Come back.
     chdir($tool_working_dir)
@@ -589,30 +659,36 @@ sub process_cmd_ld()
 {
   if ($kind_isaspect)
   {	
-    # Go to base directory to execute ld command.
-    chdir($cmd{'cwd'})
-      or die("Can't change directory to '$cmd{'cwd'}'");
-  
     # On each ld command we run llvm linker for all input files together to 
     # produce one linked file. Note that excact one file to be linked must be
     # generally (i.e. with usual and common aspects) instrumented. We choose the
-    # first one here.
-    my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]);
-    my @args = ($ldv_linker, @llvm_linker_opts, @ins, '-o', $cmd{'out'});
+    # first one here. Other files must be usually instrumented.
+    my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map {$_ .= $llvm_bitcode_usual_suffix; $_} @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]);
+    my @args = ($ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+
+    # Go to build directory to execute ld command.
+    chdir($cmd{'cwd'})
+      or die("Can't change directory to '$cmd{'cwd'}'");
+  
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");	
 
-    # Make name for c file corresponding to the linked one. 
-    $cmd{'out'} =~ /\.[^\.]*$/;
-    my $c_out = "$PREMATCH$llvm_c_backend_suffix";
-  
-    # Linked file is converted to c by means of llvm c backend.
-    @args = ($ldv_c_backend, @llvm_c_backend_opts, $cmd{'out'}, '-o', $c_out);
-    system(@args) == 0 or die("System '@args' call failed: $ERRNO");
-    
     # Come back.
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
-
+	
+	die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
+	  unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+	
+    # Make name for c file corresponding to the linked one. 
+    my $c_out = "$cmd{'out'}$llvm_bitcode_linked_suffix$llvm_c_backend_suffix";
+  
+    # Linked file is converted to c by means of llvm c backend.
+    @args = ($ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
+    system(@args) == 0 or die("System '@args' call failed: $ERRNO");
+	
+	die("Something wrong with aspectator: it doesn't produce file '$c_out'") 
+	  unless (-f "$c_out");
+	
     # Print corresponding commands to output xml file. 
     $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
     $xml_writer->dataElement('cwd' => $cmd{'cwd'});
@@ -627,15 +703,14 @@ sub process_cmd_ld()
     $xml_writer->startTag('ld', 'id' => "$cmd{'id'}-llvm-ld");
     $xml_writer->dataElement('cwd' => $cmd{'cwd'});    
     $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);  
-    $xml_writer->dataElement('out' => $cmd{'out'});
+    $xml_writer->dataElement('out' => "$cmd{'out'}$llvm_bitcode_linked_suffix");
     $xml_writer->dataElement('engine' => $ldv_model{'engine'}); 
   
     foreach my $entry_point (@{$cmd{'entry point'}})
     {
        $xml_writer->dataElement('main' => $entry_point);
     }
-    
-    # TODO: obtain value from models db!
+
     $xml_writer->dataElement('error' => $ldv_model{'error'});
     
     $xml_writer->dataElement('hints' => $ldv_model{'hints'});
@@ -648,6 +723,11 @@ sub process_cmds()
 {
   # Read input commands xml file.
   $xml_twig->parsefile("$opt_cmd_xml_in");
+ 
+  # To print out user friendly xml output.  
+  $xml_twig->set_pretty_print('indented');
+  
+  # Read xml root.
   my $cmd_root = $xml_twig->root;
 
   # Obtain all commands.
@@ -656,65 +736,125 @@ sub process_cmds()
   # Iterate over all commands to execute them and write output xml file.
   foreach my $cmd (@cmds)
   {
-	# To print out user friendly xml output.  
-	$cmd->set_pretty_print('indented');
-	  
     # At the beginning instrumentor basedir must be specified.
     if ($cmd->gi eq $xml_cmd_basedir)
     {
 	  $cmd_basedir = $cmd->text;
 	  
+	  # Use tool basedir instead of specified one.
 	  if ($kind_isplain)
       {
+		$cmd->set_text($opt_basedir);  
         $cmd->print($file_xml_out);
-        
-        print($file_xml_out "\n\n");
       }
     }
     # Interpret cc and ld commands.
     elsif ($cmd->gi eq $xml_cmd_cc or $cmd->gi eq $xml_cmd_ld)
     {
+      die("Basedir isn't specified in input commands xml file")
+        unless ($cmd_basedir);	  		
+
+	  # General commands section.  
+	  my $id_attr = $cmd->att($xml_cmd_attr_id)
+	    or die("Input commands xml file doesn't contain '$xml_cmd_attr_id' tag for some command");
+	    
+	  my $cwd = $cmd->first_child($xml_cmd_cwd)
+	    or die("Input commands xml file doesn't contain '$xml_cmd_cwd' tag for '$id_attr' command"); 
+
+      my $cwd_text = $cwd->text;
+      
+      die("Input commands xml file specifies directory '$cwd_text' that doesn't exist for '$id_attr' command") 
+        unless (-d $cwd_text);
+	  
+	  my $out = $cmd->first_child($xml_cmd_out)
+	    or die("Input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
+
+      my $out_text = $out->text;
+
+      # Read array of input files.
+      my @ins;
+      my @ins_text;
+      
+      for (my $in = $cmd->first_child($xml_cmd_in)
+        ; $in
+        ; $in = $in->next_elt($xml_cmd_in))
+      {
+	    push(@ins, $in);
+	    push(@ins_text, $in->text);
+	    
+	    last if ($in->is_last_child($xml_cmd_in));
+	  }  
+    
+      die("Input commands xml file doesn't contain '$xml_cmd_in' tag for '$id_attr' command")
+        unless (scalar(@ins));
+
+	  # Replace maingen basedirectory prefix with the rule instrumentor one.
+	  @ins_text = map 
+	  {
+		my $in_text = $_;
+		
+	    $in_text =~ s/^$cmd_basedir/$opt_basedir/;
+		
+		# Input files for cc command must exist.
+		if ($cmd->gi eq $xml_cmd_cc)
+		{	    
+	      die("Input commands xml file specifies file '$in_text' that doesn't exist for '$id_attr' command") 
+            unless (-f $in_text);
+        }
+        
+        $in_text;
+      } @ins_text;
+      
+      for (my $in = $cmd->first_child($xml_cmd_in)
+        ; $in
+        ; $in = $in->next_elt($xml_cmd_in))
+      {  
+	    $in->set_text(shift(@ins_text));
+	    
+	    last if ($in->is_last_child($xml_cmd_in));
+	  }        
+
+      $out_text =~ s/^$cmd_basedir/$opt_basedir/;
+	  $out->set_text($out_text);
+		
 	  # For nonaspect mode (plain mode) just copy and modify a bit input xml.	
 	  if ($kind_isplain)
       {
-		# Add additional input model file and error tat for each ld command.   
+		# Add additional input model file and error tag for each ld command.   
 		if ($cmd->gi eq $xml_cmd_ld)
-		{
-		  my $xml_common_model = new XML::Twig::Elt('in', "$ldv_model_dir/$ldv_model{'common'}");	
-		  $xml_common_model->paste('last_child', $cmd);
-		  # TODO: get value from models db.
-		  $xml_common_model = new XML::Twig::Elt('error', $ldv_model{'error'});
-		  $xml_common_model->paste('last_child', $cmd);
+		{ 
+		  my $xml_common_model_tag = new XML::Twig::Elt('in', "$ldv_model_dir/$ldv_model{'common'}");	
+		  $xml_common_model_tag->paste('last_child', $cmd);
+
+		  my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
+		  $xml_error_tag->paste('last_child', $cmd);
 		}
 		
 		# Add engine tag for both cc and ld commands.
 		if ($cmd->gi eq $xml_cmd_ld or $cmd->gi eq $xml_cmd_cc)
 		{
-		  my $xml_common_model = new XML::Twig::Elt('engine', $ldv_model{'engine'});	
-		  $xml_common_model->paste('last_child', $cmd);
+		  my $xml_engine_tag = new XML::Twig::Elt('engine', $ldv_model{'engine'});	
+		  $xml_engine_tag->paste('last_child', $cmd);
 	    }
 			  
         $cmd->print($file_xml_out);
         
-        print($file_xml_out "\n\n");
+        next;
       }			
 		
-	  # General commands section.  
-	  my $id_attr = $cmd->att($xml_cmd_attr_id);
-	  my $cwd = $cmd->first_child_text($xml_cmd_cwd);
-	  my $out = $cmd->first_child_text($xml_cmd_out);
+	  # For aspect mode more detailed parsing is done.	
+      $out_text = $out->text;      
 
-      my @ins;
       # Read array of input files.
       for (my $in = $cmd->first_child($xml_cmd_in)
         ; $in
         ; $in = $in->next_elt($xml_cmd_in))
       {
-	    push(@ins, $in->text);
+	    push(@ins_text, $in->text);
 	  
 	    last if ($in->is_last_child($xml_cmd_in));
-	  }  
-    
+	  }     
+      
       # Read array of options.
       my @opts;
       
@@ -740,18 +880,13 @@ sub process_cmds()
 	  
 	    last if ($opt->is_last_child($xml_cmd_opt));
 	  }
-	  
-	  # Replace maingen directory prefix with the rule instrumentor one.
-	  @ins = map {$_ =~ s/^$cmd_basedir/$opt_basedir/; $_} @ins;
-
-	  $out =~ s/^$cmd_basedir/$opt_basedir/;
 	  	
 	  # Store current command information. 
       %cmd = (
         'id' => $id_attr, 
-        'cwd' => $cwd,
-        'ins' => \@ins,
-        'out' => $out,
+        'cwd' => $cwd_text,
+        'ins' => \@ins_text,
+        'out' => $out_text,
         'opts' => \@opts);
     
       undef($cmd{'entry point'});

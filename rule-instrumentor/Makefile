@@ -33,4 +33,5 @@ install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
 	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir) || exit 1
+	cp -r $(RULE_INSTRUMENTOR_DIR) $(prefix) || exit 1
 	export prefix="$(prefix)/$(RULE_INSTRUMENTOR_DIR)/$(ASPECTATOR_DIR)" || exit 1; cd $(ASPECTATOR_PATH) || exit 1; $(MAKE) $@ || exit 1
