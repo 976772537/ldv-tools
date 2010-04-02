@@ -19,8 +19,7 @@ use lib("$FindBin::RealBin/../rule-instrumentor/lib");
 
 use File::Cat qw(cat);
 use File::Copy::Recursive qw(rcopy);
-
-
+$ENV{'LDV_QUITE'} = 1;
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
@@ -799,11 +798,7 @@ sub process_cmds()
         $xml_common_model_cwd->paste($xml_common_model_cc);
         my $xml_common_model_opt = new XML::Twig::Elt('opt' => "-I/home/joker/.ldv/ldv/envs/1/linux-2.6.32.10/include/");
         $xml_common_model_opt->paste($xml_common_model_cc);
-#        $xml_common_model_opt = new XML::Twig::Elt('opt' => "-D__KERNEL__");
-#        $xml_common_model_opt->paste($xml_common_model_cc);        
-#        $xml_common_model_opt = new XML::Twig::Elt('opt' => "-I/home/joker/.ldv/ldv/envs/1/linux-2.6.32.10/arch/x86/include");
-#        $xml_common_model_opt->paste($xml_common_model_cc);          
-                
+       
         $xml_common_model_cc->paste($cmd_root);
         $xml_common_model_cc->print($file_xml_out);
       }
@@ -890,7 +885,8 @@ sub process_cmds()
           my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
           $xml_error_tag->paste('last_child', $cmd);
 
-          $ldv_model{'twig hints'}->paste('last_child', $cmd);
+          my $twig_hints = $ldv_model{'twig hints'}->copy;
+          $twig_hints->paste('last_child', $cmd);
         }
 
         # Add engine tag for both cc and ld commands.
