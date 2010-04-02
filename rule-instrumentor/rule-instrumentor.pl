@@ -796,9 +796,7 @@ sub process_cmds()
 
         my $xml_common_model_cwd = new XML::Twig::Elt('cwd' => $common_model_dir);
         $xml_common_model_cwd->paste($xml_common_model_cc);
-        my $xml_common_model_opt = new XML::Twig::Elt('opt' => "-I/home/joker/.ldv/ldv/envs/1/linux-2.6.32.10/include/");
-        $xml_common_model_opt->paste($xml_common_model_cc);
-       
+
         $xml_common_model_cc->paste($cmd_root);
         $xml_common_model_cc->print($file_xml_out);
       }
