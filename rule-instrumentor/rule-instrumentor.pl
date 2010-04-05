@@ -19,7 +19,7 @@ use lib("$FindBin::RealBin/../rule-instrumentor/lib");
 
 use File::Cat qw(cat);
 use File::Copy::Recursive qw(rcopy);
-$ENV{'LDV_QUITE'} = 1;
+
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
@@ -83,8 +83,9 @@ my $cmd_basedir;
 # Directory where common model is placed. It's needed to find appropriate 
 # header files.
 my $common_model_dir;
-# Suffix for common models in plain mode.
-my $common_suffix = '.common.o';
+# Suffixes for common models in plain mode.
+my $common_c_suffix = '.common.c';
+my $common_o_suffix = '.common.o';
 
 # Errors return codes.
 my $error_syntax = 1; 
@@ -781,25 +782,6 @@ sub process_cmds()
         $cmd->set_text($opt_basedir);
         $cmd->print($file_xml_out);
       }
-
-      # Create auxiliary cc command for common model in plain mode.
-      if ($kind_isplain)
-      {
-        my $xml_common_model_cc = new XML::Twig::Elt('cc' => {'id' => 'auxiliary common model'});
-        
-        my $xml_common_model_in = new XML::Twig::Elt('in' => "$ldv_model_dir/$ldv_model{'common'}");
-        $xml_common_model_in->paste($xml_common_model_cc);
-        my $xml_common_model_out = new XML::Twig::Elt('out' => "$ldv_model_dir/$ldv_model{'common'}$common_suffix");
-        $xml_common_model_out->paste($xml_common_model_cc);
-        my $xml_common_model_engine = new XML::Twig::Elt('engine' => $ldv_model{'engine'});
-        $xml_common_model_engine->paste($xml_common_model_cc);
-
-        my $xml_common_model_cwd = new XML::Twig::Elt('cwd' => $common_model_dir);
-        $xml_common_model_cwd->paste($xml_common_model_cc);
-
-        $xml_common_model_cc->paste($cmd_root);
-        $xml_common_model_cc->print($file_xml_out);
-      }
     }
     # Interpret cc and ld commands.
     elsif ($cmd->gi eq $xml_cmd_cc or $cmd->gi eq $xml_cmd_ld)
@@ -877,9 +859,11 @@ sub process_cmds()
         # command.
         if ($cmd->gi eq $xml_cmd_ld)
         {
-          my $xml_common_model_tag = new XML::Twig::Elt('in', "$ldv_model_dir/$ldv_model{'common'}$common_suffix");
-          $xml_common_model_tag->paste('last_child', $cmd);
-
+          # Replace the first object file to be linked with object file 
+          # containing common model.
+          my $in = $cmd->first_child($xml_cmd_in);
+          $in->set_text($in->text . $common_o_suffix);
+          
           my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
           $xml_error_tag->paste('last_child', $cmd);
 
@@ -895,6 +879,39 @@ sub process_cmds()
         }
 
         $cmd->print($file_xml_out);
+
+        # Duplicate each cc command with the same but containing common model.
+        if ($cmd->gi eq $xml_cmd_cc)
+        {
+          my $common_model_cc = $cmd->copy;
+          
+          $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . '-with-common-model');
+
+          my $in = $common_model_cc->first_child($xml_cmd_in);
+          my $in_file = $in->text;
+          
+          open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
+            or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
+
+          cat($in_file, $file_with_common_model)
+            or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
+
+          cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
+            or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
+
+          close($file_with_common_model) 
+            or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
+          
+          $in->set_text("$in_file$common_c_suffix");
+          
+          my $out = $common_model_cc->first_child($xml_cmd_out);
+          $out->set_text($out->text . $common_o_suffix);
+                   
+          my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
+          $common_model_opt->paste($common_model_cc);
+        
+          $common_model_cc->print($file_xml_out);
+        }
 
         next;
       }
