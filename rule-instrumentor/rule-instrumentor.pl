@@ -213,7 +213,7 @@ my $xml_writer;
 # In aspect mode prepare special xml writer.
 if ($kind_isaspect)
 {
-  $xml_writer = new XML::Writer(OUTPUT => $file_xml_out, NEWLINES => 1);
+  $xml_writer = new XML::Writer(OUTPUT => $file_xml_out, NEWLINES => 1, UNSAFE => 1);
 
   $xml_writer->startTag('cmdstream');
 
@@ -296,22 +296,8 @@ sub get_model_info()
       my $error = $model->first_child_text($xml_model_db_error)
         or die("Models database doesn't contain '$xml_model_db_error' tag for '$id_attr' model");
         
-      # Parse hints for static verifier. We assumes that hints have such form:
-      # [<some_hint>some_hint_value</some_hint>...].
+      # Store hints for static verifier to be passed without any processing.
       my $hints = $model->first_child($xml_model_db_hints);
-
-      my %hints;
-      
-      for (my $hint = $hints->first_child
-        ; $hint
-        ; $hint = $hint->next_elt)
-      {
-        next if ($hint->is_pcdata);
-        
-        $hints{$hint->gi} = $hint->text;
-         
-        last if ($hint->is_last_child);
-      }  
 
       my @kinds;
       # Read array of kinds.
@@ -359,8 +345,7 @@ sub get_model_info()
         'common' => $common,
         'filter' => $filter,
         'engine' => $engine,
-        'error' => $error, 
-        'hints' => \%hints,
+        'error' => $error,
         'twig hints' => $hints);
 
       # Make some mode specific actions and checks.
@@ -737,18 +722,11 @@ sub process_cmd_ld()
     }
 
     $xml_writer->dataElement('error' => $ldv_model{'error'});
-
-    $xml_writer->startTag('hints');
     
-    my %hints = %{$ldv_model{'hints'}};
+    # Copy static verifier hints as them.
+    my $twig_hints = $ldv_model{'twig hints'}->copy->sprint;
+    $xml_writer->raw($twig_hints);
     
-    foreach my $hint (keys(%hints))
-    {
-      $xml_writer->dataElement($hint => $hints{$hint});
-    }
-    
-    # Close hints tag.
-    $xml_writer->endTag();
     # Close ld tag.
     $xml_writer->endTag();
   }
