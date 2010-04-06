@@ -192,13 +192,18 @@ sub call_blast
 	# Interpret hints
 	my $hintsT = $args{hints};
 	# Cldepth
-	if (my $cld = $hintsT->first_child_text('cldepth')){
+	if (defined $hintsT
+		&& ( my $cld = $hintsT->first_child_text('cldepth')))
+	{
 		push @blast_options,"-cldepth",$cld;
 	}else{
 		# Temporarly set cldepth to zero
 		push @blast_options,"-cldepth","0";
 	}
-	if (my $ali = $hintsT->first_child_text('alias')){
+	# Alias hint
+	if (defined $hintsT
+		&& (my $ali = $hintsT->first_child_text('alias')))
+	{
 		if ($ali eq 'none'){
 		}else{
 			die "Uninterpreted <alias> hint value: $ali";
