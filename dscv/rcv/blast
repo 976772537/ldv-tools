@@ -270,9 +270,19 @@ if ($fpid == 0){
        exit 1;
 }
 # Parent
-# Chew blast's output
-close($CHEW_BLAST_OUT);
+# Chew blast's output.  Read into buffer
+#my $read_bytes = 0; my $buffer; my $buflen = 1 << 12;
+#while (($read_bytes = read $CHEW_BLAST_OUT,$buffer,$buflen) && $read_bytes) {};
+#defined $read_bytes or die;	# undef in $read_bytes means read error
+
+my $wpres = 0;
+while ($wpres == 0){
+	$wpres = waitpid $fpid,0;
+}
+$wpres > 0 or die;
 $? == 0 or die die "INTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
+# Ok, now we can close the pipe
+close($CHEW_BLAST_OUT);
 
 
 
