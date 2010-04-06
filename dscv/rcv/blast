@@ -54,6 +54,16 @@ sub unbasedir
 	$rslt =~ s/^$base_dir\/*//;
 	return $rslt;
 }
+sub relpath
+{
+	my $base = shift or die;
+	my $to = shift or die;
+	if ($to =~ /^\//) {
+		return $to;
+	}else{
+		return "$base/$to";
+	}
+}
 use File::Basename;
 use File::Path qw(mkpath);
 
@@ -90,7 +100,7 @@ sub execute_ld
 	my %c_files_Sanity = ();
 	for my $o_file_raw (@o_files_raw){
 		# From each o-file local copy, which contains list of c-files in that object one, get these files
-		my $o_file = "$workdir/$o_file_raw";
+		my $o_file = relpath($workdir,$o_file_raw);
 
 		# Get information about this object file
 		my $c_files = [];
@@ -103,7 +113,7 @@ sub execute_ld
 			# Input files are taking without change
 			'in' => sub { push @$c_files,$_[1]->text(); },
 			# Output files are tuned to be in-rcv
-			'out' => sub { $$obj_file = "$workdir/".unbasedir($_[1]->text()); },
+			'out' => sub { $$obj_file = relpath($workdir,unbasedir($_[1]->text())); },
 			'cwd' => sub { $$cwd = $_[1]->text(); },
 		})->parsefile($o_file);
 
@@ -121,6 +131,7 @@ sub execute_ld
 			my $preprocess_dir = "$workdir/preprocessed";
 			mkpath($preprocess_dir);
 			my $i_file = $c_file; $i_file =~ s/\.c$/.i/; $i_file =~ s/\//-/g; $i_file = "$preprocess_dir/$i_file";
+			mkpath(dirname($i_file));
 			$new_record->{i_file} = $i_file;
 			preprocess_file($new_record);
 
@@ -138,13 +149,26 @@ sub execute_ld
 	my @files = map {$_->{i_file}} @$c_files_info;
 	# List of error locations
 	my @errlocs = $cmdT->children_text('error');
+	# Report file
+	my $report = "$workdir/reports/$target";
+	mkpath(dirname($report));
 
 	# TODO: add a separate report file
-	call_blast(files => \@files, hints=>$hintsT, main=>$_, errlocs=>\@errlocs) for @mains; 
+	call_blast(files => \@files, hints=>$hintsT, main=>$_, errlocs=>\@errlocs, report=>$report) for @mains; 
 	
 }
 
+sub hard_wait
+{
+	my $wpres = 0;
+	while ($wpres == 0){
+		$wpres = waitpid $_[0],$_[1];
+	}
+	return $wpres;
+}
+
 # Call blast
+use IPC::Open3;
 sub call_blast
 {
 	my %args = @_;
@@ -185,7 +209,28 @@ sub call_blast
 		;
 	}
 	vsay 20,@blast_options;
-	system(@blast_options) == -1 and die;
+
+	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
+	# Open file to redirect
+	my $BLAST_REPORT;
+	open $BLAST_REPORT, ">", $args{report} or die "Can't open report $args{report}: $!";
+	my ($BLAST_IN,$BLAST_OUT,$BLAST_ERR);
+	# Fork blast
+	local $"=" ";
+	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
+
+	# Process output and redirect it to file
+	local $_;
+	print $BLAST_REPORT $_ while <$BLAST_OUT>;
+	print $BLAST_REPORT $_ while <$BLAST_ERR>;
+	# TODO: perhaps, here we can process it at once with filters?
+	# TODO: add GZIPping as well
+
+	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
+	hard_wait($fpid,0) < 0 and die;
+	close $BLAST_REPORT;
+
+  vsay 20,"BLAST open3 return value: $?\n";
 	vsay 10,"Error return value: $?\n";
 	my $blast_rv = $? >> 8;
 	# NOTE that exit code 2 is for OCaml unhandled exceptions
@@ -200,22 +245,6 @@ sub call_blast
 		warn "BLAST failed with exit code $blast_rv.  But who cares?";
 	}
 }
-$" = ' ';	# For error reporting
-my @blast_args = ("pblast.opt","-help");
-my $blast_out_FH;
-my $fpid = open $blast_out_FH,"-|",@blast_args;
-defined $fpid or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
-if ($fpid == 0){
-	# child
-	# chew the output.  Do nothing
-	exit;
-}
-# Parent
-# Parend for now does nothing as well
-
-# ! PREPROCESS!
-
-
 use Cwd;
 sub preprocess_file
 {
@@ -233,6 +262,35 @@ sub preprocess_file
 	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
 	chdir $info;
 }
+
+
+# Perform BLAST quick check before running any verifications
+
+$" = ' ';      # For error reporting
+vsay 10, "Trying to run blast without arguments to see it it works\n";
+my @blast_args = ("pblast.opt","-help");
+my $CHEW_BLAST_OUT;
+my $fpid = open $CHEW_BLAST_OUT,"-|";
+defined $fpid or die "Can't fork?  Wtf";
+if ($fpid == 0){
+       # child
+       # Run blast
+       exec @blast_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
+       exit 1;
+}
+# Parent
+# Chew blast's output.  Read into buffer
+#my $read_bytes = 0; my $buffer; my $buflen = 1 << 12;
+#while (($read_bytes = read $CHEW_BLAST_OUT,$buffer,$buflen) && $read_bytes) {};
+#defined $read_bytes or die;	# undef in $read_bytes means read error
+
+my $wpres = hard_wait($fpid,0);
+$wpres > 0 or die;
+$? == 0 or die die "INTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
+# Ok, now we can close the pipe
+close($CHEW_BLAST_OUT);
+
+
 
 # Now all subroutines are initialized.  Let's start processing the cmdfile.
 $check_input_file->parsefile($config->{cmdfile});
