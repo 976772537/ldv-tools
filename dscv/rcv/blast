@@ -11,10 +11,9 @@ my $config={
 };
 
 my %optionSpecs = ();
-$config->{verbosity} = 10;
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
-$optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
 
 sub vsay
 {

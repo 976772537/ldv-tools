@@ -63,13 +63,6 @@ Overrides the verifier passed by rule instrumentor.
 =cut
 $optionSpecs{'verifier=s'} = \$config->{verifier_override};
 
-=item B<--debug>
-
-Print debugging information about the scripts called to stdout.
-
-=cut
-$optionSpecs{'debug!'} = sub {$config->{verbosity} = 20};
-
 
 =back
 
@@ -110,6 +103,14 @@ BEGIN {
 	# Add the lib directory to the @INC to be able to include local modules.
 	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
 }
+
+=item B<LDV_DEBUG>, B<DSCV_DEBUG>
+
+Level of verbosity, ranging from 0 (silent) to 100 (trace).  Default is 10.  B<DSCV_DEBUG> takes precedence over B<LDV_DEBUG>.
+
+=cut
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
+
 
 =item B<RULE_INSTRUMENTOR>
 
@@ -255,7 +256,6 @@ for my $property (@properties){
 				"--cmdfile=$outfile",
 				"--workdir=$dir",
 			);
-			push @rcv_args,'--debug' if $config->{verbosity}>=20;
 			vsay 20, "@rcv_args\n";
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
 		};
