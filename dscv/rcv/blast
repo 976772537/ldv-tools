@@ -169,6 +169,12 @@ sub hard_wait
 
 # Call blast
 use IPC::Open3;
+# For StreamAutomaton
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+}
+use StreamAutomaton;
 sub call_blast
 {
 	my %args = @_;
@@ -224,18 +230,26 @@ sub call_blast
 	local $"=" ";
 	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
+	# Create verdict calculator
+	my $verdictor = StreamAutomaton->new();
+
 	# Process output and redirect it to file
 	local $_;
-	print $BLAST_REPORT $_ while <$BLAST_OUT>;
-	print $BLAST_REPORT $_ while <$BLAST_ERR>;
-	# TODO: perhaps, here we can process it at once with filters?
+	while (<$BLAST_OUT>) {
+		print $BLAST_REPORT $_; 
+		$verdictor->chew_line($_);
+	}
+	while (<$BLAST_ERR>) {
+		print $BLAST_REPORT $_; 
+		$verdictor->chew_line($_);
+	}
 	# TODO: add GZIPping as well
 
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
 	hard_wait($fpid,0) < 0 and die;
 	close $BLAST_REPORT;
 
-  vsay 20,"BLAST open3 return value: $?\n";
+  vsay 40,"BLAST open3 return value: $?\n";
 	vsay 10,"Error return value: $?\n";
 	my $blast_rv = $? >> 8;
 	# NOTE that exit code 2 is for OCaml unhandled exceptions
@@ -249,6 +263,11 @@ sub call_blast
 	}else{
 		warn "BLAST failed with exit code $blast_rv.  But who cares?";
 	}
+
+	# Print verdict (to console for now)
+	my $result = $verdictor->result();
+	vsay 10,"BLAST verdict: $result->{'BLAST'}";
+	vsay 20,"BLAST detailed: $result->{'BLAST-detailed'}";
 }
 use Cwd;
 sub preprocess_file

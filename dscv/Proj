@@ -5,6 +5,8 @@
 perl-shared/
 	File/Copy/
 	  Recursive.pm
+	StreamAutomaton.pm
+
 dscv
 Makefile
 rcv/

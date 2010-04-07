@@ -9,7 +9,7 @@ bindir?=$(prefix)/bin
 dscv_target=$(bindir)/dscv
 
 # Perl modules config
-perl_modules=File/Copy/Recursive.pm
+perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm
 perl_src_dir=perl-shared
 perl_install_dir=$(prefix)/shared/perl
 perl_targets=$(patsubst %,$(perl_install_dir)/%,$(perl_modules))
