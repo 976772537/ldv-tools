@@ -253,7 +253,7 @@ for my $property (@properties){
 
 			# Run RCV
 			my @rcv_args = ("$rcv_frontends_dir/$verifier",
-				"--cmdfile=$outfile",
+				"--cmdfile=$cmdfile",
 				"--workdir=$dir",
 			);
 			vsay 20, "@rcv_args\n";
