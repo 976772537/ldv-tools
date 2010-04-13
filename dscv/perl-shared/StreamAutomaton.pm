@@ -43,8 +43,10 @@ sub mk_headfilters
 sub new
 {
 	my $class = shift;
-	my $tail_filters = shift || [mk_tailfilters()];
-	my $head_filters = shift || [mk_headfilters()];
+	my $tail_filters = shift || [];
+	$tail_filters = [mk_tailfilters(), @$tail_filters];
+	my $head_filters = shift || [];
+	$head_filters = [mk_headfilters(), @$head_filters];
 	my ($tail_filter,$tail) = main_filter(@$tail_filters);
 	my ($head_filter,$head) = main_filter(@$head_filters);
 	my $this = {
