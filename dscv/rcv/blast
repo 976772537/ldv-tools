@@ -230,6 +230,8 @@ sub call_blast
 	local $"=" ";
 	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
+	vsay 20,"BLAST report is written to $args{report}";
+
 	# Create verdict calculator
 	my $verdictor = StreamAutomaton->new();
 
@@ -291,7 +293,7 @@ sub preprocess_file
 # Perform BLAST quick check before running any verifications
 
 $" = ' ';      # For error reporting
-vsay 10, "Trying to run blast without arguments to see it it works\n";
+vsay 10, "Trying to run blast without arguments to see it it works...";
 my @blast_args = ("pblast.opt","-help");
 my $CHEW_BLAST_OUT;
 my $fpid = open $CHEW_BLAST_OUT,"-|";
@@ -310,9 +312,12 @@ if ($fpid == 0){
 
 my $wpres = hard_wait($fpid,0);
 $wpres > 0 or die;
-$? == 0 or die die "INTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
+# \n to complement previous message
+$? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
 # Ok, now we can close the pipe
 close($CHEW_BLAST_OUT);
+
+print "OK\n";
 
 
 
