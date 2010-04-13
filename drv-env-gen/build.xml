@@ -29,7 +29,7 @@
 		<jar jarfile="${dist}/drv-env-gen.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
-				<attribute name="Main-class" value="com.iceberg.generators.DEG"/>
+				<attribute name="Main-class" value="com.iceberg.generators.DEGfull"/>
 			</manifest>
 		</jar>
 	</target>

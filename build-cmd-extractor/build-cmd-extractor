@@ -1,7 +1,6 @@
 #!/bin/sh
 
 BCE_TEMPDIR_NAME="bce_tempdir"
-LDV_TEMPDIR_NAME="ldv_tempdir"
 DRIVER_DIR_NAME="driver"
 
 KERNEL_ENV_PREFIX=".ldv\/ldv\/envs\/";
@@ -15,28 +14,26 @@ LOG_MIRROR_TO_CONSOLE=1;
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
-XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
-
 bce_print() {
 	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-	if [ ! -f "$basedir/$GLOBAL_LOG" ];  then
-		touch $basedir/$GLOBAL_LOG;
+	if [ ! -f "$TEMP_DIR/$GLOBAL_LOG" ];  then
+		touch $TEMP_DIR/$GLOBAL_LOG;
 	if [ $? -ne 0 ]; then 
 		echo "$LOG_PREFIX: ERROR: can't create log file.";
 	exit 1; 
 		fi;
         fi;
-        echo "$LOG_PREFIX$1" >> $basedir/$GLOBAL_LOG;
+        echo "$LOG_PREFIX$1" >> $TEMP_DIR/$GLOBAL_LOG;
 }
 #---------------------------------------------------------------------------
 #
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "$LOG_PREFIX: USAGE: WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
+		echo "$LOG_PREFIX: USAGE: WORK_DIR=workdir build-cmd-extractor --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
 		exit 1;
 }
-if [ $# -ne 4 ]; then print_usage_and_exit; fi;
+if [ $# -ne 3 ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	echo "$LOG_PREFIX: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -73,22 +70,6 @@ for arg in $@; do
 			        exit 1;
 			fi;
 		;;
-                --basedir=*)
-                	rbasedir=`echo $arg | sed 's/--basedir=//g'`
-			if [ ! -n "$rbasedir" ]; then
-				echo "$LOG_PREFIX: ERROR: Parameter \"--basedir\" - is null. Setup it.";
-			        exit 1;
-			fi;
-			basedir=`readlink -f $rbasedir`;
-			if [ $? -ne 0 ]; then
-				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for basedir: \"$rbasedir\"."
-			        exit 1;
-			fi;
-			if [ ! -d "$basedir" ]; then
-			        echo "$LOG_PREFIX: ERROR: Basedir not exists: \"$basedir\".";
-			        exit 1;
-			fi;
-                ;;
                 --env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
@@ -116,7 +97,6 @@ for arg in $@; do
 				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
 			        exit 1;
 			fi;
-# TODO: add for dirs	if [ ! -d "$driver" -a ! -f "$driver" ]; then
 			if [ ! -d "$driver" ]; then
 			        echo "$LOG_PREFIX: ERROR: Driver unpacked sources not exists: \"$driver\".";
 			        exit 1;
@@ -130,25 +110,25 @@ for arg in $@; do
 done
 #---------------------------------------------------------------------------
 
-NEXT_BASE_DIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
-mkdir $NEXT_BASE_DIR;
+TEMP_DIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
+mkdir $TEMP_DIR;
 if [ $? -ne 0 ]; then
-	echo "$LOG_PREFIX: ERROR: Failed to create next tempdir: \"$NEXT_BASE_DIR\".";
+	echo "$LOG_PREFIX: ERROR: Failed to create next tempdir: \"$TEMP_DIR\".";
 	exit 1;
 fi;
-NEXT_DIRVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
+DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
-# copy driver sources for next instrument
+# copy driver sources
 #
-cp -r $driver $NEXT_DIRVER_DIR;
+cp -r $driver $DRIVER_DIR;
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Failed to copy driver sources for next instrument to: \"$NEXT_DIRVER_DIR\"."
+	bce_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
 	exit 1;
 fi;
 
 echo "<?xml version=\"1.0\"?>" > $cmdfileout;
 echo "<cmdstream>" >> $cmdfileout;
-echo "<basedir>$NEXT_BASE_DIR</basedir>" >> $cmdfileout;
+echo "<basedir>$driver</basedir>" >> $cmdfileout;
 
 #
 # try to find "scripts/Makefile.build" in kernel source directory
@@ -159,7 +139,7 @@ if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
 	exit 1;
 fi;
 
-KERNEL_COMPILE_LOG=$basedir/$KERNEL_COMPILE_LOG_FILENAME;
+KERNEL_COMPILE_LOG=$TEMP_DIR/$KERNEL_COMPILE_LOG_FILENAME;
 cd $env;
 if [ $? -ne 0 ]; then
 	bce_print "ERROR: Failed change dir to: \"$env\".";
@@ -217,11 +197,27 @@ fi;
 
 bce_print "DEBUG: Try to call kernel make..."
 bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;
+BUILDFILE=$cmdfileout make M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1;
 if [ $? -ne 0 ]; then
 	bce_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	exit 1;
 fi;
+
+#
+# restore driver sources
+#
+rm -r $driver
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Can't remove driver dir: \"$DRIVER_DIR\".";
+	exit 1;
+fi;
+
+mv $DRIVER_DIR $driver
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Can't copy driver dir: \"$DRIVER_DIR\".";
+	exit 1;
+fi;
+
 
 #
 # Is it single-driver ?
@@ -230,33 +226,33 @@ fi;
 #
 IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $cmdfileout`;
 # driver single - then fix trace file - add <ld> for all cc
-if [ ! -n "$IS_WITHOUT_LD" ]; then
-	cat $cmdfileout | while read line; do
-		CC_FILE=`echo $line | grep -E '<out>.*</out>'`;
-		if [ -n "$cmdfileout" ]; then
-			CC_FILE=`echo $CC_FILE | sed 's/<out>//' | sed 's/<\/out>//'`;
+#2if [ ! -n "$IS_WITHOUT_LD" ]; then
+#2	cat $cmdfileout | while read line; do
+#2		CC_FILE=`echo $line | grep -E '<out>.*</out>'`;
+#2		if [ -n "$cmdfileout" ]; then
+#2			CC_FILE=`echo $CC_FILE | sed 's/<out>//' | sed 's/<\/out>//'`;
 #
 # if c-file for this not existst then we pass it 
 #
-			if [ -n "$CC_FILE" -a -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
-				ABS_CC_FILE=`readlink -f $CC_FILE`;	
-				if [ $? -ne 0 ]; then
-					bec_print "ERROR: Can't get abs path for ld-file.";
-					exit 1;
-				fi;
-
-				if [ -n "`echo $ABS_CC_FILE | grep \"$KERNEL_ENV_PREFIX\"`" ]; then continue; fi;
-				echo "<ld id=\"1\">" >> $cmdfileout;
-				echo "  <cwd>$env</cwd>" >> $cmdfileout;
-				echo "  <opt>-m</opt>" >> $cmdfileout;
-				echo "  <opt>-r</opt>" >> $cmdfileout;
-				echo "  <in>$ABS_CC_FILE</in>" >> $cmdfileout;
-				echo "  <out>"`echo $ABS_CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
-				echo "</ld>" >> $cmdfileout;
-			fi;
-		fi;
-	done;
-fi;
+#2			if [ -n "$CC_FILE" -a -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
+#2				ABS_CC_FILE=`readlink -f $CC_FILE`;	
+#2				if [ $? -ne 0 ]; then
+#2					bec_print "ERROR: Can't get abs path for ld-file.";
+#2					exit 1;
+#2				fi;
+#2
+#2				if [ -n "`echo $ABS_CC_FILE | grep \"$KERNEL_ENV_PREFIX\"`" ]; then continue; fi;
+#2				echo "<ld id=\"1\">" >> $cmdfileout;
+#2				echo "  <cwd>$env</cwd>" >> $cmdfileout;
+#2				echo "  <opt>-m</opt>" >> $cmdfileout;
+#2				echo "  <opt>-r</opt>" >> $cmdfileout;
+#2				echo "  <in>$ABS_CC_FILE</in>" >> $cmdfileout;
+#2				echo "  <out>"`echo $ABS_CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
+#2				echo "</ld>" >> $cmdfileout;
+#2			fi;
+#2		fi;
+#2	done;
+#2fi;
 
 echo "</cmdstream>" >> $cmdfileout;
 
@@ -289,7 +285,7 @@ fi;
 #
 # fix format - add one tab before <cc> and <ld> tags and...
 #
-sed -i -e 's/ldv_tempdir/bce_tempdir/g' $cmdfileout; 
+#sed -i -e 's/ldv_tempdir/bce_tempdir/g' $cmdfileout; 
 sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
 sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
 sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
@@ -297,7 +293,9 @@ sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout;
 sed -i -e 's/^<in>/\t\t<in>/g' $cmdfileout; 
 sed -i -e 's/^<cwd>/\t\t<cwd>/g' $cmdfileout; 
 sed -i -e 's/^<out>/\t\t<out>/g' $cmdfileout; 
+sed -i -e 's/^<out check="true">/\t\t<out check="true">/g' $cmdfileout; 
 sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout; 
+sed -i -e 's/^<module>/\t\t<module>/g' $cmdfileout; 
 sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
 
 exit;

@@ -46,21 +46,7 @@ public class DEG {
 	private static String cmdfileout = null;
 	
 	public static void main(String[] args) {
-		
-	/*	try {
-			CmdStream.getCmdStream("/home/iceberg/testrepo/lab/1/ldv_tempdir/cmd_after_deg.xml");
-		} catch (ParserConfigurationException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (SAXException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		if(true)
-			return;*/
+
 
 		long startf = System.currentTimeMillis();
 		if(args.length != 4 ) {

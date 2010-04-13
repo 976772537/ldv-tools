@@ -2,7 +2,7 @@
 
 #
 # env var WORK_DIR
-# ldv-core --basedir=basedir --env=envdir --driver=driver --rule-models=rules
+# ldv-core --env=envdir --driver=driver --rule-models=rules
 #
 
 GLOBAL_LOG="global.log";
@@ -27,14 +27,14 @@ PREFIX_INFO=" INFO: ";
 
 ldv_print() {
         if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-        if [ ! -f "$NEXT_BASE_DIR/$GLOBAL_LOG" ];  then
-                touch $NEXT_BASE_DIR/$GLOBAL_LOG;
+        if [ ! -f "$TEMP_DIR/$GLOBAL_LOG" ];  then
+                touch $TEMP_DIR/$GLOBAL_LOG;
                 if [ $? -ne 0 ]; then
                         echo "ldv-core: ERROR: can't create log file.";
                         exit 1;
                 fi;
         fi;
-        echo "$LOG_PREFIX$1" >> $NEXT_BASE_DIR/$GLOBAL_LOG;
+        echo "$LOG_PREFIX$1" >> $TEMP_DIR/$GLOBAL_LOG;
 }
 
 
@@ -61,10 +61,10 @@ RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "ldv-core: USAGE: WORK_DIR=workdir ldv-core --basedir=basedir --env=kerneldir --driver=driverpath --rule-models=rulemodels"
+		echo "ldv-core: USAGE: WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels"
 		exit 1;
 }
-if [ $# -ne 4 ]; then print_usage_and_exit; fi;
+if [ $# -ne 3 ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	echo "ldv-core: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -85,22 +85,6 @@ fi;
 #
 for arg in $@; do
         case $arg in
-                --basedir=*)
-                	rbasedir=`echo $arg | sed 's/--basedir=//g'`
-			if [ ! -n "$rbasedir" ]; then
-				echo "ldv-core: ERROR: Parameter \"--basedir\" - is null. Setup it.";
-			        exit 1;
-			fi;
-			basedir=`readlink -f $rbasedir`;
-			if [ $? -ne 0 ]; then
-				echo "ldv-core: ERROR: Failed to read abs-path for basedir: \"$rbasedir\"."
-			        exit 1;
-			fi;
-			if [ ! -d "$basedir" ]; then
-			        echo "ldv-core: ERROR: Basedir not exists: \"$basedir\".";
-			        exit 1;
-			fi;
-                ;;
                 --rule-models=*)
                 	rulemodels=`echo $arg | sed 's/--rule-models=//g'`
 			if [ ! -n "$rulemodels" ]; then
@@ -135,7 +119,6 @@ for arg in $@; do
 				echo "ldv-core: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
 			        exit 1;
 			fi;
-# TODO: add for dirs	if [ ! -d "$driver" -a ! -f "$driver" ]; then
 			if [ ! -f "$driver" ]; then
 			        echo "ldv-core: ERROR: Driver sources not exists: \"$driver\".";
 			        exit 1;
@@ -148,21 +131,21 @@ for arg in $@; do
         esac
 done
 
-NEXT_BASE_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
-mkdir $NEXT_BASE_DIR;
+TEMP_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
+mkdir $TEMP_DIR;
 if [ $? -ne 0 ]; then
-        echo "ldv-core: ERROR: Failed to create next working dir for bce: \"$NEXT_BASE_DIR\"."
+        echo "ldv-core: ERROR: Failed to create next working dir for bce: \"$TEMP_DIR\"."
         exit 1;
 fi;
 
-DRIVER_DIR=$NEXT_BASE_DIR/$DRIVER_DIR_NAME;
+DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 mkdir $DRIVER_DIR;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
         exit 1;
 fi;
 
-UNARCH_LOG=$basedir/$EXTRACTOR_LOG_FILENAME;
+UNARCH_LOG=$TEMP_DIR/$EXTRACTOR_LOG_FILENAME;
 touch $UNARCH_LOG;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Failed to create log for unarchiver: \"$UNARCH_LOG\".";
@@ -185,31 +168,19 @@ if [ $? -ne 0 ]; then
         exit 1;
 fi;
 
-XML_AFTER_BCE=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_BCE;
+XML_AFTER_BCE=$TEMP_DIR/$XML_FILENAME_AFTER_BCE;
 ldv_print "DEBUG: *********** Try to call Build Command Extractor ***********";
-ldv_print "DEBUG: WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
-WORK_DIR=$WORK_DIR $BCE --basedir=$NEXT_BASE_DIR --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
+ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
+WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
         exit 1;
 fi;
 
-#
-# run DEG:
-#
-NEXT_NEXT_BASEDIR=$WORK_DIR/$DEG_WORK_DIRNAME;
-mkdir $NEXT_NEXT_BASEDIR;
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Can not create outdir for deg: \"$NEXT_NEXT_BASEDIR\"."
-        exit 1;
-fi;
-
-XML_AFTER_DEG=$NEXT_BASE_DIR/$XML_FILENAME_AFTER_DEG;
-
-
+XML_AFTER_DEG=$TEMP_DIR/$XML_FILENAME_AFTER_DEG;
 ldv_print "DEBUG: *********** Try to call Driver Environment Generator  ***********";
-ldv_print "DEBUG: WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
-WORK_DIR=$WORK_DIR $DEG --basedir=$NEXT_BASE_DIR --outdir=$NEXT_NEXT_BASEDIR --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
+ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $DEG --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
+WORK_DIR=$TEMP_DIR $DEG --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Drv-env-gen failed."
         exit 1;

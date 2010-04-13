@@ -1,5 +1,6 @@
 LDV_BUILD_CMD_EXTRACTOR_DIR = build-cmd-extractor
 LDV_BUILD_CMD_EXTRACTOR_SCRIPT = build-cmd-extractor
+LDV_BUILD_CMD_EXTRACTOR_GCC_SCRIPT = bce_gcc
 
 # Top level hierarchy
 exec_prefix = ${prefix}
@@ -17,6 +18,7 @@ all:
 install:
 	if [ ! -d $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR) ]; then mkdir -p $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR); fi	
 	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_SCRIPT) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
+	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_GCC_SCRIPT) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 
 clean:
 	@echo "cleaning -ok"

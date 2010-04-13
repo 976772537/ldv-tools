@@ -6,6 +6,7 @@ LDV_VDIR=$HOME/.ldv/ldv
 
 
 XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+BCE_XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/build-cmd-extractor\\/bce_gcc";
 
 
 echo "extractor: INFO: Linux Vanilla extractor.";
@@ -92,7 +93,7 @@ if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
 	exit 1;
 fi;
 #
-# copy Makefile for last recovery...
+# create backup for ./scripts/Makefile.build
 #
 KERNEL_BACKUP_MAKEFILE_BUILD=$KERNEL_MAKEFILE_DIR"/scripts/Makefile.build.bcebackup";
 cp $KERNEL_MAKEFILE_BUILD $KERNEL_BACKUP_MAKEFILE_BUILD;
@@ -120,6 +121,51 @@ fi;
 sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = $XGCC \$(ld_flags) \$(link_multi_deps) -r -o \$@ >> \$(BUILDFILE); \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	echo "extractor: ERROR: Failed patch (III. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+# III.
+#
+# try to find "scripts/Makefile.modpost" in kernel source directory
+# 
+KERNEL_MAKEFILE_MODPOST=$KERNEL_MAKEFILE_DIR"/scripts/Makefile.modpost";
+if [ ! -f "$KERNEL_MAKEFILE_MODPOST" ]; then
+	echo "extractor: ERROR: Can't find kernel makefile for modules: \"$KERNEL_MAKEFILE_MODPOST\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+#
+# Create backup for ./scripts/Makefile.modpost
+#
+KERNEL_BACKUP_MAKEFILE_MODPOST=$KERNEL_MAKEFILE_DIR"/scripts/Makefile.modpost.bcebackup";
+cp $KERNEL_MAKEFILE_MODPOST $KERNEL_BACKUP_MAKEFILE_MODPOST;
+if [ $? -ne 0 ]; then
+	echo "extractor: ERROR: Failed to copy Makefile.modpost from: \"$KERNEL_MAKEFILE_MODPOST\" to \"$KERNEL_BACKUP_MAKEFILE_MODPOST\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+#
+# test if a FILE exists and write permission is granted or not
+#
+if [ ! -w "$KERNEL_MAKEFILE_MODPOST" ]; then
+	echo "extractor: ERROR: Kernel Makefile.modpost: \"$KERNEL_MAKEFILE_MODPOST\" -  not writable.";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+#
+# patch it...
+#
+sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$@/g" $KERNEL_MAKEFILE_MODPOST;
+#sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
+#sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
+#sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC -r \$(LDFLAGS) \$(LDFLAGS_MODULE) \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
+#sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); $BCE_XGCC -r \$(LDFLAGS) \$(LDFLAGS_MODULE) \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
+if [ $? -ne 0 ]; then
+	echo "extractor: ERROR: Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
 	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
 	exit 1;
