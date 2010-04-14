@@ -20,7 +20,7 @@ if(!$as_gcc || !(-f $as_gcc)) {
 #
 # serach replace .ko with .o extension
 #
-my $module_file = @ARGV[0];
+my $module_file = $ARGV[0];
 if(!($module_file =~ s/\.ko$/\.o/)) 
 {
 	print "bce_gcc: ERROR: Can't replcae .ko with .o in module_file.\n";
@@ -47,7 +47,7 @@ foreach $line (@strings)
 		{
 			$inld = 0;
 		} 
-		elsif($ismodule ==0 && ($line =~ s/<out>$module_file<\/out>/<out check="true">@ARGV[0]<\/out>/))
+		elsif($ismodule ==0 && ($line =~ s/<out>$module_file<\/out>/<out check="true">$ARGV[0]<\/out>/))
 		{ 
 			$ismodule = 1;
 		}
@@ -66,10 +66,10 @@ foreach $line (@strings)
 }
 if($ismodule == 0)
 {
-	@as_gcc_out = `$as_gcc $module_file -o @ARGV[0]`;
+	@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
 	foreach $line (@as_gcc_out)
 	{
-		$line =~ s/<out>@ARGV[0]<\/out>/<out check="true">@ARGV[0]<\/out>/;
+		$line =~ s/<out>$ARGV[0]<\/out>/<out check="true">$ARGV[0]<\/out>/;
 		print(FIL $line);
 	}
 }
