@@ -115,7 +115,7 @@ public class MainGenerator {
 			else
 				sb.append("void ldv_main"+index+"(void) {\n\n\n");
 
-			sb.append("IN_INTERRUPT = 1;\n");
+			
 			/* создадим счетчик */
 			int generatorCounter = 0;
 			FuncGenerator fg = FuncGeneratorFactory.create(GenerateOptions.DRIVER_FUN_STRUCT_FUNCTIONS);
@@ -172,6 +172,7 @@ public class MainGenerator {
 			sb.append("\n\n\n");
 
 			sb.append("\n/*============================= VARIABLE INITIALIZING PART  =============================*/");
+			sb.append("IN_INTERRUPT = 1;\n");
 			tokenIterator = ltoken.iterator();
 			localCounter = generatorCounter;
 			while(tokenIterator.hasNext()) {
