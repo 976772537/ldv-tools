@@ -19,6 +19,12 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
+if [ $# -lt 3 ]; then
+	echo "ldv-task: ERROR: USAGE: ldv-task driver workdir=wordir env:rule,rule... env:rule,rule... ...";
+	exit 1;
+fi;
+
+
 USER_WORKDIR=`echo $2 | sed 's/workdir=//'`
 if [ ! -d "$USER_WORKDIR" ]; then
 	echo "ldv-task: ERROR: Workdir not exists: \"$WORK_DIR\".";
