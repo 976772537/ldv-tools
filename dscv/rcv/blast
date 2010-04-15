@@ -19,7 +19,7 @@ sub vsay
 {
 	my $verbosity = shift;
 	local $,=' ';
-	print @_,"\n" if $verbosity <= $config->{verbosity};
+	print @_ if $verbosity <= $config->{verbosity};
 }
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
@@ -150,12 +150,35 @@ sub execute_ld
 	# List of error locations
 	my @errlocs = $cmdT->children_text('error');
 	# Report file
-	my $report = "$workdir/reports/$target";
+	my $report = "$workdir/reports/$target.report";
 	mkpath(dirname($report));
+	# BLAST debug file
+	my $debug = "$workdir/reports/$target.debug";
+	mkpath(dirname($debug));
+	# Trace file
+	my $trace = "$workdir/reports/$target.trace";
+	mkpath(dirname($trace));
 
-	# TODO: add a separate report file
-	call_blast(files => \@files, hints=>$hintsT, main=>$_, errlocs=>\@errlocs, report=>$report) for @mains; 
+	open my $BLAST_REPORT, ">", $report or die "Can't open file $report: $!";
+	my $repT = XML::Twig::Elt->new('reports');
+
+	for my $main (@mains){
+		my $result = call_blast(files => \@files, hints=>$hintsT, main=>$main, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug); 
 	
+		# Print verdict to console and to report 
+		vsay 10,"$main: BLAST status: $result->{'BLAST'}\n";
+		vsay 20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n";
+
+		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$cmdT->att('id'), main=>$main});
+		XML::Twig::Elt->new('trace',{},$trace)->paste($cmdInstT);
+		XML::Twig::Elt->new('status',{},$result->{'BLAST'})->paste($cmdInstT);
+		XML::Twig::Elt->new('verdict',{},$result->{'BLAST-detailed'})->paste($cmdInstT);
+		$cmdInstT->paste($repT);
+	}
+
+	$repT->print($BLAST_REPORT,'indented');
+	close $BLAST_REPORT;
+
 }
 
 sub hard_wait
@@ -166,6 +189,33 @@ sub hard_wait
 	}
 	return $wpres;
 }
+
+# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
+use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
+sub dumptrace
+{
+	my $fname = shift or die;
+	my $state = TRACE_WAIT;
+	my $current_fh;
+	return [1_000_000,sub {
+
+		my ($line) = @_;
+		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
+		return undef if $state == TRACE_DONE;
+
+		$line =~ /Error trace: \(final\)/ and do {$state = TRACE_READ; return undef;};
+		$line =~ /Error trace ends \(final\)/ and do {$state = TRACE_DONE; return undef;};
+
+		if ($state == TRACE_READ){
+			unless ($current_fh){
+				open $current_fh, ">>", $fname or die;
+			}
+			print $current_fh $line;
+		}
+		return undef;
+	}];
+}
+
 
 # Call blast
 use IPC::Open3;
@@ -219,37 +269,39 @@ sub call_blast
 			"-alias","bdd"	# Turn alias analysis on
 		;
 	}
-	vsay 20,@blast_options;
+	vsay 20,@blast_options,"\n";
 
 	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 	# Open file to redirect
-	my $BLAST_REPORT;
-	open $BLAST_REPORT, ">", $args{report} or die "Can't open report $args{report}: $!";
+	my $BLAST_DEBUG;
+	open $BLAST_DEBUG, ">", $args{debug} or die "Can't open file $args{debug}: $!";
 	my ($BLAST_IN,$BLAST_OUT,$BLAST_ERR);
 	# Fork blast
 	local $"=" ";
 	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
-	vsay 20,"BLAST report is written to $args{report}";
+	vsay 20,"BLAST debug trace is written to $args{debug}\n";
 
+	# Create trace printer
+	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new();
+	my $verdictor = StreamAutomaton->new([$dumptrace]);
 
 	# Process output and redirect it to file
 	local $_;
 	while (<$BLAST_OUT>) {
-		print $BLAST_REPORT $_; 
+		print $BLAST_DEBUG $_;
 		$verdictor->chew_line($_);
 	}
 	while (<$BLAST_ERR>) {
-		print $BLAST_REPORT $_; 
+		print $BLAST_DEBUG $_;
 		$verdictor->chew_line($_);
 	}
 	# TODO: add GZIPping as well
 
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
 	hard_wait($fpid,0) < 0 and die;
-	close $BLAST_REPORT;
+	close $BLAST_DEBUG;
 
   vsay 40,"BLAST open3 return value: $?\n";
 	vsay 10,"Error return value: $?\n";
@@ -261,15 +313,12 @@ sub call_blast
 	}elsif($blast_rv == 3){
 		die "BLAST couldn't find entry point/error location";
 	}elsif($? == 0){
-		warn "BLAST OK";
+		vsay 10,"BLAST OK\n";
 	}else{
-		warn "BLAST failed with exit code $blast_rv.  But who cares?";
+		vsay 10,"BLAST failed with exit code $blast_rv.  But who cares?\n";
 	}
 
-	# Print verdict (to console for now)
-	my $result = $verdictor->result();
-	vsay 10,"BLAST verdict: $result->{'BLAST'}";
-	vsay 20,"BLAST detailed: $result->{'BLAST-detailed'}";
+	return $verdictor->result();
 }
 use Cwd;
 sub preprocess_file
