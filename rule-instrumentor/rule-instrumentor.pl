@@ -614,11 +614,12 @@ sub process_cmd_cc()
   if ($kind_isaspect)
   {
     # On each cc command we run aspectator on corresponding file with 
-    # corresponding model aspect and options.
+    # corresponding model aspect and options. Also add -I option with 
+    # models directory needed to find appropriate headers for usual aspect.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
 
-    my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}});
+    my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     # Go to build directory to execute cc command.
     chdir($cmd{'cwd'})
@@ -848,7 +849,14 @@ sub process_cmds()
           my $twig_hints = $ldv_model{'twig hints'}->copy;
           $twig_hints->paste('last_child', $cmd);
         }
-
+        # Add -I option with common model dir to find appropriate headers. Note
+        # that it also add for a duplicated command.
+        elsif ($cmd->gi eq $xml_cmd_cc)
+        {
+          my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
+          $common_model_opt->paste('last_child', $cmd);
+        }
+        
         # Add engine tag for both cc and ld commands.
         if ($cmd->gi eq $xml_cmd_ld or $cmd->gi eq $xml_cmd_cc)
         {
@@ -858,7 +866,7 @@ sub process_cmds()
 
         $cmd->print($file_xml_out);
 
-        # Duplicate each cc command with the same but containing common model.
+        # Duplicate each cc command with containing of common model.
         if ($cmd->gi eq $xml_cmd_cc)
         {
           my $common_model_cc = $cmd->copy;
@@ -884,10 +892,7 @@ sub process_cmds()
           
           my $out = $common_model_cc->first_child($xml_cmd_out);
           $out->set_text($out->text . $common_o_suffix);
-                   
-          my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
-          $common_model_opt->paste($common_model_cc);
-        
+
           $common_model_cc->print($file_xml_out);
         }
 
