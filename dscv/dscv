@@ -12,13 +12,13 @@ Compilation commands must be passed to the tool (all at once or sequentially), a
 
 DSCV supports both cmdline interface (when a file with build commands is supplied) and direct interface (when files to verify are directly passed on command line).
 
-If, aside of options that begin with the "--", no other options are given, DSCV run in cmdfile mode:
+If there's no argument named "inline", C<dscv> runs in cmdfile mode:
 
 	dscv --cmdfile=commands.xml --rule-models=0032a,0039
 
 Otherwise, DSCV runs in an inline mode:
 
-	dscv options -I include/ files file1.c file2.c
+	dscv --verifier=blast inline options -I include/ files file1.c file2.c
 
 =head1 DESCRIPTION
 
@@ -189,39 +189,106 @@ sub usage
 	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
 }
 
-GetOptions(%optionSpecs) or usage("Unrecognized options!");
-
-# Determine Mode in which we're working: is it cmdfile or direct
-$config->{cmdfile} && @ARGV and usage("Don't specify both --cmdfile and arguments for inline check!");
+# Determine mode
 my $mode;
-if ($config->{cmdfile} && !@ARGV){
-	$mode = 'cmdfile';
-}elsif (@ARGV && !$config->{cmdfile}){
+my @inline_args = ();
+if (grep {m/^inline$/} @ARGV){
 	$mode = 'inline';
+	# Cut last portion of ARGV into a separate array
+	my ($index) = grep { $ARGV[$_] eq 'inline' } 0..$#ARGV;
+	@inline_args = @ARGV[($index+1)..$#ARGV];
+	@ARGV = @ARGV[0..$index-1];
 }else{
-	usage("Specify either --cmdfile or arguments for inline check!");
+	$mode = 'cmdfile';
 }
 
+GetOptions(%optionSpecs) or usage("Unrecognized options!");
+
+# Do options tweaking (that doesn't require any semantical checking)
+
+# Compact rule models
+$config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->{properties}})))];
+
+
+# INLINE mode preparation
+
+use File::Path qw(mkpath);
+# If we're in inline mode, we should create appropriate cmdfile in the working dir and use it as such.
 if ($mode eq 'inline'){
-	my @args = @ARGV;
+	# First we parse options
+	my @args = @inline_args;
 	while (@args){
+		my $len = scalar @args;
 		@args = $_->(@args) for values %inline_handlers;
+		# If we haven't processed anything, then something's wrong here.
+		usage("Specify inline mode modifier at the beginning please") if $len eq scalar @args;
 	}
-	die "Sorry, inline mode is not supported!";
+	# Allocate file for "commands"
+	my $CMDFILE;
+	mkpath($config->{work_dir});
+	my $cmdfile_name = "$config->{work_dir}/generated_cmdfile.xml";
+	open $CMDFILE, ">", $cmdfile_name or die;
+	my $streamT = XML::Twig::Elt->new('cmdstream');
+	my $id = 1;	#ID with which entities are tagged
+	my @outfiles = ();	# dummy o-files that will be created for input files.
+
+	# Check if we verify default property (assert()).  If it's the case, we must include a special header file and tweak properties array.
+	my $defprop = !@{$config->{properties}};
+
+	# Create basic XML entry for compilation of each C file.
+	for my $file (@{$config->{inl_files}}){
+		my $ccT = XML::Twig::Elt->new('cc',{id=>$id++});
+		# Add option tags
+		XML::Twig::Elt->new('opt',{},$_)->paste(last_child => $ccT) for @{$config->{inl_options}};
+
+		# Add input-output tags
+		XML::Twig::Elt->new('in',{},$file)->paste($ccT);
+		my $outfile = $file; $outfile =~ s/(.*)\.(.*)$/$1.o/;
+		XML::Twig::Elt->new('out',{},$file)->paste($ccT);
+		XML::Twig::Elt->new('cwd',{},getcwd())->paste($ccT);
+
+		push @outfiles, $outfile;
+
+		# Add default-property header
+		if ($defprop){
+			XML::Twig::Elt->new('opt',{},'-include')->paste(last_child => $ccT);
+			XML::Twig::Elt->new('opt',{},'engine-blast.h')->paste(last_child => $ccT);
+		}
+
+		$ccT->paste(last_child => $streamT);
+	}
+
+	# Create a dummy "link" command.
+	my $ldT = XML::Twig::Elt->new('ld',{id=>$id++});
+	XML::Twig::Elt->new('in',{},$_)->paste($ldT) for @outfiles;
+	XML::Twig::Elt->new('out',{},'link.exe')->paste($ldT);
+	XML::Twig::Elt->new('cwd',{},getcwd())->paste($ldT);
+	push @{$config->{inl_entries}},'main' unless @{$config->{inl_entries}};
+	XML::Twig::Elt->new('entry',{},$_)->paste($ldT) for @{$config->{inl_entries}};
+	$ldT->paste(last_child=>$streamT);
+
+	# Paste basedir
+	XML::Twig::Elt->new('basedir',{},"./")->paste($streamT);
+
+	# Write XML to the file and close it
+	$streamT->print($CMDFILE,'indented');
+	close $CMDFILE or die;
+
+	#Prepare usual DSCV options and proceed to the rest of the script
+	$config->{cmdfile}=$cmdfile_name;
+	$config->{properties}=['BZ_1'] if $defprop;
 }
 
 # Sanity check
 
-$mode ne 'cmdfile' || $config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
+$config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
 $config->{work_dir} or usage("WORK_DIR is not specified!\n");
-use File::Path qw(mkpath);
-mkpath ($config->{work_dir});
-
-$config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->{properties}})))];
-
 unless (scalar @{$config->{properties}}){
 	usage("You should specify at least one property to verify!  Did you forget about it?\n");
 }
+
+# Prepare working dir
+mkpath ($config->{work_dir});
 
 
 use LDV::Utils;
