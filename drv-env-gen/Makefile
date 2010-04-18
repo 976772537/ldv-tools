@@ -1,5 +1,7 @@
 DRV_ENV_GEN_DIR = drv-env-gen
-DRV_ENV_GEN_JAR = drv-env-gen.jar
+DRV_ENV_GEN_CC = ldv_cc.jar
+DRV_ENV_GEN_LD = ldv_ld.jar
+DRV_ENV_GEN_WRAPPER = drv-env-gen
 
 # Top level hierarchy
 exec_prefix = ${prefix}
@@ -17,7 +19,9 @@ all:
 install:
 	ant
 	if [ ! -d $(prefix)/$(DRV_ENV_GEN_DIR) ]; then mkdir -p $(prefix)/$(DRV_ENV_GEN_DIR); fi
-	cp $(srcdir)/dist/$(DRV_ENV_GEN_JAR) $(prefix)/$(DRV_ENV_GEN_DIR)
+	cp $(srcdir)/dist/$(DRV_ENV_GEN_CC) $(prefix)/$(DRV_ENV_GEN_DIR)
+	cp $(srcdir)/dist/$(DRV_ENV_GEN_LD) $(prefix)/$(DRV_ENV_GEN_DIR)
+	cp $(srcdir)/$(DRV_ENV_GEN_WRAPPER) $(prefix)/$(DRV_ENV_GEN_DIR)
 
 clean:
 	ant clean

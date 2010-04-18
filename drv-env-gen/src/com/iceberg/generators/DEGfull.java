@@ -11,18 +11,23 @@ import com.iceberg.FSOperationsBase;
 import com.iceberg.generators.cmdstream.CmdStream;
 
 /*
- * Алгоритм работы:
- * 	
- * (случай когда программа хавает весь xml ) 
- *  
- *  работаем с cmdxml как с потоком
- *  - старые сишники замещаются, 
- *  - объектники не создаются,
- *  - работаем в предоставленной директории
+ * 1. читает work_dir? куда копирует чистые src
+ * 2. гадит в исходный драйвердир  
+ *    и попутно заменяя сишники в новом драйвердир
+ *    на сгенерированные , разрешает зависимости
+ *    в любом случае
  * 
- * 1. читаем входной xml
- * 2. считаем что гадиьт не будем и посему портим папку, которую на м подали на вход
+ */
+
+
+
+/*
+ * развязать комманды:
  * 
+ * пока нет обертки - драйвер придется копировать
+ * 
+ * CommandCC - генерирует соответствующий -ошник с выводом
+ * CommandLD - читает входящие ошники и добавляет опции
  * 
  */
 
@@ -30,6 +35,7 @@ import com.iceberg.generators.cmdstream.CmdStream;
 public class DEGfull {
 	
 	private static String basedir = null;
+	
 	private static String cmdfile = null;
 	private static String cmdfileout = null;
 	
@@ -43,19 +49,13 @@ public class DEGfull {
 		if(!getOpts(args)) 
 			System.exit(-1);
 		try {
+
+			
 			// parse command stream
-			CmdStream cmdstream = CmdStream.getCmdStream(cmdfile);
+			CmdStream cmdstream = CmdStream.getCmdStream(cmdfile,basedir);
 			cmdstream.generateMains();
 			cmdstream.putCmdStream(cmdfileout);
-			//cmdstream.putCmdStream(cmdfileout);
-			//File workdir = new File(WORK_DIR);
-			//workdir.mkdirs();
-			//String driverdir = WORK_DIR+"/"+driverdirname;
-			// copy driver to new dir
-			//FSOperationsBase.copyDirectory(new File(cmdstream.getBaseDir()),new File(driverdirname));
-			// проходимся по ld и сс, добавляем к ним ldv_main'ы и опции, если нужно
-			//CmdStream.
-			
+		
 	
 		} catch (ParserConfigurationException e1) {
 			System.out.println("ERROR: parse exception.\n");
@@ -70,7 +70,7 @@ public class DEGfull {
 	}
 	
 	private static boolean getOpts(String[] args) {
-		if(args.length != 2 ) {
+		if(args.length != 4 ) {
 			System.out.println(usageString);
 			return false;
 		}	
@@ -83,9 +83,9 @@ public class DEGfull {
 		}
 		
 		for(int i=0; i<args.length; i++) {
-/*			if(args[i].contains("--basedir=")) {
+			if(args[i].contains("--basedir=")) {
 				basedir = args[i].replace("--basedir=", "").trim();
-			} else*/
+			} else
 			if(args[i].contains("--cmdfile=")) {
 				cmdfile = args[i].replace("--cmdfile=", "").trim();
 			} else

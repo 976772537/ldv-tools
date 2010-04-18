@@ -1,5 +1,6 @@
 package com.iceberg.generators.cmdstream;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,11 +13,13 @@ import com.sun.org.apache.xalan.internal.xsltc.compiler.util.NodeType;
 public class Command {
 	private List<String> opts = new ArrayList<String>();
 	private List<Command> inObj = new ArrayList<Command>();
-	private List<String> in = new ArrayList<String>();
+	protected List<String> in = new ArrayList<String>();
 	private List<String> out = new ArrayList<String>();
 	private String cwd = null;;
 	
-	private static int cmd_counter = 0;
+	protected static int cmd_counter = 0;
+	
+	protected int Id;
 	
 	private boolean check = false;
 	
@@ -87,9 +90,9 @@ public class Command {
 			else
 				sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOut+'>'+out.get(i)+"</"+CmdStream.tagOut+">\n");
 	}
-	
-	/*public void createTree() {
-		for(create)
-	}*/
 
+	public void generate() throws IOException {
+		// TODO Auto-generated method stub
+		
+	}
 }

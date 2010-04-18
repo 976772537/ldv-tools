@@ -12,6 +12,8 @@ XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
 
+IS_KERNEL=0;
+
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
 bce_print() {
@@ -101,6 +103,9 @@ for arg in $@; do
 			        echo "$LOG_PREFIX: ERROR: Driver unpacked sources not exists: \"$driver\".";
 			        exit 1;
 			fi;
+		;;
+ 		--driver-kernel)
+                	IS_KERNEL=1;
                 ;;
                 *)
                         echo "$LOG_PREFIX: ERROR: Unknown options: '$arg'.";
@@ -224,7 +229,7 @@ fi;
 #
 # TODO: 1. find MODULE - test if LDFLAGS_FOR_FILE not exists for this module then add it
 #
-IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $cmdfileout`;
+#IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $cmdfileout`;
 # driver single - then fix trace file - add <ld> for all cc
 #2if [ ! -n "$IS_WITHOUT_LD" ]; then
 #2	cat $cmdfileout | while read line; do

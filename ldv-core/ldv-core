@@ -49,7 +49,7 @@ BCE_DIR="$LDV_HOME/build-cmd-extractor";
 BCE="$BCE_DIR/build-cmd-extractor";
 
 DEG_DIR="$LDV_HOME/drv-env-gen";
-DEG="java -ea -jar $DEG_DIR/drv-env-gen.jar";
+DEG="$DEG_DIR/drv-env-gen";
 
 DSCV_DIR="$LDV_HOME/bin/";
 DSCV="$DSCV_DIR/dscv";
@@ -180,7 +180,7 @@ fi;
 XML_AFTER_DEG=$TEMP_DIR/$XML_FILENAME_AFTER_DEG;
 ldv_print "DEBUG: *********** Try to call Driver Environment Generator  ***********";
 ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $DEG --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
-WORK_DIR=$TEMP_DIR $DEG --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
+WORK_DIR=$TEMP_DIR $DEG --basedir="deg_tempdir1" --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Drv-env-gen failed."
         exit 1;
@@ -189,8 +189,7 @@ if [ ! -f "$XML_AFTER_DEG" ]; then
 	ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
 	exit 1;
 fi;
-
-DSCV_TEMPDIR=$WORK_DIR/$DSCV_WORK_DIRNAME;
+DSCV_TEMPDIR=$TEMP_DIR/$DSCV_WORK_DIRNAME"1";
 mkdir $DSCV_TEMPDIR;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";

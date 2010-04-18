@@ -17,7 +17,9 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.iceberg.FSOperationsBase;
 import com.iceberg.generators.MainGenerator;
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
 public class CmdStream {
 	
@@ -31,6 +33,8 @@ public class CmdStream {
 	public final static String tagCwd = "cwd";
 	public final static String tagMain = "main";
 	
+	
+	public String basedir;
 	// сдвиг
 	//_____________________
 	// <?xml version="1.0"?>
@@ -47,7 +51,7 @@ public class CmdStream {
 	private String inBasedir = null;
 	private List<Command> cmdlist = new ArrayList<Command>();
 	
-	public static CmdStream getCmdStream(String path) throws ParserConfigurationException, SAXException, IOException {
+	public static CmdStream getCmdStream(String path, String basedir) throws ParserConfigurationException, SAXException, IOException {
 		DocumentBuilder xml = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 		Document doc = xml.parse(new File(path));
 		
@@ -70,9 +74,11 @@ public class CmdStream {
 		}
 		/*
 		 * 
-		 * теперь создадим дерево
+		 *  скопируем драйвер 
 		 * 
 		 */
+		//FSOperationsBase.copyDirectory(cmdobj.getBaseDir(),newdriverdir);
+		cmdobj.basedir = basedir;
 		return cmdobj;
 	}
 	
@@ -86,6 +92,8 @@ public class CmdStream {
 			cmdlist.get(i).write(sb);
 		}
 		sb.append("</cmdstream>");
+		// test
+		//System.out.println(sb);
 		//System.out.println(sb.toString());
 		fw.write(sb.toString());
 		fw.close();
@@ -107,14 +115,27 @@ public class CmdStream {
 		return null;
 	}
 	
-	public void generateMains() {
-		int counter=1;
-		for(int i=0; i<cmdlist.size(); i++) {
+	public void generateMains() throws IOException {
+		//
+		// 1. скопируем драйвер
+		//
+		File basedirFile = new File(basedir);
+		if(!basedirFile.exists())
+			basedirFile.mkdirs();
+		// скопируем драйвер newdriverdir
+		String newdriverdir = basedir+"/"+"driver";
+		File newdriverdirFile = new File(newdriverdir);
+		FSOperationsBase.copyDirectory(new File(getBaseDir()), newdriverdirFile);
+		// сгенерируем main'ы
+		for(int i=0; i<cmdlist.size(); i++)
+			cmdlist.get(i).generate();
+//		int counter=1;
+//		for(int i=0; i<cmdlist.size(); i++) {
 			// Это модуль?
-			if(cmdlist.get(i).isItForCheck()) {
+//			if(cmdlist.get(i).isItForCheck()) {
 				// тогда генерим для него энвайронмент
 				// проходимся по входящим файлам
-				int local_counter = counter;
+/*				int local_counter = counter;
 				for(int j=0; j<cmdlist.get(i).getIn().size(); j++) {
 					List<String> lklk = cmdlist.get(i).getIn();
 					String njfjfk = cmdlist.get(i).getIn().get(j);
@@ -130,6 +151,7 @@ public class CmdStream {
 				while(counter!=local_counter) 
 					((CommandLD)cmdlist.get(i)).addMain("ldv_main"+counter++);
 			}
-		}
+		}*/
 	}
+
 }

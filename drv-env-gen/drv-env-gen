@@ -1,0 +1,338 @@
+#!/usr/bin/perl -w
+
+use XML::Twig;
+
+# interfaces
+my $ldv_cc = "java";
+my @ldv_cc_add_options = ("-ea","-jar","/opt/ldv/drv-env-gen/ldv_cc.jar");
+my $ldv_ld = "java";
+my @ldv_ld_add_options = ("-ea","-jar","/opt/ldv/drv-env-gen/ldv_ld.jar");
+# output ooption
+# -o
+my $output_option = "-o";
+# major options
+#
+# interface for (cc||ld):
+# ldv_(cc||ld) input_file input_file ... -o output_file options
+#
+#
+my $workdir;
+
+# Xml nodes names.
+my $xml_cmd_basedir = 'basedir';
+my $xml_cmd_stream = 'cmdstream';
+my $xml_cmd_attr_id = 'id';
+my $xml_cmd_entry_point = 'main';
+my $xml_cmd_cc = 'cc';
+my $xml_cmd_cwd = 'cwd';
+my $xml_cmd_in = 'in';
+my $xml_cmd_ld = 'ld';
+my $xml_cmd_opt = 'opt';
+my $xml_cmd_out = 'out';
+
+#####################################################
+# log options
+#####################################################
+my $psuffix="deg";
+my $log_level=0;
+
+my $cmdfile = "";
+my $cmdfile_out = "";
+my $tempdir;
+
+my $ldv_counter = 0;
+
+#my $basedir_name = "deg_tempdir";
+my $driver_dirname = "driver";
+my $xmlbasedir;
+
+# 1. get options.
+get_ldv_opts();
+# 2. create directories
+my $basedir="$workdir/$tempdir";
+my $my_driverdir="$basedir/$driver_dirname";
+
+chomp($basedir);
+if(! mkdir $basedir) {
+	ldv_eprint("Can't create basedir:\"$basedir\".");
+	exit 1;
+}
+# 3. copy driver in new dir
+chomp($my_driverdir);
+if(! mkdir $my_driverdir) {
+	ldv_eprint("Can't create my_driverdir:\"$my_driverdir\".");
+	exit 1;
+}
+
+
+my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream_cc,
+			"$xml_cmd_stream/$xml_cmd_ld"      => \&hxml_cmdstream_ld,
+			"$xml_cmd_stream/$xml_cmd_basedir" => \&hxml_cmdstream_basedir };
+
+my $twig= new XML::Twig(TwigHandlers => $twig_handlers);
+
+$twig->parsefile($cmdfile);
+
+$twig->set_pretty_print('indented');
+
+if($log_level == 30) {
+	$twig->print();
+}
+$twig->print_to_file($cmdfile_out);
+
+#####################################################
+# twig  handlers
+#####################################################
+
+sub hxml_cmdstream_basedir {
+	my $local_baseidr = $_[1]->text;
+	if(! -d $local_baseidr) {
+		ldv_eprint("Can't find cmdstream basedir:\"$local_baseidr\"");
+		exit 1;
+	}
+	$xmlbasedir = $local_baseidr;
+#	if(!system(`cp -r $xmlbasedir $my_driverdir`)) {
+#		ldv_eprint("Can't copy driver.");
+#		exit 1;
+#	}
+}
+
+sub hxml_cmdstream_cc {
+	my @args = ($ldv_cc,@ldv_cc_add_options); 
+	foreach my $section ( $_[1]->children('in') ) {
+		push(@args, $section->text);
+	}
+	push(@args,$output_option);
+	foreach my $section ( $_[1]->children('out') ) {
+		my $outdir = $section->text;
+		# 1. replace outdir from basedir in xml with our driverdir
+  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
+			ldv_eprint("Can't find basedir pattern in cc outdirs.");
+			exit 1;
+		}
+		push(@args, $outdir);
+	}
+	push(@args,"-c",$ldv_counter++);
+	foreach my $section ( $_[1]->children('opt') ) {
+		
+		push(@args,$section->text);
+	}
+	if($log_level>=30) {
+		my @debug_args =($ldv_cc,@ldv_cc_add_options);
+		foreach my $cmd (@args) {
+			push(@debug_args,$cmd);
+		}
+		ldv_dprint("RUN LDV_CC: @debug_args");
+	}
+	ldv_iprint("Starting ldv_cc interface...");
+	if(system(@args) != 0) {
+		ldv_eprint("ldv_cc failed !");
+		exit 1;
+	}
+	ldv_iprint("End of ldv_cc - Ok.");
+
+	foreach my $section ( $_[1]->children('out') ) {
+		my $outdir = $section->text;
+		# 1. replace outdir from basedir in xml with our driverdir
+  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
+			ldv_eprint("Can't find basedir pattern in cc outdirs int end.");
+			exit 1;
+		}
+		if(! -f $outdir) {
+			 next;
+		}
+		open(FIL,$outdir);
+		my @strings = <FIL>;
+		close(FIL);
+		foreach $line (@strings)
+		{
+			if($line =~ s/.*\:-DLDV_MAIN/ldv_main/) {
+				$line =~  s/\n//;
+				XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
+			}
+		}
+	}
+}
+
+sub hxml_cmdstream_ld {
+	my @args = ($ldv_ld,@ldv_ld_add_options); 
+	foreach my $section ( $_[1]->children('in') ) {
+		my $indir=$section->text;
+		# 1. replace outdir from basedir in xml with our driverdir
+  		if(!($indir =~ s/$xmlbasedir/$my_driverdir/)) {
+			ldv_eprint("Can't find basedir pattern in ld indirs.");
+			exit 1;
+		}
+		push(@args,$indir);
+	}
+	push(@args,$output_option);
+	foreach my $section ( $_[1]->children('out') ) {
+		my $outdir=$section->text;
+		# 1. replace outdir from basedir in xml with our driverdir
+  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
+			ldv_eprint("Can't find basedir pattern in ld outdirs.");
+			exit 1;
+		}
+		push(@args,$outdir);
+	}
+	foreach my $section ( $_[1]->children('opt') ) {
+		push(@args, $section->text);
+	}
+	if($log_level>=30) {
+		my @debug_args =($ldv_ld,@ldv_ld_add_options);
+		foreach my $cmd (@args) {
+			push(@debug_args,$cmd);
+		}
+		ldv_dprint("RUN LDV_LD: @debug_args");
+	}
+	ldv_iprint("Starting ldv_ld interface...");
+	if(system(@args) != 0) {
+		ldv_eprint("ldv_ld failed !");
+		exit 1;
+	}
+	ldv_iprint("End of ldv_ld - Ok.");
+	foreach my $section ( $_[1]->children('out') ) {
+		my $outdir = $section->text;
+		# 1. replace outdir from basedir in xml with our driverdir
+  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
+			ldv_eprint("Can't find basedir pattern in ld outdirs int end.");
+			exit 1;
+		}
+		if(! -f $outdir) {
+			 next;
+		}
+		open(FIL,$outdir);
+		my @strings = <FIL>;
+		close(FIL);
+		foreach $line (@strings)
+		{
+			if($line =~ s/\n//) {
+				XML::Twig::Elt->new("out",$line)->paste('last_child',$_[1]);
+			}
+		}
+	}
+}
+
+
+######################################################
+# option test
+######################################################
+sub test_interfaces
+{
+	if(! -f $ldv_cc)
+	{
+		ldv_eprint("Can't find CC interface:\"$ldv_cc\".");
+	}
+	if(! -f $ldv_ld)
+	{
+		ldv_eprint("Can't find LD interface:\"$ldv_ld\".");
+	}
+}
+
+sub get_ldv_opts
+{
+	#get env variables
+	$workdir = $ENV{'WORK_DIR'};
+	if(!$workdir) {
+	        ldv_eprint("WORK_DIR variable not set. Setup it and try again.");
+		print_usage();
+	        exit 1;
+	};
+
+	if(! -d $workdir) {
+	        ldv_eprint("Can't find WORK_DIR. Is it exists?.\n");
+		print_usage();
+	        exit 1;
+	};
+
+	# get all options
+	foreach $opt(@ARGV)
+	{
+		if($opt =~ s/--cmdfile=(.*)/$1/)
+		{
+			$cmdfile = $opt;
+		} 
+		elsif($opt =~ s/--cmdfile-out=(.*)/$1/)
+		{
+			$cmdfile_out = $opt;
+		}
+		elsif($opt =~ s/--basedir=(.*)/$1/)
+		{
+			$tempdir = $opt;
+		}
+	}
+	# test all options
+	if(!$cmdfile) {
+		ldv_eprint("You must setup input command stream file in option: \"--cmdfile\".");
+		print_usage();
+		exit 1;
+	} elsif(! -f $cmdfile) {
+		ldv_eprint("Can not find input command stream file: \"$cmdfile\".");
+		print_usage();
+		exit 1;
+	}
+	if(!$cmdfile_out) {
+		ldv_eprint("You must setup output command stream file in option: \"--cmdfile-out\".");
+		print_usage();
+		exit 1;
+	} elsif( -f $cmdfile_out) {
+		ldv_eprint("Output command stream file already exists: \"$cmdfile_out\".");
+		print_usage();
+		exit 1;
+	}
+	ldv_iprint("Selected command stream file: \"$cmdfile\".");
+	ldv_iprint("Selected output command stream file: \"$cmdfile_out\".");
+}
+
+sub print_usage
+{
+	ldv_print("USAGE: $psuffix --cmdfile=cmdfile --cmdfile-out=cmdfileout");
+}
+
+#######################################################
+# ldv print functions
+#######################################################
+sub ldv_print
+{
+	print "$psuffix: $_[0]\n";
+}
+
+sub ldv_eprint
+{
+	ldv_print "ERROR: $_[0]";
+}
+
+sub ldv_sprint
+{
+	if($log_level>=10) {
+		ldv_print("$_[0]");
+	}
+}
+
+sub ldv_iprint
+{
+	if($log_level>=20) {
+		ldv_print("INFO: $_[0]");
+	}
+}
+
+sub ldv_dprint
+{
+	if($log_level>=30) {
+		ldv_print("DEBUG: $_[0]");
+	}
+}
+
+sub ldv_tprint
+{
+	if($log_level>=40) {
+		ldv_print("TRACE: $_[0]");
+	}
+}
+
+sub ldv_aprint
+{
+	if($log_level==100) {
+		ldv_print("$_[0]");
+	}
+}
