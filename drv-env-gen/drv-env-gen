@@ -1,12 +1,15 @@
 #!/usr/bin/perl -w
 
 use XML::Twig;
+use FindBin;
+
+my $deg_home = "$FindBin::Bin";
 
 # interfaces
 my $ldv_cc = "java";
-my @ldv_cc_add_options = ("-ea","-jar","/opt/ldv/drv-env-gen/ldv_cc.jar");
+my @ldv_cc_add_options = ("-ea","-jar","$deg_home/ldv_cc.jar");
 my $ldv_ld = "java";
-my @ldv_ld_add_options = ("-ea","-jar","/opt/ldv/drv-env-gen/ldv_ld.jar");
+my @ldv_ld_add_options = ("-ea","-jar","$deg_home/ldv_ld.jar");
 # output ooption
 # -o
 my $output_option = "-o";

@@ -15,7 +15,7 @@ LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 
 KERNEL_LEVEL=0;
 
-if [ $1=="--driver-kernel" ]; then
+if [ "$1" == "--driver-kernel" ]; then
 	KERNEL_LEVEL=1;
 else
 	DRIVER_ABS=`readlink -f $1`;
@@ -100,10 +100,10 @@ for i in $@; do
 
 	echo "ldv-task: DEBUG: **************** Try to call LDV-core *****************";
 	if [ $KERNEL_LEVEL -eq 0 ]; then
-		echo "ldv-task: DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --basedir=$WORK_DIR_LOCAL --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;"
+		echo "WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
 		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
 	else
-		echo "ldv-task: DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --basedir=$WORK_DIR_LOCAL --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;"
+		echo "WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
 		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;
 	fi;
 
