@@ -12,7 +12,7 @@ XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
 LOG_MIRROR_TO_CONSOLE=1;
 
-IS_KERNEL=0;
+KERNEL_LEVEL=0;
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
@@ -105,7 +105,7 @@ for arg in $@; do
 			fi;
 		;;
  		--driver-kernel)
-                	IS_KERNEL=1;
+                	KERNEL_LEVEL=1;
                 ;;
                 *)
                         echo "$LOG_PREFIX: ERROR: Unknown options: '$arg'.";
@@ -125,6 +125,7 @@ DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
 # copy driver sources
 #
+if [ $KERNEL_LEVEL -eq 1 ]; then driver=$env; fi;
 cp -r $driver $DRIVER_DIR;
 if [ $? -ne 0 ]; then
 	bce_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
@@ -135,14 +136,15 @@ echo "<?xml version=\"1.0\"?>" > $cmdfileout;
 echo "<cmdstream>" >> $cmdfileout;
 echo "<basedir>$driver</basedir>" >> $cmdfileout;
 
+
 #
 # try to find "scripts/Makefile.build" in kernel source directory
 # 
-KERNEL_MAKEFILE_BUILD=$env"/scripts/Makefile.build";
-if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
-	bce_print "ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
-	exit 1;
-fi;
+#KERNEL_MAKEFILE_BUILD=$env"/scripts/Makefile.build";
+#if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
+#	bce_print "ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+#	exit 1;
+#fi;
 
 KERNEL_COMPILE_LOG=$TEMP_DIR/$KERNEL_COMPILE_LOG_FILENAME;
 cd $env;
@@ -164,45 +166,52 @@ fi;
 #    2.2   If Makefile contains obj-m, then kernel start to build this driver and exit
 #    3     Kernel print error
 #
-bce_print "INFO: Try to find Kbuild with obj-m...";
-FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
-for l in $FIND_KBUILD_FILE_OPERATION; do
-	bce_print "INFO: next Kbuild: \"$l\".";
-	if [ -n "`grep obj-m $l`" ]; then
-		CORRECT_MAKEFILE=`readlink -f $l`;
-		if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
-                bce_print "INFO: Correct Kbuild file is: \"$l\".";
-		break;
-	fi;
-done;
-if [ ! -n "$CORRECT_MAKEFILE" ]; then
-	bce_print "INFO: Kbuild not found.";
-	bce_print "INFO: Try to find Makefile with obj-m...";
-	FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
-	for l in $FIND_MAKEFILE_FILE_OPERATION; do
-		bce_print "INFO: next Makefile: \"$l\".";
+if [ $KERNEL_LEVEL -eq 0 ]; then
+	bce_print "INFO: Try to find Kbuild with obj-m...";
+	FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
+	for l in $FIND_KBUILD_FILE_OPERATION; do
+		bce_print "INFO: next Kbuild: \"$l\".";
 		if [ -n "`grep obj-m $l`" ]; then
 			CORRECT_MAKEFILE=`readlink -f $l`;
-			if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
-        	        bce_print "INFO: Correct Makefile is: \"$l\".";
+			if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
+			bce_print "INFO: Correct Kbuild file is: \"$l\".";
 			break;
 		fi;
 	done;
-fi;
-if [ ! -n "$CORRECT_MAKEFILE" ]; then
-	bce_print "ERROR: Can't find correct Makefile or Kbuild file.";
-	exit 1;
-fi;
-DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
-if [ $? -ne 0 ]; then
-	bce_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
-	exit 1;
+	if [ ! -n "$CORRECT_MAKEFILE" ]; then
+		bce_print "INFO: Kbuild not found.";
+		bce_print "INFO: Try to find Makefile with obj-m...";
+		FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
+		for l in $FIND_MAKEFILE_FILE_OPERATION; do
+			bce_print "INFO: next Makefile: \"$l\".";
+			if [ -n "`grep obj-m $l`" ]; then
+				CORRECT_MAKEFILE=`readlink -f $l`;
+				if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
+	        	        bce_print "INFO: Correct Makefile is: \"$l\".";
+				break;
+			fi;
+		done;
+	fi;
+	if [ ! -n "$CORRECT_MAKEFILE" ]; then
+		bce_print "ERROR: Can't find correct Makefile or Kbuild file.";
+		exit 1;
+	fi;
+	DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
+	if [ $? -ne 0 ]; then
+		bce_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
+		exit 1;
+	fi;
 fi;
 
 
 bce_print "DEBUG: Try to call kernel make..."
-bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-BUILDFILE=$cmdfileout make M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1;
+if [ $KERNEL_LEVEL -eq 0 ]; then
+	bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+	BUILDFILE=$cmdfileout make M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1;
+else
+	bce_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+	BUILDFILE=$cmdfileout make modules > $KERNEL_COMPILE_LOG 2>&1;
+fi;
 if [ $? -ne 0 ]; then
 	bce_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	exit 1;
@@ -224,43 +233,7 @@ if [ $? -ne 0 ]; then
 fi;
 
 
-#
-# Is it single-driver ?
-#
-# TODO: 1. find MODULE - test if LDFLAGS_FOR_FILE not exists for this module then add it
-#
-#IS_WITHOUT_LD=`grep -E '<ld id="[0-9]+">' $cmdfileout`;
-# driver single - then fix trace file - add <ld> for all cc
-#2if [ ! -n "$IS_WITHOUT_LD" ]; then
-#2	cat $cmdfileout | while read line; do
-#2		CC_FILE=`echo $line | grep -E '<out>.*</out>'`;
-#2		if [ -n "$cmdfileout" ]; then
-#2			CC_FILE=`echo $CC_FILE | sed 's/<out>//' | sed 's/<\/out>//'`;
-#
-# if c-file for this not existst then we pass it 
-#
-#2			if [ -n "$CC_FILE" -a -f "`echo $CC_FILE | sed 's/\.o$/.c/'`" ]; then
-#2				ABS_CC_FILE=`readlink -f $CC_FILE`;	
-#2				if [ $? -ne 0 ]; then
-#2					bec_print "ERROR: Can't get abs path for ld-file.";
-#2					exit 1;
-#2				fi;
-#2
-#2				if [ -n "`echo $ABS_CC_FILE | grep \"$KERNEL_ENV_PREFIX\"`" ]; then continue; fi;
-#2				echo "<ld id=\"1\">" >> $cmdfileout;
-#2				echo "  <cwd>$env</cwd>" >> $cmdfileout;
-#2				echo "  <opt>-m</opt>" >> $cmdfileout;
-#2				echo "  <opt>-r</opt>" >> $cmdfileout;
-#2				echo "  <in>$ABS_CC_FILE</in>" >> $cmdfileout;
-#2				echo "  <out>"`echo $ABS_CC_FILE | sed 's/\.o$/.ko/'`"</out>" >> $cmdfileout;
-#2				echo "</ld>" >> $cmdfileout;
-#2			fi;
-#2		fi;
-#2	done;
-#2fi;
-
 echo "</cmdstream>" >> $cmdfileout;
-
 cmdfileout_tmp=$cmdfileout"_tmp";
 touch $cmdfileout_tmp;
 if [ $? -ne 0 ] ; then 

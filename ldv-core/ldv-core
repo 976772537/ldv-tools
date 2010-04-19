@@ -57,6 +57,8 @@ DSCV="$DSCV_DIR/dscv";
 RINSTR_DIR="$LDV_HOME/rule-instrumentor";
 RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 
+KERNEL_LEVEL=0;
+
 #
 # read and test environment variables
 #
@@ -108,6 +110,9 @@ for arg in $@; do
 			        exit 1;
 			fi;
                 ;;
+                --driver-kernel)
+ 			KERNEL_LEVEL=1;	
+		;;
                 --driver=*)
                 	rdriver=`echo $arg | sed 's/--driver=//g'`
 			if [ ! -n "$rdriver" ]; then
@@ -151,27 +156,43 @@ if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Failed to create log for unarchiver: \"$UNARCH_LOG\".";
 	exit 1;
 fi;
-#
-# test format for driver file and unpack driver
-#
-case `file -b $driver --mime-type` in
-	application/x-bzip2)
-		tar xvjpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
-	application/x-gzip)
-		tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
-	*)
-		ldv_print "ERROR: Unknown driver source type.";
-		exit 1;;
-esac
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Failed to unpacked archive: \"$driver\"."
-        exit 1;
+
+if [ $KERNEL_LEVEL -eq 0 ]; then
+	#
+	# test format for driver file and unpack driver
+	#
+	case `file -b $driver --mime-type` in
+		application/x-bzip2)
+			tar xvjpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
+		application/x-gzip)
+			tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
+		*)
+			ldv_print "ERROR: Unknown driver source type.";
+			exit 1;;
+	esac
+	if [ $? -ne 0 ]; then
+	        ldv_print "ERROR: Failed to unpacked archive: \"$driver\"."
+	        exit 1;
+	fi;
+else
+	cp -r $env $TEMP_DIR/"kdriver";
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Can't copy drivers source code.";
+		exit 1;
+	fi;
+	env=$TEMP_DIR/"kdriver";
 fi;
 
 XML_AFTER_BCE=$TEMP_DIR/$XML_FILENAME_AFTER_BCE;
 ldv_print "DEBUG: *********** Try to call Build Command Extractor ***********";
-ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
-WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
+
+if [ $KERNEL_LEVEL -eq 0 ]; then
+	ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
+	WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
+else
+	ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $BCE --env=$env --driver-kernel ----cmdfile-out=$XML_AFTER_BCE;"
+	WORK_DIR=$TEMP_DIR $BCE --env=$env --driver-kernel --cmdfile-out=$XML_AFTER_BCE;
+fi;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
         exit 1;

@@ -118,7 +118,7 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 # II.
-sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = $XGCC \$(ld_flags) \$(link_multi_deps) -r -o \$@ >> \$(BUILDFILE); \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
+sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = $XGCC \$(ld_flags) \$(link_multi_deps) -r -o \`readlink -f \$@\` >> \$(BUILDFILE); \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	echo "extractor: ERROR: Failed patch (III. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
@@ -159,7 +159,8 @@ fi;
 #
 # patch it...
 #
-sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$@/g" $KERNEL_MAKEFILE_MODPOST;
+sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \`readlink -f \$@\`/g" $KERNEL_MAKEFILE_MODPOST;
+#sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$@/g" $KERNEL_MAKEFILE_MODPOST;
 #sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
 #sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
 #sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC -r \$(LDFLAGS) \$(LDFLAGS_MODULE) \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;

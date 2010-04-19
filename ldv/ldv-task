@@ -13,12 +13,18 @@ LDV_KMANAGER=$LDV_DIR/ldv-kmanager;
 LDV_CORE_DIR=$LDV_HOME/ldv-core;
 LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 
-DRIVER_ABS=`readlink -f $1`;
-if [ $? -ne 0 ]; then
-	echo "ldv-task: ERROR: Can't find abs-path for driver.";
-	exit 1;
-fi;
+KERNEL_LEVEL=0;
 
+if [ $1=="--driver-kernel" ]; then
+	KERNEL_LEVEL=1;
+else
+	DRIVER_ABS=`readlink -f $1`;
+	if [ $? -ne 0 ]; then
+		echo "ldv-task: ERROR: Can't find abs-path for driver.";
+		exit 1;
+	fi;
+fi;
+	
 if [ $# -lt 3 ]; then
 	echo "ldv-task: ERROR: USAGE: ldv-task driver workdir=wordir env:rule,rule... env:rule,rule... ...";
 	exit 1;
@@ -93,8 +99,14 @@ for i in $@; do
 
 
 	echo "ldv-task: DEBUG: **************** Try to call LDV-core *****************";
-	echo "ldv-task: DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --basedir=$WORK_DIR_LOCAL --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;"
-	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		echo "ldv-task: DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --basedir=$WORK_DIR_LOCAL --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;"
+		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
+	else
+		echo "ldv-task: DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --basedir=$WORK_DIR_LOCAL --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;"
+		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;
+	fi;
+
 	if [ $? -ne 0 ]; then
 		echo "ldv-task: ERROR: ldv-core failed.";
 	fi;
