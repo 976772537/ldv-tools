@@ -15,7 +15,7 @@ LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 
 KERNEL_LEVEL=0;
 
-if [ "$1" == "--driver-kernel" ]; then
+if [ "$1" == "--kernel-driver" ]; then
 	KERNEL_LEVEL=1;
 else
 	DRIVER_ABS=`readlink -f $1`;

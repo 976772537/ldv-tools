@@ -52,8 +52,8 @@ public class DEG_cc {
 		for(i=0; i<args.length && !args[i].equals("-o"); i++ ) {
 			File inputFile = new File(args[i]);
 			if(!inputFile.exists()) {
-				System.out.println("ldv_cc: ERROR: Input file does't exists: \""+args[i]+"\"");
-				return false;
+				System.out.println("ldv_cc: WARNING: Input file does't exists: \""+args[i]+"\"");
+				//return false;
 			}
 			inputFiles.add(args[i]);
 		}
