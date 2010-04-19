@@ -3,7 +3,7 @@
 
 use Cwd qw(abs_path cwd);
 use English;
-use Env qw(LDV_KERNEL_RULES);
+use Env qw(LDV_DEBUG LDV_KERNEL_RULES);
 use File::Basename qw(basename fileparse);
 use File::Copy qw(mv);
 use FindBin;
@@ -29,6 +29,11 @@ use File::Copy::Recursive qw(rcopy);
 # retn: nothing.
 sub create_general_aspect();
 
+# Determine debug level in depend on LDV_DEBUG environment variable.
+# args: no.
+# retn: nothing.
+sub get_debug_level();
+
 # Obtain information for required model from models database xml.
 # args: no.
 # retn: nothing.
@@ -49,6 +54,15 @@ sub help();
 # args: no.
 # retn: nothing.
 sub prepare_files_and_dirs();
+
+# Debug functions group. They print some information in depend on debug level.
+# args: string to be printed.
+# retn: nothing.
+sub print_debug_normal($);
+sub print_debug_info($);
+sub print_debug_debug($);
+sub print_debug_trace($);
+sub print_debug_all($);
 
 # Process single cc command from input xml file.
 # args: no.
@@ -86,6 +100,25 @@ my $common_model_dir;
 # Suffixes for common models in plain mode.
 my $common_c_suffix = '.common.c';
 my $common_o_suffix = '.common.o';
+
+# Debug levels flags. The amount of debug information increases in depend of 
+# debug level and each following level includes the previous one:
+#   'normal' - show execution progress shortly.
+#   'info' - show executed commands.
+#   'debug' - full information needed for debug is shown.
+#   'trace' - both debug and some additional information is shown.
+#   'all' - print so much information as can.
+my $debug_normal = 0;
+my $debug_info = 0;
+my $debug_debug = 0;
+my $debug_trace = 0;
+my $debug_all = 0;
+
+# Prefix for all debug messages.
+my $debug_name = 'rule-instrumentor';
+
+# Stream where debug messages will be printed.
+my $debug_stream = \*STDOUT;
 
 # Errors return codes.
 my $error_syntax = 1; 
@@ -163,6 +196,7 @@ my $tool_working_dir;
 # Xml nodes names.
 my $xml_cmd_basedir = 'basedir';
 my $xml_cmd_attr_id = 'id';
+my $xml_cmd_attr_check = 'check';
 my $xml_cmd_entry_point = 'main';
 my $xml_cmd_cc = 'cc';
 my $xml_cmd_cwd = 'cwd';
@@ -186,10 +220,14 @@ my $xml_model_db_model = 'model';
 # Main section.
 ################################################################################
 
-# Remember absolute path to the current working directory.
-$tool_working_dir = Cwd::cwd();
+# Specify debug level.
+get_debug_level();
 
-# Get and parse command-line options.
+print_debug_debug("Obtain absolute path of the current working directory.");
+$tool_working_dir = Cwd::cwd() 
+  or die("Couldn't get current working directory");
+
+print_debug_normal("Process command-line options.");
 get_opt();
 
 # Check presence of needed files and directories. Copy needed files and
@@ -269,6 +307,45 @@ sub create_general_aspect()
     close($file_aspect_general) 
       or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
   }
+}
+
+sub get_debug_level()
+{
+  # By default (in case when LDV_DEBUG environment variable isn't specified) and
+  # when LDV_DEBUG is 0 just information on errors is printed. Otherwise:
+  if ($LDV_DEBUG)
+  {
+    if ($LDV_DEBUG >= 10)
+    {
+      $debug_normal = 1;
+    }
+    
+    if ($LDV_DEBUG >= 20)
+    {
+      $debug_info = 1;
+    }
+    
+    if ($LDV_DEBUG >= 30)
+    {
+      $debug_debug = 1;
+    }
+    
+    if ($LDV_DEBUG >= 40)
+    {
+      $debug_trace = 1;
+    }
+    
+    if ($LDV_DEBUG == 100)
+    {
+      $debug_all = 1;
+    }
+  }
+  else
+  {
+    $LDV_DEBUG = 0;
+  }
+  
+  print_debug_debug("Debug level is set correspondingly to LDV_DEBUG environment variable value '$LDV_DEBUG'");
 }
 
 sub get_model_info()
@@ -609,6 +686,56 @@ sub prepare_files_and_dirs()
   $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
 }
 
+sub print_debug_normal($)
+{
+  my $message = shift;
+  
+  if ($debug_normal)
+  {
+    print($debug_stream "$debug_name: NORMAL: $message\n");
+  }
+}
+
+sub print_debug_info($)
+{
+  my $message = shift;
+  
+  if ($debug_info)
+  {
+    print($debug_stream "$debug_name: INFO: $message\n");
+  }
+}
+
+sub print_debug_debug($)
+{
+  my $message = shift;
+  
+  if ($debug_debug)
+  {
+    print($debug_stream "$debug_name: DEBUG: $message\n");
+  }
+}
+
+sub print_debug_trace($)
+{
+  my $message = shift;
+  
+  if ($debug_trace)
+  {
+    print($debug_stream "$debug_name: TRACE: $message\n");
+  }
+}
+
+sub print_debug_all($)
+{
+  my $message = shift;
+  
+  if ($debug_all)
+  {
+    print($debug_stream "$debug_name: ALL: $message\n");
+  }
+}
+
 sub process_cmd_cc()
 {
   if ($kind_isaspect)
@@ -668,68 +795,103 @@ sub process_cmd_cc()
 
 sub process_cmd_ld()
 {
+  my $ischeck = $cmd{'check'} eq 'true';
+
   if ($kind_isaspect)
   {
-    # On each ld command we run llvm linker for all input files together to 
-    # produce one linked file. Note that excact one file to be linked must be
-    # generally (i.e. with usual and common aspects) instrumented. We choose the
-    # first one here. Other files must be usually instrumented.
-    my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map {$_ .= $llvm_bitcode_usual_suffix; $_} @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]);
-    my @args = ($ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+    # Prepare C file to be checked for ld command marked with 'check = "true"'.   
+    if ($ischeck)
+    {  
+      # On each ld command we run llvm linker for all input files together to 
+      # produce one linked file. Note that excactly one file to be linked must 
+      # be generally (i.e. with usual and common aspects) instrumented. We 
+      # choose the first one here. Other files must be usually instrumented.
+      my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
+      my @args = ($ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
 
-    # Go to build directory to execute ld command.
-    chdir($cmd{'cwd'})
-      or die("Can't change directory to '$cmd{'cwd'}'");
+      # Go to build directory to execute ld command.
+      chdir($cmd{'cwd'})
+        or die("Can't change directory to '$cmd{'cwd'}'");
 
-    system(@args) == 0 or die("System '@args' call failed: $ERRNO");
+      system(@args) == 0 or die("System '@args' call failed: $ERRNO");
 
-    # Come back.
-    chdir($tool_working_dir)
-      or die("Can't change directory to '$tool_working_dir'");
+      # Come back.
+      chdir($tool_working_dir)
+        or die("Can't change directory to '$tool_working_dir'");
 
-    die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
-      unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
+        unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
 
-    # Make name for c file corresponding to the linked one.
-    my $c_out = "$cmd{'out'}$llvm_bitcode_linked_suffix$llvm_c_backend_suffix";
+      # Make name for c file corresponding to the linked one.
+      my $c_out = "$cmd{'out'}$llvm_bitcode_linked_suffix$llvm_c_backend_suffix";
 
-    # Linked file is converted to c by means of llvm c backend.
-    @args = ($ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
-    system(@args) == 0 or die("System '@args' call failed: $ERRNO");
+      # Linked file is converted to c by means of llvm c backend.
+      @args = ($ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
+      system(@args) == 0 or die("System '@args' call failed: $ERRNO");
 
-    die("Something wrong with aspectator: it doesn't produce file '$c_out'") 
-      unless (-f "$c_out");
+      die("Something wrong with aspectator: it doesn't produce file '$c_out'") 
+        unless (-f "$c_out");
 
-    # Print corresponding commands to output xml file. 
-    $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
-    $xml_writer->dataElement('cwd' => $cmd{'cwd'});
-    $xml_writer->dataElement('in' => $c_out);
-    # Use here the first input file name to relate with corresponding ld 
-    # command.
-    $xml_writer->dataElement('out' => ${$cmd{'ins'}}[0]);
-    $xml_writer->dataElement('engine' => $ldv_model{'engine'});
-    # Close cc tag.
-    $xml_writer->endTag();
+      # Print corresponding commands to output xml file. 
+      $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
+      $xml_writer->dataElement('cwd' => $cmd{'cwd'});
+      $xml_writer->dataElement('in' => $c_out);
+      # Use here the first input file name to relate with corresponding ld 
+      # command.
+      $xml_writer->dataElement('out' => ${$cmd{'ins'}}[0]);
+      $xml_writer->dataElement('engine' => $ldv_model{'engine'});
+      # Close cc tag.
+      $xml_writer->endTag();
 
-    $xml_writer->startTag('ld', 'id' => "$cmd{'id'}-llvm-ld");
-    $xml_writer->dataElement('cwd' => $cmd{'cwd'});
-    $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);
-    $xml_writer->dataElement('out' => "$cmd{'out'}$llvm_bitcode_linked_suffix");
-    $xml_writer->dataElement('engine' => $ldv_model{'engine'});
+      $xml_writer->startTag('ld', 'id' => "$cmd{'id'}-llvm-ld");
+      $xml_writer->dataElement('cwd' => $cmd{'cwd'});
+      $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);
+      $xml_writer->dataElement('out' => "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      $xml_writer->dataElement('engine' => $ldv_model{'engine'});
 
-    foreach my $entry_point (@{$cmd{'entry point'}})
-    {
-       $xml_writer->dataElement('main' => $entry_point);
+      foreach my $entry_point (@{$cmd{'entry point'}})
+      {
+        $xml_writer->dataElement('main' => $entry_point);
+      }
+
+      $xml_writer->dataElement('error' => $ldv_model{'error'});
+    
+      # Copy static verifier hints as them.
+      my $twig_hints = $ldv_model{'twig hints'}->copy->sprint;
+      $xml_writer->raw($twig_hints);
+    
+      # Close ld tag.
+      $xml_writer->endTag();
     }
+    # Otherwise create two linked variants: with and without general bytecode 
+    # file.
+    else
+    {
+      # On each ld command we run llvm linker for all input files together to 
+      # produce one linked file. Also produce linked file that contains excactly 
+      # one file generally (i.e. with usual and common aspects) instrumented. 
+      # We choose the first one here. Other files must be usually instrumented.
+      my @ins_usual = map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}});
+      my @args_usual = ($ldv_linker, @llvm_linker_opts, @ins_usual, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      my @ins_general = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
+      my @args_general = ($ldv_linker, @llvm_linker_opts, @ins_general, '-o', "$cmd{'out'}$llvm_bitcode_general_suffix");
 
-    $xml_writer->dataElement('error' => $ldv_model{'error'});
-    
-    # Copy static verifier hints as them.
-    my $twig_hints = $ldv_model{'twig hints'}->copy->sprint;
-    $xml_writer->raw($twig_hints);
-    
-    # Close ld tag.
-    $xml_writer->endTag();
+      # Go to build directory to execute ld command.
+      chdir($cmd{'cwd'})
+        or die("Can't change directory to '$cmd{'cwd'}'");
+
+      system(@args_usual) == 0 or die("System '@args_usual' call failed: $ERRNO");
+      system(@args_general) == 0 or die("System '@args_general' call failed: $ERRNO");
+
+      # Come back.
+      chdir($tool_working_dir)
+        or die("Can't change directory to '$tool_working_dir'");
+
+      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
+        unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_general_suffix'") 
+        unless (-f "$cmd{'out'}$llvm_bitcode_general_suffix");
+    }
   }
 }
 
@@ -770,7 +932,7 @@ sub process_cmds()
 
       # General commands section.
       my $id_attr = $cmd->att($xml_cmd_attr_id)
-        or die("Input commands xml file doesn't contain '$xml_cmd_attr_id' tag for some command");
+        or die("Input commands xml file doesn't contain '$xml_cmd_attr_id' attribute for some command");
 
       my $cwd = $cmd->first_child($xml_cmd_cwd)
         or die("Input commands xml file doesn't contain '$xml_cmd_cwd' tag for '$id_attr' command"); 
@@ -784,6 +946,24 @@ sub process_cmds()
         or die("Input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
 
       my $out_text = $out->text;
+      
+      # Attribute that says whether file must be checked or not. Note that there
+      # may be not such attribute for the given command at all.
+      my $check_attr = $out->att($xml_cmd_attr_check);
+
+      my $check_text = '';
+       
+      # If check attribute was specified and it's value is true, then use 
+      # 'true' value in future.
+      if ($check_attr and $check_attr eq 'true')
+      {
+        $check_text = 'true';     
+      }
+      # Otherwise use 'false' value.
+      else
+      {
+        $check_text = 'false';
+      }
 
       # Read array of input files.
       my @ins;
@@ -803,7 +983,7 @@ sub process_cmds()
         unless (scalar(@ins));
 
       # Replace maingen basedirectory prefix with the rule instrumentor one.
-      @ins_text = map 
+      @ins_text = map( 
       {
         my $in_text = $_;
 
@@ -817,7 +997,7 @@ sub process_cmds()
         }
 
         $in_text;
-      } @ins_text;
+      } @ins_text);
 
       for (my $in = $cmd->first_child($xml_cmd_in)
         ; $in
@@ -944,6 +1124,7 @@ sub process_cmds()
         'cwd' => $cwd_text,
         'ins' => \@ins_text,
         'out' => $out_text,
+        'check' => $check_text,
         'opts' => \@opts);
 
       undef($cmd{'entry point'});
