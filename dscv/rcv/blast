@@ -145,6 +145,7 @@ sub execute_ld
 	my $hintsT = $cmdT->first_child('hints');
 	# Get entry points
 	my @mains = $cmdT->children_text('main');
+	@mains or vsay 10,"WARNING!  No mains specified for file ".$cmdT->first_child_text('out')."\n";
 	# Get list of files to analyze:
 	my @files = map {$_->{i_file}} @$c_files_info;
 	# List of error locations
