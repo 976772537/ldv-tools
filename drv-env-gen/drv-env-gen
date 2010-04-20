@@ -149,9 +149,13 @@ sub hxml_cmdstream_cc {
 		close(FIL);
 		foreach $line (@strings)
 		{
-			if($line =~ s/.*\:-DLDV_MAIN/ldv_main/) {
+#			if($line =~ s/\n//) {
+#				XML::Twig::Elt->new("opt",$line)->paste('last_child',$_[1]);
+#			}
+
+			if($line =~ s/.*\://) {
 				$line =~  s/\n//;
-				XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
+				XML::Twig::Elt->new("opt",$line)->paste('last_child',$_[1]);
 			}
 		}
 	}
@@ -217,9 +221,14 @@ sub hxml_cmdstream_ld {
 		close(FIL);
 		foreach $line (@strings)
 		{
-			if($line =~ s/\n//) {
-				XML::Twig::Elt->new("out",$line)->paste('last_child',$_[1]);
+			if($line =~ s/-DLDV_MAIN/ldv_main/) {
+				$line =~  s/\n//;
+				XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
 			}
+
+#			if($line =~ s/\n//) {
+#				XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
+#			}
 		}
 	}
 }
