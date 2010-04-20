@@ -37,13 +37,13 @@ my $inld = 0;
 my $ismodule = 0;
 foreach $line (@strings)
 {
-	if($inld == 0 && ($line =~ m/<ld.*>/))
+	if($inld == 0 && ($line =~ m/<ld id="[0-9]+">/))
 	{
 		$inld = 1;
 	}  
 	elsif($inld == 1)
 	{
-		if (m/<\/ld>/)
+		if ($line =~ m/<\/ld>/)
 		{
 			$inld = 0;
 		} 
@@ -52,16 +52,6 @@ foreach $line (@strings)
 			$ismodule = 1;
 		}
 	}
-#	elsif($ismodule ==0 && m/<\/cmdstream>/)
-#	{
-#		print `$as_gcc $module_file -o @ARGV`;
-#		print "<ld id=\"0\">";
-#		print "<cwd>$module_file<\/cwd>";
-#		print "<in>$module_file<\/in>";
-#		print "<opt>-o<\/out>";
-#		print "<out>@ARGV[0]<\/out>";
-#		print "<\/ld>";
-#	}
 	print(FIL $line);
 }
 if($ismodule == 0)

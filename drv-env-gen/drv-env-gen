@@ -149,10 +149,6 @@ sub hxml_cmdstream_cc {
 		close(FIL);
 		foreach $line (@strings)
 		{
-#			if($line =~ s/\n//) {
-#				XML::Twig::Elt->new("opt",$line)->paste('last_child',$_[1]);
-#			}
-
 			if($line =~ s/.*\://) {
 				$line =~  s/\n//;
 				XML::Twig::Elt->new("opt",$line)->paste('last_child',$_[1]);
@@ -169,7 +165,6 @@ sub hxml_cmdstream_ld {
   		if(!($indir =~ s/$xmlbasedir/$my_driverdir/)) {
 			my $indir_full = $_[1]->first_child('cwd')->text."/".$indir;
 			$section->set_text($indir_full);
-#		$_[1]->first_child('cwd')->set_text($indir_full);
 			if(!($indir_full =~ s/$xmlbasedir/$my_driverdir/)) {
 				ldv_eprint("Can't find basedir pattern in ld indirs.");
 				exit 1;
@@ -225,10 +220,6 @@ sub hxml_cmdstream_ld {
 				$line =~  s/\n//;
 				XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
 			}
-
-#			if($line =~ s/\n//) {
-#				XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
-#			}
 		}
 	}
 }

@@ -210,8 +210,8 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	BUILDFILE=$cmdfileout make M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1;
 else
 	bce_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-#	BUILDFILE=$cmdfileout make modules > $KERNEL_COMPILE_LOG 2>&1;
-	BUILDFILE=$cmdfileout make > $KERNEL_COMPILE_LOG 2>&1;
+	BUILDFILE=$cmdfileout make modules > $KERNEL_COMPILE_LOG 2>&1;
+#	BUILDFILE=$cmdfileout make > $KERNEL_COMPILE_LOG 2>&1;
 fi;
 if [ $? -ne 0 ]; then
 	bce_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";

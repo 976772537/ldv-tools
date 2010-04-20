@@ -68,10 +68,11 @@ public class DEG_cc {
 			return false;
 		}
 		
-		//File outputFileObj = new File(args[i]);
-		//if(outputFileObj.exists()) {
-				//return false;
-		//}
+		File outputFileObj = new File(args[i]);
+		if(outputFileObj.exists()) {
+			System.out.println("ldv_cc: WARNING: Output file already exists: \""+args[i]+"\".");
+		}
+		
 		outputFile = args[i++];
 		
 		if(!args[i++].equals("-c")) {
