@@ -106,20 +106,20 @@ Inline mode options
 
 =item B<files> [list of files]
 
-B<UNIMPLEMENTED!> In inline mode, specifies the list of files that will be verified as if they were linked together.
+In inline mode, specifies the list of files that will be verified as if they were linked together.
 
 =cut
 $inline_handlers{'files'}=make_handler('files',\$config->{inl_files});
 
 =item B<options> [list of GCC options]
 
-B<UNIMPLEMENTED!> In inline mode, specifies the list of GCC options that will be passsed to compiler and/or preprocessor
+In inline mode, specifies the list of GCC options that will be passsed to compiler and/or preprocessor
 
 =cut
 $inline_handlers{'options'}=make_handler('options',\$config->{inl_options});
 =item B<option> [list of GCC options]
 
-B<UNIMPLEMENTED!> In inline mode, specifies the list of entry points to check.  If omitted, only one entry point, C<main>, is checked.
+In inline mode, specifies the list of entry points to check.  If omitted, only one entry point, C<main>, is checked.
 
 =cut
 $inline_handlers{'entries'}=make_handler('entries',\$config->{inl_entries});
@@ -244,7 +244,7 @@ if ($mode eq 'inline'){
 		# Add input-output tags
 		XML::Twig::Elt->new('in',{},$file)->paste($ccT);
 		my $outfile = $file; $outfile =~ s/(.*)\.(.*)$/$1.o/;
-		XML::Twig::Elt->new('out',{},$file)->paste($ccT);
+		XML::Twig::Elt->new('out',{},$outfile)->paste($ccT);
 		XML::Twig::Elt->new('cwd',{},getcwd())->paste($ccT);
 
 		push @outfiles, $outfile;
@@ -372,10 +372,15 @@ for my $property (@properties){
 	# make outcmdfile
 	my $outfile = "$out_cmd_dir/cmd$property.xml";
 	# Prepare directory
-	my $ri_basedir_for_rule = "$ri_basedir/$property";
-	mkpath($ri_basedir_for_rule);
-	# Copy driver
-	$copy_driver->($ri_basedir_for_rule);
+	my $ri_basedir_for_rule;
+	if ($mode ne 'inline'){
+		$ri_basedir_for_rule = "$ri_basedir/$property";
+		mkpath($ri_basedir_for_rule);
+		# Copy driver
+		$copy_driver->($ri_basedir_for_rule);
+	}else{
+		$ri_basedir_for_rule = './'
+	}
 
 	my @rule_instr_args = ($config->{rule_ins},
 		"--basedir=$ri_basedir_for_rule",
