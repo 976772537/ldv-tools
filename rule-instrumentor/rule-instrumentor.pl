@@ -24,7 +24,7 @@ use File::Copy::Recursive qw(rcopy);
 # Subroutine prototypes.
 ################################################################################
 
-# Merge usual and common aspects in aspect mode.
+# Merge usual and common aspects in the aspect mode.
 # args: no.
 # retn: nothing.
 sub create_general_aspect();
@@ -97,7 +97,7 @@ my $cmd_basedir;
 # Directory where common model is placed. It's needed to find appropriate 
 # header files.
 my $common_model_dir;
-# Suffixes for common models in plain mode.
+# Suffixes for common models in the plain mode.
 my $common_c_suffix = '.common.c';
 my $common_o_suffix = '.common.o';
 
@@ -248,17 +248,17 @@ print($file_xml_out "<?xml version=\"1.0\"?>\n");
 
 my $xml_writer;
 
-# In aspect mode prepare special xml writer.
+# In the aspect mode prepare special xml writer.
 if ($kind_isaspect)
 {
-  print_debug_trace("Prepare a xml writer, open a root node tag and print a base directory in aspect mode.");  
+  print_debug_trace("Prepare a xml writer, open a root node tag and print a base directory in the aspect mode.");  
   $xml_writer = new XML::Writer(OUTPUT => $file_xml_out, NEWLINES => 1, UNSAFE => 1);
   $xml_writer->startTag('cmdstream');
   $xml_writer->dataElement('basedir' => $opt_basedir);
 }
 else
 {
-  print_debug_trace("Print a root node open tag in plain mode.");
+  print_debug_trace("Print a root node open tag in the plain mode.");
   print($file_xml_out "<cmdstream>");
 }
 
@@ -267,13 +267,13 @@ process_cmds();
 
 if ($kind_isaspect)
 {
-  print_debug_trace("Close the root node tag and peform final checs in aspect mode.");
+  print_debug_trace("Close the root node tag and peform final checs in the aspect mode.");
   $xml_writer->endTag();
   $xml_writer->end();
 }
 else
 {
-  print_debug_trace("Print root node close tag in plain mode.");
+  print_debug_trace("Print root node close tag in the plain mode.");
   print($file_xml_out "\n</cmdstream>\n");
 }
 
@@ -294,16 +294,12 @@ sub create_general_aspect()
 
     open(my $file_aspect_general, '>', "$ldv_model_dir/$ldv_model{'general'}")
       or die("Couldn't open file '$ldv_model_dir/$ldv_model{'general'}' for write: $ERRNO");
-
     cat("$ldv_model_dir/$ldv_model{'aspect'}", $file_aspect_general)
       or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'aspect'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
-
     cat("$ldv_model_dir/$ldv_model{'common'}", $file_aspect_general)
       or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
-
     close($file_aspect_general) 
       or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
-      
     print_debug_debug("The general aspect '$ldv_model_dir/$ldv_model{'general'}' was created.");
   }
 }
@@ -405,7 +401,7 @@ sub get_model_info()
       my $files = $model->first_child($xml_model_db_files)
         or die("Models database doesn't contain '$xml_model_db_files' tag for '$id_attr' model");
 
-      # Aspect file is optional but it's needed in aspect mode.
+      # Aspect file is optional but it's needed in the aspect mode.
       print_debug_trace("Read aspect file name.");
       my $aspect = $files->first_child_text($xml_model_db_files_aspect);
       print_debug_debug("The aspect file '$aspect' is specified for the '$id_attr' model") 
@@ -526,18 +522,20 @@ sub get_opt()
     warn("Directory specified through option --basedir|-b doesn't exist");
     help();
   }
-  print_debug_trace("The instrument basedir is '$opt_basedir'."); 
+  print_debug_trace("The instrument base directory is '$opt_basedir'."); 
 
   unless(-f $opt_cmd_xml_in)
   {
     warn("File specified through option --cmdfile|-c doesn't exist");
     help();
   }
-  print_debug_trace("The instrument commands input file is '$opt_cmd_xml_in'.");
+  print_debug_trace("The commands input file is '$opt_cmd_xml_in'.");
 
   open($file_xml_out, '>', "$opt_cmd_xml_out")
     or die("Couldn't open file '$opt_cmd_xml_out' specified through option --cmdfile-out|-o for write: $ERRNO");
-  print_debug_trace("The instrument commands output file is '$opt_cmd_xml_out'.");
+  print_debug_trace("The commands output file is '$opt_cmd_xml_out'.");
+
+  print_debug_trace("The model identifier is '$opt_model_id'."); 
   
   print_debug_debug("The command-line options are processed successfully.");
 }
@@ -615,7 +613,7 @@ sub prepare_files_and_dirs()
   }
   print_debug_debug("The LDV_HOME is '$LDV_HOME'.");
   
-  print_debug_trace("Obtain the directory where all rule instrumentor auxiliary instruments (such as aspectator) are placed.");
+  print_debug_trace("Obtain the directory where all instrumentor auxiliary tools (such as aspectator) are placed.");
   $ldv_rule_instrumentor = "$LDV_HOME/rule-instrumentor";
   unless(-d $ldv_rule_instrumentor)
   {
@@ -763,51 +761,62 @@ sub process_cmd_cc()
     # On each cc command we run aspectator on corresponding file with 
     # corresponding model aspect and options. Also add -I option with 
     # models directory needed to find appropriate headers for usual aspect.
+    print_debug_debug("Process the cc command using usual aspect.");
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-
+    $ENV{'LDV_QUIET'} = 1;
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
-    # Go to build directory to execute cc command.
+    print_debug_trace("Go to the build directory to execute cc command.");
     chdir($cmd{'cwd'})
       or die("Can't change directory to '$cmd{'cwd'}'");
 
+    print_debug_info("Execute the command '@args'");
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");
 
-    # Come back.
+    print_debug_trace("Go to the initial directory.");
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
 
     die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
       unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+    print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
 
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
     # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
+    print_debug_trace("Copy the usual bitcode file.");
     mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
       or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+    print_debug_debug("The usual bitcode file is '$cmd{'out'}$llvm_bitcode_usual_suffix'.");
 
     # Also do this with general aspect. Don't forget to add -I option with 
     # models directory needed to find appropriate headers for common aspect.
+    print_debug_debug("Process the cc command using general aspect.");
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
+    $ENV{'LDV_QUIET'} = 1;
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
-    # Go to build directory to execute cc command.
+    print_debug_trace("Go to the build directory to execute cc command.");    
     chdir($cmd{'cwd'})
       or die("Can't change directory to '$cmd{'cwd'}'");
-
+      
+    print_debug_info("Execute the command '@args'");
     system(@args) == 0 
       or die("System '@args' call failed: $ERRNO");
 
     die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
       unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+    print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
 
     # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
     # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
+    print_debug_trace("Copy the general bitcode file.");
     mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
       or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
-
-    # Come back.
+    print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'.");
+    
+    print_debug_trace("Go to the initial directory.");
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
   }
@@ -819,7 +828,8 @@ sub process_cmd_ld()
 
   if ($kind_isaspect)
   {
-    # Prepare C file to be checked for ld command marked with 'check = "true"'.   
+    print_debug_debug("Prepare a C file to be checked for the ld command marked with 'check = \"true\"'.");
+    
     if ($ischeck)
     {  
       # On each ld command we run llvm linker for all input files together to 
@@ -829,30 +839,34 @@ sub process_cmd_ld()
       my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
       my @args = ($ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
 
-      # Go to build directory to execute ld command.
+      print_debug_trace("Go to the build directory to execute ld command.");
       chdir($cmd{'cwd'})
         or die("Can't change directory to '$cmd{'cwd'}'");
-
+        
+      print_debug_info("Execute the command '@args'");
       system(@args) == 0 or die("System '@args' call failed: $ERRNO");
-
-      # Come back.
+      
+      print_debug_trace("Go to the initial directory.");
       chdir($tool_working_dir)
         or die("Can't change directory to '$tool_working_dir'");
 
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
 
       # Make name for c file corresponding to the linked one.
       my $c_out = "$cmd{'out'}$llvm_bitcode_linked_suffix$llvm_c_backend_suffix";
 
       # Linked file is converted to c by means of llvm c backend.
       @args = ($ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
+      print_debug_info("Execute the command '@args'");
       system(@args) == 0 or die("System '@args' call failed: $ERRNO");
 
       die("Something wrong with aspectator: it doesn't produce file '$c_out'") 
         unless (-f "$c_out");
+      print_debug_debug("The C backend produces the C file '$c_out'");
 
-      # Print corresponding commands to output xml file. 
+      print_debug_trace("Print the corresponding commands to the output xml file."); 
       $xml_writer->startTag('cc', 'id' => "$cmd{'id'}-llvm-cc");
       $xml_writer->dataElement('cwd' => $cmd{'cwd'});
       $xml_writer->dataElement('in' => $c_out);
@@ -887,6 +901,8 @@ sub process_cmd_ld()
     # file.
     else
     {
+      print_debug_debug("Prepare two linked bytecode files with and without general bytecode for the ld command marked with 'check = \"true\"'.");
+
       # On each ld command we run llvm linker for all input files together to 
       # produce one linked file. Also produce linked file that contains excactly 
       # one file generally (i.e. with usual and common aspects) instrumented. 
@@ -896,34 +912,38 @@ sub process_cmd_ld()
       my @ins_general = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
       my @args_general = ($ldv_linker, @llvm_linker_opts, @ins_general, '-o', "$cmd{'out'}$llvm_bitcode_general_suffix");
 
-      # Go to build directory to execute ld command.
+      print_debug_trace("Go to the build directory to execute ld command.");
       chdir($cmd{'cwd'})
         or die("Can't change directory to '$cmd{'cwd'}'");
-
+        
+      print_debug_info("Execute the command '@args_usual'");
       system(@args_usual) == 0 or die("System '@args_usual' call failed: $ERRNO");
+      print_debug_info("Execute the command '@args_general'");      
       system(@args_general) == 0 or die("System '@args_general' call failed: $ERRNO");
 
-      # Come back.
+      print_debug_trace("Go to the initial directory.");
       chdir($tool_working_dir)
         or die("Can't change directory to '$tool_working_dir'");
 
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_general_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_general_suffix");
+      print_debug_debug("The linker produces the generally linked bitcode file '$cmd{'out'}$llvm_bitcode_general_suffix'");
     }
   }
 }
 
 sub process_cmds()
 {
-  print_debug_trace("Read commands input xml file.");
+  print_debug_trace("Read commands input xml file '$opt_cmd_xml_in'.");
   $xml_twig->parsefile("$opt_cmd_xml_in");
 
   # To print out user friendly xml output.  
   $xml_twig->set_pretty_print('indented');
 
-  print_debug_trace("Read xml root.");
+  print_debug_trace("Read xml root tag.");
   my $cmd_root = $xml_twig->root;
 
   print_debug_trace("Obtain all commands.");
@@ -940,7 +960,7 @@ sub process_cmds()
 
       if ($kind_isplain)
       {
-        print_debug_trace("Use the tool base directory '$opt_basedir' instead of the specified one in plain mode.");
+        print_debug_trace("Use the tool base directory '$opt_basedir' instead of the specified one in the plain mode.");
         $cmd->set_text($opt_basedir);
         $cmd->print($file_xml_out);
       }
@@ -1033,22 +1053,26 @@ sub process_cmds()
       $out_text =~ s/^$cmd_basedir/$opt_basedir/;
       $out->set_text($out_text);
       print_debug_debug("The output file with replaced base directory is '$out_text'.");
-#===============================
-      # For nonaspect mode (plain mode) just copy and modify a bit input xml.
+
+      # For the plain mode just copy and modify a bit input xml.
       if ($kind_isplain)
       {
-        # Add additional input model file, error and hints tags for each ld 
+        print_debug_debug("The command '$id_attr' is specifically processed for the plain mode.");  
+        # Add an additional input model file, error and hints tags for aneach ld 
         # command.
         if ($cmd->gi eq $xml_cmd_ld)
         {
-          # Replace the first object file to be linked with object file 
-          # containing common model.
+          # Replace the first object file to be linked with the object file 
+          # containing the common model.  
+          print_debug_trace("For the ld command change the first input file.");
           my $in = $cmd->first_child($xml_cmd_in);
           $in->set_text($in->text . $common_o_suffix);
           
+          print_debug_trace("For the ld command add error tag.");
           my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
           $xml_error_tag->paste('last_child', $cmd);
 
+          print_debug_trace("For the ld command copy hints as them.");
           my $twig_hints = $ldv_model{'twig hints'}->copy;
           $twig_hints->paste('last_child', $cmd);
         }
@@ -1056,6 +1080,7 @@ sub process_cmds()
         # that it also add for a duplicated command.
         elsif ($cmd->gi eq $xml_cmd_cc)
         {
+          print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers.");  
           my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
           $common_model_opt->paste('last_child', $cmd);
         }
@@ -1063,50 +1088,52 @@ sub process_cmds()
         # Add engine tag for both cc and ld commands.
         if ($cmd->gi eq $xml_cmd_ld or $cmd->gi eq $xml_cmd_cc)
         {
+          print_debug_trace("For the both cc and ld commands add engine.");
           my $xml_engine_tag = new XML::Twig::Elt('engine', $ldv_model{'engine'});
           $xml_engine_tag->paste('last_child', $cmd);
         }
 
+        print_debug_trace("Print the modified command.");
         $cmd->print($file_xml_out);
 
-        # Duplicate each cc command with containing of common model.
         if ($cmd->gi eq $xml_cmd_cc)
         {
+          print_debug_debug("Duplicate an each cc command with the one containing a common model.");
           my $common_model_cc = $cmd->copy;
           
+          print_debug_trace("Change an id attribute.");
           $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . '-with-common-model');
 
+          print_debug_trace("Concatenate a common model with the first input file.");
           my $in = $common_model_cc->first_child($xml_cmd_in);
           my $in_file = $in->text;
-          
           open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
             or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
-
           cat($in_file, $file_with_common_model)
             or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
-
           cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
             or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
-
           close($file_with_common_model) 
             or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
-          
           $in->set_text("$in_file$common_c_suffix");
+          print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'.");
           
+          print_debug_trace("Add suffix for output file of the duplicated cc command.");
           my $out = $common_model_cc->first_child($xml_cmd_out);
           $out->set_text($out->text . $common_o_suffix);
-
+        
+          print_debug_trace("Print the duplicated cc command.");
           $common_model_cc->print($file_xml_out);
         }
 
         print_debug_debug("Finish processing of the command having id '$id_attr'.");
         next;
       }
-
-      # For aspect mode more detailed parsing is done.
+      
+      print_debug_debug("The command '$id_attr' is specifically processed for the aspect mode.");  
       $out_text = $out->text;
 
-      # Read array of input files.
+      print_debug_trace("Read an array of input files.");
       for (my $in = $cmd->first_child($xml_cmd_in)
         ; $in
         ; $in = $in->next_elt($xml_cmd_in))
@@ -1116,9 +1143,8 @@ sub process_cmds()
         last if ($in->is_last_child($xml_cmd_in));
       }
 
-      # Read array of options.
+      print_debug_trace("Read an array of options.");
       my @opts;
-
       for (my $opt = $cmd->first_child($xml_cmd_opt)
         ; $opt
         ; $opt = $opt->next_elt($xml_cmd_opt))
@@ -1130,6 +1156,7 @@ sub process_cmds()
         {
           if ($opt_text =~ /^$llvm_gcc_4_4_opt$/)
           {
+            print_debug_debug("Exclude the option '$opt_text' for the '$id_attr' command.");
             $opt_text = '';
             last;
           }
@@ -1142,7 +1169,7 @@ sub process_cmds()
         last if ($opt->is_last_child($xml_cmd_opt));
       }
 
-      # Store current command information. 
+      print_debug_trace("Store the current command information."); 
       %cmd = (
         'id' => $id_attr, 
         'cwd' => $cwd_text,
@@ -1156,15 +1183,15 @@ sub process_cmds()
       # cc command doesn't contain any specific settings.
       if ($cmd->gi eq $xml_cmd_cc)
       {
+        print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode.");  
         process_cmd_cc();
       }
 
       # ld command additionaly contains array of entry points.
       if ($cmd->gi eq $xml_cmd_ld)
       {
+        print_debug_trace("Read an array of entry points.");
         my @entry_points;
-
-        # Read array of entry points.
         for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
           ; $entry_point
           ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
@@ -1173,9 +1200,10 @@ sub process_cmds()
 
           last if ($entry_point->is_last_child($xml_cmd_entry_point));
         }
-
         $cmd{'entry point'} = \@entry_points;
-
+        print_debug_debug("The ld command entry points are '@entry_points'.");
+        
+        print_debug_debug("The ld command '$id_attr' is especially specifically processed for the aspect mode.");  
         process_cmd_ld();
       }
       
