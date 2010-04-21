@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<project name="CSD" default="dist" basedir=".">
+	<description>
+		Command Stream Divider
+	</description>
+	<!-- set global properties for this build -->
+	<property name="src" location="src"/>
+	<property name="build" location="build"/>
+	<property name="dist"  location="dist"/>
+
+	<target name="init">
+		<mkdir dir="${build}"/>
+		<mkdir dir="${dist}"/>
+	</target>
+
+	<target name="compile" depends="init" description="compile the source">
+		<javac debug="on" srcdir="${src}" destdir="${build}"/>
+	</target>
+
+	<target name="dist" depends="compile" description="generate the distribution">
+		<jar jarfile="${dist}/csd.jar" basedir="${build}">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+				<attribute name="Main-class" value="com.iceberg.csd.CSD"/>
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="clean" description="clean up">
+		<delete dir="${build}"/>
+		<delete dir="${dist}"/>
+	</target>
+</project>
