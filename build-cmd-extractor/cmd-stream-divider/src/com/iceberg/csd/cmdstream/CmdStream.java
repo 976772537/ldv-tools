@@ -149,6 +149,7 @@ public class CmdStream {
 			}
 		}
 		
+		genFilename = CSD.cmdfileout;
 		for(int i=0; i<independentCommands.size(); i++) {
 			try {
 				independentCommands.get(i).putCmdStream(tempdir+"/"+genFilename+i+".xml");
