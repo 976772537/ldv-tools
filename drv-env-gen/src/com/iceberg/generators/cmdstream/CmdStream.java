@@ -1,7 +1,6 @@
 package com.iceberg.generators.cmdstream;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,8 +17,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.iceberg.FSOperationsBase;
-import com.iceberg.generators.MainGenerator;
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
 public class CmdStream {
 	
