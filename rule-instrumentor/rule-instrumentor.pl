@@ -223,27 +223,27 @@ my $xml_model_db_model = 'model';
 # Specify debug level.
 get_debug_level();
 
-print_debug_debug("Obtain absolute path of the current working directory.");
+print_debug_normal("Obtain the absolute path of the current working directory.");
 $tool_working_dir = Cwd::cwd() 
   or die("Couldn't get current working directory");
+print_debug_debug("The current working directory is '$tool_working_dir'.");
 
-print_debug_normal("Process command-line options.");
+print_debug_normal("Process the command-line options.");
 get_opt();
 
-# Check presence of needed files and directories. Copy needed files and
-# directories.
+print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories.");
 prepare_files_and_dirs();
 
-# Prepare twig xml parser for models database and input commands.
+print_debug_trace("Prepare a twig xml parser for the models database and the input commands.");
 my $xml_twig = new XML::Twig;
 
-# Get and store information on required model.
+print_debug_normal("Get and store information on the required model.");
 get_model_info();
 
-# Obtain general aspect if needed.
+print_debug_normal("Create a general aspect if it's needed.");
 create_general_aspect();
 
-# Print standard xml file header.
+print_debug_trace("Print the standard xml file header.");
 print($file_xml_out "<?xml version=\"1.0\"?>\n");
 
 my $xml_writer;
@@ -251,39 +251,36 @@ my $xml_writer;
 # In aspect mode prepare special xml writer.
 if ($kind_isaspect)
 {
+  print_debug_trace("Prepare a xml writer, open a root node tag and print a base directory in aspect mode.");  
   $xml_writer = new XML::Writer(OUTPUT => $file_xml_out, NEWLINES => 1, UNSAFE => 1);
-
   $xml_writer->startTag('cmdstream');
-
-  # Print rule instrumentor basedir tags.
   $xml_writer->dataElement('basedir' => $opt_basedir);
 }
 else
 {
-  # Print root node open tag.
+  print_debug_trace("Print a root node open tag in plain mode.");
   print($file_xml_out "<cmdstream>");
 }
 
-# Process commands step by step.
+print_debug_normal("Process the commands input file.");
 process_cmds();
 
 if ($kind_isaspect)
 {
-  # Close cmdstream tag.
+  print_debug_trace("Close the root node tag and peform final checs in aspect mode.");
   $xml_writer->endTag();
-
-  # Perform final checks.
   $xml_writer->end();
 }
 else
 {
-  # Print root node close tag.
+  print_debug_trace("Print root node close tag in plain mode.");
   print($file_xml_out "\n</cmdstream>\n");
 }
 
 close($file_xml_out) 
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
 
+print_debug_normal("Make all successfully.");
 
 ################################################################################
 # Subroutines.
@@ -306,6 +303,8 @@ sub create_general_aspect()
 
     close($file_aspect_general) 
       or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
+      
+    print_debug_debug("The general aspect '$ldv_model_dir/$ldv_model{'general'}' was created.");
   }
 }
 
@@ -345,39 +344,51 @@ sub get_debug_level()
     $LDV_DEBUG = 0;
   }
   
-  print_debug_debug("Debug level is set correspondingly to LDV_DEBUG environment variable value '$LDV_DEBUG'");
+  print_debug_debug("Debug level is set correspondingly to the LDV_DEBUG environment variable value '$LDV_DEBUG'.");
 }
 
 sub get_model_info()
 {
-  # Read models database xml file.
+  print_debug_trace("Read the models database xml file '$ldv_model_dir/$ldv_model_db_xml'.");
   $xml_twig->parsefile("$ldv_model_dir/$ldv_model_db_xml");
   my $model_db = $xml_twig->root;
 
-  # Obtain all models.
+  print_debug_trace("Obtain all models.");
   my @models = $model_db->children;
 
-  # Iterate over all models to find appropriate if so.
+  print_debug_trace("Iterate over the all models and try to find the appropriate one.");
   foreach my $model (@models)
   {
-    # Try to read id attribute foreach model to find corresponding one.
+    # Not just models now are there.   
+    next unless ($model->gi eq 'model');
+      
+    print_debug_trace("Read id attribute for a model to find the corresponding one."); 
     my $id_attr = $model->att($xml_model_db_attr_id) 
       or die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
+    print_debug_debug("Read the '$id_attr' id attribute for a model.");
 
     # Model is found!
     if ($id_attr eq $opt_model_id)
     {
+      print_debug_debug("The required model having id '$id_attr' is found.");
+
       # Read model information.
+      print_debug_trace("Read engine tag.");
       my $engine = $model->first_child_text($xml_model_db_engine)
         or die("Models database doesn't contain '$xml_model_db_engine' tag for '$id_attr' model");
+      print_debug_debug("The engine '$engine' is specified for the '$id_attr' model.");
+
+      print_debug_trace("Read error tag.");
       my $error = $model->first_child_text($xml_model_db_error)
         or die("Models database doesn't contain '$xml_model_db_error' tag for '$id_attr' model");
+      print_debug_debug("The error label '$error' is specified for the '$id_attr' model.");
         
       # Store hints for static verifier to be passed without any processing.
+      print_debug_trace("Read hints tag.");
       my $hints = $model->first_child($xml_model_db_hints);
 
+      print_debug_trace("Read array of kinds.");
       my @kinds;
-      # Read array of kinds.
       for (my $kind = $model->first_child($xml_model_db_kind)
         ; $kind
         ; $kind = $kind->next_elt($xml_model_db_kind))
@@ -386,35 +397,43 @@ sub get_model_info()
 
         last if ($kind->is_last_child($xml_model_db_kind));
       }
-
       die("Models database doesn't contain '$xml_model_db_kind' tag for '$id_attr' model") 
         unless (scalar(@kinds));
+      print_debug_debug("The kinds '@kinds' are specified for the '$id_attr' model.");
 
-      # Read files.
+      print_debug_trace("Read file names.");
       my $files = $model->first_child($xml_model_db_files)
         or die("Models database doesn't contain '$xml_model_db_files' tag for '$id_attr' model");
 
       # Aspect file is optional but it's needed in aspect mode.
+      print_debug_trace("Read aspect file name.");
       my $aspect = $files->first_child_text($xml_model_db_files_aspect);
+      print_debug_debug("The aspect file '$aspect' is specified for the '$id_attr' model") 
+        if ($aspect);
 
       # Common file (either plain C or aspect file) must be always presented.
+      print_debug_trace("Read common file name.");
       my $common = $files->first_child_text($xml_model_db_files_common)
         or die("Models database doesn't contain '$xml_model_db_files_common' tag for '$id_attr' model");
-
+      print_debug_debug("The common file '$common' is specified for the '$id_attr' model."); 
       die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
         unless (-f "$ldv_model_dir/$common");
 
-      # Obtain directory for common model file to find headers there.
+      print_debug_trace("Obtain directory for the common model file to find headers there.");
       my $common_model_dir_abs = abs_path("$ldv_model_dir/$common")
         or die("Can't obtain absolute path of '$ldv_model_dir/$common'");
       my @common_model_dir_path = fileparse($common_model_dir_abs)
         or die("Can't find directory of file '$common_model_dir_abs'");
       $common_model_dir = $common_model_dir_path[1];
-
+      print_debug_debug("The common file '$common' is placed in the directory '$common_model_dir'.");
+      
       # Filter is optional as i think.
+      print_debug_trace("Read filter file name.");
       my $filter = $files->first_child_text($xml_model_db_files_filter);
-
-      # Store model information into hash.
+      print_debug_debug("The filter file '$filter' is specified for the '$id_attr' model") 
+        if ($filter);
+        
+      print_debug_trace("Store model information into hash.");
       %ldv_model = (
         'id' => $id_attr, 
         'kind' => \@kinds,
@@ -425,7 +444,7 @@ sub get_model_info()
         'error' => $error,
         'twig hints' => $hints);
 
-      # Make some mode specific actions and checks.
+      print_debug_trace("Check whether the '$id_attr' model kinds are specified correctly.");
       foreach my $kind (@kinds)
       {
         if ($kind eq 'aspect')
@@ -437,15 +456,17 @@ sub get_model_info()
 
           die("Aspect file '$ldv_model_dir/$aspect' doesn't exist (for '$id_attr' model)")
             unless (-f "$ldv_model_dir/$aspect");
+            
+          print_debug_debug("The aspect mode is used for '$id_attr' model");
         }
         elsif ($kind eq 'plain')
         {
           $kind_isplain = 1;
+          print_debug_debug("The plain mode is used for '$id_attr' model");
         }
         else
         {
           warn("Kind '$kind' can't be processed");
-
           exit($error_semantics);
         }
       }
@@ -455,7 +476,9 @@ sub get_model_info()
 
       die("Neither 'plain' nor 'aspect' kind was specified for '$id_attr' model")
         unless ($kind_isaspect or $kind_isplain);
-
+      
+      print_debug_debug("The model '$id_attr' information is processed successfully.");
+      
       # Finish models iteration after the first one is found and processed.
       last;
     }
@@ -464,7 +487,6 @@ sub get_model_info()
   unless (%ldv_model)
   {
     warn("Specified through option model id '$opt_model_id' doesn't exist in models database");
-
     exit($error_semantics);
   }
 }
@@ -475,10 +497,10 @@ sub get_opt()
   {
     warn("No options were specified through command-line. Please see help to " .
       "understand how to use this tool");
-
     help();
   }
-
+  print_debug_trace("Options '@ARGV' were passed to the instrument through the command-line.");
+  
   unless (GetOptions(
     'basedir|b=s' => \$opt_basedir,
     'cmdfile|c=s' => \$opt_cmd_xml_in,
@@ -488,7 +510,6 @@ sub get_opt()
   {
     warn("Incorrect options may completely change the meaning! Please run " .
       "script with --help option to see how you may use this tool.");
-
     help();
   }
 
@@ -497,26 +518,28 @@ sub get_opt()
   unless ($opt_basedir && $opt_cmd_xml_in && $opt_cmd_xml_out && $opt_model_id) 
   {
     warn("You must specify options --basedir, --cmd-xml-in, --cmd-xml-out, --model-id in command-line");
-
     help();
   }
-
+  
   unless(-d $opt_basedir)
   {
     warn("Directory specified through option --basedir|-b doesn't exist");
-
     help();
   }
+  print_debug_trace("The instrument basedir is '$opt_basedir'."); 
 
   unless(-f $opt_cmd_xml_in)
   {
     warn("File specified through option --cmdfile|-c doesn't exist");
-
     help();
   }
+  print_debug_trace("The instrument commands input file is '$opt_cmd_xml_in'.");
 
   open($file_xml_out, '>', "$opt_cmd_xml_out")
     or die("Couldn't open file '$opt_cmd_xml_out' specified through option --cmdfile-out|-o for write: $ERRNO");
+  print_debug_trace("The instrument commands output file is '$opt_cmd_xml_out'.");
+  
+  print_debug_debug("The command-line options are processed successfully.");
 }
 
 sub help()
@@ -571,119 +594,116 @@ sub prepare_files_and_dirs()
   #     aspectator/
   #       bin/
   #         symlinks to aspectator script, gcc, linker, c-backend and so on.
+  print_debug_trace("Try to find the instrument absolute path.");
   $ldv_rule_instrumentor_abs = abs_path($0) 
     or die("Can't obtain absolute path of '$0'");
-
+  print_debug_debug("The instrument absolute path is '$ldv_rule_instrumentor_abs'.");
+  
+  print_debug_trace("Try to find the instrument directory.");
   @ldv_rule_instrumentor_path = fileparse($ldv_rule_instrumentor_abs)
     or die("Can't find directory of file '$ldv_rule_instrumentor_abs'");
-
   $ldv_rule_instrumentor_dir = $ldv_rule_instrumentor_path[1];
-
-  # Obtain LDV_HOME as earlier as possible.
+  print_debug_debug("The instrument directory is '$ldv_rule_instrumentor_dir'.");
+  
+  print_debug_trace("Obtain the LDV_HOME as earlier as possible.");
   $ldv_rule_instrumentor_dir =~ /\/bin\/*$/;
-
   $LDV_HOME = $PREMATCH;
-
   unless(-d $LDV_HOME)
   {
-    warn("Directory '$LDV_HOME' (LDV home directory) doesn't exist");
-
+    warn("The directory '$LDV_HOME' (LDV home directory) doesn't exist");
     help();
   }
-
-  # Directory where all rule instrumentor auxiliary instruments (such as 
-  # aspectator) are placed.
+  print_debug_debug("The LDV_HOME is '$LDV_HOME'.");
+  
+  print_debug_trace("Obtain the directory where all rule instrumentor auxiliary instruments (such as aspectator) are placed.");
   $ldv_rule_instrumentor = "$LDV_HOME/rule-instrumentor";
-
   unless(-d $ldv_rule_instrumentor)
   {
     warn("Directory '$ldv_rule_instrumentor' (rule instrumentor directory) doesn't exist");
-
     help();
   }
-
+  print_debug_debug("The instrument auxiliary tools directory is '$ldv_rule_instrumentor'.");
+  
   # Directory contains all binaries needed by aspectator.
   $ldv_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/bin";
-
   unless(-d $ldv_aspectator_bin_dir)
   {
     warn("Directory '$ldv_aspectator_bin_dir' (aspectator binaries directory) doesn't exist");
-
     help();
   }
-
+  print_debug_debug("The aspectator binaries directory is '$ldv_aspectator_bin_dir'.");
+  
   # Aspectator script.
   $ldv_aspectator = "$ldv_aspectator_bin_dir/compiler";
-
   unless(-f $ldv_aspectator)
   {
     warn("File '$ldv_aspectator' (aspectator) doesn't exist");
-
     help();
   }
-
+  print_debug_debug("The aspectator script (compiler) is '$ldv_aspectator'.");
+  
   # C backend.
   $ldv_c_backend = "$ldv_aspectator_bin_dir/c-backend";
-
   unless(-f $ldv_c_backend)
   {
     warn("File '$ldv_c_backend' (LLVM C backend) doesn't exist");
-
     help();
   }
-
+  print_debug_debug("The C backend is '$ldv_c_backend'.");
+  
   # GCC compiler with aspectator extensions that is used by aspectator
   # script.
   $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
-
   unless(-f $ldv_gcc)
   {
     warn("File '$ldv_gcc' (GCC compiler) doesn't exist");
-
     help();
   }
-
+  print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc'.");
+  
   # Linker.
   $ldv_linker = "$ldv_aspectator_bin_dir/linker";
-
   unless(-f $ldv_linker)
   {
     warn("File '$ldv_linker' (LLVM linker) doesn't exist");
-
     help();
   }
-
+  print_debug_debug("The linker is '$ldv_linker'.");
+  
   # Use environment variable for models instead of standard placement in LDV_HOME.
   if ($LDV_KERNEL_RULES)
   {
     $ldv_model_dir = $LDV_KERNEL_RULES;
+    print_debug_debug("The models directory specified through 'LDV_KERNEL_RULES' environment variable is '$ldv_model_dir'.");
   }
   else
   {
     $ldv_model_dir = "$LDV_HOME/kernel-rules";
+    print_debug_debug("The models directory is '$ldv_model_dir'.");
   }
 
-  # Check whether models are installed properly.
+  print_debug_trace("Check whether the models are installed properly.");
   unless(-d $ldv_model_dir)
   {
     warn("Directory '$ldv_model_dir' (kernel rules models) doesn't exist");
-
     help();
   }
-
   unless(-f "$ldv_model_dir/$ldv_model_db_xml")
   {
     warn("Directory '$ldv_model_dir' doesn't contain models database xml file '$ldv_model_db_xml'");
-
     help();
   }
+  print_debug_debug("The models database xml file is '$ldv_model_db_xml'.");
 
-  # Copy models dir to base directory since it'll be affected a bit.
+  print_debug_trace("Copy the models directory '$ldv_model_dir' to the base directory '$opt_basedir'.");
   rcopy($ldv_model_dir, "$opt_basedir/" . basename($ldv_model_dir))
     or die("Can't copy directory '$ldv_model_dir' to directory '$opt_basedir'");
 
-  # Change models dir.
+  # Change the models directory name.
   $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
+  print_debug_debug("The models directory is '$ldv_model_dir'.");
+  
+  print_debug_debug("Files and directories are checked and prepared successfully.");
 }
 
 sub print_debug_normal($)
@@ -897,29 +917,30 @@ sub process_cmd_ld()
 
 sub process_cmds()
 {
-  # Read input commands xml file.
+  print_debug_trace("Read commands input xml file.");
   $xml_twig->parsefile("$opt_cmd_xml_in");
 
   # To print out user friendly xml output.  
   $xml_twig->set_pretty_print('indented');
 
-  # Read xml root.
+  print_debug_trace("Read xml root.");
   my $cmd_root = $xml_twig->root;
 
-  # Obtain all commands.
+  print_debug_trace("Obtain all commands.");
   my @cmds = $cmd_root->children;
 
-  # Iterate over all commands to execute them and write output xml file.
+  print_debug_trace("Iterate over all commands to execute them and write output xml file.");
   foreach my $cmd (@cmds)
   {
     # At the beginning instrumentor basedir must be specified.
     if ($cmd->gi eq $xml_cmd_basedir)
     {
       $cmd_basedir = $cmd->text;
+      print_debug_debug("The base directory '$cmd_basedir' is specified.");
 
-      # Use tool basedir instead of specified one.
       if ($kind_isplain)
       {
+        print_debug_trace("Use the tool base directory '$opt_basedir' instead of the specified one in plain mode.");
         $cmd->set_text($opt_basedir);
         $cmd->print($file_xml_out);
       }
@@ -927,32 +948,34 @@ sub process_cmds()
     # Interpret cc and ld commands.
     elsif ($cmd->gi eq $xml_cmd_cc or $cmd->gi eq $xml_cmd_ld)
     {
-      die("Basedir isn't specified in input commands xml file")
+      die("A base directory isn't specified in input commands xml file")
         unless ($cmd_basedir);
 
       # General commands section.
+      print_debug_trace("Read id for some command.");
       my $id_attr = $cmd->att($xml_cmd_attr_id)
-        or die("Input commands xml file doesn't contain '$xml_cmd_attr_id' attribute for some command");
-
+        or die("The input commands xml file doesn't contain '$xml_cmd_attr_id' attribute for some command");
+      print_debug_debug("Begin processing of the command '" . $cmd->gi . "' having id '$id_attr'.");
+      
+      print_debug_trace("Read current working directory.");
       my $cwd = $cmd->first_child($xml_cmd_cwd)
-        or die("Input commands xml file doesn't contain '$xml_cmd_cwd' tag for '$id_attr' command"); 
-
+        or die("The input commands xml file doesn't contain '$xml_cmd_cwd' tag for '$id_attr' command"); 
       my $cwd_text = $cwd->text;
-
-      die("Input commands xml file specifies directory '$cwd_text' that doesn't exist for '$id_attr' command")
+      die("The input commands xml file specifies directory '$cwd_text' that doesn't exist for '$id_attr' command")
         unless (-d $cwd_text);
+      print_debug_debug("The specified current working directory is '$cwd_text'.");
 
+      print_debug_trace("Read output file name.");
       my $out = $cmd->first_child($xml_cmd_out)
-        or die("Input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
-
+        or die("The input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
       my $out_text = $out->text;
+      print_debug_debug("The output file is '$out_text'.");
       
       # Attribute that says whether file must be checked or not. Note that there
       # may be not such attribute for the given command at all.
+      print_debug_trace("Read check.");
       my $check_attr = $out->att($xml_cmd_attr_check);
-
       my $check_text = '';
-       
       # If check attribute was specified and it's value is true, then use 
       # 'true' value in future.
       if ($check_attr and $check_attr eq 'true')
@@ -964,11 +987,11 @@ sub process_cmds()
       {
         $check_text = 'false';
       }
-
-      # Read array of input files.
+      print_debug_debug("The attribute check leads to '$check_text' check (this has sence just for ld command).");
+      
+      print_debug_trace("Read array of input file names.");
       my @ins;
       my @ins_text;
-
       for (my $in = $cmd->first_child($xml_cmd_in)
         ; $in
         ; $in = $in->next_elt($xml_cmd_in))
@@ -978,11 +1001,11 @@ sub process_cmds()
 
         last if ($in->is_last_child($xml_cmd_in));
       }
-
-      die("Input commands xml file doesn't contain '$xml_cmd_in' tag for '$id_attr' command")
+      die("The input commands xml file doesn't contain '$xml_cmd_in' tag for '$id_attr' command")
         unless (scalar(@ins));
-
-      # Replace maingen basedirectory prefix with the rule instrumentor one.
+      print_debug_debug("The '@ins_text' input files are specified.");
+       
+      print_debug_trace("Replace previous base directory prefix with the instrument one.");
       @ins_text = map( 
       {
         my $in_text = $_;
@@ -992,13 +1015,13 @@ sub process_cmds()
         # Input files for cc command must exist.
         if ($cmd->gi eq $xml_cmd_cc)
         {
-          die("Input commands xml file specifies file '$in_text' that doesn't exist for '$id_attr' command")
+          die("The input commands xml file specifies file '$in_text' that doesn't exist for '$id_attr' command")
             unless (-f $in_text);
         }
 
         $in_text;
       } @ins_text);
-
+      print_debug_debug("The input files with replaced base directory are '@ins_text'."); 
       for (my $in = $cmd->first_child($xml_cmd_in)
         ; $in
         ; $in = $in->next_elt($xml_cmd_in))
@@ -1006,11 +1029,11 @@ sub process_cmds()
         $in->set_text(shift(@ins_text));
 
         last if ($in->is_last_child($xml_cmd_in));
-      }
-
+      }   
       $out_text =~ s/^$cmd_basedir/$opt_basedir/;
       $out->set_text($out_text);
-
+      print_debug_debug("The output file with replaced base directory is '$out_text'.");
+#===============================
       # For nonaspect mode (plain mode) just copy and modify a bit input xml.
       if ($kind_isplain)
       {
@@ -1076,6 +1099,7 @@ sub process_cmds()
           $common_model_cc->print($file_xml_out);
         }
 
+        print_debug_debug("Finish processing of the command having id '$id_attr'.");
         next;
       }
 
@@ -1154,12 +1178,13 @@ sub process_cmds()
 
         process_cmd_ld();
       }
+      
+      print_debug_debug("Finish processing of the command having id '$id_attr'.");
     }
     # Interpret other commands.
     else
     {
-      warn("Input xml file contains command '" . $cmd->gi . "' that can't be interpreted");
-
+      warn("The input xml file contains the command '" . $cmd->gi . "' that can't be interpreted");
       exit($error_semantics);
     }
   }
