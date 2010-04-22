@@ -51,12 +51,12 @@ sub info_lock
 
 	open($this->{F}, "+>>", $this->{_filename}) or Carp::confess "Can't open $this->{_filename}: $!";
 
-	flock($this->{F}, LOCK_EX) or confess "Locking file failed";
+	flock($this->{F}, LOCK_EX) or Carp::confess "Locking file failed";
 
 	$this->copyfwd();
 
-	seek($this->{F}, 0, 0) or confess "seek failed";
-	truncate($this->{F}, 0) or confess "truncate failed";
+	seek($this->{F}, 0, 0) or Carp::confess "seek failed";
+	truncate($this->{F}, 0) or Carp::confess "truncate failed";
 
 }
 
