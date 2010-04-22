@@ -45,34 +45,20 @@ use DSCV::Sanity;
 my $sanity = DSCV::Sanity->new($config->{sandir});
 
 use DSCV::RCV::Utils;
+use Utils;
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 
 # Base Dir of system being checked
 my $base_dir = undef;
+my $unbasedir = undef;
+
 sub get_base_dir
 {
 	my ($twig, $cmdT) = @_;
 	$base_dir = $cmdT->text();
-}
-# Remove basedir to get a raw file name
-sub unbasedir
-{
-	my $from = shift or die;
-	my $rslt = $from;
-	$rslt =~ s/^$base_dir\/*//;
-	return $rslt;
-}
-sub relpath
-{
-	my $base = shift or die;
-	my $to = shift or die;
-	if ($to =~ /^\//) {
-		return $to;
-	}else{
-		return "$base/$to";
-	}
+	$unbasedir = Utils::unbasedir_maker($base_dir);
 }
 use File::Basename;
 use File::Path qw(mkpath);
@@ -85,8 +71,8 @@ sub execute_cc
 	my ($twig, $cmdT) = @_;
 	# Flush the list of all .c files to the .o file being checked
 	local $_;
-	my @c_files_raw = unbasedir($cmdT->children_text('in'));
-	my $o_file_raw = unbasedir($cmdT->first_child_text('out'));
+	my @c_files_raw = $unbasedir->($cmdT->children_text('in'));
+	my $o_file_raw = $unbasedir->($cmdT->first_child_text('out'));
 	my $o_file = "$workdir/$o_file_raw";
 	# Write the list to o-file
 	mkpath(dirname($o_file));
@@ -102,15 +88,15 @@ sub execute_ld
 	# Get the list of c files for current linked file
 	# We assume that each c-file is included into any executable file only once (otherwise there would have been undefined references).
 	local $_;
-	my @o_files_raw = map {unbasedir($_)} $cmdT->children_text('in');
-	my $target = unbasedir($cmdT->first_child_text('out'));
+	my @o_files_raw = map {$unbasedir->($_)} $cmdT->children_text('in');
+	my $target = $unbasedir->($cmdT->first_child_text('out'));
 	# Informaiton about C files should be a reference, for it to be accessible from within subs
 	my $c_files_info = [];
 	# List of c files that were processed.  Used in tracking the assersion that each c file is processed only once.  Value is an o-file, in which the c file was first encountered.
 	my %c_files_Sanity = ();
 	for my $o_file_raw (@o_files_raw){
 		# From each o-file local copy, which contains list of c-files in that object one, get these files
-		my $o_file = relpath($workdir,$o_file_raw);
+		my $o_file = Utils::relpath($workdir,$o_file_raw);
 
 		# Get information about this object file
 		my $c_files = [];
@@ -123,7 +109,7 @@ sub execute_ld
 			# Input files are taking without change
 			'in' => sub { push @$c_files,$_[1]->text(); },
 			# Output files are tuned to be in-rcv
-			'out' => sub { $$obj_file = relpath($workdir,unbasedir($_[1]->text())); },
+			'out' => sub { $$obj_file = Utils::relpath($workdir,$unbasedir->($_[1]->text())); },
 			'cwd' => sub { $$cwd = $_[1]->text(); },
 		})->parsefile($o_file);
 
@@ -190,15 +176,6 @@ sub execute_ld
 	$repT->print($BLAST_REPORT,'indented');
 	close $BLAST_REPORT;
 
-}
-
-sub hard_wait
-{
-	my $wpres = 0;
-	while ($wpres == 0){
-		$wpres = waitpid $_[0],$_[1];
-	}
-	return $wpres;
 }
 
 # Trace dumper.  Usage:  my $dumper = dumptrace(filename);
@@ -292,7 +269,7 @@ sub call_blast
 	local $"=" ";
 	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
-	vsay (20,"BLAST debug trace is written to $args{debug}\n");
+	vsay (20,"BLAST debug trace is being written to $args{debug}\n");
 
 	# Sanity check
 	$sanity->blast_called();
@@ -315,7 +292,7 @@ sub call_blast
 	# TODO: add GZIPping as well
 
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
-	hard_wait($fpid,0) < 0 and die;
+	Utils::hard_wait($fpid,0) < 0 and die;
 	close $BLAST_DEBUG;
 
   vsay (40,"BLAST open3 return value: $?\n");
@@ -357,7 +334,7 @@ if ($fpid == 0){
 #while (($read_bytes = read $CHEW_BLAST_OUT,$buffer,$buflen) && $read_bytes) {};
 #defined $read_bytes or die;	# undef in $read_bytes means read error
 
-my $wpres = hard_wait($fpid,0);
+my $wpres = Utils::hard_wait($fpid,0);
 $wpres > 0 or die;
 # \n to complement previous message
 $? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
