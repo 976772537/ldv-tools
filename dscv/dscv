@@ -94,10 +94,10 @@ Base directory, into which DSCV-related scripts and backends are installed.  Set
 =cut
 use FindBin;
 BEGIN {
-	$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/../dscv";
+	$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/..";
 	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
 }
-$config->{dscv_dir} = $ENV{'DSCV_HOME'};
+$config->{dscv_dir} = "$ENV{'DSCV_HOME'}/dscv";
 
 BEGIN {
 	# Add the lib directory to the @INC to be able to include local modules.
@@ -163,19 +163,28 @@ mkpath($dscv_tmp_dir);
 my $shared_dir = $config->{dscv_dir};
 my $rcv_frontends_dir = "$shared_dir/rcv";
 
+# Prepare more sanity checks
+use DSCV::Sanity;
+my $sanity = DSCV::Sanity->new($dscv_base_dir);
+# Check how many times blast was run.  It's <number of rule-models>*<number of mains>
+my $expected_blast_runs = 0;
+my $rule_instr_mains = 0;
+
 # Send cmdfile to Instrumentor for each rule.
 
 use XML::Twig;
 
 # For now we just pass the whole file to Instrumentor
-# This is just a simple check that XML is correct
+# This is just a simple check that XML is correct, and to perform sanity checks
 my $process_input = XML::Twig->new( twig_handlers => { cc => \&execute_cmd, ld=>\&execute_cmd, basedir=>\&get_driver_dir });
 
 sub execute_cmd
 {
 	my ($twig, $cmdT) = @_;
-	#my $TMP_FH = get_tmp_cmd()
-	#$cmdT->print(
+	# Sanity check
+	if ($cmdT->tag eq 'ld') {
+		$expected_blast_runs += scalar $cmdT->children("main");
+	}
 }
 my $driver_dir = undef;
 sub get_driver_dir
@@ -184,6 +193,7 @@ sub get_driver_dir
 	$driver_dir = $bdT->text();
 }
 $process_input->parsefile($config->{cmdfile});
+
 
 # Function that copies driver
 use File::Copy::Recursive qw(dircopy);
@@ -245,6 +255,11 @@ for my $property (@properties){
 				XML::Twig::Elt->new('engine',{},$verifier)->paste($cmdT);
 			}
 
+			# Sanity check
+			if ($cmdT->tag eq 'ld') {
+				$rule_instr_mains += scalar $cmdT->children("main");
+			}
+
 			# Print tag to temporary file
 			my $cmdfile = "$dir/model$property-$verifier-$id.xml";
 			my $tmp_FH; open $tmp_FH,">",$cmdfile or die "Couldn't create temporary file for RCV's command!";
@@ -255,6 +270,7 @@ for my $property (@properties){
 			my @rcv_args = ("$rcv_frontends_dir/$verifier",
 				"--cmdfile=$cmdfile",
 				"--workdir=$dir",
+				"--sanity-dir=$dscv_base_dir",
 			);
 			vsay 20, "@rcv_args\n";
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
@@ -268,6 +284,16 @@ for my $property (@properties){
 
 	# TODO: parallelize
 }
+
+# Perform final sanity check
+$expected_blast_runs *= scalar @properties;
+
+my $blast_runs = $sanity->get('blast_calls') || 0;
+
+if ($blast_runs < $expected_blast_runs) {
+	vsay 1,"WARNING!  SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n";
+}
+
 
 
 =head1 DOCUMENTATION FOR DEVELOPERS
