@@ -11,6 +11,7 @@ perl-shared/
 	DSCV/
 		Sanity.pm
 		RCV/Utils.pm
+	Utils.pm
 
 dscv
 Makefile
