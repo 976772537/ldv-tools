@@ -100,10 +100,10 @@ for i in $@; do
 
 	echo "ldv-task: DEBUG: **************** Try to call LDV-core *****************";
 	if [ $KERNEL_LEVEL -eq 0 ]; then
-		echo "WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
+		echo "ldv-task: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
 		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
 	else
-		echo "WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
+		echo "ldv-task: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
 		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;
 	fi;
 

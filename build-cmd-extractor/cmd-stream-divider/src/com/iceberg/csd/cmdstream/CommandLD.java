@@ -21,7 +21,7 @@ public class CommandLD extends Command{
 	}
 	
 	public void write(StringBuffer sb) {
-		sb.append(CmdStream.shift+'<'+CmdStream.tagLd+" id=\""+Command.getCmdCounter()+"\">\n");
+		sb.append(CmdStream.shift+'<'+CmdStream.tagLd+" id=\""+Id+"\">\n");
 		super.write(sb);
 		for(int i=0; i<mains.size(); i++)
 			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagMain+'>'+mains.get(i)+"</"+CmdStream.tagMain+">\n");
@@ -36,4 +36,7 @@ public class CommandLD extends Command{
 		return mains;
 	}
 
+	public boolean relocateCommand(String basedir,String newDriverDirString, boolean iscopy) {
+		return super.relocateCommand(basedir,newDriverDirString, iscopy);
+	}
 }

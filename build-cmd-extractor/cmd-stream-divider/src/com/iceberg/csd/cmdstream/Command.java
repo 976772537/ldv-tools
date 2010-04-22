@@ -1,5 +1,7 @@
 package com.iceberg.csd.cmdstream;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,6 +9,8 @@ import java.util.List;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+
+import com.iceberg.csd.FSOperationBase;
 
 public class Command {
 	private List<String> opts = new ArrayList<String>();
@@ -31,6 +35,11 @@ public class Command {
 	}
 	
 	public Command(Node item) {
+		NamedNodeMap nlid = item.getAttributes();
+		if (nlid!=null) {
+			Node aout = nlid.getNamedItem("id");
+			Id = Integer.parseInt(aout.getTextContent());
+		}
 		NodeList nodeList = item.getChildNodes();
 		for(int i=0; i<nodeList.getLength(); i++) {
 			if(nodeList.item(i).getNodeName().equals(CmdStream.tagOpt)) {
@@ -110,4 +119,32 @@ public class Command {
 	public String getCwd() {
 		return cwd;
 	}
+
+	public boolean relocateCommand(String basedir, String newDriverDirString, boolean iscopy) {
+		if(relocateFileList(basedir, newDriverDirString, in,iscopy) &&
+				relocateFileList(basedir, newDriverDirString, out,iscopy))
+			return true;
+		return false;
+	}
+	
+	private boolean relocateFileList(String basedir, String newDriverDirString, List<String> strList, boolean iscopy) {
+		for(int i=0; i<strList.size(); i++) {
+			String newFilePlaceString = strList.get(i).replace(basedir, newDriverDirString);
+			File newFilePlace = new File(newFilePlaceString);
+			String parentDirString =  newFilePlace.getParent();
+			File parentDir = new File(parentDirString);
+			if(!iscopy && !parentDir.exists() && !parentDir.mkdirs()) {
+				System.out.println("csd: ERROR: Can't create dir for in file.");
+				return false;
+			}
+			File infile = new File(strList.get(i));
+			if(!iscopy && infile.exists() && !FSOperationBase.CopyFile(in.get(i), newFilePlaceString))
+				return false;
+			strList.remove(i);
+			strList.add(i,newFilePlaceString);
+		}
+		return true;
+	}
+	
+	
 }

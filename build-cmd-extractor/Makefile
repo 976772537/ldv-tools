@@ -18,6 +18,7 @@ all:
 	cd $(srcdir)/$(LDV_BUILD_CMD_STREAM_DIVIDER_DIR); ant
 
 install:
+	cd $(srcdir)/$(LDV_BUILD_CMD_STREAM_DIVIDER_DIR); ant
 	if [ ! -d $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR) ]; then mkdir -p $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR); fi	
 	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_SCRIPT) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_GCC_SCRIPT) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)

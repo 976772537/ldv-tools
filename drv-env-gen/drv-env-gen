@@ -163,17 +163,18 @@ sub hxml_cmdstream_ld {
 		my $indir=$section->text;
 		# 1. replace outdir from basedir in xml with our driverdir
   		if(!($indir =~ s/$xmlbasedir/$my_driverdir/)) {
-			my $indir_full = $_[1]->first_child('cwd')->text."/".$indir;
-			$section->set_text($indir_full);
-			if(!($indir_full =~ s/$xmlbasedir/$my_driverdir/)) {
-				ldv_eprint("Can't find basedir pattern in ld indirs.");
-				exit 1;
-			} else {
-				push(@args,$indir_full);
-			}
-		} else 	{
-			push(@args,$indir);
-		}
+		#	my $indir_full = $_[1]->first_child('cwd')->text."/".$indir;
+		#	$section->set_text($indir_full);
+		#	if(!($indir_full =~ s/$xmlbasedir/$my_driverdir/)) {
+			ldv_eprint("Can't find basedir pattern in ld indirs.");
+			exit 1;
+		#	} else {
+		#		push(@args,$indir_full);
+		#	}
+		} 
+		#else 	{
+		push(@args,$indir);
+		#}
 	}
 	push(@args,$output_option);
 	foreach my $section ( $_[1]->children('out') ) {

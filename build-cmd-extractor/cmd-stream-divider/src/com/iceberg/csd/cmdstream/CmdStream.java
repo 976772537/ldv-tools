@@ -17,6 +17,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.iceberg.csd.CSD;
+import com.iceberg.csd.FSOperationBase;
 
 public class CmdStream {
 	
@@ -29,6 +30,8 @@ public class CmdStream {
 	public final static String tagOut = "out";
 	public final static String tagCwd = "cwd";
 	public final static String tagMain = "main";
+	
+	public final static String defaultDriverDirName = "driver";
 	
 	
 	public String basedir;
@@ -67,7 +70,8 @@ public class CmdStream {
 		for(int i=1; i<cmdstreamNodeList.getLength(); i++) {
 			if (cmdstreamNodeList.item(i).getNodeType() == Node.ELEMENT_NODE) {
 				if(cmdstreamNodeList.item(i).getNodeName().equals(tagBasedir)) {
-					cmdobj.inBasedir = cmdstreamNodeList.item(i).getTextContent();
+					File baseDir = new File(cmdstreamNodeList.item(i).getTextContent());
+					cmdobj.inBasedir = baseDir.getAbsolutePath();
 				} else if(cmdstreamNodeList.item(i).getNodeName().equals(tagCc)) {
 					CommandCC cmd = new CommandCC(cmdstreamNodeList.item(i));
 					cmdobj.cmdlist.add(cmd);
@@ -92,44 +96,46 @@ public class CmdStream {
 	
 	private static String genFilename="cmd_after_deg";
 	
-	public void generateTree(String tempdir, boolean printdigraph) {
+	public void generateTree(String tempdir, boolean printdigraph, boolean driversplit, boolean fullcopy) {
 		//vortexList = new ArrayList<Command>();
 		// стэк - просто для ускорения, так можно было всегда ходить по списку,
 		// если бы не знали, что предыдущая комманда не может включать последующую
-		stack = new ArrayList<Command>();
-		// 1. взять из общего списка
-		for(int i=0; i<cmdlist.size(); i++) {
-			// 2. взять ее in-ы
-			Command inCmd = cmdlist.get(i);
-			for(int j=0; j<inCmd.getIn().size(); j++) {
-				//if(inCmd.getIn().get(j).equals("drivers/isdn/hardware/eicon/divamnt.o")) {
-				//	System.out.println("DEBUG");
-				//}
-				// 3. пройтись по всему стэку комманд
-				// до того как не найдем входящий in
-				// или вообще его не найдем
-				for(int k=0; k<stack.size(); k++) {
-					// 4. если что-нибудь найдем, то связываем.
-					if(stack.get(k).getOut().size()>0) {
-						//System.out.println("CMP :"+inCmd.getCwd()+"/"+inCmd.getIn().get(j));
-						//System.out.println("WITH:"+stack.get(k).getOut().get(0));
-						if(stack.get(k).getOut().get(0).equals(inCmd.getIn().get(j))) {
-							inCmd.addObjIn(stack.get(k));
-							break;
-						} else 	if(stack.get(k).getOut().get(0).equals(
-								inCmd.getCwd()+"/"+inCmd.getIn().get(j))) {
-							inCmd.addObjIn(stack.get(k));
-							break;							
-						}
-					} else
-					{
+		if(driversplit) {
+			stack = new ArrayList<Command>();
+			// 1. взять из общего списка
+			for(int i=0; i<cmdlist.size(); i++) {
+				// 2. взять ее in-ы
+				Command inCmd = cmdlist.get(i);
+				for(int j=0; j<inCmd.getIn().size(); j++) {
+					//if(inCmd.getIn().get(j).equals("drivers/isdn/hardware/eicon/divamnt.o")) {
+					//	System.out.println("DEBUG");
+					//}
+					// 3. пройтись по всему стэку комманд
+					// до того как не найдем входящий in
+					// или вообще его не найдем
+					for(int k=0; k<stack.size(); k++) {
+						// 4. если что-нибудь найдем, то связываем.
+						if(stack.get(k).getOut().size()>0) {
+							//System.out.println("CMP :"+inCmd.getCwd()+"/"+inCmd.getIn().get(j));
+							//System.out.println("WITH:"+stack.get(k).getOut().get(0));
+							if(stack.get(k).getOut().get(0).equals(inCmd.getIn().get(j))) {
+								inCmd.addObjIn(stack.get(k));
+								break;
+							} 
+
+						} else
+						{
 						System.out.println("csd: WARNING: Elment have no out!");
+						}
 					}
 				}
+				// 5. положить нашу комманду  в стэк
+				stack.add(cmdlist.get(i));
 			}
-			// 5. положить нашу комманду  в стэк
-			stack.add(cmdlist.get(i));
-		}		
+		}
+		{
+			stack = cmdlist;
+		}
 		// DEBUG: распечатаем стэк со свзанными коммандами
 		if(printdigraph)
 			printDebugStackGraphviz();
@@ -138,17 +144,40 @@ public class CmdStream {
 		//       - берем головной файл и если он check-ld,
 		//         добавляем его в список
 		independentCommands = new ArrayList<CmdStream>();
-		for(int i=0; i<stack.size(); i++) {
-			if(stack.get(i).isCheck()) {
-				List<Command> lcmd = new ArrayList<Command>();
-				// рекурсивно снизу-вверх добавляем комманды
-				addCommandsRecursive(lcmd,stack.get(i));
-				lcmd.add(stack.get(i));
-				CmdStream lcmdstream = new CmdStream(lcmd,inBasedir);
-				independentCommands.add(lcmdstream);
+		if(driversplit) {
+			for(int i=0; i<stack.size(); i++) {
+				if(stack.get(i).isCheck()) {
+					List<Command> lcmd = new ArrayList<Command>();
+					// 	рекурсивно снизу-вверх добавляем комманды
+					addCommandsRecursive(lcmd,stack.get(i));
+					lcmd.add(stack.get(i));
+					CmdStream lcmdstream = new CmdStream(lcmd,inBasedir);
+					independentCommands.add(lcmdstream);
+				}
+			}
+		} else
+			independentCommands.add(this);
+		// если установлена опция - разделить и сам драйвер, то
+		// 
+		// Для каждого CmdStream'а
+		// 1. создаем директорию в tempdir с именем driver[index]
+		// 2. поочереди берем комманды
+		//    для каждой комманды:
+		// 
+		//    - заменяем заменяем в in и out часть basedir на новую
+		//      - делаем это в переменной
+		//      и если файл реально существует, то
+		//       - рекурсивно создаем директории в новой папке
+		//       - копируем туда наш файл 
+		//       - 
+		//
+		if(driversplit) {
+			for(int i=0; i<independentCommands.size(); i++) {
+				CmdStream lcmd = independentCommands.get(i);
+				String newDriverDirString = tempdir+"/"+defaultDriverDirName+i;
+				lcmd.relocateDriver(newDriverDirString,fullcopy);
 			}
 		}
-		
 		genFilename = CSD.cmdfileout;
 		for(int i=0; i<independentCommands.size(); i++) {
 			try {
@@ -157,6 +186,36 @@ public class CmdStream {
 				System.out.println("csd: WARNING: Failed \""+tempdir+"/"+genFilename+"1"+".xml"+"\".");
 			}
 		}
+	}
+
+	private boolean relocateDriver(String newDriverDirString, boolean fullcopy) {
+		File newDriverDir = new File(newDriverDirString);
+		if(newDriverDir.exists()) {
+			System.out.println("csd: WARNING: Directory \""+newDriverDirString+"\" - already exists. Try to rewrite it.");
+			FSOperationBase.removeDirectoryRecursive(newDriverDir);
+		}
+		newDriverDir.mkdirs();
+		File oldDriverDir = new File(inBasedir);
+		if(!oldDriverDir.exists()) {
+			System.out.println("csd: ERROR: Basedir \""+inBasedir+"\" - not exists.");
+			System.exit(1);
+		}
+		String newDDFullCanPath = newDriverDir.getAbsolutePath();
+		String oldDDFullCanPath = oldDriverDir.getAbsolutePath();
+		
+		try {
+			if(fullcopy) {
+				FSOperationBase.copyDirectory(oldDriverDir, newDriverDir);
+			}
+		} catch (IOException e) {
+			System.out.println("csd: ERROR: Can't copy directory.");
+			System.exit(1);
+		}
+		List<Command> lCmdList = cmdlist;
+		for(int i=0; i<lCmdList.size(); i++)
+			lCmdList.get(i).relocateCommand(oldDDFullCanPath,newDDFullCanPath,fullcopy);
+		inBasedir = newDDFullCanPath;
+		return true;
 	}
 
 	private void addCommandsRecursive(List<Command> lcmd, Command command) {
@@ -230,7 +289,7 @@ public class CmdStream {
 		sb.append("<?xml version=\"1.0\"?>\n");
 		sb.append("<cmdstream>\n");
 		sb.append(shift+"<"+tagBasedir+">"+inBasedir+"</"+tagBasedir+">\n");
-		for(int i=0; i<cmdlist.size(); i++)
+		for(int i=0; i<cmdlist.size(); i++) 
 			cmdlist.get(i).write(sb);
 		sb.append("</cmdstream>");
 		fw.write(sb.toString());

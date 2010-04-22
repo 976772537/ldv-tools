@@ -2,6 +2,7 @@
 
 BCE_TEMPDIR_NAME="bce_tempdir"
 DRIVER_DIR_NAME="driver"
+TEMP_DRIVER_DIR_NAME="tempdir_driver"
 
 KERNEL_ENV_PREFIX=".ldv\/ldv\/envs\/";
 
@@ -15,6 +16,8 @@ LOG_MIRROR_TO_CONSOLE=1;
 KERNEL_LEVEL=0;
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
+BCE_DIRNAME="build-cmd-extractor";
+BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
 
 bce_print() {
 	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
@@ -32,10 +35,10 @@ bce_print() {
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "$LOG_PREFIX: USAGE: WORK_DIR=workdir build-cmd-extractor --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
+		echo "$LOG_PREFIX: USAGE: LDV_DEBUG=level WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
 		exit 1;
 }
-if [ $# -ne 3 ]; then print_usage_and_exit; fi;
+if [ $# -ne 4 ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	echo "$LOG_PREFIX: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -62,15 +65,28 @@ for arg in $@; do
 				echo "$LOG_PREFIX: ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			cmdfileout=`readlink -f $rcmdfileout`;
-			if [ $? -ne 0 ]; then
-				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for out cmd file: \"$cmdfileout\"."
+			cmdfileout=$rcmdfileout;
+			#cmdfileout=`readlink -f $rcmdfileout`;
+			#if [ $? -ne 0 ]; then
+			#	echo "$LOG_PREFIX: ERROR: Failed to read abs-path for out cmd file: \"$cmdfileout\"."
+			#        exit 1;
+			#fi;
+			#if [ -f "$cmdfileout" ]; then
+			#        echo "$LOG_PREFIX: ERROR: Cmd file out already exists: \"$cmdfileout\".";
+			#        exit 1;
+			#fi;
+		;;
+                --basedir=*)
+                	basedir=`echo $arg | sed 's/--basedir=//g'`
+			if [ ! -n "$basedir" ]; then
+				echo "$LOG_PREFIX: ERROR: Parameter \"--basedir\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			if [ -f "$cmdfileout" ]; then
-			        echo "$LOG_PREFIX: ERROR: Cmd file out already exists: \"$cmdfileout\".";
-			        exit 1;
-			fi;
+			#basedir=`readlink -f $rbasedir`;
+			#if [ $? -ne 0 ]; then
+			#	echo "$LOG_PREFIX: ERROR: Failed to read abs-path for environment dir: \"$rbasedir\"."
+			#        exit 1;
+			#fi;
 		;;
                 --env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
@@ -115,11 +131,20 @@ for arg in $@; do
 done
 #---------------------------------------------------------------------------
 
-TEMP_DIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
-mkdir $TEMP_DIR;
-if [ $? -ne 0 ]; then
-	echo "$LOG_PREFIX: ERROR: Failed to create next tempdir: \"$TEMP_DIR\".";
-	exit 1;
+if [ ! -n $basedir ]; then
+	echo "$LOG_PREFIX: ERROR: Option \"$basedir\" is empty.";
+	print_usage_and_exit;
+fi;
+
+TEMP_DIR=$WORK_DIR/$basedir;
+if [ ! -d $TEMP_DIR ]; then
+	mkdir $TEMP_DIR;
+	if [ $? -ne 0 ]; then
+		echo "$LOG_PREFIX: ERROR: Failed to create next tempdir: \"$TEMP_DIR\".";
+		exit 1;
+	fi;
+else
+	echo "$LOG_PREFIX: WARNING: Temp directory: \"$TEMP_DIR\" - already exists. Reuse it.";
 fi;
 DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
@@ -207,11 +232,11 @@ fi;
 bce_print "DEBUG: Try to call kernel make..."
 if [ $KERNEL_LEVEL -eq 0 ]; then
 	bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-	BUILDFILE=$cmdfileout make M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1;
+	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
 else
 	bce_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-	BUILDFILE=$cmdfileout make modules > $KERNEL_COMPILE_LOG 2>&1;
-#	BUILDFILE=$cmdfileout make > $KERNEL_COMPILE_LOG 2>&1;
+	BUILDFILE=$cmdfileout make V=1 modules > $KERNEL_COMPILE_LOG 2>&1
+#	BUILDFILE=$cmdfileout make V=1 > $KERNEL_COMPILE_LOG 2>&1;
 fi;
 if [ $? -ne 0 ]; then
 	bce_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
@@ -221,15 +246,22 @@ fi;
 #
 # restore driver sources
 #
-rm -r $driver
+TEMP_DRIVER_DIR=$TEMP_DIR/$TEMP_DRIVER_DIR_NAME;
+mv $driver $TEMP_DRIVER_DIR
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Can't remove driver dir: \"$DRIVER_DIR\".";
+	bce_print "ERROR: Can't move driver dir:\"$driver\" to \"$TEMP_DRIVER_DIR\".";
 	exit 1;
 fi;
 
 mv $DRIVER_DIR $driver
 if [ $? -ne 0 ]; then
 	bce_print "ERROR: Can't copy driver dir: \"$DRIVER_DIR\".";
+	exit 1;
+fi;
+
+mv $TEMP_DRIVER_DIR $DRIVER_DIR
+if [ $? -ne 0 ]; then
+	bce_print "ERROR: Can't move driver dir:\"$TEMP_DRIVER_DIR\" to \"$DRIVER_DIR\".";
 	exit 1;
 fi;
 

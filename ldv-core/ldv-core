@@ -7,13 +7,20 @@
 
 GLOBAL_LOG="global.log";
 XML_FILENAME_AFTER_BCE="cmd_after_bce.xml";
+XML_FILENAME_AFTER_CSD="cmd_after_csd";
 XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
 BCE_WORK_DIRNAME="bce_tempdir";
 DEG_WORK_DIRNAME="deg_tempdir";
-DSCV_WORK_DIRNAME="dscv_tempdir";
+DSCV_TEMPDIR_NAME="dscv_tempdir";
+DEG_TEMPDIR_NAME="deg_tempdir";
+CSD_DEG_DSCV_TEMPDIR_NAME="csd_deg_dscv";
 LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
 EXTRACTOR_LOG_FILENAME="unarch.log";
+
+
+XML_AFTER_BCE_NAME="xml_after_bce";
+BCE_TEMPDIR_NAME="bce_tempdir";
 
 
 #
@@ -39,6 +46,13 @@ ldv_print() {
 
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
+
+BCE_DIRNAME="build-cmd-extractor";
+BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
+CSD="java -ea -jar $BCE_DIR/csd.jar";
+CSD_TEMPDIR_NAME="csd_tempdir";
+
+
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
 
@@ -183,46 +197,94 @@ else
 	env=$TEMP_DIR/"kdriver";
 fi;
 
-XML_AFTER_BCE=$TEMP_DIR/$XML_FILENAME_AFTER_BCE;
+XML_AFTER_BCE=$WORK_DIR/$BCE_TEMPDIR_NAME/$XML_FILENAME_AFTER_BCE;
 ldv_print "DEBUG: *********** Try to call Build Command Extractor ***********";
-
 if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
-	WORK_DIR=$TEMP_DIR $BCE --env=$env --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 else
-	ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $BCE --env=$env --driver-kernel ----cmdfile-out=$XML_AFTER_BCE;"
-	WORK_DIR=$TEMP_DIR $BCE --env=$env --driver-kernel --cmdfile-out=$XML_AFTER_BCE;
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver-kernel --cmdfile-out=$XML_AFTER_BCE;"
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver-kernel --cmdfile-out=$XML_AFTER_BCE;
 fi;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
         exit 1;
 fi;
 
-XML_AFTER_DEG=$TEMP_DIR/$XML_FILENAME_AFTER_DEG;
-ldv_print "DEBUG: *********** Try to call Driver Environment Generator  ***********";
-ldv_print "DEBUG: WORK_DIR=$TEMP_DIR $DEG --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;";
-WORK_DIR=$TEMP_DIR $DEG --basedir="deg_tempdir1" --cmdfile=$XML_AFTER_BCE --cmdfile-out=$XML_AFTER_DEG;
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Drv-env-gen failed."
-        exit 1;
+#
+# Try to call CSD:
+#   CSD_TEMPDIR_NAME - directory in WORK_DIR where contains:
+#     files XML_FILENAME_AFTER_CSD[index].xml
+#
+ldv_print "DEBUG: *********** Try to call Command Stream Separator ****************";
+ldv_print "DEBUG:                                                                  ";
+ldv_print "DEBUG:  Option \"--print-digraph\" shown graph for graphviz tool.       ";
+ldv_print "DEBUG:  You can see this graph in graphical mode:                       ";
+ldv_print "DEBUG:     - copy to FILE all in \"diraph G{...}\".                     ";
+ldv_print "DEBUG:     - call: dot -Tpng ./FILE -o ./FILE.png & gwenview ./FILE.png ";
+ldv_print "DEBUG:                                                                  ";
+
+if [ $KERNEL_LEVEL -eq 1 ]; then
+	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;";
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
+else
+	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;";
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
 fi;
-if [ ! -f "$XML_AFTER_DEG" ]; then
-	ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
-	exit 1;
-fi;
-DSCV_TEMPDIR=$TEMP_DIR/$DSCV_WORK_DIRNAME"1";
-mkdir $DSCV_TEMPDIR;
 if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
-	exit 1;
+       ldv_print "ERROR: Command stream divider failed.";
+       exit 1;
 fi;
-ldv_print "DEBUG: *********** Try to call Domain Speicific C-Verifier ***********";
-ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
-LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
-if [ $? -ne 0 ]; then
-        ldv_print "DRROR: DSCV failed."
-        exit 1;
+CSD_DEG_DSCV_TEMPDIR=$WORK_DIR/$CSD_DEG_DSCV_TEMPDIR_NAME;
+if [ ! -d $CSD_DEG_DSCV_TEMPDIR ]; then
+       ldv_print "ERROR: Can't find command stream divider temp directory:\"$CSD_DEG_DSCV_TEMPDIR_NAME\".";
+       exit 1;
 fi;
 
+
+# 
+# Find all xml files in csd_tempdir and try to call all other instruments
+#
+for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILENAME_AFTER_CSD[0-9]+\.xml$" -type f`; do
+	LAST_DRIVER_DIR=`cat $xml_after_csd | grep '<basedir>' | sed 's/<basedir>//' | sed 's/<\\/basedir>//'`;
+	if [ ! -d $LAST_DRIVER_DIR ]; then
+		ldv_print "ERROR: Can't find driver dir from csd xml.";
+		exit 1;
+	fi;
+	CURRENT_TEMPDIR_NAME=`echo $xml_after_csd | sed 's/.xml//' | sed 's/.*\\///'`;
+	CURRENT_TEMPDIR=$CSD_DEG_DSCV_TEMPDIR/$CURRENT_TEMPDIR_NAME;
+	mkdir $CURRENT_TEMPDIR;
+	if [ $? -ne 0 ]; then
+	       ldv_print "ERROR: Can't create deg temp directory: \"$CURRENT_TEMPDIR\".";
+	       exit 1;
+	fi;
+	DEG_TEMPDIR=$CURRENT_TEMPDIR/$DEG_TEMPDIR_NAME;
+	XML_AFTER_DEG=$DEG_TEMPDIR/$XML_FILENAME_AFTER_DEG;
+	ldv_print "DEBUG: *********** Try to call Driver Environment Generator  ***********";
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG;";
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG;
+	if [ $? -ne 0 ]; then
+	        ldv_print "ERROR: Drv-env-gen failed."
+	        exit 1;
+	fi;
+	if [ ! -f "$XML_AFTER_DEG" ]; then
+		ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
+		exit 1;
+	fi;
+	DSCV_TEMPDIR=$CURRENT_TEMPDIR/$DSCV_TEMPDIR_NAME;
+	mkdir $DSCV_TEMPDIR;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
+		exit 1;
+	fi;
+	ldv_print "DEBUG: *********** Try to call Domain Speicific C-Verifier ***********";
+	ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
+	LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
+	if [ $? -ne 0 ]; then
+	        ldv_print "DRROR: DSCV failed."
+	        exit 1;
+	fi;
+done;
+exit;
 
 
