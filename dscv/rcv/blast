@@ -349,7 +349,7 @@ sub preprocess_file
 	vsay (20,"Preprocessor: ",@cpp_args);
 	local $"; $"=' ';
 	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
-	chdir $info;
+	chdir $current_dir;
 }
 
 
