@@ -44,6 +44,7 @@ my $workdir = $config->{workdir};
 use DSCV::Sanity;
 my $sanity = DSCV::Sanity->new($config->{sandir});
 
+use DSCV::RCV::Utils;
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
@@ -142,7 +143,7 @@ sub execute_ld
 			my $i_file = $c_file; $i_file =~ s/\.c$/.i/; $i_file =~ s/\//-/g; $i_file = "$preprocess_dir/$i_file";
 			mkpath(dirname($i_file));
 			$new_record->{i_file} = $i_file;
-			preprocess_file($new_record);
+			DSCV::RCV::Utils::preprocess_file(%$new_record) and die "PREPROCESS ERROR!  Recovery is unimplemented";
 
 			push @$c_files_info, $new_record;
 		}
@@ -333,23 +334,6 @@ sub call_blast
 	}
 
 	return $verdictor->result();
-}
-use Cwd;
-sub preprocess_file
-{
-	my $info = shift or die;
-	# Change dir to cwd; then change back
-	my $current_dir = getcwd();
-	chdir $info->{cwd} or die;
-	my @cpp_args = ("gcc","-E",
-		"-o","$info->{i_file}",	#Output file
-		"$info->{c_file}",	#Input file
-		@{$info->{opts}},	#Options
-	);
-	vsay (20,"Preprocessor: ",@cpp_args);
-	local $"; $"=' ';
-	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
-	chdir $current_dir;
 }
 
 
