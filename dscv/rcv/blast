@@ -1,10 +1,16 @@
 #!/usr/bin/perl
 
 # RCV Frontend for blast tool.
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
 
 use strict;
 use Pod::Usage;
 use Getopt::Long;
+use LDV::Utils;
+
 
 my $config={
 	cmdfile=>'',
@@ -12,26 +18,19 @@ my $config={
 
 my %optionSpecs = ();
 $config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('rcv-blast');
+
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'sanity-dir=s'} = \$config->{sandir};
 
-sub vsay
-{
-	my $verbosity = shift;
-	local $,=' ';
-	print @_ if $verbosity <= $config->{verbosity};
-}
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
 # Prepare running environment
 use FindBin;
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
-BEGIN {
-	# Add the lib directory to the @INC to be able to include local modules.
-	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
-}
 my $backend_dir = "$shared_dir/rcv/backends/blast";
 my $blast = "$backend_dir/bin/pblast.opt";
 my $workdir = $config->{workdir};
@@ -155,7 +154,7 @@ sub execute_ld
 	my $hintsT = $cmdT->first_child('hints');
 	# Get entry points
 	my @mains = $cmdT->children_text('main');
-	@mains or vsay 10,"WARNING!  No mains specified for file ".$cmdT->first_child_text('out')."\n";
+	@mains or vsay("WARNING", "No mains specified for file ".$cmdT->first_child_text('out')."\n");
 	# Get list of files to analyze:
 	my @files = map {$_->{i_file}} @$c_files_info;
 	# List of error locations
@@ -174,11 +173,11 @@ sub execute_ld
 	my $repT = XML::Twig::Elt->new('reports');
 
 	for my $main (@mains){
-		my $result = call_blast(files => \@files, hints=>$hintsT, main=>$main, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug); 
+		my $result = call_blast(files => \@files, hints=>$hintsT, main=>$main, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug, dbg_target=>$target); 
 	
 		# Print verdict to console and to report 
-		vsay 10,"$main: BLAST status: $result->{'BLAST'}\n";
-		vsay 20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n";
+		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
+		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
 
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$cmdT->att('id'), main=>$main});
 		XML::Twig::Elt->new('trace',{},$trace)->paste($cmdInstT);
@@ -280,7 +279,8 @@ sub call_blast
 			"-alias","bdd"	# Turn alias analysis on
 		;
 	}
-	vsay 20,@blast_options,"\n";
+	vsay ('NORMAL',"Running BLAST for $args{dbg_target}, entry $args{main}...\n");
+	vsay (20,@blast_options,"\n");
 
 	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 	# Open file to redirect
@@ -291,7 +291,7 @@ sub call_blast
 	local $"=" ";
 	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
-	vsay 20,"BLAST debug trace is written to $args{debug}\n";
+	vsay (20,"BLAST debug trace is written to $args{debug}\n");
 
 	# Sanity check
 	$sanity->blast_called();
@@ -317,8 +317,8 @@ sub call_blast
 	hard_wait($fpid,0) < 0 and die;
 	close $BLAST_DEBUG;
 
-  vsay 40,"BLAST open3 return value: $?\n";
-	vsay 10,"Error return value: $?\n";
+  vsay (40,"BLAST open3 return value: $?\n");
+	vsay (20,"BLAST return value: $?\n");
 	my $blast_rv = $? >> 8;
 	# NOTE that exit code 2 is for OCaml unhandled exceptions
 	if ($blast_rv == 5){
@@ -327,9 +327,9 @@ sub call_blast
 	}elsif($blast_rv == 3){
 		die "BLAST couldn't find entry point/error location";
 	}elsif($? == 0){
-		vsay 10,"BLAST OK\n";
+		vsay (20,"BLAST OK\n");
 	}else{
-		vsay 10,"BLAST failed with exit code $blast_rv.  But who cares?\n";
+		vsay (20,"BLAST failed with exit code $blast_rv.  But who cares?\n");
 	}
 
 	return $verdictor->result();
@@ -346,7 +346,7 @@ sub preprocess_file
 		"$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options
 	);
-	vsay 20,@cpp_args;
+	vsay (20,"Preprocessor: ",@cpp_args);
 	local $"; $"=' ';
 	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
 	chdir $info;
@@ -356,7 +356,7 @@ sub preprocess_file
 # Perform BLAST quick check before running any verifications
 
 $" = ' ';      # For error reporting
-vsay 10, "Trying to run blast without arguments to see it it works...";
+vsay ('INFO', "Trying to run blast without arguments to see it it works...");
 my @blast_args = ("pblast.opt","-help");
 my $CHEW_BLAST_OUT;
 my $fpid = open $CHEW_BLAST_OUT,"-|";
@@ -380,7 +380,7 @@ $? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return cod
 # Ok, now we can close the pipe
 close($CHEW_BLAST_OUT);
 
-print "OK\n";
+vsay ('INFO',"OK\n");
 
 # Now all subroutines are initialized.  Let's start processing the cmdfile.
 $check_input_file->parsefile($config->{cmdfile});
