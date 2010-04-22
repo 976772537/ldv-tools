@@ -14,6 +14,7 @@ my %optionSpecs = ();
 $config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
+$optionSpecs{'sanity-dir=s'} = \$config->{sandir};
 
 sub vsay
 {
@@ -26,7 +27,11 @@ GetOptions(%optionSpecs) or die("Unrecognized options!");
 
 # Prepare running environment
 use FindBin;
-my $shared_dir = "$ENV{'DSCV_HOME'}" or die;
+my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
 my $backend_dir = "$shared_dir/rcv/backends/blast";
 my $blast = "$backend_dir/bin/pblast.opt";
 my $workdir = $config->{workdir};
@@ -35,6 +40,11 @@ my $workdir = $config->{workdir};
 -d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
 -x $blast or die "BLAST's toplevel executable $blast is not an executable file";
 -d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+
+# Prepare sanity checks
+use DSCV::Sanity;
+my $sanity = DSCV::Sanity->new($config->{sandir});
+
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
@@ -145,6 +155,7 @@ sub execute_ld
 	my $hintsT = $cmdT->first_child('hints');
 	# Get entry points
 	my @mains = $cmdT->children_text('main');
+	@mains or vsay 10,"WARNING!  No mains specified for file ".$cmdT->first_child_text('out')."\n";
 	# Get list of files to analyze:
 	my @files = map {$_->{i_file}} @$c_files_info;
 	# List of error locations
@@ -282,6 +293,9 @@ sub call_blast
 
 	vsay 20,"BLAST debug trace is written to $args{debug}\n";
 
+	# Sanity check
+	$sanity->blast_called();
+
 	# Create trace printer
 	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
@@ -367,8 +381,6 @@ $? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return cod
 close($CHEW_BLAST_OUT);
 
 print "OK\n";
-
-
 
 # Now all subroutines are initialized.  Let's start processing the cmdfile.
 $check_input_file->parsefile($config->{cmdfile});
