@@ -129,12 +129,6 @@ sub usage
 	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
 }
 
-sub vsay
-{
-	my $verbosity = shift;
-	print @_ if $verbosity <= $config->{verbosity};
-}
-
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
 
 # Sanity check
@@ -149,6 +143,11 @@ $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->
 unless (scalar @{$config->{properties}}){
 	usage("You should specify at least one property to verify!  Did you forget about it?\n");
 }
+
+
+use LDV::Utils;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('dscv');
 
 
 # Actual work.
@@ -194,6 +193,9 @@ sub get_driver_dir
 }
 $process_input->parsefile($config->{cmdfile});
 
+# Sanity check for blast runs
+$expected_blast_runs *= scalar @{$config->{properties}};
+vsay ('DEBUG',"Expecting $expected_blast_runs runs of RCV backend.\n");
 
 # Function that copies driver
 use File::Copy::Recursive qw(dircopy);
@@ -235,7 +237,8 @@ for my $property (@properties){
 		"--cmdfile=$config->{cmdfile}",
 		"--cmdfile-out=$outfile"
 	);
-	vsay 20, "@rule_instr_args\n";
+	vsay (10,"Calling rule_instrumenter for rule model $property...\n");
+	vsay (20,@rule_instr_args,"\n");
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
 	#system "cp $config->{cmdfile} $outfile";
 	# Call C verifier
@@ -272,7 +275,8 @@ for my $property (@properties){
 				"--workdir=$dir",
 				"--sanity-dir=$dscv_base_dir",
 			);
-			vsay 20, "@rcv_args\n";
+			vsay ('NORMAL',"Calling RCV $verifier backend for @{[$cmdT->tag]} command $id...\n");
+			vsay (20, "@rcv_args\n");
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
 		};
 	};
@@ -286,12 +290,11 @@ for my $property (@properties){
 }
 
 # Perform final sanity check
-$expected_blast_runs *= scalar @properties;
 
 my $blast_runs = $sanity->get('blast_calls') || 0;
 
 if ($blast_runs < $expected_blast_runs) {
-	vsay 1,"WARNING!  SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n";
+	vsay ("WARNING", "SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n");
 }
 
 
