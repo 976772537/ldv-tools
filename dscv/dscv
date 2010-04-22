@@ -248,7 +248,8 @@ for my $property (@properties){
 	my $get_verifier_handler = sub{
 		my $dir = shift or die;
 		return sub{
-			my ($twig, $cmdT) = @_;
+			my ($twig, $cmdT_) = @_;
+			my $cmdT = $cmdT_->copy();
 			my $id = $cmdT->att('id');
 			# Get verifier from command and override it if necessary
 			my $verifier = $config->{verifier_override} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --verifier option is not set";
@@ -263,10 +264,15 @@ for my $property (@properties){
 				$rule_instr_mains += scalar $cmdT->children("main");
 			}
 
+			# Enwrap tag into <cmdstream> and add <basedir>
+			my $streamT = XML::Twig::Elt->new("cmdstream");
+			$cmdT->paste($streamT);
+			# WARNING: It's important to put <basedir> tag before anything else.
+			XML::Twig::Elt->new("basedir",{},$ri_basedir_for_rule)->paste($streamT);
 			# Print tag to temporary file
 			my $cmdfile = "$dir/model$property-$verifier-$id.xml";
 			my $tmp_FH; open $tmp_FH,">",$cmdfile or die "Couldn't create temporary file for RCV's command!";
-			$cmdT->print($tmp_FH);
+			$streamT->print($tmp_FH,'indented');
 			close $tmp_FH;
 
 			# Run RCV
