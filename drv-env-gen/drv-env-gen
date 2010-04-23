@@ -78,7 +78,7 @@ $twig->parsefile($cmdfile);
 
 $twig->set_pretty_print('indented');
 
-if($log_level == 30) {
+if($log_level == 50) {
 	$twig->print();
 }
 $twig->print_to_file($cmdfile_out);
