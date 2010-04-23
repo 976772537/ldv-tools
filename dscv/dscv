@@ -261,7 +261,7 @@ if ($mode eq 'inline'){
 	# Create a dummy "link" command.
 	my $ldT = XML::Twig::Elt->new('ld',{id=>$id++});
 	XML::Twig::Elt->new('in',{},$_)->paste($ldT) for @outfiles;
-	XML::Twig::Elt->new('out',{},'link.exe')->paste($ldT);
+	XML::Twig::Elt->new('out',{check=>'true'},'link.exe')->paste($ldT);
 	XML::Twig::Elt->new('cwd',{},getcwd())->paste($ldT);
 	push @{$config->{inl_entries}},'main' unless @{$config->{inl_entries}};
 	XML::Twig::Elt->new('main',{},$_)->paste($ldT) for @{$config->{inl_entries}};
