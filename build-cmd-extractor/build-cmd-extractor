@@ -19,38 +19,40 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
 
-bce_print() {
-	if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-	if [ ! -f "$TEMP_DIR/$GLOBAL_LOG" ];  then
-		touch $TEMP_DIR/$GLOBAL_LOG;
-	if [ $? -ne 0 ]; then 
-		echo "$LOG_PREFIX: ERROR: can't create log file.";
-	exit 1; 
-		fi;
-        fi;
-        echo "$LOG_PREFIX$1" >> $TEMP_DIR/$GLOBAL_LOG;
+ldv_print() {
+	if [ $LDV_DEBUG -le 0 ]; then if [ -n "`echo $1 | grep WARNING`" -o -n "`echo $1 | grep NORMAL`" -o -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 10 ]; then if [ -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
+
+	if [ $LDV_DEBUG -ge 40 ]; then 
+		echo $LOG_PREFIX"TRACE: Trace mode on. Press any key to cnotinue...";
+		read;
+	fi;
+	echo "$LOG_PREFIX$1";
 }
+if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 #---------------------------------------------------------------------------
 #
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "$LOG_PREFIX: USAGE: LDV_DEBUG=level WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
+		ldv_print "NORMAL: USAGE: LDV_DEBUG=level WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
 		exit 1;
 }
 if [ $# -ne 4 ]; then print_usage_and_exit; fi;
-
 if [ ! -n "$WORK_DIR" ]; then
-	echo "$LOG_PREFIX: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
+	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
 	exit 1;
 fi;
 WORK_DIR=`readlink -f $WORK_DIR`;
 if [ $? -ne 0 ]; then
-        echo "$LOG_PREFIX: ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
+        ldv_print "ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\".";
         exit 1;
 fi;
 if [ ! -d "$WORK_DIR" ]; then
-        echo "$LOG_PREFIX: ERROR: Working directory does not exists: \"$WORK_DIR\".";
+        ldv_print "ERROR: Working directory does not exists: \"$WORK_DIR\".";
         exit 1;
 fi;
 
@@ -62,61 +64,47 @@ for arg in $@; do
                 --cmdfile-out=*)
                 	rcmdfileout=`echo $arg | sed 's/--cmdfile-out=//g'`
 			if [ ! -n "$rcmdfileout" ]; then
-				echo "$LOG_PREFIX: ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
+				ldv_print "ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			cmdfileout=$rcmdfileout;
-			#cmdfileout=`readlink -f $rcmdfileout`;
-			#if [ $? -ne 0 ]; then
-			#	echo "$LOG_PREFIX: ERROR: Failed to read abs-path for out cmd file: \"$cmdfileout\"."
-			#        exit 1;
-			#fi;
-			#if [ -f "$cmdfileout" ]; then
-			#        echo "$LOG_PREFIX: ERROR: Cmd file out already exists: \"$cmdfileout\".";
-			#        exit 1;
-			#fi;
 		;;
                 --basedir=*)
                 	basedir=`echo $arg | sed 's/--basedir=//g'`
 			if [ ! -n "$basedir" ]; then
-				echo "$LOG_PREFIX: ERROR: Parameter \"--basedir\" - is null. Setup it.";
+				ldv_print "ERROR: Parameter \"--basedir\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			#basedir=`readlink -f $rbasedir`;
-			#if [ $? -ne 0 ]; then
-			#	echo "$LOG_PREFIX: ERROR: Failed to read abs-path for environment dir: \"$rbasedir\"."
-			#        exit 1;
-			#fi;
 		;;
                 --env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
-				echo "$LOG_PREFIX: ERROR: Parameter \"--env\" - is null. Setup it.";
+				ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			env=`readlink -f $renv`;
 			if [ $? -ne 0 ]; then
-				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for environment dir: \"$renv\"."
+				ldv_print "ERROR: Failed to read abs-path for environment dir: \"$renv\"."
 			        exit 1;
 			fi;
 			if [ ! -d "$env" ]; then
-			        echo "$LOG_PREFIX: ERROR: Environment dir not exists: \"$env\".";
+			        ldv_print "ERROR: Environment dir not exists: \"$env\".";
 			        exit 1;
 			fi;
                 ;;
                 --driver=*)
                 	rdriver=`echo $arg | sed 's/--driver=//g'`
 			if [ ! -n "$rdriver" ]; then
-				echo "$LOG_PREFIX: ERROR: Parameter \"--driver\" - is null. Setup it.";
+				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			driver=`readlink -f $rdriver`;
 			if [ $? -ne 0 ]; then
-				echo "$LOG_PREFIX: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+				ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
 			        exit 1;
 			fi;
 			if [ ! -d "$driver" ]; then
-			        echo "$LOG_PREFIX: ERROR: Driver unpacked sources not exists: \"$driver\".";
+			        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
 			        exit 1;
 			fi;
 		;;
@@ -124,27 +112,33 @@ for arg in $@; do
                 	KERNEL_LEVEL=1;
                 ;;
                 *)
-                        echo "$LOG_PREFIX: ERROR: Unknown options: '$arg'.";
+                        ldv_print "ERROR: Unknown options: '$arg'.";
 			print_usage_and_exit;
                 ;;
         esac
 done
 #---------------------------------------------------------------------------
 
+if [ $KERNEL_LEVEL -eq 0 ]; then
+	ldv_print "NORMAL: Extern driver mode.";
+else
+	ldv_print "NORMAL: In-kernel driver mode.";
+fi;
+
 if [ ! -n $basedir ]; then
-	echo "$LOG_PREFIX: ERROR: Option \"$basedir\" is empty.";
-	print_usage_and_exit;
+	ldv_print "ERROR: Option \"$basedir\" is empty.";
+	print_usage_and_exit;	
 fi;
 
 TEMP_DIR=$WORK_DIR/$basedir;
 if [ ! -d $TEMP_DIR ]; then
 	mkdir $TEMP_DIR;
 	if [ $? -ne 0 ]; then
-		echo "$LOG_PREFIX: ERROR: Failed to create next tempdir: \"$TEMP_DIR\".";
+		ldv_print "ERROR: Failed to create next tempdir: \"$TEMP_DIR\".";
 		exit 1;
 	fi;
 else
-	echo "$LOG_PREFIX: WARNING: Temp directory: \"$TEMP_DIR\" - already exists. Reuse it.";
+	ldv_print "WARNING: Temp directory: \"$TEMP_DIR\" - already exists. Reuse it.";
 fi;
 DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
@@ -153,7 +147,7 @@ DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 if [ $KERNEL_LEVEL -eq 1 ]; then driver=$env; fi;
 cp -r $driver $DRIVER_DIR;
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
+	ldv_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
 	exit 1;
 fi;
 
@@ -167,14 +161,14 @@ echo "<basedir>$driver</basedir>" >> $cmdfileout;
 # 
 #KERNEL_MAKEFILE_BUILD=$env"/scripts/Makefile.build";
 #if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
-#	bce_print "ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+#	ldv_print "ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 #	exit 1;
 #fi;
 
 KERNEL_COMPILE_LOG=$TEMP_DIR/$KERNEL_COMPILE_LOG_FILENAME;
 cd $env;
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Failed change dir to: \"$env\".";
+	ldv_print "ERROR: Failed change dir to: \"$env\".";
 	exit 1;
 fi;
 
@@ -192,54 +186,53 @@ fi;
 #    3     Kernel print error
 #
 if [ $KERNEL_LEVEL -eq 0 ]; then
-	bce_print "INFO: Try to find Kbuild with obj-m...";
+	ldv_print "INFO: Try to find Kbuild with obj-m...";
 	FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
 	for l in $FIND_KBUILD_FILE_OPERATION; do
-		bce_print "INFO: next Kbuild: \"$l\".";
+		ldv_print "INFO: next Kbuild: \"$l\".";
 		if [ -n "`grep obj-m $l`" ]; then
 			CORRECT_MAKEFILE=`readlink -f $l`;
-			if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
-			bce_print "INFO: Correct Kbuild file is: \"$l\".";
+			if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
+			ldv_print "INFO: Correct Kbuild file is: \"$l\".";
 			break;
 		fi;
 	done;
 	if [ ! -n "$CORRECT_MAKEFILE" ]; then
-		bce_print "INFO: Kbuild not found.";
-		bce_print "INFO: Try to find Makefile with obj-m...";
+		ldv_print "INFO: Kbuild not found.";
+		ldv_print "INFO: Try to find Makefile with obj-m...";
 		FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
 		for l in $FIND_MAKEFILE_FILE_OPERATION; do
-			bce_print "INFO: next Makefile: \"$l\".";
+			ldv_print "INFO: next Makefile: \"$l\".";
 			if [ -n "`grep obj-m $l`" ]; then
 				CORRECT_MAKEFILE=`readlink -f $l`;
-				if [ $? -ne 0 ]; then bce_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
-	        	        bce_print "INFO: Correct Makefile is: \"$l\".";
+				if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
+	        	        ldv_print "INFO: Correct Makefile is: \"$l\".";
 				break;
 			fi;
 		done;
 	fi;
 	if [ ! -n "$CORRECT_MAKEFILE" ]; then
-		bce_print "ERROR: Can't find correct Makefile or Kbuild file.";
+		ldv_print "ERROR: Can't find correct Makefile or Kbuild file.";
 		exit 1;
 	fi;
 	DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
 	if [ $? -ne 0 ]; then
-		bce_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
+		ldv_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
 		exit 1;
 	fi;
 fi;
 
 
-bce_print "DEBUG: Try to call kernel make..."
+ldv_print "DEBUG: Try to call kernel make..."
 if [ $KERNEL_LEVEL -eq 0 ]; then
-	bce_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+	ldv_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
 else
-	bce_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
+	ldv_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
 	BUILDFILE=$cmdfileout make V=1 modules > $KERNEL_COMPILE_LOG 2>&1
-#	BUILDFILE=$cmdfileout make V=1 > $KERNEL_COMPILE_LOG 2>&1;
 fi;
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
+	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
 	exit 1;
 fi;
 
@@ -249,19 +242,19 @@ fi;
 TEMP_DRIVER_DIR=$TEMP_DIR/$TEMP_DRIVER_DIR_NAME;
 mv $driver $TEMP_DRIVER_DIR
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Can't move driver dir:\"$driver\" to \"$TEMP_DRIVER_DIR\".";
+	ldv_print "ERROR: Can't move driver dir:\"$driver\" to \"$TEMP_DRIVER_DIR\".";
 	exit 1;
 fi;
 
 mv $DRIVER_DIR $driver
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Can't copy driver dir: \"$DRIVER_DIR\".";
+	ldv_print "ERROR: Can't copy driver dir: \"$DRIVER_DIR\".";
 	exit 1;
 fi;
 
 mv $TEMP_DRIVER_DIR $DRIVER_DIR
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Can't move driver dir:\"$TEMP_DRIVER_DIR\" to \"$DRIVER_DIR\".";
+	ldv_print "ERROR: Can't move driver dir:\"$TEMP_DRIVER_DIR\" to \"$DRIVER_DIR\".";
 	exit 1;
 fi;
 
@@ -270,7 +263,7 @@ echo "</cmdstream>" >> $cmdfileout;
 cmdfileout_tmp=$cmdfileout"_tmp";
 touch $cmdfileout_tmp;
 if [ $? -ne 0 ] ; then 
-	bce_print "ERROR: Can't create temp cmdfile.";
+	ldv_print "ERROR: Can't create temp cmdfile.";
 	exit 1;
 fi;
 
@@ -289,7 +282,7 @@ cat $cmdfileout | while read iline; do
 done;
 mv $cmdfileout_tmp $cmdfileout;
 if [ $? -ne 0 ]; then
-	bce_print "ERROR: Can't replace cmdfile with temp cmdfile.";
+	ldv_print "ERROR: Can't replace cmdfile with temp cmdfile.";
 	exit 1;
 fi;
 
@@ -309,5 +302,6 @@ sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout;
 sed -i -e 's/^<module>/\t\t<module>/g' $cmdfileout; 
 sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
 
+ldv_print "NORMAL: Command stream is successfully extracted.";
 exit;
 

@@ -106,9 +106,12 @@ public class CSD {
 		
 		File wokrdirFile = new File(WORK_DIR+"/"+basedir);
 		if(!wokrdirFile.exists()) {
-			System.out.println("csd: WARNING: Temp directory: \""+WORK_DIR+"/"+basedir+"\" - not exists. Try to create it");
+//			System.out.println("csd: WARNING: Temp directory: \""+WORK_DIR+"/"+basedir+"\" - not exists. Try to create it");
 			wokrdirFile.mkdirs();
-		}
+		} else {
+			System.out.println("csd: ERROR: Temp directory: \""+WORK_DIR+"/"+basedir+"\" - alredy.");
+			return false;
+		} 
 		
 		if(cmdfile==null || cmdfile.length()==0) {
 			System.out.println("csd: ERROR: Setup option \"--cmdfile\" - and tru again.");

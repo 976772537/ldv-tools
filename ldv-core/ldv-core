@@ -32,18 +32,24 @@ PREFIX_WARNING=" WARN: ";
 PREFIX_DEBUG="DEBUG: ";
 PREFIX_INFO=" INFO: ";
 
+LOG_PREFIX="ldv-core: ";
 ldv_print() {
-        if [ $LOG_MIRROR_TO_CONSOLE -ne 0 ]; then echo "$LOG_PREFIX$1"; fi;
-        if [ ! -f "$TEMP_DIR/$GLOBAL_LOG" ];  then
-                touch $TEMP_DIR/$GLOBAL_LOG;
-                if [ $? -ne 0 ]; then
-                        echo "ldv-core: ERROR: can't create log file.";
-                        exit 1;
-                fi;
-        fi;
-        echo "$LOG_PREFIX$1" >> $TEMP_DIR/$GLOBAL_LOG;
-}
+	if [ $LDV_DEBUG -le 0 ]; then if [ -n "`echo $1 | grep WARNING`" -o -n "`echo $1 | grep NORMAL`" -o -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 10 ]; then if [ -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
 
+	if [ $LDV_DEBUG -ge 40 ]; then 
+		echo $LOG_PREFIX"TRACE: Trace mode on. Press any key to cnotinue...";
+		read;
+	elif [ $LDV_DEBUG -ge 30 ]; then
+		PRINT_DIGRAPH_OPTION="--print-digraph";
+	fi;
+	
+	echo "$LOG_PREFIX$1";
+}
+if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
@@ -77,22 +83,22 @@ KERNEL_LEVEL=0;
 # read and test environment variables
 #
 print_usage_and_exit() {
-		echo "ldv-core: USAGE: WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels"
+		ldv_print "ERROR: USAGE: WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels"
 		exit 1;
 }
 if [ $# -ne 3 ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
-	echo "ldv-core: ERROR: Please, setup WORK_DIR variable before running ldv-core.";
+	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
 	exit 1;
 fi;
 WORK_DIR=`readlink -f $WORK_DIR`;
 if [ $? -ne 0 ]; then
-        echo "ldv-core: ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
+        ldv_print "ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
         exit 1;
 fi;
 if [ ! -d "$WORK_DIR" ]; then
-        echo "ldv-core: ERROR: Working directory does not exists: \"$WORK_DIR\".";
+        ldv_print "ERROR: Working directory does not exists: \"$WORK_DIR\".";
         exit 1;
 fi;
 
@@ -104,23 +110,23 @@ for arg in $@; do
                 --rule-models=*)
                 	rulemodels=`echo $arg | sed 's/--rule-models=//g'`
 			if [ ! -n "$rulemodels" ]; then
-				echo "ldv-core: ERROR: Parameter \"--rule-models\" - is null. Setup it.";
+				ldv_print "ERROR: Parameter \"--rule-models\" - is null. Setup it.";
 			        exit 1;
 			fi;
                 ;;
 		--env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
-				echo "ldv-core: ERROR: Parameter \"--env\" - is null. Setup it.";
+				ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			env=`readlink -f $renv`;
 			if [ $? -ne 0 ]; then
-				echo "ldv-core: ERROR: Failed to read abs-path for environment dir: \"$renv\"."
+				ldv_print "ERROR: Failed to read abs-path for environment dir: \"$renv\"."
 			        exit 1;
 			fi;
 			if [ ! -d "$env" ]; then
-			        echo "ldv-core: ERROR: Environment dir not exists: \"$env\".";
+			        ldv_print "ERROR: Environment dir not exists: \"$env\".";
 			        exit 1;
 			fi;
                 ;;
@@ -130,21 +136,21 @@ for arg in $@; do
                 --driver=*)
                 	rdriver=`echo $arg | sed 's/--driver=//g'`
 			if [ ! -n "$rdriver" ]; then
-				echo "ldv-core: ERROR: Parameter \"--driver\" - is null. Setup it.";
+				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
 			        exit 1;
 			fi;
 			driver=`readlink -f $rdriver`;
 			if [ $? -ne 0 ]; then
-				echo "ldv-core: ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+				ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
 			        exit 1;
 			fi;
 			if [ ! -f "$driver" ]; then
-			        echo "ldv-core: ERROR: Driver sources not exists: \"$driver\".";
+			        ldv_print "ERROR: Driver sources not exists: \"$driver\".";
 			        exit 1;
 			fi;
                 ;;
                 *)
-                        echo "ldv-core: ERROR: Unknown options: '$arg'.";
+                        ldv_print "ERROR: Unknown options: '$arg'.";
 			print_usage_and_exit;
                 ;;
         esac
@@ -153,7 +159,7 @@ done
 TEMP_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
 mkdir $TEMP_DIR;
 if [ $? -ne 0 ]; then
-        echo "ldv-core: ERROR: Failed to create next working dir for bce: \"$TEMP_DIR\"."
+        ldv_print "ERROR: Failed to create next working dir for bce: \"$TEMP_DIR\"."
         exit 1;
 fi;
 
@@ -198,7 +204,7 @@ else
 fi;
 
 XML_AFTER_BCE=$WORK_DIR/$BCE_TEMPDIR_NAME/$XML_FILENAME_AFTER_BCE;
-ldv_print "DEBUG: *********** Try to call Build Command Extractor ***********";
+ldv_print "NORMAL: Calling Build Command Extractor";
 if [ $KERNEL_LEVEL -eq 0 ]; then
 	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
@@ -216,20 +222,20 @@ fi;
 #   CSD_TEMPDIR_NAME - directory in WORK_DIR where contains:
 #     files XML_FILENAME_AFTER_CSD[index].xml
 #
-ldv_print "DEBUG: *********** Try to call Command Stream Separator ****************";
-ldv_print "DEBUG:                                                                  ";
-ldv_print "DEBUG:  Option \"--print-digraph\" shown graph for graphviz tool.       ";
-ldv_print "DEBUG:  You can see this graph in graphical mode:                       ";
-ldv_print "DEBUG:     - copy to FILE all in \"diraph G{...}\".                     ";
-ldv_print "DEBUG:     - call: dot -Tpng ./FILE -o ./FILE.png & gwenview ./FILE.png ";
-ldv_print "DEBUG:                                                                  ";
+ldv_print "NORMAL: Calling Command Stream Separator";
+#ldv_print "DEBUG:                                                                  ";
+#ldv_print "DEBUG:  Option \"--print-digraph\" shown graph for graphviz tool.       ";
+#ldv_print "DEBUG:  You can see this graph in graphical mode:                       ";
+#ldv_print "DEBUG:     - copy to FILE all in \"diraph G{...}\".                     ";
+#ldv_print "DEBUG:     - call: dot -Tpng ./FILE -o ./FILE.png & gwenview ./FILE.png ";
+#ldv_print "DEBUG:                                                                  ";
 
 if [ $KERNEL_LEVEL -eq 1 ]; then
 	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
 else
 	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
 fi;
 if [ $? -ne 0 ]; then
        ldv_print "ERROR: Command stream divider failed.";
@@ -260,7 +266,7 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	fi;
 	DEG_TEMPDIR=$CURRENT_TEMPDIR/$DEG_TEMPDIR_NAME;
 	XML_AFTER_DEG=$DEG_TEMPDIR/$XML_FILENAME_AFTER_DEG;
-	ldv_print "DEBUG: *********** Try to call Driver Environment Generator  ***********";
+	ldv_print "NORMAL: Calling Driver Environment Generator";
 	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG;";
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG;
 	if [ $? -ne 0 ]; then
@@ -277,7 +283,7 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 		ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
 		exit 1;
 	fi;
-	ldv_print "DEBUG: *********** Try to call Domain Speicific C-Verifier ***********";
+	ldv_print "NORMAL: Calling Domain Speicific C-Verifier";
 	ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels";
 	LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels
 	if [ $? -ne 0 ]; then

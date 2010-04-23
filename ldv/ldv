@@ -1,26 +1,27 @@
 #!/bin/sh
 
+echo "ldv: NORMAL: ldv start.";
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
 
 if [ $# -eq 0 ]; then
-	echo "USAGE: ldv task|kmanager ...";
+	echo "ldv: USAGE: ldv task|kmanager ...";
 	exit;
 fi;
 
 case $1 in
 	task)
 		shift;
-		$LDV_DIR/ldv-task $@;;
+		LDV_DEBUG=$LDV_DEBUG $LDV_DIR/ldv-task $@;;
 	kmanager)
 		shift;
-		$LDV_DIR/ldv-kmanager $@;
+		LDV_DEBUG=$LDV_DEBUG $LDV_DIR/ldv-kmanager $@;
 		if [ $? -ne 0 ]; then 
-			echo "ERROR: kmanager failed.";
+			echo "ldv: ERROR: kmanager failed.";
 			exit 1;
 		fi;;
 	*)
-		echo "ERROR: Unknown option: \"$1\". It must be \"task\" or \"kmanager\".";
+		echo "ldv: ERROR: Unknown option: \"$1\". It must be \"task\" or \"kmanager\".";
 	exit 1;;
 esac
 

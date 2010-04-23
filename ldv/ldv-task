@@ -5,6 +5,20 @@
 # ldv-task driver workdir=workdir env:rule,rule env:rule,rule ...
 #
 #
+LOG_PREFIX="ldv-task: ";
+ldv_print() {
+	if [ $LDV_DEBUG -le 0 ]; then if [ -n "`echo $1 | grep WARNING`" -o -n "`echo $1 | grep NORMAL`" -o -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 10 ]; then if [ -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
+	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
+	if [ $LDV_DEBUG -ge 40 ]; then 
+		echo $LOG_PREFIX"TRACE: Trace mode on. Press any key to cnotinue...";
+		read;
+	fi;
+	echo "$LOG_PREFIX$1";
+}
+if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
@@ -20,24 +34,24 @@ if [ "$1" == "--kernel-driver" ]; then
 else
 	DRIVER_ABS=`readlink -f $1`;
 	if [ $? -ne 0 ]; then
-		echo "ldv-task: ERROR: Can't find abs-path for driver.";
+		ldv_print "ERROR: Can't find abs-path for driver.";
 		exit 1;
 	fi;
 fi;
 	
 if [ $# -lt 3 ]; then
-	echo "ldv-task: ERROR: USAGE: ldv-task driver workdir=wordir env:rule,rule... env:rule,rule... ...";
+	ldv_print "ERROR: USAGE: ldv-task driver workdir=wordir env:rule,rule... env:rule,rule... ...";
 	exit 1;
 fi;
 
 
 USER_WORKDIR=`echo $2 | sed 's/workdir=//'`
 if [ ! -d "$USER_WORKDIR" ]; then
-	echo "ldv-task: ERROR: Workdir not exists: \"$WORK_DIR\".";
+	ldv_print "ERROR: Workdir not exists: \"$WORK_DIR\".";
 else
 	WORK_DIR=`readlink -f $USER_WORKDIR`;
 fi;
-echo "ldv-task: INFO: temp workdir: $WORK_DIR";
+ldv_print "INFO: temp workdir: $WORK_DIR";
 # all temp dirs created... 
 k=1;
 tid=1;
@@ -49,12 +63,12 @@ for i in $@; do
 		k=`expr $k + 1`;
 		continue; 
 	fi;
-	echo -e "ldv-task: INFO: $i";
+	ldv_print "INFO: $i";
 	# create dir for this stage
 	WORK_DIR_LOCAL=$WORK_DIR/$tid;
 	mkdir $WORK_DIR_LOCAL;
 	if [ $? -ne 0 ]; then
-		echo "ldv-task: ERROR: can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
+		ldv_print "ERROR: can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
 		unset WORK_DIR_LOCAL;
 		k=`expr $k + 1`;
 		tid=`expr $tid + 1`;
@@ -64,9 +78,9 @@ for i in $@; do
 	# kernel-manager return path if kernel-environment exists and correct prepared
 	ENV_ID=`echo $i | sed 's/:.*//'`;
 	rulemodels=`echo $i | sed 's/.*://'`;
-	echo "ldv-task: DEBUG: rulemodels: $rulemodels";
+	ldv_print "DEBUG: rulemodels: $rulemodels";
 	if [ ! -n "$rulemodels" ]; then
-		echo "ldv-task: ERROR: rulemodels after \":\" is null. Please, setup it.";
+		ldv_print "ERROR: rulemodels after \":\" is null. Please, setup it.";
 		unset ENV_ID;
 		unset KERNEL_PATH;
 		unset WORK_DIR_LOCAL;
@@ -74,11 +88,11 @@ for i in $@; do
 		tid=`expr $tid + 1`;
 		exit 1;
 	fi;
-	echo "ldv-task: INFO: env_id: $ENV_ID";
-	echo "ldv-task: INFO: workdir: $WORK_DIR_LOCAL";
+	ldv_print "INFO: env_id: $ENV_ID";
+	ldv_print "INFO: workdir: $WORK_DIR_LOCAL";
 	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
 	if [ $? -ne 0 ]; then
-		echo "ldv-task: ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
+		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
 		unset ENV_ID;
 		unset KERNEL_PATH;
 		unset WORK_DIR_LOCAL;
@@ -86,34 +100,21 @@ for i in $@; do
 		tid=`expr $tid + 1`;
 		exit 1;
 	fi;
-#	WORK_DIR_NEXT_INSTRUMENT=$WORK_DIR_LOCAL/lvc_tempdir;
-#	mkdir $WORK_DIR_NEXT_INSTRUMENT;
-#	if [ $? -ne 0 ]; then
-#		echo "ldv-task: ERROR: can not create environment-dir from task: \"$WORK_DIR_NEXT_INSTRUMENT\".";
-#		unset WORK_DIR_LOCAL;
-#		unset WORK_DIR_NEXT_INSTRUMENT;
-#		k=`expr $k + 1`;
-#		tid=`expr $tid + 1`;
-#		exit 1;
-#	fi;
-
-
-	echo "ldv-task: DEBUG: **************** Try to call LDV-core *****************";
+	ldv_print "NORMAL: Calling LDV-core.";
 	if [ $KERNEL_LEVEL -eq 0 ]; then
-		echo "ldv-task: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
+		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
 		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
 	else
-		echo "ldv-task: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
+		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
 		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;
 	fi;
 
 	if [ $? -ne 0 ]; then
-		echo "ldv-task: ERROR: ldv-core failed.";
+		ldv_print "ERROR: ldv-core failed.";
 	fi;
 	unset ENV_ID;
 	unset KERNEL_PATH;
 	unset WORK_DIR_LOCAL;
-#	unset WORK_DIR_NEXT_INSTRUMENT;
 	k=`expr $k + 1`;
 	tid=`expr $tid + 1`;
 done;

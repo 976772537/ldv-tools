@@ -186,6 +186,7 @@ public class CmdStream {
 				System.out.println("csd: WARNING: Failed \""+tempdir+"/"+genFilename+"1"+".xml"+"\".");
 			}
 		}
+		System.out.println("csd: NORMAL: Number of extracted command streams: "+independentCommands.size()+".");
 	}
 
 	private boolean relocateDriver(String newDriverDirString, boolean fullcopy) {
