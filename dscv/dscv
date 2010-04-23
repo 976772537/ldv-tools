@@ -264,7 +264,7 @@ if ($mode eq 'inline'){
 	XML::Twig::Elt->new('out',{},'link.exe')->paste($ldT);
 	XML::Twig::Elt->new('cwd',{},getcwd())->paste($ldT);
 	push @{$config->{inl_entries}},'main' unless @{$config->{inl_entries}};
-	XML::Twig::Elt->new('entry',{},$_)->paste($ldT) for @{$config->{inl_entries}};
+	XML::Twig::Elt->new('main',{},$_)->paste($ldT) for @{$config->{inl_entries}};
 	$ldT->paste(last_child=>$streamT);
 
 	# Paste basedir
