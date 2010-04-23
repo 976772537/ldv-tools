@@ -163,6 +163,8 @@ sub call_blast
 			"-alias","bdd"	# Turn alias analysis on
 		;
 	}
+	push @blast_options,(split /\s+/,$ENV{'BLAST_OPTIONS'});
+
 	vsay ('NORMAL',"Running BLAST for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@blast_options,"\n");
 

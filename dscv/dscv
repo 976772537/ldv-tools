@@ -10,10 +10,15 @@ DSCV stands for B<Domain-Specific C Verifier>.  This is a working title.
 
 Compilation commands must be passed to the tool (all at once or sequentially), as well as a list of properties, and working directory. 
 
-For now it only supports cmdfile interface.
+DSCV supports both cmdline interface (when a file with build commands is supplied) and direct interface (when files to verify are directly passed on command line).
 
-	$ LDV_RULE_DB=/path/to/rule_db WORK_DIR=/path/to/workdir \
-	    dscv --cmdfile=commands.xml --rules=0032a,0039
+If there's no argument named "inline", C<dscv> runs in cmdfile mode:
+
+	dscv --cmdfile=commands.xml --rule-models=0032a,0039
+
+Otherwise, DSCV runs in an inline mode:
+
+	dscv --verifier=blast inline options -I include/ files file1.c file2.c
 
 =head1 DESCRIPTION
 
@@ -63,6 +68,61 @@ Overrides the verifier passed by rule instrumentor.
 =cut
 $optionSpecs{'verifier=s'} = \$config->{verifier_override};
 
+=back
+
+=cut
+my %inline_handlers = ();
+sub is_handler_keyword
+{
+	my $x = shift;
+	local $_;
+	# undef is thought of as a keyword (since it terminates the last sequence)
+	return (!defined $x) || (grep {$_ eq $x} keys %inline_handlers);
+}
+# Create subroutine that, if at the beginning of input array there is a keyword, reads keyword-related words into $$target array; up to the next keyword otto the end of the array
+sub make_handler
+{
+	my ($keyword, $target) = @_;
+	$$target ||= [];
+	return sub{
+		return () unless @_;
+		return @_ if $_[0] ne $keyword;
+		shift;	#remove keyword
+		my $f = shift;
+		while (!is_handler_keyword($f)){
+			push @$$target, $f;
+			$f = shift;
+		}
+		return () unless defined $f;
+		return ($f,@_);
+	};
+};
+
+
+=pod
+Inline mode options
+
+=over 8
+
+=item B<files> [list of files]
+
+In inline mode, specifies the list of files that will be verified as if they were linked together.
+
+=cut
+$inline_handlers{'files'}=make_handler('files',\$config->{inl_files});
+
+=item B<options> [list of GCC options]
+
+In inline mode, specifies the list of GCC options that will be passsed to compiler and/or preprocessor
+
+=cut
+$inline_handlers{'options'}=make_handler('options',\$config->{inl_options});
+=item B<option> [list of GCC options]
+
+In inline mode, specifies the list of entry points to check.  If omitted, only one entry point, C<main>, is checked.
+
+=cut
+$inline_handlers{'entries'}=make_handler('entries',\$config->{inl_entries});
 
 =back
 
@@ -129,20 +189,106 @@ sub usage
 	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
 }
 
+# Determine mode
+my $mode;
+my @inline_args = ();
+if (grep {m/^inline$/} @ARGV){
+	$mode = 'inline';
+	# Cut last portion of ARGV into a separate array
+	my ($index) = grep { $ARGV[$_] eq 'inline' } 0..$#ARGV;
+	@inline_args = @ARGV[($index+1)..$#ARGV];
+	@ARGV = @ARGV[0..$index-1];
+}else{
+	$mode = 'cmdfile';
+}
+
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
+
+# Do options tweaking (that doesn't require any semantical checking)
+
+# Compact rule models
+$config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->{properties}})))];
+
+
+# INLINE mode preparation
+
+use File::Path qw(mkpath);
+# If we're in inline mode, we should create appropriate cmdfile in the working dir and use it as such.
+if ($mode eq 'inline'){
+	# First we parse options
+	my @args = @inline_args;
+	while (@args){
+		my $len = scalar @args;
+		@args = $_->(@args) for values %inline_handlers;
+		# If we haven't processed anything, then something's wrong here.
+		usage("Specify inline mode modifier at the beginning please") if $len eq scalar @args;
+	}
+	# Allocate file for "commands"
+	my $CMDFILE;
+	mkpath($config->{work_dir});
+	my $cmdfile_name = "$config->{work_dir}/generated_cmdfile.xml";
+	open $CMDFILE, ">", $cmdfile_name or die;
+	my $streamT = XML::Twig::Elt->new('cmdstream');
+	my $id = 1;	#ID with which entities are tagged
+	my @outfiles = ();	# dummy o-files that will be created for input files.
+
+	# Check if we verify default property (assert()).  If it's the case, we must include a special header file and tweak properties array.
+	my $defprop = !@{$config->{properties}};
+
+	# Create basic XML entry for compilation of each C file.
+	for my $file (@{$config->{inl_files}}){
+		my $ccT = XML::Twig::Elt->new('cc',{id=>$id++});
+		# Add option tags
+		XML::Twig::Elt->new('opt',{},$_)->paste(last_child => $ccT) for @{$config->{inl_options}};
+
+		# Add input-output tags
+		XML::Twig::Elt->new('in',{},$file)->paste($ccT);
+		my $outfile = $file; $outfile =~ s/(.*)\.(.*)$/$1.o/;
+		XML::Twig::Elt->new('out',{},$outfile)->paste($ccT);
+		XML::Twig::Elt->new('cwd',{},getcwd())->paste($ccT);
+
+		push @outfiles, $outfile;
+
+		# Add default-property header
+		if ($defprop){
+			XML::Twig::Elt->new('opt',{},'-include')->paste(last_child => $ccT);
+			XML::Twig::Elt->new('opt',{},'engine-blast.h')->paste(last_child => $ccT);
+		}
+
+		$ccT->paste(last_child => $streamT);
+	}
+
+	# Create a dummy "link" command.
+	my $ldT = XML::Twig::Elt->new('ld',{id=>$id++});
+	XML::Twig::Elt->new('in',{},$_)->paste($ldT) for @outfiles;
+	XML::Twig::Elt->new('out',{check=>'true'},'link.exe')->paste($ldT);
+	XML::Twig::Elt->new('cwd',{},getcwd())->paste($ldT);
+	push @{$config->{inl_entries}},'main' unless @{$config->{inl_entries}};
+	XML::Twig::Elt->new('main',{},$_)->paste($ldT) for @{$config->{inl_entries}};
+	$ldT->paste(last_child=>$streamT);
+
+	# Paste basedir
+	XML::Twig::Elt->new('basedir',{},"./")->paste($streamT);
+
+	# Write XML to the file and close it
+	$streamT->print($CMDFILE,'indented');
+	close $CMDFILE or die;
+
+	#Prepare usual DSCV options and proceed to the rest of the script
+	$config->{cmdfile}=$cmdfile_name;
+	$config->{properties}=['BZ_1'] if $defprop;
+}
 
 # Sanity check
 
 $config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
 $config->{work_dir} or usage("WORK_DIR is not specified!\n");
-use File::Path qw(mkpath);
-mkpath ($config->{work_dir});
-
-$config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->{properties}})))];
-
 unless (scalar @{$config->{properties}}){
 	usage("You should specify at least one property to verify!  Did you forget about it?\n");
 }
+
+# Prepare working dir
+mkpath ($config->{work_dir});
 
 
 use LDV::Utils;
@@ -226,10 +372,15 @@ for my $property (@properties){
 	# make outcmdfile
 	my $outfile = "$out_cmd_dir/cmd$property.xml";
 	# Prepare directory
-	my $ri_basedir_for_rule = "$ri_basedir/$property";
-	mkpath($ri_basedir_for_rule);
-	# Copy driver
-	$copy_driver->($ri_basedir_for_rule);
+	my $ri_basedir_for_rule;
+	if ($mode ne 'inline'){
+		$ri_basedir_for_rule = "$ri_basedir/$property";
+		mkpath($ri_basedir_for_rule);
+		# Copy driver
+		$copy_driver->($ri_basedir_for_rule);
+	}else{
+		$ri_basedir_for_rule = './'
+	}
 
 	my @rule_instr_args = ($config->{rule_ins},
 		"--basedir=$ri_basedir_for_rule",

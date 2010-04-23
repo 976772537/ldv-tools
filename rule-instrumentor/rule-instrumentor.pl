@@ -762,11 +762,12 @@ sub process_cmd_cc()
     # corresponding model aspect and options. Also add -I option with 
     # models directory needed to find appropriate headers for usual aspect.
     print_debug_debug("Process the cc command using usual aspect.");
+    # Specify needed and specic environment variables for the aspectator.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-    $ENV{'LDV_QUIET'} = 1;
+    $ENV{LDV_QUIET} = 1 unless ($debug_trace);
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
-
+    
     print_debug_trace("Go to the build directory to execute cc command.");
     chdir($cmd{'cwd'})
       or die("Can't change directory to '$cmd{'cwd'}'");
@@ -774,6 +775,11 @@ sub process_cmd_cc()
     print_debug_info("Execute the command '@args'");
     system(@args) == 0 or die("System '@args' call failed: $ERRNO");
 
+    # Unset special environments variables.
+    delete($ENV{'LDV_QUITE'});
+    delete($ENV{$ldv_no_quoted});
+    delete($ENV{$ldv_aspectator_gcc});
+    
     print_debug_trace("Go to the initial directory.");
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
@@ -794,7 +800,7 @@ sub process_cmd_cc()
     print_debug_debug("Process the cc command using general aspect.");
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-    $ENV{'LDV_QUIET'} = 1;
+    $ENV{LDV_QUIET} = 1 unless ($debug_trace);
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     print_debug_trace("Go to the build directory to execute cc command.");    
@@ -805,6 +811,11 @@ sub process_cmd_cc()
     system(@args) == 0 
       or die("System '@args' call failed: $ERRNO");
 
+    # Unset special environments variables.
+    delete($ENV{'LDV_QUITE'});
+    delete($ENV{$ldv_no_quoted});
+    delete($ENV{$ldv_aspectator_gcc});
+    
     die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
       unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
     print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
