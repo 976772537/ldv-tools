@@ -26,7 +26,7 @@ ldv_print() {
 	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
 	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
 
-	if [ $LDV_DEBUG -ge 40 ]; then 
+	if [ $LDV_DEBUG -eq 40 ]; then 
 		echo $LOG_PREFIX"TRACE: Trace mode on. Press any key to cnotinue...";
 		read;
 	fi;
@@ -229,7 +229,7 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
 else
 	ldv_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-	BUILDFILE=$cmdfileout make V=1 modules > $KERNEL_COMPILE_LOG 2>&1
+	BUILDFILE=$cmdfileout make V=1 > $KERNEL_COMPILE_LOG 2>&1
 fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
