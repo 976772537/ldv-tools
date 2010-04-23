@@ -267,7 +267,15 @@ if [ $? -ne 0 ] ; then
 	exit 1;
 fi;
 
-
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Rewrite next 12 strings 
+#  time.... time!!!!! why?
+#
+# `` - Is it create new shell process?
+#     Solve this problem in this and other
+#     tools!!!!!!!!!
+#
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 k=1;
 cat $cmdfileout | while read iline; do
 	if [ -n "`echo $iline | grep '<cc id='`" ]; then
