@@ -15,7 +15,7 @@ use XML::Twig qw();
 use XML::Writer qw();
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../rule-instrumentor/lib");
+use lib("$FindBin::RealBin/../shared/perl");
 
 use File::Cat qw(cat);
 use File::Copy::Recursive qw(rcopy);
