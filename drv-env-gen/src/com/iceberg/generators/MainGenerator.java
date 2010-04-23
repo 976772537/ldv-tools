@@ -99,8 +99,10 @@ public class MainGenerator {
 			fw.write(ccontent);
 			StringBuffer sb = new StringBuffer();
 			sb.append("\n\n\n\n\n");
-			if (isgenerateIfdefAroundMains)
+			if (isgenerateIfdefAroundMains) {
+				assert(index != null);
 				sb.append("#ifdef LDV_MAIN"+index+"\n");
+			}
 			sb.append("\t/*###########################################################################*/\n");
 			sb.append("\t/*############## Driver Environment Generator 0.1 output ####################*/\n");
 			sb.append("\t/*###########################################################################*/\n");
@@ -110,9 +112,9 @@ public class MainGenerator {
 			sb.append("void check_return_value(int res);\n");
 			sb.append("extern int IN_INTERRUPT;\n");
 
-			if(index == null)
-				sb.append("void ldv_main(void) {\n\n\n");
-			else
+		//	if(index == null)
+		//		sb.append("void ldv_main(void) {\n\n\n");
+		//	else
 				sb.append("void ldv_main"+index+"(void) {\n\n\n");
 
 			
