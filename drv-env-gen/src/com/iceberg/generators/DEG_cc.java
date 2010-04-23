@@ -34,7 +34,7 @@ public class DEG_cc {
 			}
 			FileWriter outputWriter = new FileWriter(outputFile);
 			for(int i=0; i<inputFiles.size(); i++) 
-				if(MainGenerator.deg(inputFiles.get(i),0))
+				if(MainGenerator.deg(inputFiles.get(i),counter))
 					outputWriter.append(inputFiles.get(i)+":-DLDV_MAIN"+counter);
 			outputWriter.close();
 		} catch (IOException e) {

@@ -55,21 +55,21 @@ public class MainGenerator {
 
 
 	public static void generate(String filename) {
-		generateByIndex(filename, -1, null, false);
+		generateByIndex(filename, null, null, false);
 	}
 	
 	public static void generate(String source, String destionation ) {
-		generateByIndex(source, -1, destionation, false);
+		generateByIndex(source, null, destionation, false);
 	}
 	
-	public static boolean deg(String filename, int counter) {
+	public static boolean deg(String filename, String counter) {
 		File file = new File(filename);
 		if(!file.exists())
 			return false;
 		return generateByIndex(filename, counter, filename, true);
 	}
 
-	public static boolean generateByIndex(String filename, int index, String destFilename, boolean isgenerateIfdefAroundMains) {
+	public static boolean generateByIndex(String filename, String index, String destFilename, boolean isgenerateIfdefAroundMains) {
 		Matcher matcher = pattern.matcher(filename);
 		if(!matcher.find()) {
 			System.out.println("could not match C-extension");
@@ -110,7 +110,7 @@ public class MainGenerator {
 			sb.append("void check_return_value(int res);\n");
 			sb.append("extern int IN_INTERRUPT;\n");
 
-			if(index == -1)
+			if(index == null)
 				sb.append("void ldv_main(void) {\n\n\n");
 			else
 				sb.append("void ldv_main"+index+"(void) {\n\n\n");
