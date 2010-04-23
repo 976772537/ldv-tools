@@ -1,10 +1,29 @@
 #!/usr/bin/perl
 
-# RCV Frontend for blast tool.
+# RCV Frontend for BLAST tool.
+
+#======================================================================
+# PROCESS OPTIONS AND SET UP INITIAL VARIABLES
+#======================================================================
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
 
 use strict;
 use Pod::Usage;
 use Getopt::Long;
+
+# Project modules
+use LDV::Utils;
+use DSCV::RCV::Utils;
+use DSCV::Sanity;
+use Utils;
+
+# File modules
+use File::Basename;
+use File::Path qw(mkpath);
 
 my $config={
 	cmdfile=>'',
@@ -12,26 +31,18 @@ my $config={
 
 my %optionSpecs = ();
 $config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('rcv-blast');
+
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'sanity-dir=s'} = \$config->{sandir};
 
-sub vsay
-{
-	my $verbosity = shift;
-	local $,=' ';
-	print @_ if $verbosity <= $config->{verbosity};
-}
-
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
-# Prepare running environment
-use FindBin;
+
+# Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
-BEGIN {
-	# Add the lib directory to the @INC to be able to include local modules.
-	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
-}
 my $backend_dir = "$shared_dir/rcv/backends/blast";
 my $blast = "$backend_dir/bin/pblast.opt";
 my $workdir = $config->{workdir};
@@ -41,147 +52,61 @@ my $workdir = $config->{workdir};
 -x $blast or die "BLAST's toplevel executable $blast is not an executable file";
 -d $workdir or die "--workdir=$config->{workdir} is not a directory!";
 
+
 # Prepare sanity checks
-use DSCV::Sanity;
 my $sanity = DSCV::Sanity->new($config->{sandir});
 
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 
+#Check if blast is available
+blast_quick_check();
+
+
+#======================================================================
+# PREPARE CMDFILE TRAVERSERS AND RUN THEM
+#======================================================================
+use XML::Twig;
+
 # Base Dir of system being checked
 my $base_dir = undef;
-sub get_base_dir
-{
-	my ($twig, $cmdT) = @_;
-	$base_dir = $cmdT->text();
-}
-# Remove basedir to get a raw file name
-sub unbasedir
-{
-	my $from = shift or die;
-	my $rslt = $from;
-	$rslt =~ s/^$base_dir\/*//;
-	return $rslt;
-}
-sub relpath
-{
-	my $base = shift or die;
-	my $to = shift or die;
-	if ($to =~ /^\//) {
-		return $to;
-	}else{
-		return "$base/$to";
+my $unbasedir = undef;
+
+# Now all subroutines are initialized.  Let's start processing the cmdfile.
+my $check_input_file = XML::Twig->new(
+	twig_handlers => {
+		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
+		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_blast, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>0),
 	}
-}
-use File::Basename;
-use File::Path qw(mkpath);
+);
+$check_input_file->parsefile($config->{cmdfile});
 
-# We should have parsed the command file, get dependencies, etc, etc...  but now we just check if it's a valid XML.
-use XML::Twig;
-my $check_input_file = XML::Twig->new( twig_handlers => { basedir=>\&get_base_dir, cc => \&execute_cc, ld=>\&execute_ld});
-sub execute_cc
+exit 0;
+# NO CODE AFTER THIS POINT!
+
+
+#======================================================================
+# BLAST-SPECIFIC ROUTINES
+#======================================================================
+
+sub verify_blast
 {
-	my ($twig, $cmdT) = @_;
-	# Flush the list of all .c files to the .o file being checked
-	local $_;
-	my @c_files_raw = unbasedir($cmdT->children_text('in'));
-	my $o_file_raw = unbasedir($cmdT->first_child_text('out'));
-	my $o_file = "$workdir/$o_file_raw";
-	# Write the list to o-file
-	mkpath(dirname($o_file));
-	my $children_FH; open $children_FH,">",$o_file or die "Dead while trying to open $o_file for writing";
-	$cmdT->print($children_FH);
-	#local $,="\n";
-	#print $children_FH @c_files_raw;
-	close $children_FH;
-}
-sub execute_ld
-{
-	my ($twig, $cmdT) = @_;
-	# Get the list of c files for current linked file
-	# We assume that each c-file is included into any executable file only once (otherwise there would have been undefined references).
-	local $_;
-	my @o_files_raw = map {unbasedir($_)} $cmdT->children_text('in');
-	my $target = unbasedir($cmdT->first_child_text('out'));
-	# Informaiton about C files should be a reference, for it to be accessible from within subs
-	my $c_files_info = [];
-	# List of c files that were processed.  Used in tracking the assersion that each c file is processed only once.  Value is an o-file, in which the c file was first encountered.
-	my %c_files_Sanity = ();
-	for my $o_file_raw (@o_files_raw){
-		# From each o-file local copy, which contains list of c-files in that object one, get these files
-		my $o_file = relpath($workdir,$o_file_raw);
-
-		# Get information about this object file
-		my $c_files = [];
-		# Compiler options to build this particular o-file.  We *know* that there's only *one* command in this file, so there's no need to distpatch this level as well.
-		my $aux_opts = [];
-		my $cwd = undef;
-		my $obj_file = undef;
-		XML::Twig->new( twig_handlers=> {
-			'opt' => sub { push @$aux_opts,$_[1]->text(); },
-			# Input files are taking without change
-			'in' => sub { push @$c_files,$_[1]->text(); },
-			# Output files are tuned to be in-rcv
-			'out' => sub { $$obj_file = relpath($workdir,unbasedir($_[1]->text())); },
-			'cwd' => sub { $$cwd = $_[1]->text(); },
-		})->parsefile($o_file);
-
-		# Propagate the information gathered to c_files_info arrays
-		local $_;
-		for my $c_file (@$c_files){
-			# Sanity check
-			my $c_file_already_encountered = $c_files_Sanity{$c_file};
-			$c_file_already_encountered and die "C file $c_file is used twice, when linking $target: in $c_file_already_encountered and $$obj_file"; 
-			$c_files_Sanity{$c_file} = $$obj_file; 
-
-			# Prepare record
-			my $new_record = {c_file=>$c_file, opts=>$aux_opts, cwd=>$$cwd};
-			# Preprocess file if necessary
-			my $preprocess_dir = "$workdir/preprocessed";
-			mkpath($preprocess_dir);
-			my $i_file = $c_file; $i_file =~ s/\.c$/.i/; $i_file =~ s/\//-/g; $i_file = "$preprocess_dir/$i_file";
-			mkpath(dirname($i_file));
-			$new_record->{i_file} = $i_file;
-			preprocess_file($new_record);
-
-			push @$c_files_info, $new_record;
-		}
-	}
-
-	# Call blast for all of the preprocessed c-files gotten at once, and and supply the additional arguments fetched from the tag record.
-
-	# Get hints tag first 
-	my $hintsT = $cmdT->first_child('hints');
-	# Get entry points
-	my @mains = $cmdT->children_text('main');
-	@mains or vsay 10,"WARNING!  No mains specified for file ".$cmdT->first_child_text('out')."\n";
-	# Get list of files to analyze:
-	my @files = map {$_->{i_file}} @$c_files_info;
-	# List of error locations
-	my @errlocs = $cmdT->children_text('error');
-	# Report file
-	my $report = "$workdir/reports/$target.report";
-	mkpath(dirname($report));
-	# BLAST debug file
-	my $debug = "$workdir/reports/$target.debug";
-	mkpath(dirname($debug));
-	# Trace file
-	my $trace = "$workdir/reports/$target.trace";
-	mkpath(dirname($trace));
-
-	open my $BLAST_REPORT, ">", $report or die "Can't open file $report: $!";
+	my %args = @_;
+	$args{report} or die;
+	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
 
-	for my $main (@mains){
-		my $result = call_blast(files => \@files, hints=>$hintsT, main=>$main, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug); 
+	for my $main (@{$args{mains}}){
+		my $result = call_blast(%args, main=>$main); 
 	
 		# Print verdict to console and to report 
-		vsay 10,"$main: BLAST status: $result->{'BLAST'}\n";
-		vsay 20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n";
+		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
+		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
 
-		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$cmdT->att('id'), main=>$main});
-		XML::Twig::Elt->new('trace',{},$trace)->paste($cmdInstT);
+		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
 		XML::Twig::Elt->new('status',{},$result->{'BLAST'})->paste($cmdInstT);
 		XML::Twig::Elt->new('verdict',{},$result->{'BLAST-detailed'})->paste($cmdInstT);
 		$cmdInstT->paste($repT);
@@ -189,52 +114,10 @@ sub execute_ld
 
 	$repT->print($BLAST_REPORT,'indented');
 	close $BLAST_REPORT;
-
 }
-
-sub hard_wait
-{
-	my $wpres = 0;
-	while ($wpres == 0){
-		$wpres = waitpid $_[0],$_[1];
-	}
-	return $wpres;
-}
-
-# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
-use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
-sub dumptrace
-{
-	my $fname = shift or die;
-	my $state = TRACE_WAIT;
-	my $current_fh;
-	return [1_000_000,sub {
-
-		my ($line) = @_;
-		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
-		return undef if $state == TRACE_DONE;
-
-		$line =~ /Error trace: \(final\)/ and do {$state = TRACE_READ; return undef;};
-		$line =~ /Error trace ends \(final\)/ and do {$state = TRACE_DONE; return undef;};
-
-		if ($state == TRACE_READ){
-			unless ($current_fh){
-				open $current_fh, ">>", $fname or die;
-			}
-			print $current_fh $line;
-		}
-		return undef;
-	}];
-}
-
 
 # Call blast
 use IPC::Open3;
-# For StreamAutomaton
-BEGIN {
-	# Add the lib directory to the @INC to be able to include local modules.
-	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
-}
 use StreamAutomaton;
 sub call_blast
 {
@@ -280,7 +163,8 @@ sub call_blast
 			"-alias","bdd"	# Turn alias analysis on
 		;
 	}
-	vsay 20,@blast_options,"\n";
+	vsay ('NORMAL',"Running BLAST for $args{dbg_target}, entry $args{main}...\n");
+	vsay (20,@blast_options,"\n");
 
 	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 	# Open file to redirect
@@ -291,7 +175,7 @@ sub call_blast
 	local $"=" ";
 	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
-	vsay 20,"BLAST debug trace is written to $args{debug}\n";
+	vsay (20,"BLAST debug trace is being written to $args{debug}\n");
 
 	# Sanity check
 	$sanity->blast_called();
@@ -314,11 +198,11 @@ sub call_blast
 	# TODO: add GZIPping as well
 
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
-	hard_wait($fpid,0) < 0 and die;
+	Utils::hard_wait($fpid,0) < 0 and die;
 	close $BLAST_DEBUG;
 
-  vsay 40,"BLAST open3 return value: $?\n";
-	vsay 10,"Error return value: $?\n";
+  vsay (40,"BLAST open3 return value: $?\n");
+	vsay (20,"BLAST return value: $?\n");
 	my $blast_rv = $? >> 8;
 	# NOTE that exit code 2 is for OCaml unhandled exceptions
 	if ($blast_rv == 5){
@@ -327,60 +211,68 @@ sub call_blast
 	}elsif($blast_rv == 3){
 		die "BLAST couldn't find entry point/error location";
 	}elsif($? == 0){
-		vsay 10,"BLAST OK\n";
+		vsay (20,"BLAST OK\n");
 	}else{
-		vsay 10,"BLAST failed with exit code $blast_rv.  But who cares?\n";
+		vsay (20,"BLAST failed with exit code $blast_rv.  But who cares?\n");
 	}
 
 	return $verdictor->result();
 }
-use Cwd;
-sub preprocess_file
-{
-	my $info = shift or die;
-	# Change dir to cwd; then change back
-	my $current_dir = getcwd();
-	chdir $info->{cwd} or die;
-	my @cpp_args = ("gcc","-E",
-		"-o","$info->{i_file}",	#Output file
-		"$info->{c_file}",	#Input file
-		@{$info->{opts}},	#Options
-	);
-	vsay 20,@cpp_args;
-	local $"; $"=' ';
-	system @cpp_args and die "NON-FATAL error in preprocessing.  Cmdline: @cpp_args";
-	chdir $info;
-}
+
 
 
 # Perform BLAST quick check before running any verifications
+sub blast_quick_check
+{
+	$" = ' ';      # For error reporting
+	vsay ('INFO', "Trying to run blast without arguments to see it it works...");
+	my @blast_args = ("pblast.opt","-help");
+	my $CHEW_BLAST_OUT;
+	my $fpid = open $CHEW_BLAST_OUT,"-|";
+	defined $fpid or die "Can't fork?  Wtf";
+	if ($fpid == 0){
+		# child
+		# Run blast
+		exec @blast_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
+		exit 1;
+	}
+	# Parent
+	# Ignore blast's output.
+	my $wpres = Utils::hard_wait($fpid,0);
+	$wpres > 0 or die;
+	# \n to complement previous message
+	$? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
+	# Ok, now we can close the pipe
+	close($CHEW_BLAST_OUT);
 
-$" = ' ';      # For error reporting
-vsay 10, "Trying to run blast without arguments to see it it works...";
-my @blast_args = ("pblast.opt","-help");
-my $CHEW_BLAST_OUT;
-my $fpid = open $CHEW_BLAST_OUT,"-|";
-defined $fpid or die "Can't fork?  Wtf";
-if ($fpid == 0){
-       # child
-       # Run blast
-       exec @blast_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
-       exit 1;
+	vsay ('INFO',"OK\n");
 }
-# Parent
-# Chew blast's output.  Read into buffer
-#my $read_bytes = 0; my $buffer; my $buflen = 1 << 12;
-#while (($read_bytes = read $CHEW_BLAST_OUT,$buffer,$buflen) && $read_bytes) {};
-#defined $read_bytes or die;	# undef in $read_bytes means read error
 
-my $wpres = hard_wait($fpid,0);
-$wpres > 0 or die;
-# \n to complement previous message
-$? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
-# Ok, now we can close the pipe
-close($CHEW_BLAST_OUT);
 
-print "OK\n";
 
-# Now all subroutines are initialized.  Let's start processing the cmdfile.
-$check_input_file->parsefile($config->{cmdfile});
+# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
+use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
+sub dumptrace
+{
+	my $fname = shift or die;
+	my $state = TRACE_WAIT;
+	my $current_fh;
+	return [1_000_000,sub {
+
+		my ($line) = @_;
+		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
+		return undef if $state == TRACE_DONE;
+
+		$line =~ /Error trace: \(final\)/ and do {$state = TRACE_READ; return undef;};
+		$line =~ /Error trace ends \(final\)/ and do {$state = TRACE_DONE; return undef;};
+
+		if ($state == TRACE_READ){
+			unless ($current_fh){
+				open $current_fh, ">>", $fname or die;
+			}
+			print $current_fh $line;
+		}
+		return undef;
+	}];
+}
+

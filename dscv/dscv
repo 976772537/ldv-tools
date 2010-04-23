@@ -129,12 +129,6 @@ sub usage
 	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
 }
 
-sub vsay
-{
-	my $verbosity = shift;
-	print @_ if $verbosity <= $config->{verbosity};
-}
-
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
 
 # Sanity check
@@ -149,6 +143,11 @@ $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->
 unless (scalar @{$config->{properties}}){
 	usage("You should specify at least one property to verify!  Did you forget about it?\n");
 }
+
+
+use LDV::Utils;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('dscv');
 
 
 # Actual work.
@@ -194,6 +193,9 @@ sub get_driver_dir
 }
 $process_input->parsefile($config->{cmdfile});
 
+# Sanity check for blast runs
+$expected_blast_runs *= scalar @{$config->{properties}};
+vsay ('DEBUG',"Expecting $expected_blast_runs runs of RCV backend.\n");
 
 # Function that copies driver
 use File::Copy::Recursive qw(dircopy);
@@ -235,7 +237,8 @@ for my $property (@properties){
 		"--cmdfile=$config->{cmdfile}",
 		"--cmdfile-out=$outfile"
 	);
-	vsay 20, "@rule_instr_args\n";
+	vsay (10,"Calling rule_instrumenter for rule model $property...\n");
+	vsay (20,@rule_instr_args,"\n");
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
 	#system "cp $config->{cmdfile} $outfile";
 	# Call C verifier
@@ -245,7 +248,8 @@ for my $property (@properties){
 	my $get_verifier_handler = sub{
 		my $dir = shift or die;
 		return sub{
-			my ($twig, $cmdT) = @_;
+			my ($twig, $cmdT_) = @_;
+			my $cmdT = $cmdT_->copy();
 			my $id = $cmdT->att('id');
 			# Get verifier from command and override it if necessary
 			my $verifier = $config->{verifier_override} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --verifier option is not set";
@@ -260,10 +264,15 @@ for my $property (@properties){
 				$rule_instr_mains += scalar $cmdT->children("main");
 			}
 
+			# Enwrap tag into <cmdstream> and add <basedir>
+			my $streamT = XML::Twig::Elt->new("cmdstream");
+			$cmdT->paste($streamT);
+			# WARNING: It's important to put <basedir> tag before anything else.
+			XML::Twig::Elt->new("basedir",{},$ri_basedir_for_rule)->paste($streamT);
 			# Print tag to temporary file
 			my $cmdfile = "$dir/model$property-$verifier-$id.xml";
 			my $tmp_FH; open $tmp_FH,">",$cmdfile or die "Couldn't create temporary file for RCV's command!";
-			$cmdT->print($tmp_FH);
+			$streamT->print($tmp_FH,'indented');
 			close $tmp_FH;
 
 			# Run RCV
@@ -272,7 +281,8 @@ for my $property (@properties){
 				"--workdir=$dir",
 				"--sanity-dir=$dscv_base_dir",
 			);
-			vsay 20, "@rcv_args\n";
+			vsay ('NORMAL',"Calling RCV $verifier backend for @{[$cmdT->tag]} command $id...\n");
+			vsay (20, "@rcv_args\n");
 			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
 		};
 	};
@@ -286,12 +296,11 @@ for my $property (@properties){
 }
 
 # Perform final sanity check
-$expected_blast_runs *= scalar @properties;
 
 my $blast_runs = $sanity->get('blast_calls') || 0;
 
 if ($blast_runs < $expected_blast_runs) {
-	vsay 1,"WARNING!  SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n";
+	vsay ("WARNING", "SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n");
 }
 
 
