@@ -29,9 +29,12 @@ LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 
 KERNEL_LEVEL=0;
 
-if [ "$1" == "--kernel-driver" ]; then
+if [ "$1" = "--kernel-driver" ]; then
+	ldv_print "DEBUG: In-kernel driver mode.";
 	KERNEL_LEVEL=1;
 else
+	ldv_print "DEBUG: External driver mode.";
+	KERNEL_LEVEL=1;
 	DRIVER_ABS=`readlink -f $1`;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can't find abs-path for driver.";
