@@ -41,7 +41,7 @@ print_usage_and_exit() {
 		ldv_print "NORMAL: USAGE: LDV_DEBUG=level WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
 		exit 1;
 }
-if [ $# -ne 4 ]; then print_usage_and_exit; fi;
+#if [ $# -eq 5 -o $# -eq 4 ]; then print_usage_and_exit; fi;
 if [ ! -n "$WORK_DIR" ]; then
 	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
 	exit 1;
@@ -144,7 +144,7 @@ DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
 # copy driver sources
 #
-if [ $KERNEL_LEVEL -eq 1 ]; then driver=$env; fi;
+#if [ $KERNEL_LEVEL -eq 1 ]; then driver=$env; fi;
 cp -r $driver $DRIVER_DIR;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
@@ -229,7 +229,7 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
 else
 	ldv_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-	BUILDFILE=$cmdfileout make V=1 modules > $KERNEL_COMPILE_LOG 2>&1
+	BUILDFILE=$cmdfileout make V=1 modules $driver/ > $KERNEL_COMPILE_LOG 2>&1
 fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";

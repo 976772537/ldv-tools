@@ -2,7 +2,7 @@
 
 #
 #
-# ldv-task driver workdir=workdir env:rule,rule env:rule,rule ...
+# ldv-task --driver= --workdir=workdir --env=kernel_id(rule,rule):kernel_id(rule,rule,...)...
 #
 #
 LOG_PREFIX="ldv-task: ";
@@ -29,31 +29,106 @@ LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 
 KERNEL_LEVEL=0;
 
-if [ "$1" = "--kernel-driver" ]; then
-	ldv_print "DEBUG: In-kernel driver mode.";
-	KERNEL_LEVEL=1;
-else
-	ldv_print "DEBUG: External driver mode.";
-	KERNEL_LEVEL=0;
-	DRIVER_ABS=`readlink -f $1`;
+#
+# scan and test command line parameters
+#
+print_usage_and_exit() {
+		ldv_print "NORMAL: USAGE: LDV_DEBUG=level WORK_DIR=workdir ldv-task --driver=driverpath --env=...";
+		exit 1;
+}
+for arg in $@; do
+        case $arg in
+                --workdir=*)
+                	rworkdir=`echo $arg | sed 's/--workdir=//g'`
+			if [ ! -n "$rworkdir" ]; then
+				ldv_print "ERROR: Parameter \"--workdir\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			echo "readlink -f $rworkdir";
+			workdir=`readlink -f $rworkdir`;
+			echo $workdir;
+			if [ $? -ne 0 ]; then
+				ldv_print "ERROR: Failed to read abs-path for working dir: \"$rworkdir\"."
+			        exit 1;
+			fi;
+			if [ ! -d "$workdir" ]; then
+			        ldv_print "ERROR: Environment dir not exists: \"$workdir\".";
+			        exit 1;
+			fi;
+		;;
+                --env=*)
+                	env=`echo $arg | sed 's/--env=//g'`
+                ;;
+                --driver=*)
+                	rdriver=`echo $arg | sed 's/--driver=//g'`
+			if [ ! -n "$rdriver" ]; then
+				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			driver=`readlink -f $rdriver`;
+			if [ $? -ne 0 ]; then
+				ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+				exit 1;
+			fi;
+			if [ ! -d "$driver" ]; then
+			        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
+			        exit 1;
+			fi;
+		;;
+ 		--kernel-driver)
+                	KERNEL_LEVEL=1;
+                ;;
+                *)
+                        ldv_print "ERROR: Unknown options: '$arg'.";
+			print_usage_and_exit;
+                ;;
+        esac
+done
+
+if [ ! -n "$env" ]; then
+	ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
+        exit 1;
+fi;
+if [ ! -n "$driver" ]; then
+	ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
+        exit 1;
+fi;
+if [ ! -n "$workdir" ]; then
+	ldv_print "ERROR: Parameter \"--workdir\" - is null. Setup it.";
+        exit 1;
+fi;
+
+
+
+for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
+	WORK_DIR_LOCAL=$WORK_DIR_LOCAL/$k;
+	mkdir $WORK_DIR_LOCAL;
 	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Can't find abs-path for driver.";
+		ldv_print "ERROR: can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
 		exit 1;
 	fi;
-fi;
-	
-if [ $# -lt 3 ]; then
-	ldv_print "ERROR: USAGE: ldv-task driver workdir=wordir env:rule,rule... env:rule,rule... ...";
-	exit 1;
-fi;
+	ENV_ID=`echo $i | sed 's/(.*)//'`;
+	RULES=`echo $i | sed 's/.*(//'` |  sed 's/)//';
+	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
+		exit 1;
+	fi;
+	ldv_print "NORMAL: Calling LDV-core.";
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
+		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
+	else
+		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
+		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --kernel-driver --rule-models=$rulemodels;
+	fi;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: ldv-core failed.";
+		exit 1;
+	fi;
+done;
+exit;
 
-
-USER_WORKDIR=`echo $2 | sed 's/workdir=//'`
-if [ ! -d "$USER_WORKDIR" ]; then
-	ldv_print "ERROR: Workdir not exists: \"$WORK_DIR\".";
-else
-	WORK_DIR=`readlink -f $USER_WORKDIR`;
-fi;
 ldv_print "INFO: temp workdir: $WORK_DIR";
 # all temp dirs created... 
 k=1;
