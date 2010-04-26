@@ -105,10 +105,26 @@ sub verify_blast
 		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
 		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
 
+		my $bv = $result->{'BLAST-detailed'};
+		if ($bv =~ /\bSAFE\b/) {
+			$bv='SAFE';
+		}elsif($bv =~ /\bUNSAFE\b/){
+			$bv='UNSAFE';
+		}else{
+			$bv='UNKNOWN';
+		}
+
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		XML::Twig::Elt->new('status',{},$result->{'BLAST'})->paste($cmdInstT);
-		XML::Twig::Elt->new('verdict',{},$result->{'BLAST-detailed'})->paste($cmdInstT);
+		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+
+		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
+		XML::Twig::Elt->new('status',{},$result->{'BLAST'})->paste($rcvResultT);
+		XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
+		# TODO: fix time measurement
+		XML::Twig::Elt->new('time',{note=>'its always zero :-('},'0.0')->paste($rcvResultT);
+
+		$rcvResultT->paste(last_child =>$cmdInstT);
 		$cmdInstT->paste($repT);
 	}
 
