@@ -139,15 +139,6 @@ for arg in $@; do
 				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			driver=`readlink -f $rdriver`;
-			if [ $? -ne 0 ]; then
-				ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
-			        exit 1;
-			fi;
-			if [ ! -f "$driver" ]; then
-			        ldv_print "ERROR: Driver sources not exists: \"$driver\".";
-			        exit 1;
-			fi;
                 ;;
                 *)
                         ldv_print "ERROR: Unknown options: '$arg'.";
@@ -227,8 +218,8 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 else
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --kernel-driver --cmdfile-out=$XML_AFTER_BCE;"
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --kernel-driver --cmdfile-out=$XML_AFTER_BCE;
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --kernel-driver --cmdfile-out=$XML_AFTER_BCE;"
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 fi;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
