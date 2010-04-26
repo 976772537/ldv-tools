@@ -130,7 +130,7 @@ for arg in $@; do
 			        exit 1;
 			fi;
                 ;;
-                --driver-kernel)
+                --kernel-driver)
  			KERNEL_LEVEL=1;	
 		;;
                 --driver=*)
@@ -227,8 +227,8 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 else
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --kernel-driver --cmdfile-out=$XML_AFTER_BCE;"
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --kernel-driver --cmdfile-out=$XML_AFTER_BCE;
 fi;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."

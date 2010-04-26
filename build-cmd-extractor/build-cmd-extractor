@@ -108,7 +108,7 @@ for arg in $@; do
 			        exit 1;
 			fi;
 		;;
- 		--driver-kernel)
+ 		--kernel-driver)
                 	KERNEL_LEVEL=1;
                 ;;
                 *)
