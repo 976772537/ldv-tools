@@ -229,7 +229,7 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
 else
 	ldv_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-	BUILDFILE=$cmdfileout make V=1 > $KERNEL_COMPILE_LOG 2>&1
+	BUILDFILE=$cmdfileout make V=1 modules > $KERNEL_COMPILE_LOG 2>&1
 fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
@@ -258,7 +258,6 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
-
 echo "</cmdstream>" >> $cmdfileout;
 cmdfileout_tmp=$cmdfileout"_tmp";
 touch $cmdfileout_tmp;
@@ -267,37 +266,18 @@ if [ $? -ne 0 ] ; then
 	exit 1;
 fi;
 
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Rewrite next 12 strings 
-#  time.... time!!!!! why?
 #
-# `` - Is it create new shell process?
-#     Solve this problem in this and other
-#     tools!!!!!!!!!
+# create numbers
 #
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-k=1;
-cat $cmdfileout | while read iline; do
-	if [ -n "`echo $iline | grep '<cc id='`" ]; then
-		echo "<cc id=\"$k\">" >> $cmdfileout_tmp;
-		k=`expr $k + 1`;
-	elif [ -n "`echo $iline | grep '<ld id='`" ]; then
-		echo "<ld id=\"$k\">" >> $cmdfileout_tmp;
-		k=`expr $k + 1`;
-	else
-		echo "$iline" >> $cmdfileout_tmp;
-	fi;
-done;
-mv $cmdfileout_tmp $cmdfileout;
+perl -e 'open(FIL,"'$cmdfileout'"); my @strings = <FIL>; close(FIL); open FIL, ">'$cmdfileout'"; my $counter=1; foreach $line (@strings) { if ($line =~ s/<(cc|ld) id="\d+">/<$1 id="$counter">/) { $counter++}; print (FIL $line); }; close FIL;';
 if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Can't replace cmdfile with temp cmdfile.";
+	ldv_print "ERROR: Can't create normal id numbers in command stream out file.";
 	exit 1;
 fi;
 
 #
 # fix format - add one tab before <cc> and <ld> tags and...
 #
-#sed -i -e 's/ldv_tempdir/bce_tempdir/g' $cmdfileout; 
 sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
 sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
 sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 

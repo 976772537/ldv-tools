@@ -156,17 +156,29 @@ for arg in $@; do
         esac
 done
 
+if [ $KERNEL_LEVEL -eq 0 ]; then
+	driver=`readlink -f $rdriver`;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+	        exit 1;
+	fi;
+	if [ ! -f "$driver" ]; then
+	        ldv_print "ERROR: Driver sources not exists: \"$driver\".";
+	        exit 1;
+	fi;
+else 
+	driver=`readlink -f $env/$driver`;
+	ldv_print "DEBUG: $driver";
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Can't get abs path for driver in kernel.";
+		exit 1;
+	fi;
+fi;
+
 TEMP_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
 mkdir $TEMP_DIR;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Failed to create next working dir for bce: \"$TEMP_DIR\"."
-        exit 1;
-fi;
-
-DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
-mkdir $DRIVER_DIR;
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
         exit 1;
 fi;
 
@@ -177,7 +189,13 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
+DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 if [ $KERNEL_LEVEL -eq 0 ]; then
+	mkdir $DRIVER_DIR;
+	if [ $? -ne 0 ]; then
+	        ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
+	        exit 1;
+	fi;
 	#
 	# test format for driver file and unpack driver
 	#
@@ -195,12 +213,12 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	        exit 1;
 	fi;
 else
-	cp -r $env $TEMP_DIR/"kdriver";
+	cp -r $driver $DRIVER_DIR;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can't copy drivers source code.";
 		exit 1;
 	fi;
-	env=$TEMP_DIR/"kdriver";
+	env=$DRIVER_DIR;
 fi;
 
 XML_AFTER_BCE=$WORK_DIR/$BCE_TEMPDIR_NAME/$XML_FILENAME_AFTER_BCE;
@@ -209,13 +227,14 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 else
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver-kernel --cmdfile-out=$XML_AFTER_BCE;"
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver-kernel --cmdfile-out=$XML_AFTER_BCE;
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
 fi;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
         exit 1;
 fi;
+exit 1;
 
 #
 # Try to call CSD:
