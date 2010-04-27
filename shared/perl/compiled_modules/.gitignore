@@ -1,0 +1,7 @@
+# What to ignore in compiled Perl modules
+*.bs
+*.c
+*.o
+blib
+pm_to_blib
+
