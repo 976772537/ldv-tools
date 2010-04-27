@@ -11,6 +11,8 @@ use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use File::Path qw(mkpath);
 use strict;
+no strict "refs";
+use Time::HiRes qw(gettimeofday tv_interval);
 use XML::Twig qw();
 use XML::Writer qw();
 
@@ -29,6 +31,11 @@ use File::Copy::Recursive qw(rcopy);
 # args: no.
 # retn: nothing.
 sub create_general_aspect();
+
+# The auxiliary function that count execution time for its function argument.
+# args: function name.
+# retn: function execution status, description and time.
+sub exec_status_desc_and_time($);
 
 # Determine debug level in depend on LDV_DEBUG environment variable.
 # args: no.
@@ -339,9 +346,9 @@ else
   print($file_xml_out "\n</$xml_cmd_root>\n");
 }
 
+print_debug_trace("Close file handlers.");
 close($file_cmds_log) 
   or die("Couldn't close file '$tool_aux_dir': $ERRNO\n");
-
 close($file_xml_out) 
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
 
@@ -367,6 +374,28 @@ sub create_general_aspect()
       or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
     print_debug_debug("The general aspect '$ldv_model_dir/$ldv_model{'general'}' was created.");
   }
+}
+
+sub exec_status_desc_and_time($)
+{
+  my $func = shift;  
+  
+  print_debug_trace("Keep the start time.");
+  my $start_time = [gettimeofday()];
+  
+  print_debug_trace("Call to function argument '$func'.");
+  my $status = &$func();
+  
+  print_debug_trace("Find and save script execution time.");
+  my $end_time = [gettimeofday()];
+  my $elapsed = tv_interval($start_time, $end_time);
+  print_debug_debug("The elapsed time is '$elapsed'.");
+  print_debug_trace("Convert time to milliseconds"); 
+  $elapsed *= 100;
+  $elapsed =~ /\./;
+  print_debug_debug("The elapsed time in milliseconds is '$PREMATCH'.");  
+
+  return ($status, 'what do you want to see here?', $PREMATCH);
 }
 
 sub get_debug_level()
@@ -727,8 +756,9 @@ sub prepare_files_and_dirs()
   }
   print_debug_debug("The commands log file: '$tool_aux_dir/$tool_cmds_log'.");
   
+  # The rest isn't needed for the report mode.  
   return 0 if ($report_mode);
-    
+
   # LDV_HOME is obtained through directory of rule-instrumentor.
   # It is assumed that there is such organization of LDV_HOME directory:
   # /LDV_HOME/
@@ -1292,7 +1322,7 @@ sub process_cmds()
         if ($cmd->gi eq $xml_cmd_cc)
         {
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$id_attr\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0::$id_attr\n");
         }
         elsif ($cmd->gi eq $xml_cmd_ld)
         {
@@ -1315,10 +1345,16 @@ sub process_cmds()
           if ($status)
           {
             $cmds_status{$out_text} = $id_attr;
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:$id_attr");
-            print($file_cmds_log "*") if ($check_text eq 'true');
-            print($file_cmds_log "\n");
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:0::$id_attr");
+            print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
           }
+          else
+          {
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:0::$id_attr");
+            print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
+          }
+
+          print($file_cmds_log "\n");
         }
         
         print_debug_debug("Finish processing of the command having id '$id_attr'.");
@@ -1380,18 +1416,17 @@ sub process_cmds()
       if ($cmd->gi eq $xml_cmd_cc)
       {
         print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode.");  
-        
-        my $status = process_cmd_cc();
+        my ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_cc');
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$id_attr\n");  
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:$desc:$id_attr\n");  
         }
         else
         {
           print_debug_trace("Log information on the '$id_attr' command execution status.");
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$id_attr\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:$desc:$id_attr\n");
         }
       }
 
@@ -1412,11 +1447,11 @@ sub process_cmds()
         print_debug_debug("The ld command entry points are '@entry_points'.");
         
         print_debug_debug("The ld command '$id_attr' is especially specifically processed for the aspect mode.");  
-        my $status = process_cmd_ld();
+        my ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_ld');
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$id_attr\n");  
+          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$desc:$id_attr\n");  
         }
         else
         {
@@ -1440,13 +1475,13 @@ sub process_cmds()
           if ($status)
           {
             $cmds_status{$out_text} = $id_attr;
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:$id_attr");
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:$time:$desc:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
             print($file_cmds_log "\n");
           }
           else
           {
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$id_attr\n");  
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$desc:$id_attr\n");  
           }
         }
       }
@@ -1497,11 +1532,12 @@ sub process_report()
   {
     chomp($cmd_log);
     print_debug_trace("Process the '$cmd_log' command log.");
-    # Each command log has form: 'cmd_name:ok:cmd_id' when it's correctly 
-    # processed by the rule instrumentor and 'cmd_name:fail:cmd_id' otherwise.
-    $cmd_log =~ /([^:]+):([^:]+):/;
+    # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_desc:cmd_id'.
+    $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):/;
     my $cmd_name = $1;
     my $cmd_status = $2;
+    my $cmd_time = $3;
+    my $cmd_desc = $4;
     die("The command id isn't specified") unless (my $id = $POSTMATCH);
     print_debug_debug("The commmand log id is '$id'.");
     my $check = 0;
@@ -1520,7 +1556,9 @@ sub process_report()
     
     $cmds_log{$id} = {
       'cmd name' => $cmd_name, 
-      'cmd status' => $cmd_status, 
+      'cmd status' => $cmd_status,
+      'cmd time' => $cmd_time,
+      'cmd description' => $cmd_desc, 
       'check' => $check
     };
       
@@ -1620,8 +1658,8 @@ sub process_report()
         $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
       }
 
-      $xml_writer->dataElement($xml_report_time => 0);
-      $xml_writer->dataElement($xml_report_desc => '');
+      $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
+      $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
             
       # Close the rule instrumentor tag.
       $xml_writer->endTag();
@@ -1672,8 +1710,8 @@ sub process_report()
           {
             $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
           }
-          $xml_writer->dataElement($xml_report_time => 0);
-          $xml_writer->dataElement($xml_report_desc => '');
+          $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
+          $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
           # Close the rule instrumentor tag.
           $xml_writer->endTag();
 
@@ -1696,8 +1734,8 @@ sub process_report()
           $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
         }
 
-        $xml_writer->dataElement($xml_report_time => 0);
-        $xml_writer->dataElement($xml_report_desc => '');
+        $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
+        $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
             
         # Close the rule instrumentor tag.
         $xml_writer->endTag();
