@@ -521,7 +521,7 @@ sub add_dscv_info
 
 	my $dscvT = XML::Twig::Elt->new('dscv');
 	XML::Twig::Elt->new('status',{},$status_str)->paste(last_child=>$dscvT);
-	XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0.0')->paste(last_child=>$dscvT);
+	XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0')->paste(last_child=>$dscvT);
 	XML::Twig::Elt->new('desc',{},"")->paste(last_child=>$dscvT);
 
 	$dscvT->paste(last_child=>$rep_entityT);
