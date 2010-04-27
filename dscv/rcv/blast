@@ -236,7 +236,7 @@ sub call_blast
 		vsay (20,"BLAST failed with exit code $blast_rv.  But who cares?\n");
 	}
 
-	my $result = {$verdictor->result()};
+	my $result = {%{$verdictor->result()}};
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
