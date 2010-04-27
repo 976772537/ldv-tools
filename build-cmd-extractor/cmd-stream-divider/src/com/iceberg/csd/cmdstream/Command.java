@@ -16,7 +16,7 @@ public class Command {
 	private List<String> opts = new ArrayList<String>();
 	private List<Command> inObj = new ArrayList<Command>();
 	protected List<String> in = new ArrayList<String>();
-	private List<String> out = new ArrayList<String>();
+	protected List<String> out = new ArrayList<String>();
 	private String cwd = null;;
 	
 	protected static int cmd_counter = 0;

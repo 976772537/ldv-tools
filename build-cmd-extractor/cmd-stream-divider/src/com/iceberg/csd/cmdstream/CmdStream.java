@@ -153,6 +153,7 @@ public class CmdStream {
 					lcmd.add(stack.get(i));
 					CmdStream lcmdstream = new CmdStream(lcmd,inBasedir);
 					independentCommands.add(lcmdstream);
+					System.out.println("csd: NORMAL: Generate cmdstream for driver: \""+stack.get(i).out.get(0)+"\".");
 				}
 			}
 		} else

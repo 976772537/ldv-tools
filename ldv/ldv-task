@@ -105,13 +105,12 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ENV_ID=`echo $i | sed 's/x.*//'`;
 	RULES=`echo $i | sed 's/.*x//'`;
 	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
+	ldv_print "NORMAL: Start process for environment $ENV_ID.";
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
 		exit 1;
 	fi;
 	WORK_DIR_LOCAL=$workdir/$ENV_ID;
-	ldv_print 
-	ldv_print "$WORK_DIR_LOCAL";
 	mkdir $WORK_DIR_LOCAL;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";

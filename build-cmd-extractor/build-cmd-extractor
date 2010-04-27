@@ -144,6 +144,7 @@ DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
 if [ $KERNEL_LEVEL -eq 1 ]; then
 	ldv_print "DEBUG: cp -r $env $DRIVER_DIR;";
+	ldv_print "NORMAL: Copy in-kernel driver environment.";
 	cp -r $env $DRIVER_DIR;
 else
 	cp -r $driver $DRIVER_DIR;
@@ -228,7 +229,7 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	fi;
 fi;
 
-ldv_print "DEBUG: Try to call kernel make..."
+ldv_print "NORMAL: Make driver."
 if [ $KERNEL_LEVEL -eq 0 ]; then
 	ldv_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
@@ -247,6 +248,7 @@ fi;
 #
 # restore driver sources
 #
+ldv_print "NORMAL: Restore clean driver sources.";
 TEMP_DRIVER_DIR=$TEMP_DIR/$TEMP_DRIVER_DIR_NAME;
 if [ $KERNEL_LEVEL -eq 1 ]; then
 	mv $env $TEMP_DRIVER_DIR;
