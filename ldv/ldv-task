@@ -2,7 +2,7 @@
 
 #
 #
-# ldv-task --driver= --workdir=workdir --env=kernel_id(rule,rule):kernel_id(rule,rule,...)...
+# ldv-task --driver= --workdir=workdir --env=kernel_id=rule,rule:kernel_id=rule,rule,... ...
 #
 #
 LOG_PREFIX="ldv-task: ";
@@ -44,9 +44,7 @@ for arg in $@; do
 				ldv_print "ERROR: Parameter \"--workdir\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			echo "readlink -f $rworkdir";
 			workdir=`readlink -f $rworkdir`;
-			echo $workdir;
 			if [ $? -ne 0 ]; then
 				ldv_print "ERROR: Failed to read abs-path for working dir: \"$rworkdir\"."
 			        exit 1;
@@ -65,15 +63,6 @@ for arg in $@; do
 				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			driver=`readlink -f $rdriver`;
-			if [ $? -ne 0 ]; then
-				ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
-				exit 1;
-			fi;
-			if [ ! -d "$driver" ]; then
-			        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
-			        exit 1;
-			fi;
 		;;
  		--kernel-driver)
                 	KERNEL_LEVEL=1;
@@ -89,114 +78,52 @@ if [ ! -n "$env" ]; then
 	ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
         exit 1;
 fi;
-if [ ! -n "$driver" ]; then
+if [ ! -n "$rdriver" ]; then
 	ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
         exit 1;
 fi;
+if [ $KERNEL_LEVEL -eq 0 ]; then
+	driver=`readlink -f $rdriver`;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+		exit 1;
+	fi;
+	if [ ! -f "$driver" ]; then
+	        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
+	        exit 1;
+	fi;
+else
+	driver=$rdriver;
+fi;
+
 if [ ! -n "$workdir" ]; then
 	ldv_print "ERROR: Parameter \"--workdir\" - is null. Setup it.";
         exit 1;
 fi;
 
-
-
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
-	WORK_DIR_LOCAL=$WORK_DIR_LOCAL/$k;
-	mkdir $WORK_DIR_LOCAL;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
-		exit 1;
-	fi;
-	ENV_ID=`echo $i | sed 's/(.*)//'`;
-	RULES=`echo $i | sed 's/.*(//'` |  sed 's/)//';
+	ENV_ID=`echo $i | sed 's/x.*//'`;
+	RULES=`echo $i | sed 's/.*x//'`;
 	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
 		exit 1;
 	fi;
-	ldv_print "NORMAL: Calling LDV-core.";
-	if [ $KERNEL_LEVEL -eq 0 ]; then
-		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
-		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
-	else
-		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
-		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --kernel-driver --rule-models=$rulemodels;
+	WORK_DIR_LOCAL=$workdir/$ENV_ID;
+	ldv_print 
+	ldv_print "$WORK_DIR_LOCAL";
+	mkdir $WORK_DIR_LOCAL;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
+		exit 1;
 	fi;
+	ldv_print "NORMAL: Calling LDV-core.";
+	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
+	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES $koption;";
+	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES $koption;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: ldv-core failed.";
 		exit 1;
 	fi;
 done;
 exit;
-
-ldv_print "INFO: temp workdir: $WORK_DIR";
-# all temp dirs created... 
-k=1;
-tid=1;
-for i in $@; do
-	if [ $k -eq 1 ]; then
-		k=`expr $k + 1`;
-		continue;	
-	elif [ -n "$USER_WORKDIR" -a $k -eq 2 ]; then 
-		k=`expr $k + 1`;
-		continue; 
-	fi;
-	ldv_print "INFO: $i";
-	# create dir for this stage
-	WORK_DIR_LOCAL=$WORK_DIR/$tid;
-	mkdir $WORK_DIR_LOCAL;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
-		unset WORK_DIR_LOCAL;
-		k=`expr $k + 1`;
-		tid=`expr $tid + 1`;
-		exit 1;
-	fi;
-	# get KERNELDIR for this environment;
-	# kernel-manager return path if kernel-environment exists and correct prepared
-	ENV_ID=`echo $i | sed 's/:.*//'`;
-	rulemodels=`echo $i | sed 's/.*://'`;
-	ldv_print "DEBUG: rulemodels: $rulemodels";
-	if [ ! -n "$rulemodels" ]; then
-		ldv_print "ERROR: rulemodels after \":\" is null. Please, setup it.";
-		unset ENV_ID;
-		unset KERNEL_PATH;
-		unset WORK_DIR_LOCAL;
-		k=`expr $k + 1`;
-		tid=`expr $tid + 1`;
-		exit 1;
-	fi;
-	ldv_print "INFO: env_id: $ENV_ID";
-	ldv_print "INFO: workdir: $WORK_DIR_LOCAL";
-	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
-		unset ENV_ID;
-		unset KERNEL_PATH;
-		unset WORK_DIR_LOCAL;
-		k=`expr $k + 1`;
-		tid=`expr $tid + 1`;
-		exit 1;
-	fi;
-	ldv_print "NORMAL: Calling LDV-core.";
-	if [ $KERNEL_LEVEL -eq 0 ]; then
-		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;";
-		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$DRIVER_ABS --rule-models=$rulemodels;
-	else
-		ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver-kernel --rule-models=$rulemodels;";
-		WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --kernel-driver --rule-models=$rulemodels;
-	fi;
-
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: ldv-core failed.";
-	fi;
-	unset ENV_ID;
-	unset KERNEL_PATH;
-	unset WORK_DIR_LOCAL;
-	k=`expr $k + 1`;
-	tid=`expr $tid + 1`;
-done;
-
-
-
-

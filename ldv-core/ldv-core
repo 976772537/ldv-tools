@@ -86,7 +86,7 @@ print_usage_and_exit() {
 		ldv_print "ERROR: USAGE: WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels"
 		exit 1;
 }
-if [ $# -ne 3 ]; then print_usage_and_exit; fi;
+#if [ $# -ne 3  ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -158,8 +158,7 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	        exit 1;
 	fi;
 else 
-	driver=`readlink -f $env/$driver`;
-	ldv_print "DEBUG: $driver";
+	driver=$rdriver;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can't get abs path for driver in kernel.";
 		exit 1;
@@ -204,7 +203,10 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	        exit 1;
 	fi;
 else
-	cp -r $driver $DRIVER_DIR;
+	ldv_print "DEBUG: cp -r $env $DRIVER_DIR;"
+	cp -r $env $DRIVER_DIR;
+	env=$DRIVER_DIR;
+	DRIVER_DIR=$driver;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can't copy drivers source code.";
 		exit 1;
@@ -213,18 +215,13 @@ fi;
 
 XML_AFTER_BCE=$WORK_DIR/$BCE_TEMPDIR_NAME/$XML_FILENAME_AFTER_BCE;
 ldv_print "NORMAL: Calling Build Command Extractor";
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;"
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE;
-else
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --kernel-driver --cmdfile-out=$XML_AFTER_BCE;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --kernel-driver --cmdfile-out=$XML_AFTER_BCE;
-fi;
+if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
+ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;"
+LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed."
         exit 1;
 fi;
-exit 1;
 
 #
 # Try to call CSD:

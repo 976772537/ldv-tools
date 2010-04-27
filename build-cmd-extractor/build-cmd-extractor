@@ -93,18 +93,9 @@ for arg in $@; do
 			fi;
                 ;;
                 --driver=*)
-                	rdriver=`echo $arg | sed 's/--driver=//g'`
-			if [ ! -n "$rdriver" ]; then
+                	driver=`echo $arg | sed 's/--driver=//g'`
+			if [ ! -n "$driver" ]; then
 				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
-			        exit 1;
-			fi;
-			driver=`readlink -f $rdriver`;
-			if [ $? -ne 0 ]; then
-				ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
-			        exit 1;
-			fi;
-			if [ ! -d "$driver" ]; then
-			        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
 			        exit 1;
 			fi;
 		;;
@@ -130,6 +121,12 @@ if [ ! -n $basedir ]; then
 	print_usage_and_exit;	
 fi;
 
+if [ ! -n "$driver" ]; then
+	ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
+        print_usage_and_exit;
+fi;
+
+
 TEMP_DIR=$WORK_DIR/$basedir;
 if [ ! -d $TEMP_DIR ]; then
 	mkdir $TEMP_DIR;
@@ -140,12 +137,17 @@ if [ ! -d $TEMP_DIR ]; then
 else
 	ldv_print "WARNING: Temp directory: \"$TEMP_DIR\" - already exists. Reuse it.";
 fi;
+
 DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
 # copy driver sources
 #
-#if [ $KERNEL_LEVEL -eq 1 ]; then driver=$env; fi;
-cp -r $driver $DRIVER_DIR;
+if [ $KERNEL_LEVEL -eq 1 ]; then
+	ldv_print "DEBUG: cp -r $env $DRIVER_DIR;";
+	cp -r $env $DRIVER_DIR;
+else
+	cp -r $driver $DRIVER_DIR;
+fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
 	exit 1;
@@ -153,7 +155,11 @@ fi;
 
 echo "<?xml version=\"1.0\"?>" > $cmdfileout;
 echo "<cmdstream>" >> $cmdfileout;
-echo "<basedir>$driver</basedir>" >> $cmdfileout;
+if [ $KERNEL_LEVEL -ne 1 ]; then
+	echo "<basedir>$driver</basedir>" >> $cmdfileout;
+else
+	echo "<basedir>$env</basedir>" >> $cmdfileout;
+fi;
 
 
 #
@@ -222,14 +228,16 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	fi;
 fi;
 
-
 ldv_print "DEBUG: Try to call kernel make..."
 if [ $KERNEL_LEVEL -eq 0 ]; then
 	ldv_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
 else
-	ldv_print "DEBUG: make modules BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-	BUILDFILE=$cmdfileout make V=1 modules $driver/ > $KERNEL_COMPILE_LOG 2>&1
+	# test for root of kernel
+	abs_driver=`readlink -f $driver`;
+	if [ ! -n "`echo $env | grep $driver`" ]; then mdriver="M=$driver/"; fi;
+	ldv_print "DEBUG: BUILDFILE=$cmdfileout make $mdriver modules > $KERNEL_COMPILE_LOG 2>&1;";
+	BUILDFILE=$cmdfileout make $mdriver modules > $KERNEL_COMPILE_LOG 2>&1
 fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
@@ -240,13 +248,21 @@ fi;
 # restore driver sources
 #
 TEMP_DRIVER_DIR=$TEMP_DIR/$TEMP_DRIVER_DIR_NAME;
-mv $driver $TEMP_DRIVER_DIR
+if [ $KERNEL_LEVEL -eq 1 ]; then
+	mv $env $TEMP_DRIVER_DIR;
+else
+	mv $driver $TEMP_DRIVER_DIR
+fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Can't move driver dir:\"$driver\" to \"$TEMP_DRIVER_DIR\".";
 	exit 1;
 fi;
 
-mv $DRIVER_DIR $driver
+if [ $KERNEL_LEVEL -eq 1 ]; then
+	mv $DRIVER_DIR $env;
+else
+	mv $DRIVER_DIR $driver;
+fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Can't copy driver dir: \"$DRIVER_DIR\".";
 	exit 1;
