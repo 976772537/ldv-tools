@@ -476,9 +476,7 @@ for my $property (@properties){
 	);
 	vsay ('NORMAL',"Calling rule-instrumenter to fix up report for rule $property...\n");
 	vsay (20, "@rule_instr_report\n");
-	# TEMPORAL: just show the report
-	system ("cat",$before_ri_rep_name) and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_report";
-	#system @rule_instr_report and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_report";
+	system @rule_instr_report and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_report";
 }
 
 # Perform final sanity check
