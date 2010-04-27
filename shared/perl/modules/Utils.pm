@@ -9,13 +9,17 @@ use vars qw(@ISA @EXPORT_OK @EXPORT);
 use base qw(Exporter);
 
 # Just like waitpid, but wait until a child REALLY exits.
+# It also calculates child statistics, such as running time and stuff
+use Proc::Wait3;
 sub hard_wait
 {
-	my $wpres = 0;
-	while ($wpres == 0){
-		$wpres = waitpid $_[0],$_[1];
+	my $pid = shift;
+	my $wpres = undef;
+	my ($stime, $utime) = undef;
+	while (!defined $wpres || $wpres != $pid){
+		($wpres, undef, $utime, $stime) = wait3('blocking');
 	}
-	return $wpres;
+	return ('utime'=>$utime, 'stime'=>$stime);
 }
 
 # Functor that creates an "unbasedir" function out of argument DIR.  The unbasedir function strips DIR prefix from its argument.

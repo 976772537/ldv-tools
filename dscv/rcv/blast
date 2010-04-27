@@ -121,8 +121,9 @@ sub verify_blast
 		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
 		XML::Twig::Elt->new('status',{},$result->{'BLAST'})->paste($rcvResultT);
 		XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
-		# TODO: fix time measurement
-		XML::Twig::Elt->new('time',{note=>'its always zero :-('},'0.0')->paste($rcvResultT);
+
+		# Calculate and output time elapsed
+		XML::Twig::Elt->new('time',{},$result->{'utime'}+$result->{'stime'})->paste($rcvResultT);
 
 		$rcvResultT->paste(last_child =>$cmdInstT);
 		$cmdInstT->paste($repT);
@@ -216,11 +217,12 @@ sub call_blast
 	# TODO: add GZIPping as well
 
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
-	Utils::hard_wait($fpid,0) < 0 and die;
+	my %child = Utils::hard_wait($fpid,0);
 	close $BLAST_DEBUG;
 
-  vsay (40,"BLAST open3 return value: $?\n");
+	vsay (40,"BLAST open3 return value: $?\n");
 	vsay (20,"BLAST return value: $?\n");
+	vsay (40,"BLAST stats: utime $child{'utime'}, stime $child{'stime'}\n");
 	my $blast_rv = $? >> 8;
 	# NOTE that exit code 2 is for OCaml unhandled exceptions
 	if ($blast_rv == 5){
@@ -234,7 +236,12 @@ sub call_blast
 		vsay (20,"BLAST failed with exit code $blast_rv.  But who cares?\n");
 	}
 
-	return $verdictor->result();
+	my $result = {$verdictor->result()};
+	# Add timing information into the result returned
+	$result->{'utime'} = $child{'utime'};
+	$result->{'stime'} = $child{'stime'};
+
+	return $result;
 }
 
 
@@ -256,8 +263,7 @@ sub blast_quick_check
 	}
 	# Parent
 	# Ignore blast's output.
-	my $wpres = Utils::hard_wait($fpid,0);
-	$wpres > 0 or die;
+	my %wpres = Utils::hard_wait($fpid,0);
 	# \n to complement previous message
 	$? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
 	# Ok, now we can close the pipe
