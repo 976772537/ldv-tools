@@ -384,7 +384,7 @@ sub exec_status_desc_and_time($)
   my $start_time = [gettimeofday()];
   
   print_debug_trace("Call to function argument '$func'.");
-  my $status = &$func();
+  my ($status, $desc) = &$func();
   
   print_debug_trace("Find and save script execution time.");
   my $end_time = [gettimeofday()];
@@ -395,7 +395,7 @@ sub exec_status_desc_and_time($)
   $elapsed =~ /\./;
   print_debug_debug("The elapsed time in milliseconds is '$PREMATCH'.");  
 
-  return ($status, 'what do you want to see here?', $PREMATCH);
+  return ($status, $desc, $PREMATCH);
 }
 
 sub get_debug_level()
@@ -949,7 +949,7 @@ sub process_cmd_cc()
       or die("Can't change directory to '$cmd{'cwd'}'");
 
     print_debug_info("Execute the command '@args'");
-    system(@args) == 0 or die("System '@args' call failed: $ERRNO");
+    system(@args) == 0 or return (1, 'some failure');
 
     # Unset special environments variables.
     delete($ENV{'LDV_QUITE'});
@@ -984,8 +984,7 @@ sub process_cmd_cc()
       or die("Can't change directory to '$cmd{'cwd'}'");
       
     print_debug_info("Execute the command '@args'");
-    system(@args) == 0 
-      or die("System '@args' call failed: $ERRNO");
+    system(@args) == 0 or return (1, 'some failure'); 
 
     # Unset special environments variables.
     delete($ENV{'LDV_QUITE'});
@@ -1007,7 +1006,8 @@ sub process_cmd_cc()
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
   
-    return 0;
+    # Status is ok, description is empty.
+    return (0, '');
   }
 }
 
@@ -1033,7 +1033,7 @@ sub process_cmd_ld()
         or die("Can't change directory to '$cmd{'cwd'}'");
         
       print_debug_info("Execute the command '@args'");
-      system(@args) == 0 or die("System '@args' call failed: $ERRNO");
+      system(@args) == 0 or return (1, 'some failure');
       
       print_debug_trace("Go to the initial directory.");
       chdir($tool_working_dir)
@@ -1049,7 +1049,7 @@ sub process_cmd_ld()
       # Linked file is converted to c by means of llvm c backend.
       @args = ($ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
       print_debug_info("Execute the command '@args'");
-      system(@args) == 0 or die("System '@args' call failed: $ERRNO");
+      system(@args) == 0 or return (1, 'some failure');
 
       die("Something wrong with aspectator: it doesn't produce file '$c_out'") 
         unless (-f "$c_out");
@@ -1106,9 +1106,9 @@ sub process_cmd_ld()
         or die("Can't change directory to '$cmd{'cwd'}'");
         
       print_debug_info("Execute the command '@args_usual'");
-      system(@args_usual) == 0 or die("System '@args_usual' call failed: $ERRNO");
+      system(@args_usual) == 0 or return (1, 'some failure');
       print_debug_info("Execute the command '@args_general'");      
-      system(@args_general) == 0 or die("System '@args_general' call failed: $ERRNO");
+      system(@args_general) == 0 or return (1, 'some failure');
 
       print_debug_trace("Go to the initial directory.");
       chdir($tool_working_dir)
@@ -1122,7 +1122,8 @@ sub process_cmd_ld()
       print_debug_debug("The linker produces the generally linked bitcode file '$cmd{'out'}$llvm_bitcode_general_suffix'");
     }
     
-    return 0;
+    # Status is ok, description is empty.
+    return (0, '');
   }
 }
 
@@ -1447,7 +1448,33 @@ sub process_cmds()
         print_debug_debug("The ld command entry points are '@entry_points'.");
         
         print_debug_debug("The ld command '$id_attr' is especially specifically processed for the aspect mode.");  
-        my ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_ld');
+        my ($status, $desc, $time);
+        
+        # Check whether all input files are processed sucessfully.
+        $status = 0;
+
+        foreach my $in_text (@ins_text)
+        {
+          if (defined($cmds_status{$in_text}))
+          {
+            $status = 1;
+          }
+          else
+          {
+            $status = 0;
+            last;
+          }
+        }        
+        
+        # Process command just when inputs are ok.
+        if ($status)
+        {
+          ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_ld');
+        }
+        else
+        {
+          ($desc, $time) = ('', 0);
+        }
         
         if ($status)
         {
