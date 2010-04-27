@@ -22,6 +22,14 @@ sub reports_dir
 	return "$workdir/reports";
 }
 
+use File::Find;
+# Execute callback for each report file found
+sub foreach_report
+{
+	my ($work_dir, $callback) = @_;
+	find(sub{ /\.report$/ and $callback->($File::Find::name);},reports_dir($work_dir));
+}
+
 
 use Cwd;
 # Preprocesses file in the directory given with the options given.  Returns what call to C<system> returned.

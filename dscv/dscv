@@ -317,6 +317,7 @@ my $rule_instr_mains = 0;
 
 # Send cmdfile to Instrumentor for each rule.
 
+use DSCV::RCV::Utils;
 use XML::Twig;
 
 # For now we just pass the whole file to Instrumentor
@@ -363,7 +364,6 @@ mkpath ($for_rcv_dir);
 
 my $ri_basedir = "$dscv_base_dir/ri";
 mkpath ($ri_basedir);
-
 
 # Get list of properties to check
 my @properties = @{$config->{properties}};
@@ -444,6 +444,41 @@ for my $property (@properties){
 	$verify_Twig->parsefile($outfile);
 
 	# TODO: parallelize
+
+	# Now we concatenate all reports into one file and pass that file to rule-instrumenter for it to tune that big report.
+	my $before_ri_rep_name = "$verifier_dir/report.xml";
+	my $after_ri_rep_name = "$verifier_dir/report_after_ri.xml";
+	my $BIG_REPORT; open $BIG_REPORT, ">", $before_ri_rep_name or die;
+
+	my $bigRepT = XML::Twig::Elt->new("reports");
+
+	my $cat_rep=sub{
+		my ($report_file) = @_;
+		XML::Twig->new(
+			twig_roots=> {'reports' => sub {
+				my ($twig,$repT) = @_;
+				local $_;
+				$_->copy->paste($bigRepT) for $repT->children;
+			}}
+		)->parsefile($report_file);
+	};
+	DSCV::RCV::Utils::foreach_report($verifier_dir,$cat_rep);
+
+	$bigRepT->print($BIG_REPORT,'indented');
+	close ($BIG_REPORT);
+
+	# Now feed that BIG_REPORT to rule-instrumenter
+	my @rule_instr_report = ($config->{rule_ins},
+		"--basedir=$ri_basedir_for_rule",
+		"--rule-model=$property",
+		"--report=$before_ri_rep_name",
+		"--report-out=$after_ri_rep_name"
+	);
+	vsay ('NORMAL',"Calling rule-instrumenter to fix up report for rule $property...\n");
+	vsay (20, "@rule_instr_report\n");
+	# TEMPORAL: just show the report
+	system ("cat",$before_ri_rep_name) and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_report";
+	#system @rule_instr_report and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_report";
 }
 
 # Perform final sanity check
