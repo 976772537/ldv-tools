@@ -11,6 +11,26 @@ use base qw(Exporter);
 use LDV::Utils;
 use Utils;
 
+#======================================================================
+# SHARED INFORMATION
+#======================================================================
+
+# Get folder that contains reports, based on wokring directory supplied to RCV
+sub reports_dir
+{
+	my $workdir = shift or Carp::confess;
+	return "$workdir/reports";
+}
+
+use File::Find;
+# Execute callback for each report file found
+sub foreach_report
+{
+	my ($work_dir, $callback) = @_;
+	find(sub{ /\.report$/ and $callback->($File::Find::name);},reports_dir($work_dir));
+}
+
+
 use Cwd;
 # Preprocesses file in the directory given with the options given.  Returns what call to C<system> returned.
 # Usage:
@@ -165,13 +185,13 @@ sub ld_maker
 		# List of error locations
 		my @errlocs = $cmdT->children_text('error');
 		# Report file
-		my $report = "$workdir/reports/$target.report";
+		my $report = reports_dir($workdir)."/$target.report";
 		mkpath(dirname($report));
 		# Tool debug file (to dump the trace of the tool)
-		my $debug = "$workdir/reports/$target.debug";
+		my $debug = reports_dir($workdir)."/$target.debug";
 		mkpath(dirname($debug));
 		# Trace file (to dump the error trace)
-		my $trace = "$workdir/reports/$target.trace";
+		my $trace = reports_dir($workdir)."/$target.trace";
 		mkpath(dirname($trace));
 
 		$verify->(cmd_id=>$cmdT->att('id'), files => \@files, hints=>$hintsT, mains=>\@mains, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug, dbg_target=>$target); 
