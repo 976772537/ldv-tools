@@ -40,6 +40,7 @@ my $psuffix="deg";
 my $log_level=10;
 
 my $cmdfile = "";
+my $state_file = "";
 my $cmdfile_out = "";
 my $tempdir = "";
 
@@ -67,6 +68,7 @@ if(! mkdir $my_driverdir) {
 	exit 1;
 }
 
+open(STATEFIL, "> $state_file") || ( ldv_eprint("Can't create state file: \"$state_file\".") &&  exit 1 );
 
 my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream_cc,
 			"$xml_cmd_stream/$xml_cmd_ld"      => \&hxml_cmdstream_ld,
@@ -82,6 +84,7 @@ if($log_level == 50) {
 	$twig->print();
 }
 $twig->print_to_file($cmdfile_out);
+close(STATEFIL);
 
 #####################################################
 # twig  handlers
@@ -128,6 +131,10 @@ sub hxml_cmdstream_cc {
 		ldv_eprint("ldv_cc failed !");
 		exit 1;
 	}
+	
+	my $lid = $_[1]->att($xml_cmd_attr_id);
+	print (STATEFIL $lid.":TODO in drv-env-gen...\n"); 
+
 	ldv_iprint("End of ldv_cc - Ok.");
 
 	foreach my $section ( $_[1]->children('out') ) {
@@ -189,6 +196,10 @@ sub hxml_cmdstream_ld {
 		ldv_eprint("ldv_ld failed !");
 		exit 1;
 	}
+
+	my $lid = $_[1]->att($xml_cmd_attr_id);
+	print (STATEFIL $lid.":TODO in drv-env-gen...\n"); 
+
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
@@ -253,6 +264,10 @@ sub get_ldv_opts
 		{
 			$cmdfile = $opt;
 		} 
+		elsif($opt =~ s/--state-file=(.*)/$1/)
+		{
+			$state_file = $opt;
+		}
 		elsif($opt =~ s/--cmdfile-out=(.*)/$1/)
 		{
 			$cmdfile_out = $opt;
@@ -272,6 +287,15 @@ sub get_ldv_opts
 		print_usage();
 		exit 1;
 	}
+	if(!$state_file) {
+		ldv_eprint("You must setup state file in option: \"--state-file\".");
+		print_usage();
+		exit 1;
+	} elsif( -f $state_file) {
+		ldv_eprint("Output state file already exists: \"$state_file\".");
+		print_usage();
+		exit 1;
+	}
 	if(!$cmdfile_out) {
 		ldv_eprint("You must setup output command stream file in option: \"--cmdfile-out\".");
 		print_usage();
@@ -281,8 +305,8 @@ sub get_ldv_opts
 		print_usage();
 		exit 1;
 	}
-	ldv_iprint("Selected command stream file: \"$cmdfile\".");
-	ldv_iprint("Selected output command stream file: \"$cmdfile_out\".");
+#	ldv_iprint("Selected command stream file: \"$cmdfile\".");
+#	ldv_iprint("Selected output command stream file: \"$cmdfile_out\".");
 }
 
 sub print_usage
