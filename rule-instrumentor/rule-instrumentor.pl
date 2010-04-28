@@ -32,9 +32,14 @@ use File::Copy::Recursive qw(rcopy);
 # retn: nothing.
 sub create_general_aspect();
 
+# The auxiliary function that captures error description.
+# args: an array to be passed to the system function.
+# retn: a function execution status and description.
+sub exec_status_and_desc(@);
+
 # The auxiliary function that count execution time for its function argument.
-# args: function name.
-# retn: function execution status, description and time.
+# args: a function name.
+# retn: a function execution status, description and time.
 sub exec_status_desc_and_time($);
 
 # Determine debug level in depend on LDV_DEBUG environment variable.
@@ -57,6 +62,11 @@ sub get_opt();
 # args: no.
 # retn: nothing.
 sub help();
+
+# Interpret a long error description and make a short one-line description.
+# args: an array of long error description lines.
+# retn: short description.
+sub interpret_failure(@);
 
 # Obtain needed files and dirs and check their presence.
 # args: no.
@@ -142,6 +152,7 @@ my $error_semantics = 2;
 # File handlers.
 my $file_cmds_log;
 my $file_report_xml_out;
+my $file_temp = \*STDERR;
 my $file_xml_out;
 
 # Kind of instrumentation.
@@ -208,7 +219,7 @@ my @llvm_linker_opts = ('-f');
 # The commands log file designatures.
 my $log_cmds_aspect = 'mode=aspect';
 my $log_cmds_cc = 'cc';
-my $log_cmds_check = ':check=true';
+my $log_cmds_check = '(check=true)';
 my $log_cmds_fail = 'fail';
 my $log_cmds_ld = 'ld';
 my $log_cmds_ok = 'ok';
@@ -232,6 +243,9 @@ my $tool_aux_dir = 'rule-instrumentor';
 # The name of file where commands execution status will be logged. It's relative
 # to the tool auxiliary working directory.
 my $tool_cmds_log = 'cmds-log';
+# The file that is used to store different auxiliary information. It's relative
+# to the tool base directory.
+my $tool_temp = '__rule_instrumentor_temp';
 # An absolute path to working directory of this tool.
 my $tool_working_dir;
 
@@ -396,6 +410,38 @@ sub exec_status_desc_and_time($)
   print_debug_debug("The elapsed time in milliseconds is '$PREMATCH'.");  
 
   return ($status, $desc, $PREMATCH);
+}
+
+sub exec_status_and_desc(@)
+{
+  print_debug_trace("Redirect STDERR to file '$opt_basedir/$tool_temp'.");
+  open($file_temp, '>', "$opt_basedir/$tool_temp")
+    or die("Couldn't open file '$opt_basedir/$tool_temp' for write: $ERRNO");
+  
+  print_debug_trace("Execute the command.");
+  my $status = system(@ARG);
+  print_debug_debug("The command execution status is '$status'.");
+  
+  close($file_temp) 
+    or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");  
+ 
+  print_debug_trace("Read failure description.");
+  my $file_temp_read;
+  open($file_temp_read, '<', "$opt_basedir/$tool_temp")
+    or die("Couldn't open file '$opt_basedir/$tool_temp' for read: $ERRNO");   
+    
+  my @desc = <$file_temp_read>;
+  my $desc = join('', @desc);
+  print_debug_debug("The command execution full description is '$desc'.");
+
+  print_debug_trace("Try to understand what kind of failure takes place.");
+  $desc = interpret_failure(@desc);
+  print_debug_debug("The command execution short description is '$desc'.");
+  
+  close($file_temp_read) 
+    or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");  
+
+  return ($status, $desc);
 }
 
 sub get_debug_level()
@@ -720,6 +766,21 @@ EOM
   exit($error_syntax);
 }
 
+sub interpret_failure(@)
+{
+  my @desc = @ARG;
+
+  foreach my $line (@desc)
+  {
+    if ($line =~ /ERROR BISON/)
+    {
+      return 'The grammar error.';
+    }
+  }
+  
+  return "An unknown error";
+}
+
 sub prepare_files_and_dirs()
 {
   print_debug_trace("Try to find global working directory.");  
@@ -949,8 +1010,9 @@ sub process_cmd_cc()
       or die("Can't change directory to '$cmd{'cwd'}'");
 
     print_debug_info("Execute the command '@args'");
-    system(@args) == 0 or return (1, 'some failure');
-
+    my ($status, $desc) = exec_status_and_desc(@args);
+    return ($status, $desc) if ($status);
+    
     # Unset special environments variables.
     delete($ENV{'LDV_QUITE'});
     delete($ENV{$ldv_no_quoted});
@@ -984,7 +1046,8 @@ sub process_cmd_cc()
       or die("Can't change directory to '$cmd{'cwd'}'");
       
     print_debug_info("Execute the command '@args'");
-    system(@args) == 0 or return (1, 'some failure'); 
+    ($status, $desc) = exec_status_and_desc(@args);
+    return ($status, $desc) if ($status);
 
     # Unset special environments variables.
     delete($ENV{'LDV_QUITE'});
@@ -1033,7 +1096,8 @@ sub process_cmd_ld()
         or die("Can't change directory to '$cmd{'cwd'}'");
         
       print_debug_info("Execute the command '@args'");
-      system(@args) == 0 or return (1, 'some failure');
+      my ($status, $desc) = exec_status_and_desc(@args);
+      return ($status, $desc) if ($status);
       
       print_debug_trace("Go to the initial directory.");
       chdir($tool_working_dir)
@@ -1049,7 +1113,8 @@ sub process_cmd_ld()
       # Linked file is converted to c by means of llvm c backend.
       @args = ($ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
       print_debug_info("Execute the command '@args'");
-      system(@args) == 0 or return (1, 'some failure');
+      ($status, $desc) = exec_status_and_desc(@args);
+      return ($status, $desc) if ($status);
 
       die("Something wrong with aspectator: it doesn't produce file '$c_out'") 
         unless (-f "$c_out");
@@ -1106,9 +1171,11 @@ sub process_cmd_ld()
         or die("Can't change directory to '$cmd{'cwd'}'");
         
       print_debug_info("Execute the command '@args_usual'");
-      system(@args_usual) == 0 or return (1, 'some failure');
+      my ($status, $desc) = exec_status_and_desc(@args_usual);
+      return ($status, $desc) if ($status);
       print_debug_info("Execute the command '@args_general'");      
-      system(@args_general) == 0 or return (1, 'some failure');
+      ($status, $desc) = exec_status_and_desc(@args_general);
+      return ($status, $desc) if ($status);
 
       print_debug_trace("Go to the initial directory.");
       chdir($tool_working_dir)
@@ -1323,7 +1390,7 @@ sub process_cmds()
         if ($cmd->gi eq $xml_cmd_cc)
         {
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0::$id_attr\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr:\n");
         }
         elsif ($cmd->gi eq $xml_cmd_ld)
         {
@@ -1346,12 +1413,12 @@ sub process_cmds()
           if ($status)
           {
             $cmds_status{$out_text} = $id_attr;
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:0::$id_attr");
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:0:$id_attr:");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
           }
           else
           {
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:0::$id_attr");
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:0:$id_attr:");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
           }
 
@@ -1421,13 +1488,13 @@ sub process_cmds()
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:$desc:$id_attr\n");  
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:$id_attr:$desc\n");  
         }
         else
         {
           print_debug_trace("Log information on the '$id_attr' command execution status.");
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:$desc:$id_attr\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:$id_attr:$desc\n");
         }
       }
 
@@ -1478,7 +1545,7 @@ sub process_cmds()
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$desc:$id_attr\n");  
+          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:$desc\n");  
         }
         else
         {
@@ -1502,13 +1569,13 @@ sub process_cmds()
           if ($status)
           {
             $cmds_status{$out_text} = $id_attr;
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:$time:$desc:$id_attr");
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:$time:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
-            print($file_cmds_log "\n");
+            print($file_cmds_log ":$desc\n");
           }
           else
           {
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$desc:$id_attr\n");  
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:$desc\n");  
           }
         }
       }
@@ -1559,13 +1626,14 @@ sub process_report()
   {
     chomp($cmd_log);
     print_debug_trace("Process the '$cmd_log' command log.");
-    # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_desc:cmd_id'.
+    # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_id:cmd_desc'.
     $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):/;
     my $cmd_name = $1;
     my $cmd_status = $2;
     my $cmd_time = $3;
-    my $cmd_desc = $4;
-    die("The command id isn't specified") unless (my $id = $POSTMATCH);
+    my $id = $4;
+    my $cmd_desc = $POSTMATCH;
+    die("The command id isn't specified") unless ($id);
     print_debug_debug("The commmand log id is '$id'.");
     my $check = 0;
     if ($id =~ /$log_cmds_check$/)
