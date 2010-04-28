@@ -13,13 +13,14 @@ public class CSD {
 	
 	private static String basedir = null;
 	private static String cmdfile = null;
+	private static String statefile = null;
 	public static  boolean driversplit= false;
 	public static  boolean fullcopy = false;
 	public static int ldv_debug=0;
 	public static String cmdfileout = null;
 	private static String WORK_DIR = null;
 	private static boolean printdigraph = false;
-	private static final String usageString = "csd: USAGE: WORK_DIR=workdir <LDV_DEBUG=level> java -ea -jar cmd-stream-divider.jar --basedir=basedir --cmdfile=cmdxmlin --cmdfile-out=outfilename";
+	private static final String usageString = "csd: USAGE: WORK_DIR=workdir <LDV_DEBUG=level> java -ea -jar cmd-stream-divider.jar --basedir=basedir --cmdfile=cmdxmlin --cmdfile-out=outfilename --state-file=statefile";
 	
 	
 	public static void main(String[] args) {
@@ -27,7 +28,7 @@ public class CSD {
 			System.exit(-1);
 		try {
 			CmdStream cmdstream = CmdStream.getCmdStream(cmdfile, WORK_DIR+"/"+basedir);
-			cmdstream.generateTree(WORK_DIR+"/"+basedir,printdigraph,driversplit,fullcopy);
+			cmdstream.generateTree(WORK_DIR+"/"+basedir,printdigraph,driversplit,fullcopy,statefile);
 		} catch (ParserConfigurationException e1) {
 			System.out.println("csd: ERROR: parse exception.\n");
 			System.exit(-1);
@@ -75,6 +76,9 @@ public class CSD {
 			if(args[i].contains("--cmdfile=")) {
 				cmdfile = args[i].replace("--cmdfile=", "").trim();
 			} else
+			if(args[i].contains("--state-file=")) {
+				statefile = args[i].replace("--state-file=", "").trim();
+			} else
 			if(args[i].equals("--split-on")) {
 				driversplit = true;
 			} else             
@@ -114,13 +118,24 @@ public class CSD {
 		} 
 		
 		if(cmdfile==null || cmdfile.length()==0) {
-			System.out.println("csd: ERROR: Setup option \"--cmdfile\" - and tru again.");
+			System.out.println("csd: ERROR: Setup option \"--cmdfile\" - and try again.");
 			return false;			
 		}
 		
 		File cmdFile = new File(cmdfile);
 		if(!cmdFile.exists()) {
 			System.out.println("csd: ERROR: Can't find input cmdfile: \""+cmdfile+"\".");
+			return false;
+		}
+		
+		if(statefile==null || statefile.length()==0) {
+			System.out.println("csd: ERROR: Setup option \"--state-file\" - and try again.");
+			return false;			
+		}
+		
+		File stateFile = new File(statefile);
+		if(stateFile.exists()) {
+			System.out.println("csd: ERROR: State file already exists: \""+statefile+"\".");
 			return false;
 		}
 		

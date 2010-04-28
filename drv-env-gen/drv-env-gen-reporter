@@ -97,6 +97,11 @@ sub hxml_cmdstream {
 }	
 
 sub get_state() {
+	#
+	# TODO:
+	# 	add return many commands with one ref
+	# 	(in case of many model and main options))
+	#
 	foreach my $state (@states) {
 		if($state =~ m/^(\d+):(.*)$/ && $1 == $_[0]) {
 			return $2;

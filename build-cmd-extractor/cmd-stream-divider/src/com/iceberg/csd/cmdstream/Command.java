@@ -145,6 +145,10 @@ public class Command {
 		}
 		return true;
 	}
+
+	public int getId() {
+		return Id;
+	}
 	
 	
 }

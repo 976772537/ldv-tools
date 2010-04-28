@@ -11,6 +11,7 @@ XML_FILENAME_AFTER_CSD="cmd_after_csd";
 XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
 DEG_REPORT_FILENAME="report_after_deg.xml";
 DEG_STATE_FILENAME="deg.state";
+CSD_STATE_FILENAME="csd.state";
 REPORT_FILENAME_AFTER_DSCV="report_after_dscv.xml";
 BCE_WORK_DIRNAME="bce_tempdir";
 DEG_WORK_DIRNAME="deg_tempdir";
@@ -240,12 +241,14 @@ ldv_print "NORMAL: Calling Command Stream Separator.";
 #ldv_print "DEBUG:     - call: dot -Tpng ./FILE -o ./FILE.png & gwenview ./FILE.png ";
 #ldv_print "DEBUG:                                                                  ";
 
+CSD_TEMPDIR=$WORK_DIR/$CSD_DEG_DSCV_TEMPDIR_NAME;
+CSD_STATE=$CSD_TEMPDIR/$CSD_STATE_FILENAME;
 if [ $KERNEL_LEVEL -eq 1 ]; then
-	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
+	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
 else
-	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD;
+	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
 fi;
 if [ $? -ne 0 ]; then
        ldv_print "ERROR: Command stream divider failed.";
@@ -256,7 +259,6 @@ if [ ! -d $CSD_DEG_DSCV_TEMPDIR ]; then
        ldv_print "ERROR: Can't find command stream divider temp directory:\"$CSD_DEG_DSCV_TEMPDIR_NAME\".";
        exit 1;
 fi;
-
 
 # 
 # Find all xml files in csd_tempdir and try to call all other instruments
@@ -277,10 +279,10 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	fi;
 	DEG_TEMPDIR=$CURRENT_TEMPDIR/$DEG_TEMPDIR_NAME;
 	XML_AFTER_DEG=$DEG_TEMPDIR/$XML_FILENAME_AFTER_DEG;
-	DEG_STATE_FILE=$DEG_TEMPDIR/$DEG_STATE_FILENAME;
+	DEG_STATE=$DEG_TEMPDIR/$DEG_STATE_FILENAME;
 	ldv_print "NORMAL: Calling Driver Environment Generator";
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE_FILE;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE_FILE;
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE;";
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE;
 	if [ $? -ne 0 ]; then
 	        ldv_print "ERROR: Drv-env-gen failed."
 	        exit 1;
@@ -305,10 +307,9 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	fi;
 
 	DEG_REPORT=$DEG_TEMPDIR/$DEG_REPORT_FILENAME;
-	DEG_STATE=$DEG_TEMPDIR/$DEG_STATE_FILENAME;
 	ldv_print "NORMAL: Calling Driver Environment Generator reporter.";
-	ldv_print "DEBUG: $DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE_FILE;";
-	$DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE_FILE;
+	ldv_print "DEBUG: $DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;";
+	$DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;
 	if [ $? -ne 0 ]; then
 	        ldv_print "ERROR: DEG reporter failed."
 	        exit 1;

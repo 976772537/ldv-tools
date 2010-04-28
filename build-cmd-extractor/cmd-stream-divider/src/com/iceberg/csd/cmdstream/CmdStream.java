@@ -96,10 +96,18 @@ public class CmdStream {
 	
 	private static String genFilename="cmd_after_deg";
 	
-	public void generateTree(String tempdir, boolean printdigraph, boolean driversplit, boolean fullcopy) {
+	public void generateTree(String tempdir, boolean printdigraph, boolean driversplit, boolean fullcopy, String statefile) {
 		//vortexList = new ArrayList<Command>();
 		// стэк - просто для ускорения, так можно было всегда ходить по списку,
 		// если бы не знали, что предыдущая комманда не может включать последующую
+		FileWriter stateFw = null;
+		try {
+			if(statefile!=null)
+				stateFw = new FileWriter(statefile);
+		} catch (IOException e1) {
+			System.out.println("csd: ERROR: Can't create state file:\""+statefile+"\".");
+			System.exit(1);
+		}
 		if(driversplit) {
 			stack = new ArrayList<Command>();
 			// 1. взять из общего списка
@@ -182,11 +190,27 @@ public class CmdStream {
 		genFilename = CSD.cmdfileout;
 		for(int i=0; i<independentCommands.size(); i++) {
 			try {
+				long start = System.currentTimeMillis();
 				independentCommands.get(i).putCmdStream(tempdir+"/"+genFilename+i+".xml");
+				long end = System.currentTimeMillis();
+				long workTime = end - start;
+				if(stateFw!=null) {
+					for(int j=0 ;j<independentCommands.get(i).getCmdList().size(); j++) {
+						Command lcmd = independentCommands.get(i).getCmdList().get(j);
+						stateFw.append(lcmd.getId()+":"+workTime+"\n");
+					}
+				}
 			} catch (IOException e) {
 				System.out.println("csd: WARNING: Failed \""+tempdir+"/"+genFilename+"1"+".xml"+"\".");
 			}
 		}
+		if(stateFw!=null)
+			try {
+				stateFw.close();
+			} catch (IOException e) {
+				System.out.println("csd: ERROR: Can't close state file after write:\""+statefile+"\".");
+				System.exit(1);
+			}
 		System.out.println("csd: NORMAL: Number of extracted command streams: "+independentCommands.size()+".");
 	}
 
@@ -241,24 +265,6 @@ public class CmdStream {
 		System.out.println(tsb.toString());
 	}
 
-	/*public void printDebugStack(int filterFlag) {
-	for(int i=0; i<stack.size(); i++) {
-		if(filterFlag==1 && stack.get(i).isCheck()==false)
-			continue;
-		System.out.println(stack.get(i).getOut().get(0));
-		printStackRecursive("---> ", stack.get(i),filterFlag);
-		}		
-	}*/
-	
-	/*private static void printStackRecursive(String shift, Command rcmd, int filterFlag) {
-		if(filterFlag==1 && rcmd.isCheck()==false)
-			return;
-		for(int i=0; i<rcmd.getObjIn().size(); i++) {
-			System.out.println(shift+rcmd.getObjIn().get(i).getOut().get(0));
-			printStackRecursive(shift+"   ", rcmd.getObjIn().get(i), filterFlag);
-		}
-	}*/
-	
 	private static void printStackRecursiveGraphviz(List<String> gvstack, Command rcmd, StringBuffer tsb) {
 		if(rcmd.isCheck()==false) {
 			for(int i=0; i<gvstack.size(); i++)
@@ -298,6 +304,10 @@ public class CmdStream {
 		fw.close();
 	}
 
+	public List<Command> getCmdList() {
+		return cmdlist;
+	}
+	
 	public String getBaseDir() {
 		return inBasedir;
 	}
