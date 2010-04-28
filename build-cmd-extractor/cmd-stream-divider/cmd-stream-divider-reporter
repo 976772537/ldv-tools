@@ -56,7 +56,6 @@ my $twig_inroot = XML::Twig::Elt->new($xml_reports);
 $twig_inreport->set_root($twig_inroot);
 
 foreach my $file (@reports) { 
-	echo "FILE: $file\n";
 	my $ctwig=new XML::Twig();
 	$ctwig->parsefile($file);
 	my $croot=$ctwig->root;
@@ -200,7 +199,10 @@ sub get_ldv_opts
 		exit 1;
 	} else
 	{
-		@reports=split('/,/',$reports_in);
+		@reports=split(',',$reports_in);
+#		foreach $retor (@reports) {
+#			print "RUK: $retor\n";
+#		}
 	}
 	if(!$report_out) {
 		ldv_eprint("You must setup output report file in option: \"--reoport-out\".");
