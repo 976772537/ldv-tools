@@ -175,7 +175,7 @@ my %ldv_model;
 
 # Options that are obtained for the version of gcc compiler (version 4.4 or may
 # be higher). Note that this is array of options patterns to be excluded.
-my @llvm_gcc_4_4_opts = ('-Wframe-larger-than=\d+', '-fno-dwarf2-cfi-asm', '-fconserve-stack');
+my @llvm_gcc_4_4_opts = ('-Wframe-larger-than=\d+', '-fno-dwarf2-cfi-asm', '-fconserve-stack', '-O.');
 
 # Suffix of llvm bitcody files.
 my $llvm_bitcode_suffix = '.bc';
