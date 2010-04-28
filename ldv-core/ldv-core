@@ -5,28 +5,26 @@
 # ldv-core --env=envdir --driver=driver --rule-models=rules
 #
 
-GLOBAL_LOG="global.log";
 XML_FILENAME_AFTER_BCE="cmd_after_bce.xml";
 XML_FILENAME_AFTER_CSD="cmd_after_csd";
 XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
-DEG_REPORT_FILENAME="report_after_deg.xml";
+
 DEG_STATE_FILENAME="deg.state";
 CSD_STATE_FILENAME="csd.state";
-REPORT_FILENAME_AFTER_DSCV="report_after_dscv.xml";
-BCE_WORK_DIRNAME="bce_tempdir";
-DEG_WORK_DIRNAME="deg_tempdir";
+
+DEG_REPORT_FILENAME="report_after_deg.xml";
+CSD_REPORT_FILENAME="report_after_csd.xml";
+DSCV_REPORT_FILENAME="report_after_dscv.xml";
+
 DSCV_TEMPDIR_NAME="dscv_tempdir";
 CSD_TEMPDIR_NAME="csd_tempdir";
 DEG_TEMPDIR_NAME="deg_tempdir";
+BCE_TEMPDIR_NAME="bce_tempdir";
 CSD_DEG_DSCV_TEMPDIR_NAME="csd_deg_dscv";
+
 LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
 EXTRACTOR_LOG_FILENAME="unarch.log";
-
-
-XML_AFTER_BCE_NAME="xml_after_bce";
-BCE_TEMPDIR_NAME="bce_tempdir";
-
 
 #
 # log variables
@@ -61,6 +59,7 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
 CSD="java -ea -jar $BCE_DIR/csd.jar";
+CSD_REPORTER="$BCE_DIR/cmd-stream-divider-reporter";
 
 LDV_TEMPDIR_NAME="ldv_tempdir";
 
@@ -233,7 +232,7 @@ fi;
 #   CSD_TEMPDIR_NAME - directory in WORK_DIR where contains:
 #     files XML_FILENAME_AFTER_CSD[index].xml
 #
-ldv_print "NORMAL: Calling Command Stream Separator.";
+ldv_print "NORMAL: Calling Command Stream Divider.";
 #ldv_print "DEBUG:                                                                  ";
 #ldv_print "DEBUG:  Option \"--print-digraph\" shown graph for graphviz tool.       ";
 #ldv_print "DEBUG:  You can see this graph in graphical mode:                       ";
@@ -297,7 +296,7 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 		ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
 		exit 1;
 	fi;
-	DSCV_REPORT=$DSCV_TEMPDIR/$REPORT_FILENAME_AFTER_DSCV;
+	DSCV_REPORT=$DSCV_TEMPDIR/$DSCV_REPORT_FILENAME;
 	ldv_print "NORMAL: Calling Domain Speicific C-Verifier";
 	ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT";
 	LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT;
@@ -317,6 +316,18 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 
 	ldv_print "NORMAL: Driver number $CURRENT_TEMPDIR_NAME successfully verified.";
 done;
+
+CSD_REPORT=$CSD_TEMPDIR/$CSD_REPORT_FILENAME;
+ldv_print "DEBUG: find $CSD_TEMPDIR/ -regex ".*$DEG_REPORT_FILENAME" | xargs | tr ' ' ',';"
+DEG_REPORTS=`find $CSD_TEMPDIR/ -regex ".*$DEG_REPORT_FILENAME" | xargs | tr ' ' ','`;
+ldv_print "NORMAL: Calling Command Stream Divider reporter.";
+ldv_print "DEBUG: $CSD_REPORTER --cmdfile=$XML_AFTER_BCE --reports-in=$DEG_REPORTS --report-out=$CSD_REPORT --state-file=$CSD_STATE;";
+$CSD_REPORTER --cmdfile=$XML_AFTER_BCE --reports-in=$DEG_REPORTS --report-out=$CSD_REPORT --state-file=$CSD_STATE;
+if [ $? -ne 0 ]; then
+        ldv_print "ERROR: CSD reporter failed."
+        exit 1;
+fi;
+
 exit;
 
 

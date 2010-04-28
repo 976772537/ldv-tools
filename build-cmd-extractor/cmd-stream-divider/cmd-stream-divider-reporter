@@ -1,4 +1,5 @@
 #!/usr/bin/perl -w
+#
 
 use XML::Twig;
 use FindBin;
@@ -21,11 +22,12 @@ my $xml_reports_cc = 'cc';
 my $xml_reports_ld = 'ld';
 my $xml_reports_attr_ref = 'ref';
 my $xml_reports_verdict = 'verdict';
+my $xml_reports = 'reports';
 
 my $verdict_unknown = 'UNKNOWN';
 my $verdict_ok = 'OK';
 
-my $xml_instrument_deg = 'drv-env-gen';
+my $xml_instrument_deg = 'cmd-stream-divider';
 my $xml_instrument_status = 'status';
 my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
@@ -39,28 +41,42 @@ my $log_level=10;
 my $cmdfile = "";
 my $report_out = "";
 my $report_in = "";
+my $reports_in = "";
 my $state_file = "";
+my @reports;
 
 # 0. get options.
 get_ldv_opts();
+# 0.1 read all report files ant cut its to one temp report file
+$report_in="$report_out.tmp";
+
+my $twig_inreport = XML::Twig->new();
+$twig_inreport->set_xml_version( '1.0');
+my $twig_inroot = XML::Twig::Elt->new($xml_reports);
+$twig_inreport->set_root($twig_inroot);
+
+foreach my $file (@reports) { 
+	echo "FILE: $file\n";
+	my $ctwig=new XML::Twig();
+	$ctwig->parsefile($file);
+	my $croot=$ctwig->root;
+	my @childrens = $croot->children();
+	foreach my $section (@childrens) {
+		$section->move($twig_inroot);
+	}
+};
+
 # 1. read state file;
 open(FIL,$state_file); 
 my @states = <FIL>; 
 close(FIL);
 
-# 2. open output command stream if it needs
-# 3. open input report
-my $twig_inreport = new XML::Twig();
-$twig_inreport->parsefile($report_in);
-# 4. create output erports twig object
-#my $twig_report = XML::Twig::Elt->new('reports');
 # 5. open input command stream
 my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream,
 			"$xml_cmd_stream/$xml_cmd_ld"      => \&hxml_cmdstream };
 my $twig_icmd= new XML::Twig(TwigHandlers => $twig_handlers);
 $twig_icmd->parsefile($cmdfile);
 
-$twig_inreport->set_xml_version('1.0');
 $twig_inreport->set_pretty_print('indented');
 $twig_inreport->print_to_file($report_out);
 
@@ -71,11 +87,6 @@ $twig_inreport->print_to_file($report_out);
 
 #
 # find command-tag in input report file by id
-#
-#
-# TODO:
-# 	add return many commands with one ref
-# 	(in case of many model and main options))
 #
 sub get_cmd_tag_from_report_by_id {
 	my $lroot = $twig_inreport->root;
@@ -150,9 +161,9 @@ sub get_ldv_opts
 		{
 			$state_file = $opt;
 		}
-		elsif($opt =~ s/--report-in=(.*)/$1/)
+		elsif($opt =~ s/--reports-in=(.*)/$1/)
 		{
-			$report_in = $opt;
+			$reports_in = $opt;
 		}
 		elsif($opt =~ s/--report-out=(.*)/$1/)
 		{
@@ -183,14 +194,13 @@ sub get_ldv_opts
 		print_usage();
 		exit 1;
 	}
-	if(!$report_in) {
-		ldv_eprint("You must setup input report file in option: \"--report-in\".");
+	if(!$reports_in) {
+		ldv_eprint("You must setup input report files: \"--reports-in\".");
 		print_usage();
 		exit 1;
-	} elsif(! -f $report_in) {
-		ldv_eprint("Can not find input report file: \"$report_in\".");
-		print_usage();
-		exit 1;
+	} else
+	{
+		@reports=split('/,/',$reports_in);
 	}
 	if(!$report_out) {
 		ldv_eprint("You must setup output report file in option: \"--reoport-out\".");
