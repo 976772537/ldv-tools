@@ -123,7 +123,9 @@ sub verify_blast
 		XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
 
 		# Calculate and output time elapsed
-		XML::Twig::Elt->new('time',{},$result->{'utime'}+$result->{'stime'})->paste($rcvResultT);
+		my $time_sec = $result->{'utime'}+$result->{'stime'};
+		my $time_msec = int($time_sec * 1000);
+		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
 
 		$rcvResultT->paste(last_child =>$cmdInstT);
 		$cmdInstT->paste($repT);
