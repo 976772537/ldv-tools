@@ -187,6 +187,14 @@ Specify custom rule instrumentor.  Unless specified, the program is deduced from
 =cut
 $config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'LDV_HOME'}/bin/rule-instrumentor.pl" || 'rule-instrumentor.pl';
 
+=item B<VERIFIER_OVERRIDE>
+
+Overrides the verifier returned by the Rule Instrumentor.  C<--verifier> option takes precedence.
+
+=cut
+$config->{verifier_override_env} = $ENV{'VERIFIER_OVERRIDE'};
+
+
 =back
 
 =cut
@@ -413,7 +421,7 @@ for my $property (@properties){
 			my $cmdT = $cmdT_->copy();
 			my $id = $cmdT->att('id');
 			# Get verifier from command and override it if necessary
-			my $verifier = $config->{verifier_override} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --verifier option is not set";
+			my $verifier = $config->{verifier_override} || $config->{verifier_override_env} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --verifier option is not set";
 			if (defined $cmdT->first_child('engine')){
 				$cmdT->first_child('engine')->set_text($verifier);
 			}else{
