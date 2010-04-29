@@ -22,13 +22,14 @@ my $xml_cmd_out = 'out';
 my $xml_reports_cc = 'cc';
 my $xml_reports_ld = 'ld';
 my $xml_reports_attr_ref = 'ref';
+my $xml_reports_att_env = 'kernel';
 my $xml_reports_verdict = 'verdict';
 my $xml_reports = 'reports';
 
 my $verdict_unknown = 'UNKNOWN';
 my $verdict_ok = 'OK';
 
-my $xml_instrument = 'cmd-stream-divider';
+my $xml_instrument = 'ldv';
 my $xml_instrument_status = 'status';
 my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
@@ -42,8 +43,8 @@ my $log_level=10;
 my $cmdfile = "";
 my $report_out = "";
 my $report_name = "";
-my $state_file = "";
 my $reports_dir = "";
+my $kernel_env = "";
 my @reports;
 
 # 0. get options.
@@ -64,20 +65,12 @@ foreach my $file (@reports) {
 	my $croot=$ctwig->root;
 	my @childrens = $croot->children();
 	foreach my $section (@childrens) {
+		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld) {
+			hxml_cmdstream($section);
+		}
 		$section->move($twig_inroot);
 	}
 };
-
-# 1. read state file;
-open(FIL,$state_file); 
-my @states = <FIL>; 
-close(FIL);
-
-# 5. open input command stream
-my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream,
-			"$xml_cmd_stream/$xml_cmd_ld"      => \&hxml_cmdstream };
-my $twig_icmd= new XML::Twig(TwigHandlers => $twig_handlers);
-$twig_icmd->parsefile($cmdfile);
 
 $twig_inreport->set_pretty_print('indented');
 $twig_inreport->print_to_file($report_out);
@@ -95,63 +88,21 @@ sub get_reports {
 	foreach(@filelist) { if(/.*$report_name/) { push(@out_reports,$_); } }
 	return @out_reports;
 }
-
-#
-# find command-tag in input report file by id
-#
-sub get_cmd_tag_from_report_by_id {
-	my $lroot = $twig_inreport->root;
-	my @commands = ();
-	foreach my $command ($lroot->children($xml_reports_cc)) {
-		if($command->att($xml_reports_attr_ref) == $_[0]) { push(@commands, $command); };
-	};
-	foreach my $command ( $lroot->children($xml_reports_ld) ) {
-		if($command->att($xml_reports_attr_ref) == $_[0]) { push(@commands, $command); };
-	};
-	return @commands;
-}
-
 #####################################################
 # twig  handlers
 #####################################################
 
 sub hxml_cmdstream {
-	my $id=$_[1]->att($xml_cmd_attr_id);
-	my @commands = get_cmd_tag_from_report_by_id($id);
-	#
-	# TODO: test - if @command is empty, then create command 
-	#
-	if(scalar @commands == 0) {
-		my $lcommmand;
-		if ($_[1]->name eq $xml_cmd_cc) { 
-			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
-		} elsif ($_[1]->name eq $xml_cmd_ld) {
-			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
-			foreach my $section ( $_[1]->children('out') ) {
-				if($section->has_atts && $section->att($xml_cmd_attr_check) eq 'true') {
-					XML::Twig::Elt->new($xml_reports_verdict,$verdict_unknown)->paste($lcommand);
-					next;
-				}
-			}
-		};
-		$lcommand->set_att($xml_reports_attr_ref => $id);
-		push(@commands,$lcommand);		
-	}
-	foreach my $command (@commands) {
-		my $instrument = XML::Twig::Elt->new($xml_instrument);
-		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_time,get_state($id))->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-		$instrument->paste('last_child',$command);
-	}
+	$_[0]->set_att($xml_reports_att_env=>$kernel_env);
+	my $instrument = XML::Twig::Elt->new($xml_instrument);
+	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
+	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+	$instrument->paste('last_child',$_[0]);
 }	
 
 sub get_state() {
-	foreach my $state (@states) {
-		if($state =~ m/^(\d+):(.*)$/ && $1 == $_[0]) {
-			return $2;
-		}
-	}
+	return 0;
 }
 
 ######################################################
@@ -164,21 +115,17 @@ sub get_ldv_opts
 	# get all options
 	foreach $opt(@ARGV)
 	{
-		if($opt =~ s/--cmdfile=(.*)/$1/)
-		{
-			$cmdfile = $opt;
-		} 
-		elsif($opt =~ s/--state-file=(.*)/$1/)
-		{
-			$state_file = $opt;
-		}
-		elsif($opt =~ s/--reports-dir=(.*)/$1/)
+		if($opt =~ s/--reports-dir=(.*)/$1/)
 		{
 			$reports_dir = $opt;
 		}
 		elsif($opt =~ s/--report-name=(.*)/$1/)
 		{
 			$report_name = $opt;
+		}
+		elsif($opt =~ s/--kernel-env=(.*)/$1/)
+		{
+			$kernel_env = $opt;
 		}
 		elsif($opt =~ s/--report-out=(.*)/$1/)
 		{
@@ -191,24 +138,6 @@ sub get_ldv_opts
 		}
 	}
 	# test all options
-	if(!$cmdfile) {
-		ldv_eprint("You must setup input command stream file in option: \"--cmdfile\".");
-		print_usage();
-		exit 1;
-	} elsif(! -f $cmdfile) {
-		ldv_eprint("Can not find input command stream file: \"$cmdfile\".");
-		print_usage();
-		exit 1;
-	}
-	if(!$state_file) {
-		ldv_eprint("You must setup file with state: \"--state-file\".");
-		print_usage();
-		exit 1;
-	} elsif(! -f $state_file) {
-		ldv_eprint("Can not find file with state: \"$state_file\".");
-		print_usage();
-		exit 1;
-	}
 	if(!$report_name) {
 		ldv_eprint("You must setup input report filename: \"--report-name\".");
 		print_usage();
@@ -236,7 +165,7 @@ sub get_ldv_opts
 
 sub print_usage
 {
-	ldv_print("USAGE: $psuffix --reports-dir=reportsdir --cmdfile=cmdfile --report-out=reportfile --report-name=reportname --state-file=statefile ");
+	ldv_print("USAGE: $psuffix --reports-dir=reportsdir --report-out=reportfile --report-name=reportname --kernel-env=kernelenv ");
 }
 
 #######################################################

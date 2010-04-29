@@ -25,7 +25,7 @@ my $xml_reports_verdict = 'verdict';
 my $verdict_unknown = 'UNKNOWN';
 my $verdict_ok = 'OK';
 
-my $xml_instrument_deg = 'drv-env-gen';
+my $xml_instrument = 'drv-env-gen';
 my $xml_instrument_status = 'status';
 my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
@@ -101,9 +101,9 @@ sub hxml_cmdstream {
 	#
 	if(scalar @commands == 0) {
 		my $lcommmand;
-		if ($_[1]->name == $xml_cmd_cc) { 
+		if ($_[1]->name eq $xml_cmd_cc) { 
 			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
-		} elsif ($_[1]->name == $xml_cmd_ld) {
+		} elsif ($_[1]->name eq $xml_cmd_ld) {
 			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
 			foreach my $section ( $_[1]->children('out') ) {
 				if($section->has_atts && $section->att($xml_cmd_attr_check) eq 'true') {
@@ -116,7 +116,7 @@ sub hxml_cmdstream {
 		push(@commands,$lcommand);		
 	}
 	foreach my $command (@commands) {
-		my $instrument = XML::Twig::Elt->new($xml_instrument_deg);
+		my $instrument = XML::Twig::Elt->new($xml_instrument);
 		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
 		XML::Twig::Elt->new($xml_instrument_time,get_state($id))->paste($instrument);
 		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);

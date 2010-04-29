@@ -14,6 +14,7 @@ CSD_STATE_FILENAME="csd.state";
 
 DEG_REPORT_FILENAME="report_after_deg.xml";
 CSD_REPORT_FILENAME="report_after_csd.xml";
+BCE_REPORT_FILENAME="report_after_bce.xml";
 DSCV_REPORT_FILENAME="report_after_dscv.xml";
 
 DSCV_TEMPDIR_NAME="dscv_tempdir";
@@ -43,10 +44,7 @@ ldv_print() {
 	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
 	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
 
-	if [ $LDV_DEBUG -eq 40 ]; then 
-		echo $LOG_PREFIX"TRACE: Trace mode on. Press any key to cnotinue...";
-		read;
-	elif [ $LDV_DEBUG -ge 30 ]; then
+	if [ $LDV_DEBUG -ge 30 ]; then
 		PRINT_DIGRAPH_OPTION="--print-digraph";
 	fi;
 	
@@ -66,8 +64,12 @@ LDV_TEMPDIR_NAME="ldv_tempdir";
 LDV_RULE_DB_DIRNAME="kernel-rules";
 LDV_RULE_DB=$LDV_HOME/$LDV_RULE_DB_DIRNAME;
 
+LDVC_DIR="$LDV_HOME/ldv-core";
+LDVC_REPORTER="$LDVC_DIR/ldv-core-reporter";
+
 BCE_DIR="$LDV_HOME/build-cmd-extractor";
 BCE="$BCE_DIR/build-cmd-extractor";
+BCE_REPORTER="$BCE_DIR/build-cmd-extractor-reporter";
 
 DEG_DIR="$LDV_HOME/drv-env-gen";
 DEG="$DEG_DIR/drv-env-gen";
@@ -116,6 +118,26 @@ for arg in $@; do
 			        exit 1;
 			fi;
                 ;;
+		--report-out=*)
+                	rreportout=`echo $arg | sed 's/--report-out=//g'`
+			if [ ! -n "$rreportout" ]; then
+				ldv_print "ERROR: Parameter \"--report-out\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			reportout=`readlink -f $rreportout`;
+			if [ $? -ne 0 ]; then
+				ldv_print "ERROR: Failed to read abs-path for out report file: \"$rreportout\"."
+			        exit 1;
+			fi;
+			if [ -d "$reportout" ]; then
+			        ldv_print "ERROR: Report file already exists as dir: \"$reportout\".";
+			        exit 1;
+			fi;
+			if [ -f "$reportout" ]; then
+			        ldv_print "ERROR: Out report file already exists: \"$reportout\".";
+			        exit 1;
+			fi;
+               	;;
 		--env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
@@ -165,6 +187,18 @@ else
 		ldv_print "ERROR: Can't get abs path for driver in kernel.";
 		exit 1;
 	fi;
+fi;
+if [ ! -n $reportout ]; then
+	ldv_print "ERROR: Please setup out report file option: \"--report-out\".";
+fi;
+if [ ! -n $rulemodels ]; then
+	ldv_print "ERROR: Please setup rules and models in option: \"--rulemodels\".";
+fi;
+if [ ! -n $env ]; then
+	ldv_print "ERROR: Please setup environment in option: \"--env\".";
+fi;
+if [ ! -n $driver ]; then
+	ldv_print "ERROR: Please setup driver in option: \"--driver\".";
 fi;
 
 TEMP_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
@@ -217,7 +251,8 @@ else
 	fi;
 fi;
 
-XML_AFTER_BCE=$WORK_DIR/$BCE_TEMPDIR_NAME/$XML_FILENAME_AFTER_BCE;
+BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
+XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
 ldv_print "NORMAL: Calling Build Command Extractor";
 if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
 ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;"
@@ -317,14 +352,38 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	ldv_print "NORMAL: Driver number $CURRENT_TEMPDIR_NAME successfully verified.";
 done;
 
+#
+# add build command stream divider reports
+#
 CSD_REPORT=$CSD_TEMPDIR/$CSD_REPORT_FILENAME;
-ldv_print "DEBUG: find $CSD_TEMPDIR/ -regex ".*$DEG_REPORT_FILENAME" | xargs | tr ' ' ',';"
-DEG_REPORTS=`find $CSD_TEMPDIR/ -regex ".*$DEG_REPORT_FILENAME" | xargs | tr ' ' ','`;
 ldv_print "NORMAL: Calling Command Stream Divider reporter.";
-ldv_print "DEBUG: $CSD_REPORTER --cmdfile=$XML_AFTER_BCE --reports-in=$DEG_REPORTS --report-out=$CSD_REPORT --state-file=$CSD_STATE;";
-$CSD_REPORTER --cmdfile=$XML_AFTER_BCE --reports-in=$DEG_REPORTS --report-out=$CSD_REPORT --state-file=$CSD_STATE;
+ldv_print "DEBUG: $CSD_REPORTER --cmdfile=$XML_AFTER_BCE --report-name=$DEG_REPORT_FILENAME --report-out=$CSD_REPORT --state-file=$CSD_STATE --reports-dir=$CSD_DEG_DSCV_TEMPDIR;";
+$CSD_REPORTER --cmdfile=$XML_AFTER_BCE --report-name=$DEG_REPORT_FILENAME --report-out=$CSD_REPORT --state-file=$CSD_STATE --reports-dir=$CSD_DEG_DSCV_TEMPDIR;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: CSD reporter failed."
+        exit 1;
+fi;
+
+#
+# add build command extractor reports
+#
+BCE_REPORT=$BCE_TEMPDIR/$BCE_REPORT_FILENAME;
+ldv_print "NORMAL: Calling Build Commmand Extractor Reporter.";
+ldv_print "DEBUG: $BCE_REPORTER --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-dir=$BCE_TEMPDIR;";
+$BCE_REPORTER --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-dir=$BCE_TEMPDIR;
+if [ $? -ne 0 ]; then
+        ldv_print "ERROR: BCE reporter failed."
+        exit 1;
+fi;
+
+#
+# add ldv-core reports
+#
+ldv_print "NORMAL: Calling LDV-Core Reporter.";
+ldv_print "DEBUG: $LDVC_REPORTER --report-in=$BCE_REPORT --report-out=$reportout --state-dir=$TEMP_DIR;";
+$LDVC_REPORTER --report-in=$BCE_REPORT --report-out=$reportout --state-dir=$TEMP_DIR;
+if [ $? -ne 0 ]; then
+        ldv_print "ERROR: LDV-Core reporter failed."
         exit 1;
 fi;
 

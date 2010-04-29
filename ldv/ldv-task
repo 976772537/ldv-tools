@@ -12,20 +12,18 @@ ldv_print() {
 	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
 	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
 	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
-	if [ $LDV_DEBUG -eq 40 ]; then 
-		echo $LOG_PREFIX"TRACE: Trace mode on. Press any key to continue...";
-		read;
-	fi;
 	echo "$LOG_PREFIX$1";
 }
 if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 
-
+LDV_REPORT_FILENAME="report_after_ldv.xml";
+LDV_CORE_REPORT_FILENAME="report_after_ldv_core.xml";
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
 LDV_KMANAGER=$LDV_DIR/ldv-kmanager;
 LDV_CORE_DIR=$LDV_HOME/ldv-core;
 LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
+LDV_REPORTER=$LDV_DIR/ldv-task-reporter;
 
 KERNEL_LEVEL=0;
 
@@ -57,7 +55,27 @@ for arg in $@; do
                 --env=*)
                 	env=`echo $arg | sed 's/--env=//g'`
                 ;;
-                --driver=*)
+ 		--report-out=*)
+                	rreportout=`echo $arg | sed 's/--report-out=//g'`
+			if [ ! -n "$rreportout" ]; then
+				ldv_print "ERROR: Parameter \"--report-out\" - is null. Setup it.";
+			        exit 1;
+			fi;
+			reportout=`readlink -f $rreportout`;
+			if [ $? -ne 0 ]; then
+				ldv_print "ERROR: Failed to read abs-path for out report file: \"$rreportout\"."
+			        exit 1;
+			fi;
+			if [ -d "$reportout" ]; then
+			        ldv_print "ERROR: Report file already exists as dir: \"$reportout\".";
+			        exit 1;
+			fi;
+			if [ -f "$reportout" ]; then
+			        ldv_print "ERROR: Out report file already exists: \"$reportout\".";
+			        exit 1;
+			fi;
+               	;;
+ 		--driver=*)
                 	rdriver=`echo $arg | sed 's/--driver=//g'`
 			if [ ! -n "$rdriver" ]; then
 				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
@@ -117,12 +135,30 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 		exit 1;
 	fi;
 	ldv_print "NORMAL: Calling LDV-core.";
+	LDV_CORE_REPORT=$WORK_DIR_LOCAL/$LDV_CORE_REPORT_FILENAME;
 	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
-	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES $koption;";
-	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES $koption;
+	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
+	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: ldv-core failed.";
 		exit 1;
 	fi;
 done;
+
+#
+# add ldv-core reports
+#
+if [ -n "$reportout" ]; then
+	LDV_REPORT=$reportout;
+else
+	LDV_REPORT=$workdir/$LDV_REPORT_FILENAME;
+fi;
+ldv_print "NORMAL: Calling LDV reporter.";
+ldv_print "DEBUG: $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --kernel-env=$ENV_ID --reports-dir=$workdir;";
+$LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --kernel-env=$ENV_ID --reports-dir=$workdir;
+if [ $? -ne 0 ]; then
+        ldv_print "ERROR: LDV reporter failed."
+        exit 1;
+fi;
+
 exit;

@@ -1,0 +1,197 @@
+#!/usr/bin/perl -w
+
+use XML::Twig;
+use FindBin;
+
+my $deg_home = "$FindBin::Bin";
+
+# Xml nodes names.
+my $xml_cmd_basedir = 'basedir';
+my $xml_cmd_stream = 'cmdstream';
+my $xml_cmd_attr_id = 'id';
+my $xml_cmd_attr_check = 'check';
+my $xml_cmd_entry_point = 'main';
+my $xml_cmd_cc = 'cc';
+my $xml_cmd_cwd = 'cwd';
+my $xml_cmd_in = 'in';
+my $xml_cmd_ld = 'ld';
+my $xml_cmd_opt = 'opt';
+my $xml_cmd_out = 'out';
+my $xml_reports_cc = 'cc';
+my $xml_reports = 'reports';
+my $xml_reports_ld = 'ld';
+my $xml_reports_attr_ref = 'ref';
+my $xml_reports_verdict = 'verdict';
+
+my $verdict_unknown = 'UNKNOWN';
+my $verdict_ok = 'OK';
+
+my $xml_instrument = 'ldv-core';
+my $xml_instrument_status = 'status';
+my $xml_instrument_time = 'time';
+my $xml_instrument_desc = 'desc';
+
+#####################################################
+# log options
+#####################################################
+my $psuffix="ldv-core-reporter";
+my $log_level=10;
+
+my $report_out = "";
+my $report_in = "";
+my $state_dir = "";
+#my $state_filename="ckc.log";
+
+# 0. get options.
+get_ldv_opts();
+# 0.1 Create state file name
+#my $state_file="$state_dir/$state_filename";
+# 1. read state file;
+#open(FIL,$state_file); 
+#my @states = <FIL>; 
+#close(FIL);
+
+my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
+			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream };
+my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
+$twig_inreport->parsefile($report_in);
+
+$twig_inreport->set_xml_version('1.0');
+$twig_inreport->set_pretty_print('indented');
+$twig_inreport->print_to_file($report_out);
+
+
+#####################################################
+# twig  handlers
+#####################################################
+
+sub hxml_cmdstream {
+	my $instrument = XML::Twig::Elt->new($xml_instrument);
+	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
+	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+	$instrument->paste('last_child',$_[1]);
+}	
+
+sub get_state() {
+#
+# TODO: get states
+#
+#	foreach my $state (@states) {
+#		if($state =~ m/^(\d+):(.*)$/ && $1 == $_[0]) {
+#			return $2;
+#		}
+#	}
+	return 0;
+}
+
+######################################################
+# option test
+######################################################
+sub get_ldv_opts
+{
+	$log_level = $ENV{'LDV_DEBUG'};
+
+	# get all options
+	foreach $opt(@ARGV)
+	{
+		if($opt =~ s/--state-dir=(.*)/$1/)
+		{
+			$state_dir = $opt;
+		}
+		elsif($opt =~ s/--report-in=(.*)/$1/)
+		{
+			$report_in = $opt;
+		}
+		elsif($opt =~ s/--report-out=(.*)/$1/)
+		{
+			$report_out = $opt;
+		}
+		else
+		{
+			ldv_eprint("Unknown option:\"$opt\".");
+			exit 1;
+		}
+	}
+	# test all options
+	if(!$state_dir) {
+		ldv_eprint("You must setup dir with state: \"--state-dir\".");
+		print_usage();
+		exit 1;
+	} elsif(! -d $state_dir) {
+		ldv_eprint("Can not find dir with state: \"$state_dir\".");
+		print_usage();
+		exit 1;
+	}
+	if(!$report_in) {
+		ldv_eprint("You must setup input report file in option: \"--report-in\".");
+		print_usage();
+		exit 1;
+	} elsif(! -f $report_in) {
+		ldv_eprint("Can not find input report file: \"$report_in\".");
+		print_usage();
+		exit 1;
+	}
+	if(!$report_out) {
+		ldv_eprint("You must setup output report file in option: \"--reoport-out\".");
+		print_usage();
+		exit 1;
+	} elsif( -f $report_out) {
+		ldv_eprint("Output report file already exists: \"$report_out\".");
+		print_usage();
+		exit 1;
+	}
+}
+
+sub print_usage
+{
+	ldv_print("USAGE: $psuffix --report-out=reportfile --report-in=reportin --kernel-env=kernenv");
+}
+
+#######################################################
+# ldv print functions
+#######################################################
+sub ldv_print
+{
+	print "$psuffix: $_[0]\n";
+}
+
+sub ldv_eprint
+{
+	ldv_print "ERROR: $_[0]";
+}
+
+sub ldv_sprint
+{
+	if($log_level>=10) {
+		ldv_print("$_[0]");
+	}
+}
+
+sub ldv_iprint
+{
+	if($log_level>=20) {
+		ldv_print("INFO: $_[0]");
+	}
+}
+
+sub ldv_dprint
+{
+	if($log_level>=30) {
+		ldv_print("DEBUG: $_[0]");
+	}
+}
+
+sub ldv_tprint
+{
+	if($log_level>=40) {
+		ldv_print("TRACE: $_[0]");
+	}
+}
+
+sub ldv_aprint
+{
+	if($log_level==100) {
+		ldv_print("$_[0]");
+	}
+}

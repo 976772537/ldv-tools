@@ -1,5 +1,6 @@
 LDV_CORE_DIR = ldv-core
 LDV_CORE_SCRIPT = ldv-core
+LDV_CORE_REPORTER = ldv-core-reporter
 
 # Top level hierarchy
 exec_prefix = ${prefix}
@@ -17,6 +18,7 @@ all:
 install:
 	if [ ! -d $(prefix)/$(LDV_CORE_DIR) ]; then mkdir -p $(prefix)/$(LDV_CORE_DIR); fi
 	cp $(srcdir)/$(LDV_CORE_SCRIPT) $(prefix)/$(LDV_CORE_DIR)
+	cp $(srcdir)/$(LDV_CORE_REPORTER) $(prefix)/$(LDV_CORE_DIR)
 
 clean:
 	@echo "cleaning - ok"
