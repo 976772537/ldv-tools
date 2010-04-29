@@ -137,14 +137,20 @@ my $file_cmds_log;
 my $file_report_xml_out;
 my $file_xml_out;
 
-# Kind of instrumentation.
-my $kind_isplain = 0;
-my $kind_isaspect = 0;
+# Options to the gcc compiler to be turned on/off.
+my @gcc_aspect_off_opts;
+my @gcc_aspect_on_opts;
+my @gcc_plain_off_opts;
+my @gcc_plain_on_opts;
 
 # Additional suffixies for id attributes.
 my $id_common_model_suffix = '-with-common-model';
 my $id_cc_llvm_suffix = '-llvm-cc';
 my $id_ld_llvm_suffix = '-llvm-ld';
+
+# Kind of instrumentation.
+my $kind_isplain = 0;
+my $kind_isaspect = 0;
 
 my $ldv_rule_instrumentor_abs;
 my @ldv_rule_instrumentor_path;
@@ -172,10 +178,6 @@ my $ldv_model_db_xml = 'model-db.xml';
 
 # Information on needed model.
 my %ldv_model;
-
-# Options that are obtained for the version of gcc compiler (version 4.4 or may
-# be higher). Note that this is array of options patterns to be excluded.
-my @llvm_gcc_4_4_opts = ('-Wframe-larger-than=\d+', '-fno-dwarf2-cfi-asm', '-fconserve-stack', '-O.');
 
 # Suffix of llvm bitcody files.
 my $llvm_bitcode_suffix = '.bc';
@@ -251,6 +253,10 @@ my $xml_model_db_files_filter = 'filter';
 my $xml_model_db_hints = 'hints';
 my $xml_model_db_kind = 'kind';
 my $xml_model_db_model = 'model';
+my $xml_model_db_opt_aspect = 'aspect_options';
+my $xml_model_db_opt_on = 'on';
+my $xml_model_db_opt_off = 'off';
+my $xml_model_db_opt_plain = 'plain_options';
 my $xml_report_attr_main = 'main';
 my $xml_report_attr_model = 'model';
 my $xml_report_attr_ref = 'ref';
@@ -420,8 +426,58 @@ sub get_model_info()
   print_debug_trace("Iterate over the all models and try to find the appropriate one.");
   foreach my $model (@models)
   {
-    # Not just models now are there.   
-    next unless ($model->gi eq $xml_model_db_model);
+    # Process options to be passed to the gcc compiler.
+    if ($model->gi eq $xml_model_db_opt_plain || $model->gi eq $xml_model_db_opt_aspect)
+    {
+      print_debug_trace("Process '" . $model->gi . "' options.");  
+      
+      # Such options consist of two classes: on and off options. Process them
+      # separately.
+      print_debug_trace("Read an array of on options.");
+      my @on_opts = ();
+      for (my $on_opt = $model->first_child($xml_model_db_opt_on)
+        ; $on_opt
+        ; $on_opt = $on_opt->next_elt($xml_model_db_opt_on))
+      {
+        push(@on_opts, $on_opt->text);
+
+        last if ($on_opt->is_last_child($xml_model_db_opt_on));
+      }
+      print_debug_debug("The on options '@on_opts' are specified.");
+      
+      print_debug_trace("Read an array of off options.");
+      my @off_opts = ();
+      for (my $off_opt = $model->first_child($xml_model_db_opt_off)
+        ; $off_opt
+        ; $off_opt = $off_opt->next_elt($xml_model_db_opt_off))
+      {
+        push(@off_opts, $off_opt->text);
+
+        last if ($off_opt->is_last_child($xml_model_db_opt_off));
+      }
+      print_debug_debug("The off options '@off_opts' are specified.");
+              
+      # Separate options in depend on the mode.  
+      if ($model->gi eq $xml_model_db_opt_plain)
+      {
+        @gcc_plain_off_opts = @off_opts;
+        @gcc_plain_on_opts = @on_opts;
+      }
+      else
+      {
+        @gcc_aspect_off_opts = @off_opts;
+        @gcc_aspect_on_opts = @on_opts; 
+      }  
+        
+      # Go to the next 'model'.
+      next;
+    }
+       
+    unless ($model->gi eq $xml_model_db_model)
+    {
+      warn("The models database contains '" . $model->gi . "' tag that can't be parsed.");
+      exit($error_semantics);
+    }
       
     print_debug_trace("Read id attribute for a model to find the corresponding one."); 
     my $id_attr = $model->att($xml_model_db_attr_id) 
@@ -1216,6 +1272,51 @@ sub process_cmds()
       $out->set_text($out_text);
       print_debug_debug("The output file with replaced base directory is '$out_text'.");
 
+      print_debug_trace("Get on and off options.");
+      my @on_opts;
+      my @off_opts;
+      if ($kind_isaspect)
+      {
+        @on_opts = @gcc_aspect_on_opts;
+        @off_opts = @gcc_aspect_off_opts;
+      }
+      elsif ($kind_isplain)
+      {
+        @on_opts = @gcc_plain_on_opts;
+        @off_opts = @gcc_plain_off_opts;
+      }
+      
+      print_debug_trace("Read an array of options and exclude the unwanted ones ('@off_opts').");
+      my @opts;
+      for (my $opt = $cmd->first_child($xml_cmd_opt)
+        ; $opt
+        ; $opt = $opt->next_elt($xml_cmd_opt))
+      {
+        my $opt_text = $opt->text;
+
+        # Exclude options for the gcc compiler.
+        foreach my $off_opt (@off_opts)
+        {
+          if ($opt_text =~ /^$off_opt$/)
+          {
+            print_debug_debug("Exclude the option '$opt_text' for the '$id_attr' command.");
+            $opt_text = '';
+            last;
+          }
+        }
+
+        next unless ($opt_text);
+
+        push(@opts, $opt_text);
+
+        last if ($opt->is_last_child($xml_cmd_opt));
+      }
+      
+      print_debug_debug("Add wanted options '@on_opts'.");
+      push(@opts, @on_opts);
+      
+      print_debug_normal("The options to be passed to the gcc compiler are '@opts'.");
+
       # For the plain mode just copy and modify a bit input xml.
       if ($kind_isplain)
       {
@@ -1238,14 +1339,6 @@ sub process_cmds()
           my $twig_hints = $ldv_model{'twig hints'}->copy;
           $twig_hints->paste('last_child', $cmd);
         }
-        # Add -I option with common model dir to find appropriate headers. Note
-        # that it also add for a duplicated command.
-        elsif ($cmd->gi eq $xml_cmd_cc)
-        {
-          print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers.");  
-          my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
-          $common_model_opt->paste('last_child', $cmd);
-        }
         
         # Add engine tag for both cc and ld commands.
         if ($cmd->gi eq $xml_cmd_ld or $cmd->gi eq $xml_cmd_cc)
@@ -1255,6 +1348,34 @@ sub process_cmds()
           $xml_engine_tag->paste('last_child', $cmd);
         }
 
+        # Exchange the existing options with the processed ones.
+        my @opts_to_del;
+        for (my $opt = $cmd->first_child($xml_cmd_opt)
+          ; $opt
+          ; $opt = $opt->next_elt($xml_cmd_opt))
+        {
+          push(@opts_to_del, $opt);
+          last if ($opt->is_last_child($xml_cmd_opt));
+        }
+        foreach (@opts_to_del)
+        {
+          $_->delete();
+        }
+        foreach my $opt (@opts)
+        {
+          my $xml_opt_tag = new XML::Twig::Elt($xml_cmd_opt, $opt);
+          $xml_opt_tag->paste('last_child', $cmd);          
+        }
+
+        # Add -I option with common model dir to find appropriate headers. Note
+        # that it also add for a duplicated command.
+        if ($cmd->gi eq $xml_cmd_cc)
+        {
+          print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers.");  
+          my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
+          $common_model_opt->paste('last_child', $cmd);
+        }
+        
         print_debug_trace("Print the modified command.");
         $cmd->print($file_xml_out);
 
@@ -1337,32 +1458,6 @@ sub process_cmds()
         push(@ins_text, $in->text);
 
         last if ($in->is_last_child($xml_cmd_in));
-      }
-
-      print_debug_trace("Read an array of options.");
-      my @opts;
-      for (my $opt = $cmd->first_child($xml_cmd_opt)
-        ; $opt
-        ; $opt = $opt->next_elt($xml_cmd_opt))
-      {
-        my $opt_text = $opt->text;
-
-        # Exclude options for the new gcc compiler.
-        foreach my $llvm_gcc_4_4_opt (@llvm_gcc_4_4_opts)
-        {
-          if ($opt_text =~ /^$llvm_gcc_4_4_opt$/)
-          {
-            print_debug_debug("Exclude the option '$opt_text' for the '$id_attr' command.");
-            $opt_text = '';
-            last;
-          }
-        }
-
-        next unless ($opt_text);
-
-        push(@opts, $opt_text);
-
-        last if ($opt->is_last_child($xml_cmd_opt));
       }
 
       print_debug_trace("Store the current command information."); 
