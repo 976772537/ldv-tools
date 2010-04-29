@@ -72,11 +72,6 @@ $twig_inreport->print_to_file($report_out);
 #
 # find command-tag in input report file by id
 #
-#
-# TODO:
-# 	add return many commands with one ref
-# 	(in case of many model and main options))
-#
 sub get_cmd_tag_from_report_by_id {
 	my $lroot = $twig_inreport->root;
 	my @commands = ();
@@ -105,6 +100,7 @@ sub hxml_cmdstream {
 			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
 		} elsif ($_[1]->name eq $xml_cmd_ld) {
 			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
+			$lcommand->set_att($xml_reports_attr_ref=>$id);
 			foreach my $section ( $_[1]->children('out') ) {
 				if($section->has_atts && $section->att($xml_cmd_attr_check) eq 'true') {
 					XML::Twig::Elt->new($xml_reports_verdict,$verdict_unknown)->paste($lcommand);
@@ -113,6 +109,8 @@ sub hxml_cmdstream {
 			}
 		};
 		$lcommand->set_att($xml_reports_attr_ref => $id);
+		my $lroot = $twig_inreport->root;
+		$lcommand->paste($lroot);
 		push(@commands,$lcommand);		
 	}
 	foreach my $command (@commands) {

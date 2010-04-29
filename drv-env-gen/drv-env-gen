@@ -127,13 +127,14 @@ sub hxml_cmdstream_cc {
 		ldv_dprint("RUN LDV_CC: @debug_args");
 	}
 	ldv_iprint("Starting ldv_cc interface...");
+	my $start_time = time();
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_cc failed !");
 		exit 1;
 	}
-	
+	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":TODO in drv-env-gen...\n"); 
+	print (STATEFIL $lid.":".$worktime."\n"); 
 
 	ldv_iprint("End of ldv_cc - Ok.");
 
@@ -192,13 +193,14 @@ sub hxml_cmdstream_ld {
 		ldv_dprint("RUN LDV_LD: @debug_args");
 	}
 	ldv_iprint("Starting ldv_ld interface...");
+	my $start_time = time();
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_ld failed !");
 		exit 1;
 	}
-
+	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":TODO in drv-env-gen...\n"); 
+	print (STATEFIL $lid.":".$worktime."\n"); 
 
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {

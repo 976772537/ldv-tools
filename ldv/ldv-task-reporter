@@ -44,13 +44,17 @@ my $cmdfile = "";
 my $report_out = "";
 my $report_name = "";
 my $reports_dir = "";
-my $kernel_env = "";
+my $state_file = "";
 my @reports;
 
 # 0. get options.
 get_ldv_opts();
-# 0.1 read all report files ant cut its to one temp report file
+# 1. read state file;
+open(FIL,$state_file); 
+my @states = <FIL>; 
+close(FIL);
 
+# 0.1 read all report files ant cut its to one temp report file
 my $twig_inreport = XML::Twig->new();
 $twig_inreport->set_xml_version( '1.0');
 my $twig_inroot = XML::Twig::Elt->new($xml_reports);
@@ -66,7 +70,7 @@ foreach my $file (@reports) {
 	my @childrens = $croot->children();
 	foreach my $section (@childrens) {
 		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld) {
-			hxml_cmdstream($section);
+			hxml_cmdstream($section,$file);
 		}
 		$section->move($twig_inroot);
 	}
@@ -93,16 +97,26 @@ sub get_reports {
 #####################################################
 
 sub hxml_cmdstream {
-	$_[0]->set_att($xml_reports_att_env=>$kernel_env);
+	my @state=get_state($_[1]);
+	$_[0]->set_att($xml_reports_att_env=>$state[0]);
 	my $instrument = XML::Twig::Elt->new($xml_instrument);
 	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
+	XML::Twig::Elt->new($xml_instrument_time,$state[1])->paste($instrument);
 	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 	$instrument->paste('last_child',$_[0]);
 }	
 
-sub get_state() {
-	return 0;
+sub get_state {
+	foreach my $lstate (@states) {
+		if($lstate =~ m/^(\d+):(.*)$/) {
+			my $path=$2;
+			my $envid=$1;
+			if($_[0] =~ m/$path/) {
+				my @state=($envid,"0");	
+				return @state;
+			}	
+		}
+	}
 }
 
 ######################################################
@@ -123,9 +137,9 @@ sub get_ldv_opts
 		{
 			$report_name = $opt;
 		}
-		elsif($opt =~ s/--kernel-env=(.*)/$1/)
+		elsif($opt =~ s/--state-file=(.*)/$1/)
 		{
-			$kernel_env = $opt;
+			$state_file = $opt;
 		}
 		elsif($opt =~ s/--report-out=(.*)/$1/)
 		{
@@ -140,6 +154,15 @@ sub get_ldv_opts
 	# test all options
 	if(!$report_name) {
 		ldv_eprint("You must setup input report filename: \"--report-name\".");
+		print_usage();
+		exit 1;
+	}
+	if(!$state_file) {
+		ldv_eprint("You must setup file with state: \"--state-file\".");
+		print_usage();
+		exit 1;
+	} elsif(! -f $state_file) {
+		ldv_eprint("Can not find file with state: \"$state_file\".");
 		print_usage();
 		exit 1;
 	}
@@ -165,7 +188,7 @@ sub get_ldv_opts
 
 sub print_usage
 {
-	ldv_print("USAGE: $psuffix --reports-dir=reportsdir --report-out=reportfile --report-name=reportname --kernel-env=kernelenv ");
+	ldv_print("USAGE: $psuffix --reports-dir=reportsdir --report-out=reportfile --report-name=reportname --state-file=statefile");
 }
 
 #######################################################

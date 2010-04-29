@@ -18,6 +18,7 @@ if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 
 LDV_REPORT_FILENAME="report_after_ldv.xml";
 LDV_CORE_REPORT_FILENAME="report_after_ldv_core.xml";
+LDV_STATE_FILENAME="ldv.state";
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
 LDV_KMANAGER=$LDV_DIR/ldv-kmanager;
@@ -119,6 +120,12 @@ if [ ! -n "$workdir" ]; then
         exit 1;
 fi;
 
+LDV_STATE=$workdir/$LDV_STATE_FILENAME;
+touch $LDV_STATE;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can't create ldv state file:\"$LDV_STATE\".";
+	exit 1;
+fi;
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ENV_ID=`echo $i | sed 's/x.*//'`;
 	RULES=`echo $i | sed 's/.*x//'`;
@@ -143,6 +150,7 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 		ldv_print "ERROR: ldv-core failed.";
 		exit 1;
 	fi;
+	echo "$ENV_ID:$WORK_DIR_LOCAL" >> $LDV_STATE;
 done;
 
 #
@@ -154,8 +162,8 @@ else
 	LDV_REPORT=$workdir/$LDV_REPORT_FILENAME;
 fi;
 ldv_print "NORMAL: Calling LDV reporter.";
-ldv_print "DEBUG: $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --kernel-env=$ENV_ID --reports-dir=$workdir;";
-$LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --kernel-env=$ENV_ID --reports-dir=$workdir;
+ldv_print "DEBUG: $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --state-file=$LDV_STATE --reports-dir=$workdir;";
+$LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --state-file=$LDV_STATE --reports-dir=$workdir;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: LDV reporter failed."
         exit 1;
