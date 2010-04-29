@@ -55,6 +55,44 @@ sub preprocess_file
 	return $result;
 }
 
+# Makes file through CIL in the directory given with the options given.  Returns what call to C<system> returned.
+# Usage:
+# 	cilly_file(cil_path="toolset_dir/cil", cwd=>'working/dir', cil_file => 'output.i', i_file => 'input.c', opts=> ['-D','SOMETHING'] )
+sub cilly_file
+{
+	my $info = {@_};
+	my $cil_path = $info->{cil_path} or Carp::confess;
+	my $cil_script = "$cil_path/bin/cilly";
+	my $cil_temps = $info->{temps};
+	mkpath($cil_temps) if $cil_temps;
+	# Change dir to cwd; then change back
+	my $current_dir = getcwd();
+	chdir $info->{cwd} or Carp::confess;
+
+	my @cil_args = ($cil_script,"-E",
+		"--out=$info->{cil_file}",	#Output file
+		"$info->{i_file}",	#Input file
+		# Default CIL options
+		"--dosimplify",
+		"--printCilAsIs",
+		"--domakeCFG",
+		($info->{temps}?("--save-temps=$info->{temps}"):()),
+		# User-supplied options
+		@{$info->{opts}},	
+	);
+	vsay ('DEBUG',"CIL: ",@cil_args,"\n");
+	local $"=' ';
+	my ($CIL_IN,$CIL_OUT,$CIL_ERR);
+	my $fpid = open3($CIL_IN,$CIL_OUT,$CIL_ERR,@cil_args) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cil_args";
+	Utils::hard_wait($fpid,0) < 0 and die;
+	close $CIL_IN;
+	close $CIL_OUT;
+	close $CIL_ERR;
+
+	chdir $current_dir;
+	return $result;
+}
+
 #======================================================================
 # GENERIC CC/LD COMMANDS
 #======================================================================
@@ -107,8 +145,11 @@ sub cc_maker
 sub ld_maker
 {
 	my %args = @_;
-	my $do_preprocess = $args{preprocess} || 1;
+	my $do_preprocess = $args{preprocess};
+	$do_preprocess = 1 unless exists $args{preprocess};
 	my $do_cilly = $args{cilly} || '';
+	my $cil_temps = $args{cil_temps} || '';
+	my $cil_path = $args{cil_path} || '';
 	my $unbasedir_ref = $args{unbasedir_ref};
 	my $workdir = $args{workdir};
 	my $verify = $args{verifier};
@@ -168,6 +209,21 @@ sub ld_maker
 				}else{
 					$new_record->{i_file} = $new_record->{c_file};
 				}
+
+				# Make file through CIL if necessary
+				# record->{i_file} holds "the file after preprocessing", so use it as input.  Output to {cil_fil}, but copy it back to {i_file}.
+				if ($do_cilly){
+					my $cilly_dir = "$workdir/cilly";
+					mkpath($cilly_dir);
+					my $cil_file = $new_record->{i_file}; $cil_file =~ s/\.c$/.i/; $cil_file =~ s/\//-/g; $cil_file = "$cilly_dir/$cil_file";
+					mkpath(dirname($cil_file));
+					$new_record->{cil_file} = $cil_file;
+					cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps) and die "CIL ERROR!  Recovery is unimplemented"; # TODO
+				}else{
+					$new_record->{i_file} = $new_record->{c_file};
+				}
+
+				$new_record->{i_file} = $new_record->{cil_file};
 
 				push @$c_files_info, $new_record;
 			}
