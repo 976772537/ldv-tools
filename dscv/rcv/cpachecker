@@ -1,4 +1,258 @@
 #!/usr/bin/perl
 
-die "CPAchecker frontend is unimplemented";
+# RCV Frontend for CPAchecker tool.
+
+#======================================================================
+# PROCESS OPTIONS AND SET UP INITIAL VARIABLES
+#======================================================================
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
+
+use strict;
+use Pod::Usage;
+use Getopt::Long;
+
+# Project modules
+use LDV::Utils;
+use DSCV::RCV::Utils;
+use DSCV::Sanity;
+use Utils;
+
+# File modules
+use File::Basename;
+use File::Path qw(mkpath);
+
+my $config={
+	cmdfile=>'',
+};
+
+my %optionSpecs = ();
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('rcv-cpachecker');
+
+$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
+$optionSpecs{'workdir=s'} = \$config->{workdir};
+$optionSpecs{'sanity-dir=s'} = \$config->{sandir};
+
+GetOptions(%optionSpecs) or die("Unrecognized options!");
+
+
+# Prepare initial variables
+my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
+my $backend_dir = "$shared_dir/rcv/backends/cpachecker";
+my $cpachecker = "$backend_dir/scripts/cpa.sh";
+my $workdir = $config->{workdir};
+
+-f $config->{cmdfile} or die "RCV's command file $config->{cmdfile} is not found";
+-d $backend_dir or die "RCV's directory $backend_dir is not a directory";
+-x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
+-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+
+
+# Prepare sanity checks
+my $sanity = DSCV::Sanity->new($config->{sandir});
+
+
+# Set up CPAchecker project path
+$ENV{'PATH_TO_CPACHECKER'} = $backend_dir;
+
+
+#Check if cpachecker is available
+cpachecker_quick_check();
+
+vsay('WARNING', "Checking unimplemented, exiting with error\n");
+#exit 1;
+
+#======================================================================
+# PREPARE CMDFILE TRAVERSERS AND RUN THEM
+#======================================================================
+use XML::Twig;
+
+# Base Dir of system being checked
+my $base_dir = undef;
+my $unbasedir = undef;
+
+# Now all subroutines are initialized.  Let's start processing the cmdfile.
+my $check_input_file = XML::Twig->new(
+	twig_handlers => {
+		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
+		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>0, cilly=>1, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
+	}
+);
+$check_input_file->parsefile($config->{cmdfile});
+
+exit 0;
+# NO CODE AFTER THIS POINT!
+
+
+#======================================================================
+# CPACHECKER-SPECIFIC ROUTINES
+#======================================================================
+
+sub verify_cpachecker
+{
+	my %args = @_;
+	$args{report} or die;
+	open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+	my $repT = XML::Twig::Elt->new('reports');
+
+	for my $main (@{$args{mains}}){
+		my $result = call_cpachecker(%args, main=>$main); 
+	
+		# Print verdict to console and to report 
+		vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
+		vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
+
+		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+		XML::Twig::Elt->new('status',{},$result->{'CPACHECKER'})->paste($cmdInstT);
+		XML::Twig::Elt->new('verdict',{},$result->{'CPACHECKER-detailed'})->paste($cmdInstT);
+		$cmdInstT->paste($repT);
+	}
+
+	$repT->print($CPACHECKER_REPORT,'indented');
+	close $CPACHECKER_REPORT;
+}
+
+# Call cpachecker
+use IPC::Open3;
+use StreamAutomaton;
+sub call_cpachecker
+{
+	my %args = @_;
+	# Options that will be passed to the cpachecker tool
+	my @cpachecker_options = ($cpachecker,@{$args{files}});
+	# Set default options
+	# These are: -alias bdd -cref -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0 -nomusts -const
+	push @cpachecker_options,
+		"-predH","7","-cref","-craig","2",	# Default heuristics on
+		"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
+		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
+	;
+
+	# Add mains and error locations
+	push @cpachecker_options, "-entryfunction",$args{main} if $args{main};
+	# For now, only one error location is supported by CPACHECKER
+	(scalar @{$args{errlocs}} > 1) and die;
+	my $errloc = (@{$args{errlocs}})[0];
+	push @cpachecker_options, "-L",$errloc if $errloc;
+
+	# For now we do not interpret hints.  We will be generating/copying certain config files for that
+	my $hintsT = $args{hints};
+
+	# Additional options
+	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
+
+	vsay ('NORMAL',"Running CPACHECKER for $args{dbg_target}, entry $args{main}...\n");
+	vsay (20,@cpachecker_options,"\n");
+
+	# Fork and run CPACHECKER in a child process.	Redirect its output (std and err) to a file
+	# Open file to redirect
+	my $CPACHECKER_DEBUG;
+	open $CPACHECKER_DEBUG, ">", $args{debug} or die "Can't open file $args{debug}: $!";
+	my ($CPACHECKER_IN,$CPACHECKER_OUT,$CPACHECKER_ERR);
+	# Fork cpachecker
+	local $"=" ";
+	my $fpid = open3($CPACHECKER_IN,$CPACHECKER_OUT,$CPACHECKER_ERR,@cpachecker_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cpachecker_options";
+
+	vsay (20,"CPACHECKER debug trace is being written to $args{debug}\n");
+
+	# Sanity check
+	$sanity->blast_called();
+
+	# TODO: Create trace printer
+	#my $dumptrace = dumptrace($args{trace});
+	# Create verdict calculator
+	#my $verdictor = StreamAutomaton->new([$dumptrace]);
+
+	# Process output and redirect it to file
+	local $_;
+	while (<$CPACHECKER_OUT>) {
+		print $CPACHECKER_DEBUG $_;
+		#$verdictor->chew_line($_);
+	}
+	while (<$CPACHECKER_ERR>) {
+		print $CPACHECKER_DEBUG $_;
+		#$verdictor->chew_line($_);
+	}
+	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
+
+	Utils::hard_wait($fpid,0) < 0 and die;
+	close $CPACHECKER_DEBUG;
+
+  vsay (40,"CPACHECKER open3 return value: $?\n");
+	vsay (20,"CPACHECKER return value: $?\n");
+	my $cpachecker_rv = $? >> 8;
+	if($? == 0){
+		vsay (20,"CPACHECKER OK\n");
+		return {'CPACHECKER'=>'OK', 'CPACHECKER-detailed' => 'unimplemented'};
+	}else{
+		vsay ('WARNING',"CPACHECKER failed with exit code $cpachecker_rv.  We consider it fatal\n");
+		return {'CPACHECKER'=>'FAIL', 'CPACHECKER-detailed' => 'unimplemented'};
+	}
+
+	#return $verdictor->result();
+}
+
+
+
+# Perform CPACHECKER quick check before running any verifications
+sub cpachecker_quick_check
+{
+	$" = ' ';      # For error reporting
+	vsay ('INFO', "Trying to run CPAchecker without arguments to see it it works...");
+	my @cpachecker_args = ($cpachecker,"-help");
+	my $CHEW_CPACHECKER_OUT;
+	my $fpid = open $CHEW_CPACHECKER_OUT,"-|";
+	defined $fpid or die "Can't fork?  Wtf";
+	if ($fpid == 0){
+		# child
+		# Run cpachecker
+		exec @cpachecker_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @cpachecker_args";
+		exit 1;
+	}
+	# Parent
+	# Ignore cpachecker's output.
+	my $wpres = Utils::hard_wait($fpid,0);
+	$wpres > 0 or die;
+	# \n to complement previous message
+	$? == 0 or die "\nINTEGRATION ERROR.  CPACHECKER test exited with non-zero return code $?.";
+	# Ok, now we can close the pipe
+	close($CHEW_CPACHECKER_OUT);
+
+	vsay ('INFO',"OK\n");
+}
+
+
+
+# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
+use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
+sub dumptrace
+{
+	my $fname = shift or die;
+	my $state = TRACE_WAIT;
+	my $current_fh;
+	return [1_000_000,sub {
+
+		my ($line) = @_;
+		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
+		return undef if $state == TRACE_DONE;
+
+		$line =~ /Error trace: \(final\)/ and do {$state = TRACE_READ; return undef;};
+		$line =~ /Error trace ends \(final\)/ and do {$state = TRACE_DONE; return undef;};
+
+		if ($state == TRACE_READ){
+			unless ($current_fh){
+				open $current_fh, ">>", $fname or die;
+			}
+			print $current_fh $line;
+		}
+		return undef;
+	}];
+}
 
