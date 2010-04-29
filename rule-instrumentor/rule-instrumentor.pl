@@ -1413,7 +1413,7 @@ sub process_cmds()
       print_debug_debug("Add wanted options '@on_opts'.");
       push(@opts, @on_opts);
       
-      print_debug_normal("The options to be passed to the gcc compiler are '@opts'.");
+      print_debug_debug("The options to be passed to the gcc compiler are '@opts'.");
 
       # For the plain mode just copy and modify a bit input xml.
       if ($kind_isplain)
@@ -1731,11 +1731,12 @@ sub process_report()
     die("The command id isn't specified") unless ($id);
     print_debug_debug("The commmand log id is '$id'.");
     my $check = 0;
-    if ($id =~ /$log_cmds_check$/)
+    if ($id =~ /\Q$log_cmds_check\E$/)
     {
       $check = 1;
       $id = $PREMATCH;   
     }
+    print_debug_debug("The command check is '$check'.");
     die("The command id isn't unique") if (defined($cmds_log{$id}));
     die("The command name '$cmd_name' isn't correct") 
       unless ($cmd_name eq $log_cmds_cc or $cmd_name eq $log_cmds_ld);
