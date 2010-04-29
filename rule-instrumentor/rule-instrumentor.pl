@@ -1511,7 +1511,7 @@ sub process_cmds()
         if ($cmd->gi eq $xml_cmd_cc)
         {
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr:\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr");
         }
         elsif ($cmd->gi eq $xml_cmd_ld)
         {
@@ -1534,17 +1534,19 @@ sub process_cmds()
           if ($status)
           {
             $cmds_status{$out_text} = $id_attr;
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:0:$id_attr:");
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:0:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
           }
           else
           {
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:0:$id_attr:");
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:0:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
           }
-
-          print($file_cmds_log "\n");
         }
+
+        # There is no description for both cc and ld commands that all is ok
+        # always.
+        print($file_cmds_log ":\n");
         
         print_debug_debug("Finish processing of the command having id '$id_attr'.");
         next;
