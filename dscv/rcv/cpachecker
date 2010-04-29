@@ -1,0 +1,4 @@
+#!/usr/bin/perl
+
+die "CPAchecker frontend is unimplemented";
+

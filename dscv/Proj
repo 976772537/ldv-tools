@@ -22,3 +22,7 @@ rcv/
 	  blast/
 			Makefile
 
+  cpachecker
+	backends/cpachecker/
+		Makefile
+
