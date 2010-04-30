@@ -1,12 +1,15 @@
 package LDV::Utils;
 
-# Sanity checker for DSCV/RCV intrinsics
+# The debug printing package for all ldv perl tools.
 
 use strict;
 use vars qw(@ISA @EXPORT_OK @EXPORT);
 @EXPORT=qw(&vsay);
 #@EXPORT_OK=qw(set_verbosity);
 use base qw(Exporter);
+
+# Stream where debug messages will be printed.
+my $debug_stream = \*STDOUT;
 
 my $verbosity = 10;
 
@@ -29,6 +32,14 @@ sub from_eng
 	return $levels{$lvl} if exists $levels{$lvl};
 	Carp::confess "Incorrect debug level: $lvl" unless $lvl =~ /^[0-9]*$/;
 	return $lvl;
+}
+
+# Check whether a user specified verbosity level is greater then the package 
+# standard one.
+sub check_verbosity
+{
+    my $level = shift || $ENV{'LDV_DEBUG'};
+    return ($level >= $verbosity);
 }
 
 # Set verbosity level according to the value supplied or evironment variable
@@ -57,9 +68,9 @@ sub vsay
 	if ($v <= $verbosity) {
 		my $instrument = $instrument[-1];
 		my $level_string = $backlev{$v};
-		print "$instrument: " if defined $instrument;
-		print "$level_string: ";
-		print @_;
+		print $debug_stream "$instrument: " if defined $instrument;
+		print $debug_stream "$level_string: ";
+		print $debug_stream @_;
 	}
 }
 
