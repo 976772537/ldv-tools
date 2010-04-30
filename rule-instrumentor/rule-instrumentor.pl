@@ -1757,7 +1757,7 @@ sub process_report()
 
       print_debug_trace("Read rcv time.");
       my $rcv_time = $rcv->first_child_text($xml_report_time)
-        or die("The report file doesn't contain '$xml_report_time' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_time' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The rcv time is '$rcv_time'.");                 
 
       print_debug_trace("Read rcv description.");
