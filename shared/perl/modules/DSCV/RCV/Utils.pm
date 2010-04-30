@@ -58,6 +58,7 @@ sub preprocess_file
 # Makes file through CIL in the directory given with the options given.  Returns what call to C<system> returned.
 # Usage:
 # 	cilly_file(cil_path="toolset_dir/cil", cwd=>'working/dir', cil_file => 'output.i', i_file => 'input.c', opts=> ['-D','SOMETHING'] )
+use IPC::Open3;
 sub cilly_file
 {
 	my $info = {@_};
@@ -69,25 +70,37 @@ sub cilly_file
 	my $current_dir = getcwd();
 	chdir $info->{cwd} or Carp::confess;
 
+	# Filter out "-c" from options -- we need just preprocessing from CIL
+	my @opts = @{$info->{opts}};
+	@opts = grep {!/^-c$/} @opts;
+
 	my @cil_args = ($cil_script,"-E",
-		"--out=$info->{cil_file}",	#Output file
 		"$info->{i_file}",	#Input file
+		"--out=$info->{cil_file}",	#Output file
+		# However, for cill to REALLY output the file, GCC's preprocessr at some stage should print it.  We need the following line:
+		"-o",$info->{cil_file}
 		# Default CIL options
 		"--dosimplify",
 		"--printCilAsIs",
 		"--domakeCFG",
 		($info->{temps}?("--save-temps=$info->{temps}"):()),
 		# User-supplied options
-		@{$info->{opts}},	
+		@opts,
 	);
 	vsay ('DEBUG',"CIL: ",@cil_args,"\n");
 	local $"=' ';
 	my ($CIL_IN,$CIL_OUT,$CIL_ERR);
 	my $fpid = open3($CIL_IN,$CIL_OUT,$CIL_ERR,@cil_args) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cil_args";
+	while (<$CIL_OUT>) {
+		print $_;
+	}
+	while (<$CIL_ERR>) {
+		print $_;
+	}
 	Utils::hard_wait($fpid,0) < 0 and die;
+	my $result = $? << 8;
 	close $CIL_IN;
 	close $CIL_OUT;
-	close $CIL_ERR;
 
 	chdir $current_dir;
 	return $result;
