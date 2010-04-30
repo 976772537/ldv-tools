@@ -312,6 +312,9 @@ prepare_files_and_dirs();
 
 print_debug_trace("Prepare a twig xml parser for the models database, the input commands and report.");
 my $xml_twig = new XML::Twig;
+# To print out user friendly xml output.  
+$xml_twig->set_pretty_print('indented');
+
 my $xml_writer;
 
 if ($report_mode)
@@ -556,7 +559,7 @@ sub get_model_info()
       
     print_debug_trace("Read id attribute for a model to find the corresponding one."); 
     my $id_attr = $model->att($xml_model_db_attr_id) 
-      or die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
+      // die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
     print_debug_debug("Read the '$id_attr' id attribute for a model.");
 
     # Model is found!
@@ -567,12 +570,12 @@ sub get_model_info()
       # Read model information.
       print_debug_trace("Read engine tag.");
       my $engine = $model->first_child_text($xml_model_db_engine)
-        or die("Models database doesn't contain '$xml_model_db_engine' tag for '$id_attr' model");
+        // die("Models database doesn't contain '$xml_model_db_engine' tag for '$id_attr' model");
       print_debug_debug("The engine '$engine' is specified for the '$id_attr' model.");
 
       print_debug_trace("Read error tag.");
       my $error = $model->first_child_text($xml_model_db_error)
-        or die("Models database doesn't contain '$xml_model_db_error' tag for '$id_attr' model");
+        // die("Models database doesn't contain '$xml_model_db_error' tag for '$id_attr' model");
       print_debug_debug("The error label '$error' is specified for the '$id_attr' model.");
         
       # Store hints for static verifier to be passed without any processing.
@@ -606,7 +609,7 @@ sub get_model_info()
       # Common file (either plain C or aspect file) must be always presented.
       print_debug_trace("Read common file name.");
       my $common = $files->first_child_text($xml_model_db_files_common)
-        or die("Models database doesn't contain '$xml_model_db_files_common' tag for '$id_attr' model");
+        // die("Models database doesn't contain '$xml_model_db_files_common' tag for '$id_attr' model");
       print_debug_debug("The common file '$common' is specified for the '$id_attr' model."); 
       die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
         unless (-f "$ldv_model_dir/$common");
@@ -1271,9 +1274,6 @@ sub process_cmds()
   print_debug_trace("Read commands input xml file '$opt_cmd_xml_in'.");
   $xml_twig->parsefile("$opt_cmd_xml_in");
 
-  # To print out user friendly xml output.  
-  $xml_twig->set_pretty_print('indented');
-
   print_debug_trace("Read xml root tag.");
   my $cmd_root = $xml_twig->root;
 
@@ -1305,7 +1305,7 @@ sub process_cmds()
       # General commands section.
       print_debug_trace("Read id for some command.");
       my $id_attr = $cmd->att($xml_cmd_attr_id)
-        or die("The input commands xml file doesn't contain '$xml_cmd_attr_id' attribute for some command");
+        // die("The input commands xml file doesn't contain '$xml_cmd_attr_id' attribute for some command");
       print_debug_debug("Begin processing of the command '" . $cmd->gi . "' having id '$id_attr'.");
       
       print_debug_trace("Read current working directory.");
@@ -1313,12 +1313,12 @@ sub process_cmds()
         or die("The input commands xml file doesn't contain '$xml_cmd_cwd' tag for '$id_attr' command"); 
       my $cwd_text = $cwd->text;
       die("The input commands xml file specifies directory '$cwd_text' that doesn't exist for '$id_attr' command")
-        unless (-d $cwd_text);
+        unless ($cwd_text and -d $cwd_text);
       print_debug_debug("The specified current working directory is '$cwd_text'.");
 
       print_debug_trace("Read output file name.");
       my $out = $cmd->first_child($xml_cmd_out)
-        or die("The input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
+        // die("The input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
       my $out_text = $out->text;
       print_debug_debug("The output file is '$out_text'.");
       
@@ -1367,7 +1367,7 @@ sub process_cmds()
         if ($cmd->gi eq $xml_cmd_cc)
         {
           die("The input commands xml file specifies file '$in_text' that doesn't exist for '$id_attr' command")
-            unless (-f $in_text);
+            unless ($in_text and -f $in_text);
         }
 
         $in_text;
@@ -1504,6 +1504,8 @@ sub process_cmds()
           print_debug_trace("Concatenate a common model with the first input file.");
           my $in = $common_model_cc->first_child($xml_cmd_in);
           my $in_file = $in->text;
+          die("The specified input file '$in_file' doesn't exist.") 
+            unless ($in_file and -f $in_file);
           open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
             or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
           cat($in_file, $file_with_common_model)
@@ -1744,9 +1746,9 @@ sub process_report()
     my $cmd_name = $1;
     my $cmd_status = $2;
     my $cmd_time = $3;
-    my $id = $4;
+    my $id = $4 // die("The command id isn't specified");
     my $cmd_desc = $POSTMATCH;
-    die("The command id isn't specified") unless ($id);
+
     print_debug_debug("The commmand log id is '$id'.");
     my $check = 0;
     if ($id =~ /\Q$log_cmds_check\E$/)
@@ -1789,22 +1791,22 @@ sub process_report()
     {
       print_debug_trace("Read ld command reference.");
       my $ref_id_attr = $report->att($xml_report_attr_ref)
-        or die("The report file doesn't contain '$xml_report_attr_ref' attribute for some ld command");
+        // die("The report file doesn't contain '$xml_report_attr_ref' attribute for some ld command");
       print_debug_debug("Begin processing of the command '" . $report->gi . "' having id reference '$ref_id_attr'.");
 
       print_debug_trace("Read ld main.");
       my $main_attr = $report->att($xml_report_attr_main)
-        or die("The report file doesn't contain '$xml_report_attr_main' attribute for command having id reference '$ref_id_attr'");
+        // die("The report file doesn't contain '$xml_report_attr_main' attribute for command having id reference '$ref_id_attr'");
       print_debug_debug("The command main is '$main_attr'.");
 
       print_debug_trace("Read verdict.");
       my $verdict = $report->first_child_text($xml_report_verdict)
-        or die("The report file doesn't contain '$xml_report_verdict' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_verdict' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The verdict is '$verdict'.");
 
       print_debug_trace("Read trace.");
       my $trace = $report->first_child_text($xml_report_trace)
-        or die("The report file doesn't contain '$xml_report_trace' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_trace' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The trace is '$trace'.");
 
       print_debug_trace("Read rcv report section.");
@@ -1813,7 +1815,7 @@ sub process_report()
 
       print_debug_trace("Read rcv status.");
       my $rcv_status = $rcv->first_child_text($xml_report_status)
-        or die("The report file doesn't contain '$xml_report_status' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_status' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The rcv status is '$rcv_status'.");                 
 
       print_debug_trace("Read rcv time.");
@@ -1823,7 +1825,7 @@ sub process_report()
 
       print_debug_trace("Read rcv description.");
       my $rcv_desc = $rcv->first_child_text($xml_report_desc)
-        or die("The report file doesn't contain '$xml_report_desc' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_desc' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The rcv description is '$rcv_desc'.");
       
       $reports{$ref_id_attr}{$main_attr} = {
