@@ -15,10 +15,11 @@ sub hard_wait
 {
 	my $pid = shift;
 	my $wpres = undef;
-	my ($stime, $utime) = undef;
+	my ($stime, $utime, $status) = undef;
 	while (!defined $wpres || $wpres != $pid){
-		($wpres, undef, $utime, $stime) = wait3('blocking');
+		($wpres, $status, $utime, $stime) = wait3('blocking');
 	}
+	$? = $status;
 	return ('utime'=>$utime, 'stime'=>$stime);
 }
 
