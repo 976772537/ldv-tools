@@ -445,12 +445,12 @@ sub get_debug_level()
   # environment variables aren't specified) or when LDV_DEBUG and 
   # LDV_RULE_INSTRUMENTOR_DEBUG are 0 just information on errors is printed. 
   # Otherwise:  
-  if ($LDV_RULE_INSTRUMENTOR_DEBUG)
+  if (defined($LDV_RULE_INSTRUMENTOR_DEBUG))
   {
     LDV::Utils::set_verbosity($LDV_RULE_INSTRUMENTOR_DEBUG);
     print_debug_debug("Debug level is set correspondingly to the LDV_RULE_INSTRUMENTOR_DEBUG environment variable value '$LDV_RULE_INSTRUMENTOR_DEBUG'.");
   }
-  elsif ($LDV_DEBUG)
+  elsif (defined($LDV_DEBUG))
   {
     LDV::Utils::set_verbosity($LDV_DEBUG);
     print_debug_debug("Debug level is set correspondingly to the LDV_DEBUG environment variable value '$LDV_DEBUG'.");
