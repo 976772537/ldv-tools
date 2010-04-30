@@ -43,7 +43,7 @@ for arg in $@; do
 				ldv_print "ERROR: Parameter \"--workdir\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			workdir=`readlink -f $rworkdir`;
+			workdir=`echo "readlink -f $rworkdir" | sh`;
 			if [ $? -ne 0 ]; then
 				ldv_print "ERROR: Failed to read abs-path for working dir: \"$rworkdir\"."
 			        exit 1;
@@ -62,7 +62,7 @@ for arg in $@; do
 				ldv_print "ERROR: Parameter \"--report-out\" - is null. Setup it.";
 			        exit 1;
 			fi;
-			reportout=`readlink -f $rreportout`;
+			reportout=`echo "readlink -f $rreportout" | sh`;
 			if [ $? -ne 0 ]; then
 				ldv_print "ERROR: Failed to read abs-path for out report file: \"$rreportout\"."
 			        exit 1;
@@ -102,7 +102,7 @@ if [ ! -n "$rdriver" ]; then
         exit 1;
 fi;
 if [ $KERNEL_LEVEL -eq 0 ]; then
-	driver=`readlink -f $rdriver`;
+	driver=`echo "readlink -f $rdriver" | sh`;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
 		exit 1;
