@@ -39,7 +39,8 @@ sub from_eng
 sub check_verbosity
 {
     my $level = shift || $ENV{'LDV_DEBUG'};
-    return ($level >= $verbosity);
+    $level = from_eng($level);
+    return ($level <= $verbosity);
 }
 
 # Set verbosity level according to the value supplied or evironment variable

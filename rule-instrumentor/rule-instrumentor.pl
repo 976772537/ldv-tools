@@ -1013,7 +1013,7 @@ sub process_cmd_cc()
     $ENV{$ldv_no_quoted} = 1;
     # Just for the trace debug level aspectator will say about something except 
     # errors. 
-    $ENV{LDV_QUIET} = 1 if (LDV::Utils::check_verbosity(LDV::Utils::from_eng('TRACE')));
+    $ENV{LDV_QUIET} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
     
     print_debug_trace("Go to the build directory to execute cc command.");
@@ -1049,7 +1049,7 @@ sub process_cmd_cc()
     print_debug_debug("Process the cc command using general aspect.");
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-    $ENV{LDV_QUIET} = 1 if (LDV::Utils::check_verbosity(LDV::Utils::from_eng('TRACE')));
+    $ENV{LDV_QUIET} = 1;# unless (LDV::Utils::check_verbosity('TRACE'));
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     print_debug_trace("Go to the build directory to execute cc command.");    
