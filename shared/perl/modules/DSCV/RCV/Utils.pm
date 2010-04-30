@@ -58,6 +58,7 @@ sub preprocess_file
 # Makes file through CIL in the directory given with the options given.  Returns what call to C<system> returned.
 # Usage:
 # 	cilly_file(cil_path="toolset_dir/cil", cwd=>'working/dir', cil_file => 'output.i', i_file => 'input.c', opts=> ['-D','SOMETHING'] )
+use LDV::Utils;
 use IPC::Open3;
 sub cilly_file
 {
@@ -74,11 +75,11 @@ sub cilly_file
 	my @opts = @{$info->{opts}};
 	@opts = grep {!/^-c$/} @opts;
 
-	my @cil_args = ($cil_script,"-E",
+	my @cil_args = ($cil_script,"-c",
 		"$info->{i_file}",	#Input file
 		"--out=$info->{cil_file}",	#Output file
 		# However, for cill to REALLY output the file, GCC's preprocessr at some stage should print it.  We need the following line:
-		"-o",$info->{cil_file}
+		#"-o",$info->{cil_file},
 		# Default CIL options
 		"--dosimplify",
 		"--printCilAsIs",
@@ -86,21 +87,23 @@ sub cilly_file
 		($info->{temps}?("--save-temps=$info->{temps}"):()),
 		# User-supplied options
 		@opts,
+		"-U","__LP64__"
 	);
 	vsay ('DEBUG',"CIL: ",@cil_args,"\n");
 	local $"=' ';
 	my ($CIL_IN,$CIL_OUT,$CIL_ERR);
 	my $fpid = open3($CIL_IN,$CIL_OUT,$CIL_ERR,@cil_args) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cil_args";
+	LDV::Utils::push_instrument("CIL");
 	while (<$CIL_OUT>) {
-		print $_;
+		vsay ("DEBUG",$_);
 	}
 	while (<$CIL_ERR>) {
-		print $_;
+		print ("DEBUG",$_);
 	}
-	Utils::hard_wait($fpid,0) < 0 and die;
-	my $result = $? << 8;
+	my $result = Utils::hard_wait($fpid,0);
 	close $CIL_IN;
 	close $CIL_OUT;
+	LDV::Utils::pop_instrument();
 
 	chdir $current_dir;
 	return $result;
@@ -228,10 +231,13 @@ sub ld_maker
 				if ($do_cilly){
 					my $cilly_dir = "$workdir/cilly";
 					mkpath($cilly_dir);
-					my $cil_file = $new_record->{i_file}; $cil_file =~ s/\.c$/.i/; $cil_file =~ s/\//-/g; $cil_file = "$cilly_dir/$cil_file";
+					my $cil_file = $new_record->{i_file}; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "$cilly_dir/$cil_file";
 					mkpath(dirname($cil_file));
 					$new_record->{cil_file} = $cil_file;
-					cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps) and die "CIL ERROR!  Recovery is unimplemented"; # TODO
+					cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps);
+					my $cil_result = $? >> 8;
+					vsay ("DEBUG","CIL exit code is $cil_result\n");
+					$? and die "CIL ERROR!  Recovery is unimplemented"; # TODO
 				}else{
 					$new_record->{i_file} = $new_record->{c_file};
 				}
