@@ -47,7 +47,7 @@ sub preprocess_file
 		"$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options
 	);
-	vsay ('DEBUG',"Preprocessor: ",@cpp_args);
+	vsay ('DEBUG',"Preprocessor: ",@cpp_args,"\n");
 	local $"=' ';
 	my $result = system @cpp_args; 
 

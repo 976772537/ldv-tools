@@ -3,7 +3,7 @@
 
 use Cwd qw(abs_path cwd);
 use English;
-use Env qw(LDV_DEBUG LDV_KERNEL_RULES WORK_DIR);
+use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
 use File::Basename qw(basename fileparse);
 use File::Copy qw(mv);
 use FindBin;
@@ -21,6 +21,9 @@ use lib("$FindBin::RealBin/../shared/perl");
 
 use File::Cat qw(cat);
 use File::Copy::Recursive qw(rcopy);
+
+# Add some nonstandard local Perl packages.
+use LDV::Utils;
 
 
 ################################################################################
@@ -126,24 +129,8 @@ my $common_model_dir;
 my $common_c_suffix = '.common.c';
 my $common_o_suffix = '.common.o';
 
-# Debug levels flags. The amount of debug information increases in depend of 
-# debug level and each following level includes the previous one:
-#   'normal' - show execution progress shortly.
-#   'info' - show executed commands.
-#   'debug' - full information needed for debug is shown.
-#   'trace' - both debug and some additional information is shown.
-#   'all' - print so much information as can.
-my $debug_normal = 0;
-my $debug_info = 0;
-my $debug_debug = 0;
-my $debug_trace = 0;
-my $debug_all = 0;
-
 # Prefix for all debug messages.
 my $debug_name = 'rule-instrumentor';
-
-# Stream where debug messages will be printed.
-my $debug_stream = \*STDOUT;
 
 # Errors return codes.
 my $error_syntax = 1; 
@@ -452,41 +439,22 @@ sub exec_status_and_desc(@)
 
 sub get_debug_level()
 {
-  # By default (in case when LDV_DEBUG environment variable isn't specified) and
-  # when LDV_DEBUG is 0 just information on errors is printed. Otherwise:
-  if ($LDV_DEBUG)
+  LDV::Utils::push_instrument($debug_name);
+
+  # By default (in case when neither LDV_DEBUG nor LDV_RULE_INSTRUMENTOR_DEBUG
+  # environment variables aren't specified) or when LDV_DEBUG and 
+  # LDV_RULE_INSTRUMENTOR_DEBUG are 0 just information on errors is printed. 
+  # Otherwise:  
+  if (defined($LDV_RULE_INSTRUMENTOR_DEBUG))
   {
-    if ($LDV_DEBUG >= 10)
-    {
-      $debug_normal = 1;
-    }
-    
-    if ($LDV_DEBUG >= 20)
-    {
-      $debug_info = 1;
-    }
-    
-    if ($LDV_DEBUG >= 30)
-    {
-      $debug_debug = 1;
-    }
-    
-    if ($LDV_DEBUG >= 40)
-    {
-      $debug_trace = 1;
-    }
-    
-    if ($LDV_DEBUG == 100)
-    {
-      $debug_all = 1;
-    }
+    LDV::Utils::set_verbosity($LDV_RULE_INSTRUMENTOR_DEBUG);
+    print_debug_debug("Debug level is set correspondingly to the LDV_RULE_INSTRUMENTOR_DEBUG environment variable value '$LDV_RULE_INSTRUMENTOR_DEBUG'.");
   }
-  else
+  elsif (defined($LDV_DEBUG))
   {
-    $LDV_DEBUG = 0;
+    LDV::Utils::set_verbosity($LDV_DEBUG);
+    print_debug_debug("Debug level is set correspondingly to the LDV_DEBUG environment variable value '$LDV_DEBUG'.");
   }
-  
-  print_debug_debug("Debug level is set correspondingly to the LDV_DEBUG environment variable value '$LDV_DEBUG'.");
 }
 
 sub get_model_info()
@@ -1001,50 +969,35 @@ sub print_debug_normal($)
 {
   my $message = shift;
   
-  if ($debug_normal)
-  {
-    print($debug_stream "$debug_name: NORMAL: $message\n");
-  }
+  vsay('NORMAL', "$message\n");
 }
 
 sub print_debug_info($)
 {
   my $message = shift;
   
-  if ($debug_info)
-  {
-    print($debug_stream "$debug_name: INFO: $message\n");
-  }
+  vsay('INFO', "$message\n");
 }
 
 sub print_debug_debug($)
 {
   my $message = shift;
   
-  if ($debug_debug)
-  {
-    print($debug_stream "$debug_name: DEBUG: $message\n");
-  }
+  vsay('DEBUG', "$message\n");
 }
 
 sub print_debug_trace($)
 {
   my $message = shift;
   
-  if ($debug_trace)
-  {
-    print($debug_stream "$debug_name: TRACE: $message\n");
-  }
+  vsay('TRACE', "$message\n");
 }
 
 sub print_debug_all($)
 {
   my $message = shift;
   
-  if ($debug_all)
-  {
-    print($debug_stream "$debug_name: ALL: $message\n");
-  }
+  vsay('ALL', "$message\n");
 }
 
 sub process_cmd_cc()
@@ -1058,7 +1011,9 @@ sub process_cmd_cc()
     # Specify needed and specic environment variables for the aspectator.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-    $ENV{LDV_QUIET} = 1 unless ($debug_trace);
+    # Just for the trace debug level aspectator will say about something except 
+    # errors. 
+    $ENV{LDV_QUIET} = 1 if (LDV::Utils::check_verbosity(LDV::Utils::from_eng('TRACE')));
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
     
     print_debug_trace("Go to the build directory to execute cc command.");
@@ -1094,7 +1049,7 @@ sub process_cmd_cc()
     print_debug_debug("Process the cc command using general aspect.");
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-    $ENV{LDV_QUIET} = 1 unless ($debug_trace);
+    $ENV{LDV_QUIET} = 1 if (LDV::Utils::check_verbosity(LDV::Utils::from_eng('TRACE')));
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     print_debug_trace("Go to the build directory to execute cc command.");    

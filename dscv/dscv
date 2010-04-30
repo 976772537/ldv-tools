@@ -176,7 +176,8 @@ BEGIN {
 Level of verbosity, ranging from 0 (silent) to 100 (trace).  Default is 10.  B<DSCV_DEBUG> takes precedence over B<LDV_DEBUG>.
 
 =cut
-$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
+$config->{verbosity} = 10 unless defined $config->{verbosity};
 
 
 =item B<RULE_INSTRUMENTOR>

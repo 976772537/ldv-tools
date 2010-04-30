@@ -30,7 +30,8 @@ my $config={
 };
 
 my %optionSpecs = ();
-$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
+$config->{verbosity} = 10 unless defined $config->{verbosity};
 LDV::Utils::set_verbosity($config->{verbosity});
 LDV::Utils::push_instrument('rcv-blast');
 
@@ -106,9 +107,9 @@ sub verify_blast
 		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
 
 		my $bv = $result->{'BLAST-detailed'};
-		if ($bv =~ /\bSAFE\b/) {
+		if ($bv =~ /\bsafe\b/) {
 			$bv='SAFE';
-		}elsif($bv =~ /\bUNSAFE\b/){
+		}elsif($bv =~ /\bunsafe\b/){
 			$bv='UNSAFE';
 		}else{
 			$bv='UNKNOWN';

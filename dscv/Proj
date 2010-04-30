@@ -2,7 +2,7 @@
 =      DSCV       =
 ===================
 
-perl-shared/
+../shared/perl/modules/
 	File/Copy/
 	  Recursive.pm
 	StreamAutomaton.pm
