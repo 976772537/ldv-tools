@@ -109,11 +109,30 @@ sub verify_cpachecker
 		vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
 		vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
 
+		# Verdict
+		my $bv = "UNKNOWN";
+
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		XML::Twig::Elt->new('status',{},$result->{'CPACHECKER'})->paste($cmdInstT);
-		XML::Twig::Elt->new('verdict',{},$result->{'CPACHECKER-detailed'})->paste($cmdInstT);
+		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+
+		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
+		XML::Twig::Elt->new('status',{},$result->{'CPACHECKER'})->paste($rcvResultT);
+		XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
+
+		# Calculate and output time elapsed
+		my $time_sec = $result->{'utime'}+$result->{'stime'};
+		my $time_msec = int($time_sec * 1000);
+		XML::Twig::Elt->new('time',{},$time_msec+1)->paste($rcvResultT);
+
+		$rcvResultT->paste(last_child =>$cmdInstT);
 		$cmdInstT->paste($repT);
+
+		#my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+		#XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+		#XML::Twig::Elt->new('status',{},$result->{'CPACHECKER'})->paste($cmdInstT);
+		#XML::Twig::Elt->new('verdict',{},$result->{'CPACHECKER-detailed'})->paste($cmdInstT);
+		#$cmdInstT->paste($repT);
 	}
 
 	$repT->print($CPACHECKER_REPORT,'indented');
