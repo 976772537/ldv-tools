@@ -35,6 +35,11 @@ use LDV::Utils;
 # retn: nothing.
 sub create_general_aspect();
 
+# Delete auxiliary files produced during work in the nondebug modes.
+# args: no.
+# retn: nothing.
+sub delete_aux_files();
+
 # The auxiliary function that captures error description.
 # args: an array to be passed to the system function.
 # retn: a function execution status and description.
@@ -142,6 +147,10 @@ my $file_report_xml_out;
 my $file_temp = \*STDERR;
 my $file_xml_out;
 
+# Auxiliary files produced during work that must be deleted in the nondebug 
+# modes.
+my %files_to_be_deleted;
+
 # Options to the gcc compiler to be turned on/off.
 my @gcc_aspect_off_opts;
 my @gcc_aspect_on_opts;
@@ -173,16 +182,17 @@ my $ldv_c_backend;
 my $ldv_gcc;
 # Linker.
 my $ldv_linker;
-
 # Directory contains rules models database and their source code.
 my $ldv_model_dir;
-
 # Name of xml file containing models database. Name is relative to models
 # directory. 
 my $ldv_model_db_xml = 'model-db.xml';
-
 # Information on needed model.
 my %ldv_model;
+# Environment variable to setup the aspectator debug level.
+my $ldv_quiet = 'LDV_QUIET';
+# Environment variable to say whether aspectator must clean its generated files.
+my $ldv_clean = 'LDV_CLEAN';
 
 # Suffix of llvm bitcody files.
 my $llvm_bitcode_suffix = '.bc';
@@ -359,6 +369,9 @@ close($file_cmds_log)
 close($file_xml_out) 
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
 
+print_debug_info("Delete auxiliary files in the nondebug modes.");
+delete_aux_files();
+
 print_debug_normal("Make all successfully.");
 
 ################################################################################
@@ -379,7 +392,20 @@ sub create_general_aspect()
       or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
     close($file_aspect_general) 
       or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
+    $files_to_be_deleted{"$ldv_model_dir/$ldv_model{'general'}"} = 1;
     print_debug_debug("The general aspect '$ldv_model_dir/$ldv_model{'general'}' was created.");
+  }
+}
+
+sub delete_aux_files()
+{
+  return 0 if (LDV::Utils::check_verbosity('DEBUG'));  
+    
+  foreach my $file (keys(%files_to_be_deleted))
+  {
+    print_debug_trace("Delete the file '$file'.");  
+    unlink($file)
+      or die("Can't delete the file '$file'.");
   }
 }
 
@@ -433,7 +459,13 @@ sub exec_status_and_desc(@)
   
   close($file_temp_read) 
     or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");  
-
+  
+  unless (LDV::Utils::check_verbosity('DEBUG'))
+  {
+    unlink("$opt_basedir/$tool_temp")
+      or die("Couldn't delete file '$opt_basedir/$tool_temp': $ERRNO\n");  
+  }
+  
   return ($status, $desc);
 }
 
@@ -1013,7 +1045,7 @@ sub process_cmd_cc()
     $ENV{$ldv_no_quoted} = 1;
     # Just for the trace debug level aspectator will say about something except 
     # errors. 
-    $ENV{LDV_QUIET} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
+    $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
     
     print_debug_trace("Go to the build directory to execute cc command.");
@@ -1025,7 +1057,7 @@ sub process_cmd_cc()
     return ($status, $desc) if ($status);
     
     # Unset special environments variables.
-    delete($ENV{'LDV_QUITE'});
+    delete($ENV{$ldv_quiet});
     delete($ENV{$ldv_no_quoted});
     delete($ENV{$ldv_aspectator_gcc});
     
@@ -1042,14 +1074,27 @@ sub process_cmd_cc()
     print_debug_trace("Copy the usual bitcode file.");
     mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
       or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
     print_debug_debug("The usual bitcode file is '$cmd{'out'}$llvm_bitcode_usual_suffix'.");
+
+    unless (LDV::Utils::check_verbosity('DEBUG'))
+    {
+      print_debug_trace("Clean the aspectator intermediate files for the nondebug mode.");
+      $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+      $ENV{$ldv_quiet} = 1;
+      $ENV{$ldv_clean} = 1;
+      system(@args);
+      delete($ENV{$ldv_clean});
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_aspectator_gcc});      
+    }
 
     # Also do this with general aspect. Don't forget to add -I option with 
     # models directory needed to find appropriate headers for common aspect.
     print_debug_debug("Process the cc command using general aspect.");
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-    $ENV{LDV_QUIET} = 1;# unless (LDV::Utils::check_verbosity('TRACE'));
+    $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     print_debug_trace("Go to the build directory to execute cc command.");    
@@ -1061,7 +1106,7 @@ sub process_cmd_cc()
     return ($status, $desc) if ($status);
 
     # Unset special environments variables.
-    delete($ENV{'LDV_QUITE'});
+    delete($ENV{$ldv_quiet});
     delete($ENV{$ldv_no_quoted});
     delete($ENV{$ldv_aspectator_gcc});
     
@@ -1074,7 +1119,20 @@ sub process_cmd_cc()
     print_debug_trace("Copy the general bitcode file.");
     mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
       or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
+    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
     print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'.");
+
+    unless (LDV::Utils::check_verbosity('DEBUG'))
+    {
+      print_debug_trace("Clean the aspectator intermediate files for the nondebug mode.");
+      $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+      $ENV{$ldv_quiet} = 1;
+      $ENV{$ldv_clean} = 1;
+      system(@args);
+      delete($ENV{$ldv_clean});
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_aspectator_gcc});      
+    }
     
     print_debug_trace("Go to the initial directory.");
     chdir($tool_working_dir)
@@ -1116,6 +1174,7 @@ sub process_cmd_ld()
 
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_linked_suffix"} = 1;  
       print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
 
       # Make name for c file corresponding to the linked one.
@@ -1194,9 +1253,11 @@ sub process_cmd_ld()
 
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_linked_suffix"} = 1;         
       print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_general_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_general_suffix");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;         
       print_debug_debug("The linker produces the generally linked bitcode file '$cmd{'out'}$llvm_bitcode_general_suffix'");
     }
     
