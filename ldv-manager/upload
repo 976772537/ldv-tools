@@ -1,0 +1,118 @@
+#!/usr/bin/ruby
+require 'rubygems'
+require 'active_record'
+require 'hpricot'
+
+ActiveRecord::Base.establish_connection(
+	:adapter  => 'mysql',
+	:database => 'ldv_test',
+	:username => 'pavel',
+	:host     => 'localhost'
+)
+ActiveRecord::Base.logger = Logger.new(STDERR)
+
+# Define models
+
+class Environment < ActiveRecord::Base
+end
+
+class Driver < ActiveRecord::Base
+end
+
+class Rule_Model < ActiveRecord::Base
+end
+
+class Toolset < ActiveRecord::Base
+end
+
+class Scenario < ActiveRecord::Base
+	belongs_to :driver
+end
+
+class Launch < ActiveRecord::Base
+	belongs_to :driver, :autosave => true
+	belongs_to :toolset, :autosave => true
+	belongs_to :environment, :autosave => true
+	belongs_to :rule_model, :class_name=>'Rule_Model', :autosave => true
+	belongs_to :scenario, :autosave => true
+
+	belongs_to :trace, :autosave => true
+end
+
+class Trace < ActiveRecord::Base
+	has_one :launch
+
+	belongs_to :build, :class_name => 'Stats', :autosave => true
+	belongs_to :maingen, :class_name => 'Stats', :autosave => true
+	belongs_to :dscv, :class_name => 'Stats', :autosave => true
+	belongs_to :ri, :class_name => 'Stats', :autosave => true
+	belongs_to :rcv, :class_name => 'Stats', :autosave => true
+end
+
+class Stats < ActiveRecord::Base
+	def self.from_xml(entry)
+		st = Stats.new
+		st.success = (entry/"status").inner_html != 'OK'
+		st.loc = (entry/"loc").inner_html.to_i || 0
+		st.time = (entry/"time").inner_html.to_i || 0
+		st.description = (entry/"time").inner_html
+		st
+	end
+end
+
+# Load document
+filename = ARGV[0]
+doc = open(filename) { |f| Hpricot(f) }
+
+# TODO: Stuff that should be initialized elsewhere!!!
+driver_name = "hui"
+driver_origin = 'external'
+git_tag = 'test-0.1'
+
+(doc/"ld").each do |ld|
+	kernel_name = ld.attributes['kernel']
+	kernel = Environment.find_or_create_by_version(kernel_name)
+	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
+	rule_model = Rule_Model.find_or_create_by_name(ld.attributes['model'])
+	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
+
+	trace = Trace.new
+	#verdict
+	#trace -- read the whole trace from file
+	if (trace_tag = ld/"trace") && (! trace_tag.inner_html.empty?)  
+		trace.error_trace = IO.read(trace_tag.inner_html)
+	end
+	#Tools
+	tools = {
+		'maingen' => 'maingen',
+		'dscv' => 'dscv',
+		'ri' => 'ri',
+		'rcv' => 'rcv',
+	}
+	tools.each do |dbname,tag|
+		stats = Stats.from_xml(doc/tag)
+#		stats.save
+		trace.send("#{dbname}=",stats)
+	end
+	# Build is handled in a special way
+	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"")
+#	build.save
+	trace.build = build
+
+	# Save trace to DB
+#	trace.save
+
+	launch = Launch.new
+	launch.driver = driver
+	launch.environment = kernel
+	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,(doc/"rcv")[0].attributes['verifier'] || 'blast')
+	launch.rule_model = rule_model
+	launch.scenario = scenario
+	launch.trace = trace
+	launch.timestamp = DateTime.now
+
+	launch.save
+end
+
+
+
