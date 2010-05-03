@@ -46,7 +46,7 @@ all: $(tasks_targets)
 # Split tasks into rules
 
 define rule_for_task
-$$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim)) $(call get_env,$(1),$(delim))
+$$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim))
 	@$$(G_TargetDir)
 	@echo ldv "$(1)"
 	touch $$@
@@ -73,7 +73,7 @@ tags/%/fetched:
 	touch $@
 
 # Install from repo
-tags/%/finished: tags/%/fetched
+tags/%/installed: tags/%/fetched
 	@$(G_TargetDir)
 	( flock 200; \
 		cd $(@D)/ldv-tools && \
@@ -81,12 +81,23 @@ tags/%/finished: tags/%/fetched
 	) 200>$@.lock
 	touch $@
 
-envs/%/finished:
+# Prepare envs for current tag
+tags/%/envs: tags/%/installed
 	@$(G_TargetDir)
-	echo env $*
+	( flock 200; \
+		cd $(LDV_INSTALL_DIR)/$* && \
+		export PATH=$(LDV_INSTALL_DIR)/$*/bin:$$PATH ; \
+		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$* ; \
+		$(foreach env,$(envs),ldv kmanager add $(abspath $(env)) linux-vanilla $(notdir $(env)) && ) \
+		true \
+	) 200>$@.lock
 	touch $@
 
-.PRECIOUS: tags/%/fetched tags/%/finished
+tags/%/finished: tags/%/installed tags/%/envs
+	touch $@
+
+
+.PRECIOUS: tags/%/fetched tags/%/finished tags/%/envs
 
 
 
