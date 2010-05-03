@@ -4,35 +4,41 @@
 -- INPUT TO LAUNCHES
 -- ----------------------------
 
--- Environments table holds kernels
+drop table if exists traces;
+drop table if exists stats;
+drop table if exists launches;
+drop table if exists scenarios;
+drop table if exists toolsets;
+drop table if exists rule_models;
+drop table if exists drivers ;
 drop table if exists environments ;
+
+-- Environments table holds kernels
 create table environments (
 	id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 	version VARCHAR(20) NOT NULL,
 	kind VARCHAR(20),
 	PRIMARY KEY (id)
-);
+) ENGINE=InnoDB;
 
 -- Drivers holds drivers that were checked
-drop table if exists drivers ;
 create table drivers (
 	id int(10) unsigned not null auto_increment,
 	name varchar(20) not null,
 	origin enum('kernel','external') not null,
 	primary key (id),
 	key (name)
-);
+) ENGINE=InnoDB;
 
 -- Rule-models
-drop table if exists rule_models;
 create table rule_models(
 	id int(10) unsigned not null auto_increment,
+	name varchar(20),
 	description varchar(200),
 	primary key (id)
-);
+) ENGINE=InnoDB;
 
 -- Instruments
-drop table if exists toolsets;
 create table toolsets(
 	id int(10) unsigned not null auto_increment,
 	version varchar(20) not null,
@@ -40,9 +46,8 @@ create table toolsets(
 	verifier varchar(20) not null,
 	primary key(id),
 	key (verifier)
-);
+) ENGINE=InnoDB;
 
-drop table if exists scenarios;
 create table scenarios(
 	id int(10) unsigned not null auto_increment,
 	driver_id int(10) unsigned not null,
@@ -50,36 +55,12 @@ create table scenarios(
 	main varchar(100) not null,
 	primary key (id),
 	foreign key (driver_id) references drivers(id)
-);
-
--- ----------------------------
--- LAUNCHES JOIN
--- ----------------------------
-
-drop table if exists launches;
-create table launches(
-	driver_id int(10) unsigned not null,
-	toolset_id int(10) unsigned not null,
-	envirnoment_id int(10) unsigned not null,
-	rule_model_id int(10) unsigned not null,
-	scenario_id int(10) unsigned not null,
-	trace_id int(10) unsigned not null,
-
-	PRImary key (driver_id,toolset_id,envirnoment_id,rule_model_id,scenario_id),
-
-	foreign key (driver_id) references drivers(id),
-	foreign key (toolset_id) references toolsets(id),
-	foreign key (envirnoment_id) references envirnoments(id),
-	foreign key (rule_model_id) references rules(id),
-	foreign key (scenario_id) references scenarios(id),
-	foreign key (trace_id) references traces(id)
-);
+) ENGINE=InnoDB;
 
 -- ----------------------------
 -- LAUNCH RESULTS
 -- ----------------------------
 
-drop table if exists stats;
 create table stats(
 	id int(10) unsigned not null auto_increment,
 	success boolean not null default false,
@@ -91,9 +72,8 @@ create table stats(
 	description text,
 
 	primary key (id)
-);
+) ENGINE=InnoDB;
 
-drop table if exists traces;
 create table traces(
 	id int(10) unsigned not null auto_increment,
 	build_id int(10) unsigned not null,
@@ -116,8 +96,32 @@ create table traces(
 	foreign key (dscv_id) references stats(id),
 	foreign key (ri_id) references stats(id),
 	foreign key (rcv_id) references stats(id)
-);
+) ENGINE=InnoDB;
 
+
+-- ----------------------------
+-- LAUNCHES JOIN
+-- ----------------------------
+
+create table launches(
+	driver_id int(10) unsigned not null,
+	toolset_id int(10) unsigned not null,
+	environment_id int(10) unsigned not null,
+	rule_model_id int(10) unsigned not null,
+	scenario_id int(10) unsigned not null,
+
+	timestamp datetime,
+	trace_id int(10) unsigned not null,
+
+	PRImary key (driver_id,toolset_id,environment_id,rule_model_id,scenario_id),
+
+	foreign key (driver_id) references drivers(id),
+	foreign key (toolset_id) references toolsets(id),
+	foreign key (environment_id) references environments(id),
+	foreign key (rule_model_id) references rule_models(id),
+	foreign key (scenario_id) references scenarios(id),
+	foreign key (trace_id) references traces(id)
+) ENGINE=InnoDB;
 
 
 
