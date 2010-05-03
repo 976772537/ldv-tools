@@ -1,10 +1,17 @@
-# Makefile that performs LDV management
 
-include defs.mk
+Lib_dir:=$(dir $(MAKEFILE_LIST))
+
+# Configuration variables
+include config.mk
+# Install dir should be absolutized
+LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
+
+# Makefile that performs LDV management
+include $(Lib_dir)defs.mk
+
 
 ##################
 # Verify input
-
 
 $(eval $(call assert_notempty,tag))
 $(eval $(call assert_notempty,envs))
@@ -51,9 +58,27 @@ $(foreach task,$(tasks),$(eval $(call rule_for_task,$(task))))
 #########################
 # Standard tasks:
 
-tags/%/finished:
+# Fetch tag from repository
+tags/%/fetched:
 	@$(G_TargetDir)
-	echo tag $*
+	( flock 200; \
+		cd $(@D) && \
+		rm -rf ldv-tools && \
+		git clone $(LDV_GIT_REPO) ldv-tools && \
+		cd ldv-tools && \
+		git checkout -q $* && \
+		git submodule init && \
+		git submodule -q update \
+	) 200>$@.lock
+	touch $@
+
+# Install from repo
+tags/%/finished: tags/%/fetched
+	@$(G_TargetDir)
+	( flock 200; \
+		cd $(@D)/ldv-tools && \
+		prefix=$(LDV_INSTALL_DIR)/$* $(MAKE) install \
+	) 200>$@.lock
 	touch $@
 
 envs/%/finished:
@@ -61,6 +86,7 @@ envs/%/finished:
 	echo env $*
 	touch $@
 
+.PRECIOUS: tags/%/fetched tags/%/finished
 
 
 

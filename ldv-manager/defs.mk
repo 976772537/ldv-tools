@@ -27,7 +27,7 @@ get_env=envs/$(call get_env_raw,$(1),$(2))/finished
 # Assertion: if variable with name in $(1) is empty.
 define assert_notempty
 ifeq ($$($(1)),)
-	$$(error Variable "$(1)" should not be empty!)
+$$(error Variable "$(1)" should not be empty!)
 endif
 endef
 
