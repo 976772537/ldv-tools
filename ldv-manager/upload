@@ -64,10 +64,10 @@ end
 filename = ARGV[0]
 doc = open(filename) { |f| Hpricot(f) }
 
-# TODO: Stuff that should be initialized elsewhere!!!
-driver_name = "hui"
-driver_origin = 'external'
-git_tag = 'test-0.1'
+driver_name = (doc/"reports/launch_info/driver").inner_html
+driver_origin = (doc/"reports/launch_info/driver_origin").inner_html
+git_tag = (doc/"reports/launch_info/tag").inner_html
+timestamp = (doc/"reports/launch_info/timestamp").inner_html.to_datetime
 
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
@@ -91,17 +91,13 @@ git_tag = 'test-0.1'
 	}
 	tools.each do |dbname,tag|
 		stats = Stats.from_xml(doc/tag)
-#		stats.save
 		trace.send("#{dbname}=",stats)
 	end
 	# Build is handled in a special way
 	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"")
-#	build.save
 	trace.build = build
 
 	# Save trace to DB
-#	trace.save
-
 	launch = Launch.new
 	launch.driver = driver
 	launch.environment = kernel
@@ -109,8 +105,9 @@ git_tag = 'test-0.1'
 	launch.rule_model = rule_model
 	launch.scenario = scenario
 	launch.trace = trace
-	launch.timestamp = DateTime.now
+	launch.timestamp = timestamp
 
+	# Because of :autosave property, recursively saves all records
 	launch.save
 end
 

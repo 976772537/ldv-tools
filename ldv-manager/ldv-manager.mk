@@ -46,9 +46,15 @@ all: $(tasks_targets)
 # Split tasks into rules
 
 define rule_for_task
+$$(WORK_DIR)/$(1)/finished: Env=$(call get_env_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)/finished: Rule_model=$(call get_rulemodel_raw,$(1),$(delim))
+
 $$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim))
 	@$$(G_TargetDir)
-	@echo ldv "$(1)"
+	@echo ldv --workdir $$(@D) "$(1)"
+	@# Add ancillary information to reports and post it to target directory
+	@echo $(Lib_dir)report-fixup $$(@D)/report.xml $$^ $$(Driver) $$(Rule_model)
 	touch $$@
 endef
 
