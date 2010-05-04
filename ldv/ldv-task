@@ -127,8 +127,8 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
-	ENV_ID=`echo $i | sed 's/x.*//'`;
-	RULES=`echo $i | sed 's/.*x//'`;
+	ENV_ID=`echo $i | sed 's/@.*//'`;
+	RULES=`echo $i | sed 's/.*@//'`;
 	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
 	ldv_print "NORMAL: Start process for environment $ENV_ID.";
 	if [ $? -ne 0 ]; then

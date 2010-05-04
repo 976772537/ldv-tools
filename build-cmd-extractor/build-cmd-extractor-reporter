@@ -27,6 +27,7 @@ my $verdict_unknown = 'UNKNOWN';
 my $verdict_ok = 'OK';
 
 my $xml_instrument = 'build-cmd-extractor';
+my $xml_build = 'build';
 my $xml_instrument_status = 'status';
 my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
@@ -56,6 +57,14 @@ my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
 my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
 $twig_inreport->parsefile($report_in);
 
+my $instrument = XML::Twig::Elt->new($xml_build);
+XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+XML::Twig::Elt->new($xml_instrument_time,"")->paste($instrument);
+XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+$outreport_root = $twig_inreport->root;
+$instrument->paste('last_child',$outreport_root);
+
+
 $twig_inreport->set_xml_version('1.0');
 $twig_inreport->set_pretty_print('indented');
 $twig_inreport->print_to_file($report_out);
@@ -66,11 +75,11 @@ $twig_inreport->print_to_file($report_out);
 #####################################################
 
 sub hxml_cmdstream {
-	my $instrument = XML::Twig::Elt->new($xml_instrument);
-	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
-	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-	$instrument->paste('last_child',$_[1]);
+#	my $instrument = XML::Twig::Elt->new($xml_instrument);
+#	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+#	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
+#	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+#	$instrument->paste('last_child',$_[1]);
 }	
 
 sub get_state() {

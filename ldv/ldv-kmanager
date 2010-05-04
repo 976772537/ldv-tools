@@ -9,7 +9,7 @@ print_extractors() {
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
-LDV_VDIR=${LDV_ENVS_TARGET:-$HOME/.ldv/ldv;}
+LDV_VDIR=${LDV_ENVS_TARGET:-$HOME/.ldv/ldv}
 LDV_DESCRIPTIONS_DIR=$LDV_VDIR/descriptions;
 if [ ! -d "$LDV_DESCRIPTIONS_DIR" ]; then
 	mkdir -p $LDV_DESCRIPTIONS_DIR;
@@ -43,20 +43,14 @@ LDV_EXTRACTORS_DIR=$LDV_DIR/extractors;
 #
 case $1 in
         add)
-		# get last number in envs
-		k=0;
-		for ENV_ID in `find $LDV_DESCRIPTIONS_DIR -maxdepth 1 -regex '.*/[0-9]+$' -type f | sed 's/.*\/.*\///g'`; do
-			if [ $k -le $ENV_ID ]; then k=$ENV_ID; fi;
-		done;
-		k=`expr $k + 1`;
-		
+		ENV_ID=$4;
 		# add new description		
-		NEW_DESCRIPTION=$LDV_DESCRIPTIONS_DIR/$k;
-		echo "id=$k" > $NEW_DESCRIPTION;
+		NEW_DESCRIPTION=$LDV_DESCRIPTIONS_DIR/$4;
+		echo "id=$4" > $NEW_DESCRIPTION;
 		echo "name=$4" >> $NEW_DESCRIPTION;
 		echo "type=$3" >> $NEW_DESCRIPTION;
 		echo "source=$2" >> $NEW_DESCRIPTION;
-		echo "dest=$LDV_ENVS_DIR/$k" >> $NEW_DESCRIPTION;
+		echo "dest=$LDV_ENVS_DIR/$4" >> $NEW_DESCRIPTION;
 		# extractor for this type is exists?
 		EXTRACTOR=$LDV_EXTRACTORS_DIR/$3.extractor;
 		if [ ! -f "$EXTRACTOR" ]; then
@@ -69,10 +63,10 @@ case $1 in
 		if [ $? -ne 0 ]; then
 			echo "ldv-kmanager: ERROR: extractor: \"$EXTRACTOR\" - failed.";
 			rm $NEW_DESCRIPTION;
-			rm -fr $LDV_ENVS_DIR/$k;
+			rm -fr $LDV_ENVS_DIR/$4;
 			exit 1;
 		fi;
-		echo "description id = $k"
+		echo "description id = $4"
 		echo "ldv-kmanager: Ok";;		
         remove)
 		DESCRIPTION_TO_REMOVE=$LDV_DESCRIPTIONS_DIR/$2;
