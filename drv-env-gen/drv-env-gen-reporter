@@ -134,8 +134,8 @@ sub hxml_cmdstream {
 
 sub get_state() {
 	foreach my $state (@states) {
-		if($state =~ m/^(\d+):(.*):(.*):(.*)$/ && $1 == $_[0]) {
-			return ($2,$3,$4);
+		if($state =~ m/^(\d+):(.*):(.*):(.*):(.*)$/ && $1 == $_[0]) {
+			return ($2,$3,$4,$5);
 		}
 	}
 }
