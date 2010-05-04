@@ -19,7 +19,7 @@ $(eval $(call assert_notempty,drivers))
 $(eval $(call assert_notempty,rule_models))
 
 ifneq ($(shell echo '$(drivers)' | grep /),)
-$(error drivers variable should not contain any / symbols!)
+#$(error drivers variable should not contain any / symbols!)
 endif
 
 ifeq ($(name),)
@@ -64,26 +64,32 @@ $$(WORK_DIR)/$(1)/finished: $$(WORK_DIR)/$(call get_tag_raw,$(1),$(delim))$(deli
 endef
 
 env_names:=$(foreach env,$(envs),$(call envname,$(env)))
-# Get input to ldv script in form "linux-2.6.31.2x31_2:linux-2.6.31.2x8_1"
-ldv_task:=$(call cartprod,$(env_names),$(rule_models),@)
+# LDV script accepts input in such form: "linux-2.6.31.2@31_2,8_1:linux-2.6.28@31_2,8_1"
+ldv_rules:=$(shell echo '$(rule_models)' | sed -e 's/ \+/,/')
+ldv_task:=$(addsuffix @$(ldv_rules),$(env_names))
 ldv_task:=$(call joinlist,$(ldv_task),:)
 
-ifneq ($(kernel_dirver),)
+ifneq ($(kernel_driver),)
 Kernel_driver=--kernel-driver
 endif
+
+# $(@D) has a slash at the end.  We should remove it
+rmtr=$(call sed,$(1),s/\/$$//)
 
 define rule_for_tag_driver
 $$(WORK_DIR)/$(1)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
 $$(WORK_DIR)/$(1)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)/finished: Result_report=
 
 $$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
 	export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
-	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$* \
+	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
 	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver)
 	@# Add ancillary information to reports and post it to target directory
-	@echo $(Lib_dir)report-fixup $$(@D)/report.xml $$^ $$(Driver) ???
+	@mkdir -p $$(dir $(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml)
+	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) >$(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml
 	touch $$@
 endef
 
@@ -141,7 +147,7 @@ tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed
 		cd $(LDV_INSTALL_DIR)/$$(Tag) && \
 		export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
 		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) ; \
-		ldv kmanager add $$(abspath $$(Env_file)) linux-vanilla $$(Env) $(silencio) \
+		ldv kmanager add $$(abspath $$(Env_file)) linux-vanilla $$(Env) $$(silencio) \
 	) 200>$@.lock
 	touch $$@
 endef
