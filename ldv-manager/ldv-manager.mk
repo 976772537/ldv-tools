@@ -120,18 +120,36 @@ tags/%/installed: tags/%/fetched
 
 # Prepare envs for current tag
 # TODO: perform double distpatching as in previous example!
+# Prepare list of target in form "tag-v2.4/env.linux-2.6.30", that depend on actual files with kernels
+envs_tasks:=$(call cartprod,$(tags),$(env_names),/env.)
+get_tag_fromenv=$(call sed,$(1),s|/.*||)
+get_env_fromenv=$(call sed,$(1),s|.*/env\.||)
+
+# Generate task like this:
+# tags/tag-v1.2/env.linux-2.6.33: ../../kernels/linux-2.6.33.tar.gz
+define rule_for_tag_env
+tags/$(1): Env=$(call get_env_fromenv,$(1))
+tags/$(1): Env_file=$(2)
+tags/$(1): Tag=$(call get_tag_fromenv,$(1))
+
+tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed 
+	( flock 200; \
+		cd $(LDV_INSTALL_DIR)/$$(Tag) && \
+		export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
+		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) ; \
+		ldv kmanager add $$(abspath $$(Env_file)) linux-vanilla $$(Env) $(silencio) \
+	) 200>$@.lock
+	touch $$@
+endef
+
+$(foreach tag,$(tag),$(foreach env,$(envs),$(eval $(call rule_for_tag_env,$(tag)/env.$(call envname,$(env)),$(env)))))
+
+
 ifeq ($(verbose_env),)
 silencio= >/dev/null
 endif
-tags/%/envs: tags/%/installed
+tags/%/envs: $(addprefix tags/%/env.,$(env_names))
 	@$(G_TargetDir)
-	( flock 200; \
-		cd $(LDV_INSTALL_DIR)/$* && \
-		export PATH=$(LDV_INSTALL_DIR)/$*/bin:$$PATH ; \
-		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$* ; \
-		$(foreach env,$(envs),ldv kmanager add $(abspath $(env)) linux-vanilla $(call envname,$(env)) $(silencio) && ) \
-		true \
-	) 200>$@.lock
 	touch $@
 
 tags/%/finished: tags/%/installed tags/%/envs

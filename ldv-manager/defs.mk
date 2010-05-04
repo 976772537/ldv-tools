@@ -31,6 +31,9 @@ envname=$(shell echo '$(notdir $(1))' | sed -e 's/\.tar\.gz$$\|\.tar\.bz2$$\|\.t
 # Join list items with a specified character (character can't be |)
 joinlist=$(shell echo '$(1)' | sed -e 's| \+|$(2)|g')
 
+# Apply sed to argument
+sed=$(shell echo '$(1)' | sed -e '$(2)')
+
 # Assertion: if variable with name in $(1) is empty.
 define assert_notempty
 ifeq ($$($(1)),)
