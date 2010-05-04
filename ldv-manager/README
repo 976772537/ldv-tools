@@ -1,0 +1,15 @@
+LDV-MANAGER
+
+Infrastructure to run and collect statistics of LDV runs.
+
+PREREQUISITES:
+
+1. Ruby v1.8+
+2. Ruby gems package and the following gems:
+	gem install hpricot
+	gem install active_record
+3. GNU Make
+4. Perl
+5. MySQL with InnoDB
+
+

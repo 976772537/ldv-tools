@@ -9,7 +9,7 @@ print_extractors() {
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
-LDV_VDIR=$HOME/.ldv/ldv;
+LDV_VDIR=${LDV_ENVS_TARGET:-$HOME/.ldv/ldv;}
 LDV_DESCRIPTIONS_DIR=$LDV_VDIR/descriptions;
 if [ ! -d "$LDV_DESCRIPTIONS_DIR" ]; then
 	mkdir -p $LDV_DESCRIPTIONS_DIR;

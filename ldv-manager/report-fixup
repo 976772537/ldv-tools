@@ -1,0 +1,31 @@
+#!/usr/bin/perl
+
+# Fix reports by adding tag and driver information to them
+sub usage
+{ die<<EOF
+Usage:
+	report-fixup report.xml git_tag driver_name driver_origin
+EOF
+}
+
+my ($report_xml,$git_tag,$driver_name,$driver_origin) = @ARGV;
+$driver_origin or usage();
+
+use strict;
+use XML::Twig;
+
+sub handle_report
+{
+	my ($twig, $cmdT) = @_;
+	my $launchT = XML::Twig::Elt->new('launch_info');
+	XML::Twig::Elt->new('timestamp',{},`date`)->paste($launchT);
+	XML::Twig::Elt->new('driver',{},$driver_name)->paste($launchT);
+	XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($launchT);
+	XML::Twig::Elt->new('tag',{},$git_tag)->paste($launchT);
+	$launchT->paste($cmdT);
+	$cmdT->print('indented');
+}
+
+XML::Twig->new( twig_roots => { reports => \&handle_report }, twig_print_outside_roots => \*STDOUT )->parsefile($report_xml);
+
+
