@@ -108,7 +108,7 @@ sub hxml_cmdstream {
 
 sub get_state {
 	foreach my $lstate (@states) {
-		if($lstate =~ m/^(\d+):(.*)$/) {
+		if($lstate =~ m/^(.*):(.*)$/) {
 			my $path=$2;
 			my $envid=$1;
 			if($_[0] =~ m/$path/) {
