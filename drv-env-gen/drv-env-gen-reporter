@@ -114,6 +114,11 @@ sub hxml_cmdstream {
 		push(@commands,$lcommand);		
 	}
 	foreach my $command (@commands) {
+		foreach my $section ($_[1]->children($xml_cmd_out)) {
+			if($section->has_atts() && $section->att($xml_cmd_attr_check) eq 'true') {
+				$command->set_att($xml_cmd_attr_check=>'true');	
+			}
+		};
 		my $instrument = XML::Twig::Elt->new($xml_instrument);
 		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
 		XML::Twig::Elt->new($xml_instrument_time,get_state($id))->paste($instrument);
