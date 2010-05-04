@@ -79,12 +79,11 @@ sub raw_get
 	my $var = shift or Carp::confess;
 
 	my $value = undef;
-	sub readvar
-	{
+	my $readvar = sub {
 		my ($twig, $varT) = @_;
 		$value = $varT->text;
-	}
-	XML::Twig->new(twig_handlers => { "sanity/$var" => \&readvar })->parsefile($this->{_filename_toread});
+	};
+	XML::Twig->new(twig_handlers => { "sanity/$var" => $readvar })->parsefile($this->{_filename_toread});
 	print "RAW_GET $@: first ".`cat $this->{_filename}`." second ".`cat $this->{_filename_toread}` if $debug_me;
 	return $value;
 }

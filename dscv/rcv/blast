@@ -115,12 +115,21 @@ sub verify_blast
 			$bv='UNKNOWN';
 		}
 
+		my $br = $result->{'BLAST'};
+		if ($br =~ /\byes\b/i) {
+			$br='OK';
+		}elsif($br =~ /\bno\b/i){
+			$br='FAILED';
+		}else{
+			$br='FAILED';
+		}
+
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
 		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
 
 		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
-		XML::Twig::Elt->new('status',{},$result->{'BLAST'})->paste($rcvResultT);
+		XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
 		XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
 
 		# Calculate and output time elapsed
