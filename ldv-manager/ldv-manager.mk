@@ -18,6 +18,10 @@ $(eval $(call assert_notempty,envs))
 $(eval $(call assert_notempty,drivers))
 $(eval $(call assert_notempty,rule_models))
 
+ifneq ($(shell echo '$(drivers)' | grep /),)
+$(error drivers variable should not contain any / symbols!)
+endif
+
 ifeq ($(name),)
 $(warning Variable "name" is empty, falling back to "default")
 name=default
@@ -30,7 +34,7 @@ endif
 tasks:=$(name)
 calls:=$(name)
 
-delim=^
+delim=--X--
 tasks:=$(call cartprod,$(rule_models),$(tasks),$(delim))
 tasks:=$(call cartprod,$(envs),$(tasks),$(delim))
 tasks:=$(call cartprod,$(drivers),$(tasks),$(delim))

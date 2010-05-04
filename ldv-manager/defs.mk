@@ -14,11 +14,11 @@ mkize=$(shell echo '$(1)' | sed -e 's/[^[:alnum:]]\+/-/g')
 #	- human-readable name
 task_name?=$(call mkize,$(1))-$(call mkize,$(2))-$(call mkize,$(3))-$(call mkize,$(4))-$(call mkize,$(5))
 
-get_tag_raw=$(shell echo '$(1)'       | cut -f 1 -d $(2))
-get_driver_raw=$(shell echo '$(1)'    | cut -f 2 -d $(2))
-get_env_raw=$(shell echo '$(1)'       | cut -f 3 -d $(2))
-get_rulemodel_raw=$(shell echo '$(1)' | cut -f 4 -d $(2))
-get_name_raw=$(shell echo '$(1)'      | cut -f 5 -d $(2))
+get_tag_raw=$(shell echo '$(1)'       | awk -F $(2) '{ print $$1;}')
+get_driver_raw=$(shell echo '$(1)'    | awk -F $(2) '{ print $$2;}')
+get_env_raw=$(shell echo '$(1)'       | awk -F $(2) '{ print $$3;}')
+get_rulemodel_raw=$(shell echo '$(1)' | awk -F $(2) '{ print $$4;}')
+get_name_raw=$(shell echo '$(1)'      | awk -F $(2) '{ print $$5;}')
 
 get_tag=tags/$(call get_tag_raw,$(1),$(2))/finished
 get_driver=drivers/$(call get_driver_raw,$(1),$(2))/finished
