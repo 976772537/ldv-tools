@@ -136,6 +136,21 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 		exit 1;
 	fi;
 	WORK_DIR_LOCAL=$workdir/$ENV_ID;
+	rm -fr $workdir/*;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Can not clean working dir: \"$working\".";
+		exit 1;
+	fi;
+
+#	if [ -d $WORK_DIR_LOCAL ]; then
+#		ldv_print "WARNING: Environment directory already exists: \"$WORK_DIR_LOCAL\". Ldv-task rewrite it.";
+#		rm -r $WORK_DIR_LOCAL;
+#		ldv_print "DEBUG: rm -r $WORK_DIR_LOCAL;";
+#		if [ $? -ne 0 ]; then
+#			ldv_print "ERROR: Can not remove old environment-dir: \"$WORK_DIR_LOCAL\".";
+#			exit 1;
+#		fi;
+#	fi;	
 	mkdir $WORK_DIR_LOCAL;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";

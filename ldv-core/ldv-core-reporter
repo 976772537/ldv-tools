@@ -66,11 +66,11 @@ $twig_inreport->print_to_file($report_out);
 #####################################################
 
 sub hxml_cmdstream {
-	my $instrument = XML::Twig::Elt->new($xml_instrument);
-	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
-	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-	$instrument->paste('last_child',$_[1]);
+#	my $instrument = XML::Twig::Elt->new($xml_instrument);
+#	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+#	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
+#	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+#	$instrument->paste('last_child',$_[1]);
 }	
 
 sub get_state() {

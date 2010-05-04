@@ -141,11 +141,12 @@ sub hxml_cmdstream {
 		push(@commands,$lcommand);		
 	}
 	foreach my $command (@commands) {
-		my $instrument = XML::Twig::Elt->new($xml_instrument);
-		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_time,get_state($id))->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-		$instrument->paste('last_child',$command);
+# section that contains <cmd-stream-divider>....</..> - in ldv-manager not used
+#		my $instrument = XML::Twig::Elt->new($xml_instrument);
+#		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+#		XML::Twig::Elt->new($xml_instrument_time,get_state($id))->paste($instrument);
+#		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+#	$instrument->paste('last_child',$command);
 	}
 }	
 

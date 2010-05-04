@@ -25,6 +25,7 @@ my $xml_reports_attr_ref = 'ref';
 my $xml_reports_att_env = 'kernel';
 my $xml_reports_verdict = 'verdict';
 my $xml_reports = 'reports';
+my $xml_reports_build = 'build';
 
 my $verdict_unknown = 'UNKNOWN';
 my $verdict_ok = 'OK';
@@ -37,7 +38,7 @@ my $xml_instrument_desc = 'desc';
 #####################################################
 # log options
 #####################################################
-my $psuffix="csd-reporter";
+my $psuffix="ldv-task-reporter";
 my $log_level=10;
 
 my $cmdfile = "";
@@ -69,7 +70,7 @@ foreach my $file (@reports) {
 	my $croot=$ctwig->root;
 	my @childrens = $croot->children();
 	foreach my $section (@childrens) {
-		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld) {
+		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld || $section->name eq $xml_reports_build) {
 			hxml_cmdstream($section,$file);
 		}
 		$section->move($twig_inroot);
@@ -99,11 +100,6 @@ sub get_reports {
 sub hxml_cmdstream {
 	my @state=get_state($_[1]);
 	$_[0]->set_att($xml_reports_att_env=>$state[0]);
-	my $instrument = XML::Twig::Elt->new($xml_instrument);
-	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-	XML::Twig::Elt->new($xml_instrument_time,$state[1])->paste($instrument);
-	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-	$instrument->paste('last_child',$_[0]);
 }	
 
 sub get_state {
