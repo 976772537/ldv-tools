@@ -187,7 +187,6 @@ sub hxml_cmdstream_ld {
 			$driver_name =~ s/$xmlbasedir//;
 		} elsif($kernel_driver eq $driver_external) {
 			$driver_name =~ s/^.*\///;
-			$driver_name =~ s/^\/*//;
 		}
 		# 1. replace outdir from basedir in xml with our driverdir
   		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
