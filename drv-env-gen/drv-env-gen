@@ -134,8 +134,7 @@ sub hxml_cmdstream_cc {
 	}
 	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":".$worktime."\n"); 
-
+	print (STATEFIL $lid.":".$worktime.":bumbum:tumtum\n"); 
 	ldv_iprint("End of ldv_cc - Ok.");
 
 	foreach my $section ( $_[1]->children('out') ) {
@@ -201,8 +200,7 @@ sub hxml_cmdstream_ld {
 	}
 	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":".$worktime."\n"); 
-
+	print (STATEFIL $lid.":".$worktime.":bumbum:tumtum\n"); 
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;

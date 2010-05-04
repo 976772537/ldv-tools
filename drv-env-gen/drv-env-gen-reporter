@@ -21,6 +21,8 @@ my $xml_reports_cc = 'cc';
 my $xml_reports_ld = 'ld';
 my $xml_reports_attr_ref = 'ref';
 my $xml_reports_verdict = 'verdict';
+my $xml_reports_driver_name = 'driver_name';
+my $xml_reports_module_name = 'module_name';
 
 my $verdict_unknown = 'UNKNOWN';
 my $verdict_ok = 'OK';
@@ -114,14 +116,17 @@ sub hxml_cmdstream {
 		push(@commands,$lcommand);		
 	}
 	foreach my $command (@commands) {
+		@astate=get_state($id);
 		foreach my $section ($_[1]->children($xml_cmd_out)) {
 			if($section->has_atts() && $section->att($xml_cmd_attr_check) eq 'true') {
+				$command->set_att($xml_reports_driver_name=>$astate[1]);
+				$command->set_att($xml_reports_module_name=>$astate[2]);
 				$command->set_att($xml_cmd_attr_check=>'true');	
 			}
 		};
 		my $instrument = XML::Twig::Elt->new($xml_instrument);
 		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_time,get_state($id))->paste($instrument);
+		XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
 		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 		$instrument->paste('last_child',$command);
 	}
@@ -129,8 +134,8 @@ sub hxml_cmdstream {
 
 sub get_state() {
 	foreach my $state (@states) {
-		if($state =~ m/^(\d+):(.*)$/ && $1 == $_[0]) {
-			return $2;
+		if($state =~ m/^(\d+):(.*):(.*):(.*)$/ && $1 == $_[0]) {
+			return ($2,$3,$4);
 		}
 	}
 }
