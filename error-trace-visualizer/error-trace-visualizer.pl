@@ -264,5 +264,8 @@ sub process_error_trace()
 
 sub process_error_trace_blast()
 {
-  print("hie!!!\n");
+  foreach(<$file_report_in>)
+  {
+    print $_;
+  }
 }
