@@ -289,6 +289,7 @@ my $xml_report_status_ok = 'OK';
 my $xml_report_time = 'time';
 my $xml_report_trace = 'trace';
 my $xml_report_verdict = 'verdict';
+my $xml_report_verdict_stub = 'UNKNOWN';
 
 
 ################################################################################
@@ -1905,8 +1906,10 @@ sub process_report()
         {
           $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
         }
-        die("rcv doesn't produce a report for the '$cmd_id' ('$rule_instrument_cmd_id') ld command")
-          unless ($reports{$rule_instrument_cmd_id});
+        
+        # This flag says whether rcv produces report at all.
+        my $isrcv_ok = $reports{$rule_instrument_cmd_id};
+        print_debug_debug("rcv production of a report for the '$cmd_id' ('$rule_instrument_cmd_id') ld command is '$isrcv_ok'.");
         
         print_debug_trace("Iterate over all mains specific reports.");
         foreach my $main_id (keys(%{$reports{$rule_instrument_cmd_id}}))
@@ -1914,17 +1917,25 @@ sub process_report()
           print_debug_debug("Process the '$main_id' main report.");
           $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_main => $main_id, $xml_report_attr_model => $opt_model_id);
 
-          $xml_writer->dataElement($xml_report_verdict => $reports{$rule_instrument_cmd_id}{$main_id}{'verdict'});
-          $xml_writer->dataElement($xml_report_trace => $reports{$rule_instrument_cmd_id}{$main_id}{'trace'});
+          if ($isrcv_ok)
+          {
+            print_debug_trace("Print rcv verdict, trace and report since it works good.");
+            $xml_writer->dataElement($xml_report_verdict => $reports{$rule_instrument_cmd_id}{$main_id}{'verdict'});
+            $xml_writer->dataElement($xml_report_trace => $reports{$rule_instrument_cmd_id}{$main_id}{'trace'});
+            $xml_writer->startTag($xml_report_rcv); 
+            $xml_writer->dataElement($xml_report_status => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv status'});  
+            $xml_writer->dataElement($xml_report_time => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv time'});
+            $xml_writer->dataElement($xml_report_desc => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv description'});
+            # Close the rcv tag.
+            $xml_writer->endTag();
+          }
+          else
+          {
+            print_debug_trace("Print stubs instead of rcv verdict and trace since it fails.");
+            $xml_writer->dataElement($xml_report_verdict => $xml_report_verdict_stub);
+            $xml_writer->dataElement($xml_report_trace => '');            
+          }
           
-          print_debug_trace("Build a rcv report.");
-          $xml_writer->startTag($xml_report_rcv); 
-          $xml_writer->dataElement($xml_report_status => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv status'});  
-          $xml_writer->dataElement($xml_report_time => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv time'});
-          $xml_writer->dataElement($xml_report_desc => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv description'});
-          # Close the rcv tag.
-          $xml_writer->endTag();
-
           print_debug_trace("Build a rule instrumentor report.");
           $xml_writer->startTag($xml_report_rule_instrumentor); 
           if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
