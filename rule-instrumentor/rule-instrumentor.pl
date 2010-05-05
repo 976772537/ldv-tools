@@ -11,7 +11,6 @@ use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use File::Path qw(mkpath);
 use strict;
-no strict "refs";
 use Time::HiRes qw(gettimeofday tv_interval);
 use XML::Twig qw();
 use XML::Writer qw();
@@ -420,7 +419,7 @@ sub exec_status_desc_and_time($)
   my $start_time = [gettimeofday()];
   
   print_debug_trace("Call to function argument '$func'.");
-  my ($status, $desc) = &$func();
+  my ($status, $desc) = $func->();
   
   print_debug_trace("Find and save script execution time.");
   my $end_time = [gettimeofday()];
@@ -1614,7 +1613,7 @@ sub process_cmds()
       if ($cmd->gi eq $xml_cmd_cc)
       {
         print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode.");  
-        my ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_cc');
+        my ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_cc);
         
         if ($status)
         {
@@ -1666,7 +1665,7 @@ sub process_cmds()
         # Process command just when inputs are ok.
         if ($status)
         {
-          ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_ld');
+          ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_ld);
         }
         else
         {
