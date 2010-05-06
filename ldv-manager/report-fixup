@@ -4,7 +4,7 @@
 sub usage
 { die<<EOF
 Usage:
-	report-fixup report.xml git_tag driver_name driver_origin
+	report-fixup report.xml git_tag driver_name driver_origin sources_dir
 EOF
 }
 
@@ -22,6 +22,7 @@ sub handle_report
 	XML::Twig::Elt->new('driver',{},$driver_name)->paste($launchT);
 	XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($launchT);
 	XML::Twig::Elt->new('tag',{},$git_tag)->paste($launchT);
+	XML::Twig::Elt->new('sources',{},$git_tag)->paste($launchT);
 	$launchT->paste($cmdT);
 	$cmdT->print('indented');
 }

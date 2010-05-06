@@ -89,7 +89,7 @@ $$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim))
 	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver)
 	@# Add ancillary information to reports and post it to target directory
 	@mkdir -p $$(dir $(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml)
-	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) >$(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml
+	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/reports/sources >$(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml
 	touch $$@
 endef
 

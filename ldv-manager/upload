@@ -2,6 +2,7 @@
 require 'rubygems'
 require 'active_record'
 require 'hpricot'
+require 'find'
 
 ActiveRecord::Base.establish_connection(
 	:adapter  => 'mysql',
@@ -36,7 +37,30 @@ class Launch < ActiveRecord::Base
 	belongs_to :rule_model, :class_name=>'Rule_Model', :autosave => true
 	belongs_to :scenario, :autosave => true
 
+	belongs_to :task, :autosave => true
+
 	belongs_to :trace, :autosave => true
+end
+
+class Task < ActiveRecord::Base
+	validates_uniqueness_of :username
+	def self.from_xml(tag)
+		unless (tag/"task_id").empty?
+			# Get task from database
+			task_id = (tag/"task_id").inner_html.to_i
+			return Task.find(task_id)
+		end
+
+		unless (tag/"username").empty? || (tag/"timestamp").empty?
+			# Create task for user/given timestamp
+			username = (tag/"username").inner_html
+			timestamp = (tag/"timestamp").inner_html.to_datetime
+			return Task.find_or_create_by_username_and_timestamp(username,timestamp)
+		end
+
+		# No means to create a task found -- okay, then there's no task
+		nil
+	end
 end
 
 class Trace < ActiveRecord::Base
@@ -47,6 +71,8 @@ class Trace < ActiveRecord::Base
 	belongs_to :dscv, :class_name => 'Stats', :autosave => true
 	belongs_to :ri, :class_name => 'Stats', :autosave => true
 	belongs_to :rcv, :class_name => 'Stats', :autosave => true
+
+	has_many :sources, :autosave => true
 end
 
 class Stats < ActiveRecord::Base
@@ -55,8 +81,26 @@ class Stats < ActiveRecord::Base
 		st.success = (entry/"status").inner_html != 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
 		st.time = (entry/"time").inner_html.to_i || 0
-		st.description = (entry/"time").inner_html
+		st.description = (entry/"desc").inner_html
 		st
+	end
+end
+
+class Source < ActiveRecord::Base
+	validates_uniqueness_of :name, :scope => :trace_id
+	belongs_to :trace
+
+	# Returns array of sources found in the directory supplied
+	def self.from_dir(dirname)
+		file_recs = []
+		Find.find(dirname) do |path|
+			unless FileTest.directory?(path)
+				# Strip dirname from the file name and save it as database key
+				filename = path.gsub(Regexp.new("^#{Regexp.quote(dirname)}\/*"),"/")
+				file_recs << Source.new({ :name => filename, :contents => File.open(path, "rb").read })
+			end
+		end
+		file_recs
 	end
 end
 
@@ -67,20 +111,27 @@ doc = open(filename) { |f| Hpricot(f) }
 driver_name = (doc/"reports/launch_info/driver").inner_html
 driver_origin = (doc/"reports/launch_info/driver_origin").inner_html
 git_tag = (doc/"reports/launch_info/tag").inner_html
-timestamp = (doc/"reports/launch_info/timestamp").inner_html.to_datetime
+sources_dir  = (doc/"reports/launch_info/sources").inner_html
+
+# Create current task unless it's already added
+task = Task.from_xml(doc/"reports/launch_info")
+
+sources = Source
 
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
 	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
-	rule_model = Rule_Model.find_or_create_by_name(ld.attributes['model'])
+	rule_model_name = ld.attributes['model']
+	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
 	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
+	sources = Source.from_dir(File.join(sources_dir))#, kernel_name, rule_model_name))
 
 	trace = Trace.new
 	#verdict
 	#trace -- read the whole trace from file
-	if (trace_tag = ld/"trace") && (! trace_tag.inner_html.empty?)  
-		trace.error_trace = IO.read(trace_tag.inner_html)
+	if (trace_tag = ld/"trace") && (! (trace_fname=trace_tag.inner_html).empty?) && (File.exists?(trace_fname))
+		trace.error_trace = IO.read(trace_fname)
 	end
 	#Tools
 	tools = {
@@ -90,12 +141,14 @@ timestamp = (doc/"reports/launch_info/timestamp").inner_html.to_datetime
 		'rcv' => 'rcv',
 	}
 	tools.each do |dbname,tag|
-		stats = Stats.from_xml(doc/tag)
+		stats = Stats.from_xml(ld/tag)
 		trace.send("#{dbname}=",stats)
 	end
 	# Build is handled in a special way
 	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"")
 	trace.build = build
+
+	trace.sources = sources
 
 	# Save trace to DB
 	launch = Launch.new
@@ -105,7 +158,7 @@ timestamp = (doc/"reports/launch_info/timestamp").inner_html.to_datetime
 	launch.rule_model = rule_model
 	launch.scenario = scenario
 	launch.trace = trace
-	launch.timestamp = timestamp
+	launch.task = task
 
 	# Because of :autosave property, recursively saves all records
 	launch.save
