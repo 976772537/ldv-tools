@@ -6,6 +6,7 @@
 
 drop table if exists launches;
 drop table if exists tasks;
+drop table if exists sources;
 drop table if exists traces;
 drop table if exists stats;
 drop table if exists scenarios;
@@ -86,9 +87,6 @@ create table traces(
 	result enum('safe','unsafe','unknown') not null default 'unknown',
 -- Error trace if error is found
 	error_trace text,
--- Auxilliary information (uname, etc)
-	aux_info text,
-
 
 	primary key (id),
 
@@ -97,6 +95,16 @@ create table traces(
 	foreign key (dscv_id) references stats(id),
 	foreign key (ri_id) references stats(id),
 	foreign key (rcv_id) references stats(id)
+) ENGINE=InnoDB;
+
+create table sources(
+	id int(10) unsigned not null auto_increment,
+	trace_id int(10) unsigned not null,
+	name varchar(255) not null,
+	contents blob,
+
+	primary key (id),
+	foreign key (trace_id) references traces(id)
 ) ENGINE=InnoDB;
 
 -- ----------------------------
@@ -126,7 +134,7 @@ create table launches(
 
 	trace_id int(10) unsigned not null,
 
-	task_id int(10) unsigned not null,
+	task_id int(10) unsigned,
 
 	PRImary key (driver_id,toolset_id,environment_id,rule_model_id,scenario_id),
 
