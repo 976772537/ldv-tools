@@ -54,10 +54,74 @@ sub process_error_trace();
 # retn: nothing.
 sub process_error_trace_blast();
 
+# Read something placed into brackets.
+# args: some string.
+# retn: the content of brackets or undef if it can't be read.
+sub read_brackets($);
+
+# Read equality and integer number (line number in source).
+# args: some string.
+# retn: the corresponding integer line number or undef if it can't be read.
+sub read_equal_int($);
+
+# Read equality and path to source file.
+# args: some string.
+# retn: the corresponding source file path or undef if it can't be read.
+sub read_equal_src($);
+
+# Read ldv comment.
+# args: some string.
+# retn: the processed ldv comment or undef if it can't be read.
+sub read_ldv_comment($);
+
+# Read the next line and process it a bit.
+# args: no.
+# retn: a processed line or undef when no lines is rest.
+sub read_line();
+
+# Read locals (function parameter names).
+# args: some string.
+# retn: the processed names or undef if it can't be read.
+sub read_locals($);
+
+# Read location.
+# args: some string.
+# retn: the processed location or undef if it can't be read.
+sub read_location($);
+
 
 ################################################################################
 # Global variables.
 ################################################################################
+
+# Blast error trace tree nodes, annotations and their processing functions:
+#   tree node
+#     Block
+#     FunctionCall
+#     Pred
+#     Return
+#     Skip
+#   annotation
+#     LDV
+#     line
+#     Location
+#     Locals
+#     src
+my %blast = (
+  'tree node' => {
+    'Block', \&read_brackets,
+    'FunctionCall', \&read_brackets,
+    'Pred', \&read_brackets,
+    'Return', \&read_brackets,
+    'Skip', ''
+  },
+  'annotation' => {
+    'LDV', \&read_ldv_comment,
+    'line', \&read_equal_int,
+    'Locals', \&read_locals,
+    'Location', \&read_location,
+    'src', \&read_equal_src
+  });
 
 # Prefix for all debug messages.
 my $debug_name = 'error-trace-visualizer';
@@ -264,8 +328,182 @@ sub process_error_trace()
 
 sub process_error_trace_blast()
 {
-  foreach(<$file_report_in>)
+  while(1)
   {
-    print $_;
+    # Read some element, either tree node (like function call) or annotation
+    # (like source code file path). Note that some elements may be divided into
+    # several lines so process all needed lines. Finish when there is no more
+    # lines.
+    my $iselement_read = 0;
+    my $element = '';
+    while ($iselement_read == 0)
+    {
+      my $element_part = read_line();
+        
+      unless (defined($element_part))
+      {
+        $iselement_read = -1;
+        last;
+      }
+      
+      # Empty lines are meanigless.
+      next unless($element_part);
+      
+      $element .= $element_part;
+      
+      # Detect the element kind and call the corresponding handler to read it.
+      die("Can't find the element '$element' kind.") unless ($element =~ /^([^=\(:]+)/);
+      my $element_kind = $1;
+      my $element_content = $POSTMATCH;
+
+      die("The element kind '$element_kind' belongs neither to tree nodes nor to annotations.") 
+        unless ($element_kind 
+          or defined($blast{'tree node'}{$element_kind}) 
+          or defined($blast{'annotation'}{$element_kind}));  
+        
+      print("!!!$element_kind\n");
+       
+      # When handler is available then run it. If an element is processed 
+      # successfully then a handler returns some defined value.  
+      if ($blast{'tree node'}{$element_kind})
+      {
+        if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
+        {
+          print("   $element_value\n");
+        }
+        # The following line is needed. So read it and concatenate with the 
+        # previous one(s).
+        else
+        {
+          next;
+        }          
+      }
+      elsif ($blast{'annotation'}{$element_kind})
+      {
+        if (defined(my $element_value = $blast{'annotation'}{$element_kind}->($element_content)))
+        {
+            print("   $element_value\n");
+        }
+        # The following line is needed. So read it and concatenate with the 
+        # previous one(s). Does it happen whenever for annotations?
+        else
+        {
+          next;
+        }          
+      }
+      
+      # Element was read sucessfully.
+      $iselement_read = 1;
+    }
+    
+    # All was read.
+    last if ($iselement_read == -1);
   }
+}
+
+sub read_brackets($)
+{
+  my $line = shift;
+  
+  # Check that line begins with open bracket. It'll be so if there is no 
+  # critical error in trace.
+  return undef unless ($line =~ /^\(/);
+  
+  # Check that line finishes with close bracket. If it's not so then additional
+  # line must be read. It seems that every time close bracket will be found
+  # after all.
+  return undef unless ($line =~ /\)$/);
+  
+  # Remove brackets surrounding the line.
+  $line =~ /^\(/;
+  $line = $POSTMATCH;
+  $line =~ /\)$/;
+  $line = $PREMATCH;
+  
+  return $line;
+}
+
+sub read_equal_int($)
+{
+  my $line = shift;
+  
+  # Check that line begins with equality and consists just of integer digits. 
+  # It'll be so if there is no critical error in trace.
+  return undef unless ($line =~ /^=\d+$/);
+
+  # Remove equality beginning the line.
+  $line =~ /^=/;
+  $line = $POSTMATCH;
+  return $line;
+}
+
+sub read_equal_src($)
+{
+  my $line = shift;
+  
+  # Check that line begins with equality and open double quote. It'll be so if 
+  # there is no critical error in trace.
+  return undef unless ($line =~ /^="/);
+
+  # Check that line finishes with close quote and semicolon. If it's not so then 
+  # additional line must be read. It seems that every time close bracket will be 
+  # found after all. And it seems that it isn't actual for the source annotation 
+  # at all.
+  return undef unless ($line =~ /";$/);
+  
+  # Remove equality, semicolon and quotes surrounding the line.
+  $line =~ /^="/;
+  $line = $POSTMATCH;
+  $line =~ /";$/;
+  $line = $PREMATCH;
+  
+  return $line;
+}
+
+sub read_ldv_comment($)
+{
+  my $line = shift;
+  
+  return $line;
+}
+
+sub read_line()
+{
+  # Read the next line from the input report file if so.
+  return undef unless (defined(my $line = <$file_report_in>));
+  
+  # Remove the end of line.
+  chomp($line);
+  # Remove all formatting spaces and tabs placed at the beginning of the line.
+  $line =~ /^[\s]*/;
+  $line = $POSTMATCH;
+
+  # Return the processed line.
+  return $line;
+}
+
+sub read_locals($)
+{
+  my $line = shift;
+
+  # Check that line begins with colon. It'll be so if there is no critical error 
+  # in trace.
+  return undef unless ($line =~ /^:/);
+
+  # Remove colon beginning the line.
+  $line =~ /^:/;
+  $line = $POSTMATCH;
+
+  # Function parameters names are splited by spaces.
+  my @params = split(/\s+/, $line);
+
+  return @params;
+}
+
+sub read_location($)
+{
+  my $line = shift;
+  
+  # Location isn't interesting for visualization. So just return 'ok'.     
+  return $line;
 }
