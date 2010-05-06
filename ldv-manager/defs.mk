@@ -1,8 +1,5 @@
 # Various helpful definitions
 
-WORK_DIR?=work
-RESULTS_DIR?=finished
-
 # Replace all non-alphanumeric chars with -
 mkize=$(shell echo '$(1)' | sed -e 's/[^[:alnum:]]\+/-/g')
 

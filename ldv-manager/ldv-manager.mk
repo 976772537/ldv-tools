@@ -2,9 +2,22 @@
 Lib_dir:=$(dir $(MAKEFILE_LIST))
 
 # Configuration variables
+# Include config only if it exists
+ifneq ($(shell test -f config.mk && echo something),)
 include config.mk
+endif
+# Default configuration
+LDV_INSTALL_DIR?=inst
+WORK_DIR?=work
+RESULTS_DIR?=finished
+
 # Install dir should be absolutized
 LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
+
+# Sanity checks
+ifeq ($(LDV_GIT_REPO),)
+$(error You should specify git repository in LDV_GIT_REPO)
+endif
 
 # Makefile that performs LDV management
 include $(Lib_dir)defs.mk
@@ -18,8 +31,8 @@ $(eval $(call assert_notempty,envs))
 $(eval $(call assert_notempty,drivers))
 $(eval $(call assert_notempty,rule_models))
 
-ifneq ($(shell echo '$(drivers)' | grep /),)
-#$(error drivers variable should not contain any / symbols!)
+ifneq ($(shell echo '$(drivers)' | grep '\.\.'),)
+$(error drivers variable should not contain any .. (double dot) symbols!)
 endif
 
 ifeq ($(name),)
@@ -53,6 +66,8 @@ all: $(tasks_targets)
 #########################
 # Split tasks into rules
 
+# Since Make doesn't support double distpatching (e.g. rules like "dir/%/%/finished: ... "), we generate targets explicitely, from the veriables supplied as input.  These rules are stored in variables rule_for_something and are evaluated in foreach-eval loops.
+
 define rule_for_task
 $$(WORK_DIR)/$(1)/finished: Env=$(call get_env_raw,$(1),$(delim))
 $$(WORK_DIR)/$(1)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
@@ -81,7 +96,8 @@ $$(WORK_DIR)/$(1)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
 $$(WORK_DIR)/$(1)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
 $$(WORK_DIR)/$(1)/finished: Result_report=
 
-$$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim))
+# We add dependency on the archive with file to allow consecutive launches
+$$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
 	export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \

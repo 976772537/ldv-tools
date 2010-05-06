@@ -6,9 +6,10 @@ require 'find'
 
 ActiveRecord::Base.establish_connection(
 	:adapter  => 'mysql',
-	:database => 'ldv_test',
-	:username => 'pavel',
-	:host     => 'localhost'
+	:database => ENV['LDVDB'],
+	:username => ENV['LDVUSER'],
+	:password => ENV['LDVDBPASSWD'],
+	:host     => (ENV['LDVDBHOST'] || 'localhost')
 )
 ActiveRecord::Base.logger = Logger.new(STDERR)
 
@@ -125,7 +126,11 @@ sources = Source
 	rule_model_name = ld.attributes['model']
 	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
 	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
-	sources = Source.from_dir(File.join(sources_dir))#, kernel_name, rule_model_name))
+	unless sources_dir.empty?
+		sources = Source.from_dir(File.join(sources_dir)) #, kernel_name, rule_model_name))
+	else
+		sources = []
+	end
 
 	trace = Trace.new
 	#verdict
