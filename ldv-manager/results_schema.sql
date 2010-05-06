@@ -4,9 +4,10 @@
 -- INPUT TO LAUNCHES
 -- ----------------------------
 
+drop table if exists launches;
+drop table if exists tasks;
 drop table if exists traces;
 drop table if exists stats;
-drop table if exists launches;
 drop table if exists scenarios;
 drop table if exists toolsets;
 drop table if exists rule_models;
@@ -98,6 +99,19 @@ create table traces(
 	foreign key (rcv_id) references stats(id)
 ) ENGINE=InnoDB;
 
+-- ----------------------------
+-- TASKS
+-- ----------------------------
+
+create table tasks(
+	id int(10) unsigned not null auto_increment,
+
+	username varchar(50),
+	timestamp datetime,
+
+	primary key (id)
+) ENGINE=InnoDB;
+
 
 -- ----------------------------
 -- LAUNCHES JOIN
@@ -110,8 +124,9 @@ create table launches(
 	rule_model_id int(10) unsigned not null,
 	scenario_id int(10) unsigned not null,
 
-	timestamp datetime,
 	trace_id int(10) unsigned not null,
+
+	task_id int(10) unsigned not null,
 
 	PRImary key (driver_id,toolset_id,environment_id,rule_model_id,scenario_id),
 
@@ -120,8 +135,7 @@ create table launches(
 	foreign key (environment_id) references environments(id),
 	foreign key (rule_model_id) references rule_models(id),
 	foreign key (scenario_id) references scenarios(id),
-	foreign key (trace_id) references traces(id)
+	foreign key (trace_id) references traces(id),
+	foreign key (task_id) references tasks(id)
 ) ENGINE=InnoDB;
-
-
 
