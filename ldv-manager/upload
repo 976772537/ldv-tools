@@ -105,14 +105,27 @@ class Source < ActiveRecord::Base
 	end
 end
 
+# Unpack and load document
+tmpdir=`mktemp -d`.chomp
+paxname = ARGV[0] or raise "Specify package name, please"
+paxname = File.expand_path(paxname)
+Dir.chdir(tmpdir) do |dir|
+	# Unpack to temporary dir
+	Kernel.system("pax","-r","-f",paxname) or raise "pax didn't work."
+end
+# Get report name
+filenames = Dir.glob(File.join(tmpdir,'*.report.xml'))
+raise "Only one report in the archive given should match *.report.xml pattern!  These found: #{filenames.join(",")}" if filenames.size != 1
+
+filename = filenames[0]
+sources_dir = File.join(tmpdir,"sources/")
+
 # Load document
-filename = ARGV[0]
 doc = open(filename) { |f| Hpricot(f) }
 
 driver_name = (doc/"reports/launch_info/driver").inner_html
 driver_origin = (doc/"reports/launch_info/driver_origin").inner_html
 git_tag = (doc/"reports/launch_info/tag").inner_html
-sources_dir  = (doc/"reports/launch_info/sources").inner_html
 
 # Create current task unless it's already added
 task = Task.from_xml(doc/"reports/launch_info")
@@ -127,7 +140,8 @@ sources = Source
 	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
 	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
 	unless sources_dir.empty?
-		sources = Source.from_dir(File.join(sources_dir)) #, kernel_name, rule_model_name))
+		# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
+		sources = Source.from_dir(File.join(sources_dir, kernel_name, rule_model_name))
 	else
 		sources = []
 	end

@@ -7,10 +7,11 @@ PREREQUISITES:
 1. Ruby v1.8+
 2. Ruby gems package and the following gems:
 	gem install hpricot
-	gem install active_record
+	gem install activerecord
 3. GNU Make
 4. Perl (with XML::Twig)
 5. MySQL with InnoDB
+6. PAX archiver (that's POSIX standard actually)
 
 
 HOW TO USE LDV-MANAGER
@@ -35,6 +36,8 @@ If you want to re-run the process for an already checked driver, you most likely
 	touch driver.tar.gz
 
 For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.
+
+If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.
 
 
 HOW TO USE DATABASE
