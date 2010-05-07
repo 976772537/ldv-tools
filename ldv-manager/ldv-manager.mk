@@ -114,7 +114,7 @@ $$(WORK_DIR)/$(1)/finished: $$(WORK_DIR)/$(1)/checked
 	@# Add ancillary information to reports and post it to target directory
 	@echo $(call mkize,$(1))
 	@mkdir -p $$(dir $(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml)
-	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/reports/sources >$(TMP_DIR)/$(call mkize,$(1)).report.xml
+	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.sources/ >$(TMP_DIR)/$(call mkize,$(1)).report.xml
 	$(Lib_dir)package $(TMP_DIR)/$(call mkize,$(1)).report.xml $(RESULTS_DIR)/$(call mkize,$(1)).pax -s '|^$(TMP_DIR)\/*||'
 	touch $$@
 endef
