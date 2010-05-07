@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+
+# Package reports and sources to archive.
+sub usage
+{ die<<EOF
+Usage:
+	package report.xml package.pax [more pax options]
+EOF
+}
+
+my $report_xml = shift @ARGV;
+my $target_pax = shift @ARGV;
+$target_pax or usage();
+
+use strict;
+use XML::Twig;
+
+my $source_dir = undef;
+sub get_info
+{
+	my ($twig, $cmdT) = @_;
+	$source_dir = $cmdT->text();
+}
+
+XML::Twig->new( twig_roots => { 'reports/launch_info/sources' => \&get_info })->parsefile($report_xml);
+
+my @archive = ($report_xml);
+# Package sources if they are referenced in the report
+if (defined $source_dir) {
+	# Remove / from the end of source_dir, for uniformity
+	$source_dir =~ s/\/*$//;
+	push @archive, $source_dir;
+
+	# Pack all files
+	system("pax -w -s '/^\Q$source_dir\E\\\/*/sources\\\//' ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
+}else{
+	system("pax -w  ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax'") and die;
+}
+
+

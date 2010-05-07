@@ -10,6 +10,7 @@ endif
 LDV_INSTALL_DIR?=inst
 WORK_DIR?=work
 RESULTS_DIR?=finished
+TMP_DIR?=/tmp
 
 # Special variable that denotes a "fake" tag.  If you specify this "tag", the manager will use currently installed tools available from PATH.
 Current=current
@@ -100,7 +101,7 @@ $$(WORK_DIR)/$(1)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
 $$(WORK_DIR)/$(1)/finished: Result_report=
 
 # We add dependency on the archive with file to allow consecutive launches
-$$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
+$$(WORK_DIR)/$(1)/checked: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
 	if [[ "$$(Tag)" != "$(Current)" ]] ; then \
@@ -108,14 +109,19 @@ $$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),
 	fi ;\
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
 	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver)
+
+$$(WORK_DIR)/$(1)/finished: $$(WORK_DIR)/$(1)/checked
 	@# Add ancillary information to reports and post it to target directory
+	@echo $(call mkize,$(1))
 	@mkdir -p $$(dir $(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml)
-	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/reports/sources >$(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml
+	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/reports/sources >$(TMP_DIR)/$(call mkize,$(1)).report.xml
+	$(Lib_dir)package $(TMP_DIR)/$(call mkize,$(1)).report.xml $(RESULTS_DIR)/$(call mkize,$(1)).pax -s '|^$(TMP_DIR)||'
 	touch $$@
 endef
 
 $(foreach task,$(tasks),$(eval $(call rule_for_task,$(task))))
 $(foreach ccall,$(calls),$(eval $(call rule_for_tag_driver,$(ccall))))
+
 
 
 #########################

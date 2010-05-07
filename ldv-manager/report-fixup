@@ -8,7 +8,7 @@ Usage:
 EOF
 }
 
-my ($report_xml,$git_tag,$driver_name,$driver_origin) = @ARGV;
+my ($report_xml,$git_tag,$driver_name,$driver_origin,$sources_dir) = @ARGV;
 $driver_origin or usage();
 
 use strict;
@@ -22,7 +22,7 @@ sub handle_report
 	XML::Twig::Elt->new('driver',{},$driver_name)->paste($launchT);
 	XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($launchT);
 	XML::Twig::Elt->new('tag',{},$git_tag)->paste($launchT);
-	XML::Twig::Elt->new('sources',{},$git_tag)->paste($launchT);
+	XML::Twig::Elt->new('sources',{},$sources_dir)->paste($launchT) if defined $sources_dir && -d $sources_dir;
 	$launchT->paste($cmdT);
 	$cmdT->print('indented');
 }
