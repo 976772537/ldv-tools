@@ -11,7 +11,6 @@ use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use File::Path qw(mkpath);
 use strict;
-no strict "refs";
 use Time::HiRes qw(gettimeofday tv_interval);
 use XML::Twig qw();
 use XML::Writer qw();
@@ -281,6 +280,9 @@ my $xml_report_attr_ref = 'ref';
 my $xml_report_cc = 'cc';
 my $xml_report_desc = 'desc';
 my $xml_report_ld = 'ld';
+my $xml_report_model_kind = 'model-kind';
+my $xml_report_model_kind_aspect = 'aspect';
+my $xml_report_model_kind_plain = 'plain';
 my $xml_report_rcv = 'rcv';
 my $xml_report_rule_instrumentor = 'rule-instrumentor';
 my $xml_report_root = 'reports';
@@ -290,6 +292,8 @@ my $xml_report_status_ok = 'OK';
 my $xml_report_time = 'time';
 my $xml_report_trace = 'trace';
 my $xml_report_verdict = 'verdict';
+my $xml_report_verdict_stub = 'UNKNOWN';
+my $xml_report_verifier = 'verifier';
 
 
 ################################################################################
@@ -420,7 +424,7 @@ sub exec_status_desc_and_time($)
   my $start_time = [gettimeofday()];
   
   print_debug_trace("Call to function argument '$func'.");
-  my ($status, $desc) = &$func();
+  my ($status, $desc) = $func->();
   
   print_debug_trace("Find and save script execution time.");
   my $end_time = [gettimeofday()];
@@ -1446,6 +1450,18 @@ sub process_cmds()
       
       print_debug_debug("The options to be passed to the gcc compiler are '@opts'.");
 
+      print_debug_trace("Read an array of entry points.");
+      my @entry_points;
+      for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
+        ; $entry_point
+        ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
+      {
+        push(@entry_points, $entry_point->text);
+
+        last if ($entry_point->is_last_child($xml_cmd_entry_point));
+      }
+      print_debug_debug("The entry points are '@entry_points'.");
+
       # For the plain mode just copy and modify a bit input xml.
       if ($kind_isplain)
       {
@@ -1544,7 +1560,7 @@ sub process_cmds()
         if ($cmd->gi eq $xml_cmd_cc)
         {
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr:");
         }
         elsif ($cmd->gi eq $xml_cmd_ld)
         {
@@ -1575,6 +1591,8 @@ sub process_cmds()
             print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:0:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
           }
+          
+          print($file_cmds_log ":@entry_points");
         }
 
         # There is no description for both cc and ld commands that all is ok
@@ -1614,33 +1632,23 @@ sub process_cmds()
       if ($cmd->gi eq $xml_cmd_cc)
       {
         print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode.");  
-        my ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_cc');
+        my ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_cc);
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:$id_attr:$desc\n");  
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:${id_attr}::$desc\n");  
         }
         else
         {
           print_debug_trace("Log information on the '$id_attr' command execution status.");
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:$id_attr:$desc\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:${id_attr}::$desc\n");
         }
       }
 
       # ld command additionaly contains array of entry points.
       if ($cmd->gi eq $xml_cmd_ld)
       {
-        print_debug_trace("Read an array of entry points.");
-        my @entry_points;
-        for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
-          ; $entry_point
-          ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
-        {
-          push(@entry_points, $entry_point->text);
-
-          last if ($entry_point->is_last_child($xml_cmd_entry_point));
-        }
         $cmd{'entry point'} = \@entry_points;
         print_debug_debug("The ld command entry points are '@entry_points'.");
         
@@ -1666,7 +1674,7 @@ sub process_cmds()
         # Process command just when inputs are ok.
         if ($status)
         {
-          ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_ld');
+          ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_ld);
         }
         else
         {
@@ -1675,7 +1683,7 @@ sub process_cmds()
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:$desc\n");  
+          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:@entry_points:$desc\n");  
         }
         else
         {
@@ -1701,11 +1709,11 @@ sub process_cmds()
             $cmds_status{$out_text} = $id_attr;
             print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:$time:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
-            print($file_cmds_log ":$desc\n");
+            print($file_cmds_log ":@entry_points:$desc\n");
           }
           else
           {
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:$desc\n");  
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:@entry_points:$desc\n");  
           }
         }
       }
@@ -1751,17 +1759,18 @@ sub process_report()
   my %cmds_log;
   my @cmds_id;
   
-  print_debug_trace("Process commands log.");
+  print_debug_trace("Process the commands log.");
   foreach my $cmd_log (<$file_cmds_log>)
   {
     chomp($cmd_log);
     print_debug_trace("Process the '$cmd_log' command log.");
-    # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_id:cmd_desc'.
-    $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):/;
+    # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_id:cmd_entry_points:cmd_desc'.
+    $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):([^:]*):/;
     my $cmd_name = $1;
     my $cmd_status = $2;
     my $cmd_time = $3;
     my $id = $4 // die("The command id isn't specified");
+    my @cmd_entry_points = split(/\s+/, $5);
     my $cmd_desc = $POSTMATCH;
 
     print_debug_debug("The commmand log id is '$id'.");
@@ -1779,18 +1788,22 @@ sub process_report()
     die("The command execution status '$cmd_status' isn't correct") 
       unless ($cmd_status eq $log_cmds_ok or $cmd_status eq $log_cmds_fail);
     print_debug_debug("The commmand log command execution status is '$cmd_status'.");
+    print_debug_debug("The commmand log command entry points are '@cmd_entry_points'.");
+    print_debug_debug("The commmand log command description is '$cmd_desc'.");    
     
     $cmds_log{$id} = {
       'cmd name' => $cmd_name, 
       'cmd status' => $cmd_status,
       'cmd time' => $cmd_time,
+      'cmd entry points' => \@cmd_entry_points,
       'cmd description' => $cmd_desc, 
       'check' => $check
     };
       
     push(@cmds_id, $id);
   }
-
+  print_debug_debug("The command log is processed successfully.");
+  
   print_debug_trace("Read the report file '$opt_report_in'.");
   my %reports;
   $xml_twig->parsefile("$opt_report_in");
@@ -1818,6 +1831,11 @@ sub process_report()
       my $verdict = $report->first_child_text($xml_report_verdict)
         // die("The report file doesn't contain '$xml_report_verdict' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The verdict is '$verdict'.");
+      
+      print_debug_trace("Read verifier.");
+      my $verifier = $report->first_child_text($xml_report_verifier)
+        // die("The report file doesn't contain '$xml_report_verifier' tag for '$ref_id_attr, $main_attr' command");
+      print_debug_debug("The verifier is '$verifier'.");
 
       print_debug_trace("Read trace.");
       my $trace = $report->first_child_text($xml_report_trace)
@@ -1843,8 +1861,12 @@ sub process_report()
         // die("The report file doesn't contain '$xml_report_desc' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The rcv description is '$rcv_desc'.");
       
+      # Note that this information isn't needed indeed. Just presence of report
+      # and link to itself.
       $reports{$ref_id_attr}{$main_attr} = {
+        'report' => $report,
         'verdict' => $verdict, 
+        'verifier' => $verifier,
         'trace' => $trace, 
         'rcv status' => $rcv_status,
         'rcv time' => $rcv_time,
@@ -1858,7 +1880,8 @@ sub process_report()
       exit($error_semantics);
     }
   }
-  
+  print_debug_debug("All ld reports are processed successfully.");
+        
   print_debug_trace("Print the standard xml file header.");
   print($file_report_xml_out "$xml_header\n");
   
@@ -1873,6 +1896,8 @@ sub process_report()
     {
       print_debug_debug("Build a report for the '$cmd_id' cc command.");
       $xml_writer->startTag($xml_report_cc, $xml_report_attr_ref => $cmd_id, $xml_report_attr_model => $opt_model_id);
+
+      print_debug_trace("Build the rule instrumentor report.");
       $xml_writer->startTag($xml_report_rule_instrumentor); 
 
       if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
@@ -1895,39 +1920,118 @@ sub process_report()
     else
     {
       print_debug_debug("Build a report for the '$cmd_id' ld command.");
-      if ($cmds_log{$cmd_id}{'check'})
+
+      # ld commands have additional suffix in the aspect mode.
+      my $rule_instrument_cmd_id = $cmd_id;
+      if ($mode_isaspect)
       {
-        print_debug_debug("The '$cmd_id' ld command has 'check=true'.");
-        print_debug_trace("Try to find the corresponding rcv report.");
-        
-        # ld commands have additional suffix in the aspect mode.
-        my $rule_instrument_cmd_id = $cmd_id;
-        if ($mode_isaspect)
-        {
-          $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
-        }
-        die("rcv doesn't produce a report for the '$cmd_id' ('$rule_instrument_cmd_id') ld command")
-          unless ($reports{$rule_instrument_cmd_id});
-        
-        print_debug_trace("Iterate over all mains specific reports.");
-        foreach my $main_id (keys(%{$reports{$rule_instrument_cmd_id}}))
-        {
-          print_debug_debug("Process the '$main_id' main report.");
-          $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_main => $main_id, $xml_report_attr_model => $opt_model_id);
+        $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
+      }
+      print_debug_debug("The rule inctrumentor '$cmd_id' ld command has corresponding the rcv '$rule_instrument_cmd_id' ld command");
 
-          $xml_writer->dataElement($xml_report_verdict => $reports{$rule_instrument_cmd_id}{$main_id}{'verdict'});
-          $xml_writer->dataElement($xml_report_trace => $reports{$rule_instrument_cmd_id}{$main_id}{'trace'});
+      # Iterate over all ld entry points.
+      foreach my $main_id (@{$cmds_log{$cmd_id}{'cmd entry points'}})
+      {
+        print_debug_debug("Build a report for the '$main_id' entry point.");
+        
+        if ($cmds_log{$cmd_id}{'check'})
+        {
+          print_debug_debug("The '$cmd_id' ld command has 'check=true'.");
+       
+          print_debug_trace("Try to find the corresponding rcv report.");
+          # This flag says whether rcv produces report at all.
+          my $isrcv_ok = 0;
+          $isrcv_ok = 1 if ($reports{$rule_instrument_cmd_id} && $reports{$rule_instrument_cmd_id}{$main_id});
+          print_debug_debug("rcv production of a report for the '$cmd_id' ('$rule_instrument_cmd_id') ld command '$main_id' entry point is '$isrcv_ok'.");
+
+          # Extend the existing report when rcv produces it.
+          if ($isrcv_ok)
+          {     
+            my $report = $reports{$rule_instrument_cmd_id}{$main_id}{'report'}->copy;
+
+            print_debug_trace("Fix the ld command identifier.");
+            $report->set_att($xml_report_attr_ref => $cmd_id);
+            print_debug_trace("Add model identifier attribute.");
+            $report->set_att($xml_report_attr_model => $opt_model_id);
+            
+            print_debug_trace("Add model kind tag.");
+            my $model_kind_tag;
+            if ($mode_isaspect)
+            {
+              $model_kind_tag = new XML::Twig::Elt($xml_report_model_kind, $xml_report_model_kind_aspect);
+            }
+            else
+            {
+              $model_kind_tag = new XML::Twig::Elt($xml_report_model_kind, $xml_report_model_kind_plain);  
+            }
+            $model_kind_tag->paste('last_child', $report);                     
+
+            print_debug_trace("Build the rule instrumentor report.");
+            my $rule_instrumentor_tag = new XML::Twig::Elt($xml_report_rule_instrumentor);
+            print_debug_trace("Print the command execution status.");
+            my $cmd_status_tag;
+            if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
+            {
+              $cmd_status_tag = new XML::Twig::Elt($xml_report_status, $xml_report_status_ok);  
+            } 
+            else
+            {
+              $cmd_status_tag = new XML::Twig::Elt($xml_report_status, $xml_report_status_fail);    
+            }
+            $cmd_status_tag->paste('last_child', $rule_instrumentor_tag);   
+            print_debug_trace("Print the command execution time.");
+            my $time_tag = new XML::Twig::Elt($xml_report_time, $cmds_log{$cmd_id}{'cmd time'});
+            $time_tag->paste('last_child', $rule_instrumentor_tag);
+            print_debug_trace("Print the command description.");
+            my $desc_tag = new XML::Twig::Elt($xml_report_desc, $cmds_log{$cmd_id}{'cmd description'});
+            $desc_tag->paste('last_child', $rule_instrumentor_tag);
+            
+            $rule_instrumentor_tag->paste('last_child', $report); 
+            
+            $xml_writer->raw($report->sprint);
+          }
+          # Otherwise generate stub for the rcv report.
+          else
+          {
+            $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_main => $main_id, $xml_report_attr_model => $opt_model_id);
+            print_debug_trace("Print stubs instead of a rcv verdict and a trace since it fails.");
+            $xml_writer->dataElement($xml_report_verdict => $xml_report_verdict_stub);
+            $xml_writer->dataElement($xml_report_trace => '');            
+
+            if ($mode_isaspect)
+            {
+              $xml_writer->dataElement($xml_report_model_kind => $xml_report_model_kind_aspect);
+            }
+            else
+            {
+              $xml_writer->dataElement($xml_report_model_kind => $xml_report_model_kind_plain);
+            }
           
-          print_debug_trace("Build a rcv report.");
-          $xml_writer->startTag($xml_report_rcv); 
-          $xml_writer->dataElement($xml_report_status => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv status'});  
-          $xml_writer->dataElement($xml_report_time => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv time'});
-          $xml_writer->dataElement($xml_report_desc => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv description'});
-          # Close the rcv tag.
-          $xml_writer->endTag();
+            print_debug_trace("Build a rule instrumentor report.");
+            $xml_writer->startTag($xml_report_rule_instrumentor); 
+            if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
+            {
+              $xml_writer->dataElement($xml_report_status => $xml_report_status_ok);
+            }
+            else
+            {
+              $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
+            }
+            $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
+            $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
+            # Close the rule instrumentor tag.
+            $xml_writer->endTag();
 
-          print_debug_trace("Build a rule instrumentor report.");
+            # Close the ld tag.
+            $xml_writer->endTag();   
+          }
+        }      
+        else
+        {
+          print_debug_debug("The '$cmd_id' ld command has 'check=false'.");
+          $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_model => $opt_model_id);
           $xml_writer->startTag($xml_report_rule_instrumentor); 
+
           if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
           {
             $xml_writer->dataElement($xml_report_status => $xml_report_status_ok);
@@ -1936,42 +2040,22 @@ sub process_report()
           {
             $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
           }
+
           $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
           $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
+            
           # Close the rule instrumentor tag.
           $xml_writer->endTag();
-
           # Close the ld tag.
-          $xml_writer->endTag();   
+          $xml_writer->endTag();      
         }
-      }
-      else
-      {
-        print_debug_debug("The '$cmd_id' ld command has 'check=false'.");
-        $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_model => $opt_model_id);
-        $xml_writer->startTag($xml_report_rule_instrumentor); 
-
-        if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
-        {
-          $xml_writer->dataElement($xml_report_status => $xml_report_status_ok);
-        }
-        else
-        {
-          $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
-        }
-
-        $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
-        $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
-            
-        # Close the rule instrumentor tag.
-        $xml_writer->endTag();
-        # Close the ld tag.
-        $xml_writer->endTag();      
-      }
+      }        
     }
   }
-
+  
   print_debug_trace("Close the root node tag and peform final checks in the report mode.");
   $xml_writer->endTag();
   $xml_writer->end();
+
+  print_debug_debug("The instrument prints report for all commands successfully.");
 }
