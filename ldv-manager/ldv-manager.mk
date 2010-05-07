@@ -11,6 +11,9 @@ LDV_INSTALL_DIR?=inst
 WORK_DIR?=work
 RESULTS_DIR?=finished
 
+# Special variable that denotes a "fake" tag.  If you specify this "tag", the manager will use currently installed tools available from PATH.
+Current=current
+
 # Install dir should be absolutized
 LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
 
@@ -100,7 +103,9 @@ $$(WORK_DIR)/$(1)/finished: Result_report=
 $$(WORK_DIR)/$(1)/finished: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
-	export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
+	if [[ "$$(Tag)" != "$(Current)" ]] ; then \
+		export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
+	fi ;\
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
 	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver)
 	@# Add ancillary information to reports and post it to target directory
@@ -135,6 +140,9 @@ tags/%/fetched:
 	) 200>$@.lock
 	touch $@
 
+tags/$(Current)/installed:
+	@$(G_TargetDir)
+
 # Install from repo
 tags/%/installed: tags/%/fetched
 	@$(G_TargetDir)
@@ -160,9 +168,12 @@ tags/$(1): Tag=$(call get_tag_fromenv,$(1))
 
 tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed 
 	( flock 200; \
-		cd $(LDV_INSTALL_DIR)/$$(Tag) && \
-		export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
+		if [[ "$$(Tag)" != "$(Current)" ]] ; then \
+			cd $(LDV_INSTALL_DIR)/$$(Tag) && \
+			export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
+		fi ; \
 		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) ; \
+		echo "Preparing kernel $$(Env) from $$(Env_file)..." ;\
 		ldv kmanager add $$(abspath $$(Env_file)) linux-vanilla $$(Env) $$(silencio) \
 	) 200>$@.lock
 	touch $$@
