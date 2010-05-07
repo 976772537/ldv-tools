@@ -293,6 +293,7 @@ my $xml_report_time = 'time';
 my $xml_report_trace = 'trace';
 my $xml_report_verdict = 'verdict';
 my $xml_report_verdict_stub = 'UNKNOWN';
+my $xml_report_verifier = 'verifier';
 
 
 ################################################################################
@@ -1635,13 +1636,13 @@ sub process_cmds()
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:$id_attr:$desc\n");  
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:${id_attr}::$desc\n");  
         }
         else
         {
           print_debug_trace("Log information on the '$id_attr' command execution status.");
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:$id_attr:$desc\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:${id_attr}::$desc\n");
         }
       }
 
@@ -1758,7 +1759,7 @@ sub process_report()
   my %cmds_log;
   my @cmds_id;
   
-  print_debug_trace("Process commands log.");
+  print_debug_trace("Process the commands log.");
   foreach my $cmd_log (<$file_cmds_log>)
   {
     chomp($cmd_log);
@@ -1801,7 +1802,8 @@ sub process_report()
       
     push(@cmds_id, $id);
   }
-
+  print_debug_debug("The command log is processed successfully.");
+  
   print_debug_trace("Read the report file '$opt_report_in'.");
   my %reports;
   $xml_twig->parsefile("$opt_report_in");
@@ -1829,6 +1831,11 @@ sub process_report()
       my $verdict = $report->first_child_text($xml_report_verdict)
         // die("The report file doesn't contain '$xml_report_verdict' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The verdict is '$verdict'.");
+      
+      print_debug_trace("Read verifier.");
+      my $verifier = $report->first_child_text($xml_report_verifier)
+        // die("The report file doesn't contain '$xml_report_verifier' tag for '$ref_id_attr, $main_attr' command");
+      print_debug_debug("The verifier is '$verifier'.");
 
       print_debug_trace("Read trace.");
       my $trace = $report->first_child_text($xml_report_trace)
@@ -1859,6 +1866,7 @@ sub process_report()
       $reports{$ref_id_attr}{$main_attr} = {
         'report' => $report,
         'verdict' => $verdict, 
+        'verifier' => $verifier,
         'trace' => $trace, 
         'rcv status' => $rcv_status,
         'rcv time' => $rcv_time,
@@ -1872,7 +1880,8 @@ sub process_report()
       exit($error_semantics);
     }
   }
-  
+  print_debug_debug("All ld reports are processed successfully.");
+        
   print_debug_trace("Print the standard xml file header.");
   print($file_report_xml_out "$xml_header\n");
   
@@ -1888,6 +1897,7 @@ sub process_report()
       print_debug_debug("Build a report for the '$cmd_id' cc command.");
       $xml_writer->startTag($xml_report_cc, $xml_report_attr_ref => $cmd_id, $xml_report_attr_model => $opt_model_id);
 
+      print_debug_trace("Build the rule instrumentor report.");
       $xml_writer->startTag($xml_report_rule_instrumentor); 
 
       if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
@@ -2042,8 +2052,10 @@ sub process_report()
       }        
     }
   }
-
+  
   print_debug_trace("Close the root node tag and peform final checks in the report mode.");
   $xml_writer->endTag();
   $xml_writer->end();
+
+  print_debug_debug("The instrument prints report for all commands successfully.");
 }
