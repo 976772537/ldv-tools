@@ -84,9 +84,10 @@ sub read_line();
 # retn: the processed names or undef if it can't be read.
 sub read_locals($);
 
-# Read location.
+# Read location. Location includes an useless location, a path to the source 
+# file and a line number.
 # args: some string.
-# retn: the processed location or undef if it can't be read.
+# retn: the processed path to file and line number or undef if it can't be read.
 sub read_location($);
 
 
@@ -109,26 +110,30 @@ sub read_location($);
 #     src
 my %blast = (
   'tree node' => {
-    'Block', \&read_brackets,
-    'FunctionCall', \&read_brackets,
-    'Pred', \&read_brackets,
-    'Return', \&read_brackets,
-    'Skip', ''
+    my $element_kind_block = 'Block', \&read_brackets,
+    my $element_kind_func_call = 'FunctionCall', \&read_brackets,
+    my $element_kind_cond = 'Pred', \&read_brackets,
+    my $element_kind_retn = 'Return', \&read_brackets,
+    my $element_kind_skip = 'Skip', ''
   },
   'annotation' => {
-    'LDV', \&read_ldv_comment,
-    'line', \&read_equal_int,
-    'Locals', \&read_locals,
-    'Location', \&read_location,
-    'src', \&read_equal_src
+    my $element_kind_ldv_comment = 'LDV', \&read_ldv_comment,
+    my $element_kind_line = 'line', \&read_equal_int,
+    my $element_kind_params = 'Locals', \&read_locals,
+    my $element_kind_location = 'Location', \&read_location,
+    my $element_kind_src = 'src', \&read_equal_src
   });
 
 # Prefix for all debug messages.
 my $debug_name = 'error-trace-visualizer';
 
+# Hash that keeps all dependencies required by the given error trace. Keys are
+# pathes to corresponding dependencies files.
+my %dependencies;
+
 # Engines which reports can be parsed are keys and values are corresponding
 # parsing subroutines.
-my %engines = ('blast' => \&process_error_trace_blast);
+my %engines = (my $engine_blast = 'blast' => \&process_error_trace_blast);
 
 # File handlers.
 my $file_report_in;
@@ -142,6 +147,8 @@ my $opt_report_in;
 my $opt_report_out;
 my $opt_reqs_out;
 
+# Some usefull reqular expressions.
+my $regexp_element_kind = '^([^=\(:]+)';
 
 ################################################################################
 # Main section.
@@ -155,6 +162,15 @@ get_opt();
 
 print_debug_normal("Process trace.");
 process_error_trace();
+
+# TODO this must be fixed!
+      if ($opt_engine eq $engine_blast)
+         { 
+  foreach my $dep (keys(%dependencies))
+  {
+    print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+  }
+         }
 
 print_debug_trace("Close file handlers.");
 close($file_report_in) 
@@ -352,7 +368,7 @@ sub process_error_trace_blast()
       $element .= $element_part;
       
       # Detect the element kind and call the corresponding handler to read it.
-      die("Can't find the element '$element' kind.") unless ($element =~ /^([^=\(:]+)/);
+      die("Can't find the element '$element' kind.") unless ($element =~ /$regexp_element_kind/);
       my $element_kind = $1;
       my $element_content = $POSTMATCH;
 
@@ -361,7 +377,7 @@ sub process_error_trace_blast()
           or defined($blast{'tree node'}{$element_kind}) 
           or defined($blast{'annotation'}{$element_kind}));  
         
-      print("!!!$element_kind\n");
+#      print("!!!$element_kind:$element_part\n");
        
       # When handler is available then run it. If an element is processed 
       # successfully then a handler returns some defined value.  
@@ -369,7 +385,7 @@ sub process_error_trace_blast()
       {
         if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
         {
-          print("   $element_value\n");
+#          print("   @{$element_value}\n") if $element_value;
         }
         # The following line is needed. So read it and concatenate with the 
         # previous one(s).
@@ -382,7 +398,17 @@ sub process_error_trace_blast()
       {
         if (defined(my $element_value = $blast{'annotation'}{$element_kind}->($element_content)))
         {
-            print("   $element_value\n");
+#            print("   @{$element_value}\n") if $element_value;
+          # Interpret different annotations.
+          if ($element_kind eq $element_kind_location)
+          {
+            # Ignore arificial locations at all.  
+            if ($element_value)  
+            {
+              my ($src, $line) = @{$element_value};
+              $dependencies{$src} = 1;
+            }
+          }
         }
         # The following line is needed. So read it and concatenate with the 
         # previous one(s). Does it happen whenever for annotations?
@@ -420,7 +446,9 @@ sub read_brackets($)
   $line =~ /\)$/;
   $line = $PREMATCH;
   
-  return $line;
+  my @content = ($line);
+  
+  return \@content;
 }
 
 sub read_equal_int($)
@@ -434,6 +462,7 @@ sub read_equal_int($)
   # Remove equality beginning the line.
   $line =~ /^=/;
   $line = $POSTMATCH;
+  
   return $line;
 }
 
@@ -464,7 +493,9 @@ sub read_ldv_comment($)
 {
   my $line = shift;
   
-  return $line;
+  my @comments = ($line);
+  
+  return \@comments;
 }
 
 sub read_line()
@@ -497,13 +528,39 @@ sub read_locals($)
   # Function parameters names are splited by spaces.
   my @params = split(/\s+/, $line);
 
-  return @params;
+  return \@params;
 }
 
 sub read_location($)
 {
   my $line = shift;
   
-  # Location isn't interesting for visualization. So just return 'ok'.     
-  return $line;
+  # Location isn't interesting for visualization. So just ignore it.
+  return undef unless ($line =~ /^: id=\d+#\d+/);
+  $line = $POSTMATCH;
+  $line = $POSTMATCH if ($line =~ /^ \(Artificial\)/);
+       
+  # Remove all formatting spaces and tabs placed at the beginning of the line.
+  $line =~ /^[\s]*/;
+  $line = $POSTMATCH;
+   
+  # There may be no source file and line number (for artificial locations).
+  return '' unless ($line);
+  
+  # The rest path of location contains path to the source file and line number.     
+  my @location = split(/\s+/, $line);
+  
+  die("Can't find a source path in the '$location[0]'.") 
+    unless ($location[0] =~ /$regexp_element_kind/);
+  my $src_content = $POSTMATCH;       
+  my $src = read_equal_src($src_content);
+  
+  die("Can't find a line number in the $line '$location[1]'.") 
+    unless ($location[1] =~ /$regexp_element_kind/);
+  my $line_numb_content = $POSTMATCH;       
+  my $line_numb = read_equal_int($line_numb_content);
+
+  @location = ($src, $line_numb);
+
+  return \@location;
 }
