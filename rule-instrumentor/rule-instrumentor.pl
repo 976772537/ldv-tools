@@ -1532,6 +1532,8 @@ sub process_cmds()
           print_debug_trace("Change an id attribute.");
           $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . $id_common_model_suffix);
 
+          # Note that this generated file is always keeped since it's needed for
+          # report visualization.
           print_debug_trace("Concatenate a common model with the first input file.");
           my $in = $common_model_cc->first_child($xml_cmd_in);
           my $in_file = $in->text;
