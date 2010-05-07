@@ -72,6 +72,10 @@ foreach my $file (@reports) {
 	foreach my $section (@childrens) {
 		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld || $section->name eq $xml_reports_build) {
 			hxml_cmdstream($section,$file);
+			# HACK by shvedsky: copy source files
+			my ($env)=get_state($file);
+			system("mkdir -p $report_out.sources/$env") and die;
+			system("cp -r $reports_dir/$env/csd_deg_dscv/0/dscv_tempdir/dscv/ri/* $report_out.sources/$env") and die;
 		}
 		$section->move($twig_inroot);
 	}
