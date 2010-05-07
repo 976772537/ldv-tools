@@ -142,6 +142,7 @@ tags/%/fetched:
 
 tags/$(Current)/installed:
 	@$(G_TargetDir)
+	touch $@
 
 # Install from repo
 tags/%/installed: tags/%/fetched
