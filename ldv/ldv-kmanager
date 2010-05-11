@@ -32,8 +32,8 @@ LDV_EXTRACTORS_DIR=$LDV_DIR/extractors;
 
 #
 # interface to add kernel to description
-#              $1  $2   $3   $4   
-# ldv-kmanager add from type name 
+#              $1  $2   $3   $4   $5
+# ldv-kmanager add from type name other_extractor_option,other_extractor_option...
 #
 #
 #
@@ -51,6 +51,7 @@ case $1 in
 		echo "type=$3" >> $NEW_DESCRIPTION;
 		echo "source=$2" >> $NEW_DESCRIPTION;
 		echo "dest=$LDV_ENVS_DIR/$4" >> $NEW_DESCRIPTION;
+		echo "options=$5" >> $NEW_DESCRIPTION;
 		# extractor for this type is exists?
 		EXTRACTOR=$LDV_EXTRACTORS_DIR/$3.extractor;
 		if [ ! -f "$EXTRACTOR" ]; then

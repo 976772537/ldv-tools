@@ -23,6 +23,7 @@ fi;
 # read field from description;
 DSCR_SOURCE=`cat $1 | grep ^source |  sed 's/^source=//'`;
 DSCR_DEST=`cat $1 | grep ^dest |  sed 's/^dest=//'`;
+DSCR_OPTIONS=`cat $1 | grep ^dest |  sed 's/^options=//'`;
 
 # test kernel source type:
 mkdir $DSCR_DEST;
@@ -74,7 +75,16 @@ fi;
 KERNEL_MAKEFILE_DIR=`dirname $KERNEL_MAKEFILE_ABS`;
 # prepare it
 cd $KERNEL_MAKEFILE_DIR;
-make allyesconfig;
+
+
+#
+# if options not set =>
+#   i am set default allmodconfig
+#
+if [ ! -n "$DSCR_OPTIONS"]; then
+	$KERNEL_CONFIG_OPTIONS="allmodconfig";
+fi;
+make $KERNEL_CONFIG_OPTIONS;
 if [ $? -ne 0 ]; then
         echo "extractor: ERROR: make allyesconfig failed."
         exit 1;
