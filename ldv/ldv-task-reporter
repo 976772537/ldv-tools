@@ -5,6 +5,7 @@ use XML::Twig;
 use FindBin;
 use File::Find;
 
+
 my $deg_home = "$FindBin::Bin";
 
 # Xml nodes names.
@@ -73,9 +74,14 @@ foreach my $file (@reports) {
 		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld || $section->name eq $xml_reports_build) {
 			hxml_cmdstream($section,$file);
 			# HACK by shvedsky: copy source files
-			my ($env)=get_state($file);
-			system("mkdir -p $report_out.sources/$env") and die;
-			system("cp -r $reports_dir/$env/csd_deg_dscv/0/dscv_tempdir/dscv/ri/* $report_out.sources/$env") and die;
+			my @state=get_state($file);
+			$env=$state[0];
+			find(\&denvd,"$reports_dir/$env/csd_deg_dscv");
+#		ldv_print("dir: $sdir\n");
+#			if($sdir =~ m/.*\/\d+$/) {
+#				ldv_print("SUBDIR: $sdir\n");
+#				system("mkdir -p $report_out.sources/$env") and die;
+#				system("cp -r $reports_dir/$env/csd_deg_dscv/0/dscv_tempdir/dscv/ri/* $report_out.sources/$env") and die;
 		}
 		$section->move($twig_inroot);
 	}
@@ -89,6 +95,15 @@ ldv_dprint("Report created successfully.");
 #####################################################
 # xml-functions
 #####################################################
+sub denvd {
+	my $file = $File::Find::name;
+	if($file =~ s/.*csd_deg_dscv\/(\d+)$/$1/) {
+		system("mkdir -p $report_out.sources/$env/$1") and die;
+		system("cp -r $reports_dir/$env/csd_deg_dscv/$1/dscv_tempdir/dscv/ri/* $report_out.sources/$env/$1/") and die;
+	}
+}
+
+
 sub search {  push (@filelist,$File::Find::name) if(!-d); }
 sub get_reports {
 	my @local_reports=();
