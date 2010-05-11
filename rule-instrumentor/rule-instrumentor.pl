@@ -1243,11 +1243,11 @@ sub process_cmd_ld()
       # Close the ld tag.
       $xml_writer->endTag();
     }
-    # Otherwise create two linked variants: with and without general bytecode 
+    # Otherwise create two linked variants: with and without general bitcode 
     # file.
     else
     {
-      print_debug_debug("Prepare two linked bytecode files with and without general bytecode for the ld command marked with 'check = \"true\"'.");
+      print_debug_debug("Prepare two linked bitcode files with and without general bitcode for the ld command marked with 'check = \"true\"'.");
 
       # On each ld command we run llvm linker for all input files together to 
       # produce one linked file. Also produce linked file that contains excactly 
@@ -1532,6 +1532,8 @@ sub process_cmds()
           print_debug_trace("Change an id attribute.");
           $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . $id_common_model_suffix);
 
+          # Note that this generated file is always keeped since it's needed for
+          # report visualization.
           print_debug_trace("Concatenate a common model with the first input file.");
           my $in = $common_model_cc->first_child($xml_cmd_in);
           my $in_file = $in->text;
