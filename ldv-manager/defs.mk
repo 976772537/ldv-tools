@@ -1,10 +1,7 @@
 # Various helpful definitions
 
-WORK_DIR?=work
-RESULTS_DIR?=finished
-
 # Replace all non-alphanumeric chars with -
-mkize=$(shell echo '$(1)' | sed -e 's/[^[:alnum:]]\+/-/g')
+mkize=$(shell echo '$(1)' | sed -e 's/[^[:alnum:]_]/-/g')
 
 # Get name of the task.  Arguments:
 #	- tag
