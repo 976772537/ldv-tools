@@ -1243,11 +1243,11 @@ sub process_cmd_ld()
       # Close the ld tag.
       $xml_writer->endTag();
     }
-    # Otherwise create two linked variants: with and without general bytecode 
+    # Otherwise create two linked variants: with and without general bitcode 
     # file.
     else
     {
-      print_debug_debug("Prepare two linked bytecode files with and without general bytecode for the ld command marked with 'check = \"true\"'.");
+      print_debug_debug("Prepare two linked bitcode files with and without general bitcode for the ld command marked with 'check = \"true\"'.");
 
       # On each ld command we run llvm linker for all input files together to 
       # produce one linked file. Also produce linked file that contains excactly 
