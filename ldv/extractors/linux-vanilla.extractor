@@ -23,7 +23,7 @@ fi;
 # read field from description;
 DSCR_SOURCE=`cat $1 | grep ^source |  sed 's/^source=//'`;
 DSCR_DEST=`cat $1 | grep ^dest |  sed 's/^dest=//'`;
-DSCR_OPTIONS=`cat $1 | grep ^dest |  sed 's/^options=//'`;
+DSCR_OPTIONS=`cat $1 | grep ^options |  sed 's/^options=//'`;
 
 # test kernel source type:
 mkdir $DSCR_DEST;
@@ -76,14 +76,36 @@ KERNEL_MAKEFILE_DIR=`dirname $KERNEL_MAKEFILE_ABS`;
 # prepare it
 cd $KERNEL_MAKEFILE_DIR;
 
+#
+# test kernel version
+#
+k_version=`cat $KERNEL_MAKEFILE_ABS | grep -E "^VERSION = 2\$" | sed 's/\VERSION = //g'`
+k_patchlevel=`cat $KERNEL_MAKEFILE_ABS | grep -E "^PATCHLEVEL = 6\$" | sed 's/\PATCHLEVEL = //g'`
+k_sublevel=`cat $KERNEL_MAKEFILE_ABS | grep -E "^SUBLEVEL = [0-9][0-9]?\$" | sed 's/\SUBLEVEL = //g'`
+k_kernelversion="$k_version.$k_patchlevel.$k_sublevel"
+headers_patch="$LDV_HOME/ldv/extractors/linux-vanilla/headers-$k_kernelversion.patch";
+echo "Kernel version is: $k_kernelversion";
+echo "Kernel headers patch is: $headers_patch";
+if [ -f "$headers_patch" ]; then
+	echo "Headers patch for your kernel exists.";
+	#
+	# Apply "headers" patch
+	#
+	echo "Patching kernel for _headers..."
+	patch -i $headers_patch -p0 -d $KERNEL_MAKEFILE_DIR;
+	if [ $? -ne 0 ]; then 
+		echo "ldv-kmanager: WARNING: Can't apply headers patch for your kernel.";
+	fi;
+else
+	echo "WARNING: Can't find headers patch for your kernel."
+fi
+
 
 #
 # if options not set =>
 #   i am set default allmodconfig
 #
-if [ ! -n "$DSCR_OPTIONS"]; then
-	$KERNEL_CONFIG_OPTIONS="allmodconfig";
-fi;
+if [ ! -n "$DSCR_OPTIONS" ]; then KERNEL_CONFIG_OPTIONS="allmodconfig"; fi;
 make $KERNEL_CONFIG_OPTIONS;
 if [ $? -ne 0 ]; then
         echo "extractor: ERROR: make allyesconfig failed."
