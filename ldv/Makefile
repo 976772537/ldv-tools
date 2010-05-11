@@ -6,6 +6,7 @@ LDV_EXTRACTORS_DIR = extractors
 LDV_REPORTER = ldv-task-reporter
 #LDV_TRACE_CPY = ldv-trace-cpy
 
+
 # Top level hierarchy
 exec_prefix = ${prefix}
 # Pathname of directory to install the binary
