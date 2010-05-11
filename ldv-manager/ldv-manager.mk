@@ -1,3 +1,4 @@
+export SHELL=/bin/bash
 
 Lib_dir:=$(dir $(MAKEFILE_LIST))
 
