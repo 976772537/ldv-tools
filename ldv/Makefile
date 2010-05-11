@@ -4,7 +4,7 @@ LDV_TASK_SCRIPT = ldv-task
 LDV_KMANAGER_SCRIPT = ldv-kmanager
 LDV_EXTRACTORS_DIR = extractors
 LDV_REPORTER = ldv-task-reporter
-LDV_TRACE_CPY = ldv-trace-cpy
+#LDV_TRACE_CPY = ldv-trace-cpy
 
 # Top level hierarchy
 exec_prefix = ${prefix}
@@ -26,7 +26,7 @@ install:
 	cp $(srcdir)/$(LDV_TASK_SCRIPT) $(prefix)/$(LDV_DIR)
 	cp $(srcdir)/$(LDV_KMANAGER_SCRIPT) $(prefix)/$(LDV_DIR)
 	cp $(srcdir)/$(LDV_REPORTER) $(prefix)/$(LDV_DIR)
-	cp $(srcdir)/$(LDV_TRACE_CPY) $(prefix)/$(LDV_DIR)
+#	cp $(srcdir)/$(LDV_TRACE_CPY) $(prefix)/$(LDV_DIR)
 	cp -r $(srcdir)/$(LDV_EXTRACTORS_DIR) $(prefix)/$(LDV_DIR)/
 
 clean:
