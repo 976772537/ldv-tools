@@ -283,7 +283,7 @@ sub get_ldv_opts
 		{
 			$state_file = $opt;
 		}
-		elsif($opt =~ s/--kernel-driver/$1/)
+		elsif($opt =~ s/--kernel-driver//)
 		{
 			$kernel_driver = $driver_internal;
 		}
