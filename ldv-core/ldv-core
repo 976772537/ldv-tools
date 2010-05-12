@@ -27,32 +27,11 @@ LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
 EXTRACTOR_LOG_FILENAME="unarch.log";
 
-#
-# log variables
-#
-LOG_PREFIX="ldv-core: ";
-PREFIX_ERROR="ERROR: ";
-PREFIX_WARNING=" WARN: ";
-PREFIX_DEBUG="DEBUG: ";
-PREFIX_INFO=" INFO: ";
-
-LOG_PREFIX="ldv-core: ";
-ldv_print() {
-	if [ $LDV_DEBUG -le 0 ]; then if [ -n "`echo $1 | grep WARNING`" -o -n "`echo $1 | grep NORMAL`" -o -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 10 ]; then if [ -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
-
-	if [ $LDV_DEBUG -ge 30 ]; then
-		PRINT_DIGRAPH_OPTION="--print-digraph";
-	fi;
-	
-	echo "$LOG_PREFIX$1";
-}
-if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
+LOG_PREFIX="ldv-core: ";
+USAGE_STRING="WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels";
+source $LDV_HOME/shared/sh/log.sh;
 
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
@@ -82,15 +61,6 @@ RINSTR_DIR="$LDV_HOME/rule-instrumentor";
 RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 
 KERNEL_LEVEL=0;
-
-#
-# read and test environment variables
-#
-print_usage_and_exit() {
-		ldv_print "ERROR: USAGE: WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels"
-		exit 1;
-}
-#if [ $# -ne 3  ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
