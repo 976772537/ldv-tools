@@ -103,6 +103,11 @@ class Source < ActiveRecord::Base
 		end
 		file_recs
 	end
+
+	# Do not log how these HUGE files are saved
+	def save(validate=true)
+		ActiveRecord::Base.silence { super(validate) }
+	end
 end
 
 # Unpack and load document
@@ -135,13 +140,20 @@ sources = Source
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
+
 	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
+	# How it identify sources.
+	# TODO: For now it's always zero, since reporting about in-kernel drivers is not fully implemented..
+	driver_sources_id = '0'
+
 	rule_model_name = ld.attributes['model']
 	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
+
 	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
+
 	unless sources_dir.empty?
 		# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
-		sources = Source.from_dir(File.join(sources_dir, kernel_name, rule_model_name))
+		sources = Source.from_dir(File.join(sources_dir, kernel_name, driver_sources_id, rule_model_name))
 	else
 		sources = []
 	end
