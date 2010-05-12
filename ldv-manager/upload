@@ -3,6 +3,7 @@ require 'rubygems'
 require 'active_record'
 require 'hpricot'
 require 'find'
+require 'open3'
 
 ActiveRecord::Base.establish_connection(
 	:adapter  => 'mysql',
@@ -74,6 +75,7 @@ class Trace < ActiveRecord::Base
 	belongs_to :rcv, :class_name => 'Stats', :autosave => true
 
 	has_many :sources, :autosave => true
+	has_and_belongs_to_many :problems
 end
 
 class Stats < ActiveRecord::Base
@@ -103,6 +105,15 @@ class Source < ActiveRecord::Base
 		end
 		file_recs
 	end
+
+	# Do not log how these HUGE files are saved
+	def save(validate=true)
+		ActiveRecord::Base.silence { super(validate) }
+	end
+end
+
+class Problem < ActiveRecord::Base
+	has_and_belongs_to_many :traces
 end
 
 # Unpack and load document
@@ -135,13 +146,20 @@ sources = Source
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
+
 	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
+	# How it identify sources.
+	# TODO: For now it's always zero, since reporting about in-kernel drivers is not fully implemented..
+	driver_sources_id = '0'
+
 	rule_model_name = ld.attributes['model']
 	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
+
 	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
+
 	unless sources_dir.empty?
 		# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
-		sources = Source.from_dir(File.join(sources_dir, kernel_name, rule_model_name))
+		sources = Source.from_dir(File.join(sources_dir, kernel_name, driver_sources_id, rule_model_name))
 	else
 		sources = []
 	end
@@ -159,10 +177,29 @@ sources = Source
 		'ri' => 'ri',
 		'rcv' => 'rcv',
 	}
+	# Load stats from XML
 	tools.each do |dbname,tag|
 		stats = Stats.from_xml(ld/tag)
 		trace.send("#{dbname}=",stats)
 	end
+
+	# Run scripts that check for problems
+	tools.each do |tool,v|
+		scripts_dir = File.join(File.dirname(__FILE__), "problems", tool)
+		Find.find(scripts_dir) do |file|
+			if !FileTest.directory?(file) && FileTest.executable?(file)
+				# Run the script and get its output
+				Open3.popen3(file) do |cin,cout,cerr|
+					# Send description to the checker
+					cin.write( trace.send(tool).description )
+					cin.close
+					cout.each {|line| trace.problems << Problem.find_or_create_by_name(line) }
+					cerr.each {|errln| $stderr.puts errln}
+				end
+			end
+		end
+	end
+
 	# Build is handled in a special way
 	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"")
 	trace.build = build

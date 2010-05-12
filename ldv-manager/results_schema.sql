@@ -7,6 +7,8 @@
 drop table if exists launches;
 drop table if exists tasks;
 drop table if exists sources;
+drop table if exists problems_traces;
+drop table if exists problems;
 drop table if exists traces;
 drop table if exists stats;
 drop table if exists scenarios;
@@ -145,5 +147,29 @@ create table launches(
 	foreign key (scenario_id) references scenarios(id),
 	foreign key (trace_id) references traces(id),
 	foreign key (task_id) references tasks(id)
+) ENGINE=InnoDB;
+
+-- ----------------------------
+-- PROBLEM DATABASE
+-- ----------------------------
+
+create table problems(
+	id int(10) unsigned not null auto_increment,
+-- To look up in scripts output
+	name varchar(100),
+
+-- To show user
+	description text,
+
+	PRImary key (id),
+	key (name)
+) ENGINE=InnoDB;
+
+create table problems_traces(
+	trace_id int(10) unsigned not null,
+	problem_id int(10) unsigned not null,
+
+	foreign key (trace_id) references traces(id),
+	foreign key (problem_id) references problems(id)
 ) ENGINE=InnoDB;
 
