@@ -1,20 +1,27 @@
 #!/bin/sh
 
+
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
+
+USAGE_STRING="LDV_DEBUG=loglevel ldv-kamanger path_to_kernel extractor_name name";
+LOG_PREFIX="ldv-kmanager: ";
+source $LDV_HOME/shared/sh/log.sh;
+
+
 print_extractors() {
-	echo "Select extractor from exists:"
+	ldv_print "NORMAL: Select extractor from exists:"
 	for i in `find $LDV_EXTRACTORS_DIR -maxdepth 1 -regex '.*\.extractor$' -type f | sed 's/.*\/.*\///g' | sed 's/\.extractor$//'`; do
-		echo $i;
+		ldv_print "NORMAL: $i";
 	done;
 }
 
-LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDV_DIR=$LDV_HOME/ldv;
 LDV_VDIR=${LDV_ENVS_TARGET:-$HOME/.ldv/ldv}
 LDV_DESCRIPTIONS_DIR=$LDV_VDIR/descriptions;
 if [ ! -d "$LDV_DESCRIPTIONS_DIR" ]; then
 	mkdir -p $LDV_DESCRIPTIONS_DIR;
 	if [ $? -ne 0 ]; then
-		echo "ldv-kmanager: ERROR: Can't create descriptions dir: \"$LDV_DESCRIPTIONS_DIR\".";
+		ldv_print "ERROR: Can't create descriptions dir: \"$LDV_DESCRIPTIONS_DIR\".";
 		exit 1;
 	fi;
 fi;
@@ -22,7 +29,7 @@ LDV_ENVS_DIR=$LDV_VDIR/envs;
 if [ ! -d "$LDV_ENVS_DIR" ]; then
 	mkdir -p $LDV_ENVS_DIR;
 	if [ $? -ne 0 ]; then
-		echo "ldv-kmanager: ERROR: Can't create environmnet dir: \"$LDV_ENVS_DIR\".";
+		ldv_print "ERROR: Can't create environmnet dir: \"$LDV_ENVS_DIR\".";
 		exit 1;
 	fi;
 fi;
@@ -55,14 +62,14 @@ case $1 in
 		# extractor for this type is exists?
 		EXTRACTOR=$LDV_EXTRACTORS_DIR/$3.extractor;
 		if [ ! -f "$EXTRACTOR" ]; then
-			echo "ldv-kmanager: ERROR: Can't find extractor: \"$EXTRACTOR\".";
+			ldv_print "ERROR: Can't find extractor: \"$EXTRACTOR\".";
 			print_extractors;
 			rm $NEW_DESCRIPTION;
 			exit 1;
 		fi;
 		$EXTRACTOR $NEW_DESCRIPTION;
 		if [ $? -ne 0 ]; then
-			echo "ldv-kmanager: ERROR: extractor: \"$EXTRACTOR\" - failed.";
+			ldv_print "ERROR: extractor: \"$EXTRACTOR\" - failed.";
 			rm $NEW_DESCRIPTION;
 			rm -fr $LDV_ENVS_DIR/$4;
 			exit 1;
@@ -72,35 +79,35 @@ case $1 in
         remove)
 		DESCRIPTION_TO_REMOVE=$LDV_DESCRIPTIONS_DIR/$2;
 		if [ ! -f "$DESCRIPTION_TO_REMOVE" ]; then
-			echo "ldv-kmanager: ERROR: can't find find description: \"$DESCRIPTION_TO_REMOVE\".";
+			ldv_print "ERROR: can't find find description: \"$DESCRIPTION_TO_REMOVE\".";
 			exit 1;
 		fi;
 		DSCR_DEST=`cat $DESCRIPTION_TO_REMOVE | grep ^dest | sed 's/^dest=//'`
 		rm -fr $DSCR_DEST;
 		rm $DESCRIPTION_TO_REMOVE;
-                echo "ldv-kmanager: Ok";;
+                ldv_print "NORMAL: Ok";;
 	getpath)
 		DESCRIPTION_TO_VIEW=$LDV_DESCRIPTIONS_DIR/$2;
 		if [ ! -f "$DESCRIPTION_TO_VIEW" ]; then
-			echo "ldv-kmanager: ERROR: can't find description: \"$DESCRIPTION_TO_VIEW\".";
+			ldv_print "ERROR: can't find description: \"$DESCRIPTION_TO_VIEW\".";
 			exit 1;
 		fi;
 		
 		ENV_STATUS=`cat $DESCRIPTION_TO_VIEW | grep ^status= | sed 's/status=//'`;
 		if [ "$ENV_STATUS" != "prepared" ]; then
-			echo "ldv-kmanager: ERROR: wrong status for getpath: \"$ENV_STATUS\".";
+			ldv_print "ERROR: wrong status for getpath: \"$ENV_STATUS\".";
 			exit 1;
 		fi;
 		DSCR_KMD=`cat $DESCRIPTION_TO_VIEW | grep ^kernel-make-dir= | sed 's/kernel-make-dir=//'`;
 		if [ ! -d "$DSCR_KMD" ]; then
-			echo "ldv-kmanager: ERROR: kernel environment \"$DESCRIPTION_TO_VIEW\" - is bad.";
+			ldv_print "ERROR: kernel environment \"$DESCRIPTION_TO_VIEW\" - is bad.";
 			# TODO: set status bad - and try to reintsall kernel
 			exit 1;
 		fi;
 		echo $DSCR_KMD;
 		exit;;
         *)
-                echo "ERROR: Unknown option: \"$2\". It must be \"add|remove\".";
+                ldv_print "ERROR: Unknown option: \"$2\". It must be \"add|remove\".";
         exit 1;;
 esac
 

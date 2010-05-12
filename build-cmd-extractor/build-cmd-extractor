@@ -11,31 +11,17 @@ KERNEL_COMPILE_LOG_FILENAME="ckc.log";
 TRACE_FILENAME="build_trace";
 XML_FILENAME="cmd.xml";
 LOG_PREFIX="build-cmd-extractor: ";
-LOG_MIRROR_TO_CONSOLE=1;
 
 KERNEL_LEVEL=0;
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
+
+USAGE_STRING="...";
+LOG_PREFIX="build-cmd-extractor: ";
+source $LDV_HOME/shared/sh/log.sh;
+
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
-
-ldv_print() {
-	if [ $LDV_DEBUG -le 0 ]; then if [ -n "`echo $1 | grep WARNING`" -o -n "`echo $1 | grep NORMAL`" -o -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 10 ]; then if [ -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
-	echo "$LOG_PREFIX$1";
-}
-if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
-#---------------------------------------------------------------------------
-#
-# read and test environment variables
-#
-print_usage_and_exit() {
-		ldv_print "NORMAL: USAGE: LDV_DEBUG=level WORK_DIR=workdir build-cmd-extractor --basedir=basedir --env=kerneldir --driver=driverpath --cmdfile-out=xmlfile";
-		exit 1;
-}
 #if [ $# -eq 5 -o $# -eq 4 ]; then print_usage_and_exit; fi;
 if [ ! -n "$WORK_DIR" ]; then
 	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
