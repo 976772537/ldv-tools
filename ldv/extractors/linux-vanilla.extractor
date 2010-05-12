@@ -192,11 +192,6 @@ fi;
 # patch it...
 #
 sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \`readlink -f \$@\`/g" $KERNEL_MAKEFILE_MODPOST;
-#sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$@/g" $KERNEL_MAKEFILE_MODPOST;
-#sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
-#sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
-#sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC -r \$(LDFLAGS) \$(LDFLAGS_MODULE) \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
-#sed -i -e "s/\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); $BCE_XGCC -r \$(LDFLAGS) \$(LDFLAGS_MODULE) \$(filter-out FORCE,\$^) -o \$@ >> \$(BUILDFILE)/g" $KERNEL_MAKEFILE_MODPOST;
 if [ $? -ne 0 ]; then
 	echo "extractor: ERROR: Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;

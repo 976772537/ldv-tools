@@ -120,10 +120,12 @@ fi;
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ENV_ID=`echo $i | sed 's/@.*//'`;
 	RULES=`echo $i | sed 's/.*@//'`;
-	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
-	ldv_print "NORMAL: Start process for environment $ENV_ID.";
+	ldv_print "NORMAL: Start process for environment \"$ENV_ID\".";
+	ldv_print "DEBUG: $LDV_KMANAGER --action=getpath --name=$ENV_ID;";
+	KERNEL_PATH=`$LDV_KMANAGER --action=getpath --name=$ENV_ID`;
 	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
+		echo $KERNEL_PATH;
+		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$ENV_ID\".";
 		exit 1;
 	fi;
 	WORK_DIR_LOCAL=$workdir/$ENV_ID;
@@ -132,16 +134,6 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 		ldv_print "ERROR: Can not clean working dir: \"$working\".";
 		exit 1;
 	fi;
-
-#	if [ -d $WORK_DIR_LOCAL ]; then
-#		ldv_print "WARNING: Environment directory already exists: \"$WORK_DIR_LOCAL\". Ldv-task rewrite it.";
-#		rm -r $WORK_DIR_LOCAL;
-#		ldv_print "DEBUG: rm -r $WORK_DIR_LOCAL;";
-#		if [ $? -ne 0 ]; then
-#			ldv_print "ERROR: Can not remove old environment-dir: \"$WORK_DIR_LOCAL\".";
-#			exit 1;
-#		fi;
-#	fi;	
 	mkdir $WORK_DIR_LOCAL;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
