@@ -10,6 +10,8 @@ source $LDV_HOME/shared/sh/log.sh;
 LDV_DIR=$LDV_HOME/ldv;
 LDV_VDIR_NOT_ABS=${LDV_ENVS_TARGET:-$HOME/.ldv/ldv}
 
+#LDV_VDIR=`echo "readlink -f $LDV_VDIR_NOT_ABS" | sh`;
+mkdir -p $LDV_VDIR_NOT_ABS;
 LDV_VDIR=`readlink -f $LDV_VDIR_NOT_ABS`;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Can't read abs path for envrionments target dir:\"$LDV_VDIR_NOT_ABS\".";
