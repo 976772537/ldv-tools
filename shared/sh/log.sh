@@ -28,7 +28,7 @@ ldv_print() {
 if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 
 print_usage_and_exit() {
-		ldv_print "NORMAL: USAGE: $USAGE_STRING";
+		echo "$LOG_PREFIX$1NORMAL: USAGE: $USAGE_STRING";
 		exit 1;
 }
 
