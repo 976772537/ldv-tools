@@ -39,8 +39,16 @@ class Launch < ActiveRecord::Base
 	belongs_to :rule_model, :class_name=>'Rule_Model', :autosave => true
 	belongs_to :scenario, :autosave => true
 
-	belongs_to :task, :autosave => true
+	# Loads existing record if there exists one with the same primary key
+	def load_on_duplicate_key
+		if record = Launch.find_by_driver_id_and_toolset_id_and_environment_id_and_rule_model_id_and_scenario_id(driver,toolset,environment,rule_model,scenario)
+			record
+		else
+			self
+		end
+	end
 
+	belongs_to :task, :autosave => true
 	belongs_to :trace, :autosave => true
 end
 
@@ -209,11 +217,16 @@ sources = Source
 
 	# Save trace to DB
 	launch = Launch.new
+
+	# Assign a primary key
 	launch.driver = driver
 	launch.environment = kernel
-	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,(doc/"rcv")[0].attributes['verifier'] || 'blast')
+	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,(ld/"rcv")[0].attributes['verifier'] || 'blast')
 	launch.rule_model = rule_model
 	launch.scenario = scenario
+
+	launch = launch.load_on_duplicate_key
+
 	launch.trace = trace
 	launch.task = task
 

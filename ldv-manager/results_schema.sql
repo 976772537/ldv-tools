@@ -128,6 +128,7 @@ create table tasks(
 -- ----------------------------
 
 create table launches(
+	id int(10) unsigned not null auto_increment,
 	driver_id int(10) unsigned not null,
 	toolset_id int(10) unsigned not null,
 	environment_id int(10) unsigned not null,
@@ -138,7 +139,8 @@ create table launches(
 
 	task_id int(10) unsigned,
 
-	PRImary key (driver_id,toolset_id,environment_id,rule_model_id,scenario_id),
+	primary key (id),
+	UNIQUE (driver_id,toolset_id,environment_id,rule_model_id,scenario_id,task_id),
 
 	foreign key (driver_id) references drivers(id),
 	foreign key (toolset_id) references toolsets(id),
