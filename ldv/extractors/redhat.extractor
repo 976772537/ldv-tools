@@ -1,0 +1,233 @@
+#!/bin/bash
+
+
+LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+LDV_VDIR=$HOME/.ldv/ldv
+
+
+XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+BCE_XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/build-cmd-extractor\\/bce_gcc";
+
+
+echo "extractor: INFO: Red Hat Linux  2.6.32-19.el6 extractor.";
+
+#
+# extractor kernel-description
+#
+if [ ! -f "$1" ]; then
+	echo "extractor: ERROR: can't find description file \"$1\".";
+	exit 1;
+fi;
+
+# read field from description;
+DSCR_SOURCE=`cat $1 | grep ^source |  sed 's/^source=//'`;
+DSCR_DEST=`cat $1 | grep ^dest |  sed 's/^dest=//'`;
+DSCR_OPTIONS=`cat $1 | grep ^options |  sed 's/^options=//'`;
+
+# test kernel source type:
+mkdir $DSCR_DEST;
+if [ $? -ne 0 ]; then
+        echo "extractor: ERROR: Failed to create destination dir: \"$DSCR_DEST\"."
+        exit 1;
+fi;
+
+#
+# test format for driver file and unpack driver
+#
+SOURCE_TYPE=`file -b $DSCR_SOURCE --mime-type`;
+if [ $? -ne 0 ]; then 
+        echo "extractor: ERROR: Failed to get and unpack source: \"$DSCR_SOURCE\"."
+        exit 1;
+	echo $DSCR_DEST;
+else
+	case $SOURCE_TYPE in
+	        application/x-rpm)
+
+			#
+			# REQUIREMENTS
+			# 
+			#  1. rpm
+			#  2. rpmbuild
+			#  3. lsdiff - in patchutils!!!!
+			# 
+			#
+
+			RPM_SOURCES_DIRNAME="SOURCES";
+			RPM_SRPMS_DIRNAME="SRPMS";
+			RPM_SPECS_DIRNAME="SPECS";
+			RPM_BUILD_DIRNAME="BUILD";
+	
+			RPM_SOURCES_DIR=$DSCR_DEST/$RPM_SOURCES_DIRNAME;
+			RPM_BUILD_DIR=$DSCR_DEST/$RPM_BUILD_DIRNAME;
+			RPM_SPECS_DIR=$DSCR_DEST/$RPM_SPECS_DIRNAME;
+			RPM_SRPMS_DIR=$DSCR_DEST/$RPM_SRPMS_DIRNAME;
+
+			mkdir -p $RPM_SPECS_DIR;
+			mkdir -p $RPM_SOURCES_DIR;
+			mkdir -p $RPM_BUILD_DIR;
+			mkdir -p $RPM_SRPMS_DIR;
+
+			# 2. copy rpm source
+			LDV_SRPMS_SOURCE_BASENAME=`basename $DSCR_SOURCE`;
+			LDV_RPM=$RPM_SRPMS_DIR/$LDV_SRPMS_SOURCE_BASENAME;
+			cp $DSCR_SOURCE $LDV_RPM;
+
+			# 3. install it
+			echo "rpm --define=\"%_topdir $DSCR_DEST\" -ivh $LDV_RPM;";
+			rpm --define="%_topdir $DSCR_DEST" -ivh $LDV_RPM;
+
+			#
+			# Before it you can setup what you can make in kernel.spec
+			#
+			# 4. unpack and patch
+			SPECFILE=$RPM_SPECS_DIR/kernel.spec;
+			echo "rpmbuild --nodeps --define=\"%_topdir $DSCR_DEST\" -bp $SPECFILE;";
+			rpmbuild --nodeps --define="%_topdir $DSCR_DEST" -bp $SPECFILE;
+		;;
+	        *)
+	                echo "extractor: ERROR: Unknown source type.";
+	                exit 1
+		;;
+	esac
+	if [ $? -ne 0 ]; then
+	        echo "extractor: ERROR: Failed to get and unpack source: \"$DSCR_SOURCE\"."
+	        exit 1;
+	fi;
+fi;
+# find dir with makefile
+
+KERNEL_MAKEFILE=`find $RPM_BUILD_DIR -maxdepth 3 -regex '.*linux.*Makefile$'`;
+KERNEL_MAKEFILE_ABS=`readlink -f $KERNEL_MAKEFILE`;
+if [ $? -ne 0 ]; then
+        echo "extractor: ERROR: Can not find makefile."
+        exit 1;
+fi;
+KERNEL_MAKEFILE_DIR=`dirname $KERNEL_MAKEFILE_ABS`;
+# prepare it
+cd $KERNEL_MAKEFILE_DIR;
+
+#
+# test kernel version
+#
+k_version=`cat $KERNEL_MAKEFILE_ABS | grep -E "^VERSION = 2\$" | sed 's/\VERSION = //g'`
+k_patchlevel=`cat $KERNEL_MAKEFILE_ABS | grep -E "^PATCHLEVEL = 6\$" | sed 's/\PATCHLEVEL = //g'`
+k_sublevel=`cat $KERNEL_MAKEFILE_ABS | grep -E "^SUBLEVEL = [0-9][0-9]?\$" | sed 's/\SUBLEVEL = //g'`
+k_kernelversion="$k_version.$k_patchlevel.$k_sublevel"
+headers_patch="$LDV_HOME/ldv/extractors/linux-vanilla/headers-$k_kernelversion.patch";
+echo "Kernel version is: $k_kernelversion";
+echo "Kernel headers patch is: $headers_patch";
+
+if [ -f "$headers_patch" ]; then
+	echo "Headers patch for your kernel exists.";
+	#
+	# Apply "headers" patch
+	#
+	echo "Patching kernel for _headers..."
+	patch -i $headers_patch -p0 -d $KERNEL_MAKEFILE_DIR;
+	if [ $? -ne 0 ]; then 
+		echo "ldv-kmanager: WARNING: Can't apply headers patch for your kernel.";
+	fi;
+else
+	echo "WARNING: Can't find headers patch for your kernel."
+fi
+
+#
+# if options not set =>
+#   i am set default allmodconfig
+#
+if [ ! -n "$DSCR_OPTIONS" ]; then KERNEL_CONFIG_OPTIONS="allmodconfig"; fi;
+make $KERNEL_CONFIG_OPTIONS;
+if [ $? -ne 0 ]; then
+        echo "extractor: ERROR: make allyesconfig failed."
+        exit 1;
+fi;
+make init;
+if [ $? -ne 0 ]; then
+        echo "extractor: ERROR: make init failed."
+        exit 1;
+fi;
+#
+# try to find "scripts/Makefile.build" in kernel source directory
+# 
+KERNEL_MAKEFILE_BUILD=$KERNEL_MAKEFILE_DIR"/scripts/Makefile.build";
+if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
+	echo "extractor: ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+	exit 1;
+fi;
+#
+# create backup for ./scripts/Makefile.build
+#
+KERNEL_BACKUP_MAKEFILE_BUILD=$KERNEL_MAKEFILE_DIR"/scripts/Makefile.build.bcebackup";
+cp $KERNEL_MAKEFILE_BUILD $KERNEL_BACKUP_MAKEFILE_BUILD;
+if [ $? -ne 0 ]; then
+	echo "extractor: ERROR: Failed to copy Makefile: \"$KERNEL_MAKEFILE_BUILD\" to \"$KERNEL_BACKUP_MAKEFILE_BUILD\".";
+	exit 1;
+fi;
+#
+# test if a FILE exists and write permission is granted or not
+#
+if [ ! -w "$KERNEL_MAKEFILE_BUILD" ]; then
+	echo "extractor: ERROR: Kernel Makefile.build: \"$KERNEL_MAKEFILE_BUILD\" -  not writable.";
+	exit 1;
+fi;
+
+# I.
+sed -i -e "s/^cmd_cc_o_c = \$(CC) \$(c_flags) -c -o \$(@D)\/\.tmp_\$(@F) \$</cmd_cc_o_c = $XGCC \`readlink -f \$<\` \$(c_flags) -c -o \`readlink -f \$(@D)\/\$(@F)\` >> \`if \[ -n \"\$(BUILDFILE)\" \]; then echo \$(BUILDFILE); else echo \/dev\/null; fi\`; \$(CC) \$(c_flags) -c -o \$(@D)\/.tmp_\$(@F) \$</g" $KERNEL_MAKEFILE_BUILD;
+if [ $? -ne 0 ]; then
+	echo "extractor: ERROR: Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+# II.
+sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = $XGCC \$(ld_flags) \`for i in \$(link_multi_deps); do echo \\\\\`readlink -f \$\$i\\\\\`; done | xargs\` -r -o \`readlink -f \$@\` >> \`if \[ -n \"\$(BUILDFILE)\" \]; then echo \$(BUILDFILE); else echo \/dev\/null; fi\`; \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
+if [ $? -ne 0 ]; then
+	echo "extractor: ERROR: Failed patch (III. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+# III.
+#
+# try to find "scripts/Makefile.modpost" in kernel source directory
+# 
+KERNEL_MAKEFILE_MODPOST=$KERNEL_MAKEFILE_DIR"/scripts/Makefile.modpost";
+if [ ! -f "$KERNEL_MAKEFILE_MODPOST" ]; then
+	echo "extractor: ERROR: Can't find kernel makefile for modules: \"$KERNEL_MAKEFILE_MODPOST\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+#
+# Create backup for ./scripts/Makefile.modpost
+#
+KERNEL_BACKUP_MAKEFILE_MODPOST=$KERNEL_MAKEFILE_DIR"/scripts/Makefile.modpost.bcebackup";
+cp $KERNEL_MAKEFILE_MODPOST $KERNEL_BACKUP_MAKEFILE_MODPOST;
+if [ $? -ne 0 ]; then
+	echo "extractor: ERROR: Failed to copy Makefile.modpost from: \"$KERNEL_MAKEFILE_MODPOST\" to \"$KERNEL_BACKUP_MAKEFILE_MODPOST\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+#
+# test if a FILE exists and write permission is granted or not
+#
+if [ ! -w "$KERNEL_MAKEFILE_MODPOST" ]; then
+	echo "extractor: ERROR: Kernel Makefile.modpost: \"$KERNEL_MAKEFILE_MODPOST\" -  not writable.";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+#
+# patch it...
+#
+sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \`readlink -f \$@\`/g" $KERNEL_MAKEFILE_MODPOST;
+if [ $? -ne 0 ]; then
+	echo "extractor: ERROR: Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then echo "extractor: ATTENSION: Can't recover Makefile.build !"; fi;
+	exit 1;
+fi;
+
+echo "kernel-make-dir=$KERNEL_MAKEFILE_DIR" >> $1;
+echo "status=prepared" >> $1;
