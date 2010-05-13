@@ -164,6 +164,8 @@ print_debug_normal("Process trace.");
 process_error_trace();
 
 # TODO this must be fixed!
+if ($opt_reqs_out)
+{
       if ($opt_engine eq $engine_blast)
          { 
   foreach my $dep (keys(%dependencies))
@@ -171,14 +173,21 @@ process_error_trace();
     print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
   }
          }
+}
 
 print_debug_trace("Close file handlers.");
 close($file_report_in) 
   or die("Can't close the file '$opt_report_in': $ERRNO\n");
-close($file_report_out) 
-  or die("Can't close the file '$opt_report_out': $ERRNO\n");
-close($file_reqs_out) 
-  or die("Can't close the file '$opt_reqs_out': $ERRNO\n");
+if ($opt_report_out)
+{
+  close($file_report_out) 
+    or die("Can't close the file '$opt_report_out': $ERRNO\n");
+}
+if ($opt_reqs_out)
+{
+  close($file_reqs_out) 
+    or die("Can't close the file '$opt_reqs_out': $ERRNO\n");
+}
   
 print_debug_normal("Make all successfully.");
 
@@ -230,20 +239,32 @@ sub get_opt()
 
   help() if ($opt_help);
   
-  unless ($opt_engine && $opt_report_in && $opt_report_out && $opt_reqs_out) 
+  unless ($opt_engine and $opt_report_in) 
   {
-    warn("You must specify the options --engine, --report|c, --report-out|o, --reqs-out in the command-line");
+    warn("You must specify the options --engine, --report|c in the command-line");
     help();
   }
 
-  open($file_report_out, '>', "$opt_report_out")
-    or die("Can't open the file '$opt_report_out' specified through the option --report-out|o for write: $ERRNO");
-  print_debug_debug("The report output file is '$opt_report_out'.");
+  unless ($opt_report_out or $opt_reqs_out)
+  {
+    warn("You must specify either the option --report-out|o or --reqs-out in the command-line");
+    help();    
+  }
 
-  open($file_reqs_out, '>', "$opt_reqs_out")
-    or die("Can't open the file '$opt_reqs_out' specified through the option --reqs-out for write: $ERRNO");
-  print_debug_debug("The requrements output file is '$opt_reqs_out'.");
-
+  if ($opt_report_out)
+  {
+    open($file_report_out, '>', "$opt_report_out")
+      or die("Can't open the file '$opt_report_out' specified through the option --report-out|o for write: $ERRNO");
+    print_debug_debug("The report output file is '$opt_report_out'.");
+  }
+  
+  if ($opt_reqs_out)
+  {
+    open($file_reqs_out, '>', "$opt_reqs_out")
+      or die("Can't open the file '$opt_reqs_out' specified through the option --reqs-out for write: $ERRNO");
+    print_debug_debug("The requrements output file is '$opt_reqs_out'.");
+  }
+  
   open($file_report_in, '<', "$opt_report_in")
     or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for read: $ERRNO");
   print_debug_debug("The report input file is '$opt_report_in'.");
@@ -275,11 +296,12 @@ OPTIONS
 
   -o, --report-out <file>
     <file> is an absolute path to a file that will contain error trace
-    processed by the tool.
+    processed by the tool. This is needed in the visualization mode.
 
   --reqs-out <file>
     <file> is an absolute path to a file that will contain a list of
-    required for report files.
+    required for report files. This is needed to gather all 
+    requirements that will be used then in the visualization mode.
     
 ENVIRONMENT VARIABLES
 
