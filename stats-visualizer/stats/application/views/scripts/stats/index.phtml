@@ -1,0 +1,77 @@
+<?php 
+
+/*
+function visualize_error_trace($error)
+{
+	$link =  "<p><a href=\"";
+	$link .= $this->url(
+    array(
+        'controller' => 'errortrace',
+        'action'     => 'index'
+    ),
+    'default',
+    true);
+    $link .= "\">Sign Our Guestbook</a></p>";
+    return $link;
+	//return $error;
+}
+*/
+
+/*
+<p><a href="<?php  echo $this->url(
+    array(
+        'controller' => 'stats',
+        'action'     => 'signDb'
+    ),
+    'default',
+    true) ?>">Sign Our Guestbook</a></p>
+
+Guestbook Entries: <br />
+
+Please use the form below to sign our guestbook!
+*/ ?>
+<?php
+$this->form->setAction($this->url());
+echo $this->form;
+?>
+<table width="100%" border="1" cellspacing="0" cellpadding="4">
+<?php
+if(isset($this->entries['stats']))
+{
+    echo "<tr align=\"center\" bgcolor=\"#FFFFCC\"><td>Driver"
+        , "</td><td>Kernel"
+        , "</td><td>Model"
+        , "</td><td>Toolset"
+        , "</td><td>Module"
+        , "</td><td>Environment Model"
+        , "</td><td>Verdict"
+        , "</td><td>Error trace</td></tr><br>";
+foreach ($this->entries['stats'] as $entry)
+{
+    echo "<tr><td>", $this->escape($entry->driver)
+        , "</td><td>", $this->escape($entry->kernel)
+        , "</td><td>", $this->escape($entry->model)
+        , "</td><td>", $this->escape($entry->toolset)
+        , "</td><td>", $this->escape($entry->module)
+        , "</td><td>", $this->escape($entry->environmentModel)
+        , "</td><td>", $this->escape($entry->verdict)
+        , "</td><td><pre>", $this->escape($entry->errorTrace['1']->errorTrace)
+/*        , "</td><td><pre><a href=\"", $this->url(array(
+          'controller' => 'stats',//'errortrace',
+          'action'     => 'errortrace',
+          'ref' => '1'
+        ),
+        'default',
+    true) $entry->errorTrace, "\">Error trace</a>*/, "</pre></td></tr><br>";
+}
+}
+?>
+</table>
+<?php
+/*
+<dl>
+    <?php foreach ($this->entries as $entry): ?>
+    <dt><?php echo $this->escape($entry->driver); ?></dt>
+    <dd><?php echo $this->escape($entry->kernel) ?></dd>
+    <?php endforeach ?>
+</dl>*/?>
