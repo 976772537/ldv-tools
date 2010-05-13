@@ -166,6 +166,7 @@ sources = Source
 
 	trace = Trace.new
 	#verdict
+	trace.result = (ld/"verdict").inner_html.downcase
 	#trace -- read the whole trace from file
 	if (trace_tag = ld/"trace") && (! (trace_fname=trace_tag.inner_html).empty?) && (File.exists?(trace_fname))
 		trace.error_trace = IO.read(trace_fname)
