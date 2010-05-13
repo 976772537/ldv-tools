@@ -88,7 +88,7 @@ create table traces(
 
 	result enum('safe','unsafe','unknown') not null default 'unknown',
 -- Error trace if error is found
-	error_trace text,
+	error_trace mediumtext,
 
 	primary key (id),
 
