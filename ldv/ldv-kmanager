@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;

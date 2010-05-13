@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 BCE_TEMPDIR_NAME="bce_tempdir"
 DRIVER_DIR_NAME="driver"
