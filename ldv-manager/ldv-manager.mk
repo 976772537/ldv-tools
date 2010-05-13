@@ -182,7 +182,7 @@ tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed
 		fi ; \
 		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) ; \
 		echo "Preparing kernel $$(Env) from $$(Env_file)..." ;\
-		ldv kmanager add $$(abspath $$(Env_file)) linux-vanilla $$(Env) $$(silencio) \
+		ldv kmanager --action=add --src=$$(abspath $$(Env_file)) --extractor=linux-vanilla --name=$$(Env) $$(silencio) \
 	) 200>$@.lock
 	touch $$@
 endef

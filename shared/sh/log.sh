@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright (c) 2010-2020 ISPRAS Moscow, Russia.
 #

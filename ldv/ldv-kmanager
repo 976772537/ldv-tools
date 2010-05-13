@@ -1,11 +1,25 @@
-#!/bin/sh
+#!/bin/bash
 
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 
-USAGE_STRING="LDV_DEBUG=loglevel ldv-kamanger path_to_kernel extractor_name name";
+USAGE_STRING="LDV_DEBUG=loglevel ldv-kamanger --action=[add|remove|getpath] [--name=name] [--src=src] [--extractor=extractor] [--extractor-options=eoptions]";
 LOG_PREFIX="ldv-kmanager: ";
 source $LDV_HOME/shared/sh/log.sh;
+
+LDV_DIR=$LDV_HOME/ldv;
+LDV_VDIR_NOT_ABS=${LDV_ENVS_TARGET:-$HOME/.ldv/ldv}
+
+#LDV_VDIR=`echo "readlink -f $LDV_VDIR_NOT_ABS" | sh`;
+mkdir -p $LDV_VDIR_NOT_ABS;
+LDV_VDIR=`readlink -f $LDV_VDIR_NOT_ABS`;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can't read abs path for envrionments target dir:\"$LDV_VDIR_NOT_ABS\".";
+	exit 1;
+fi;
+
+
+LDV_EXTRACTORS_DIR=$LDV_DIR/extractors;
 
 
 print_extractors() {
@@ -15,8 +29,53 @@ print_extractors() {
 	done;
 }
 
-LDV_DIR=$LDV_HOME/ldv;
-LDV_VDIR=${LDV_ENVS_TARGET:-$HOME/.ldv/ldv}
+#
+# scan and test command line parameters
+#
+for arg in $@; do
+        case $arg in
+                --action=*)
+                	action=`echo $arg | sed 's/--action=//g'`
+			if [ ! -n "$action" ]; then
+				ldv_print "ERROR: Parameter \"--action\" - is null. Setup it.";
+			        exit 1;
+			fi;
+		;;
+                --name=*)
+                	name=`echo $arg | sed 's/--name=//g'`
+			if [ ! -n "$name" ]; then
+				ldv_print "ERROR: Parameter \"--name\" - is null. Setup it.";
+			        exit 1;
+			fi;
+		;;
+                --src=*)
+                	src=`echo $arg | sed 's/--src=//g'`
+			if [ ! -n "$src" ]; then
+				ldv_print "ERROR: Parameter \"--src\" - is null. Setup it.";
+			        exit 1;
+			fi;
+                ;;
+                --extractor=*)
+                	extractor=`echo $arg | sed 's/--extractor=//g'`
+			if [ ! -n "$extractor" ]; then
+				ldv_print "ERROR: Parameter \"--extractor\" - is null. Setup it.";
+			        exit 1;
+			fi;
+		;;
+ 		--extractor-options=*)
+                	eoptions=`echo $arg | sed 's/--extractor-options=//g'`
+			if [ ! -n "$eoptions" ]; then
+				ldv_print "ERROR: Parameter \"--extractor-options\" - is null. Setup it.";
+			        exit 1;
+			fi;
+		;;
+                *)
+                        ldv_print "ERROR: Unknown options: '$arg'.";
+			print_usage_and_exit;
+                ;;
+        esac
+done;
+
 LDV_DESCRIPTIONS_DIR=$LDV_VDIR/descriptions;
 if [ ! -d "$LDV_DESCRIPTIONS_DIR" ]; then
 	mkdir -p $LDV_DESCRIPTIONS_DIR;
@@ -33,81 +92,131 @@ if [ ! -d "$LDV_ENVS_DIR" ]; then
 		exit 1;
 	fi;
 fi;
-LDV_EXTRACTORS_DIR=$LDV_DIR/extractors;
 
-
-
-#
-# interface to add kernel to description
-#              $1  $2   $3   $4   $5
-# ldv-kmanager add from type name other_extractor_option,other_extractor_option...
-#
-#
-#
-# remove kernel:
-#              $1     #2
-# ldv-kmanager remove id 
-#
-case $1 in
-        add)
-		ENV_ID=$4;
-		# add new description		
-		NEW_DESCRIPTION=$LDV_DESCRIPTIONS_DIR/$4;
-		echo "id=$4" > $NEW_DESCRIPTION;
-		echo "name=$4" >> $NEW_DESCRIPTION;
-		echo "type=$3" >> $NEW_DESCRIPTION;
-		echo "source=$2" >> $NEW_DESCRIPTION;
-		echo "dest=$LDV_ENVS_DIR/$4" >> $NEW_DESCRIPTION;
-		echo "options=$5" >> $NEW_DESCRIPTION;
-		# extractor for this type is exists?
-		EXTRACTOR=$LDV_EXTRACTORS_DIR/$3.extractor;
+case $action in
+	add)
+		if [ ! -n "$src" ]; then
+			ldv_print "ERROR: When you add kernel \"--src\" can't be null.";
+			exit 1;
+		fi;
+		if [ ! -n "$extractor" ]; then
+			ldv_print "ERROR: When you add kernel \"--extractor\" can't be null.";
+			print_extractors;
+			exit 1;
+		fi;
+		EXTRACTOR=$LDV_EXTRACTORS_DIR/$extractor.extractor;
 		if [ ! -f "$EXTRACTOR" ]; then
 			ldv_print "ERROR: Can't find extractor: \"$EXTRACTOR\".";
 			print_extractors;
-			rm $NEW_DESCRIPTION;
 			exit 1;
 		fi;
+		if [ ! -n "$name" ]; then
+			ldv_print "ERROR: When you add kernel \"--name\" can't be null.";
+			exit 1;
+		fi;
+		#
+		# check if it exists
+		#
+		NEW_DESCRIPTION=$LDV_DESCRIPTIONS_DIR/$name;
+		if [ -f "$NEW_DESCRIPTION" ]; then
+			ldv_print "ERROR: Kernel description with name \"$name\" already exists. Try to select another name.";
+			exit 1;
+		fi;
+		if [ -d "$LDV_ENVS_DIR/$name" ]; then
+			ldv_print "ERROR: Kernel environment with name \"$name\" already exists. Try to select another name.";
+			exit 1;
+		fi;
+		#
+		# create descriptor
+		#
+		echo "id=$name" > $NEW_DESCRIPTION;
+		echo "name=$name" >> $NEW_DESCRIPTION;
+		echo "type=$extractor" >> $NEW_DESCRIPTION;
+		echo "source=$src" >> $NEW_DESCRIPTION;
+		echo "dest=$LDV_ENVS_DIR/$name" >> $NEW_DESCRIPTION;
+		echo "options=$eoptions" >> $NEW_DESCRIPTION;
+		ldv_print "DEBUG: $EXTRACTOR $NEW_DESCRIPTION";
 		$EXTRACTOR $NEW_DESCRIPTION;
 		if [ $? -ne 0 ]; then
-			ldv_print "ERROR: extractor: \"$EXTRACTOR\" - failed.";
+			ldv_print "ERROR: Extractor: \"$EXTRACTOR\" - failed.";
 			rm $NEW_DESCRIPTION;
-			rm -fr $LDV_ENVS_DIR/$4;
+			rm -fr $LDV_ENVS_DIR/$name;
 			exit 1;
 		fi;
-		echo "description id = $4"
-		echo "ldv-kmanager: Ok";;		
-        remove)
-		DESCRIPTION_TO_REMOVE=$LDV_DESCRIPTIONS_DIR/$2;
+		ldv_print "NORMAL: Description name = \"$name\".";
+		ldv_print "NORMAL: Kernel successfully prepared.";
+	;;
+	remove)
+		if [ ! -n "$name" ]; then
+			ldv_print "ERROR: When you remove kernel \"--name\" can't be null.";
+			exit 1;
+		fi;
+		if [ -n "$src" ]; then
+			ldv_print "ERROR: Option \"--src\" unsupported in the remove action.";
+			exit 1;
+		fi;
+		if [ -n "$extractor" ]; then
+			ldv_print "ERROR: Option \"--extractor\" unsupported in the remove action.";
+			exit 1;
+		fi;
+		if [ -n "$eoptions" ]; then
+			ldv_print "ERROR: Option \"--extractor-options\" unsupported in the remove action.";
+			exit 1;
+		fi;
+		DESCRIPTION_TO_REMOVE=$LDV_DESCRIPTIONS_DIR/$name;
 		if [ ! -f "$DESCRIPTION_TO_REMOVE" ]; then
-			ldv_print "ERROR: can't find find description: \"$DESCRIPTION_TO_REMOVE\".";
+			ldv_print "ERROR: Can't find find description: \"$DESCRIPTION_TO_REMOVE\".";
 			exit 1;
 		fi;
 		DSCR_DEST=`cat $DESCRIPTION_TO_REMOVE | grep ^dest | sed 's/^dest=//'`
-		rm -fr $DSCR_DEST;
-		rm $DESCRIPTION_TO_REMOVE;
-                ldv_print "NORMAL: Ok";;
-	getpath)
-		DESCRIPTION_TO_VIEW=$LDV_DESCRIPTIONS_DIR/$2;
-		if [ ! -f "$DESCRIPTION_TO_VIEW" ]; then
-			ldv_print "ERROR: can't find description: \"$DESCRIPTION_TO_VIEW\".";
+		if [ ! -d "$DSCR_DEST" ]; then
+			ldv_print "ERROR: Can't find find kernel dir: \"$DSCR_DEST\" for env name = \"$name\".";
 			exit 1;
 		fi;
-		
+		rm -fr $DSCR_DEST;
+		rm $DESCRIPTION_TO_REMOVE;
+                ldv_print "NORMAL: Kernel env \"$name\" - successfully removed.";
+	;;
+	getpath)
+		if [ ! -n "$name" ]; then
+			ldv_print "ERROR: When you get path fro kernel \"--name\" can't be null.";
+			exit 1;
+		fi;
+		if [ -n "$src" ]; then
+			ldv_print "ERROR: Option \"--src\" unsupported in the getpath action.";
+			exit 1;
+		fi;
+		if [ -n "$extractor" ]; then
+			ldv_print "ERROR: Option \"--extractor\" unsupported in the getpath action.";
+			exit 1;
+		fi;
+		if [ -n "$eoptions" ]; then
+			ldv_print "ERROR: Option \"--extractor-options\" unsupported in the remove action.";
+			exit 1;
+		fi;
+		DESCRIPTION_TO_VIEW=$LDV_DESCRIPTIONS_DIR/$name;
+		if [ ! -f "$DESCRIPTION_TO_VIEW" ]; then
+			ldv_print "ERROR: Can't find description: \"$DESCRIPTION_TO_VIEW\".";
+			exit 1;
+		fi;
 		ENV_STATUS=`cat $DESCRIPTION_TO_VIEW | grep ^status= | sed 's/status=//'`;
 		if [ "$ENV_STATUS" != "prepared" ]; then
-			ldv_print "ERROR: wrong status for getpath: \"$ENV_STATUS\".";
+			ldv_print "ERROR: Wrong status for getpath: \"$ENV_STATUS\".";
 			exit 1;
 		fi;
 		DSCR_KMD=`cat $DESCRIPTION_TO_VIEW | grep ^kernel-make-dir= | sed 's/kernel-make-dir=//'`;
 		if [ ! -d "$DSCR_KMD" ]; then
-			ldv_print "ERROR: kernel environment \"$DESCRIPTION_TO_VIEW\" - is bad.";
+			ldv_print "ERROR: Bad kernel environment \"$DESCRIPTION_TO_VIEW\".";
 			# TODO: set status bad - and try to reintsall kernel
 			exit 1;
 		fi;
 		echo $DSCR_KMD;
-		exit;;
-        *)
-                ldv_print "ERROR: Unknown option: \"$2\". It must be \"add|remove\".";
-        exit 1;;
-esac
+		exit;
+	;;
+	*)
+		ldv_print "ERROR: Unknown option: \"$2\". It must be \"add|remove\".";
+	;;
+esac;
 
+
+exit;

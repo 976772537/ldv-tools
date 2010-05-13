@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 # env var WORK_DIR
@@ -248,10 +248,10 @@ ldv_print "NORMAL: Calling Command Stream Divider.";
 CSD_TEMPDIR=$WORK_DIR/$CSD_DEG_DSCV_TEMPDIR_NAME;
 CSD_STATE=$CSD_TEMPDIR/$CSD_STATE_FILENAME;
 if [ $KERNEL_LEVEL -eq 1 ]; then
-	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
 else
-	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
 fi;
 if [ $? -ne 0 ]; then
