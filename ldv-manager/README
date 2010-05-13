@@ -8,9 +8,11 @@ PREREQUISITES:
 2. Ruby gems package and the following gems:
 	gem install hpricot
 	gem install activerecord
+	gem install mysql
 3. GNU Make
 4. Perl (with XML::Twig)
 5. MySQL with InnoDB
+6. libmysqlclient15-dev+ 
 6. PAX archiver (that's POSIX standard actually)
 
 
