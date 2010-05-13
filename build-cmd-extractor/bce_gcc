@@ -23,8 +23,10 @@ if(!$as_gcc || !(-f $as_gcc)) {
 my $module_file = $ARGV[0];
 if(!($module_file =~ s/\.ko$/\.o/)) 
 {
-	print "bce_gcc: ERROR: Can't replcae .ko with .o in module_file.\n";
-	exit 1;
+	if(!($module_file =~ s/\.ko.unsigned$/\.o/)) {
+		print "bce_gcc: ERROR: Can't replcae .ko with .o in module_file.\n";
+		exit 1;
+	}
 }
 #
 # serach out with our object file

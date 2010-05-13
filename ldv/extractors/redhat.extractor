@@ -55,13 +55,16 @@ else
 			RPM_SOURCES_DIRNAME="SOURCES";
 			RPM_SRPMS_DIRNAME="SRPMS";
 			RPM_SPECS_DIRNAME="SPECS";
+			RPM_BUILD_DIRNAME="BUILD";
 	
 			RPM_SOURCES_DIR=$DSCR_DEST/$RPM_SOURCES_DIRNAME;
+			RPM_BUILD_DIR=$DSCR_DEST/$RPM_BUILD_DIRNAME;
 			RPM_SPECS_DIR=$DSCR_DEST/$RPM_SPECS_DIRNAME;
 			RPM_SRPMS_DIR=$DSCR_DEST/$RPM_SRPMS_DIRNAME;
 
 			mkdir -p $RPM_SPECS_DIR;
 			mkdir -p $RPM_SOURCES_DIR;
+			mkdir -p $RPM_BUILD_DIR;
 			mkdir -p $RPM_SRPMS_DIR;
 
 			# 2. copy rpm source
@@ -92,7 +95,8 @@ else
 	fi;
 fi;
 # find dir with makefile
-KERNEL_MAKEFILE=`find $RPM_SOURCES_DIR -maxdepth 2 -regex '.*Makefile$'`;
+
+KERNEL_MAKEFILE=`find $RPM_BUILD_DIR -maxdepth 3 -regex '.*linux.*Makefile$'`;
 KERNEL_MAKEFILE_ABS=`readlink -f $KERNEL_MAKEFILE`;
 if [ $? -ne 0 ]; then
         echo "extractor: ERROR: Can not find makefile."
@@ -112,6 +116,7 @@ k_kernelversion="$k_version.$k_patchlevel.$k_sublevel"
 headers_patch="$LDV_HOME/ldv/extractors/linux-vanilla/headers-$k_kernelversion.patch";
 echo "Kernel version is: $k_kernelversion";
 echo "Kernel headers patch is: $headers_patch";
+
 if [ -f "$headers_patch" ]; then
 	echo "Headers patch for your kernel exists.";
 	#
@@ -125,7 +130,6 @@ if [ -f "$headers_patch" ]; then
 else
 	echo "WARNING: Can't find headers patch for your kernel."
 fi
-
 
 #
 # if options not set =>
@@ -227,6 +231,3 @@ fi;
 
 echo "kernel-make-dir=$KERNEL_MAKEFILE_DIR" >> $1;
 echo "status=prepared" >> $1;
-
-
-

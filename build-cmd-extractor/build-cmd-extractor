@@ -219,8 +219,8 @@ else
 	abs_driver=`readlink -f $driver`;
 	if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
 	#if [ ! -n "`echo $env | grep $driver`" ]; then mdriver="M=$driver/"; fi;
-	ldv_print "DEBUG: BUILDFILE=$cmdfileout make $mdriver modules > $KERNEL_COMPILE_LOG 2>&1;";
-	BUILDFILE=$cmdfileout make $mdriver modules > $KERNEL_COMPILE_LOG 2>&1
+	ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>&1;";
+	BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>&1
 fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
