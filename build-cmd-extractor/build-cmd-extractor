@@ -212,12 +212,13 @@ fi;
 
 ldv_print "NORMAL: Make driver."
 if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "DEBUG: make $DRIVER_MAKEFILE_DIR/ BUILDFILE=$cmdfileout > $KERNEL_COMPILE_LOG 2>&1;"
-	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1
+	ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1";
+	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1;
 else
 	# test for root of kernel
 	abs_driver=`readlink -f $driver`;
-	if [ ! -n "`echo $env | grep $driver`" ]; then mdriver="M=$driver/"; fi;
+	if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
+	#if [ ! -n "`echo $env | grep $driver`" ]; then mdriver="M=$driver/"; fi;
 	ldv_print "DEBUG: BUILDFILE=$cmdfileout make $mdriver modules > $KERNEL_COMPILE_LOG 2>&1;";
 	BUILDFILE=$cmdfileout make $mdriver modules > $KERNEL_COMPILE_LOG 2>&1
 fi;
