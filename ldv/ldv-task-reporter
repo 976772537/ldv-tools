@@ -154,7 +154,7 @@ sub hxml_cmdstream {
 				if($tfile =~ m/$work_dir_pattern\/+csd_deg_dscv\/+\d+\/+/) {
 					my $brelpath = $tfile;
 					$brelpath =~ s/$work_dir_pattern\/+csd_deg_dscv\/+(\d+\/+.*)/$1/;
-					my $relpath = $tfile;
+					my $relpath = $brelpath;
 					$relpath =~ s/(.*)\/.*$/$1/;
 					my $rel_path_full="$report_out.source/$kernel/$relpath";
 					chomp($rel_path_full);
