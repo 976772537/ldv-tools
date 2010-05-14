@@ -166,6 +166,7 @@ sub hxml_cmdstream {
 						exit 1;
 					}
 					my $kernel_file="$path_to_kernel/$tfile";
+					print "KFILE: $kernel_file";
 					chomp($kernel_file);
 					if(!(-f $kernel_file)) {
 						ldv_eprint("Can't find kernel file.");
