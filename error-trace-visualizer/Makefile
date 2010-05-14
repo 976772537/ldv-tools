@@ -14,7 +14,7 @@ mandir = ${prefix}/man
 # Phony targets.
 .PHONY: install all
 
-all: install
+all:
 
 # Install needed executables to specified path.
 install:
