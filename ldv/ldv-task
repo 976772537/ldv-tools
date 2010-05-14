@@ -111,6 +111,13 @@ if [ ! -n "$workdir" ]; then
         exit 1;
 fi;
 
+rm -fr $workdir/*;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can not clean working dir: \"$working\".";
+	exit 1;
+fi;
+
+
 LDV_STATE=$workdir/$LDV_STATE_FILENAME;
 touch $LDV_STATE;
 if [ $? -ne 0 ]; then
@@ -129,11 +136,6 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 		exit 1;
 	fi;
 	WORK_DIR_LOCAL=$workdir/$ENV_ID;
-	rm -fr $workdir/*;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Can not clean working dir: \"$working\".";
-		exit 1;
-	fi;
 	mkdir $WORK_DIR_LOCAL;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can not create environment-dir from task: \"$WORK_DIR_LOCAL\".";
