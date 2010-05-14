@@ -180,15 +180,17 @@ sub hxml_cmdstream_ld {
 	push(@args,$output_option);
 	my $module_name;
 	my $driver_name;
+
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir=$section->text;
 		$module_name=$outdir;
 		$driver_name=$outdir;
 		if($kernel_driver eq $driver_internal) {
-			$driver_name =~ s/$xmlbasedir//;
+			$driver_name =~ s/$xmlbasedir\/+//;
+			$module_name = $driver_name;
 		} elsif($kernel_driver eq $driver_external) {
+			$module_name =~ s/.*\/+csd_deg_dscv\/+driver\d+\/+//;
 			$indriver_name =~ s/.*\/(.*)/$1/;
-			#$driver_name =~ s/^.*\///;
 			$driver_name = $indriver_name;
 		}
 		# 1. replace outdir from basedir in xml with our driverdir
@@ -216,7 +218,6 @@ sub hxml_cmdstream_ld {
 	}
 	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	
 	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver."\n"); 
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {
