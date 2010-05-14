@@ -12,7 +12,9 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/man
 
 # Phony targets.
-.PHONY: install
+.PHONY: install all
+
+all: install
 
 # Install needed executables to specified path.
 install:
