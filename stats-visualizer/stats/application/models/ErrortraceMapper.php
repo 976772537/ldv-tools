@@ -1,6 +1,6 @@
 <?php
 
-class Application_Model_StatsMapper
+class Application_Model_ErrortraceMapper
 {
     protected $db;
 //    protected $_dbTable;
@@ -127,24 +127,5 @@ class Application_Model_StatsMapper
 
       return $entries;
     }
-    
-    public function getErrorTrace($driverId, $kernelId, $modelId, $toolsetId, $scenarioId)
-    {
-	  $sql = "SELECT launches.trace_id as 'Trace id' FROM launches WHERE launches.driver_id=$driverId and launches.environment_id=$kernelId and launches.rule_model_id=$modelId and launches.toolset_id=$toolsetId and launches.scenario_id=$scenarioId";
-      $result_set = $this->getDb()->fetchAll($sql);
-      foreach ($result_set as $row)
-      {
-		/* That is trace id that must be unique for the given launch! */  
-	    $entry = $row['Trace id'];
-	    $sql = "SELECT traces.error_trace as 'Error trace' FROM traces WHERE traces.id = $entry";
-        $result_set = $this->getDb()->fetchAll($sql);
-        foreach ($result_set as $row)
-        {
-		  /* That is trace id that must be unique for the given launch! */  
-	      $entry = $row['Error trace'];
-	      return $entry;	    
-	    }
-      }
-	}    
 }
 

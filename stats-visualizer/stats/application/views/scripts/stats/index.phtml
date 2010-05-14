@@ -48,21 +48,25 @@ if(isset($this->entries['stats']))
         , "</td><td>Error trace</td></tr><br>";
 foreach ($this->entries['stats'] as $entry)
 {
-    echo "<tr><td>", $this->escape($entry->driver)
-        , "</td><td>", $this->escape($entry->kernel)
-        , "</td><td>", $this->escape($entry->model)
-        , "</td><td>", $this->escape($entry->toolset)
-        , "</td><td>", $this->escape($entry->module)
+    echo "<tr><td>", $this->escape($entry->driverName)
+        , "</td><td>", $this->escape($entry->kernelName)
+        , "</td><td>", $this->escape($entry->modelName)
+        , "</td><td>", $this->escape($entry->toolsetName)
+        , "</td><td>", $this->escape($entry->moduleName)
         , "</td><td>", $this->escape($entry->environmentModel)
         , "</td><td>", $this->escape($entry->verdict)
-        , "</td><td><pre>", $this->escape($entry->errorTrace['1']->errorTrace)
-/*        , "</td><td><pre><a href=\"", $this->url(array(
-          'controller' => 'stats',//'errortrace',
-          'action'     => 'errortrace',
-          'ref' => '1'
+ //       , "</td><td><pre>", $this->escape($entry->errorTrace['1']->errorTrace)
+        , "</td><td><pre><a href=\"", $this->url(array(
+          'controller' => 'errortrace',
+          'action'     => 'index',
+          'driver id' => $entry->driverId,
+          'kernel id' => $entry->kernelId,
+          'model id' => $entry->modelId,
+          'toolset id' => $entry->toolsetId,
+          'scenario id' => $entry->scenarioId,
         ),
         'default',
-    true) $entry->errorTrace, "\">Error trace</a>*/, "</pre></td></tr><br>";
+        true), "\">Error trace</a></pre></td></tr><br>";
 }
 }
 ?>

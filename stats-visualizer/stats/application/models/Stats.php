@@ -2,11 +2,16 @@
 
 class Application_Model_Stats
 {
-    protected $_driver;
-    protected $_kernel;
-    protected $_model;
-    protected $_toolset;
-    protected $_module;
+    protected $_driverId;
+    protected $_driverName;
+    protected $_kernelId;
+    protected $_kernelName;
+    protected $_modelId;
+    protected $_modelName;
+    protected $_toolsetId;
+    protected $_toolsetName;
+    protected $_scenarioId;
+    protected $_moduleName;
     protected $_environmentModel;
     protected $_verdict;
     protected $_errorTrace;
@@ -60,72 +65,97 @@ class Application_Model_Stats
         return $this;
     }
 
-    public function setDriver($driver)
+    public function setDriver($driverId, $driverName)
     {
-        $this->_driver = (string)$driver;
+        $this->_driverId = (string)$driverId;
+        $this->_driverName = (string)$driverName;
         return $this;
     }
 
-    public function getDriver()
+    public function getDriverId()
     {
-        return $this->_driver;
-    }
-    
-    public function setKernel($kernel)
-    {
-        $this->_kernel = (string)$kernel;
-        return $this;
+        return $this->_driverId;
     }
 
-    public function getKernel()
+    public function getDriverName()
     {
-        return $this->_kernel;
-    }
-    
-    public function setModel($model)
-    {
-        $this->_model = (string)$model;
-        return $this;
-    }
-
-    public function getModel()
-    {
-        return $this->_model;
+        return $this->_driverName;
     }    
     
-    public function setToolset($toolset)
+    public function setKernel($kernelId, $kernelName)
     {
-        $this->_toolset = (string)$toolset;
+        $this->_kernelId = (string)$kernelId;
+        $this->_kernelName = (string)$kernelName;
         return $this;
     }
 
-    public function getToolset()
+    public function getKernelId()
     {
-        return $this->_toolset;
+        return $this->_kernelId;
+    }
+
+    public function getKernelName()
+    {
+        return $this->_kernelName;
     }  
     
-    public function setModule($module)
+    public function setModel($modelId, $modelName)
     {
-        $this->_module = (string)$module;
+        $this->_modelId = (string)$modelId;
+        $this->_modelName = (string)$modelName;
         return $this;
     }
 
-    public function getModule()
+    public function getModelId()
     {
-        return $this->_module;
-    }  
+        return $this->_modelId;
+    }
+
+    public function getModelName()
+    {
+        return $this->_modelName;
+    }    
     
-    public function setEnvironmentModel($environmentModel)
+    public function setToolset($toolsetId, $toolsetName)
     {
+        $this->_toolsetId = (string)$toolsetId;
+        $this->_toolsetName = (string)$toolsetName;
+        return $this;
+    }
+
+    public function getToolsetId()
+    {
+        return $this->_toolsetId;
+    }
+
+    public function getToolsetName()
+    {
+        return $this->_toolsetName;
+    }    
+    
+    public function setScenario($scenarioId, $moduleName, $environmentModel)
+    {
+        $this->_scenarioId = (string)$scenarioId;
+        $this->_moduleName = (string)$moduleName;
         $this->_environmentModel = (string)$environmentModel;
         return $this;
     }
 
+    public function getScenarioId()
+    {
+        return $this->_scenarioId;
+    }
+
+    public function getModuleName()
+    {
+        return $this->_moduleName;
+    }    
+
     public function getEnvironmentModel()
     {
         return $this->_environmentModel;
-    }  
-    
+    }    
+        
     public function setVerdict($verdict)
     {
         $this->_verdict = (string)$verdict;
