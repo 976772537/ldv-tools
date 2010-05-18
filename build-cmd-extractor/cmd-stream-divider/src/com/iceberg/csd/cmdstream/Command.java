@@ -1,7 +1,6 @@
 package com.iceberg.csd.cmdstream;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,7 +78,7 @@ public class Command {
 	public void addOut(String out) {
 		this.out.add(out);
 	}
-
+	
 	public List<Opt> getOpts() {
 		return opts;
 	}
