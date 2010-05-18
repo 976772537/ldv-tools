@@ -276,6 +276,17 @@ if [ $? -ne 0 ]; then
 fi;
 
 #
+# TODO: find autoconf.h
+#
+perl -e 'open(FIL,"'$cmdfileout'") || die;  my @strings = <FIL>; close(FIL); open FIL, ">'$cmdfileout'" || die; my $isitinclude=0; foreach $line (@strings) { if ($line =~ m/<opt>-include<\/opt>/) { $isitinclude=1; } elsif($isitinclude == 1) { $line =~ s/<opt>(.*)/<opt config="autoconf">$1/; $isitinclude=0; } print (FIL $line); }; close FIL;';
+if [ $? -ne 0 ]; then
+        ldv_print "ERROR: Can't allocate autoconf option.";
+        exit 1;
+fi;
+
+
+
+#
 # fix format - add one tab before <cc> and <ld> tags and...
 #
 sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
