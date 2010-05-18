@@ -5,7 +5,7 @@ use Cwd qw(abs_path cwd);
 use English;
 use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
 use File::Basename qw(basename fileparse);
-use File::Copy qw(mv);
+use File::Copy qw(copy mv);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
@@ -28,6 +28,12 @@ use LDV::Utils;
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+# Create configuration files and return pathes to them.
+# args: the name of directory relatively to which configurations are
+#   created; the part of path to configuration file.
+# retn: the pathes to configuration files.
+sub create_configs($$);
 
 # Merge usual and common aspects in the aspect mode.
 # args: no.
@@ -161,6 +167,11 @@ my $id_common_model_suffix = '-with-common-model';
 my $id_cc_llvm_suffix = '-llvm-cc';
 my $id_ld_llvm_suffix = '-llvm-ld';
 
+# Flag that specifies whether configuration was done.
+my $isconfig = 0;
+# The set of configuration directories.
+my @config_dir = ();
+
 # Kind of instrumentation.
 my $kind_isplain = 0;
 my $kind_isaspect = 0;
@@ -241,6 +252,9 @@ my $tool_aux_dir = 'rule-instrumentor';
 # The name of file where commands execution status will be logged. It's relative
 # to the tool auxiliary working directory.
 my $tool_cmds_log = 'cmds-log';
+# The name of directory where configuration files will be placed. It's 
+# relative to the tool auxiliary working directory.
+my $tool_config_dir = 'config';
 # The file that is used to store different auxiliary information. It's relative
 # to the tool base directory.
 my $tool_temp = '__rule_instrumentor_temp';
@@ -257,6 +271,8 @@ my $xml_cmd_cwd = 'cwd';
 my $xml_cmd_in = 'in';
 my $xml_cmd_ld = 'ld';
 my $xml_cmd_opt = 'opt';
+my $xml_cmd_opt_config = 'config';
+my $xml_cmd_opt_config_autoconf = 'autoconf';
 my $xml_cmd_out = 'out';
 my $xml_cmd_root = 'cmdstream';
 my $xml_header = '<?xml version="1.0"?>';
@@ -267,6 +283,7 @@ my $xml_model_db_files = 'files';
 my $xml_model_db_files_aspect = 'aspect';
 my $xml_model_db_files_common = 'common';
 my $xml_model_db_files_filter = 'filter';
+my $xml_model_db_files_config = 'config';
 my $xml_model_db_hints = 'hints';
 my $xml_model_db_kind = 'kind';
 my $xml_model_db_model = 'model';
@@ -372,7 +389,7 @@ else
 
 print_debug_trace("Close file handlers.");
 close($file_cmds_log) 
-  or die("Couldn't close file '$tool_aux_dir': $ERRNO\n");
+  or die("Couldn't close file '$tool_cmds_log': $ERRNO\n");
 close($file_xml_out) 
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
 
@@ -384,6 +401,88 @@ print_debug_normal("Make all successfully.");
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub create_configs($$)
+{
+  my $rel_dir = shift;
+  my $conf_path = shift;
+  
+  # If configuration was already done.
+  return @config_dir if ($isconfig);
+  
+  print_debug_trace("Check presence of configuration file.");
+  die("Can't find configuration file '$rel_dir/$conf_path'.") 
+    unless (-f "$rel_dir/$conf_path");
+  
+  # That is configuration file itself and the set of subdirectories 
+  # where it must be placed and that must be returned then. Note that 
+  # all must be relative to the tool configuration directory.
+  my @conf = split(/\//, $conf_path);
+  
+  my $to;
+  my $patched_conf;
+  while (my $conf = pop(@conf))
+  {
+	my $isfirst = 0;
+	
+	# When parse the directory.
+	if ($to)
+	{
+	  # When parse the next directories.
+	  if ($to =~ /\//)
+	  {
+	    $to = "$conf/$to";
+	  }
+	  # When parse the first directory.
+	  else
+	  {
+		$to = "/$conf";
+	  }
+	}
+	# When parse the file.
+	else
+	{
+	  $to = $conf;
+	  $isfirst = 1;
+	}
+	print_debug_debug("Create configuration '$to'.");
+	
+	if ($isfirst)
+	{
+	  print_debug_trace("Copy the main configuration file to the configuration directory and patch it.");
+      
+      open(my $file_conf, '>', "$tool_config_dir/$to")
+        or die("Couldn't open file '$tool_config_dir/$to' for write: $ERRNO");
+      cat("$rel_dir/$conf_path", $file_conf)
+        or die("Can't concatenate file '$rel_dir/$conf_path' with file '$tool_config_dir/$to'");
+      cat("$ldv_model_dir/$ldv_model{'config'}", $file_conf)
+        or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'config'}' with file '$tool_config_dir/$to'");
+      close($file_conf) 
+        or die("Couldn't close file '$tool_config_dir/$to': $ERRNO\n");
+      
+      $patched_conf = $to;
+        
+      push(@config_dir, $tool_config_dir);
+	}
+	else
+	{
+	  print_debug_trace("Just copy the patched configuration file to the corresponding configuration directory.");
+	  
+	  unless (-d "$tool_config_dir/$to")
+      {
+        mkpath("$tool_config_dir/$to")
+          or die("Couldn't recursively create directory '$tool_config_dir/$to': $ERRNO");
+      }
+      
+      copy("$tool_config_dir/$patched_conf", "$tool_config_dir/$to/$patched_conf")
+        or die("Can't copy the file '$tool_config_dir/$patched_conf' to the file '$tool_config_dir/$to/$patched_conf'");
+
+      push(@config_dir, "$tool_config_dir/$to");     
+	}
+  }
+    
+  return @config_dir;
+}
 
 sub create_general_aspect()
 {
@@ -626,12 +725,18 @@ sub get_model_info()
       $common_model_dir = $common_model_dir_path[1];
       print_debug_debug("The common file '$common' is placed in the directory '$common_model_dir'.");
       
-      # Filter is optional as i think.
+      # Filter file is optional as i think.
       print_debug_trace("Read filter file name.");
       my $filter = $files->first_child_text($xml_model_db_files_filter);
       print_debug_debug("The filter file '$filter' is specified for the '$id_attr' model") 
         if ($filter);
-        
+      
+      # Config file is optional as i think.
+      print_debug_trace("Read config file name.");
+      my $config = $files->first_child_text($xml_model_db_files_config);
+      print_debug_debug("The config file '$config' is specified for the '$id_attr' model") 
+        if ($config);
+                
       print_debug_trace("Store model information into hash.");
       %ldv_model = (
         'id' => $id_attr, 
@@ -639,6 +744,7 @@ sub get_model_info()
         'aspect' => $aspect,
         'common' => $common,
         'filter' => $filter,
+        'config' => $config,
         'engine' => $engine,
         'error' => $error,
         'twig hints' => $hints);
@@ -897,6 +1003,14 @@ sub prepare_files_and_dirs()
   
   # The rest isn't needed for the report mode.  
   return 0 if ($report_mode);
+
+  unless (-d "$tool_aux_dir/$tool_config_dir")
+  {
+    mkpath("$tool_aux_dir/$tool_config_dir")
+      or die("Couldn't recursively create directory '$tool_aux_dir/$tool_config_dir': $ERRNO");
+  }
+  $tool_config_dir = "$tool_aux_dir/$tool_config_dir";
+  print_debug_debug("The tool configurations directory: '$tool_config_dir'.");
 
   # LDV_HOME is obtained through directory of rule-instrumentor.
   # It is assumed that there is such organization of LDV_HOME directory:
@@ -1421,11 +1535,32 @@ sub process_cmds()
       
       print_debug_trace("Read an array of options and exclude the unwanted ones ('@off_opts').");
       my @opts;
+      my $autoconf;
       for (my $opt = $cmd->first_child($xml_cmd_opt)
         ; $opt
         ; $opt = $opt->next_elt($xml_cmd_opt))
       {
         my $opt_text = $opt->text;
+        
+        my $opt_config_attr = $opt->att($xml_cmd_opt_config);
+        if ($opt_config_attr)
+        {
+          print_debug_debug("The option '$opt_text' is marked as configuration header file.");
+          
+          if ($opt_config_attr eq $xml_cmd_opt_config_autoconf)
+          {
+            print_debug_debug("The option '$opt_text' is marked as automatic configuration header file.");	
+            # Story automatic configuration header file just once.
+            if ($autoconf)
+            {
+			  die("Don't mark more then one option as automatic configuration header file.");
+			}
+			else
+			{
+			  $autoconf = $opt_text;
+			}
+		  }  
+		}     
 
         # Exclude options for the gcc compiler.
         foreach my $off_opt (@off_opts)
@@ -1447,6 +1582,21 @@ sub process_cmds()
       
       print_debug_debug("Add wanted options '@on_opts'.");
       push(@opts, @on_opts);
+      print_debug_trace("Add config include options for cc command.");
+      if ($ldv_model{'config'} and $cmd->gi eq $xml_cmd_cc)
+      {
+		die("The configuration file is specified for the model but there is no configuration marked correspondingly.") 
+		  unless ($autoconf);  
+		  
+        my @config_inc_dirs = create_configs($cwd_text, $autoconf);
+        print_debug_debug("The config includes directories are '@config_inc_dirs'.");
+        @opts = (map("-I$_", @config_inc_dirs), @opts);
+
+		# Note that two options are passed since otherwise it leads to
+		# failure. This options are passed after all options to 
+		# overwrite the standard configuration files options.
+		push(@opts, ("-include", "$ldv_model_dir/$ldv_model{'config'}"));
+	  }
       
       print_debug_debug("The options to be passed to the gcc compiler are '@opts'.");
 
