@@ -1835,7 +1835,9 @@ sub process_cmds()
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:@entry_points:$desc\n");  
+          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr");  
+          print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
+          print($file_cmds_log ":@entry_points:$desc\n");
         }
         else
         {
@@ -1865,7 +1867,9 @@ sub process_cmds()
           }
           else
           {
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:@entry_points:$desc\n");  
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr");
+            print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
+            print($file_cmds_log ":@entry_points:$desc\n");  
           }
         }
       }
