@@ -26,7 +26,8 @@ public class CommandCC extends Command {
 					System.out.println("csd: ERROR: Parent dir is null.");
 					return false;
 				}
-				getOpts().add("-I"+parentDir);
+				Opt copt = new Opt("-I"+parentDir);
+				getOpts().add(copt);
 			}
 		}
 		return super.relocateCommand(basedir,newDriverDirString,iscopy);
