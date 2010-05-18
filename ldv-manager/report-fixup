@@ -18,6 +18,9 @@ sub handle_report
 {
 	my ($twig, $cmdT) = @_;
 	my $launchT = XML::Twig::Elt->new('launch_info');
+# ____JUST FOR TESTING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+XML::Twig::Elt->new('username',{},$ENV{'LDV_USERNAME'})->paste($launchT);
+# ____END
 	XML::Twig::Elt->new('timestamp',{},`date`)->paste($launchT);
 	XML::Twig::Elt->new('driver',{},$driver_name)->paste($launchT);
 	XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($launchT);
