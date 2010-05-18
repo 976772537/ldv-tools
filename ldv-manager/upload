@@ -89,7 +89,7 @@ end
 class Stats < ActiveRecord::Base
 	def self.from_xml(entry)
 		st = Stats.new
-		st.success = (entry/"status").inner_html != 'OK'
+		st.success = (entry/"status").inner_html == 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
 		st.time = (entry/"time").inner_html.to_i || 0
 		st.description = (entry/"desc").inner_html
@@ -181,9 +181,9 @@ sources = Source
 	end
 	#Tools
 	tools = {
-		'maingen' => 'maingen',
+		'maingen' => 'drv-env-gen',
 		'dscv' => 'dscv',
-		'ri' => 'ri',
+		'ri' => 'rule-instrumentor',
 		'rcv' => 'rcv',
 	}
 	# Load stats from XML
