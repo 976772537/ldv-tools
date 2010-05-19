@@ -92,6 +92,20 @@ class Trace < ActiveRecord::Base
 	def save(validate=true)
 		ActiveRecord::Base.silence { super(validate) }
 	end
+
+	# Validate that whether tools worked is OK (i.e. if maingenerator fails then all other tools should fail too).
+	validate do |trace|
+		valid_sequence = [:build,:maingen,:dscv,:ri,:rcv]
+		# Let's get pairs of tools to verify
+		shift_seq = [nil] + valid_sequence
+		pairs = shift_seq.zip(valid_sequence)[1..-2]
+
+		pairs.each do |pre,post|
+			ppre,ppost = [pre,post].map{|x| trace.send(x)}
+			trace.errors.add post,"is ok, but the calling tool, #{pre.to_s}, failed!" if (ppre.nil? && !ppost.nil?) || (!ppre.success? && ppost.success?)
+		end
+	end
+
 end
 
 class Stats < ActiveRecord::Base
@@ -253,7 +267,7 @@ end
 	launch.trace = trace
 
 	# Because of :autosave property, recursively saves all records
-	launch.save
+	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 end
 
 
