@@ -247,7 +247,7 @@ end
 	end
 
 	# Build is handled in a special way
-	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"",false)
+	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"]",false)
 	trace.build = build
 
 	trace.sources = sources + sources_for_kernel[kernel_name]
