@@ -218,7 +218,7 @@ end
 					# Send description to the checker
 					cin.write( trace.send(tool).description )
 					cin.close
-					cout.each {|line| trace.problems << Problem.find_or_create_by_name(line) }
+					cout.each {|line| trace.problems << Problem.find_or_create_by_name(line.chomp) }
 					cerr.each {|errln| $stderr.puts errln}
 				end
 			end
