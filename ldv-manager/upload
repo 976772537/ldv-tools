@@ -100,9 +100,10 @@ class Trace < ActiveRecord::Base
 		shift_seq = [nil] + valid_sequence
 		pairs = shift_seq.zip(valid_sequence)[1..-2]
 
+		# The following chains are forbidden: failed->ok and failed->nil
 		pairs.each do |pre,post|
-			ppre,ppost = [pre,post].map{|x| trace.send(x)}
-			trace.errors.add post,"is ok, but the calling tool, #{pre.to_s}, failed!" if (ppre.nil? && !ppost.nil?) || (!ppre.success? && ppost.success?)
+			pre_success,post_success = [pre,post].map{|x|  !trace.send(x).nil? && trace.send(x).success? }
+			trace.errors.add post,"is ok, but the calling tool, #{pre.to_s}, failed!" if !pre_success && post_success
 		end
 	end
 
