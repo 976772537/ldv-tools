@@ -119,8 +119,8 @@ sub hxml_cmdstream {
 		@astate=get_state($id);
 		foreach my $section ($_[1]->children($xml_cmd_out)) {
 			if($section->has_atts() && $section->att($xml_cmd_attr_check) eq 'true') {
-				$command->set_att($xml_reports_driver_name=>$astate[1]);
-				$command->set_att($xml_reports_module_name=>$astate[2]);
+				$command->set_att($xml_reports_driver_name=>$astate[2]);
+				$command->set_att($xml_reports_module_name=>$astate[1]);
 				$command->set_att($xml_cmd_attr_check=>'true');	
 			}
 		};

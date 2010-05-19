@@ -41,7 +41,7 @@ class Launch < ActiveRecord::Base
 
 	# Loads existing record if there exists one with the same primary key
 	def load_on_duplicate_key
-		if record = Launch.find_by_driver_id_and_toolset_id_and_environment_id_and_rule_model_id_and_scenario_id(driver,toolset,environment,rule_model,scenario)
+		if record = Launch.find_by_driver_id_and_toolset_id_and_environment_id_and_rule_model_id_and_scenario_id_and_task_id(driver,toolset,environment,rule_model,scenario,task)
 			record
 		else
 			self
@@ -53,19 +53,22 @@ class Launch < ActiveRecord::Base
 end
 
 class Task < ActiveRecord::Base
-	validates_uniqueness_of :username
 	def self.from_xml(tag)
 		unless (tag/"task_id").empty?
 			# Get task from database
 			task_id = (tag/"task_id").inner_html.to_i
-			return Task.find(task_id)
+			task = Task.find(task_id)
+			raise "Couldn't find task for task_id=#{task_id.to_s}" unless task
+			return task
 		end
 
 		unless (tag/"username").empty? || (tag/"timestamp").empty?
 			# Create task for user/given timestamp
 			username = (tag/"username").inner_html
 			timestamp = (tag/"timestamp").inner_html.to_datetime
-			return Task.find_or_create_by_username_and_timestamp(username,timestamp)
+			task = Task.find_or_create_by_username_and_timestamp(username,timestamp)
+			raise "Couldn't find task for username=#{username.to_s} and timestamp=#{timestamp.to_s}" unless task
+			return task
 		end
 
 		# No means to create a task found -- okay, then there's no task
@@ -84,12 +87,17 @@ class Trace < ActiveRecord::Base
 
 	has_many :sources, :autosave => true
 	has_and_belongs_to_many :problems
+
+	# Do not log how these HUGE traces are saved
+	def save(validate=true)
+		ActiveRecord::Base.silence { super(validate) }
+	end
 end
 
 class Stats < ActiveRecord::Base
 	def self.from_xml(entry)
 		st = Stats.new
-		st.success = (entry/"status").inner_html != 'OK'
+		st.success = (entry/"status").inner_html == 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
 		st.time = (entry/"time").inner_html.to_i || 0
 		st.description = (entry/"desc").inner_html
@@ -103,6 +111,7 @@ class Source < ActiveRecord::Base
 
 	# Returns array of sources found in the directory supplied
 	def self.from_dir(dirname)
+		return [] unless FileTest.directory? dirname
 		file_recs = []
 		Find.find(dirname) do |path|
 			unless FileTest.directory?(path)
@@ -137,7 +146,6 @@ filenames = Dir.glob(File.join(tmpdir,'*.report.xml'))
 raise "Only one report in the archive given should match *.report.xml pattern!  These found: #{filenames.join(",")}" if filenames.size != 1
 
 filename = filenames[0]
-sources_dir = File.join(tmpdir,"sources/")
 
 # Load document
 doc = open(filename) { |f| Hpricot(f) }
@@ -149,28 +157,36 @@ git_tag = (doc/"reports/launch_info/tag").inner_html
 # Create current task unless it's already added
 task = Task.from_xml(doc/"reports/launch_info")
 
-sources = Source
+# Fetch dources (due to not very beautiful structure of the output reports, the sources are fetched beforehand).
+sources_dir = File.join(tmpdir,"sources/")
+sources=[]
+sources_for_kernel={}
+unless sources_dir.empty?
+	# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
+	# We do not descend into sources firecotry and we don't try to separate the files there, as they aren't made for this purpose.
+	sources = Source.from_dir(File.join(sources_dir))
+end
 
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
+	# HACK: Get sources for current kernel (unless already gotten)
+	# Although we're adding the same files for the second time (see generic source adding procedure), we now have to use separate names for them (since they're somehow are referenced by their relative path to kernel origin).
+	unless sources_dir.empty?
+		sources_for_kernel[kernel_name] ||= Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
+	else
+		sources_for_kernel[kernel_name] = []
+	end
 
+
+	driver_name = ld.attributes['driver_name'] || driver_name
+	raise "Driver name is empty for ld #{ld.attributes['id']}!" if driver_name.nil? || driver_name.empty?
 	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
-	# How it identify sources.
-	# TODO: For now it's always zero, since reporting about in-kernel drivers is not fully implemented..
-	driver_sources_id = '0'
 
 	rule_model_name = ld.attributes['model']
 	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
 
-	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
-
-	unless sources_dir.empty?
-		# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
-		sources = Source.from_dir(File.join(sources_dir, kernel_name, driver_sources_id, rule_model_name))
-	else
-		sources = []
-	end
+	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['module_name'],ld.attributes['main'])
 
 	trace = Trace.new
 	#verdict
@@ -181,9 +197,9 @@ sources = Source
 	end
 	#Tools
 	tools = {
-		'maingen' => 'maingen',
+		'maingen' => 'drv-env-gen',
 		'dscv' => 'dscv',
-		'ri' => 'ri',
+		'ri' => 'rule-instrumentor',
 		'rcv' => 'rcv',
 	}
 	# Load stats from XML
@@ -213,7 +229,7 @@ sources = Source
 	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"")
 	trace.build = build
 
-	trace.sources = sources
+	trace.sources = sources + sources_for_kernel[kernel_name]
 
 	# Save trace to DB
 	launch = Launch.new
@@ -224,11 +240,11 @@ sources = Source
 	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,(ld/"rcv")[0].attributes['verifier'] || 'blast')
 	launch.rule_model = rule_model
 	launch.scenario = scenario
+	launch.task = task
 
 	launch = launch.load_on_duplicate_key
 
 	launch.trace = trace
-	launch.task = task
 
 	# Because of :autosave property, recursively saves all records
 	launch.save

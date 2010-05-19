@@ -132,7 +132,11 @@ case $action in
 		echo "id=$name" > $NEW_DESCRIPTION;
 		echo "name=$name" >> $NEW_DESCRIPTION;
 		echo "type=$extractor" >> $NEW_DESCRIPTION;
-		echo "source=$src" >> $NEW_DESCRIPTION;
+		dsrc=`echo "readlink -f $src" | sh`;
+		if [ $? -ne 0 ]; then 
+			dsrc=$src; 
+		fi;
+		echo "source=$dsrc" >> $NEW_DESCRIPTION;
 		echo "dest=$LDV_ENVS_DIR/$name" >> $NEW_DESCRIPTION;
 		echo "options=$eoptions" >> $NEW_DESCRIPTION;
 		ldv_print "DEBUG: $EXTRACTOR $NEW_DESCRIPTION";

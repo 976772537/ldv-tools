@@ -28,7 +28,7 @@ create table environments (
 -- Drivers holds drivers that were checked
 create table drivers (
 	id int(10) unsigned not null auto_increment,
-	name varchar(20) not null,
+	name varchar(255) not null,
 	origin enum('kernel','external') not null,
 	primary key (id),
 	key (name)
@@ -55,7 +55,7 @@ create table toolsets(
 create table scenarios(
 	id int(10) unsigned not null auto_increment,
 	driver_id int(10) unsigned not null,
-	executable varchar(100) not null,
+	executable varchar(255) not null,
 	main varchar(100) not null,
 	primary key (id),
 	foreign key (driver_id) references drivers(id)

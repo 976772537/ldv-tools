@@ -7,6 +7,8 @@ use File::Find;
 
 
 my $deg_home = "$FindBin::Bin";
+my $tracevis = "$deg_home/../bin/error-trace-visualizer.pl";
+my $kmanager = "$deg_home/../ldv/ldv-kmanager";
 
 # Xml nodes names.
 my $xml_cmd_basedir = 'basedir';
@@ -24,9 +26,13 @@ my $xml_reports_cc = 'cc';
 my $xml_reports_ld = 'ld';
 my $xml_reports_attr_ref = 'ref';
 my $xml_reports_att_env = 'kernel';
+my $xml_reports_att_model = 'model';
 my $xml_reports_verdict = 'verdict';
 my $xml_reports = 'reports';
 my $xml_reports_build = 'build';
+my $xml_section_rcv = 'rcv';
+my $xml_rcv_att_verifier = 'verifier';
+my $xml_section_trace = 'trace';
 
 my $verdict_unknown = 'UNKNOWN';
 my $verdict_ok = 'OK';
@@ -73,15 +79,6 @@ foreach my $file (@reports) {
 	foreach my $section (@childrens) {
 		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld || $section->name eq $xml_reports_build) {
 			hxml_cmdstream($section,$file);
-			# HACK by shvedsky: copy source files
-			my @state=get_state($file);
-			$env=$state[0];
-			find(\&denvd,"$reports_dir/$env/csd_deg_dscv");
-#		ldv_print("dir: $sdir\n");
-#			if($sdir =~ m/.*\/\d+$/) {
-#				ldv_print("SUBDIR: $sdir\n");
-#				system("mkdir -p $report_out.sources/$env") and die;
-#				system("cp -r $reports_dir/$env/csd_deg_dscv/0/dscv_tempdir/dscv/ri/* $report_out.sources/$env") and die;
 		}
 		$section->move($twig_inroot);
 	}
@@ -119,6 +116,77 @@ sub get_reports {
 sub hxml_cmdstream {
 	my @state=get_state($_[1]);
 	$_[0]->set_att($xml_reports_att_env=>$state[0]);
+
+	if($_[0]->name eq $xml_reports_ld && $_[0]->has_atts && $_[0]->att($xml_cmd_attr_check) eq 'true') {
+		my $verdict_section = $_[0]->first_child($xml_reports_verdict);
+		if($verdict_section && $verdict_section->text eq 'UNSAFE') {
+			my $kernel=$_[0]->att($xml_reports_att_env);
+			my $model =$_[0]->att($xml_reports_att_model);
+			my $rcv_section = $_[0]->first_child($xml_section_rcv);
+			my $engine=$rcv_section->att($xml_rcv_att_verifier);
+			my $trace_section = $_[0]->first_child($xml_section_trace);
+			my $trace = $trace_section->text;
+			#
+			# 	And now we have
+			# 1. $kernel
+			# 2. $model
+			# 3. $trace
+			# 4. $engine
+			#
+			# Try to call trace visualizer 
+			#
+			my $temp_file = "$report_out.tmp";
+			# remove old temp files
+			system('rm','-f',$temp_file) and die;
+			# call visualizer
+			system($tracevis,"--engine=$engine","--report=$trace","--reqs-out=$temp_file") and die;
+			if(!( -f $temp_file)) {
+				ldv_eprint("Can't find temp file.");
+				exit(1);
+			};
+			# read temp file
+			open(FILT,$temp_file); 
+			my @trace_files = <FILT>; 
+			close(FILT);
+			foreach $tfile (@trace_files) {
+				# if path relativ then we
+				my $work_dir_pattern = $state[2];
+				if($tfile =~ m/$work_dir_pattern\/+csd_deg_dscv\/+\d+\/+/) {
+					my $brelpath = $tfile;
+					$brelpath =~ s/$work_dir_pattern\/+csd_deg_dscv\/+(\d+\/+.*)/$1/;
+					my $relpath = $brelpath;
+					$relpath =~ s/(.*)\/.*$/$1/;
+					my $rel_path_full="$report_out.source/$kernel/$relpath";
+					chomp($rel_path_full);
+					system('mkdir','-p',$rel_path_full) and die;
+					chomp($tfile);
+					system('cp',$tfile,$rel_path_full) and die;				
+				} else {
+					# create $env dir
+					my $relpath = $tfile;
+					$relpath =~ s/(.*)\/.*$/$1/;
+					my $rel_path_full="$report_out.source/$kernel/kernel/$relpath";
+					chomp($rel_path_full);
+					system('mkdir','-p',$rel_path_full) and die;
+					my $path_to_kernel=`$kmanager --action=getpath --name=$kernel`;
+					chomp($path_to_kernel);
+					if(!(-d $path_to_kernel)) {
+						ldv_eprint("Can't get path for kernel.");
+						exit 1;
+					}
+					my $kernel_file="$path_to_kernel/$tfile";
+					chomp($kernel_file);
+					if(!(-f $kernel_file)) {
+						ldv_eprint("Can't find kernel file.");
+						exit 1;
+					}
+					# and now copy it
+					system('cp',$kernel_file,$rel_path_full) and die;				
+				}
+			}
+		}
+	}
+
 }	
 
 sub get_state {
@@ -127,7 +195,7 @@ sub get_state {
 			my $path=$2;
 			my $envid=$1;
 			if($_[0] =~ m/$path/) {
-				my @state=($envid,"0");	
+				my @state=($envid,"0",$path);	
 				return @state;
 			}	
 		}
