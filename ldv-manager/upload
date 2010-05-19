@@ -114,7 +114,6 @@ class Stats < ActiveRecord::Base
 		st = Stats.new
 		if entry.none?
 			return nil if do_nulls
-			st.ran = false
 		end
 		st.success = (entry/"status").inner_html == 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
