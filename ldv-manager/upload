@@ -95,8 +95,12 @@ class Trace < ActiveRecord::Base
 end
 
 class Stats < ActiveRecord::Base
-	def self.from_xml(entry)
+	def self.from_xml(entry,do_nulls)
 		st = Stats.new
+		if entry.none?
+			return nil if do_nulls
+			st.ran = false
+		end
 		st.success = (entry/"status").inner_html == 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
 		st.time = (entry/"time").inner_html.to_i || 0
@@ -202,9 +206,11 @@ end
 		'ri' => 'rule-instrumentor',
 		'rcv' => 'rcv',
 	}
+	# We assume that if there's no report for a tool, it's not 
+	do_nulls = true
 	# Load stats from XML
 	tools.each do |dbname,tag|
-		stats = Stats.from_xml(ld/tag)
+		stats = Stats.from_xml(ld/tag,do_nulls)
 		trace.send("#{dbname}=",stats)
 	end
 
@@ -216,7 +222,7 @@ end
 				# Run the script and get its output
 				Open3.popen3(file) do |cin,cout,cerr|
 					# Send description to the checker
-					cin.write( trace.send(tool).description )
+					cin.write( trace.send(tool).description ) if trace.send(tool)
 					cin.close
 					cout.each {|line| trace.problems << Problem.find_or_create_by_name(line.chomp) }
 					cerr.each {|errln| $stderr.puts errln}
@@ -226,7 +232,7 @@ end
 	end
 
 	# Build is handled in a special way
-	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"")
+	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"",false)
 	trace.build = build
 
 	trace.sources = sources + sources_for_kernel[kernel_name]
@@ -237,7 +243,7 @@ end
 	# Assign a primary key
 	launch.driver = driver
 	launch.environment = kernel
-	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,(ld/"rcv")[0].attributes['verifier'] || 'blast')
+	launch.toolset = Toolset.find_or_create_by_version(git_tag)
 	launch.rule_model = rule_model
 	launch.scenario = scenario
 	launch.task = task

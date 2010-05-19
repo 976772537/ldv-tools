@@ -47,7 +47,7 @@ create table toolsets(
 	id int(10) unsigned not null auto_increment,
 	version varchar(20) not null,
 -- RCV backend used in this measurement
-	verifier varchar(20) not null,
+	verifier varchar(20),
 	primary key(id),
 	key (verifier)
 ) ENGINE=InnoDB;
@@ -81,10 +81,10 @@ create table stats(
 create table traces(
 	id int(10) unsigned not null auto_increment,
 	build_id int(10) unsigned not null,
-	maingen_id int(10) unsigned not null,
-	dscv_id int(10) unsigned not null,
-	ri_id int(10) unsigned not null,
-	rcv_id int(10) unsigned not null,
+	maingen_id int(10) unsigned,
+	dscv_id int(10) unsigned,
+	ri_id int(10) unsigned,
+	rcv_id int(10) unsigned,
 
 	result enum('safe','unsafe','unknown') not null default 'unknown',
 -- Error trace if error is found
