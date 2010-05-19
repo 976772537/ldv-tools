@@ -87,6 +87,11 @@ class Trace < ActiveRecord::Base
 
 	has_many :sources, :autosave => true
 	has_and_belongs_to_many :problems
+
+	# Do not log how these HUGE traces are saved
+	def save(validate=true)
+		ActiveRecord::Base.silence { super(validate) }
+	end
 end
 
 class Stats < ActiveRecord::Base
@@ -141,7 +146,6 @@ filenames = Dir.glob(File.join(tmpdir,'*.report.xml'))
 raise "Only one report in the archive given should match *.report.xml pattern!  These found: #{filenames.join(",")}" if filenames.size != 1
 
 filename = filenames[0]
-sources_dir = File.join(tmpdir,"sources/")
 
 # Load document
 doc = open(filename) { |f| Hpricot(f) }
@@ -153,28 +157,36 @@ git_tag = (doc/"reports/launch_info/tag").inner_html
 # Create current task unless it's already added
 task = Task.from_xml(doc/"reports/launch_info")
 
+# Fetch dources (due to not very beautiful structure of the output reports, the sources are fetched beforehand).
+sources_dir = File.join(tmpdir,"sources/")
+sources=[]
+sources_for_kernel={}
+unless sources_dir.empty?
+	# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
+	# We do not descend into sources firecotry and we don't try to separate the files there, as they aren't made for this purpose.
+	sources = Source.from_dir(File.join(sources_dir))
+end
+
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
+	# HACK: Get sources for current kernel (unless already gotten)
+	# Although we're adding the same files for the second time (see generic source adding procedure), we now have to use separate names for them (since they're somehow are referenced by their relative path to kernel origin).
+	unless sources_dir.empty?
+		sources_for_kernel[kernel_name] ||= Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
+	else
+		sources_for_kernel[kernel_name] = []
+	end
 
+
+	driver_name = ld.attributes['driver_name'] || driver_name
+	raise "Driver name is empty for ld #{ld.attributes['id']}!" if driver_name.nil? || driver_name.empty?
 	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
-	# How it identify sources.
-	# TODO: For now it's always zero, since reporting about in-kernel drivers is not fully implemented..
-	driver_sources_id = '0'
 
 	rule_model_name = ld.attributes['model']
 	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
 
-	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['ref'],ld.attributes['main'])
-
-	unless sources_dir.empty?
-		# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
-		sources = Source.from_dir(File.join(sources_dir, kernel_name, driver_sources_id, 'dscv_tempdir','dscv','ri', rule_model_name))
-		# Match in-kernel sources
-		sources.concat Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
-	else
-		sources = []
-	end
+	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['module_name'],ld.attributes['main'])
 
 	trace = Trace.new
 	#verdict
@@ -217,7 +229,7 @@ task = Task.from_xml(doc/"reports/launch_info")
 	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"")
 	trace.build = build
 
-	trace.sources = sources
+	trace.sources = sources + sources_for_kernel[kernel_name]
 
 	# Save trace to DB
 	launch = Launch.new
