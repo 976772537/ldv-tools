@@ -215,6 +215,10 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1";
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1;
 else
+	# TODO: replace this hack!
+	# prepare kernel for external driver
+	make allmodconfig;
+	make init;
 	# test for root of kernel
 	abs_driver=`readlink -f $driver`;
 	if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
