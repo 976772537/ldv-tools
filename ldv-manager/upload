@@ -146,23 +146,16 @@ end
 	if (trace_tag = ld/"trace") && (! (trace_fname=trace_tag.inner_html).empty?) && (File.exists?(trace_fname))
 		trace.error_trace = IO.read(trace_fname)
 	end
-	#Tools
-	tools = {
-		'maingen' => 'drv-env-gen',
-		'dscv' => 'dscv',
-		'ri' => 'rule-instrumentor',
-		'rcv' => 'rcv',
-	}
 	# We assume that if there's no report for a tool, it's not 
 	do_nulls = true
 	# Load stats from XML
-	tools.each do |dbname,tag|
+	Trace.tools.each do |dbname,tag|
 		stats = Stats.from_xml(ld/tag,do_nulls)
 		trace.send("#{dbname}=",stats)
 	end
 
 	# Run scripts that check for problems
-	tools.each do |tool,v|
+	Trace.tools.each do |tool,v|
 		scripts_dir = File.join(File.dirname(__FILE__), "problems", tool)
 		Find.find(scripts_dir) do |file|
 			if !FileTest.directory?(file) && FileTest.executable?(file)

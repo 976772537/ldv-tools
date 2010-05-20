@@ -89,6 +89,8 @@ create table traces(
 	result enum('safe','unsafe','unknown') not null default 'unknown',
 -- Error trace if error is found
 	error_trace mediumtext,
+-- RCV backend used in this measurement
+	verifier varchar(20),
 
 	primary key (id),
 
@@ -170,8 +172,9 @@ create table problems(
 create table problems_traces(
 	trace_id int(10) unsigned not null,
 	problem_id int(10) unsigned not null,
+	unique (trace_id,problem_id),
 
-	foreign key (trace_id) references traces(id),
-	foreign key (problem_id) references problems(id)
+	foreign key (trace_id) references traces(id) on delete cascade,
+	foreign key (problem_id) references problems(id) on delete cascade
 ) ENGINE=InnoDB;
 
