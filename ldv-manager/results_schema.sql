@@ -7,7 +7,7 @@
 drop table if exists launches;
 drop table if exists tasks;
 drop table if exists sources;
-drop table if exists problems_traces;
+drop table if exists problems_stats;
 drop table if exists problems;
 drop table if exists traces;
 drop table if exists stats;
@@ -169,12 +169,12 @@ create table problems(
 	key (name)
 ) ENGINE=InnoDB;
 
-create table problems_traces(
-	trace_id int(10) unsigned not null,
+create table problems_stats(
+	stats_id int(10) unsigned not null,
 	problem_id int(10) unsigned not null,
-	unique (trace_id,problem_id),
+	unique (stats_id,problem_id),
 
-	foreign key (trace_id) references traces(id) on delete cascade,
+	foreign key (stats_id) references stats(id) on delete cascade,
 	foreign key (problem_id) references problems(id) on delete cascade
 ) ENGINE=InnoDB;
 

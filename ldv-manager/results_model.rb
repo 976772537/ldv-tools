@@ -48,7 +48,6 @@ class Trace < ActiveRecord::Base
 	belongs_to :rcv, :class_name => 'Stats', :autosave => true
 
 	has_many :sources, :autosave => true
-	has_and_belongs_to_many :problems
 
 	#Tool nicknames -> XML names
 	def self.tools ; {
@@ -75,6 +74,7 @@ class Trace < ActiveRecord::Base
 end
 
 class Stats < ActiveRecord::Base
+	has_and_belongs_to_many :problems
 end
 
 class Source < ActiveRecord::Base

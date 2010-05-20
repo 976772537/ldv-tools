@@ -34,14 +34,17 @@ EOF
 
 # Run scripts that check for problems
 Trace.all.each do |trace|
-	scripts.each do |script|
-		# Run the script and get its output
-		Open3.popen3(script) do |cin,cout,cerr|
-			# Send description to the checker
-			cin.write( trace.send(tool).description ) if trace.send(tool)
-			cin.close
-			cout.each {|line| p=Problem.find_or_create_by_name(line.chomp); trace.problems << p unless trace.problems.include? p  }
-			cerr.each {|errln| $stderr.puts errln}
+	tool_stat = trace.send(tool)
+	if tool_stat
+		scripts.each do |script|
+			# Run the script and get its output
+			Open3.popen3(script) do |cin,cout,cerr|
+				# Send description to the checker
+				cin.write( tool_stat.description )
+				cin.close
+				cout.each {|line| p=Problem.find_or_create_by_name(line.chomp); tool_stat.problems << p unless tool_stat.problems.include? p  }
+				cerr.each {|errln| $stderr.puts errln}
+			end
 		end
 	end
 	# trace.problems.uniq!
