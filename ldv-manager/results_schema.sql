@@ -46,9 +46,12 @@ create table rule_models(
 create table toolsets(
 	id int(10) unsigned not null auto_increment,
 	version varchar(20) not null,
--- RCV backend used in this measurement
-	verifier varchar(20),
+-- verifier should contain "model-specific" if verifier is set up by model.
+-- Otherwise, if the verifier was forced by user, it should contain a user-defined verifier name 
+	verifier varchar(100) not null default "model-specific",
 	primary key(id),
+	unique (version,verifier),
+	key (version),
 	key (verifier)
 ) ENGINE=InnoDB;
 
@@ -90,7 +93,7 @@ create table traces(
 -- Error trace if error is found
 	error_trace mediumtext,
 -- RCV backend used in this measurement
-	verifier varchar(20),
+	verifier varchar(100),
 
 	primary key (id),
 

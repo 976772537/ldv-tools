@@ -105,6 +105,13 @@ driver_name = (doc/"reports/launch_info/driver").inner_html
 driver_origin = (doc/"reports/launch_info/driver_origin").inner_html
 git_tag = (doc/"reports/launch_info/tag").inner_html
 
+# Get verifier name
+unless (verif_tag = doc/"reports/launch_info/globalverifier").none?
+	global_verifier = verif_tag.inner_html
+else
+	global_verifier = "model-specific"
+end
+
 # Create current task unless it's already added
 task = Task.from_xml(doc/"reports/launch_info")
 
@@ -177,6 +184,11 @@ end
 	# Build is handled in a special way
 	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"]",false)
 	trace.build = build
+	# We should also get verifier from RCV, if it was run
+	if rcv_tag = ld/"rcv"
+		raise "Two <rcv> tags in ld #{ld.id}?" if rcv_tag.size > 1
+		trace.verifier = rcv_tag[0].attributes['verifier']
+	end
 
 	trace.sources = sources + sources_for_kernel[kernel_name]
 
@@ -186,7 +198,7 @@ end
 	# Assign a primary key
 	launch.driver = driver
 	launch.environment = kernel
-	launch.toolset = Toolset.find_or_create_by_version(git_tag)
+	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,global_verifier)
 	launch.rule_model = rule_model
 	launch.scenario = scenario
 	launch.task = task
