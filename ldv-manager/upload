@@ -125,17 +125,13 @@ unless sources_dir.empty?
 	sources = Source.from_dir(File.join(sources_dir))
 end
 
+# Traces will be taken from this folder
+traces_dir = File.join(tmpdir,"traces")
+
+
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
-	# HACK: Get sources for current kernel (unless already gotten)
-	# Although we're adding the same files for the second time (see generic source adding procedure), we now have to use separate names for them (since they're somehow are referenced by their relative path to kernel origin).
-	unless sources_dir.empty?
-		sources_for_kernel[kernel_name] ||= Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
-	else
-		sources_for_kernel[kernel_name] = []
-	end
-
 
 	driver_name = ld.attributes['driver_name'] || driver_name
 	raise "Driver name is empty for ld #{ld.attributes['id']}!" if driver_name.nil? || driver_name.empty?
@@ -149,9 +145,35 @@ end
 	trace = Trace.new
 	#verdict
 	trace.result = (ld/"verdict").inner_html.downcase
+	unsafe = trace.result=="unsafe"
+
+	# We only get sources if verdict is unsafe
+	if unsafe
+		# HACK: Get sources for current kernel (unless already gotten)
+		# Although we're adding the same files for the second time (see generic source adding procedure), we now have to use separate names for them (since they're somehow are referenced by their relative path to kernel origin).
+		unless sources_dir.empty?
+			sources_for_kernel[kernel_name] ||= Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
+		else
+			sources_for_kernel[kernel_name] = []
+		end
+	else
+		sources_for_kernel[kernel_name] = []
+	end
+
+	if unsafe
+		trace.sources = Source.from_dir(File.join(sources_dir)) + Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
+	end
+
 	#trace -- read the whole trace from file
-	if (trace_tag = ld/"trace") && (! (trace_fname=trace_tag.inner_html).empty?) && (File.exists?(trace_fname))
-		trace.error_trace = IO.read(trace_fname)
+	#We only do this if verdict is unsafe
+	if unsafe
+		if (trace_tag = ld/"trace")
+			trace_fname=trace_tag.inner_html
+			trace_abs_fname=File.join(traces_dir,trace_fname)
+			unless trace_fname.empty? || !File.exists?(trace_abs_fname)
+				trace.error_trace = IO.read(trace_abs_fname)
+			end
+		end
 	end
 	# We assume that if there's no report for a tool, it's not 
 	do_nulls = true
@@ -185,12 +207,10 @@ end
 	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"]",false)
 	trace.build = build
 	# We should also get verifier from RCV, if it was run
-	if rcv_tag = ld/"rcv"
-		raise "Two <rcv> tags in ld #{ld.id}?" if rcv_tag.size > 1
+	if (rcv_tag = ld/"rcv") && !rcv_tag.none?
+		raise "Two <rcv> tags in ld #{ld.id}?" if rcv_tag.size != 1
 		trace.verifier = rcv_tag[0].attributes['verifier']
 	end
-
-	trace.sources = sources + sources_for_kernel[kernel_name]
 
 	# Save trace to DB
 	launch = Launch.new

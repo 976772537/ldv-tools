@@ -16,13 +16,28 @@ use strict;
 use XML::Twig;
 
 my $source_dir = undef;
-sub get_info
+my $work_dir = undef;
+sub read_to
 {
-	my ($twig, $cmdT) = @_;
-	$source_dir = $cmdT->text();
+	my $ref = shift;
+	return sub{
+		my ($twig, $cmdT) = @_;
+		$$ref = $cmdT->text();
+	};
 }
 
-XML::Twig->new( twig_roots => { 'reports/launch_info/sources' => \&get_info })->parsefile($report_xml);
+my @traces = ();
+sub read_trace
+{
+	my ($twig, $cmdT) = @_;
+	push @traces, $cmdT->text() if $cmdT->text();
+}
+
+XML::Twig->new( twig_roots => {
+	'reports/launch_info/sources' => read_to(\$source_dir),
+	'reports/launch_info/workdir' => read_to(\$work_dir),
+	'ld/trace' => \&read_trace,
+})->parsefile($report_xml);
 
 my @archive = ($report_xml);
 # Package sources if they are referenced in the report
@@ -32,8 +47,16 @@ if (defined $source_dir) {
 	push @archive, $source_dir;
 
 	# Pack all files
-	print("pax -w -s '|^\Q$source_dir\E\\\/*|sources\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ","\n");
-	system("pax -w -s '|^\Q$source_dir\E\\\/*|sources\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
+	print("pax -w -x cpio -s '|^\Q$source_dir\E\\\/*|sources\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ","\n");
+	system("pax -w -x cpio -s '|^\Q$source_dir\E\\\/*|sources\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
+	print("Packing traces: \n");
+	for my $trace (@traces){
+		my $trace_absolute = "$work_dir/$trace";
+		# Traces are also shown in report (but not in filesystem!) even for SAFE files!  That's a bug, but we workaround it here for now.
+		next unless -f $trace_absolute;
+		print("pax -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' \n");
+		system("pax -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' ") and die;
+	}
 }else{
 	system("pax -w  ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax'") and die;
 }
