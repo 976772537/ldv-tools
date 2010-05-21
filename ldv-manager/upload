@@ -144,8 +144,10 @@ traces_dir = File.join(tmpdir,"traces")
 
 	trace = Trace.new
 	#verdict
-	trace.result = (ld/"verdict").inner_html.downcase
-	unsafe = trace.result=="unsafe"
+	verdict = (ld/"verdict").inner_html.downcase
+	unsafe = verdict=="unsafe"
+	trace.result=verdict
+	trace.result='unknown' if verdict.empty?
 
 	# We only get sources if verdict is unsafe
 	if unsafe

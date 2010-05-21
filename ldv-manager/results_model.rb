@@ -22,6 +22,8 @@ class Launch < ActiveRecord::Base
 	belongs_to :rule_model, :class_name=>'Rule_Model', :autosave => true
 	belongs_to :scenario, :autosave => true
 
+	validates_associated :driver, :toolset, :environment, :rule_model, :scenario
+
 	# Loads existing record if there exists one with the same primary key
 	def load_on_duplicate_key
 		if record = Launch.find_by_driver_id_and_toolset_id_and_environment_id_and_rule_model_id_and_scenario_id_and_task_id(driver,toolset,environment,rule_model,scenario,task)
@@ -33,6 +35,7 @@ class Launch < ActiveRecord::Base
 
 	belongs_to :task, :autosave => true
 	belongs_to :trace, :autosave => true
+	validates_associated :task, :trace
 end
 
 class Task < ActiveRecord::Base
@@ -71,6 +74,9 @@ class Trace < ActiveRecord::Base
 			  trace.errors.add post,"is ok, but the calling tool, #{pre.to_s}, failed!" if !pre_success && post_success
 		 end
 	end
+
+	# MySQL doesn't enforce constraints on ENUM.  So we need a separate validation.
+	validates_format_of :result, :with => /safe|unsafe|unknown/, :on => :save
 end
 
 class Stats < ActiveRecord::Base
