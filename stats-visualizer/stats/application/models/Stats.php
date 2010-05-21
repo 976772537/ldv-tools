@@ -15,7 +15,17 @@ class Application_Model_Stats
     protected $_environmentModel;
     protected $_verdict;
     protected $_errorTrace;
-    
+    protected $_buildStatus;
+    protected $_buildProblems;
+    protected $_maingenStatus;
+    protected $_maingenProblems;
+    protected $_dscvStatus;
+    protected $_dscvProblems;
+    protected $_riStatus;
+    protected $_riProblems;
+    protected $_rcvStatus;
+    protected $_rcvProblems;
+        
     public function __construct(array $options = null)
     {
         if (is_array($options)) 
@@ -158,7 +168,7 @@ class Application_Model_Stats
         
     public function setVerdict($verdict)
     {
-        $this->_verdict = (string)$verdict;
+        $this->_verdict = $verdict;
         return $this;
     }
 
@@ -178,5 +188,140 @@ class Application_Model_Stats
     {
         return $this->_errorTrace;
     }  
+        
+    public function setBuildStatus($buildStatus)
+    {
+        $this->_buildStatus = $buildStatus;
+        return $this;
+    }
+
+    public function getBuildStatus()
+    {
+        return $this->_buildStatus;
+    }  
+        
+    public function setBuildProblems($buildProblems)
+    {
+        $this->_buildProblems = $buildProblems;
+        return $this;
+    }
+
+    public function getBuildProblems()
+    {
+        return $this->_buildProblems;
+    }         
+        
+    public function setMaingenStatus($maingenStatus)
+    {
+        $this->_maingenStatus = $maingenStatus;
+        return $this;
+    }
+
+    public function getMaingenStatus()
+    {
+        return $this->_maingenStatus;
+    }  
+        
+    public function setMaingenProblems($maingenProblems)
+    {
+        $this->_maingenProblems = $maingenProblems;
+        return $this;
+    }
+
+    public function getMaingenProblems()
+    {
+        return $this->_maingenProblems;
+    }         
+        
+    public function setDscvStatus($dscvStatus)
+    {
+        $this->_dscvStatus = $dscvStatus;
+        return $this;
+    }
+
+    public function getDscvStatus()
+    {
+        return $this->_dscvStatus;
+    }               
+        
+    public function setDscvProblems($dscvProblems)
+    {
+        $this->_dscvProblems = $dscvProblems;
+        return $this;
+    }
+
+    public function getDscvProblems()
+    {
+        return $this->_dscvProblems;
+    }         
+        
+    public function setRiStatus($riStatus)
+    {
+        $this->_riStatus = $riStatus;
+        return $this;
+    }
+
+    public function getRiStatus()
+    {
+        return $this->_riStatus;
+    }               
+        
+    public function setRiProblems($riProblems)
+    {
+        $this->_riProblems = $riProblems;
+        return $this;
+    }
+
+    public function getRiProblems()
+    {
+        return $this->_riProblems;
+    }         
+        
+    public function setRcvStatus($rcvStatus)
+    {
+        $this->_rcvStatus = $rcvStatus;
+        return $this;
+    }
+
+    public function getRcvStatus()
+    {
+        return $this->_rcvStatus;
+    }         
+        
+    public function setRcvProblems($rcvProblems)
+    {
+        $this->_rcvProblems = $rcvProblems;
+        return $this;
+    }
+
+    public function getRcvProblems()
+    {
+        return $this->_rcvProblems;
+    }         
+
+        
+/*
+    public function setProblem($problem)
+    {
+        $this->_problem[] = $problem;
+        return $this;
+    }
+
+    public function getProblem()
+    {
+        return $this->_problem;
+    }   
+        
+    public function setProblemUnmatched($problemUnmatched)
+    {
+        $this->_problemUnmatched = $problemUnmatched;
+        return $this;
+    }
+
+    public function getProblemUnmatched()
+    {
+        return $this->_problemUnmatched;
+    } 
+*/
 }
 
