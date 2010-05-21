@@ -57,6 +57,13 @@ for arg in $@; do
 			        exit 1;
 			fi;
 		;;
+ 	        --state=*)
+                	statefile=`echo $arg | sed 's/--state=//g'`
+			if [ ! -n "$statefile" ]; then
+				ldv_print "ERROR: Parameter \"--state\" - is null. Setup it.";
+			        exit 1;
+			fi;
+		;;
                 --env=*)
                 	renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
@@ -107,6 +114,12 @@ if [ ! -n "$driver" ]; then
         print_usage_and_exit;
 fi;
 
+if [ ! -n "$statefile" ]; then
+	ldv_print "ERROR: Parameter \"--state\" - is null. Setup it.";
+        print_usage_and_exit;
+fi;
+
+
 
 TEMP_DIR=$WORK_DIR/$basedir;
 if [ ! -d $TEMP_DIR ]; then
@@ -142,16 +155,6 @@ if [ $KERNEL_LEVEL -ne 1 ]; then
 else
 	echo "<basedir>$env</basedir>" >> $cmdfileout;
 fi;
-
-
-#
-# try to find "scripts/Makefile.build" in kernel source directory
-# 
-#KERNEL_MAKEFILE_BUILD=$env"/scripts/Makefile.build";
-#if [ ! -f "$KERNEL_MAKEFILE_BUILD" ]; then
-#	ldv_print "ERROR: Can't find kernel makefile: \"$KERNEL_MAKEFILE_BUILD\".";
-#	exit 1;
-#fi;
 
 KERNEL_COMPILE_LOG=$TEMP_DIR/$KERNEL_COMPILE_LOG_FILENAME;
 cd $env;
@@ -201,6 +204,7 @@ if [ $KERNEL_LEVEL -eq 0 ]; then
 	fi;
 	if [ ! -n "$CORRECT_MAKEFILE" ]; then
 		ldv_print "ERROR: Can't find correct Makefile or Kbuild file.";
+		echo "Can't find correct Makefile or Kbuild file." > $statefile;
 		exit 1;
 	fi;
 	DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
@@ -218,7 +222,16 @@ else
 	# TODO: replace this hack!
 	# prepare kernel for external driver
 	make allmodconfig;
+	if [ $? -ne 0 ]; then 
+		ldv_print "ERROR: Can't configure kernel.";
+		exit 1;
+	fi;
 	make init;
+	if [ $? -ne 0 ]; then 
+		ldv_print "ERROR: Can't init kernel.";
+		exit 1;
+	fi;
+
 	# test for root of kernel
 	abs_driver=`readlink -f $driver`;
 	if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
@@ -228,6 +241,7 @@ else
 fi;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
+	echo "Compile error." >$statefile;
 	exit 1;
 fi;
 
