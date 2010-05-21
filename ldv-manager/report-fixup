@@ -18,6 +18,10 @@ sub handle_report
 {
 	my ($twig, $cmdT) = @_;
 	my $launchT = XML::Twig::Elt->new('launch_info');
+	my $verifier = undef;
+	# Add more verifiers here if you want to override them
+	$verifier ||= $ENV{'RCV_VERIFIER'};
+	XML::Twig::Elt->new('globalverifier',{},$verifier)->paste($launchT) if defined $verifier;
 	XML::Twig::Elt->new('timestamp',{},`date`)->paste($launchT);
 	XML::Twig::Elt->new('driver',{},$driver_name)->paste($launchT);
 	XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($launchT);

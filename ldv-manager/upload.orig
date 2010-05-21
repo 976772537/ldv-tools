@@ -52,9 +52,12 @@ end
 class Stats
 	def self.from_xml(entry,do_nulls)
 		st = Stats.new
+<<<<<<< HEAD
+=======
 		if entry.none?
 			return nil if do_nulls
 		end
+>>>>>>> master
 		st.success = (entry/"status").inner_html == 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
 		st.time = (entry/"time").inner_html.to_i || 0
@@ -153,8 +156,18 @@ end
 	if (trace_tag = ld/"trace") && (! (trace_fname=trace_tag.inner_html).empty?) && (File.exists?(trace_fname))
 		trace.error_trace = IO.read(trace_fname)
 	end
+<<<<<<< HEAD
+	#Tools
+	tools = {
+		'maingen' => 'drv-env-gen',
+		'dscv' => 'dscv',
+		'ri' => 'rule-instrumentor',
+		'rcv' => 'rcv',
+	}
+=======
 	# We assume that if there's no report for a tool, it's not 
 	do_nulls = true
+>>>>>>> master
 	# Load stats from XML
 	Trace.tools.each do |dbname,tag|
 		stats = Stats.from_xml(ld/tag,do_nulls)
