@@ -70,7 +70,12 @@ bce_create_report() {
 		echo "  <build>" >> $BCE_REPORT;
 		echo "    <status>$1</status>" >> $BCE_REPORT;
 		echo "    <time></time>" >> $BCE_REPORT;
-		echo "    <desc>$2</desc>" >> $BCE_REPORT;
+		if [ -f $BCE_STATE ]; then
+			BCE_ERR_DESCRIPTION=`cat $BCE_STATE`;
+		else
+			BCE_ERR_DESCRIPTION=$2;
+		fi;
+		echo "    <desc>$BCE_ERR_DESCRIPTION</desc>" >> $BCE_REPORT;
 		echo "  </build>" >> $BCE_REPORT;
 		echo "</reports>" >> $BCE_REPORT;
 	else
@@ -268,11 +273,12 @@ else
 fi;
 
 BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
+BCE_STATE=$BCE_TEMPDIR/"err.state";
 XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
 ldv_print "NORMAL: Calling Build Command Extractor";
 if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
-ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;"
-LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;
+ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;"
+LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed.";
 	bce_ldv_report "FAILED" "Build command extractor failed.";
