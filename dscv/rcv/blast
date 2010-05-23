@@ -53,6 +53,14 @@ my $workdir = $config->{workdir};
 -x $blast or die "BLAST's toplevel executable $blast is not an executable file";
 -d $workdir or die "--workdir=$config->{workdir} is not a directory!";
 
+# Resource limits processing
+my $timeout = "$ENV{'DSCV_HOME'}/shared/sh/timeout";
+-x $timeout or die "Executable timeout script needed but $timeout given!";
+
+my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60);
+my $memlimit = $ENV{'RCV_MEMLIMIT'};
+vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
+
 
 # Prepare sanity checks
 my $sanity = DSCV::Sanity->new($config->{sandir});
@@ -196,10 +204,18 @@ sub call_blast
 	}
 	push @blast_options,(split /\s+/,$ENV{'BLAST_OPTIONS'});
 
+	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
+	# To Limit resources for BLAST we use timeout script.
+	unshift @blast_options,"-t",$timelimit if $timelimit;
+	unshift @blast_options,"-m",$memlimit if $memlimit;
+	unshift @blast_options,$timeout if $timelimit || $memlimit;
+	# Identification to distinguish timeout's messages from other stuff
+	$ENV{'TIMEOUT_IDSTR'} = "DSCV_TIMEOUT ";
+
+	# Tell arguments
 	vsay ('NORMAL',"Running BLAST for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@blast_options,"\n");
 
-	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 	# Open file to redirect
 	my $BLAST_DEBUG;
 	open $BLAST_DEBUG, ">", $args{debug} or die "Can't open file $args{debug}: $!";
@@ -216,10 +232,11 @@ sub call_blast
 	# Create trace printer
 	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([$dumptrace]);
+	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'})]);
 
 	# Process output and redirect it to file
 	local $_;
+	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
 	while (<$BLAST_OUT>) {
 		print $BLAST_DEBUG $_;
 		$verdictor->chew_line($_);
@@ -228,9 +245,8 @@ sub call_blast
 		print $BLAST_DEBUG $_;
 		$verdictor->chew_line($_);
 	}
-	# TODO: add GZIPping as well
+	# TODO: add GZIPping as well?
 
-	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
 	my %child = Utils::hard_wait($fpid,0);
 	close $BLAST_DEBUG;
 
@@ -254,6 +270,22 @@ sub call_blast
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
+
+	# Add information about limits to result
+	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
+	my $ml4rep = $memlimit ? "$memlimit Kb" : "not set";
+	# Should be like this, but BLAST doesn't support it...
+	#my $ver4rep = `pbast.opt --version`;
+	my $ver4rep = "";
+	$result->{'BLAST-detailed'} .= <<EOR ;
+
+=========== Launch information ===========
+Verifier: BLAST ($ver4rep)
+Time Limit: $tl4rep
+Memory Limit: $ml4rep
+Additional options: $ENV{'BLAST_OPTIONS'}
+=========== Launch inform ends ===========
+EOR
 
 	return $result;
 }

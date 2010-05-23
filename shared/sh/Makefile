@@ -11,14 +11,21 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/share/man
 srcdir = ../../
 
+timeout_target=$(prefix)/$(LDV_SHARED_SHELL)/timeout
+
 .PHONY: all install clean
 
 all:
 	@echo "Shared scripts - ok.";
 
-install:
+install: $(timeout_target)
 	if [ ! -d $(prefix)/$(LDV_SHARED_SHELL) ]; then mkdir -p $(prefix)/$(LDV_SHARED_SHELL); fi;
 	cp -r $(srcdir)/$(LDV_SHARED_SHELL)/$(LDV_LOG_SCRIPT) $(prefix)/$(LDV_SHARED_SHELL)/$(LDV_LOG_SCRIPT);
+
+$(timeout_target): timeout
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
 
 clean:
 	@echo "Cleaning - ok.";

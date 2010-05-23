@@ -12,6 +12,8 @@
 		Sanity.pm
 		RCV/Utils.pm
 	Utils.pm
+../shared/sh/
+	timeout
 
 dscv
 Makefile

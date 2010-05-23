@@ -21,7 +21,7 @@ my $DEFAULT = 'BLAST-detailed';
 
 sub mk_tailfilters
 {
-	my @heuristics = (bad_archive(),oom_ulimit(),time_limit(),safe_unsafe(),exception(),bad_simplify());
+	my @heuristics = (bad_archive(),limits_check(),safe_unsafe(),exception(),bad_simplify());
 
 	# Add this heuristics if you want to dump tails of files to tails/ folder
 	#unshift @heuristics, dumptail(100);
@@ -142,7 +142,19 @@ sub bad_model_IN_INTERRUPT
 	}];
 }
 
-# out of memory via ulimit
+# Limits check
+sub limits_check
+{
+	my $idstr = shift || "";
+	return [1000,sub {
+		my $l=shift or return undef;
+		$l=~/^${idstr}TIMEOUT (\d+)/i and return {$DEFAULT=>'Time Limit Exceeded', 'BLAST'=>'Time Limit Exceeded'};
+		$l=~/^${idstr}MEM (\d+)/i and return {$DEFAULT=>'Memory Limit Exceeded', 'BLAST'=>'Memory Limit Exceeded'};
+		return undef;
+	}];
+}
+
+# out of memory via ulimit -- DEPRECATED in favor of limits_check
 sub oom_ulimit
 {
 	return [100,sub {

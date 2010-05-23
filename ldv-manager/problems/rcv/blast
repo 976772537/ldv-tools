@@ -6,7 +6,7 @@ while (<>){
 	chomp;
 	/exception/i and print "Exception";
 	/combining structure and non-structure values/i and print "BLAST_combinig";
-	/out of memoty/i and print "Out_of_memory";
-	/timeout/i and print "Time_limit";
+	/Memory Limit Exceeded/i and print "Out_of_memory";
+	/Time Limit Exceeded/i and print "Time_limit";
 }
 
