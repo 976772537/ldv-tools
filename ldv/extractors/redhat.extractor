@@ -1,0 +1,99 @@
+#!/bin/bash
+
+
+LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+LDV_VDIR=$HOME/.ldv/ldv
+
+
+XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+BCE_XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/build-cmd-extractor\\/bce_gcc";
+
+
+echo "extractor: INFO: Red Hat Linux  2.6.32-19.el6 extractor.";
+
+#
+# extractor kernel-description
+#
+if [ ! -f "$1" ]; then
+	echo "extractor: ERROR: can't find description file \"$1\".";
+	exit 1;
+fi;
+
+# read field from description;
+DSCR_SOURCE=`cat $1 | grep ^source |  sed 's/^source=//'`;
+DSCR_DEST=`cat $1 | grep ^dest |  sed 's/^dest=//'`;
+DSCR_OPTIONS=`cat $1 | grep ^options |  sed 's/^options=//'`;
+
+# test kernel source type:
+mkdir $DSCR_DEST;
+if [ $? -ne 0 ]; then
+        echo "extractor: ERROR: Failed to create destination dir: \"$DSCR_DEST\"."
+        exit 1;
+fi;
+
+#
+# test format for driver file and unpack driver
+#
+SOURCE_TYPE=`file -b $DSCR_SOURCE --mime-type`;
+if [ $? -ne 0 ]; then 
+        echo "extractor: ERROR: Failed to get and unpack source: \"$DSCR_SOURCE\"."
+        exit 1;
+	echo $DSCR_DEST;
+else
+	case $SOURCE_TYPE in
+	        application/x-rpm)
+
+			#
+			# REQUIREMENTS
+			# 
+			#  1. rpm
+			#  2. rpmbuild
+			#  3. lsdiff - in patchutils!!!!
+			# 
+			#
+
+			RPM_SOURCES_DIRNAME="SOURCES";
+			RPM_SRPMS_DIRNAME="SRPMS";
+			RPM_SPECS_DIRNAME="SPECS";
+			RPM_BUILD_DIRNAME="BUILD";
+	
+			RPM_SOURCES_DIR=$DSCR_DEST/$RPM_SOURCES_DIRNAME;
+			RPM_BUILD_DIR=$DSCR_DEST/$RPM_BUILD_DIRNAME;
+			RPM_SPECS_DIR=$DSCR_DEST/$RPM_SPECS_DIRNAME;
+			RPM_SRPMS_DIR=$DSCR_DEST/$RPM_SRPMS_DIRNAME;
+
+			mkdir -p $RPM_SPECS_DIR;
+			mkdir -p $RPM_SOURCES_DIR;
+			mkdir -p $RPM_BUILD_DIR;
+			mkdir -p $RPM_SRPMS_DIR;
+
+			# 2. copy rpm source
+			LDV_SRPMS_SOURCE_BASENAME=`basename $DSCR_SOURCE`;
+			LDV_RPM=$RPM_SRPMS_DIR/$LDV_SRPMS_SOURCE_BASENAME;
+			cp $DSCR_SOURCE $LDV_RPM;
+
+			# 3. install it
+			echo "rpm --define=\"%_topdir $DSCR_DEST\" -ivh $LDV_RPM;";
+			rpm --define="%_topdir $DSCR_DEST" -ivh $LDV_RPM;
+
+			#
+			# Before it you can setup what you can make in kernel.spec
+			#
+			# 4. unpack and patch
+			SPECFILE=$RPM_SPECS_DIR/kernel.spec;
+			echo "rpmbuild --nodeps --define=\"%_topdir $DSCR_DEST\" -bp $SPECFILE;";
+			rpmbuild --nodeps --define="%_topdir $DSCR_DEST" -bp $SPECFILE;
+		;;
+	        *)
+	                echo "extractor: ERROR: Unknown source type.";
+	                exit 1
+		;;
+	esac
+	if [ $? -ne 0 ]; then
+	        echo "extractor: ERROR: Failed to get and unpack source: \"$DSCR_SOURCE\"."
+	        exit 1;
+	fi;
+fi;
+# find dir with makefile
+KERNEL_MAKEFILE=`find $RPM_BUILD_DIR -maxdepth 3 -regex '.*linux.*Makefile$'`;
+source $LDV_HOME/ldv/extractors/shared/linux-vanilla-redhat.sh;

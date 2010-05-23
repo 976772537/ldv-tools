@@ -5,13 +5,12 @@ use Cwd qw(abs_path cwd);
 use English;
 use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
 use File::Basename qw(basename fileparse);
-use File::Copy qw(mv);
+use File::Copy qw(copy mv);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use File::Path qw(mkpath);
 use strict;
-no strict "refs";
 use Time::HiRes qw(gettimeofday tv_interval);
 use XML::Twig qw();
 use XML::Writer qw();
@@ -30,10 +29,21 @@ use LDV::Utils;
 # Subroutine prototypes.
 ################################################################################
 
+# Create configuration files and return pathes to them.
+# args: the name of directory relatively to which configurations are
+#   created; the part of path to configuration file.
+# retn: the pathes to configuration files.
+sub create_configs($$);
+
 # Merge usual and common aspects in the aspect mode.
 # args: no.
 # retn: nothing.
 sub create_general_aspect();
+
+# Delete auxiliary files produced during work in the nondebug modes.
+# args: no.
+# retn: nothing.
+sub delete_aux_files();
 
 # The auxiliary function that captures error description.
 # args: an array to be passed to the system function.
@@ -142,6 +152,10 @@ my $file_report_xml_out;
 my $file_temp = \*STDERR;
 my $file_xml_out;
 
+# Auxiliary files produced during work that must be deleted in the nondebug 
+# modes.
+my %files_to_be_deleted;
+
 # Options to the gcc compiler to be turned on/off.
 my @gcc_aspect_off_opts;
 my @gcc_aspect_on_opts;
@@ -152,6 +166,11 @@ my @gcc_plain_on_opts;
 my $id_common_model_suffix = '-with-common-model';
 my $id_cc_llvm_suffix = '-llvm-cc';
 my $id_ld_llvm_suffix = '-llvm-ld';
+
+# Flag that specifies whether configuration was done.
+my $isconfig = 0;
+# The set of configuration directories.
+my @config_dir = ();
 
 # Kind of instrumentation.
 my $kind_isplain = 0;
@@ -173,16 +192,17 @@ my $ldv_c_backend;
 my $ldv_gcc;
 # Linker.
 my $ldv_linker;
-
 # Directory contains rules models database and their source code.
 my $ldv_model_dir;
-
 # Name of xml file containing models database. Name is relative to models
 # directory. 
 my $ldv_model_db_xml = 'model-db.xml';
-
 # Information on needed model.
 my %ldv_model;
+# Environment variable to setup the aspectator debug level.
+my $ldv_quiet = 'LDV_QUIET';
+# Environment variable to say whether aspectator must clean its generated files.
+my $ldv_clean = 'LDV_CLEAN';
 
 # Suffix of llvm bitcody files.
 my $llvm_bitcode_suffix = '.bc';
@@ -232,6 +252,9 @@ my $tool_aux_dir = 'rule-instrumentor';
 # The name of file where commands execution status will be logged. It's relative
 # to the tool auxiliary working directory.
 my $tool_cmds_log = 'cmds-log';
+# The name of directory where configuration files will be placed. It's 
+# relative to the tool auxiliary working directory.
+my $tool_config_dir = 'config';
 # The file that is used to store different auxiliary information. It's relative
 # to the tool base directory.
 my $tool_temp = '__rule_instrumentor_temp';
@@ -248,6 +271,8 @@ my $xml_cmd_cwd = 'cwd';
 my $xml_cmd_in = 'in';
 my $xml_cmd_ld = 'ld';
 my $xml_cmd_opt = 'opt';
+my $xml_cmd_opt_config = 'config';
+my $xml_cmd_opt_config_autoconf = 'autoconf';
 my $xml_cmd_out = 'out';
 my $xml_cmd_root = 'cmdstream';
 my $xml_header = '<?xml version="1.0"?>';
@@ -258,6 +283,7 @@ my $xml_model_db_files = 'files';
 my $xml_model_db_files_aspect = 'aspect';
 my $xml_model_db_files_common = 'common';
 my $xml_model_db_files_filter = 'filter';
+my $xml_model_db_files_config = 'config';
 my $xml_model_db_hints = 'hints';
 my $xml_model_db_kind = 'kind';
 my $xml_model_db_model = 'model';
@@ -271,6 +297,9 @@ my $xml_report_attr_ref = 'ref';
 my $xml_report_cc = 'cc';
 my $xml_report_desc = 'desc';
 my $xml_report_ld = 'ld';
+my $xml_report_model_kind = 'model-kind';
+my $xml_report_model_kind_aspect = 'aspect';
+my $xml_report_model_kind_plain = 'plain';
 my $xml_report_rcv = 'rcv';
 my $xml_report_rule_instrumentor = 'rule-instrumentor';
 my $xml_report_root = 'reports';
@@ -280,6 +309,8 @@ my $xml_report_status_ok = 'OK';
 my $xml_report_time = 'time';
 my $xml_report_trace = 'trace';
 my $xml_report_verdict = 'verdict';
+my $xml_report_verdict_stub = 'UNKNOWN';
+my $xml_report_verifier = 'verifier';
 
 
 ################################################################################
@@ -302,6 +333,9 @@ prepare_files_and_dirs();
 
 print_debug_trace("Prepare a twig xml parser for the models database, the input commands and report.");
 my $xml_twig = new XML::Twig;
+# To print out user friendly xml output.  
+$xml_twig->set_pretty_print('indented');
+
 my $xml_writer;
 
 if ($report_mode)
@@ -355,15 +389,100 @@ else
 
 print_debug_trace("Close file handlers.");
 close($file_cmds_log) 
-  or die("Couldn't close file '$tool_aux_dir': $ERRNO\n");
+  or die("Couldn't close file '$tool_cmds_log': $ERRNO\n");
 close($file_xml_out) 
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
+
+print_debug_info("Delete auxiliary files in the nondebug modes.");
+delete_aux_files();
 
 print_debug_normal("Make all successfully.");
 
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub create_configs($$)
+{
+  my $rel_dir = shift;
+  my $conf_path = shift;
+  
+  # If configuration was already done.
+  return @config_dir if ($isconfig);
+  
+  print_debug_trace("Check presence of configuration file.");
+  die("Can't find configuration file '$rel_dir/$conf_path'.") 
+    unless (-f "$rel_dir/$conf_path");
+  
+  # That is configuration file itself and the set of subdirectories 
+  # where it must be placed and that must be returned then. Note that 
+  # all must be relative to the tool configuration directory.
+  my @conf = split(/\//, $conf_path);
+  
+  my $to;
+  my $patched_conf;
+  while (my $conf = pop(@conf))
+  {
+	my $isfirst = 0;
+	
+	# When parse the directory.
+	if ($to)
+	{
+	  # When parse the next directories.
+	  if ($to =~ /\//)
+	  {
+	    $to = "$conf/$to";
+	  }
+	  # When parse the first directory.
+	  else
+	  {
+		$to = "/$conf";
+	  }
+	}
+	# When parse the file.
+	else
+	{
+	  $to = $conf;
+	  $isfirst = 1;
+	}
+	print_debug_debug("Create configuration '$to'.");
+	
+	if ($isfirst)
+	{
+	  print_debug_trace("Copy the main configuration file to the configuration directory and patch it.");
+      
+      open(my $file_conf, '>', "$tool_config_dir/$to")
+        or die("Couldn't open file '$tool_config_dir/$to' for write: $ERRNO");
+      cat("$rel_dir/$conf_path", $file_conf)
+        or die("Can't concatenate file '$rel_dir/$conf_path' with file '$tool_config_dir/$to'");
+      cat("$ldv_model_dir/$ldv_model{'config'}", $file_conf)
+        or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'config'}' with file '$tool_config_dir/$to'");
+      close($file_conf) 
+        or die("Couldn't close file '$tool_config_dir/$to': $ERRNO\n");
+      
+      $patched_conf = $to;
+        
+      push(@config_dir, $tool_config_dir);
+	}
+	else
+	{
+	  print_debug_trace("Just copy the patched configuration file to the corresponding configuration directory.");
+	  
+	  unless (-d "$tool_config_dir/$to")
+      {
+        mkpath("$tool_config_dir/$to")
+          or die("Couldn't recursively create directory '$tool_config_dir/$to': $ERRNO");
+      }
+      
+      copy("$tool_config_dir/$patched_conf", "$tool_config_dir/$to/$patched_conf")
+        or die("Can't copy the file '$tool_config_dir/$patched_conf' to the file '$tool_config_dir/$to/$patched_conf'");
+
+      push(@config_dir, "$tool_config_dir/$to");     
+	}
+  }
+    
+  return @config_dir;
+}
 
 sub create_general_aspect()
 {
@@ -379,7 +498,20 @@ sub create_general_aspect()
       or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
     close($file_aspect_general) 
       or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
+    $files_to_be_deleted{"$ldv_model_dir/$ldv_model{'general'}"} = 1;
     print_debug_debug("The general aspect '$ldv_model_dir/$ldv_model{'general'}' was created.");
+  }
+}
+
+sub delete_aux_files()
+{
+  return 0 if (LDV::Utils::check_verbosity('DEBUG'));  
+    
+  foreach my $file (keys(%files_to_be_deleted))
+  {
+    print_debug_trace("Delete the file '$file'.");  
+    unlink($file)
+      or die("Can't delete the file '$file'.");
   }
 }
 
@@ -391,7 +523,7 @@ sub exec_status_desc_and_time($)
   my $start_time = [gettimeofday()];
   
   print_debug_trace("Call to function argument '$func'.");
-  my ($status, $desc) = &$func();
+  my ($status, $desc) = $func->();
   
   print_debug_trace("Find and save script execution time.");
   my $end_time = [gettimeofday()];
@@ -433,7 +565,13 @@ sub exec_status_and_desc(@)
   
   close($file_temp_read) 
     or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");  
-
+  
+  unless (LDV::Utils::check_verbosity('DEBUG'))
+  {
+    unlink("$opt_basedir/$tool_temp")
+      or die("Couldn't delete file '$opt_basedir/$tool_temp': $ERRNO\n");  
+  }
+  
   return ($status, $desc);
 }
 
@@ -524,7 +662,7 @@ sub get_model_info()
       
     print_debug_trace("Read id attribute for a model to find the corresponding one."); 
     my $id_attr = $model->att($xml_model_db_attr_id) 
-      or die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
+      // die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
     print_debug_debug("Read the '$id_attr' id attribute for a model.");
 
     # Model is found!
@@ -535,12 +673,12 @@ sub get_model_info()
       # Read model information.
       print_debug_trace("Read engine tag.");
       my $engine = $model->first_child_text($xml_model_db_engine)
-        or die("Models database doesn't contain '$xml_model_db_engine' tag for '$id_attr' model");
+        // die("Models database doesn't contain '$xml_model_db_engine' tag for '$id_attr' model");
       print_debug_debug("The engine '$engine' is specified for the '$id_attr' model.");
 
       print_debug_trace("Read error tag.");
       my $error = $model->first_child_text($xml_model_db_error)
-        or die("Models database doesn't contain '$xml_model_db_error' tag for '$id_attr' model");
+        // die("Models database doesn't contain '$xml_model_db_error' tag for '$id_attr' model");
       print_debug_debug("The error label '$error' is specified for the '$id_attr' model.");
         
       # Store hints for static verifier to be passed without any processing.
@@ -574,7 +712,7 @@ sub get_model_info()
       # Common file (either plain C or aspect file) must be always presented.
       print_debug_trace("Read common file name.");
       my $common = $files->first_child_text($xml_model_db_files_common)
-        or die("Models database doesn't contain '$xml_model_db_files_common' tag for '$id_attr' model");
+        // die("Models database doesn't contain '$xml_model_db_files_common' tag for '$id_attr' model");
       print_debug_debug("The common file '$common' is specified for the '$id_attr' model."); 
       die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
         unless (-f "$ldv_model_dir/$common");
@@ -587,12 +725,18 @@ sub get_model_info()
       $common_model_dir = $common_model_dir_path[1];
       print_debug_debug("The common file '$common' is placed in the directory '$common_model_dir'.");
       
-      # Filter is optional as i think.
+      # Filter file is optional as i think.
       print_debug_trace("Read filter file name.");
       my $filter = $files->first_child_text($xml_model_db_files_filter);
       print_debug_debug("The filter file '$filter' is specified for the '$id_attr' model") 
         if ($filter);
-        
+      
+      # Config file is optional as i think.
+      print_debug_trace("Read config file name.");
+      my $config = $files->first_child_text($xml_model_db_files_config);
+      print_debug_debug("The config file '$config' is specified for the '$id_attr' model") 
+        if ($config);
+                
       print_debug_trace("Store model information into hash.");
       %ldv_model = (
         'id' => $id_attr, 
@@ -600,6 +744,7 @@ sub get_model_info()
         'aspect' => $aspect,
         'common' => $common,
         'filter' => $filter,
+        'config' => $config,
         'engine' => $engine,
         'error' => $error,
         'twig hints' => $hints);
@@ -745,7 +890,7 @@ sub help()
 
 NAME
   $PROGRAM_NAME: the tool is intended to perform an instrumentation of 
-    a source code with a model.
+    a source code with a model and report processing.
 
 SYNOPSIS
   $PROGRAM_NAME [option...]
@@ -768,7 +913,7 @@ OPTIONS
 
   -o, --cmdfile-out <file>
     <file> is an absolute path to a xml file that will contain 
-    commands generated by thetool.
+    commands generated by the tool.
 
   --report <file>
     <file> is an absolute path to a xml file containing a rcv report.
@@ -776,14 +921,29 @@ OPTIONS
 
   --report-out <file>
     <file> is an absolute path to a xml file that will contain a 
-    report generated by thetool. This option is necessary to activate 
+    report generated by the tool. This option is necessary to activate 
     the report mode.
     
 ENVIRONMENT VARIABLES
 
+  LDV_DEBUG
+    It's an optional environment variable that specifies a debug 
+    level. It uses the standard designatures to distinguish different
+    debug information printings. Each next level includes all previous
+    levels and its own messages.
+    
   LDV_KERNEL_RULES
-    It's an optional option that points to an user models directory 
-    that will be used instead of the standard one.
+    It's an optional environment variable that points to an user 
+    models directory that will be used instead of the standard one.
+    
+  LDV_RULE_INSTRUMENTOR_DEBUG 
+    Like LDV_DEBUG but it has more priority. It specifies a debug 
+    level just for this instrument.
+  
+  WORK_DIR
+    This environment variable is always required. Here the instrument
+    places needed auxiliary files and directories that may be used
+    during different tool invocations in one major run.
 
 EOM
 
@@ -843,6 +1003,14 @@ sub prepare_files_and_dirs()
   
   # The rest isn't needed for the report mode.  
   return 0 if ($report_mode);
+
+  unless (-d "$tool_aux_dir/$tool_config_dir")
+  {
+    mkpath("$tool_aux_dir/$tool_config_dir")
+      or die("Couldn't recursively create directory '$tool_aux_dir/$tool_config_dir': $ERRNO");
+  }
+  $tool_config_dir = "$tool_aux_dir/$tool_config_dir";
+  print_debug_debug("The tool configurations directory: '$tool_config_dir'.");
 
   # LDV_HOME is obtained through directory of rule-instrumentor.
   # It is assumed that there is such organization of LDV_HOME directory:
@@ -1013,7 +1181,7 @@ sub process_cmd_cc()
     $ENV{$ldv_no_quoted} = 1;
     # Just for the trace debug level aspectator will say about something except 
     # errors. 
-    $ENV{LDV_QUIET} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
+    $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
     
     print_debug_trace("Go to the build directory to execute cc command.");
@@ -1025,7 +1193,7 @@ sub process_cmd_cc()
     return ($status, $desc) if ($status);
     
     # Unset special environments variables.
-    delete($ENV{'LDV_QUITE'});
+    delete($ENV{$ldv_quiet});
     delete($ENV{$ldv_no_quoted});
     delete($ENV{$ldv_aspectator_gcc});
     
@@ -1042,14 +1210,27 @@ sub process_cmd_cc()
     print_debug_trace("Copy the usual bitcode file.");
     mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
       or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
     print_debug_debug("The usual bitcode file is '$cmd{'out'}$llvm_bitcode_usual_suffix'.");
+
+    unless (LDV::Utils::check_verbosity('DEBUG'))
+    {
+      print_debug_trace("Clean the aspectator intermediate files for the nondebug mode.");
+      $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+      $ENV{$ldv_quiet} = 1;
+      $ENV{$ldv_clean} = 1;
+      system(@args);
+      delete($ENV{$ldv_clean});
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_aspectator_gcc});      
+    }
 
     # Also do this with general aspect. Don't forget to add -I option with 
     # models directory needed to find appropriate headers for common aspect.
     print_debug_debug("Process the cc command using general aspect.");
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
-    $ENV{LDV_QUIET} = 1;# unless (LDV::Utils::check_verbosity('TRACE'));
+    $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     print_debug_trace("Go to the build directory to execute cc command.");    
@@ -1061,7 +1242,7 @@ sub process_cmd_cc()
     return ($status, $desc) if ($status);
 
     # Unset special environments variables.
-    delete($ENV{'LDV_QUITE'});
+    delete($ENV{$ldv_quiet});
     delete($ENV{$ldv_no_quoted});
     delete($ENV{$ldv_aspectator_gcc});
     
@@ -1074,7 +1255,20 @@ sub process_cmd_cc()
     print_debug_trace("Copy the general bitcode file.");
     mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
       or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
+    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
     print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'.");
+
+    unless (LDV::Utils::check_verbosity('DEBUG'))
+    {
+      print_debug_trace("Clean the aspectator intermediate files for the nondebug mode.");
+      $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
+      $ENV{$ldv_quiet} = 1;
+      $ENV{$ldv_clean} = 1;
+      system(@args);
+      delete($ENV{$ldv_clean});
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_aspectator_gcc});      
+    }
     
     print_debug_trace("Go to the initial directory.");
     chdir($tool_working_dir)
@@ -1116,6 +1310,7 @@ sub process_cmd_ld()
 
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_linked_suffix"} = 1;  
       print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
 
       # Make name for c file corresponding to the linked one.
@@ -1162,11 +1357,11 @@ sub process_cmd_ld()
       # Close the ld tag.
       $xml_writer->endTag();
     }
-    # Otherwise create two linked variants: with and without general bytecode 
+    # Otherwise create two linked variants: with and without general bitcode 
     # file.
     else
     {
-      print_debug_debug("Prepare two linked bytecode files with and without general bytecode for the ld command marked with 'check = \"true\"'.");
+      print_debug_debug("Prepare two linked bitcode files with and without general bitcode for the ld command marked with 'check = \"true\"'.");
 
       # On each ld command we run llvm linker for all input files together to 
       # produce one linked file. Also produce linked file that contains excactly 
@@ -1194,9 +1389,11 @@ sub process_cmd_ld()
 
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_linked_suffix"} = 1;         
       print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
       die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_general_suffix'") 
         unless (-f "$cmd{'out'}$llvm_bitcode_general_suffix");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;         
       print_debug_debug("The linker produces the generally linked bitcode file '$cmd{'out'}$llvm_bitcode_general_suffix'");
     }
     
@@ -1209,9 +1406,6 @@ sub process_cmds()
 {
   print_debug_trace("Read commands input xml file '$opt_cmd_xml_in'.");
   $xml_twig->parsefile("$opt_cmd_xml_in");
-
-  # To print out user friendly xml output.  
-  $xml_twig->set_pretty_print('indented');
 
   print_debug_trace("Read xml root tag.");
   my $cmd_root = $xml_twig->root;
@@ -1244,7 +1438,7 @@ sub process_cmds()
       # General commands section.
       print_debug_trace("Read id for some command.");
       my $id_attr = $cmd->att($xml_cmd_attr_id)
-        or die("The input commands xml file doesn't contain '$xml_cmd_attr_id' attribute for some command");
+        // die("The input commands xml file doesn't contain '$xml_cmd_attr_id' attribute for some command");
       print_debug_debug("Begin processing of the command '" . $cmd->gi . "' having id '$id_attr'.");
       
       print_debug_trace("Read current working directory.");
@@ -1252,12 +1446,12 @@ sub process_cmds()
         or die("The input commands xml file doesn't contain '$xml_cmd_cwd' tag for '$id_attr' command"); 
       my $cwd_text = $cwd->text;
       die("The input commands xml file specifies directory '$cwd_text' that doesn't exist for '$id_attr' command")
-        unless (-d $cwd_text);
+        unless ($cwd_text and -d $cwd_text);
       print_debug_debug("The specified current working directory is '$cwd_text'.");
 
       print_debug_trace("Read output file name.");
       my $out = $cmd->first_child($xml_cmd_out)
-        or die("The input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
+        // die("The input commands xml file doesn't contain '$xml_cmd_out' tag for '$id_attr' command");
       my $out_text = $out->text;
       print_debug_debug("The output file is '$out_text'.");
       
@@ -1306,7 +1500,7 @@ sub process_cmds()
         if ($cmd->gi eq $xml_cmd_cc)
         {
           die("The input commands xml file specifies file '$in_text' that doesn't exist for '$id_attr' command")
-            unless (-f $in_text);
+            unless ($in_text and -f $in_text);
         }
 
         $in_text;
@@ -1341,11 +1535,32 @@ sub process_cmds()
       
       print_debug_trace("Read an array of options and exclude the unwanted ones ('@off_opts').");
       my @opts;
+      my $autoconf;
       for (my $opt = $cmd->first_child($xml_cmd_opt)
         ; $opt
         ; $opt = $opt->next_elt($xml_cmd_opt))
       {
         my $opt_text = $opt->text;
+        
+        my $opt_config_attr = $opt->att($xml_cmd_opt_config);
+        if ($opt_config_attr)
+        {
+          print_debug_debug("The option '$opt_text' is marked as configuration header file.");
+          
+          if ($opt_config_attr eq $xml_cmd_opt_config_autoconf)
+          {
+            print_debug_debug("The option '$opt_text' is marked as automatic configuration header file.");	
+            # Story automatic configuration header file just once.
+            if ($autoconf)
+            {
+			  die("Don't mark more then one option as automatic configuration header file.");
+			}
+			else
+			{
+			  $autoconf = $opt_text;
+			}
+		  }  
+		}     
 
         # Exclude options for the gcc compiler.
         foreach my $off_opt (@off_opts)
@@ -1367,8 +1582,35 @@ sub process_cmds()
       
       print_debug_debug("Add wanted options '@on_opts'.");
       push(@opts, @on_opts);
+      print_debug_trace("Add config include options for cc command.");
+      if ($ldv_model{'config'} and $cmd->gi eq $xml_cmd_cc)
+      {
+		die("The configuration file is specified for the model but there is no configuration marked correspondingly.") 
+		  unless ($autoconf);  
+		  
+        my @config_inc_dirs = create_configs($cwd_text, $autoconf);
+        print_debug_debug("The config includes directories are '@config_inc_dirs'.");
+        @opts = (map("-I$_", @config_inc_dirs), @opts);
+
+		# Note that two options are passed since otherwise it leads to
+		# failure. This options are passed after all options to 
+		# overwrite the standard configuration files options.
+		push(@opts, ("-include", "$ldv_model_dir/$ldv_model{'config'}"));
+	  }
       
       print_debug_debug("The options to be passed to the gcc compiler are '@opts'.");
+
+      print_debug_trace("Read an array of entry points.");
+      my @entry_points;
+      for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
+        ; $entry_point
+        ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
+      {
+        push(@entry_points, $entry_point->text);
+
+        last if ($entry_point->is_last_child($xml_cmd_entry_point));
+      }
+      print_debug_debug("The entry points are '@entry_points'.");
 
       # For the plain mode just copy and modify a bit input xml.
       if ($kind_isplain)
@@ -1440,9 +1682,13 @@ sub process_cmds()
           print_debug_trace("Change an id attribute.");
           $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . $id_common_model_suffix);
 
+          # Note that this generated file is always keeped since it's needed for
+          # report visualization.
           print_debug_trace("Concatenate a common model with the first input file.");
           my $in = $common_model_cc->first_child($xml_cmd_in);
           my $in_file = $in->text;
+          die("The specified input file '$in_file' doesn't exist.") 
+            unless ($in_file and -f $in_file);
           open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
             or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
           cat($in_file, $file_with_common_model)
@@ -1466,7 +1712,7 @@ sub process_cmds()
         if ($cmd->gi eq $xml_cmd_cc)
         {
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr:");
         }
         elsif ($cmd->gi eq $xml_cmd_ld)
         {
@@ -1497,6 +1743,8 @@ sub process_cmds()
             print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:0:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
           }
+          
+          print($file_cmds_log ":@entry_points");
         }
 
         # There is no description for both cc and ld commands that all is ok
@@ -1536,33 +1784,23 @@ sub process_cmds()
       if ($cmd->gi eq $xml_cmd_cc)
       {
         print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode.");  
-        my ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_cc');
+        my ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_cc);
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:$id_attr:$desc\n");  
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_fail:$time:${id_attr}::$desc\n");  
         }
         else
         {
           print_debug_trace("Log information on the '$id_attr' command execution status.");
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:$id_attr:$desc\n");
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:$time:${id_attr}::$desc\n");
         }
       }
 
       # ld command additionaly contains array of entry points.
       if ($cmd->gi eq $xml_cmd_ld)
       {
-        print_debug_trace("Read an array of entry points.");
-        my @entry_points;
-        for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
-          ; $entry_point
-          ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
-        {
-          push(@entry_points, $entry_point->text);
-
-          last if ($entry_point->is_last_child($xml_cmd_entry_point));
-        }
         $cmd{'entry point'} = \@entry_points;
         print_debug_debug("The ld command entry points are '@entry_points'.");
         
@@ -1588,7 +1826,7 @@ sub process_cmds()
         # Process command just when inputs are ok.
         if ($status)
         {
-          ($status, $desc, $time) = exec_status_desc_and_time('process_cmd_ld');
+          ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_ld);
         }
         else
         {
@@ -1597,7 +1835,9 @@ sub process_cmds()
         
         if ($status)
         {
-          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:$desc\n");  
+          print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr");  
+          print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
+          print($file_cmds_log ":@entry_points:$desc\n");
         }
         else
         {
@@ -1623,11 +1863,13 @@ sub process_cmds()
             $cmds_status{$out_text} = $id_attr;
             print($file_cmds_log "$log_cmds_ld:$log_cmds_ok:$time:$id_attr");
             print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
-            print($file_cmds_log ":$desc\n");
+            print($file_cmds_log ":@entry_points:$desc\n");
           }
           else
           {
-            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr:$desc\n");  
+            print($file_cmds_log "$log_cmds_ld:$log_cmds_fail:$time:$id_attr");
+            print($file_cmds_log $log_cmds_check) if ($check_text eq 'true');
+            print($file_cmds_log ":@entry_points:$desc\n");  
           }
         }
       }
@@ -1673,19 +1915,20 @@ sub process_report()
   my %cmds_log;
   my @cmds_id;
   
-  print_debug_trace("Process commands log.");
+  print_debug_trace("Process the commands log.");
   foreach my $cmd_log (<$file_cmds_log>)
   {
     chomp($cmd_log);
     print_debug_trace("Process the '$cmd_log' command log.");
-    # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_id:cmd_desc'.
-    $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):/;
+    # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_id:cmd_entry_points:cmd_desc'.
+    $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):([^:]*):/;
     my $cmd_name = $1;
     my $cmd_status = $2;
     my $cmd_time = $3;
-    my $id = $4;
+    my $id = $4 // die("The command id isn't specified");
+    my @cmd_entry_points = split(/\s+/, $5);
     my $cmd_desc = $POSTMATCH;
-    die("The command id isn't specified") unless ($id);
+
     print_debug_debug("The commmand log id is '$id'.");
     my $check = 0;
     if ($id =~ /\Q$log_cmds_check\E$/)
@@ -1701,18 +1944,22 @@ sub process_report()
     die("The command execution status '$cmd_status' isn't correct") 
       unless ($cmd_status eq $log_cmds_ok or $cmd_status eq $log_cmds_fail);
     print_debug_debug("The commmand log command execution status is '$cmd_status'.");
+    print_debug_debug("The commmand log command entry points are '@cmd_entry_points'.");
+    print_debug_debug("The commmand log command description is '$cmd_desc'.");    
     
     $cmds_log{$id} = {
       'cmd name' => $cmd_name, 
       'cmd status' => $cmd_status,
       'cmd time' => $cmd_time,
+      'cmd entry points' => \@cmd_entry_points,
       'cmd description' => $cmd_desc, 
       'check' => $check
     };
       
     push(@cmds_id, $id);
   }
-
+  print_debug_debug("The command log is processed successfully.");
+  
   print_debug_trace("Read the report file '$opt_report_in'.");
   my %reports;
   $xml_twig->parsefile("$opt_report_in");
@@ -1728,22 +1975,27 @@ sub process_report()
     {
       print_debug_trace("Read ld command reference.");
       my $ref_id_attr = $report->att($xml_report_attr_ref)
-        or die("The report file doesn't contain '$xml_report_attr_ref' attribute for some ld command");
+        // die("The report file doesn't contain '$xml_report_attr_ref' attribute for some ld command");
       print_debug_debug("Begin processing of the command '" . $report->gi . "' having id reference '$ref_id_attr'.");
 
       print_debug_trace("Read ld main.");
       my $main_attr = $report->att($xml_report_attr_main)
-        or die("The report file doesn't contain '$xml_report_attr_main' attribute for command having id reference '$ref_id_attr'");
+        // die("The report file doesn't contain '$xml_report_attr_main' attribute for command having id reference '$ref_id_attr'");
       print_debug_debug("The command main is '$main_attr'.");
 
       print_debug_trace("Read verdict.");
       my $verdict = $report->first_child_text($xml_report_verdict)
-        or die("The report file doesn't contain '$xml_report_verdict' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_verdict' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The verdict is '$verdict'.");
+      
+      print_debug_trace("Read verifier.");
+      my $verifier = $report->first_child_text($xml_report_verifier)
+        // die("The report file doesn't contain '$xml_report_verifier' tag for '$ref_id_attr, $main_attr' command");
+      print_debug_debug("The verifier is '$verifier'.");
 
       print_debug_trace("Read trace.");
       my $trace = $report->first_child_text($xml_report_trace)
-        or die("The report file doesn't contain '$xml_report_trace' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_trace' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The trace is '$trace'.");
 
       print_debug_trace("Read rcv report section.");
@@ -1752,7 +2004,7 @@ sub process_report()
 
       print_debug_trace("Read rcv status.");
       my $rcv_status = $rcv->first_child_text($xml_report_status)
-        or die("The report file doesn't contain '$xml_report_status' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_status' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The rcv status is '$rcv_status'.");                 
 
       print_debug_trace("Read rcv time.");
@@ -1762,11 +2014,15 @@ sub process_report()
 
       print_debug_trace("Read rcv description.");
       my $rcv_desc = $rcv->first_child_text($xml_report_desc)
-        or die("The report file doesn't contain '$xml_report_desc' tag for '$ref_id_attr, $main_attr' command");
+        // die("The report file doesn't contain '$xml_report_desc' tag for '$ref_id_attr, $main_attr' command");
       print_debug_debug("The rcv description is '$rcv_desc'.");
       
+      # Note that this information isn't needed indeed. Just presence of report
+      # and link to itself.
       $reports{$ref_id_attr}{$main_attr} = {
+        'report' => $report,
         'verdict' => $verdict, 
+        'verifier' => $verifier,
         'trace' => $trace, 
         'rcv status' => $rcv_status,
         'rcv time' => $rcv_time,
@@ -1780,7 +2036,8 @@ sub process_report()
       exit($error_semantics);
     }
   }
-  
+  print_debug_debug("All ld reports are processed successfully.");
+        
   print_debug_trace("Print the standard xml file header.");
   print($file_report_xml_out "$xml_header\n");
   
@@ -1795,6 +2052,8 @@ sub process_report()
     {
       print_debug_debug("Build a report for the '$cmd_id' cc command.");
       $xml_writer->startTag($xml_report_cc, $xml_report_attr_ref => $cmd_id, $xml_report_attr_model => $opt_model_id);
+
+      print_debug_trace("Build the rule instrumentor report.");
       $xml_writer->startTag($xml_report_rule_instrumentor); 
 
       if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
@@ -1817,39 +2076,118 @@ sub process_report()
     else
     {
       print_debug_debug("Build a report for the '$cmd_id' ld command.");
-      if ($cmds_log{$cmd_id}{'check'})
+
+      # ld commands have additional suffix in the aspect mode.
+      my $rule_instrument_cmd_id = $cmd_id;
+      if ($mode_isaspect)
       {
-        print_debug_debug("The '$cmd_id' ld command has 'check=true'.");
-        print_debug_trace("Try to find the corresponding rcv report.");
-        
-        # ld commands have additional suffix in the aspect mode.
-        my $rule_instrument_cmd_id = $cmd_id;
-        if ($mode_isaspect)
-        {
-          $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
-        }
-        die("rcv doesn't produce a report for the '$cmd_id' ('$rule_instrument_cmd_id') ld command")
-          unless ($reports{$rule_instrument_cmd_id});
-        
-        print_debug_trace("Iterate over all mains specific reports.");
-        foreach my $main_id (keys(%{$reports{$rule_instrument_cmd_id}}))
-        {
-          print_debug_debug("Process the '$main_id' main report.");
-          $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_main => $main_id, $xml_report_attr_model => $opt_model_id);
+        $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
+      }
+      print_debug_debug("The rule inctrumentor '$cmd_id' ld command has corresponding the rcv '$rule_instrument_cmd_id' ld command");
 
-          $xml_writer->dataElement($xml_report_verdict => $reports{$rule_instrument_cmd_id}{$main_id}{'verdict'});
-          $xml_writer->dataElement($xml_report_trace => $reports{$rule_instrument_cmd_id}{$main_id}{'trace'});
+      # Iterate over all ld entry points.
+      foreach my $main_id (@{$cmds_log{$cmd_id}{'cmd entry points'}})
+      {
+        print_debug_debug("Build a report for the '$main_id' entry point.");
+        
+        if ($cmds_log{$cmd_id}{'check'})
+        {
+          print_debug_debug("The '$cmd_id' ld command has 'check=true'.");
+       
+          print_debug_trace("Try to find the corresponding rcv report.");
+          # This flag says whether rcv produces report at all.
+          my $isrcv_ok = 0;
+          $isrcv_ok = 1 if ($reports{$rule_instrument_cmd_id} && $reports{$rule_instrument_cmd_id}{$main_id});
+          print_debug_debug("rcv production of a report for the '$cmd_id' ('$rule_instrument_cmd_id') ld command '$main_id' entry point is '$isrcv_ok'.");
+
+          # Extend the existing report when rcv produces it.
+          if ($isrcv_ok)
+          {     
+            my $report = $reports{$rule_instrument_cmd_id}{$main_id}{'report'}->copy;
+
+            print_debug_trace("Fix the ld command identifier.");
+            $report->set_att($xml_report_attr_ref => $cmd_id);
+            print_debug_trace("Add model identifier attribute.");
+            $report->set_att($xml_report_attr_model => $opt_model_id);
+            
+            print_debug_trace("Add model kind tag.");
+            my $model_kind_tag;
+            if ($mode_isaspect)
+            {
+              $model_kind_tag = new XML::Twig::Elt($xml_report_model_kind, $xml_report_model_kind_aspect);
+            }
+            else
+            {
+              $model_kind_tag = new XML::Twig::Elt($xml_report_model_kind, $xml_report_model_kind_plain);  
+            }
+            $model_kind_tag->paste('last_child', $report);                     
+
+            print_debug_trace("Build the rule instrumentor report.");
+            my $rule_instrumentor_tag = new XML::Twig::Elt($xml_report_rule_instrumentor);
+            print_debug_trace("Print the command execution status.");
+            my $cmd_status_tag;
+            if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
+            {
+              $cmd_status_tag = new XML::Twig::Elt($xml_report_status, $xml_report_status_ok);  
+            } 
+            else
+            {
+              $cmd_status_tag = new XML::Twig::Elt($xml_report_status, $xml_report_status_fail);    
+            }
+            $cmd_status_tag->paste('last_child', $rule_instrumentor_tag);   
+            print_debug_trace("Print the command execution time.");
+            my $time_tag = new XML::Twig::Elt($xml_report_time, $cmds_log{$cmd_id}{'cmd time'});
+            $time_tag->paste('last_child', $rule_instrumentor_tag);
+            print_debug_trace("Print the command description.");
+            my $desc_tag = new XML::Twig::Elt($xml_report_desc, $cmds_log{$cmd_id}{'cmd description'});
+            $desc_tag->paste('last_child', $rule_instrumentor_tag);
+            
+            $rule_instrumentor_tag->paste('last_child', $report); 
+            
+            $xml_writer->raw($report->sprint);
+          }
+          # Otherwise generate stub for the rcv report.
+          else
+          {
+            $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_main => $main_id, $xml_report_attr_model => $opt_model_id);
+            print_debug_trace("Print stubs instead of a rcv verdict and a trace since it fails.");
+            $xml_writer->dataElement($xml_report_verdict => $xml_report_verdict_stub);
+            $xml_writer->dataElement($xml_report_trace => '');            
+
+            if ($mode_isaspect)
+            {
+              $xml_writer->dataElement($xml_report_model_kind => $xml_report_model_kind_aspect);
+            }
+            else
+            {
+              $xml_writer->dataElement($xml_report_model_kind => $xml_report_model_kind_plain);
+            }
           
-          print_debug_trace("Build a rcv report.");
-          $xml_writer->startTag($xml_report_rcv); 
-          $xml_writer->dataElement($xml_report_status => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv status'});  
-          $xml_writer->dataElement($xml_report_time => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv time'});
-          $xml_writer->dataElement($xml_report_desc => $reports{$rule_instrument_cmd_id}{$main_id}{'rcv description'});
-          # Close the rcv tag.
-          $xml_writer->endTag();
+            print_debug_trace("Build a rule instrumentor report.");
+            $xml_writer->startTag($xml_report_rule_instrumentor); 
+            if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
+            {
+              $xml_writer->dataElement($xml_report_status => $xml_report_status_ok);
+            }
+            else
+            {
+              $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
+            }
+            $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
+            $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
+            # Close the rule instrumentor tag.
+            $xml_writer->endTag();
 
-          print_debug_trace("Build a rule instrumentor report.");
+            # Close the ld tag.
+            $xml_writer->endTag();   
+          }
+        }      
+        else
+        {
+          print_debug_debug("The '$cmd_id' ld command has 'check=false'.");
+          $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_model => $opt_model_id);
           $xml_writer->startTag($xml_report_rule_instrumentor); 
+
           if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
           {
             $xml_writer->dataElement($xml_report_status => $xml_report_status_ok);
@@ -1858,42 +2196,22 @@ sub process_report()
           {
             $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
           }
+
           $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
           $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
+            
           # Close the rule instrumentor tag.
           $xml_writer->endTag();
-
           # Close the ld tag.
-          $xml_writer->endTag();   
+          $xml_writer->endTag();      
         }
-      }
-      else
-      {
-        print_debug_debug("The '$cmd_id' ld command has 'check=false'.");
-        $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_model => $opt_model_id);
-        $xml_writer->startTag($xml_report_rule_instrumentor); 
-
-        if ($cmds_log{$cmd_id}{'cmd status'} eq $log_cmds_ok)
-        {
-          $xml_writer->dataElement($xml_report_status => $xml_report_status_ok);
-        }
-        else
-        {
-          $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
-        }
-
-        $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
-        $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
-            
-        # Close the rule instrumentor tag.
-        $xml_writer->endTag();
-        # Close the ld tag.
-        $xml_writer->endTag();      
-      }
+      }        
     }
   }
-
+  
   print_debug_trace("Close the root node tag and peform final checks in the report mode.");
   $xml_writer->endTag();
   $xml_writer->end();
+
+  print_debug_debug("The instrument prints report for all commands successfully.");
 }

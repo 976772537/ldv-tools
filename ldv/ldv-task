@@ -1,20 +1,15 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 #
 # ldv-task --driver= --workdir=workdir --env=kernel_id=rule,rule:kernel_id=rule,rule,... ...
 #
 #
+
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LOG_PREFIX="ldv-task: ";
-ldv_print() {
-	if [ $LDV_DEBUG -le 0 ]; then if [ -n "`echo $1 | grep WARNING`" -o -n "`echo $1 | grep NORMAL`" -o -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 10 ]; then if [ -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
-	echo "$LOG_PREFIX$1";
-}
-if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
+USAGE_STRING="LDV_DEBUG=level WORK_DIR=workdir ldv-task --driver=driverpath --env=...";
+source $LDV_HOME/shared/sh/log.sh;
 
 LDV_REPORT_FILENAME="report_after_ldv.xml";
 LDV_CORE_REPORT_FILENAME="report_after_ldv_core.xml";
@@ -31,10 +26,6 @@ KERNEL_LEVEL=0;
 #
 # scan and test command line parameters
 #
-print_usage_and_exit() {
-		ldv_print "NORMAL: USAGE: LDV_DEBUG=level WORK_DIR=workdir ldv-task --driver=driverpath --env=...";
-		exit 1;
-}
 for arg in $@; do
         case $arg in
                 --workdir=*)
@@ -120,6 +111,13 @@ if [ ! -n "$workdir" ]; then
         exit 1;
 fi;
 
+rm -fr $workdir/*;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can not clean working dir: \"$working\".";
+	exit 1;
+fi;
+
+
 LDV_STATE=$workdir/$LDV_STATE_FILENAME;
 touch $LDV_STATE;
 if [ $? -ne 0 ]; then
@@ -127,12 +125,14 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
-	ENV_ID=`echo $i | sed 's/x.*//'`;
-	RULES=`echo $i | sed 's/.*x//'`;
-	KERNEL_PATH=`$LDV_KMANAGER getpath $ENV_ID`;
-	ldv_print "NORMAL: Start process for environment $ENV_ID.";
+	ENV_ID=`echo $i | sed 's/@.*//'`;
+	RULES=`echo $i | sed 's/.*@//'`;
+	ldv_print "NORMAL: Start process for environment \"$ENV_ID\".";
+	ldv_print "DEBUG: $LDV_KMANAGER --action=getpath --name=$ENV_ID;";
+	KERNEL_PATH=`$LDV_KMANAGER --action=getpath --name=$ENV_ID`;
 	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$KERNEL_PATH\".";
+		echo $KERNEL_PATH;
+		ldv_print "ERROR: ldv-kmanager return error for this environment: \"$ENV_ID\".";
 		exit 1;
 	fi;
 	WORK_DIR_LOCAL=$workdir/$ENV_ID;

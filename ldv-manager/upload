@@ -1,0 +1,237 @@
+#!/usr/bin/ruby
+require 'rubygems'
+require 'active_record'
+require 'hpricot'
+require 'find'
+require 'open3'
+
+ActiveRecord::Base.establish_connection(
+	:adapter  => 'mysql',
+	:database => ENV['LDVDB'],
+	:username => ENV['LDVUSER'],
+	:password => ENV['LDVDBPASSWD'],
+	:host     => (ENV['LDVDBHOST'] || 'localhost')
+)
+ActiveRecord::Base.logger = Logger.new(STDERR)
+
+require "#{File.dirname(__FILE__)}/results_model.rb"
+
+# All models were loaded in results_model.rb.  Now we just add a couple of methods that regard loading them from report
+
+class Task
+	def self.from_xml(tag)
+		unless (tag/"task_id").empty?
+			# Get task from database
+			task_id = (tag/"task_id").inner_html.to_i
+			task = Task.find(task_id)
+			raise "Couldn't find task for task_id=#{task_id.to_s}" unless task
+			return task
+		end
+
+		unless (tag/"username").empty? || (tag/"timestamp").empty?
+			# Create task for user/given timestamp
+			username = (tag/"username").inner_html
+			timestamp = (tag/"timestamp").inner_html.to_datetime
+			task = Task.find_or_create_by_username_and_timestamp(username,timestamp)
+			raise "Couldn't find task for username=#{username.to_s} and timestamp=#{timestamp.to_s}" unless task
+			return task
+		end
+
+		# No means to create a task found -- okay, then there's no task
+		nil
+	end
+end
+
+class Trace
+	# Do not log how these HUGE traces are saved
+	def save(validate=true)
+		ActiveRecord::Base.silence { super(validate) }
+	end
+end
+
+class Stats
+	def self.from_xml(entry,do_nulls)
+		st = Stats.new
+		if entry.none?
+			return nil if do_nulls
+		end
+		st.success = (entry/"status").inner_html == 'OK'
+		st.loc = (entry/"loc").inner_html.to_i || 0
+		st.time = (entry/"time").inner_html.to_i || 0
+		st.description = (entry/"desc").inner_html
+		st
+	end
+end
+
+class Source
+	# Returns array of sources found in the directory supplied
+	def self.from_dir(dirname)
+		return [] unless FileTest.directory? dirname
+		file_recs = []
+		Find.find(dirname) do |path|
+			unless FileTest.directory?(path)
+				# Strip dirname from the file name and save it as database key
+				filename = path.gsub(Regexp.new("^#{Regexp.quote(dirname)}\/*"),"/")
+				file_recs << Source.new({ :name => filename, :contents => File.open(path, "rb").read })
+			end
+		end
+		file_recs
+	end
+
+	# Do not log how these HUGE files are saved
+	def save(validate=true)
+		ActiveRecord::Base.silence { super(validate) }
+	end
+end
+
+# Unpack and load document
+tmpdir=`mktemp -d`.chomp
+paxname = ARGV[0] or raise "Specify package name, please"
+paxname = File.expand_path(paxname)
+Dir.chdir(tmpdir) do |dir|
+	# Unpack to temporary dir
+	Kernel.system("pax","-r","-f",paxname) or raise "pax didn't work."
+end
+# Get report name
+filenames = Dir.glob(File.join(tmpdir,'*.report.xml'))
+raise "Only one report in the archive given should match *.report.xml pattern!  These found: #{filenames.join(",")}" if filenames.size != 1
+
+filename = filenames[0]
+
+# Load document
+doc = open(filename) { |f| Hpricot(f) }
+
+driver_name = (doc/"reports/launch_info/driver").inner_html
+driver_origin = (doc/"reports/launch_info/driver_origin").inner_html
+git_tag = (doc/"reports/launch_info/tag").inner_html
+
+# Get verifier name
+unless (verif_tag = doc/"reports/launch_info/globalverifier").none?
+	global_verifier = verif_tag.inner_html
+else
+	global_verifier = "model-specific"
+end
+
+# Create current task unless it's already added
+task = Task.from_xml(doc/"reports/launch_info")
+
+# Fetch dources (due to not very beautiful structure of the output reports, the sources are fetched beforehand).
+sources_dir = File.join(tmpdir,"sources/")
+sources=[]
+sources_for_kernel={}
+unless sources_dir.empty?
+	# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
+	# We do not descend into sources firecotry and we don't try to separate the files there, as they aren't made for this purpose.
+	sources = Source.from_dir(File.join(sources_dir))
+end
+
+# Traces will be taken from this folder
+traces_dir = File.join(tmpdir,"traces")
+
+
+(doc/"ld").each do |ld|
+	kernel_name = ld.attributes['kernel']
+	kernel = Environment.find_or_create_by_version(kernel_name)
+
+	driver_name = ld.attributes['driver_name'] || driver_name
+	raise "Driver name is empty for ld #{ld.attributes['id']}!" if driver_name.nil? || driver_name.empty?
+	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
+
+	rule_model_name = ld.attributes['model']
+	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
+
+	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['module_name'],ld.attributes['main'])
+
+	trace = Trace.new
+	#verdict
+	verdict = (ld/"verdict").inner_html.downcase
+	unsafe = verdict=="unsafe"
+	trace.result=verdict
+	trace.result='unknown' if verdict.empty?
+
+	# We only get sources if verdict is unsafe
+	if unsafe
+		# HACK: Get sources for current kernel (unless already gotten)
+		# Although we're adding the same files for the second time (see generic source adding procedure), we now have to use separate names for them (since they're somehow are referenced by their relative path to kernel origin).
+		unless sources_dir.empty?
+			sources_for_kernel[kernel_name] ||= Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
+		else
+			sources_for_kernel[kernel_name] = []
+		end
+	else
+		sources_for_kernel[kernel_name] = []
+	end
+
+	if unsafe
+		trace.sources = Source.from_dir(File.join(sources_dir)) + Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
+	end
+
+	#trace -- read the whole trace from file
+	#We only do this if verdict is unsafe
+	if unsafe
+		if (trace_tag = ld/"trace")
+			trace_fname=trace_tag.inner_html
+			trace_abs_fname=File.join(traces_dir,trace_fname)
+			unless trace_fname.empty? || !File.exists?(trace_abs_fname)
+				trace.error_trace = IO.read(trace_abs_fname)
+			end
+		end
+	end
+	# We assume that if there's no report for a tool, it's not 
+	do_nulls = true
+	# Load stats from XML
+	Trace.tools.each do |dbname,tag|
+		stats = Stats.from_xml(ld/tag,do_nulls)
+		trace.send("#{dbname}=",stats)
+	end
+
+	# Run scripts that check for problems
+	Trace.tools.each do |tool,v|
+		tool_stat = trace.send(tool)
+		if tool_stat
+			scripts_dir = File.join(File.dirname(__FILE__), "problems", tool)
+			Find.find(scripts_dir) do |file|
+				if !FileTest.directory?(file) && FileTest.executable?(file)
+					# Run the script and get its output
+					Open3.popen3(file) do |cin,cout,cerr|
+						# Send description to the checker
+						cin.write( tool_stat.description )
+						cin.close
+						cout.each {|line| tool_stat.problems << Problem.find_or_create_by_name(line.chomp) }
+						cerr.each {|errln| $stderr.puts errln}
+					end
+				end
+			end
+		end
+	end
+
+	# Build is handled in a special way
+	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"]",false)
+	trace.build = build
+	# We should also get verifier from RCV, if it was run
+	if (rcv_tag = ld/"rcv") && !rcv_tag.none?
+		raise "Two <rcv> tags in ld #{ld.id}?" if rcv_tag.size != 1
+		trace.verifier = rcv_tag[0].attributes['verifier']
+	end
+
+	# Save trace to DB
+	launch = Launch.new
+
+	# Assign a primary key
+	launch.driver = driver
+	launch.environment = kernel
+	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,global_verifier)
+	launch.rule_model = rule_model
+	launch.scenario = scenario
+	launch.task = task
+
+	launch = launch.load_on_duplicate_key
+
+	launch.trace = trace
+
+	# Because of :autosave property, recursively saves all records
+	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+end
+
+
+

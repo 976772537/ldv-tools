@@ -1,7 +1,6 @@
 package com.iceberg.csd.cmdstream;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +12,7 @@ import org.w3c.dom.NodeList;
 import com.iceberg.csd.FSOperationBase;
 
 public class Command {
-	private List<String> opts = new ArrayList<String>();
+	private List<Opt> opts = new ArrayList<Opt>();
 	private List<Command> inObj = new ArrayList<Command>();
 	protected List<String> in = new ArrayList<String>();
 	protected List<String> out = new ArrayList<String>();
@@ -43,7 +42,8 @@ public class Command {
 		NodeList nodeList = item.getChildNodes();
 		for(int i=0; i<nodeList.getLength(); i++) {
 			if(nodeList.item(i).getNodeName().equals(CmdStream.tagOpt)) {
-				opts.add(nodeList.item(i).getTextContent());
+				Opt copt = new Opt(nodeList.item(i));
+				opts.add(copt);
 			} else if(nodeList.item(i).getNodeName().equals(CmdStream.tagIn)) {
 				in.add(nodeList.item(i).getTextContent());
 			} else if(nodeList.item(i).getNodeName().equals(CmdStream.tagOut)) {
@@ -62,11 +62,12 @@ public class Command {
 	}
 	
 	public void addOpt(String opt) {
-		opts.add(opt);
+		Opt copt = new Opt(opt);
+		opts.add(copt);
 	}
 	
 	public void addIn(String in) {
-		opts.add(in);
+		this.in.add(in);
 	}
 	
 	public void addObjIn(Command in) {
@@ -75,10 +76,10 @@ public class Command {
 
 	
 	public void addOut(String out) {
-		opts.add(out);
+		this.out.add(out);
 	}
-
-	public List<String> getOpts() {
+	
+	public List<Opt> getOpts() {
 		return opts;
 	}
 	
@@ -95,7 +96,7 @@ public class Command {
 		for(int i=0; i<in.size(); i++)
 			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagIn+'>'+in.get(i)+"</"+CmdStream.tagIn+">\n");
 		for(int i=0; i<opts.size(); i++)
-			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOpt+'>'+opts.get(i)+"</"+CmdStream.tagOpt+">\n");
+			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOpt+opts.get(i).getAttsString()+'>'+opts.get(i).getValue()+"</"+CmdStream.tagOpt+">\n");
 		for(int i=0; i<out.size(); i++) 
 			if(check)
 				sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOut+" check=\"true\">"+out.get(i)+"</"+CmdStream.tagOut+">\n");

@@ -1,0 +1,75 @@
+LDV-MANAGER
+
+Infrastructure to run and collect statistics of LDV runs.
+
+PREREQUISITES:
+
+1. Ruby v1.8+
+2. Ruby gems package and the following gems:
+	gem install hpricot
+	gem install activerecord
+	gem install mysql
+3. GNU Make
+4. Perl (with XML::Twig)
+5. MySQL with InnoDB
+6. libmysqlclient15-dev+ 
+6. PAX archiver (that's POSIX standard actually)
+
+
+HOW TO USE LDV-MANAGER
+
+As usual, change into an empty directory.  That will be your working dir.
+
+LDV-manager is implemented as makefiles (yes, again.  Sorry.)  All variables should be specified through command line, however, some rarely changing ones (such as repository addresses) may be stored in "config.mk" file in current directory.
+
+Input to ldv-manger is its command line.  Output is the files that appear in RESULTS_DIR (that's environment/config variable).  The files given as an input (archives with kernels and drivers) should be in the working directory.
+
+Here's how the call looks like:
+
+	LDV_GIT_REPO=git://itgdev/ldv-tools.git \
+	make -f /path/to/ldv-tools/ldv-manager/ldv-manager.mk \
+	tag=test-0.1 \
+	"envs=linux-2.6.31.2.tar.bz2" \
+	"drivers=wl12xx.tar.bz2" \
+	"rule_models=8_1 32_1"
+
+You may also want to specify "name" variable to be able to distinguish runs by some other parameters.
+
+If you want to re-run the process for an already checked driver, you most likely will see "nothing to do" message.  To make your results out of date, you should touch the file with driver.
+
+	touch driver.tar.gz
+
+For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.
+
+If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.
+
+
+HOW TO USE DATABASE
+
+LDV-manager doesn't add anything to database.  The 'upload' script does that.
+
+First, you should prepare DB schema.  Just execute results_schema.sql file to ERASE all existing tables and create schema for the new.
+
+Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run upload script on the files that are gotten from the ldv-manager:
+
+	ldv-mangaer/upload package_from_ldv_manager.
+
+
+SWITCHING AND TUNING C VERIFIERS
+
+Verifier switching is not implemented.  However, there's some variability in how RCV verifier BLAST can be used, as well as generic tweaks to these verifiers.
+
+To limit resources used by verifier, call dscv (i.e. call LDV_MANAGER) with the following environment variables:
+
+	RCV_TIMELIMIT=500      #Set time limit to 500 seconds
+	RCV_MEMLIMIT=1000000   #Set memory limit to 1000000 KiloBytes
+
+To save typing, you may add these variables to config.mk, but don't forget to export them!
+
+	export RCV_TIMELIMIT=500
+	export RCV_MEMLIMIT=1000000
+
+To tune BLAST with options, you may set BLAST_OPTIONS environment variable.
+
+Information about these limits and these options is saved into the description field for rcv tool.
+

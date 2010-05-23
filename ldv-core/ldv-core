@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 # env var WORK_DIR
@@ -27,32 +27,11 @@ LOG_MIRROR_TO_CONSOLE=1;
 DRIVER_DIR_NAME="driver";
 EXTRACTOR_LOG_FILENAME="unarch.log";
 
-#
-# log variables
-#
-LOG_PREFIX="ldv-core: ";
-PREFIX_ERROR="ERROR: ";
-PREFIX_WARNING=" WARN: ";
-PREFIX_DEBUG="DEBUG: ";
-PREFIX_INFO=" INFO: ";
-
-LOG_PREFIX="ldv-core: ";
-ldv_print() {
-	if [ $LDV_DEBUG -le 0 ]; then if [ -n "`echo $1 | grep WARNING`" -o -n "`echo $1 | grep NORMAL`" -o -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 10 ]; then if [ -n "`echo $1 | grep INFO`" -o -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 20 ]; then if [ -n "`echo $1 | grep DEBUG`" -o -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 30 ]; then if [ -n "`echo $1 | grep TRACE`" -o -n "`echo $1 | grep ALL`" ]; then return; fi;
-	elif [ $LDV_DEBUG -le 40 ]; then if [ -n "`echo $1 | grep ALL`" ]; then return; fi; fi;
-
-	if [ $LDV_DEBUG -ge 30 ]; then
-		PRINT_DIGRAPH_OPTION="--print-digraph";
-	fi;
-	
-	echo "$LOG_PREFIX$1";
-}
-if [ ! -n "$LDV_DEBUG" ]; then LDV_DEBUG=10; fi;
 
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
+LOG_PREFIX="ldv-core: ";
+USAGE_STRING="WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels";
+source $LDV_HOME/shared/sh/log.sh;
 
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
@@ -82,15 +61,6 @@ RINSTR_DIR="$LDV_HOME/rule-instrumentor";
 RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
 
 KERNEL_LEVEL=0;
-
-#
-# read and test environment variables
-#
-print_usage_and_exit() {
-		ldv_print "ERROR: USAGE: WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels"
-		exit 1;
-}
-#if [ $# -ne 3  ]; then print_usage_and_exit; fi;
 
 if [ ! -n "$WORK_DIR" ]; then
 	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -278,10 +248,10 @@ ldv_print "NORMAL: Calling Command Stream Divider.";
 CSD_TEMPDIR=$WORK_DIR/$CSD_DEG_DSCV_TEMPDIR_NAME;
 CSD_STATE=$CSD_TEMPDIR/$CSD_STATE_FILENAME;
 if [ $KERNEL_LEVEL -eq 1 ]; then
-	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
 else
-	ldv_print "LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
 fi;
 if [ $? -ne 0 ]; then
@@ -314,9 +284,12 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	DEG_TEMPDIR=$CURRENT_TEMPDIR/$DEG_TEMPDIR_NAME;
 	XML_AFTER_DEG=$DEG_TEMPDIR/$XML_FILENAME_AFTER_DEG;
 	DEG_STATE=$DEG_TEMPDIR/$DEG_STATE_FILENAME;
+
+	if [ $KERNEL_LEVEL -eq 0 ]; then module_name="--driver-name=$driver"; fi;
+#	module_name="--driver-name=$driver";
 	ldv_print "NORMAL: Calling Driver Environment Generator";
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE;
+	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE $koption $module_name;";
+	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE $koption $module_name;
 	if [ $? -ne 0 ]; then
 	        ldv_print "ERROR: Drv-env-gen failed."
 	        exit 1;
