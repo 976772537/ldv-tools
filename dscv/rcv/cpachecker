@@ -53,6 +53,11 @@ my $workdir = $config->{workdir};
 -x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
 -d $workdir or die "--workdir=$config->{workdir} is not a directory!";
 
+# Resource limits processing
+my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
+my $memlimit = $ENV{'RCV_MEMLIMIT'};
+vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
+
 
 # Prepare sanity checks
 my $sanity = DSCV::Sanity->new($config->{sandir});
@@ -167,6 +172,14 @@ sub call_cpachecker
 	# Additional options
 	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
 
+	# Resources limit
+	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
+		timelimit => $timelimit,
+		memlimit => $memlimit,
+		id_str => "DSCV_TIMEOUT ",
+		},@cpachecker_options
+	);
+
 	vsay ('NORMAL',"Running CPACHECKER for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@cpachecker_options,"\n");
 
@@ -185,19 +198,19 @@ sub call_cpachecker
 	$sanity->blast_called();
 
 	# TODO: Create trace printer
-	#my $dumptrace = dumptrace($args{trace});
+	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
-	#my $verdictor = StreamAutomaton->new([$dumptrace]);
+	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'})]);
 
 	# Process output and redirect it to file
 	local $_;
 	while (<$CPACHECKER_OUT>) {
 		print $CPACHECKER_DEBUG $_;
-		#$verdictor->chew_line($_);
+		$verdictor->chew_line($_);
 	}
 	while (<$CPACHECKER_ERR>) {
 		print $CPACHECKER_DEBUG $_;
-		#$verdictor->chew_line($_);
+		$verdictor->chew_line($_);
 	}
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
 
@@ -215,7 +228,26 @@ sub call_cpachecker
 		return {'CPACHECKER'=>'FAIL', 'CPACHECKER-detailed' => 'unimplemented'};
 	}
 
-	#return $verdictor->result();
+	my $result = {%{$verdictor->result()}};
+	$result->{'CPACHECKER-detailed'} = $result->{'BLAST-detailed'};
+
+	# Add information about limits to result
+	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
+	my $ml4rep = $memlimit ? "$memlimit Kb" : "not set";
+	# TODO: check of there is --version-like option to CPAchecker
+	#my $ver4rep = `pbast.opt --version`;
+	my $ver4rep = "";
+	$result->{'CPACHECKER-detailed'} .= <<EOR ;
+
+=========== Launch information ===========
+Verifier: CPAchecker ($ver4rep)
+Time Limit: $tl4rep
+Memory Limit: $ml4rep
+Additional options: $ENV{'CPACHECKER_OPTIONS'}
+=========== Launch inform ends ===========
+EOR
+
+	return $result;
 }
 
 

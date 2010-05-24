@@ -54,10 +54,7 @@ my $workdir = $config->{workdir};
 -d $workdir or die "--workdir=$config->{workdir} is not a directory!";
 
 # Resource limits processing
-my $timeout = "$ENV{'DSCV_HOME'}/shared/sh/timeout";
--x $timeout or die "Executable timeout script needed but $timeout given!";
-
-my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60);
+my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
 my $memlimit = $ENV{'RCV_MEMLIMIT'};
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
@@ -206,11 +203,13 @@ sub call_blast
 
 	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 	# To Limit resources for BLAST we use timeout script.
-	unshift @blast_options,"-t",$timelimit if $timelimit;
-	unshift @blast_options,"-m",$memlimit if $memlimit;
-	unshift @blast_options,$timeout if $timelimit || $memlimit;
+	@blast_options = DSCV::RCV::Utils::set_up_timeout({
+		timelimit => $timelimit,
+		memlimit => $memlimit,
+		id_str => "DSCV_TIMEOUT ",
+		},@blast_options
+	);
 	# Identification to distinguish timeout's messages from other stuff
-	$ENV{'TIMEOUT_IDSTR'} = "DSCV_TIMEOUT ";
 
 	# Tell arguments
 	vsay ('NORMAL',"Running BLAST for $args{dbg_target}, entry $args{main}...\n");

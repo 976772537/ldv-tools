@@ -30,6 +30,31 @@ sub foreach_report
 	find(sub{ /\.report$/ and $callback->($File::Find::name);},reports_dir($work_dir));
 }
 
+#======================================================================
+# COMMON SUBROUTINES
+#======================================================================
+
+# Given a list of arguments to invoke child process, and limits specification, return a list of arguments t ocall timeout program shipped with LDV that watches for the resources.  As a side effect, modifies DSCV_TIMEOUT.
+
+my $timeout = "$ENV{'DSCV_HOME'}/shared/sh/timeout";
+-x $timeout or die "Executable timeout script needed but $timeout given!";
+
+sub set_up_timeout
+{
+	my ($resource_spec, @cmdline) = @_;
+	ref $resource_spec eq 'HASH' or Carp::confess;
+	my $timelimit = $resource_spec->{timelimit};
+	my $memlimit = $resource_spec->{memlimit};
+	my $idstr = $resource_spec->{id_str};
+
+	unshift @cmdline,"-t",$timelimit if $timelimit;
+	unshift @cmdline,"-m",$memlimit if $memlimit;
+	unshift @cmdline,$timeout if $timelimit || $memlimit;
+
+	$ENV{'TIMEOUT_IDSTR'} = $idstr;
+
+	return @cmdline;
+}
 
 use Cwd;
 # Preprocesses file in the directory given with the options given.  Returns what call to C<system> returned.
