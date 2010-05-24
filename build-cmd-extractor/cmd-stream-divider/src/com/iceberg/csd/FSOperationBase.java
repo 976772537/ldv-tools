@@ -27,19 +27,33 @@ public class FSOperationBase {
 	{
 		if(srcFilename!=null && dstFilename!=null)
 		{
+			FileInputStream src = null;
+			FileOutputStream dest = null;
+			FileChannel srcChannel = null;
+			FileChannel destChannel = null;
 			try
 			{
-				FileInputStream src = new FileInputStream(srcFilename);
-				FileOutputStream dest = new FileOutputStream(dstFilename);
-				FileChannel srcChannel = src.getChannel();
-				FileChannel destChannel = dest.getChannel();
+				src = new FileInputStream(srcFilename);
+				dest = new FileOutputStream(dstFilename);
+				srcChannel = src.getChannel();
+				destChannel = dest.getChannel();
 				srcChannel.transferTo(0, srcChannel.size(), destChannel);
-				return true;
 			} catch (IOException e)
 			{
 				System.out.println("csd: ERROR: Can't copy file.");
+			} finally {
+				try {
+					srcChannel.close();
+					destChannel.close();
+					src.close();
+					dest.close();
+				} catch(IOException e) {
+					return false;
+				}
+				
 			}
-		}
+			return true;
+		} 
 		return false;
 	}
 	
