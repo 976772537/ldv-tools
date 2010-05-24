@@ -89,7 +89,8 @@ sub cilly_file
 {
 	my $info = {@_};
 	my $cil_path = $info->{cil_path} or Carp::confess;
-	my $cil_script = "$cil_path/bin/cilly";
+	#my $cil_script = "$cil_path/bin/cilly";
+	my $cil_script = "$cil_path/obj/x86_LINUX/cilly.asm.exe";
 	my $cil_temps = $info->{temps};
 	mkpath($cil_temps) if $cil_temps;
 	# Change dir to cwd; then change back
@@ -100,19 +101,19 @@ sub cilly_file
 	my @opts = @{$info->{opts}};
 	@opts = grep {!/^-c$/} @opts;
 
-	my @cil_args = ($cil_script,"-c",
+	my @cil_args = ($cil_script,#"-c",
 		"$info->{i_file}",	#Input file
-		"--out=$info->{cil_file}",	#Output file
+		"--out", "$info->{cil_file}",	#Output file
 		# However, for cill to REALLY output the file, GCC's preprocessr at some stage should print it.  We need the following line:
 		#"-o",$info->{cil_file},
 		# Default CIL options
 		"--dosimplify",
 		"--printCilAsIs",
 		"--domakeCFG",
-		($info->{temps}?("--save-temps=$info->{temps}"):()),
+		#($info->{temps}?("--save-temps=$info->{temps}"):()),
 		# User-supplied options
-		@opts,
-		"-U","__LP64__"
+		# @opts,
+		#"-U","__LP64__"
 	);
 	vsay ('DEBUG',"CIL: ",@cil_args,"\n");
 	local $"=' ';
@@ -264,7 +265,7 @@ sub ld_maker
 					vsay ("DEBUG","CIL exit code is $cil_result\n");
 					$? and die "CIL ERROR!  Recovery is unimplemented"; # TODO
 				}else{
-					$new_record->{i_file} = $new_record->{c_file};
+					$new_record->{cil_file} = $new_record->{i_file};
 				}
 
 				$new_record->{i_file} = $new_record->{cil_file};
