@@ -127,7 +127,7 @@ watch_pid=`jobs -p 1`
 	while ((timeout > process_worked)); do
 		sleep $interval
 		# Check if process is still running and print a report (if $report_file is set), then exit
-		kill -0 $watch_pid 2>/dev/null || { echo OK $process_worked >$report_file ;  exit 0; }
+		kill -0 $watch_pid 2>/dev/null || { echo OK $process_worked >$report_file ;  break; }
 		
 		# ATTENTION!  After this kill invocation process may terminate!  Wa have to carefully save older value.
 		old_pw_value=$process_worked
@@ -168,10 +168,11 @@ watch_pid=`jobs -p 1`
 		kill -s SIGKILL $watch_pid
 	) 2>/dev/null
 
-	exit 0
-	#1<&-
-	#2<&-
+	# Get exit code of the child process (wait returns immediately, since the process is already dead)
+	wait $watch_pid
+	cmd_excode=$?
+	exit $cmd_excode
+
 #) &
 
-exit 0
 
