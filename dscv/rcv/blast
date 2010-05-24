@@ -266,6 +266,7 @@ sub call_blast
 	}
 
 	my $result = {%{$verdictor->result()}};
+	$result->{'BLAST-detailed'} .= $result->{'LIMITS'};
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};

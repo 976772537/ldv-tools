@@ -115,14 +115,31 @@ sub verify_cpachecker
 		vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
 
 		# Verdict
-		my $bv = "UNKNOWN";
+		my $bv = $result->{'CPACHECKER-detailed'};
+		if ($bv =~ /\bsafe\b/) {
+			$bv='SAFE';
+		}elsif($bv =~ /\bunsafe\b/){
+			$bv='UNSAFE';
+		}else{
+			$bv='UNKNOWN';
+		}
+		# Result
+		my $br = $result->{'CPACHECKER'};
+		vsay (40, "CPACHECKER status is $br\n");
+		if ($br =~ /\byes\b/i) {
+			$br='OK';
+		}elsif($br =~ /\bno\b/i){
+			$br='FAILED';
+		}else{
+			$br='FAILED';
+		}
 
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
 		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
 
 		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
-		XML::Twig::Elt->new('status',{},$result->{'CPACHECKER'})->paste($rcvResultT);
+		XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
 		XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
 
 		# Calculate and output time elapsed
@@ -200,7 +217,7 @@ sub call_cpachecker
 	# TODO: Create trace printer
 	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'})]);
+	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict()]);
 
 	# Process output and redirect it to file
 	local $_;
@@ -214,22 +231,24 @@ sub call_cpachecker
 	}
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
 
-	Utils::hard_wait($fpid,0) < 0 and die;
+	my %child = Utils::hard_wait($fpid,0);
 	close $CPACHECKER_DEBUG;
 
   vsay (40,"CPACHECKER open3 return value: $?\n");
 	vsay (20,"CPACHECKER return value: $?\n");
+	vsay (40,"CPACHECKER stats: utime $child{'utime'}, stime $child{'stime'}\n");
 	my $cpachecker_rv = $? >> 8;
 	if($? == 0){
 		vsay (20,"CPACHECKER OK\n");
-		return {'CPACHECKER'=>'OK', 'CPACHECKER-detailed' => 'unimplemented'};
 	}else{
 		vsay ('WARNING',"CPACHECKER failed with exit code $cpachecker_rv.  We consider it fatal\n");
-		return {'CPACHECKER'=>'FAIL', 'CPACHECKER-detailed' => 'unimplemented'};
 	}
 
 	my $result = {%{$verdictor->result()}};
-	$result->{'CPACHECKER-detailed'} = $result->{'BLAST-detailed'};
+	# For now, consider that CPAchecker always works correctly
+	$result->{'CPACHECKER'} = "yes";
+	# Add limits
+	$result->{'CPACHECKER-detailed'} .= $result->{'LIMITS'};
 
 	# Add information about limits to result
 	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
@@ -280,6 +299,15 @@ sub cpachecker_quick_check
 }
 
 
+sub cpachecker_verdict
+{
+	return[100_000,sub{
+		my $l=shift or return undef;
+		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.'};
+		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.'};
+		return undef;
+	}];
+}
 
 # Trace dumper.  Usage:  my $dumper = dumptrace(filename);
 use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
@@ -289,6 +317,8 @@ sub dumptrace
 	my $state = TRACE_WAIT;
 	my $current_fh;
 	return [1_000_000,sub {
+		# Just return undef -- don't do anything
+		return undef;
 
 		my ($line) = @_;
 		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
