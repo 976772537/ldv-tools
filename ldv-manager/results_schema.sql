@@ -7,7 +7,7 @@
 drop table if exists launches;
 drop table if exists tasks;
 drop table if exists sources;
-drop table if exists problems_traces;
+drop table if exists problems_stats;
 drop table if exists problems;
 drop table if exists traces;
 drop table if exists stats;
@@ -45,10 +45,13 @@ create table rule_models(
 -- Instruments
 create table toolsets(
 	id int(10) unsigned not null auto_increment,
-	version varchar(20) not null,
--- RCV backend used in this measurement
-	verifier varchar(20) not null,
+	version varchar(100) not null,
+-- verifier should contain "model-specific" if verifier is set up by model.
+-- Otherwise, if the verifier was forced by user, it should contain a user-defined verifier name 
+	verifier varchar(100) not null default "model-specific",
 	primary key(id),
+	unique (version,verifier),
+	key (version),
 	key (verifier)
 ) ENGINE=InnoDB;
 
@@ -81,14 +84,16 @@ create table stats(
 create table traces(
 	id int(10) unsigned not null auto_increment,
 	build_id int(10) unsigned not null,
-	maingen_id int(10) unsigned not null,
-	dscv_id int(10) unsigned not null,
-	ri_id int(10) unsigned not null,
-	rcv_id int(10) unsigned not null,
+	maingen_id int(10) unsigned,
+	dscv_id int(10) unsigned,
+	ri_id int(10) unsigned,
+	rcv_id int(10) unsigned,
 
 	result enum('safe','unsafe','unknown') not null default 'unknown',
 -- Error trace if error is found
 	error_trace mediumtext,
+-- RCV backend used in this measurement
+	verifier varchar(100),
 
 	primary key (id),
 
@@ -167,11 +172,12 @@ create table problems(
 	key (name)
 ) ENGINE=InnoDB;
 
-create table problems_traces(
-	trace_id int(10) unsigned not null,
+create table problems_stats(
+	stats_id int(10) unsigned not null,
 	problem_id int(10) unsigned not null,
+	unique (stats_id,problem_id),
 
-	foreign key (trace_id) references traces(id),
-	foreign key (problem_id) references problems(id)
+	foreign key (stats_id) references stats(id) on delete cascade,
+	foreign key (problem_id) references problems(id) on delete cascade
 ) ENGINE=InnoDB;
 

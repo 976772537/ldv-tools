@@ -16,6 +16,14 @@ TMP_DIR?=/tmp
 # Special variable that denotes a "fake" tag.  If you specify this "tag", the manager will use currently installed tools available from PATH.
 Current=current
 
+# If verifier is specified, distpatch by it (dash is to separate it from other parts of description string)
+# TODO: Add support for more verifiers
+ifeq ($(RCV_VERIFIER),)
+Verifier=
+else
+Verifier=$(delim)$(RCV_VERIFIER)
+endif
+
 # Install dir should be absolutized
 LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
 
@@ -62,7 +70,8 @@ calls:=$(call cartprod,$(drivers),$(calls),$(delim))
 calls:=$(call cartprod,$(tag),$(calls),$(delim))
 
 # Make tasks actual task files
-tasks_targets:=$(tasks:%=$(WORK_DIR)/%/finished)
+# Note that we add $(Verifier) into the targets, since tasks should be distpatched by it as well
+tasks_targets:=$(tasks:%=$(WORK_DIR)/%$(Verifier)/finished)
 
 all: $(tasks_targets)
 
@@ -74,12 +83,12 @@ all: $(tasks_targets)
 # Since Make doesn't support double distpatching (e.g. rules like "dir/%/%/finished: ... "), we generate targets explicitely, from the veriables supplied as input.  These rules are stored in variables rule_for_something and are evaluated in foreach-eval loops.
 
 define rule_for_task
-$$(WORK_DIR)/$(1)/finished: Env=$(call get_env_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)/finished: Rule_model=$(call get_rulemodel_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)/finished: Dir=$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(Verifier)/finished: Env=$(call get_env_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(Verifier)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(Verifier)/finished: Rule_model=$(call get_rulemodel_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(Verifier)/finished: Dir=$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))
 
-$$(WORK_DIR)/$(1)/finished: $$(WORK_DIR)/$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))/finished
+$$(WORK_DIR)/$(1)$(Verifier)/finished: $$(WORK_DIR)/$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))$(Verifier)/finished
 	cd $$(WORK_DIR) && ln -s -T -f $$(Dir) $(1)
 endef
 
@@ -97,12 +106,12 @@ endif
 rmtr=$(call sed,$(1),s/\/$$//)
 
 define rule_for_tag_driver
-$$(WORK_DIR)/$(1)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)/finished: Result_report=
+$$(WORK_DIR)/$(1)$(Verifier)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(Verifier)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(Verifier)/finished: Result_report=
 
 # We add dependency on the archive with file to allow consecutive launches
-$$(WORK_DIR)/$(1)/checked: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
+$$(WORK_DIR)/$(1)$(Verifier)/checked: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
 	if [[ "$$(Tag)" != "$(Current)" ]] ; then \
@@ -110,13 +119,14 @@ $$(WORK_DIR)/$(1)/checked: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,
 	fi ;\
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
 	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver)
+	touch $$@
 
-$$(WORK_DIR)/$(1)/finished: $$(WORK_DIR)/$(1)/checked
+$$(WORK_DIR)/$(1)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(Verifier)/checked
 	@# Add ancillary information to reports and post it to target directory
 	@echo $(call mkize,$(1))
 	@mkdir -p $$(dir $(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml)
-	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.source/ >$(TMP_DIR)/$(call mkize,$(1)).report.xml
-	$(Lib_dir)package $(TMP_DIR)/$(call mkize,$(1)).report.xml $(RESULTS_DIR)/$(call mkize,$(1)).pax -s '|^$(TMP_DIR)\/*||'
+	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml
+	$(Lib_dir)package $(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(Verifier).pax -s '|^$(TMP_DIR)\/*||'
 	touch $$@
 endef
 

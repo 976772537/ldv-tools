@@ -33,6 +33,8 @@ Here's how the call looks like:
 	"drivers=wl12xx.tar.bz2" \
 	"rule_models=8_1 32_1"
 
+You may also want to specify "name" variable to be able to distinguish runs by some other parameters.
+
 If you want to re-run the process for an already checked driver, you most likely will see "nothing to do" message.  To make your results out of date, you should touch the file with driver.
 
 	touch driver.tar.gz
@@ -52,4 +54,22 @@ Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper
 
 	ldv-mangaer/upload package_from_ldv_manager.
 
+
+SWITCHING AND TUNING C VERIFIERS
+
+Verifier switching is not implemented.  However, there's some variability in how RCV verifier BLAST can be used, as well as generic tweaks to these verifiers.
+
+To limit resources used by verifier, call dscv (i.e. call LDV_MANAGER) with the following environment variables:
+
+	RCV_TIMELIMIT=500      #Set time limit to 500 seconds
+	RCV_MEMLIMIT=1000000   #Set memory limit to 1000000 KiloBytes
+
+To save typing, you may add these variables to config.mk, but don't forget to export them!
+
+	export RCV_TIMELIMIT=500
+	export RCV_MEMLIMIT=1000000
+
+To tune BLAST with options, you may set BLAST_OPTIONS environment variable.
+
+Information about these limits and these options is saved into the description field for rcv tool.
 

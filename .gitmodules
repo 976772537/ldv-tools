@@ -7,3 +7,6 @@
 [submodule "kernel-rules"]
 	path = kernel-rules
 	url = git://itgdev.igroup.ispras.ru/kernel-rules.git
+[submodule "dscv/rcv/backends/cpachecker"]
+	path = dscv/rcv/backends/cpachecker
+	url = git://itgdev.igroup.ispras.ru/cpachecker.git

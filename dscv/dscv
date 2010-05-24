@@ -68,12 +68,13 @@ Outfile to print comprehensive report about all rules to.
 =cut
 $optionSpecs{'report-out=s'} = \$config->{report};
 
-=item B<--verifier=backend>
+=item B<--rcv-verifier=backend>
 
-Overrides the verifier passed by rule instrumentor.
+Overrides the reachability C verifier passed by rule instrumentor.
 
 =cut
-$optionSpecs{'verifier=s'} = \$config->{verifier_override};
+$config->{verifier_override} = {} unless exists $config->{verifier_override};
+$optionSpecs{'rcv-verifier=s'} = \$config->{verifier_override}->{rcv};
 
 =back
 
@@ -179,6 +180,13 @@ Level of verbosity, ranging from 0 (silent) to 100 (trace).  Default is 10.  B<D
 $config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
 $config->{verbosity} = 10 unless defined $config->{verbosity};
 
+=item B<RCV_VERIFIER>
+
+Reachability C verification tool used to checking all models, regardless of what is specified by Rule-instrumentor.  May be overridden by C<--verifier> option.
+
+=cut
+$config->{verifier_override}->{rcv} = $ENV{'RCV_VERIFIER'};
+
 
 =item B<RULE_INSTRUMENTOR>
 
@@ -186,6 +194,14 @@ Specify custom rule instrumentor.  Unless specified, the program is deduced from
 
 =cut
 $config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'LDV_HOME'}/bin/rule-instrumentor.pl" || 'rule-instrumentor.pl';
+
+=item B<VERIFIER_OVERRIDE>
+
+Overrides the verifier returned by the Rule Instrumentor.  C<--verifier> option takes precedence.
+
+=cut
+$config->{verifier_override_env} = $ENV{'VERIFIER_OVERRIDE'};
+
 
 =back
 
@@ -413,7 +429,8 @@ for my $property (@properties){
 			my $cmdT = $cmdT_->copy();
 			my $id = $cmdT->att('id');
 			# Get verifier from command and override it if necessary
-			my $verifier = $config->{verifier_override} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --verifier option is not set";
+			# TODO: for now all our verifiers are Reachability C verifiers.  When more verifier classes will be added, more verifiers should be supplied here.
+			my $verifier = $config->{verifier_override}->{rcv} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --rcv-verifier option is not set";
 			if (defined $cmdT->first_child('engine')){
 				$cmdT->first_child('engine')->set_text($verifier);
 			}else{

@@ -4,12 +4,12 @@
 sub usage
 { die<<EOF
 Usage:
-	report-fixup report.xml git_tag driver_name driver_origin sources_dir
+	report-fixup report.xml git_tag driver_name driver_origin sources_dir work_dir
 EOF
 }
 
-my ($report_xml,$git_tag,$driver_name,$driver_origin,$sources_dir) = @ARGV;
-$driver_origin or usage();
+my ($report_xml,$git_tag,$driver_name,$driver_origin,$sources_dir,$work_dir) = @ARGV;
+$work_dir or usage();
 
 use strict;
 use XML::Twig;
@@ -18,15 +18,32 @@ sub handle_report
 {
 	my ($twig, $cmdT) = @_;
 	my $launchT = XML::Twig::Elt->new('launch_info');
+	my $verifier = undef;
+	# Add more verifiers here if you want to override them
+	$verifier ||= $ENV{'RCV_VERIFIER'};
+	XML::Twig::Elt->new('globalverifier',{},$verifier)->paste($launchT) if defined $verifier;
 	XML::Twig::Elt->new('timestamp',{},`date`)->paste($launchT);
 	XML::Twig::Elt->new('driver',{},$driver_name)->paste($launchT);
 	XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($launchT);
 	XML::Twig::Elt->new('tag',{},$git_tag)->paste($launchT);
 	XML::Twig::Elt->new('sources',{},$sources_dir)->paste($launchT) if defined $sources_dir && -d $sources_dir;
+	XML::Twig::Elt->new('workdir',{},$work_dir)->paste($launchT) if defined $work_dir && -d $work_dir;
 	$launchT->paste($cmdT);
 	$cmdT->print('indented');
 }
 
-XML::Twig->new( twig_roots => { reports => \&handle_report }, twig_print_outside_roots => \*STDOUT )->parsefile($report_xml);
+use Cwd 'abs_path';
+$work_dir = abs_path($work_dir);
+# Replace trace path with path relative to $work_dir.  Work_dir is saved in launch_info tag.
+sub fix_trace
+{
+	my ($twig, $traceT) = @_;
+	my $trace_absolute = $traceT->text;
+	$trace_absolute = abs_path($trace_absolute);
+	$trace_absolute =~ s/^$work_dir\/*//;
+	$traceT->set_text($trace_absolute);
+}
+
+XML::Twig->new( twig_roots => { reports => \&handle_report, trace => \&fix_trace }, twig_print_outside_roots => \*STDOUT )->parsefile($report_xml);
 
 

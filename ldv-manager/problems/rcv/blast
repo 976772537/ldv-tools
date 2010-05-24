@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+# Problem finder for BLAST tool
+
+$\ = "\n";
+while (<>){
+	chomp;
+	/exception/i and print "Exception";
+	/combining structure and non-structure values/i and print "BLAST_combinig";
+	/Memory Limit Exceeded/i and print "Out_of_memory";
+	/Time Limit Exceeded/i and print "Time_limit";
+}
+

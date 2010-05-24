@@ -1,0 +1,53 @@
+#!/usr/bin/ruby
+#
+# Recalculate Problems in the database, given new scripts
+
+require 'rubygems'
+require 'active_record'
+require 'open3'
+require 'find'
+
+ActiveRecord::Base.establish_connection(
+	:adapter  => 'mysql',
+	:database => ENV['LDVDB'],
+	:username => ENV['LDVUSER'],
+	:password => ENV['LDVDBPASSWD'],
+	:host     => (ENV['LDVDBHOST'] || 'localhost')
+)
+ActiveRecord::Base.logger = Logger.new(STDERR)
+
+require "#{File.dirname(__FILE__)}/results_model.rb"
+
+# Die if no scripts are given
+tool = ARGV.shift
+scripts = ARGV
+raise <<EOF if tool.nil? || scripts.nil? || scripts.empty? 
+No scripts are given in command line!
+Usage:
+	problem-recalc TOOL problems/rcv/blast_new_script another/script
+
+where TOOL is maingen, dscv, ri or rcv.
+
+EOF
+
+# TODO:  Rewrite to be more fast, speed is sacrificed for simplicity atm
+
+# Run scripts that check for problems
+Trace.all.each do |trace|
+	tool_stat = trace.send(tool)
+	if tool_stat
+		scripts.each do |script|
+			# Run the script and get its output
+			Open3.popen3(script) do |cin,cout,cerr|
+				# Send description to the checker
+				cin.write( tool_stat.description )
+				cin.close
+				cout.each {|line| p=Problem.find_or_create_by_name(line.chomp); tool_stat.problems << p unless tool_stat.problems.include? p  }
+				cerr.each {|errln| $stderr.puts errln}
+			end
+		end
+	end
+	# trace.problems.uniq!
+	trace.save
+end
+
