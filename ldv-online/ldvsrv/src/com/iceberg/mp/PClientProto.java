@@ -9,6 +9,12 @@ import java.io.ObjectOutputStream;
 public class PClientProto extends PProtocol {
 
         public void Communicate(BufferedInputStream in, BufferedOutputStream out) {
+        		try {
+					ObjectInputStream ois = new ObjectInputStream(in);
+					
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
                 /*try {
                         oos = new ObjectOutputStream(out);
                 } catch (IOException e) {
@@ -21,7 +27,7 @@ public class PClientProto extends PProtocol {
                         Message msgGetTask = new Message(sGetTask);
                         oos.writeObject(msgGetTask);
                         oos.flush();
-                        // читаем аздачу
+                        // читаем задачу
                         ois = new ObjectInputStream(in);
                         // принимаем задачу
                         MessageGetTaskOk msg = (MessageGetTaskOk)ois.readObject();
