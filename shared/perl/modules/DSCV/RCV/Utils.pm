@@ -180,6 +180,28 @@ sub cc_maker
 	};
 }
 
+# Repack file names...  Don't ask for correct specs -- it's too hacky.
+sub fnamerepack
+{
+	my ($basedir,$unbasedir,$fname,$sub) = @_;
+	vsay (100,"based: $basedir\n");
+	vsay (100,"fname: $fname\n");
+	my ($base,$rel) = $fname =~ /^(\Q$basedir\E)\/(.*)/;
+	vsay (100,"base: $base\n");
+	vsay (100,"rel : $rel\n");
+	unless (defined $base){
+		$rel = $unbasedir->($fname);
+		vsay (100,"unbased: $rel\n");
+		my ($base) = $fname =~ /^(.*?)\/*(\Q$rel\E)$/;
+		vsay (100,"base_xx: $base\n");
+		die unless defined $base;
+	}
+	vsay (100,"rel_pr: $rel\n");
+	$rel = $sub->($rel);
+	vsay (100,"rel_xx: $rel\n");
+	return "$basedir/$rel";
+}
+
 # Functor that returns a Twig handler for LD command.
 # The handler flushes cmdfile related to CC to a <out> of CC command.  This file will be picked by LD handler.
 # The functor takes ref to $unbasedir and $workdir, relative to which unbased o-file will be created.
@@ -244,7 +266,11 @@ sub ld_maker
 				if ($do_preprocess){
 					my $preprocess_dir = "$workdir/preprocessed";
 					mkpath($preprocess_dir);
-					my $i_file = $c_file; $i_file =~ s/\.c$/.i/; $i_file =~ s/\//-/g; $i_file = "$preprocess_dir/$i_file";
+					#my $i_file = $c_file; #$i_file =~ s/\.c$/.i/; $i_file =~ s/\//-/g; $i_file = "$preprocess_dir/$i_file";
+					vsay (100,"ubsd: ".$unbasedir->($c_file)."\n");
+					my $i_file = fnamerepack($workdir,$unbasedir,$c_file,
+						sub{ $_[0] =~ s/\.c$/.i/; $_[0] =~ s/\//-/g; $_[0] = "preprocessed/$_[0]"; return $_[0]; }
+					);
 					mkpath(dirname($i_file));
 					$new_record->{i_file} = $i_file;
 					preprocess_file(%$new_record) and die "PREPROCESS ERROR!  Recovery is unimplemented"; # TODO
@@ -257,7 +283,10 @@ sub ld_maker
 				if ($do_cilly){
 					my $cilly_dir = "$workdir/cilly";
 					mkpath($cilly_dir);
-					my $cil_file = $new_record->{i_file}; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "$cilly_dir/$cil_file";
+					#my $cil_file = $new_record->{i_file}; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "$cilly_dir/$cil_file";
+					my $cil_file = fnamerepack($workdir,$unbasedir,$new_record->{i_file},
+						sub { my $cil_file = $_[0]; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "cilly/$cil_file"; return $cil_file}
+					);
 					mkpath(dirname($cil_file));
 					$new_record->{cil_file} = $cil_file;
 					cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps);
