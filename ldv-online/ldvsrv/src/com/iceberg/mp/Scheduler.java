@@ -12,6 +12,7 @@ public class Scheduler extends Thread {
 	// список у нас уже синхронизирован...
 	public void putTask(Task task) {
 		taskList.add(task);
+		System.out.println("Add task: "+ task.getStatus());
 	}
 
 	
@@ -28,7 +29,9 @@ public class Scheduler extends Thread {
 		}
 	}
 	
-	public synchronized void putVERClient(VerClient vclient) {
+	// сделать синхронизированым
+	public void putVERClient(VerClient vclient) {
 		clientList.add(vclient);
+		System.out.println("Add ver client from: "+ vclient.getVName());
 	}
 }

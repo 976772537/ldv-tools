@@ -20,4 +20,8 @@ public class VerClient extends Thread {
 	public VerClient(Socket socket) {
 		this.socket = socket;
 	}
+
+	public String getVName() {
+		return socket.getInetAddress().toString();
+	}
 }	

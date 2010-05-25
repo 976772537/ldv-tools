@@ -33,6 +33,7 @@ public class ServerThread extends Thread {
 				out.close();
 				socket.close();
 			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 	}

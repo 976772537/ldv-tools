@@ -19,7 +19,11 @@ public class PServer extends Thread {
         ServerSocket masterSocket = null;
         try {
                 masterSocket = new ServerSocket(config.getPServerPort());
-                while(true) scheduler.putVERClient(new VerClient(masterSocket.accept()));
+                while(true) {
+                	Socket socket = masterSocket.accept();
+                	VerClient vclient = new VerClient(socket);
+                	scheduler.putVERClient(vclient);
+                }
         } catch(SocketTimeoutException e) {
                 System.err.println("MASTER: SocketTimeoutException");
                 System.exit(1);

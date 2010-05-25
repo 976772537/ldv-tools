@@ -28,10 +28,9 @@ public class Task {
 	/**
 	 * текущее состояние задачи
 	 */
-	private Status state = Status.TS_WAIT_FOR_VERIFICATION;
+	private Status status = Status.TS_WAIT_FOR_VERIFICATION;
 	
 	private List<Env> envs = new ArrayList<Env>();
-	private String status = "wait";
 	private byte[] driver = null;
 	private int size = 0;
 	
@@ -48,7 +47,7 @@ public class Task {
 		return size;
 	}
 	
-	public String getStatus() {
+	public Status getStatus() {
 		return status;
 	}
 	

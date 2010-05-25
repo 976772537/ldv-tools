@@ -17,7 +17,7 @@ public class Server extends Thread {
 	public Scheduler scheduler;
 	
 	public Server(Scheduler scheduler) {
-		
+		this.scheduler = scheduler;
 	}
 
 	public void run() {
