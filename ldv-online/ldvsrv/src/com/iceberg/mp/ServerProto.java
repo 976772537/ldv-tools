@@ -6,7 +6,7 @@ import java.io.OutputStream;
 
 public class ServerProto extends Protocol {
 	
-	public void Communicate(InputStream in, OutputStream out) {
+	public void Communicate(InputStream in, OutputStream out, Scheduler scheduler) {
 		try { 
 			System.out.println("START CLIENT CONNECTION:");
 			System.out.println(in.available());
@@ -20,7 +20,7 @@ public class ServerProto extends Protocol {
 					byte[] block = new byte[Task.getSizeFromString(sb.toString())];
 					in.read(block);
 					Task task = new Task(sb.toString(),block);
-					Scheduler.getInstance().putTask(task);
+					scheduler.putTask(task);
 					/*FileOutputStream fw = new FileOutputStream("/home/iceberg/ldvtest/drivers/reports_bad_out.tar.bz2");
 					fw.write(task.getData());
 					fw.flush();

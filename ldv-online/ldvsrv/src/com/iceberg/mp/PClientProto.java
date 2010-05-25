@@ -9,7 +9,7 @@ import java.io.ObjectOutputStream;
 public class PClientProto extends PProtocol {
 
         public void Communicate(BufferedInputStream in, BufferedOutputStream out) {
-                try {
+                /*try {
                         oos = new ObjectOutputStream(out);
                 } catch (IOException e) {
                         System.err.println("MASTER: IOException");
@@ -38,7 +38,7 @@ public class PClientProto extends PProtocol {
                         // 4. на сервер присылает ответ, что он все понял
                         // 5. отправляем запрос на новую задачу - на основе этого запроса
                         //    сервер переключит текущий клиент в пуле клиентов в состояние 
-                        //    ожидания задачи
+                       
                 } catch (ClassNotFoundException e) {
                         System.err.println("MASTER: IOException");
                         e.printStackTrace();
@@ -51,6 +51,6 @@ public class PClientProto extends PProtocol {
                         } catch (IOException e) {
                                 System.err.println("MASTER: IOException");
                         }
-                }
+                }*/
         }
 }

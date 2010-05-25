@@ -13,6 +13,12 @@ import java.lang.SecurityException;
 import java.io.IOException;
 
 public class Server extends Thread {
+	
+	public Scheduler scheduler;
+	
+	public Server(Scheduler scheduler) {
+		
+	}
 
 	public void run() {
 		Config config = new Config();
@@ -22,7 +28,7 @@ public class Server extends Thread {
 			List<ServerThread> threadList = new ArrayList<ServerThread>();
 			while(true) {
 				ServerThread currentThread = new 
-					ServerThread(masterSocket.accept(), new ServerProto());
+					ServerThread(masterSocket.accept(), new ServerProto(), scheduler);
 				threadList.add(currentThread);
 				currentThread.start();
 			}

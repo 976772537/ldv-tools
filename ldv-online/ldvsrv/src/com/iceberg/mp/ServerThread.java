@@ -10,10 +10,12 @@ public class ServerThread extends Thread {
 	
 	private Socket socket;
 	private ServerProto protocol;
+	private Scheduler scheduler;
 
-	public ServerThread(Socket socket, ServerProto protocol) {
+	public ServerThread(Socket socket, ServerProto protocol, Scheduler scheduler) {
 		this.socket = socket;
 		this.protocol = protocol;
+		this.scheduler =  scheduler;
 	}
 
 	public void run() {
@@ -22,7 +24,7 @@ public class ServerThread extends Thread {
 		try {
 			in = new BufferedInputStream( socket.getInputStream());
 			out = new BufferedOutputStream( socket.getOutputStream());
-			protocol.Communicate(in, out);
+			protocol.Communicate(in, out, scheduler);
 		} catch(IOException e) {
 			System.err.println("I/O Exception.");
 		} finally {

@@ -9,7 +9,7 @@ import java.io.OutputStream;
 public class PServerProto extends PProtocol {
 
         public void Communicate(InputStream in, OutputStream out) {
-                try {
+          /*      try {
                         oos = new ObjectOutputStream(out);
                 } catch (IOException e) {
                         System.err.println("MASTER: IOException");
@@ -38,7 +38,7 @@ public class PServerProto extends PProtocol {
                         } catch (IOException e) {
                                 System.err.println("MASTER: IOException");
                         }
-                }
+                }*/
         }
 
 }

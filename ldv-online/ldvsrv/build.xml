@@ -24,7 +24,7 @@
 		</jar>
 		<jar jarfile="${dist}/puppet.jar" basedir="${build}">
 			<manifest>
-				<attribute name="Main-class" value="com.iceberg.mp.Client"/>
+				<attribute name="Main-class" value="com.iceberg.mp.VerClient"/>
 			</manifest>
 		</jar>
 	</target>

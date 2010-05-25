@@ -11,12 +11,12 @@ public class VerClient extends Thread {
 		VS_HAVE_TASKS
 	}
 
-	private Status status = Status.VS_WAIT_FOR_TASK;
+	private volatile Status status = Status.VS_WAIT_FOR_TASK;
 
-	public synchronized getStatus() {
+	public Status getStatus() {
 		return status; 
 	}
-	
+
 	public VerClient(Socket socket) {
 		this.socket = socket;
 	}
