@@ -3,7 +3,7 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <title>Linux driver verification statistics</title>
-  <?php echo $this->headLink()->appendStylesheet('/css/global.css') ?>
+  <?php /*echo $this->headLink()->appendStylesheet('/css/global.css')*/ ?>
 </head>
 <body>
 <div id="header" style="background-color: #EEEEEE; height: 30px;">
@@ -12,9 +12,14 @@
     </div>
     <div id="header-navigation" style="float: right">
         <a href="<?php echo $this->url(
-            array('controller'=>'stats'),
+            array('controller'=>'stats', 'action'=>'index'),
             'default',
-            true) ?>">Show statistics</a>
+            true) ?>">Show statistics</a> &nbsp &nbsp
+        <a href="<?php echo $this->url(
+            array('controller'=>'stats', 'action'=>'signdb'),
+            'default',
+            true) ?>">Sign database connection</a> &nbsp &nbsp
+        <a href="mailto:joker@ispras.ru">Support</a>
     </div>
 </div>
  

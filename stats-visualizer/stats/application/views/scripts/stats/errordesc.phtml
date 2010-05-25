@@ -1,0 +1,64 @@
+<?php
+
+function minusinsteadofempty($str)
+{
+  if ($str)
+  {
+	 return $str;
+  }
+  else
+  {
+	 return '-';
+  }
+}
+if ($this->entries[0]['tool'] == 'rcv')
+{
+  echo "<h1>Description of <i>Reachibility C Verifier</i> errors</h1>";
+}
+else if ($this->entries[0]['tool'] == 'ri')
+{
+  echo "<h1>Description of <i>Rule Instrumentor</i> errors</h1>";
+}
+else if ($this->entries[0]['tool'] == 'dscv')
+{
+  echo "<h1>Description of <i>Domain Specific C Verifier</i> errors</h1>";
+}
+else if ($this->entries[0]['tool'] == 'maingen')
+{
+  echo "<h1>Description of <i>Driver Environment Generator</i> errors</h1>";
+}
+else if ($this->entries[0]['tool'] == 'build')
+{
+  echo "<h1>Description of <i>Build Command Extractor</i> errors</h1>";
+}
+
+echo '<table border="1" cellspacing="0" cellpadding="4">';
+// Print table header in depend on problems number.
+    echo 
+    "<tr align=\"center\" bgcolor=\"#FFFFCC\">"
+        ,   "<td>#</td>"
+        ,   "<td>Toolset</td>"
+        ,   "<td>Kernel</td>"
+        ,   "<td>Rule</td>"
+        ,   "<td>Driver</td>"
+        ,   "<td>Module</td>"
+        ,   "<td>Environment model</td>"
+        ,   "<td>Problem name</td>"
+        ,   "<td>Description</td></tr>";
+$i = 1;
+foreach ($this->entries as $entry)
+{
+    echo "<tr>"
+        ,   "<td>" . $i++ ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['toolset']) ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['kernel']) ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['rule']) ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['driver']) ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['module']) ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['env']) ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['problem']) ."</td>"
+        ,   "<td>" . minusinsteadofempty($entry['desc']) ."</td>"
+        , "</tr>";
+	  }
+?>
+</table>

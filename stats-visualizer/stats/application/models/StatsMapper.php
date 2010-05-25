@@ -278,5 +278,265 @@ class Application_Model_StatsMapper
 	    }
       }
 	}    
+	
+    
+    public function getErrorDesc($kernelId, $modelId, $toolsetId, $problemName, $tool)
+    {
+		      $entries = array();
+	  $sql = 'SELECT ' . 
+               'drivers.name AS \'Driver name\'' .
+               ', environments.version AS \'Kernel name\'' .
+               ', rule_models.name AS \'Model name\'' .
+               ', toolsets.version AS \'Toolset name\'' .
+               ', scenarios.executable AS \'Module name\'' .
+               ', scenarios.main AS \'Environment model\'' .
+               ', traces.id AS \'Trace id\'' .
+               ', traces.result AS Verdict' . " FROM launches LEFT JOIN drivers ON launches.driver_id=drivers.id LEFT JOIN environments ON launches.environment_id=environments.id LEFT JOIN rule_models ON launches.rule_model_id=rule_models.id LEFT JOIN toolsets ON launches.toolset_id=toolsets.id LEFT JOIN scenarios ON launches.scenario_id=scenarios.id LEFT JOIN traces ON launches.trace_id=traces.id WHERE launches.environment_id=$kernelId and launches.rule_model_id=$modelId and launches.toolset_id=$toolsetId"
+               . ' ORDER BY toolsets.version, environments.version, rule_models.name, scenarios.executable, scenarios.main';
+
+      $result_set = $this->getDb()->fetchAll($sql);
+      foreach ($result_set as $row)
+      {
+  if ($tool == 'rcv')
+  {
+	    $sql2 = 'SELECT stats.description as \'RCV desc\', stats.success as \'RCV status\', stats.id as \'RCV id\' FROM traces LEFT JOIN stats ON traces.rcv_id=stats.id WHERE traces.id=' . $row['Trace id'] ;
+        $result_set2 = $this->getDb()->fetchAll($sql2);
+        $rcv_status = $result_set2[0]['RCV status'];
+        $rcv_id = $result_set2[0]['RCV id'];
+        $desc = $result_set2[0]['RCV desc'];
+        if (isset($rcv_id))
+        {
+		  if ($problemName != 'Unmatched')
+		  {
+	      $sql2 = 'SELECT problems.name as \'RCV problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems.name=\''.$problemName.'\' AND  problems_stats.stats_id=' . $result_set2[0]['RCV id'];
+	  }
+	  else
+	  {
+	      $sql2 = 'SELECT problems.name as \'RCV problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems_stats.stats_id=' . $result_set2[0]['RCV id'];
+	  }
+          $result_set2 = $this->getDb()->fetchAll($sql2);
+
+          if (!$rcv_status)
+          {
+          
+	      if (count($result_set2) && $problemName != 'Unmatched' || !count($result_set2) && $problemName == 'Unmatched')
+	      {		  
+			  
+		  $entries[] = array('toolset' => $row['Toolset name'], 'kernel' => $row['Kernel name'], 'rule' => $row['Model name']
+		  , 'driver' => $row['Driver name'], 'module' => $row['Module name'], 'env' => $row['Environment model']
+		  , 'verdict' => $row['Verdict'], 'problem' => $problemName, 'tool' => $tool, 'desc' => $desc
+		  );
+	  }
+	      }
+        }      
+
+}
+else if ($tool == 'ri')
+{
+	    $sql2 = 'SELECT stats.description as \'RI desc\', stats.success as \'RI status\', stats.id as \'RI id\' FROM traces LEFT JOIN stats ON traces.ri_id=stats.id WHERE traces.id=' . $row['Trace id'] ;
+        $result_set2 = $this->getDb()->fetchAll($sql2);
+        $ri_status = $result_set2[0]['RI status'];
+        $ri_id = $result_set2[0]['RI id'];
+        $desc = $result_set2[0]['RI desc'];
+        if (isset($ri_id))
+        {
+		  if ($problemName != 'Unmatched')
+		  {
+	      $sql2 = 'SELECT problems.name as \'RI problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems.name=\''.$problemName.'\' AND  problems_stats.stats_id=' . $result_set2[0]['RI id'];
+	  }
+	  else
+	  {
+	      $sql2 = 'SELECT problems.name as \'RI problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems_stats.stats_id=' . $result_set2[0]['RI id'];
+	  }
+          $result_set2 = $this->getDb()->fetchAll($sql2);
+
+          if (!$ri_status)
+          {
+          
+	      if (count($result_set2) && $problemName != 'Unmatched' || !count($result_set2) && $problemName == 'Unmatched')
+	      {		  
+			  
+		  $entries[] = array('toolset' => $row['Toolset name'], 'kernel' => $row['Kernel name'], 'rule' => $row['Model name']
+		  , 'driver' => $row['Driver name'], 'module' => $row['Module name'], 'env' => $row['Environment model']
+		  , 'verdict' => $row['Verdict'], 'problem' => $problemName, 'tool' => $tool, 'desc' => $desc
+		  );
+	  }
+	      }
+        }  	
+}		  
+else if ($tool == 'dscv')
+  {
+	    $sql2 = 'SELECT stats.description as \'DSCV desc\', stats.success as \'DSCV status\', stats.id as \'DSCV id\' FROM traces LEFT JOIN stats ON traces.dscv_id=stats.id WHERE traces.id=' . $row['Trace id'] ;
+        $result_set2 = $this->getDb()->fetchAll($sql2);
+        $dscv_status = $result_set2[0]['DSCV status'];
+        $dscv_id = $result_set2[0]['DSCV id'];
+        $desc = $result_set2[0]['DSCV desc'];
+        if (isset($dscv_id))
+        {
+		  if ($problemName != 'Unmatched')
+		  {
+	      $sql2 = 'SELECT problems.name as \'DSCV problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems.name=\''.$problemName.'\' AND  problems_stats.stats_id=' . $result_set2[0]['DSCV id'];
+	  }
+	  else
+	  {
+	      $sql2 = 'SELECT problems.name as \'DSCV problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems_stats.stats_id=' . $result_set2[0]['DSCV id'];
+	  }
+          $result_set2 = $this->getDb()->fetchAll($sql2);
+
+          if (!$dscv_status)
+          {
+          
+	      if (count($result_set2) && $problemName != 'Unmatched' || !count($result_set2) && $problemName == 'Unmatched')
+	      {		  
+			  
+		  $entries[] = array('toolset' => $row['Toolset name'], 'kernel' => $row['Kernel name'], 'rule' => $row['Model name']
+		  , 'driver' => $row['Driver name'], 'module' => $row['Module name'], 'env' => $row['Environment model']
+		  , 'verdict' => $row['Verdict'], 'problem' => $problemName, 'tool' => $tool, 'desc' => $desc
+		  );
+	  }
+	      }
+        }      
+
+}		  
+else if ($tool == 'build')
+  {
+	    $sql2 = 'SELECT stats.description as \'Build desc\', stats.success as \'Build status\', stats.id as \'Build id\' FROM traces LEFT JOIN stats ON traces.build_id=stats.id WHERE traces.id=' . $row['Trace id'] ;
+        $result_set2 = $this->getDb()->fetchAll($sql2);
+        $build_status = $result_set2[0]['Build status'];
+        $build_id = $result_set2[0]['Build id'];
+        $desc = $result_set2[0]['Build desc'];
+        if (isset($build_id))
+        {
+		  if ($problemName != 'Unmatched')
+		  {
+	      $sql2 = 'SELECT problems.name as \'Build problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems.name=\''.$problemName.'\' AND  problems_stats.stats_id=' . $result_set2[0]['Build id'];
+	  }
+	  else
+	  {
+	      $sql2 = 'SELECT problems.name as \'Build problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems_stats.stats_id=' . $result_set2[0]['Build id'];
+	  }
+          $result_set2 = $this->getDb()->fetchAll($sql2);
+
+          if (!$build_status)
+          {
+          
+	      if (count($result_set2) && $problemName != 'Unmatched' || !count($result_set2) && $problemName == 'Unmatched')
+	      {		  
+			  
+		  $entries[] = array('toolset' => $row['Toolset name'], 'kernel' => $row['Kernel name'], 'rule' => $row['Model name']
+		  , 'driver' => $row['Driver name'], 'module' => $row['Module name'], 'env' => $row['Environment model']
+		  , 'verdict' => $row['Verdict'], 'problem' => $problemName, 'tool' => $tool, 'desc' => $desc
+		  );
+	  }
+	      }
+        }      
+
+}			  
+else if ($tool == 'maingen')
+  {
+	    $sql2 = 'SELECT stats.description as \'Maingen desc\', stats.success as \'Maingen status\', stats.id as \'Maingen id\' FROM traces LEFT JOIN stats ON traces.maingen_id=stats.id WHERE traces.id=' . $row['Trace id'] ;
+        $result_set2 = $this->getDb()->fetchAll($sql2);
+        $maingen_status = $result_set2[0]['Maingen status'];
+        $maingen_id = $result_set2[0]['Maingen id'];
+        $desc = $result_set2[0]['Maingen desc'];
+        if (isset($maingen_id))
+        {
+		  if ($problemName != 'Unmatched')
+		  {
+	      $sql2 = 'SELECT problems.name as \'Maingen problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems.name=\''.$problemName.'\' AND  problems_stats.stats_id=' . $result_set2[0]['Maingen id'];
+	  }
+	  else
+	  {
+	      $sql2 = 'SELECT problems.name as \'Maingen problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems_stats.stats_id=' . $result_set2[0]['Maingen id'];
+	  }
+          $result_set2 = $this->getDb()->fetchAll($sql2);
+
+          if (!$maingen_status)
+          {
+          
+	      if (count($result_set2) && $problemName != 'Unmatched' || !count($result_set2) && $problemName == 'Unmatched')
+	      {		  
+			  
+		  $entries[] = array('toolset' => $row['Toolset name'], 'kernel' => $row['Kernel name'], 'rule' => $row['Model name']
+		  , 'driver' => $row['Driver name'], 'module' => $row['Module name'], 'env' => $row['Environment model']
+		  , 'verdict' => $row['Verdict'], 'problem' => $problemName, 'tool' => $tool, 'desc' => $desc
+		  );
+	  }
+	      }
+        }      
+
+}			  
+		  
+		  
+		  
+		  
+/*
+        if ($tool == 'rcv')
+        {	   
+	    $sql2 = 'SELECT stats.description as \'RCV desc\', stats.id as \'RCV id\' FROM traces LEFT JOIN stats ON traces.rcv_id=stats.id WHERE traces.id=' . $row['Trace id'] ;
+        $result_set2 = $this->getDb()->fetchAll($sql2);
+   	    $desc = $result_set2[0]['RCV desc'];
+   	    $rcv_id = $result_set2[0]['RCV id'];
+
+        if (isset($rcv_id))
+        {     	    
+
+	      $sql2 = 'SELECT problems.name as \'RCV problems\' FROM problems_stats LEFT JOIN problems ON problems_stats.problem_id=problems.id WHERE problems.name=\''.$problemName.'\' AND problems_stats.stats_id=' . $result_set2[0]['RCV id'];
+          $result_set2 = $this->getDb()->fetchAll($sql2); 
+         // $rcv_p = $result_set2[0]['RCV problems'];
+   	     // if (isset($rcv_p))
+   	     // {
+   	     // if (count($result_set2))
+   	    //  {   	  
+
+	 // }
+	 // }
+  }
+		}  
+*/
+		/* That is trace id that must be unique for the given launch! */  
+	 //   $entry = $row['Trace id'];
+	 //   $sql = "SELECT traces.error_trace as 'Error trace' FROM traces WHERE traces.id = $entry";
+     //   $result_set = $this->getDb()->fetchAll($sql);
+     //   foreach ($result_set as $row)
+     //   {
+		  /* That is trace id that must be unique for the given launch! */  
+	  //    $entry = $row['Error trace'];
+	  //    return $entry;	    
+	  //  }
+      }
+      return $entries;
+	}   	
+    public function getSafeUnsafeDesc($kernelId, $modelId, $toolsetId)
+    {
+		      $entries = array();
+	  $sql = 'SELECT  drivers.id AS \'Driver id\'' . 
+               ', drivers.name AS \'Driver name\'' .
+               ', environments.version AS \'Kernel name\'' .
+               ', environments.id AS \'Kernel id\'' .
+               ', rule_models.name AS \'Model name\'' .
+               ', rule_models.id AS \'Model id\''  .
+               ', toolsets.version AS \'Toolset name\'' .
+               ', toolsets.id AS \'Toolset id\''  .
+               ', scenarios.id AS \'Scenario id\''  .
+               ', scenarios.executable AS \'Module name\'' .
+               ', scenarios.main AS \'Environment model\'' .
+               ', traces.id AS \'Trace id\'' .
+               ', traces.result AS Verdict' . " FROM launches LEFT JOIN drivers ON launches.driver_id=drivers.id LEFT JOIN environments ON launches.environment_id=environments.id LEFT JOIN rule_models ON launches.rule_model_id=rule_models.id LEFT JOIN toolsets ON launches.toolset_id=toolsets.id LEFT JOIN scenarios ON launches.scenario_id=scenarios.id LEFT JOIN traces ON launches.trace_id=traces.id WHERE launches.environment_id=$kernelId and launches.rule_model_id=$modelId and launches.toolset_id=$toolsetId"
+               . ' ORDER BY toolsets.version, environments.version, rule_models.name, scenarios.executable, scenarios.main, traces.result';
+
+      $result_set = $this->getDb()->fetchAll($sql);
+      foreach ($result_set as $row)
+      {
+		  if ($row['Verdict'] != 'unknown')
+		  {
+ 		  $entries[] = array('toolset' => $row['Toolset name'], 'kernel' => $row['Kernel name'], 'rule' => $row['Model name']
+		  , 'driver' => $row['Driver name'], 'module' => $row['Module name'], 'env' => $row['Environment model']
+		  , 'verdict' => $row['Verdict'], 'driver id' => $row['Driver id'], 'kernel id' => $row['Kernel id'], 'model id' => $row['Model id'], 'toolset id' => $row['Toolset id'], 'scenario id' => $row['Scenario id']
+		  );    
+	  }
+      }
+      return $entries;
+	}   		
 }
 

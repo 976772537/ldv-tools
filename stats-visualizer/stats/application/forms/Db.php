@@ -74,7 +74,7 @@ class Application_Form_Db extends Zend_Form
         // Add the submit button
         $this->addElement('submit', 'submit', array(
             'ignore'   => true,
-            'label'    => 'Sign Db',
+            'label'    => 'Sign',
         ));
 
         // And finally add some CSRF protection

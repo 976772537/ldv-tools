@@ -1,0 +1,53 @@
+<h1>Description of <i>Reachibility C Verifier</i> unsafes</h1>
+<table border="1" cellspacing="0" cellpadding="4">
+<?php
+
+// Print table header in depend on problems number.
+    echo 
+    "<tr align=\"center\" bgcolor=\"#FFFFCC\">"
+        ,   "<td>#</td>"
+        ,   "<td>Toolset</td>"
+        ,   "<td>Kernel</td>"
+        ,   "<td>Rule</td>"
+        ,   "<td>Driver</td>"
+        ,   "<td>Module</td>"
+        ,   "<td>Environment model</td>"
+        ,   "<td>Verdict</td>"
+        ,   "<td>Error trace</td></tr>";
+$i = 1;
+foreach ($this->entries as $entry)
+{
+	if ($entry['verdict'] == 'safe')
+        {
+        continue;
+	}
+	
+    echo "<tr>"
+        ,   "<td>" . $i++ ."</td>"
+        ,   "<td>" . $entry['toolset'] ."</td>"
+        ,   "<td>" . $entry['kernel'] ."</td>"
+        ,   "<td>" . $entry['rule'] ."</td>"
+        ,   "<td>" . $entry['driver'] ."</td>"
+        ,   "<td>" . $entry['module'] ."</td>"
+        ,   "<td>" . $entry['env'] ."</td>"
+        ,   "<td>" . $entry['verdict'] ."</td>";
+        if ($entry['verdict'] == 'safe')
+        {
+        echo "<td>-</td>";
+	}
+	else
+	{
+        echo   "<td><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'errortrace',
+                   'driver id' => $entry['driver id'],
+                   'kernel id' => $entry['kernel id'],
+                   'model id' => $entry['model id'],
+                   'toolset id' => $entry['toolset id'],
+                   'scenario id' => $entry['scenario id']), 'default', true) ."'>Error trace</a></td>";
+     }   
+        echo "</tr>";
+	  }
+
+?>
+</table>
