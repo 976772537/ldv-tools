@@ -2,18 +2,16 @@ package com.iceberg.mp;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.channels.IllegalBlockingModeException;
-import java.util.ArrayList;
-import java.util.List;
-
 
 public class PServer extends Thread {
 	
+	private Scheduler scheduler;
 	
-	public static void main(String[] args) {
-		PServer server = new PServer();
-		server.run();
+	public PServer(Scheduler scheduler) {
+		this.scheduler = scheduler;
 	}
 	
 	public void run() {
@@ -21,13 +19,7 @@ public class PServer extends Thread {
         ServerSocket masterSocket = null;
         try {
                 masterSocket = new ServerSocket(config.getPServerPort());
-                List<PServerThread> threadList = new ArrayList<PServerThread>();
-                while(true) {
-                        PServerThread currentThread = new
-                                PServerThread(masterSocket.accept(), new PServerProto());
-                        threadList.add(currentThread);
-                        currentThread.start();
-                }
+                while(true) scheduler.putVERClient(new VerClient(masterSocket.accept()));
         } catch(SocketTimeoutException e) {
                 System.err.println("MASTER: SocketTimeoutException");
                 System.exit(1);
@@ -44,7 +36,6 @@ public class PServer extends Thread {
                 try {
 					masterSocket.close();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
         }

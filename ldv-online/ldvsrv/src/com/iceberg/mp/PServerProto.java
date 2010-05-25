@@ -19,12 +19,14 @@ public class PServerProto extends PProtocol {
                         ois = new ObjectInputStream(in);
                         Message msg = (Message)ois.readObject();
                         if(msg.getText().equals(sGetTask)) {
-                                System.out.println("Get task request");
+                        	//1. помещаем в пулл клиентов для вер.
+                        		
+//                                System.out.println("Get task request");
                                 // get task from task-pull or call
                                 // method "getTask" in schelduler
-                                Message cmsg = new MessageGetTaskOk(null);
-                                oos.writeObject(cmsg);
-                                oos.flush();
+//                                Message cmsg = new MessageGetTaskOk(null);
+//                                oos.writeObject(cmsg);
+//                                oos.flush();
                         }
                 } catch (ClassNotFoundException e) {
                         System.err.println("MASTER: Bad message.");

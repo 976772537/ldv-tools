@@ -12,17 +12,15 @@ public class ServerProto extends Protocol {
 			System.out.println(in.available());
 			int responseType = in.read();
 			if(responseType == sGetTaskRequest) {
-					StringBuffer sb = new StringBuffer();
-					
+					StringBuffer sb = new StringBuffer();					
 					while(in.available()!=0) 
 						sb.append((char)in.read());
 					out.write(sGetTaskFile);
 					out.flush();					
-					String desertask = sb.toString();
-					Task task = Task.deserTask(desertask);
-					byte[] block = new byte[task.getSize()];
+					byte[] block = new byte[Task.getSizeFromString(sb.toString())];
 					in.read(block);
-					task.setData(block);
+					Task task = new Task(sb.toString(),block);
+					Scheduler.getInstance().putTask(task);
 					/*FileOutputStream fw = new FileOutputStream("/home/iceberg/ldvtest/drivers/reports_bad_out.tar.bz2");
 					fw.write(task.getData());
 					fw.flush();
