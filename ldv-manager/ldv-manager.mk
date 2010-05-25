@@ -94,7 +94,7 @@ endef
 
 env_names:=$(foreach env,$(envs),$(call envname,$(env)))
 # LDV script accepts input in such form: "linux-2.6.31.2@31_2,8_1:linux-2.6.28@31_2,8_1"
-ldv_rules:=$(shell echo '$(rule_models)' | sed -e 's/ \+/,/')
+ldv_rules:=$(shell echo '$(rule_models)' | sed -e 's/ \+/,/g')
 ldv_task:=$(addsuffix @$(ldv_rules),$(env_names))
 ldv_task:=$(call joinlist,$(ldv_task),:)
 

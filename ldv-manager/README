@@ -57,9 +57,13 @@ Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper
 
 SWITCHING AND TUNING C VERIFIERS
 
-Verifier switching is not implemented.  However, there's some variability in how RCV verifier BLAST can be used, as well as generic tweaks to these verifiers.
+(The following section applies to DSCV and ldv tools as well.)
 
-To limit resources used by verifier, call dscv (i.e. call LDV_MANAGER) with the following environment variables:
+Reachability C Verifier switching is implemented.  You may select verifier (it should be a name of a script in dscv/rcv/*), and it will be forced in all checking operations that happen during your task.  Work directories created will contain verifier name.  To set up a specific verifier, set an environment variable:
+
+	RCV_VERIFIER=cpachecker
+
+There's also some variability in how RCV verifier BLAST can be used, as well as generic tweaks to these verifiers.  To limit resources used by verifier, call dscv (i.e. call LDV_MANAGER) with the following environment variables:
 
 	RCV_TIMELIMIT=500      #Set time limit to 500 seconds
 	RCV_MEMLIMIT=1000000   #Set memory limit to 1000000 KiloBytes
