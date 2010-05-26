@@ -20,7 +20,7 @@ HOW TO USE LDV-MANAGER
 
 As usual, change into an empty directory.  That will be your working dir.
 
-LDV-manager is implemented as makefiles (yes, again.  Sorry.)  All variables should be specified through command line, however, some rarely changing ones (such as repository addresses) may be stored in "config.mk" file in current directory.
+LDV-manager is implemented as makefiles (yes, again.  Sorry.)  All variables should be specified through command line, however, some rarely changing ones (such as repository addresses) may be stored in "config.mk" file in current directory.  Do not forget to export variables in config.mk (done in the same way as in shell) if you want them to appear in environment of the commands called
 
 Input to ldv-manger is its command line.  Output is the files that appear in RESULTS_DIR (that's environment/config variable).  The files given as an input (archives with kernels and drivers) should be in the working directory.
 
@@ -33,13 +33,15 @@ Here's how the call looks like:
 	"drivers=wl12xx.tar.bz2" \
 	"rule_models=8_1 32_1"
 
+If you are checking kernel drivers, then specify the folder you want to check in `drivers` variable, AND also set `kernel_driver=1` in addition to the other options.
+
 You may also want to specify "name" variable to be able to distinguish runs by some other parameters.
 
 If you want to re-run the process for an already checked driver, you most likely will see "nothing to do" message.  To make your results out of date, you should touch the file with driver.
 
 	touch driver.tar.gz
 
-For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.
+For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.  By the way, you may erase only `finished` file from the directory, if you only want to re-package the checking results.  By erasing `checked` file, you re-run the whole check.
 
 If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.
 
