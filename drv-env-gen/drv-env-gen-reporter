@@ -32,6 +32,8 @@ my $xml_instrument_status = 'status';
 my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
 
+my $xml_reports = 'reports';
+
 #####################################################
 # log options
 #####################################################
@@ -53,7 +55,12 @@ close(FIL);
 # 2. open output command stream if it needs
 # 3. open input report
 my $twig_inreport = new XML::Twig();
-$twig_inreport->parsefile($report_in);
+if( -f $report_in ) {
+	$twig_inreport->parsefile($report_in);
+} else {
+	my $twig_inroot = XML::Twig::Elt->new($xml_reports);
+	$twig_inreport->set_root($twig_inroot);
+}
 # 4. create output erports twig object
 #my $twig_report = XML::Twig::Elt->new('reports');
 # 5. open input command stream
@@ -192,13 +199,11 @@ sub get_ldv_opts
 		exit 1;
 	}
 	if(!$report_in) {
-		ldv_eprint("You must setup input report file in option: \"--report-in\".");
+		ldv_dprint("You must setup input report file in option: \"--report-in\".");
 		print_usage();
-		exit 1;
 	} elsif(! -f $report_in) {
-		ldv_eprint("Can not find input report file: \"$report_in\".");
+		ldv_dprint("Can not find input report file: \"$report_in\".");
 		print_usage();
-		exit 1;
 	}
 	if(!$report_out) {
 		ldv_eprint("You must setup output report file in option: \"--reoport-out\".");

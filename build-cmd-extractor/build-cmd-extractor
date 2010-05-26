@@ -133,6 +133,7 @@ else
 fi;
 
 DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
+
 #
 # copy driver sources
 #
@@ -246,7 +247,7 @@ if [ $? -ne 0 ]; then
 fi;
 
 #
-# restore driver sources
+# Rstore driver sources
 #
 ldv_print "NORMAL: Restore clean driver sources.";
 TEMP_DRIVER_DIR=$TEMP_DIR/$TEMP_DRIVER_DIR_NAME;
@@ -260,6 +261,9 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
+#
+# Store driver sources
+#
 if [ $KERNEL_LEVEL -eq 1 ]; then
 	mv $DRIVER_DIR $env;
 else

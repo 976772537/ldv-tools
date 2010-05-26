@@ -94,9 +94,17 @@ ldv_create_report() {
 	ldv_print "DEBUG: $LDVC_REPORTER --report-in=$BCE_REPORT --report-out=$reportout --state-dir=$TEMP_DIR;";
 	$LDVC_REPORTER --report-in=$BCE_REPORT --report-out=$reportout --state-dir=$TEMP_DIR;
 	if [ $? -ne 0 ]; then
-	        ldv_print "ERROR: LDV-Core reporter failed."
+	        ldv_print "ERROR: LDV-Core reporter failed.";
 	        exit 1;
 	fi;
+}
+
+deg_create_report() {
+	DEG_REPORT=$DEG_TEMPDIR/$DEG_REPORT_FILENAME;
+	ldv_print "NORMAL: Calling Driver Environment Generator reporter.";
+	ldv_print "DEBUG: $DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;";
+	$DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;
+	if [ $? -ne 0 ]; then ldv_print "ERROR: DEG reporter failed."; fi;
 }
 
 bce_ldv_report() {
@@ -345,35 +353,27 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE $koption $module_name;
 	if [ $? -ne 0 ]; then
 	        ldv_print "ERROR: Drv-env-gen failed."
-	        exit 1;
+		deg_create_report;
+		continue;
 	fi;
 	if [ ! -f "$XML_AFTER_DEG" ]; then
 		ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
-		exit 1;
+		deg_create_report;
+		continue;
 	fi;
 	DSCV_TEMPDIR=$CURRENT_TEMPDIR/$DSCV_TEMPDIR_NAME;
 	mkdir $DSCV_TEMPDIR;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
-		exit 1;
+		deg_create_report;
+		continue;
 	fi;
 	DSCV_REPORT=$DSCV_TEMPDIR/$DSCV_REPORT_FILENAME;
 	ldv_print "NORMAL: Calling Domain Speicific C-Verifier";
 	ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT";
 	LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT;
-	if [ $? -ne 0 ]; then
-	        ldv_print "ERROR: DSCV failed."
-	        exit 1;
-	fi;
-
-	DEG_REPORT=$DEG_TEMPDIR/$DEG_REPORT_FILENAME;
-	ldv_print "NORMAL: Calling Driver Environment Generator reporter.";
-	ldv_print "DEBUG: $DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;";
-	$DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;
-	if [ $? -ne 0 ]; then
-	        ldv_print "ERROR: DEG reporter failed."
-	        exit 1;
-	fi;
+	if [ $? -ne 0 ]; then ldv_print "ERROR: DSCV failed." fi;
+	deg_create_report;
 
 	ldv_print "NORMAL: Driver number $CURRENT_TEMPDIR_NAME successfully verified.";
 done;
