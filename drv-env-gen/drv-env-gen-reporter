@@ -108,7 +108,7 @@ sub hxml_cmdstream {
 		if ($_[1]->name eq $xml_cmd_cc) { 
 			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
 		} elsif ($_[1]->name eq $xml_cmd_ld) {
-			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
+			$lcommand = XML::Twig::Elt->new($xml_cmd_ld);
 			$lcommand->set_att($xml_reports_attr_ref=>$id);
 			foreach my $section ( $_[1]->children('out') ) {
 				if($section->has_atts && $section->att($xml_cmd_attr_check) eq 'true') {
