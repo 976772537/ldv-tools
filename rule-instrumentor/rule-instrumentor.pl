@@ -86,6 +86,11 @@ sub interpret_failure(@);
 # retn: nothing.
 sub prepare_files_and_dirs();
 
+# Print a log message about an one command.
+# args: a reference to a hash containing a command log.
+# retn: nothing.
+sub print_cmd_log($);
+
 # Debug functions group. They print some information in depend on debug level.
 # args: string to be printed.
 # retn: nothing.
@@ -1133,6 +1138,20 @@ sub prepare_files_and_dirs()
   print_debug_debug("Files and directories are checked and prepared successfully.");
 }
 
+sub print_cmd_log($)
+{
+  my $log_ref = shift;
+  my %log = %{$log_ref};
+  
+  print(keys(%log));
+  
+  foreach (keys(%log))
+  {
+	print "!!!!" . $log{$_} . "\n";
+  }
+  exit;
+}
+
 sub print_debug_normal($)
 {
   my $message = shift;
@@ -1601,7 +1620,7 @@ sub process_cmds()
       print_debug_debug("The options to be passed to the gcc compiler are '@opts'.");
 
       print_debug_trace("Read an array of entry points.");
-      my @entry_points;
+      my @entry_points = ();
       for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
         ; $entry_point
         ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
@@ -1709,10 +1728,21 @@ sub process_cmds()
         }
 
         print_debug_trace("Log information on the '$id_attr' command execution status.");
+        # All times are 0 since it's assumed that in the plain mode all
+        # actions are simple and doesn't require a lot of time to be
+        # executed.
         if ($cmd->gi eq $xml_cmd_cc)
         {
           $cmds_status{$out_text} = $id_attr;
-          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr:");
+          my %log = (
+            'cmd' => $log_cmds_cc
+            , 'status' => $log_cmds_ok
+            , 'time' => 0
+            , 'id' => $id_attr
+            , 'entries' => \@entry_points
+            , 'desc' => '');
+          print_cmd_log(\%log);
+          print($file_cmds_log "$log_cmds_cc:$log_cmds_ok:0:$id_attr::\n");
         }
         elsif ($cmd->gi eq $xml_cmd_ld)
         {
@@ -1749,7 +1779,7 @@ sub process_cmds()
 
         # There is no description for both cc and ld commands that all is ok
         # always.
-        print($file_cmds_log ":\n");
+        
         
         print_debug_debug("Finish processing of the command having id '$id_attr'.");
         next;
