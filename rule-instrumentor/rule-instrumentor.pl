@@ -538,7 +538,7 @@ sub exec_status_desc_and_time($)
   print_debug_trace("Keep the start time.");
   my $start_time = [gettimeofday()];
   
-  print_debug_trace("Call to function argument '$func'.");
+  print_debug_trace("Call the function by the function reference.");
   my ($status, $desc) = $func->();
 
   print_debug_trace("Find and save script execution time.");
@@ -982,8 +982,8 @@ sub join_cc_error_desc(@)
   my @joined_desc = ();
   
   foreach my $cc_error_desc (@cc_error_descs)
-  {
-	push(@joined_desc, $log_cmds_desc_ld_cc_separator, @{$cc_error_desc}, $log_cmds_desc_ld_cc_separator);
+  {  
+	push(@joined_desc, "\n$log_cmds_desc_ld_cc_separator\n", @{$cc_error_desc}, "\n$log_cmds_desc_ld_cc_separator\n");
   }
   
   return \@joined_desc;
@@ -1161,7 +1161,7 @@ sub print_cmd_log($)
 {
   my $log_ref = shift;
   my %log = %{$log_ref};
-  
+
   die("The command isn't specified in the command log") 
     unless (defined($log{'cmd'}));
   die("The command status isn't specified in the command log") 
@@ -1192,7 +1192,7 @@ sub print_cmd_log($)
 
   # We put description in the special quotes since it may contain undefined
   # number of lines and undefined symbols.
-  print($file_cmds_log "$log{'cmd'}:$log{'status'}:$log{'time'}:$log{'id'}:$log{'check'}:@{$log{'entries'}}:${log_cmds_desc_begin}@{$log{'desc'}}${log_cmds_desc_end}\n");
+  print($file_cmds_log "$log{'cmd'}:$log{'status'}:$log{'time'}:$log{'id'}:$log{'check'}:@{$log{'entries'}}:\n${log_cmds_desc_begin}\n@{$log{'desc'}}\n${log_cmds_desc_end}\n");
 }
 
 sub print_debug_normal($)
@@ -1342,6 +1342,8 @@ sub process_cmd_cc()
     # Status is ok, description is empty.
     return (0, \@desc);
   }
+  
+  # At the moment just the aspect mode is presented here.
 }
 
 sub process_cmd_ld()
@@ -1468,6 +1470,8 @@ sub process_cmd_ld()
     # Status is ok, description is empty.
     return (0, \@desc);
   }
+  
+  # At the moment just the aspect mode is presented here.  
 }
 
 sub process_cmds()
@@ -1782,9 +1786,9 @@ sub process_cmds()
         # executed.
         if ($cmd->gi eq $xml_cmd_cc)
         {
-		  # Just remember that the output file is always obtain 
-		  # successfully. I assume that no error is possible here.	
-          $cmds_status_ok{$out_text} = $id_attr;
+		  # Just mark that the output file is generated successfully.	
+	      $cmds_status_ok{$out_text} = $id_attr;
+	      	
           my %log = (
               'cmd' => $log_cmds_cc # The cc command was executed.
             , 'status' => $log_cmds_ok # The cc command is executed successfully.
@@ -1803,19 +1807,28 @@ sub process_cmds()
           my @cc_error_desc = ();
           foreach my $in_text (@ins_text)
           {
+		    # I.e. when ld input file was processed with errors.	
+            if (defined($cmds_status_fail{$in_text}))
+            {
+              $status_in = 0;
+              push(@cc_error_desc, $cmds_status_fail{$in_text});
+            }
             # I.e. when ld input file wasn't processed at all. I assume
             # that this situation is impossible indeed.
-            if (!defined($cmds_status_ok{$in_text}))
-            {
-		  	  $status_in = 0;
+            elsif (!defined($cmds_status_ok{$in_text}))
+            {  
+			  $status_in = 0;
 			  my @desc = ("The input file '$in_text' required by the ld command wasn't processed");
 			  push(@cc_error_desc, \@desc);  
-		    } 
+		    }
           }        
 
           print_debug_trace("Log information on the '$id_attr' command execution status.");        
           if ($status_in)
           {
+		    # Just mark that the output file is generated successfully.	
+	        $cmds_status_ok{$out_text} = $id_attr;
+	      
   		    my %log = (
                 'cmd' => $log_cmds_ld # The ld command was executed.
               , 'status' => $log_cmds_ok # The ld command execution status.
@@ -1829,6 +1842,9 @@ sub process_cmds()
           }
           else
           {
+            # Mark that the output file isn't generated successfully.	
+	        $cmds_status_fail{$out_text} = join_cc_error_desc(@cc_error_desc);  
+			  
     	    my %log = (
                 'cmd' => $log_cmds_ld # The ld command was executed.
               , 'status' => $log_cmds_fail # The ld command failed.
@@ -1878,16 +1894,17 @@ sub process_cmds()
         my ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_cc);
         
         print_debug_trace("Log information on the '$id_attr' command execution status.");
-		my $status_log = $log_cmds_ok;
+		my $status_log;
 		# 0 status is good. Store description related with the output 
 		# to use it in ld command processing.
 		if ($status)
 		{
 		  $status_log = $log_cmds_fail;
-		  $cmds_status_ok{$out_text} = $desc; 
+		  $cmds_status_fail{$out_text} = $desc; 
 		}
 		else
 		{
+		  $status_log = $log_cmds_ok;	
 		  $cmds_status_ok{$out_text} = $id_attr;
 		}        
         
@@ -1942,10 +1959,21 @@ sub process_cmds()
         print_debug_trace("Log information on the '$id_attr' command execution status.");        
         if ($status_in)
         {
-		  my $status_log = $log_cmds_ok;
+		  my $status_log;
 		  # 0 status is good.
-		  $status_log = $log_cmds_fail if ($status);
-		  	
+		  if ($status)
+		  {
+		    $status_log = $log_cmds_fail;
+		    # Mark that the output file isn't generated successfully.	
+	        $cmds_status_fail{$out_text} = $desc;	
+		  }
+		  else
+		  {
+			$status_log = $log_cmds_ok;
+		    # Just mark that the output file is generated successfully.	
+	        $cmds_status_ok{$out_text} = $id_attr;		  	
+		  }
+		  
 		  my %log = (
               'cmd' => $log_cmds_ld # The ld command was executed.
             , 'status' => $status_log # The ld command execution status.
@@ -1959,15 +1987,19 @@ sub process_cmds()
         }
         else
         {
+		  # Mark that the output file isn't generated successfully.	
+	      $cmds_status_fail{$out_text} = join_cc_error_desc(@cc_error_desc); 
+	      
     	  my %log = (
               'cmd' => $log_cmds_ld # The ld command was executed.
             , 'status' => $log_cmds_fail # The ld command failed.
-            , 'time' => $time # The execution time.
+            , 'time' => 0 # The execution time.
             , 'id' => $id_attr # The ld command id.
             , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
             , 'entries' => \@entry_points # The ld command entry points.
-            , 'desc' => join_cc_error_desc(@cc_error_desc) # The ld command fails due to some input cc commands aren't finished successfully.
-          );
+            , 'desc' => $cmds_status_fail{$out_text} # The ld command fails due to some input cc commands aren't finished successfully.
+          ); 
+	
           print_cmd_log(\%log);  
         }
       }
@@ -1985,10 +2017,10 @@ sub process_cmds()
 
 sub process_report()
 {
-  print_debug_trace("Obtain mode.");
+  print_debug_trace("Obtain the mode.");
   my $mode = <$file_cmds_log>;
   chomp($mode);
-  die("Can't get mode from the commands log file") 
+  die("Can't get the mode from the commands log file") 
     unless ($mode);
   
   my $mode_isaspect = 0;
@@ -2010,11 +2042,11 @@ sub process_report()
     exit($error_semantics);
   }
 
-  # Indeed verifier isn't used.
-  print_debug_trace("Obtain verifier.");
+  # Indeed verifier isn't used now...
+  print_debug_trace("Obtain the verifier.");
   my $verifier = <$file_cmds_log>;
   chomp($verifier);
-  die("Can't get verifier from the commands log file") 
+  die("Can't get the verifier from the commands log file") 
     unless ($verifier);
   print_debug_debug("The verifier '$verifier' is specified.");
   
@@ -2027,23 +2059,38 @@ sub process_report()
     chomp($cmd_log);
     print_debug_trace("Process the '$cmd_log' command log.");
     # Each command log has form: 'cmd_name:cmd_status:cmd_exec_time:cmd_id:cmd_check:cmd_entry_points:cmd_desc'.
-    $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):([^:]*):/;
-    my $cmd_name = $1;
-    my $cmd_status = $2;
-    my $cmd_time = $3;
-    my $id = $4 // die("The command id isn't specified");
-    my @cmd_entry_points = split(/\s+/, $5);
-    my $cmd_desc = $POSTMATCH;
-
-    print_debug_debug("The commmand log id is '$id'.");
-    my $check = 0;
-    if ($id =~ /\Qaaa\E$/)
+    $cmd_log =~ /([^:]+):([^:]+):([^:]*):([^:]*):([^:]*):([^:]*):/;
+    my $cmd_name = $1 // die("The command name isn't specified");;
+    my $cmd_status = $2 // die("The command status isn't specified");;
+    my $cmd_time = $3 // die("The command execution time isn't specified");;
+    my $cmd_id = $4 // die("The command id isn't specified");
+    my $cmd_check = $5 // die("The command check isn't specified");
+    my @cmd_entry_points = split(/\s+/, $6);
+    print_debug_trace("Read the command execution description.");
+    my $cmd_desc = '';
+    # Description is placed on the many lines, begining and ending with
+    # special set of characters.
+    print_debug_trace("Obtain the description open tag.");
+	die("Reach the end of the command log file but don't find the description open tag") 
+      unless (my $desc_begin = <$file_cmds_log>);
+    chomp($desc_begin);
+    die("Can't get the description open tag from the commands log file") 
+      unless ($desc_begin eq $log_cmds_desc_begin);
+    # Read lines untill the description end tag.
+    while (1)
     {
-      $check = 1;
-      $id = $PREMATCH;   
-    }
-    print_debug_debug("The command check is '$check'.");
-    die("The command id isn't unique") if (defined($cmds_log{$id}));
+	  die("Reach the end of the command log file but don't find the description end tag") 
+	    unless (my $desc_cur = <$file_cmds_log>);
+      chomp($desc_cur);
+      last if ($desc_cur eq $log_cmds_desc_end);
+      
+      # Concatenate with the previous partial description.
+      $cmd_desc = "$cmd_desc$desc_cur\n";
+	}
+
+    print_debug_debug("The commmand log id is '$cmd_id'.");
+    print_debug_debug("The command check is '$cmd_check'.");
+    die("The command id isn't unique") if (defined($cmds_log{$cmd_id}));
     die("The command name '$cmd_name' isn't correct") 
       unless ($cmd_name eq $log_cmds_cc or $cmd_name eq $log_cmds_ld);
     print_debug_debug("The commmand log command name is '$cmd_name'.");
@@ -2053,16 +2100,16 @@ sub process_report()
     print_debug_debug("The commmand log command entry points are '@cmd_entry_points'.");
     print_debug_debug("The commmand log command description is '$cmd_desc'.");    
     
-    $cmds_log{$id} = {
+    $cmds_log{$cmd_id} = {
       'cmd name' => $cmd_name, 
       'cmd status' => $cmd_status,
       'cmd time' => $cmd_time,
       'cmd entry points' => \@cmd_entry_points,
       'cmd description' => $cmd_desc, 
-      'check' => $check
+      'cmd check' => $cmd_check
     };
       
-    push(@cmds_id, $id);
+    push(@cmds_id, $cmd_id);
   }
   print_debug_debug("The command log is processed successfully.");
   
@@ -2196,7 +2243,7 @@ sub process_report()
       {
         print_debug_debug("Build a report for the '$main_id' entry point.");
         
-        if ($cmds_log{$cmd_id}{'check'})
+        if ($cmds_log{$cmd_id}{'cmd check'})
         {
           print_debug_debug("The '$cmd_id' ld command has 'check=true'.");
        
