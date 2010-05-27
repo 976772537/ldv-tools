@@ -135,7 +135,9 @@ sub verify_cpachecker
 		}
 
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+		# CPAchecker doesn't support trace files for now...
+		# When they'll be done, fix it TODO
+		XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
 		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
 
 		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
@@ -145,7 +147,7 @@ sub verify_cpachecker
 		# Calculate and output time elapsed
 		my $time_sec = $result->{'utime'}+$result->{'stime'};
 		my $time_msec = int($time_sec * 1000);
-		XML::Twig::Elt->new('time',{},$time_msec+1)->paste($rcvResultT);
+		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
 
 		$rcvResultT->paste(last_child =>$cmdInstT);
 		$cmdInstT->paste($repT);
@@ -249,6 +251,9 @@ sub call_cpachecker
 	$result->{'CPACHECKER'} = "yes";
 	# Add limits
 	$result->{'CPACHECKER-detailed'} .= $result->{'LIMITS'};
+	# Add timing information into the result returned
+	$result->{'utime'} = $child{'utime'};
+	$result->{'stime'} = $child{'stime'};
 
 	# Add information about limits to result
 	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
