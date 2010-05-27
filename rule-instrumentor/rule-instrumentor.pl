@@ -555,16 +555,17 @@ sub exec_status_desc_and_time($)
 
 sub exec_status_and_desc(@)
 {
-  print_debug_trace("Redirect STDERR to file '$opt_basedir/$tool_temp'.");
-  open($file_temp, '>', "$opt_basedir/$tool_temp")
+  print_debug_trace("Redirect STDERR to the file '$opt_basedir/$tool_temp'.");
+  my $file_temp_save = $file_temp;
+  open(my $file_temp_orig, '>', "$opt_basedir/$tool_temp")
     or die("Couldn't open file '$opt_basedir/$tool_temp' for write: $ERRNO");
   
   print_debug_trace("Execute the command.");
   my $status = system(@ARG);
   print_debug_debug("The command execution status is '$status'.");
-  
-  close($file_temp) 
-    or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");  
+
+  print_debug_trace("Redirect STDERR to its default place'.");  
+  $file_temp = $file_temp_save;
  
   print_debug_trace("Read failure description.");
   my $file_temp_read;
@@ -1993,7 +1994,7 @@ sub process_cmds()
     	  my %log = (
               'cmd' => $log_cmds_ld # The ld command was executed.
             , 'status' => $log_cmds_fail # The ld command failed.
-            , 'time' => 0 # The execution time.
+            , 'time' => 0 # The execution time is 0 since input files aren't processed successfully and nothing is done.
             , 'id' => $id_attr # The ld command id.
             , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
             , 'entries' => \@entry_points # The ld command entry points.
