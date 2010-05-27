@@ -184,21 +184,21 @@ sub cc_maker
 sub fnamerepack
 {
 	my ($basedir,$unbasedir,$fname,$sub) = @_;
-	vsay (100,"based: $basedir\n");
-	vsay (100,"fname: $fname\n");
+	vsay ('TRACE',"based: $basedir\n");
+	vsay ('TRACE',"fname: $fname\n");
 	my ($base,$rel) = $fname =~ /^(\Q$basedir\E)\/(.*)/;
-	vsay (100,"base: $base\n");
-	vsay (100,"rel : $rel\n");
+	vsay ('TRACE',"base: $base\n");
+	vsay ('TRACE',"rel : $rel\n");
 	unless (defined $base){
 		$rel = $unbasedir->($fname);
-		vsay (100,"unbased: $rel\n");
+		vsay ('TRACE',"unbased: $rel\n");
 		my ($base) = $fname =~ /^(.*?)\/*(\Q$rel\E)$/;
-		vsay (100,"base_xx: $base\n");
+		vsay ('TRACE',"base_xx: $base\n");
 		die unless defined $base;
 	}
-	vsay (100,"rel_pr: $rel\n");
+	vsay ('TRACE',"rel_pr: $rel\n");
 	$rel = $sub->($rel);
-	vsay (100,"rel_xx: $rel\n");
+	vsay ('TRACE',"rel_xx: $rel\n");
 	return "$basedir/$rel";
 }
 
