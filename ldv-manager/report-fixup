@@ -39,6 +39,7 @@ sub fix_trace
 {
 	my ($twig, $traceT) = @_;
 	my $trace_absolute = $traceT->text;
+	return unless $trace_absolute;
 	$trace_absolute = abs_path($trace_absolute);
 	$trace_absolute =~ s/^$work_dir\/*//;
 	$traceT->set_text($trace_absolute);

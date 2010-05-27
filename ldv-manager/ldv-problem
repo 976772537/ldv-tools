@@ -1,0 +1,6 @@
+#!/bin/bash
+LDV_HOME=`readlink -f \`dirname $0\`/../`
+PROBLEM_DIR=$LDV_HOME/ldv-problems
+
+exec $PROBLEM_DIR/$1 
+

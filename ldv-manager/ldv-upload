@@ -14,7 +14,10 @@ ActiveRecord::Base.establish_connection(
 )
 ActiveRecord::Base.logger = Logger.new(STDERR)
 
-require "#{File.dirname(__FILE__)}/results_model.rb"
+ENV['LDV_SRVHOME'] ||= File.expand_path("../",File.dirname(__FILE__))
+manhome = File.join(ENV['LDV_SRVHOME'],"ldv-manager")
+
+require File.join(manhome,"results_model.rb")
 
 # All models were loaded in results_model.rb.  Now we just add a couple of methods that regard loading them from report
 
@@ -189,7 +192,7 @@ traces_dir = File.join(tmpdir,"traces")
 	Trace.tools.each do |tool,v|
 		tool_stat = trace.send(tool)
 		if tool_stat
-			scripts_dir = File.join(File.dirname(__FILE__), "problems", tool)
+			scripts_dir = File.join(manhome, "problems", tool)
 			Find.find(scripts_dir) do |file|
 				if !FileTest.directory?(file) && FileTest.executable?(file)
 					# Run the script and get its output

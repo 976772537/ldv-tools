@@ -16,7 +16,9 @@ ActiveRecord::Base.establish_connection(
 )
 ActiveRecord::Base.logger = Logger.new(STDERR)
 
-require "#{File.dirname(__FILE__)}/results_model.rb"
+ENV['LDV_SRVHOME'] ||= File.expand_path("../ldv-manager",File.dirname(__FILE__))
+
+require File.join(ENV['LDV_SRVHOME'],"results_model.rb")
 
 # Die if no scripts are given
 tool = ARGV.shift
@@ -24,7 +26,7 @@ scripts = ARGV
 raise <<EOF if tool.nil? || scripts.nil? || scripts.empty? 
 No scripts are given in command line!
 Usage:
-	problem-recalc TOOL problems/rcv/blast_new_script another/script
+	ldv-problem-recalc TOOL problems/rcv/blast_new_script another/script
 
 where TOOL is maingen, dscv, ri or rcv.
 
