@@ -160,7 +160,6 @@ my $error_semantics = 2;
 # File handlers.
 my $file_cmds_log;
 my $file_report_xml_out;
-my $file_temp = \*STDERR;
 my $file_xml_out;
 
 # Auxiliary files produced during work that must be deleted in the nondebug 
@@ -556,17 +555,24 @@ sub exec_status_desc_and_time($)
 sub exec_status_and_desc(@)
 {
   print_debug_trace("Redirect STDERR to the file '$opt_basedir/$tool_temp'.");
-  my $file_temp_save = $file_temp;
-  open(my $file_temp_orig, '>', "$opt_basedir/$tool_temp")
+  open(STDERR_SAVE, ">&STDERR")
+    or die("Couldn't open STDERR for write: $ERRNO");
+  open(STDERR, '>', "$opt_basedir/$tool_temp")
     or die("Couldn't open file '$opt_basedir/$tool_temp' for write: $ERRNO");
-  
+  # Make STDERR unbuffered.
+  select(STDERR); 
+  $| = 1;		
+
   print_debug_trace("Execute the command.");
   my $status = system(@ARG);
   print_debug_debug("The command execution status is '$status'.");
 
   print_debug_trace("Redirect STDERR to its default place'.");  
-  $file_temp = $file_temp_save;
- 
+  close(STDERR)
+    or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO");;
+  open(STDERR, ">&STDERR_SAVE")
+    or die("Couldn't open STDERR for write: $ERRNO");
+  
   print_debug_trace("Read failure description.");
   my $file_temp_read;
   open($file_temp_read, '<', "$opt_basedir/$tool_temp")
@@ -1911,7 +1917,7 @@ sub process_cmds()
         
         my %log = (
             'cmd' => $log_cmds_cc # The cc command was executed.
-          , 'status' => $log_cmds_ok # The cc command is executed successfully.
+          , 'status' => $status_log # The cc command is executed successfully.
           , 'time' => $time # The execution time.
           , 'id' => $id_attr # The cc command id.
           , 'check' => 0 # The cc command always has 0 check attribute.
@@ -2019,10 +2025,9 @@ sub process_cmds()
 sub process_report()
 {
   print_debug_trace("Obtain the mode.");
-  my $mode = <$file_cmds_log>;
-  chomp($mode);
   die("Can't get the mode from the commands log file") 
-    unless ($mode);
+    unless (defined(my $mode = <$file_cmds_log>));
+  chomp($mode);
   
   my $mode_isaspect = 0;
   my $mode_isplain = 0;
@@ -2045,17 +2050,16 @@ sub process_report()
 
   # Indeed verifier isn't used now...
   print_debug_trace("Obtain the verifier.");
-  my $verifier = <$file_cmds_log>;
-  chomp($verifier);
   die("Can't get the verifier from the commands log file") 
-    unless ($verifier);
+    unless(defined(my $verifier = <$file_cmds_log>));
+  chomp($verifier);
   print_debug_debug("The verifier '$verifier' is specified.");
   
   my %cmds_log;
   my @cmds_id;
   
-  print_debug_trace("Process the commands log.");
-  foreach my $cmd_log (<$file_cmds_log>)
+  print_debug_trace("Process the commands log line by line.");
+  while (my $cmd_log = <$file_cmds_log>)
   {
     chomp($cmd_log);
     print_debug_trace("Process the '$cmd_log' command log.");
@@ -2073,7 +2077,7 @@ sub process_report()
     # special set of characters.
     print_debug_trace("Obtain the description open tag.");
 	die("Reach the end of the command log file but don't find the description open tag") 
-      unless (my $desc_begin = <$file_cmds_log>);
+      unless (defined(my $desc_begin = <$file_cmds_log>));
     chomp($desc_begin);
     die("Can't get the description open tag from the commands log file") 
       unless ($desc_begin eq $log_cmds_desc_begin);
@@ -2081,9 +2085,8 @@ sub process_report()
     while (1)
     {
 	  die("Reach the end of the command log file but don't find the description end tag") 
-	    unless (my $desc_cur = <$file_cmds_log>);
-      chomp($desc_cur);
-      last if ($desc_cur eq $log_cmds_desc_end);
+	    unless (defined(my $desc_cur = <$file_cmds_log>));
+      last if ($desc_cur =~ /^\Q$log_cmds_desc_end\E/);
       
       # Concatenate with the previous partial description.
       $cmd_desc = "$cmd_desc$desc_cur\n";
