@@ -55,7 +55,7 @@ my $workdir = $config->{workdir};
 
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
-my $memlimit = $ENV{'RCV_MEMLIMIT'};
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000)	# Default memory limit is 1Gb
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
 
