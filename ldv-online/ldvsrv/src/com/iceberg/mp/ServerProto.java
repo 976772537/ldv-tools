@@ -6,6 +6,8 @@ import java.io.OutputStream;
 
 public class ServerProto extends Protocol {
 	
+	
+	
 	public void Communicate(InputStream in, OutputStream out, Scheduler scheduler) {
 		try { 
 			System.out.println("START CLIENT CONNECTION:");
