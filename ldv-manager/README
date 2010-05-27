@@ -15,19 +15,32 @@ PREREQUISITES:
 6. libmysqlclient15-dev+ 
 6. PAX archiver (that's POSIX standard actually)
 
+INSTALLATION
+
+First you should install ldv-manager.  You can do it by changing into its directory and running
+
+	make install prefix=where/to/install
+
+or by calling
+
+	make install-all
+
+from ldv-tools root dir.
+
+
 
 HOW TO USE LDV-MANAGER
 
 As usual, change into an empty directory.  That will be your working dir.
 
-LDV-manager is implemented as makefiles (yes, again.  Sorry.)  All variables should be specified through command line, however, some rarely changing ones (such as repository addresses) may be stored in "config.mk" file in current directory.  Do not forget to export variables in config.mk (done in the same way as in shell) if you want them to appear in environment of the commands called
+LDV-manager is implemented as makefiles (yes, again.  Sorry.)  All variables should be specified through command line, however, some rarely changing ones (such as repository addresses) may be stored in "config.mk" file in current directory.  Do not forget to export variables in config.mk (done in the same way as in shell) if you want them to appear in environment of the commands called!
 
 Input to ldv-manger is its command line.  Output is the files that appear in RESULTS_DIR (that's environment/config variable).  The files given as an input (archives with kernels and drivers) should be in the working directory.
 
-Here's how the call looks like:
+Here's how the call looks like (make sure you've installed LDV manager, and ldv-manager command is in your PATH):
 
 	LDV_GIT_REPO=git://itgdev/ldv-tools.git \
-	make -f /path/to/ldv-tools/ldv-manager/ldv-manager.mk \
+	ldv-manager \
 	tag=test-0.1 \
 	"envs=linux-2.6.31.2.tar.bz2" \
 	"drivers=wl12xx.tar.bz2" \
