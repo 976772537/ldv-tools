@@ -375,7 +375,10 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	ldv_print "NORMAL: Calling Domain Speicific C-Verifier";
 	ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT";
 	LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT;
-	if [ $? -ne 0 ]; then ldv_print "ERROR: DSCV failed."; fi;
+	if [ $? -ne 0 ]; then 
+		ldv_print "ERROR: DSCV failed."; 
+		exit 1;
+	fi; 
 	deg_create_report;
 
 	ldv_print "NORMAL: Driver number $CURRENT_TEMPDIR_NAME successfully verified.";

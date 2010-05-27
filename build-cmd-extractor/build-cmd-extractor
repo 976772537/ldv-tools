@@ -137,17 +137,17 @@ DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 #
 # copy driver sources
 #
-if [ $KERNEL_LEVEL -eq 1 ]; then
-	ldv_print "DEBUG: cp -r $env $DRIVER_DIR;";
-	ldv_print "NORMAL: Copy in-kernel driver environment.";
-	cp -r $env $DRIVER_DIR;
-else
-	cp -r $driver $DRIVER_DIR;
-fi;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
-	exit 1;
-fi;
+#if [ $KERNEL_LEVEL -eq 1 ]; then
+#	ldv_print "DEBUG: cp -r $env $DRIVER_DIR;";
+#	ldv_print "NORMAL: Copy in-kernel driver environment.";
+#	cp -r $env $DRIVER_DIR;
+#else
+#	cp -r $driver $DRIVER_DIR;
+#fi;
+#if [ $? -ne 0 ]; then
+#	ldv_print "ERROR: Failed to copy driver sources for next instrument to: \"$DIRVER_DIR\"."
+#	exit 1;
+#fi;
 
 echo "<?xml version=\"1.0\"?>" > $cmdfileout;
 echo "<cmdstream>" >> $cmdfileout;
@@ -249,36 +249,36 @@ fi;
 #
 # Rstore driver sources
 #
-ldv_print "NORMAL: Restore clean driver sources.";
-TEMP_DRIVER_DIR=$TEMP_DIR/$TEMP_DRIVER_DIR_NAME;
-if [ $KERNEL_LEVEL -eq 1 ]; then
-	mv $env $TEMP_DRIVER_DIR;
-else
-	mv $driver $TEMP_DRIVER_DIR
-fi;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Can't move driver dir:\"$driver\" to \"$TEMP_DRIVER_DIR\".";
-	exit 1;
-fi;
+#ldv_print "NORMAL: Restore clean driver sources.";
+#TEMP_DRIVER_DIR=$TEMP_DIR/$TEMP_DRIVER_DIR_NAME;
+#if [ $KERNEL_LEVEL -eq 1 ]; then
+#	mv $env $TEMP_DRIVER_DIR;
+#else
+#	mv $driver $TEMP_DRIVER_DIR
+#fi;
+#if [ $? -ne 0 ]; then
+#	ldv_print "ERROR: Can't move driver dir:\"$driver\" to \"$TEMP_DRIVER_DIR\".";
+#	exit 1;
+#fi;
 
 #
 # Store driver sources
 #
-if [ $KERNEL_LEVEL -eq 1 ]; then
-	mv $DRIVER_DIR $env;
-else
-	mv $DRIVER_DIR $driver;
-fi;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Can't copy driver dir: \"$DRIVER_DIR\".";
-	exit 1;
-fi;
+#if [ $KERNEL_LEVEL -eq 1 ]; then
+#	mv $DRIVER_DIR $env;
+#else
+#	mv $DRIVER_DIR $driver;
+#fi;
+#if [ $? -ne 0 ]; then
+#	ldv_print "ERROR: Can't copy driver dir: \"$DRIVER_DIR\".";
+#	exit 1;
+#fi;
 
-mv $TEMP_DRIVER_DIR $DRIVER_DIR
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Can't move driver dir:\"$TEMP_DRIVER_DIR\" to \"$DRIVER_DIR\".";
-	exit 1;
-fi;
+#mv $TEMP_DRIVER_DIR $DRIVER_DIR
+#if [ $? -ne 0 ]; then
+#	ldv_print "ERROR: Can't move driver dir:\"$TEMP_DRIVER_DIR\" to \"$DRIVER_DIR\".";
+#	exit 1;
+#fi;
 
 echo "</cmdstream>" >> $cmdfileout;
 cmdfileout_tmp=$cmdfileout"_tmp";
