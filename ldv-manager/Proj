@@ -13,8 +13,8 @@ report-fixup
 package
 
 upload-daemon
-upload
-problem-recalc
+ldv-upload
+ldv-problem-recalc
 
 Makefile
 
