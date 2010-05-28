@@ -55,7 +55,7 @@ end
 class Stats
 	def self.from_xml(entry,do_nulls)
 		st = Stats.new
-		if entry.none?
+		if entry.respond_to?('none?') && entry.none?
 			return nil if do_nulls
 		end
 		st.success = (entry/"status").inner_html == 'OK'
@@ -131,14 +131,13 @@ end
 # Traces will be taken from this folder
 traces_dir = File.join(tmpdir,"traces")
 
-
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
 
-	driver_name = ld.attributes['driver_name'] || driver_name
-	raise "Driver name is empty for ld #{ld.attributes['id']}!" if driver_name.nil? || driver_name.empty?
-	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
+	local_driver_name = ld.attributes['driver_name'] || driver_name
+	raise "Driver name is empty for ld #{ld.attributes['id']}!" if local_driver_name.nil? || local_driver_name.empty?
+	driver = Driver.find_or_create_by_name_and_origin(local_driver_name,driver_origin)
 
 	rule_model_name = ld.attributes['model']
 	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
@@ -236,5 +235,37 @@ traces_dir = File.join(tmpdir,"traces")
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 end
 
+# Report build errors
+# A build error is a <build> command with FAILED status.
+(doc/'build[status="FAILED"]').each do |build_fail|
+	puts build_fail.inspect
+	build = Stats.from_xml(build_fail,false)
+
+	# Driver name is already loaded globally from launch_info tag
+	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
+
+	kernel_name = build_fail.attributes['kernel']
+	kernel = Environment.find_or_create_by_version(kernel_name)
+
+	# Create a pseudo-trace
+	trace = Trace.new
+	trace.result='unknown'
+	trace.build = build
+
+	# Save this pesudo-trace to DB
+	launch = Launch.new
+
+	launch.driver = driver
+	launch.environment = kernel
+	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,global_verifier)
+	launch.task = task
+
+	launch = launch.load_on_duplicate_key
+
+	launch.trace = trace
+
+	# Because of :autosave property, recursively saves all records
+	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+end
 
 
