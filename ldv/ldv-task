@@ -162,8 +162,8 @@ else
 	LDV_REPORT=$workdir/$LDV_REPORT_FILENAME;
 fi;
 ldv_print "NORMAL: Calling LDV reporter.";
-ldv_print "DEBUG: $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --state-file=$LDV_STATE --reports-dir=$workdir;";
-$LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --state-file=$LDV_STATE --reports-dir=$workdir;
+ldv_print "DEBUG: LDV_ENVS_TARGET=$LDV_ENVS_TARGET $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --state-file=$LDV_STATE --reports-dir=$workdir;";
+LDV_ENVS_TARGET=$LDV_ENVS_TARGET $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FILENAME --report-out=$LDV_REPORT --state-file=$LDV_STATE --reports-dir=$workdir;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: LDV reporter failed."
         exit 1;

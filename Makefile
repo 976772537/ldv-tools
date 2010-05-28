@@ -31,6 +31,9 @@ install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
 
 install-all: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS) $(SERVER_SUBDIRS),install)
 
+# Install only server stuff
+install-srv: $(call forall_subdirs,shared/perl shared/sh $(SERVER_SUBDIRS),install)
+
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
 clean-all: $(call forall_subdirs,$(CLEAN_SUBDIRS) $(SERVER_SUBDIRS),clean)
