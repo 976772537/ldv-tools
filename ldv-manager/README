@@ -61,13 +61,13 @@ If you need to run LDV-manager with currently installed tools (instead of making
 
 HOW TO USE DATABASE
 
-LDV-manager doesn't add anything to database.  The 'upload' script does that.
+LDV-manager doesn't add anything to database.  The 'ldv-upload' script does that.
 
 First, you should prepare DB schema.  Just execute results_schema.sql file to ERASE all existing tables and create schema for the new.
 
-Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run upload script on the files that are gotten from the ldv-manager:
+Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run ldv-upload script on the files that are gotten from the ldv-manager:
 
-	ldv-mangaer/upload package_from_ldv_manager.
+	ldv-mangaer/ldv-upload package_from_ldv_manager.
 
 
 SWITCHING AND TUNING C VERIFIERS
