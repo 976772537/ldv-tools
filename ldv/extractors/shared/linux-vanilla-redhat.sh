@@ -38,7 +38,7 @@ fi
 # if options not set =>
 #   i am set default allmodconfig
 #
-if [ ! -n "$DSCR_OPTIONS" ]; then KERNEL_CONFIG_OPTIONS="allmodconfig"; fi;
+if [ ! -n "$DSCR_OPTIONS" ]; then KERNEL_CONFIG_OPTIONS="allyesconfig"; else KERNEL_CONFIG_OPTIONS=$DSCR_OPTIONS; fi;
 make $KERNEL_CONFIG_OPTIONS;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: make allyesconfig failed."

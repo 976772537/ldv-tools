@@ -12,6 +12,8 @@
 		Sanity.pm
 		RCV/Utils.pm
 	Utils.pm
+../shared/sh/
+	timeout
 
 dscv
 Makefile
@@ -21,4 +23,8 @@ rcv/
 	backends/
 	  blast/
 			Makefile
+
+  cpachecker
+	backends/cpachecker/
+		Makefile
 

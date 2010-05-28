@@ -45,7 +45,7 @@ create table rule_models(
 -- Instruments
 create table toolsets(
 	id int(10) unsigned not null auto_increment,
-	version varchar(20) not null,
+	version varchar(100) not null,
 -- verifier should contain "model-specific" if verifier is set up by model.
 -- Otherwise, if the verifier was forced by user, it should contain a user-defined verifier name 
 	verifier varchar(100) not null default "model-specific",

@@ -1,6 +1,11 @@
 export SHELL=/bin/bash
 
-Lib_dir:=$(dir $(MAKEFILE_LIST))
+ifeq ($(LDV_SRVHOME),)
+$(error LDV_SRVHOME is not set!)
+endif
+
+Lib_dir:=$(LDV_SRVHOME)/ldv-manager/mk/
+Script_dir:=$(LDV_SRVHOME)/ldv-manager/
 
 # Configuration variables
 # Include config only if it exists
@@ -23,6 +28,7 @@ Verifier=
 else
 Verifier=$(delim)$(RCV_VERIFIER)
 endif
+
 
 # Install dir should be absolutized
 LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
@@ -94,7 +100,7 @@ endef
 
 env_names:=$(foreach env,$(envs),$(call envname,$(env)))
 # LDV script accepts input in such form: "linux-2.6.31.2@31_2,8_1:linux-2.6.28@31_2,8_1"
-ldv_rules:=$(shell echo '$(rule_models)' | sed -e 's/ \+/,/')
+ldv_rules:=$(shell echo '$(rule_models)' | sed -e 's/ \+/,/g')
 ldv_task:=$(addsuffix @$(ldv_rules),$(env_names))
 ldv_task:=$(call joinlist,$(ldv_task),:)
 
@@ -125,8 +131,8 @@ $$(WORK_DIR)/$(1)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(Verifier)/checked
 	@# Add ancillary information to reports and post it to target directory
 	@echo $(call mkize,$(1))
 	@mkdir -p $$(dir $(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml)
-	$(Lib_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml
-	$(Lib_dir)package $(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(Verifier).pax -s '|^$(TMP_DIR)\/*||'
+	$(Script_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml
+	$(Script_dir)package $(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(Verifier).pax -s '|^$(TMP_DIR)\/*||'
 	touch $$@
 endef
 

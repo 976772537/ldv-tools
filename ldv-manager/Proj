@@ -1,0 +1,56 @@
+===================
+=   LDV-MANAGER   =
+===================
+
+README
+results_schema.sql
+results_model.rb
+
+ldv-manager.mk
+defs.mk
+
+report-fixup
+package
+
+upload-daemon
+ldv-upload
+ldv-problem-recalc
+
+Makefile
+
+ldv-problem
+problems/
+	rcv/
+		blast
+		test
+
+
+~/science/blast/progs/experim_new/lib/
+	dataflow.mk
+	defs.mk
+	error-utils.mk
+	git-utils.mk
+	ldv-utils.mk
+	llc-checker.pm
+	llvm-utils.mk
+	maingen-checker.pm
+	maingen-utils.mk
+	noaspect-utils.mk
+	svn-utils.mk
+	task-param*
+	task-run*
+	task-utils.mk
+	task.mk
+
+
+../shared/perl/modules/
+	File/Copy/
+	  Recursive.pm
+	StreamAutomaton.pm
+	LDV/
+		Utils.pm
+	DSCV/
+		Sanity.pm
+		RCV/Utils.pm
+	Utils.pm
+

@@ -1,6 +1,6 @@
 
 # Configuration
-backends=blast
+backends=blast cpachecker
 frontends=$(backends)
 
 # Compilation
@@ -17,6 +17,11 @@ install: $(patsubst %,backends/%-subdir-install,$(backends)) $(foreach frontend,
 clean: $(patsubst %,backends/%-subdir-clean,$(backends))
 
 $(rcv_install_dir)/blast: blast
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
+$(rcv_install_dir)/cpachecker: cpachecker
 	@mkdir -p $(@D)
 	cp $^ $@
 	@chmod +x $@

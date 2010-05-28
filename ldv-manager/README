@@ -15,41 +15,80 @@ PREREQUISITES:
 6. libmysqlclient15-dev+ 
 6. PAX archiver (that's POSIX standard actually)
 
+INSTALLATION
+
+First you should install ldv-manager.  You can do it by changing into its directory and running
+
+	make install prefix=where/to/install
+
+or by calling
+
+	make install-all
+
+from ldv-tools root dir.
+
+
 
 HOW TO USE LDV-MANAGER
 
 As usual, change into an empty directory.  That will be your working dir.
 
-LDV-manager is implemented as makefiles (yes, again.  Sorry.)  All variables should be specified through command line, however, some rarely changing ones (such as repository addresses) may be stored in "config.mk" file in current directory.
+LDV-manager is implemented as makefiles (yes, again.  Sorry.)  All variables should be specified through command line, however, some rarely changing ones (such as repository addresses) may be stored in "config.mk" file in current directory.  Do not forget to export variables in config.mk (done in the same way as in shell) if you want them to appear in environment of the commands called!
 
 Input to ldv-manger is its command line.  Output is the files that appear in RESULTS_DIR (that's environment/config variable).  The files given as an input (archives with kernels and drivers) should be in the working directory.
 
-Here's how the call looks like:
+Here's how the call looks like (make sure you've installed LDV manager, and ldv-manager command is in your PATH):
 
 	LDV_GIT_REPO=git://itgdev/ldv-tools.git \
-	make -f /path/to/ldv-tools/ldv-manager/ldv-manager.mk \
+	ldv-manager \
 	tag=test-0.1 \
 	"envs=linux-2.6.31.2.tar.bz2" \
 	"drivers=wl12xx.tar.bz2" \
 	"rule_models=8_1 32_1"
 
+If you are checking kernel drivers, then specify the folder you want to check in `drivers` variable, AND also set `kernel_driver=1` in addition to the other options.
+
+You may also want to specify "name" variable to be able to distinguish runs by some other parameters.
+
 If you want to re-run the process for an already checked driver, you most likely will see "nothing to do" message.  To make your results out of date, you should touch the file with driver.
 
 	touch driver.tar.gz
 
-For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.
+For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.  By the way, you may erase only `finished` file from the directory, if you only want to re-package the checking results.  By erasing `checked` file, you re-run the whole check.
 
 If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.
 
 
 HOW TO USE DATABASE
 
-LDV-manager doesn't add anything to database.  The 'upload' script does that.
+LDV-manager doesn't add anything to database.  The 'ldv-upload' script does that.
 
 First, you should prepare DB schema.  Just execute results_schema.sql file to ERASE all existing tables and create schema for the new.
 
-Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run upload script on the files that are gotten from the ldv-manager:
+Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run ldv-upload script on the files that are gotten from the ldv-manager:
 
-	ldv-mangaer/upload package_from_ldv_manager.
+	ldv-mangaer/ldv-upload package_from_ldv_manager.
 
+
+SWITCHING AND TUNING C VERIFIERS
+
+(The following section applies to DSCV and ldv tools as well.)
+
+Reachability C Verifier switching is implemented.  You may select verifier (it should be a name of a script in dscv/rcv/*), and it will be forced in all checking operations that happen during your task.  Work directories created will contain verifier name.  To set up a specific verifier, set an environment variable:
+
+	RCV_VERIFIER=cpachecker
+
+There's also some variability in how RCV verifier BLAST can be used, as well as generic tweaks to these verifiers.  To limit resources used by verifier, call dscv (i.e. call LDV_MANAGER) with the following environment variables:
+
+	RCV_TIMELIMIT=500      #Set time limit to 500 seconds
+	RCV_MEMLIMIT=1000000   #Set memory limit to 1000000 KiloBytes
+
+To save typing, you may add these variables to config.mk, but don't forget to export them!
+
+	export RCV_TIMELIMIT=500
+	export RCV_MEMLIMIT=1000000
+
+To tune BLAST with options, you may set BLAST_OPTIONS environment variable.
+
+Information about these limits and these options is saved into the description field for rcv tool.
 

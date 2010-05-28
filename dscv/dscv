@@ -195,6 +195,14 @@ Specify custom rule instrumentor.  Unless specified, the program is deduced from
 =cut
 $config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'LDV_HOME'}/bin/rule-instrumentor.pl" || 'rule-instrumentor.pl';
 
+=item B<VERIFIER_OVERRIDE>
+
+Overrides the verifier returned by the Rule Instrumentor.  C<--verifier> option takes precedence.
+
+=cut
+$config->{verifier_override_env} = $ENV{'VERIFIER_OVERRIDE'};
+
+
 =back
 
 =cut
