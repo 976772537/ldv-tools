@@ -180,7 +180,7 @@ tags/%/installed: tags/%/fetched
 # TODO: perform double distpatching as in previous example!
 # Prepare list of target in form "tag-v2.4/env.linux-2.6.30", that depend on actual files with kernels
 envs_tasks:=$(call cartprod,$(tags),$(env_names),/env.)
-get_tag_fromenv=$(call sed,$(1),s|/.*||)
+get_tag_fromenv=$(call sed,$(1),s|/env\..*||)
 get_env_fromenv=$(call sed,$(1),s|.*/env\.||)
 
 # Generate task like this:
