@@ -1,0 +1,10 @@
+<h1>Please specify your local database connection settings</h1>
+<h3>Note that you must enable <i>remote access</i> to your database!</h3>
+<h3>Note that if you use the <i>old or very new local database schema</i> then the results <i>aren't guaranted</i>!!!</h3>
+<p>The form below contains the default statistics server database connection. Exchange it with the your own one!</p>
+<?php
+global $db_host;
+echo $db_host;
+$this->form->setAction($this->url());
+echo $this->form;
+?>

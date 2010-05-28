@@ -1,0 +1,1051 @@
+<?php 
+
+/*
+function visualize_error_trace($error)
+{
+	$link =  "<p><a href=\"";
+	$link .= $this->url(
+    array(
+        'controller' => 'errortrace',
+        'action'     => 'index'
+    ),
+    'default',
+    true);
+    $link .= "\">Sign Our Guestbook</a></p>";
+    return $link;
+	//return $error;
+}
+*/
+
+/*
+<p><a href="<?php  echo $this->url(
+    array(
+        'controller' => 'stats',
+        'action'     => 'signDb'
+    ),
+    'default',
+    true) ?>">Sign Our Guestbook</a></p>
+
+Guestbook Entries: <br />
+
+Please use the form below to sign our guestbook!
+*/ ?>
+<br>
+<table border="1" cellspacing="0" cellpadding="4">
+<?php
+$accurate = 0;
+$error_traces = array();
+if(isset($this->entries['stats']))
+{
+// Group by toolset and then kernel.
+$stat_sum = array();
+$problems = array('build' => array(), 'maingen' => array(), 'dscv' => array(), 'ri' => array(), 'rcv' => array());
+$problem_max_numb = array('build' => 0, 'maingen' => 0, 'dscv' => 0, 'ri' => 0, 'rcv' => 0);
+foreach ($this->entries['stats'] as $entry)
+{
+  $stat_sum[$entry->toolsetName][$entry->kernelName][$entry->modelName][] 
+    = array('module' => $entry->moduleName
+        , 'env' => $entry->environmentModel
+        , 'verdict' => $entry->verdict
+        , 'build status' => $entry->buildStatus
+        , 'build problems' => $entry->buildProblems
+        , 'maingen status' => $entry->maingenStatus
+        , 'maingen problems' => $entry->maingenProblems
+        , 'dscv status' => $entry->dscvStatus
+        , 'dscv problems' => $entry->dscvProblems
+        , 'ri status' => $entry->riStatus
+        , 'ri problems' => $entry->riProblems
+        , 'rcv status' => $entry->rcvStatus
+        , 'rcv problems' => $entry->rcvProblems
+        , 'driver id' => $entry->driverId
+        , 'kernel id' => $entry->kernelId
+        , 'model id' => $entry->modelId
+        , 'toolset id' => $entry->toolsetId
+        , 'scenario id' => $entry->scenarioId);
+  
+
+if (!is_null($entry->buildProblems))
+{
+  if (count($entry->buildProblems))
+  {
+    foreach($entry->buildProblems as $problem)
+    {
+	  $problems['build'][$problem] = 1;
+    }
+  $problem_max_numb['build'] = max(count(array_keys($problems['build'])), $problem_max_numb['build']);      
+
+  }
+  else
+  {
+	 if (isset($problems['build']['Unmatched']))
+	 { 
+	   $problems['build']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['build']['Unmatched'] = 1;
+		 $problem_max_numb['build']++;
+	 }
+  }
+}
+
+if (!is_null($entry->maingenProblems))
+{
+  if (count($entry->maingenProblems))
+  {
+    foreach($entry->maingenProblems as $problem)
+    {
+	  $problems['maingen'][$problem] = 1;
+    }
+  $problem_max_numb['maingen'] = max(count(array_keys($problems['maingen'])), $problem_max_numb['maingen']);      
+
+  }
+  else
+  {
+	 if (isset($problems['maingen']['Unmatched']))
+	 { 
+	   $problems['maingen']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['maingen']['Unmatched'] = 1;
+		 $problem_max_numb['maingen']++;
+	 }
+  }
+}
+if (!is_null($entry->dscvProblems))
+{
+  if (count($entry->dscvProblems))
+  {
+    foreach($entry->dscvProblems as $problem)
+    {
+	  $problems['dscv'][$problem] = 1;
+    }
+  $problem_max_numb['dscv'] = max(count(array_keys($problems['dscv'])), $problem_max_numb['dscv']);      
+
+  }
+  else
+  {
+	 if (isset($problems['dscv']['Unmatched']))
+	 { 
+	   $problems['dscv']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['dscv']['Unmatched'] = 1;
+		 $problem_max_numb['dscv']++;
+	 }
+  }
+}
+if (!is_null($entry->riProblems))
+{
+  if (count($entry->riProblems))
+  {
+    foreach($entry->riProblems as $problem)
+    {
+	  $problems['ri'][$problem] = 1;
+    }
+  $problem_max_numb['ri'] = max(count(array_keys($problems['ri'])), $problem_max_numb['ri']);      
+
+  }
+  else
+  {
+	 if (isset($problems['ri']['Unmatched']))
+	 { 
+	   $problems['ri']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['ri']['Unmatched'] = 1;
+		 $problem_max_numb['ri']++;
+	 }
+  }
+}
+if (!is_null($entry->rcvProblems))
+{
+  if (count($entry->rcvProblems))
+  {
+    foreach($entry->rcvProblems as $problem)
+    {
+	  $problems['rcv'][$problem] = 1;
+    }
+  $problem_max_numb['rcv'] = max(count(array_keys($problems['rcv'])), $problem_max_numb['rcv']);      
+
+  }
+  else
+  {
+	 if (isset($problems['rcv']['Unmatched']))
+	 { 
+	   $problems['rcv']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['rcv']['Unmatched'] = 1;
+		 $problem_max_numb['rcv']++;
+	 }
+  }
+}
+      
+}
+$problem_names = array();
+$problem_names['build'] = array_keys($problems['build']);
+$problem_names['maingen'] = array_keys($problems['maingen']);
+$problem_names['dscv'] = array_keys($problems['dscv']);
+$problem_names['ri'] = array_keys($problems['ri']);
+$problem_names['rcv'] = array_keys($problems['rcv']);
+// Tool columns.
+$tool['build'] = $problem_max_numb['build'] + 2;
+$tool['maingen'] = $problem_max_numb['maingen'] + 2;
+$tool['dscv'] = $problem_max_numb['dscv'] + 2;
+$tool['ri'] = $problem_max_numb['ri'] + 2;
+$tool['rcv'] = $problem_max_numb['rcv'] + 2;
+// Order nonstandard kernel versions.
+function sortversions($v1, $v2) 
+{
+  return version_compare($v1[1], $v2[1], '>');
+  $lena = strlen($v1); 
+  $lenb = strlen($v2);
+  if ($lena == $lenb) return 0;
+  return ($lena < $lenb) ? -1 : 1;
+} 
+
+$stat_sum_kernel_version_ordered = array();
+foreach ($stat_sum as $toolset => $kernel_model_module_env)
+{
+  uksort($kernel_model_module_env, "sortversions");
+  $stat_sum_kernel_version_ordered[$toolset] = $kernel_model_module_env;
+}
+
+// Print table header in depend on problems number.
+    echo "<tr align=\"center\" bgcolor=\"#FFFFCC\">"
+        ,   "<td rowspan='3'>Toolset</td>"
+        ,   "<td rowspan='3'>Kernel</td>"
+        ,   "<td rowspan='3'>Rule</td>"
+//        , "</td><td>Model"
+        ,   "<td rowspan='3'>Total</td>"
+        //, "</td><td>Driver"
+        //, "</td><td>Module"
+        //, "</td><td>Environment Model"
+        //, "</td><td>Verdict"
+        //, "</td><td>Error trace</td></tr><br>";
+        ,   "<td rowspan='3' bgcolor='#CCFFCC'>OK</td>"
+        ,   "<td rowspan='3' bgcolor='#FFCCCC'>FAIL</td>"
+        ,   "<td colspan='$tool[build]'>BCE</td>"
+        ,   "<td colspan='$tool[maingen]'>DEG</td>"
+        ,   "<td colspan='$tool[dscv]'>DSCV</td>"
+        ,   "<td colspan='$tool[ri]'>RI</td>"
+        ,   "<td colspan='".($tool['rcv']+2)."'>RCV</td>"
+        , "</tr>"
+        , "<tr align=\"center\" bgcolor=\"#FFFFCC\">"
+        ,   "<td rowspan='2'>Input</td>"
+        ,   "<td rowspan='2' bgcolor='#CCFFCC'>OK</td>";
+        if ($problem_max_numb['maingen'])
+        {
+          echo"<td colspan='$problem_max_numb[build]' bgcolor='#FFCCCC'>FAIL</td>";
+        }
+        echo   "<td rowspan='2'>Input</td>"
+        ,   "<td rowspan='2' bgcolor='#CCFFCC'>OK</td>";
+        if ($problem_max_numb['maingen'])
+        {
+          echo"<td colspan='$problem_max_numb[build]' bgcolor='#FFCCCC'>FAIL</td>";
+        }
+        echo   "<td rowspan='2'>Input</td>"
+        ,   "<td rowspan='2' bgcolor='#CCFFCC'>OK</td>";
+        if ($problem_max_numb['dscv'])
+        {
+          echo"<td colspan='$problem_max_numb[dscv]' bgcolor='#FFCCCC'>FAIL</td>";
+        }
+        echo   "<td rowspan='2'>Input</td>"
+        ,   "<td rowspan='2' bgcolor='#CCFFCC'>OK</td>";
+        if ($problem_max_numb['ri'])
+        {
+          echo"<td colspan='$problem_max_numb[ri]' bgcolor='#FFCCCC'>FAIL</td>";
+        }
+        echo   "<td rowspan='2'>Input</td>"
+        ,   "<td rowspan='2' bgcolor='#CCFFCC'>OK</td>"
+        ,   "<td rowspan='2' bgcolor='#E3F6CE'>Safe</td>"
+        ,   "<td rowspan='2' bgcolor='#F6E3CE'>Unsafe</td>";
+        if ($problem_max_numb['rcv'])
+        {
+          echo"<td colspan='$problem_max_numb[rcv]' bgcolor='#FFCCCC'>FAIL</td>";
+        }
+        echo "</tr>"
+        , "<tr align=\"center\" bgcolor=\"#FFFFCC\">";
+        foreach ($problem_names['build'] as $problem_name)
+        {
+		  echo "<td bgcolor='#FFCCCC'>$problem_name</td>";
+		}
+        foreach ($problem_names['maingen'] as $problem_name)
+        {
+		  echo "<td bgcolor='#FFCCCC'>$problem_name</td>";
+		}
+        foreach ($problem_names['dscv'] as $problem_name)
+        {
+		  echo "<td bgcolor='#FFCCCC'>$problem_name</td>";
+		}
+        foreach ($problem_names['ri'] as $problem_name)
+        {
+		  echo "<td bgcolor='#FFCCCC'>$problem_name</td>";
+		}
+        foreach ($problem_names['rcv'] as $problem_name)
+        {
+		  echo "<td bgcolor='#FFCCCC'>$problem_name</td>";
+		}
+        echo "</tr>"
+;
+
+# Remember links to error traces.
+$toolset_prev = '';
+foreach ($stat_sum_kernel_version_ordered as $toolset => $kernel_model_module_env)
+{
+  $kernel_prev = '';
+  $toolset_raws = 0;	
+  foreach ($kernel_model_module_env as $kernel => $model_module_env)
+  {
+	$kernel_raws = count($stat_sum[$toolset][$kernel]); 
+    $toolset_raws += $kernel_raws;
+  }
+  foreach ($kernel_model_module_env as $kernel => $model_module_env)
+  {
+	$kernel_raws = count($stat_sum[$toolset][$kernel]);  
+    foreach ($model_module_env as $model => $module_envs)
+    {
+	  $total = count($module_envs);
+	  $ok = 0;
+	  $fail = 0;
+	  $build_ok = 0;
+	  $build_fail = 0;
+	  $maingen_ok = 0;
+	  $maingen_fail = 0;
+	  $dscv_ok = 0;
+	  $dscv_fail = 0;
+	  $ri_ok = 0;
+	  $ri_fail = 0;
+	  $rcv_ok = 0;
+	  $rcv_safe = 0;
+	  $rcv_unsafe = 0;
+	  $rcv_fail = 0;
+      $problems = array('build' => array(), 'maingen' => array(), 'dscv' => array(), 'ri' => array(), 'rcv' => array());
+	    
+      foreach ($module_envs as $module_env)
+      {
+		if (!isset($module_env['verdict']))
+		{
+		  $fail++;
+		  next;
+		}  
+		  
+		if ($module_env['verdict'] == 'safe' || $module_env['verdict'] == 'unsafe')
+		{
+		  $ok++;
+		  if ($module_env['verdict'] == 'unsafe')
+		  {
+			$error_traces[] = $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'errortrace',
+                   'driver id' => $module_env['driver id'],
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'scenario id' => $module_env['scenario id']), 'default', true);  
+		  }
+		}
+		else if ($module_env['verdict'] == 'unknown')
+		{
+		  $fail++;
+		}
+		else
+		{
+		  echo "An unknown verdict '" . $module_env['verdict'] . "' is specified!";
+		  exit;
+		}
+		
+	//	print($module_env['build status'] . $module_env['maingen status'] . $module_env['dscv status'] . $module_env['ri status'] . $module_env['rcv status'] ."<br>");
+		
+		if (isset($module_env['build status']))
+		{
+		  if ($module_env['build status'] == 1)
+		  {
+		    $build_ok++;
+		  }
+		  else if ($module_env['build status'] == 0)
+		  {
+		    $build_fail++;
+		  }
+		  else
+		  {
+		    echo "An unknown status '" . $module_env['build status'] . "' is specified!";
+		    exit;
+		  }
+	    }	
+
+if (!is_null($module_env['build problems']))
+{
+  if (count($module_env['build problems']))
+  {
+    foreach($module_env['build problems'] as $problem)
+    {
+	 if (isset($problems['build'][$problem]))
+	 { 
+	   $problems['build'][$problem]++;
+	 }
+	 else
+	 {
+		 $problems['build'][$problem] = 1;
+	 }
+    }
+  }
+  else
+  {
+	 if (isset($problems['build']['Unmatched']))
+	 { 
+	   $problems['build']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['build']['Unmatched'] = 1;
+	 }
+  }
+}
+
+		if (isset($module_env['maingen status']))
+		{
+		  if ($module_env['maingen status'] == 1)
+		  {
+		    $maingen_ok++;
+		  }
+		  else if ($module_env['maingen status'] == 0)
+		  {
+		    $maingen_fail++;
+		  }
+		  else
+		  {
+		    echo "An unknown status '" . $module_env['maingen status'] . "' is specified!";
+		    exit;
+		  }
+	    }	
+
+if (!is_null($module_env['maingen problems']))
+{
+  if (count($module_env['maingen problems']))
+  {
+    foreach($module_env['maingen problems'] as $problem)
+    {
+	 if (isset($problems['maingen'][$problem]))
+	 { 
+	   $problems['maingen'][$problem]++;
+	 }
+	 else
+	 {
+		 $problems['maingen'][$problem] = 1;
+	 }
+    }
+  }
+  else
+  {
+	 if (isset($problems['maingen']['Unmatched']))
+	 { 
+	   $problems['maingen']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['maingen']['Unmatched'] = 1;
+	 }
+  }
+}
+		
+		if (isset($module_env['dscv status']))
+		{
+		  if ($module_env['dscv status'] == 1)
+		  {
+		    $dscv_ok++;
+		  }
+		  else if ($module_env['dscv status'] == 0)
+		  {
+		    $dscv_fail++;
+		  }
+		  else
+		  {
+		    echo "An unknown status '" . $module_env['dscv status'] . "' is specified!";
+		    exit;
+		  }
+	    }	
+
+if (!is_null($module_env['dscv problems']))
+{
+  if (count($module_env['dscv problems']))
+  {
+    foreach($module_env['dscv problems'] as $problem)
+    {
+	 if (isset($problems['dscv'][$problem]))
+	 { 
+	   $problems['dscv'][$problem]++;
+	 }
+	 else
+	 {
+		 $problems['dscv'][$problem] = 1;
+	 }
+    }
+  }
+  else
+  {
+	 if (isset($problems['dscv']['Unmatched']))
+	 { 
+	   $problems['dscv']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['dscv']['Unmatched'] = 1;
+	 }
+  }
+}
+		
+		if (isset($module_env['ri status']))
+		{
+		  if ($module_env['ri status'] == 1)
+		  {
+		    $ri_ok++;
+		  }
+		  else if ($module_env['ri status'] == 0)
+		  {
+		    $ri_fail++;
+		  }
+		  else
+		  {
+		    echo "An unknown status '" . $module_env['ri status'] . "' is specified!";
+		    exit;
+		  }
+	    }	
+
+if (!is_null($module_env['ri problems']))
+{
+  if (count($module_env['ri problems']))
+  {
+    foreach($module_env['ri problems'] as $problem)
+    {
+	 if (isset($problems['ri'][$problem]))
+	 { 
+	   $problems['ri'][$problem]++;
+	 }
+	 else
+	 {
+		 $problems['ri'][$problem] = 1;
+	 }
+    }
+  }
+  else
+  {
+	 if (isset($problems['ri']['Unmatched']))
+	 { 
+	   $problems['ri']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['ri']['Unmatched'] = 1;
+	 }
+  }
+}
+		
+		if (isset($module_env['rcv status']))
+		{
+		  if ($module_env['rcv status'] == 1)
+		  {
+			if ($module_env['verdict'] == 'safe')
+			{
+			  $rcv_safe++;
+			}
+			else if ($module_env['verdict'] == 'unsafe')
+		    {
+			  $rcv_unsafe++;
+		    }
+		      
+		    $rcv_ok++;
+		  }
+		  else if ($module_env['rcv status'] == 0)
+		  {
+		    $rcv_fail++;
+		  }
+		  else
+		  {
+		    echo "An unknown status '" . $module_env['rcv status'] . "' is specified!";
+		    exit;
+		  }
+	    }	
+
+if (!is_null($module_env['rcv problems']))
+{
+  if (count($module_env['rcv problems']))
+  {
+    foreach($module_env['rcv problems'] as $problem)
+    {
+	 if (isset($problems['rcv'][$problem]))
+	 { 
+	   $problems['rcv'][$problem]++;
+	 }
+	 else
+	 {
+		 $problems['rcv'][$problem] = 1;
+	 }
+    }
+  }
+  else
+  {
+	 if (isset($problems['rcv']['Unmatched']))
+	 { 
+	   $problems['rcv']['Unmatched']++;
+	 }
+	 else
+	 {
+		 $problems['rcv']['Unmatched'] = 1;
+	 }
+  }
+}
+
+/*
+	    if (count($module_env['problem']))
+	    {
+		  foreach($module_env['problem'] as $problem)
+		  {
+			if (isset($problems[$problem]))
+			{
+			  $problems[$problem]++;
+			}
+			else
+			{
+			  $problems[$problem] = 1;	
+			} 
+		  }
+		}
+        $problem_unmatched += $module_env['problem unmatched'];
+*/
+	  }		
+	  
+	  $build_total = $build_ok + $build_fail;
+	  if ($build_total)
+	  {
+		if ($build_ok)
+		{
+	      $build_ok = $build_ok . " (" . number_format($build_ok * 100 / $build_total, $accurate, '.', '') . "%)";
+        }
+        else
+        {
+		  $build_ok = '-';
+		}
+        $build_total = $build_total . " (" . number_format($build_total * 100 / $total, $accurate, '.', '') . "%)";
+      }
+      else
+      {
+		$build_ok = '-';
+		$build_total = '-';
+	  }
+	  
+	  $maingen_total = $maingen_ok + $maingen_fail;
+	  if ($maingen_total)
+	  {
+		if ($maingen_ok)
+		{
+	      $maingen_ok = $maingen_ok . " (" . number_format($maingen_ok * 100 / $maingen_total, $accurate, '.', '') . "%)";
+        }
+        else
+        {
+		  $maingen_ok = '-';
+		}
+        $maingen_total = $maingen_total . " (" . number_format($maingen_total * 100 / $total, $accurate, '.', '') . "%)";
+      }
+      else
+      {
+		$maingen_ok = '-';
+		$maingen_total = '-';
+	  }
+	  
+	  $dscv_total = $dscv_ok + $dscv_fail;
+	  if ($dscv_total)
+	  {
+		if ($dscv_ok)
+		{
+	      $dscv_ok = $dscv_ok . " (" . number_format($dscv_ok * 100 / $dscv_total, $accurate, '.', '') . "%)";
+        }
+        else
+        {
+		  $dscv_ok = '-';
+		}
+        $dscv_total = $dscv_total . " (" . number_format($dscv_total * 100 / $total, $accurate, '.', '') . "%)";
+      }
+      else
+      {
+		$dscv_ok = '-';
+		$dscv_total = '-';
+	  }
+	  
+	  $ri_total = $ri_ok + $ri_fail;
+	  if ($ri_total)
+	  {
+		if ($ri_ok)
+		{
+	      $ri_ok = $ri_ok . " (" . number_format($ri_ok * 100 / $ri_total, $accurate, '.', '') . "%)";
+        }
+        else
+        {
+		  $ri_ok = '-';
+		}
+        $ri_total = $ri_total . " (" . number_format($ri_total * 100 / $total, $accurate, '.', '') . "%)";
+      }
+      else
+      {
+		$ri_ok = '-';
+		$ri_total = '-';
+	  }
+	                  
+	  $rcv_total = $rcv_ok + $rcv_fail;
+	  if ($rcv_total)
+	  {
+		if ($rcv_ok)
+		{
+		  if ($rcv_safe)
+		  {
+   	        $rcv_safe = $rcv_safe . " (" . number_format($rcv_safe * 100 / $rcv_ok, $accurate, '.', '') . "%)";
+		  }
+		  else
+		  {
+			$rcv_safe = '-';
+		  }	
+		  if ($rcv_unsafe)
+		  {
+   	        $rcv_unsafe = $rcv_unsafe . " (" . number_format($rcv_unsafe * 100 / $rcv_ok, $accurate, '.', '') . "%)";
+		  }
+		  else
+		  {
+			$rcv_unsafe = '-';
+		  }	
+	      $rcv_ok = $rcv_ok . " (" . number_format($rcv_ok * 100 / $rcv_total, $accurate, '.', '') . "%)";
+        }
+        else
+        {	
+		  $rcv_ok = '-';
+		  $rcv_safe = '-';
+		  $rcv_unsafe = '-';
+		}
+        $rcv_total = $rcv_total . " (" . number_format($rcv_total * 100 / $total, $accurate, '.', '') . "%)";
+      }
+      else
+      {
+		$rcv_ok = '-';
+		$rcv_safe = '-';
+		$rcv_unsafe = '-';
+		$rcv_total = '-';
+	  }
+      
+      if ($total)
+      {
+		if ($ok)  
+		{
+	      $ok = $ok . " (" . number_format($ok * 100 / $total, $accurate, '.', '') . "%)";
+	    }
+	    else
+	    {
+		  $ok = '-';
+		}
+		
+		if ($fail)
+		{
+	      $fail = $fail . " (" . number_format($fail * 100 / $total, $accurate, '.', '') . "%)";
+	    }
+	    else
+	    {
+		  $fail = '-';
+		}
+	  }
+	  else
+	  {
+		$total = '-';
+		$ok = '-';
+		$fail = '-';
+	  }
+      
+	  echo "<tr>";
+	  if ($toolset != $toolset_prev)
+	  {
+		  echo "<td nowrap rowspan=\"$toolset_raws\">";
+		  
+	      if ($toolset == '')
+	      {
+			echo "-";
+		  }
+	      else  
+		  {
+	        echo "$toolset";
+	      }
+		  
+		  echo "</td>";
+	  }
+	  if ($kernel != $kernel_prev)
+	  {
+		  echo "<td nowrap rowspan=\"$kernel_raws\">";
+		  
+	      if ($kernel == '')
+	      {
+			echo "-";
+		  }
+	      else  
+		  {
+	        echo "$kernel";
+	      }
+		  
+		  echo "</td>";
+	  }
+	  if ($model == '')
+	  {
+	    echo "<td nowrap>-</td>";
+	  }
+	  else
+	  {
+	    echo "<td nowrap>$model</td>";
+	  }
+	  echo "<td nowrap>$total</td>"
+	   ,     "<td nowrap>$ok</td>"
+	   ,     "<td nowrap>$fail</td>"
+	   ,     "<td nowrap>$build_total</td>"
+	   ,     "<td nowrap>$build_ok</td>";
+	  foreach ($problem_names['build'] as $problem_name)
+	  {
+		 if (isset($problems['build'][$problem_name]))
+		 { 
+		   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'errordesc',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'problem' => $problem_name,
+                   'tool' => 'build'), 'default', true) . "'>" . $problems['build'][$problem_name]  . "</a></td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }	   
+	  echo     "<td nowrap>$maingen_total</td>"
+	   ,     "<td nowrap>$maingen_ok</td>";
+	  foreach ($problem_names['maingen'] as $problem_name)
+	  {
+		 if (isset($problems['maingen'][$problem_name]))
+		 { 
+		   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'errordesc',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'problem' => $problem_name,
+                   'tool' => 'maingen'), 'default', true) . "'>" . $problems['maingen'][$problem_name]  . "</a></td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+	  	   echo     "<td nowrap>$dscv_total</td>"
+	   ,     "<td nowrap>$dscv_ok</td>";
+	  foreach ($problem_names['dscv'] as $problem_name)
+	  {
+		 if (isset($problems['dscv'][$problem_name]))
+		 { 
+		   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'errordesc',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'problem' => $problem_name,
+                   'tool' => 'dscv'), 'default', true) . "'>" . $problems['dscv'][$problem_name]  . "</a></td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+	  	   echo     "<td nowrap>$ri_total</td>"
+	   ,     "<td nowrap>$ri_ok</td>";
+	  foreach ($problem_names['ri'] as $problem_name)
+	  {
+		 if (isset($problems['ri'][$problem_name]))
+		 { 
+		   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'errordesc',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'problem' => $problem_name,
+                   'tool' => 'ri'), 'default', true) . "'>" . $problems['ri'][$problem_name]  . "</a></td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+	  	   echo     "<td nowrap>$rcv_total</td>"
+	   ,     "<td nowrap>$rcv_ok</td>";
+	  	   if ($rcv_safe == '-')
+	  	   {
+			   echo "<td nowrap>-</td>";
+		   }
+		   else
+		   {
+	   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'showsafeunsafe',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'show'=> 'safe'), 'default', true) . "'>$rcv_safe</a></td>";
+	  }
+	  	   if ($rcv_unsafe == '-')
+	  	   {
+			   echo "<td nowrap>-</td>";
+		   }
+		   else
+		   {
+	   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'showsafeunsafe',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'show'=> 'unsafe'), 'default', true) . "'>$rcv_unsafe</a></td>";
+	  }
+	  foreach ($problem_names['rcv'] as $problem_name)
+	  {
+		 if (isset($problems['rcv'][$problem_name]))
+		 { 
+		   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'errordesc',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'problem' => $problem_name,
+                   'tool' => 'rcv'), 'default', true) . "'>" . $problems['rcv'][$problem_name]  . "</a></td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+/*
+	  echo      "<td nowrap>$problem_unmatched</td>";
+	   echo     "<td nowrap>$maingen_total</td>"
+	   ,     "<td nowrap>$maingen_ok</td>";
+	  foreach ($problem_names as $problem_name)
+	  {
+		 if (isset($problems[$problem_name]))
+		 { 
+		   echo "<td nowrap>" . $problems[$problem_name]  . "</td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+	  echo      "<td nowrap>$problem_unmatched</td>";
+	   echo     "<td nowrap>$dscv_total</td>"
+	   ,     "<td nowrap>$dscv_ok</td>";
+	  foreach ($problem_names as $problem_name)
+	  {
+		 if (isset($problems[$problem_name]))
+		 { 
+		   echo "<td nowrap>" . $problems[$problem_name]  . "</td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+	  echo      "<td nowrap>$problem_unmatched</td>";
+	   echo     "<td nowrap>$ri_total</td>"
+	   ,     "<td nowrap>$ri_ok</td>";
+	  foreach ($problem_names as $problem_name)
+	  {
+		 if (isset($problems[$problem_name]))
+		 { 
+		   echo "<td nowrap>" . $problems[$problem_name]  . "</td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+	  echo      "<td nowrap>$problem_unmatched</td>";
+	   echo     "<td nowrap>$rcv_total</td>"
+	   ,     "<td nowrap>$rcv_ok</td>";
+	  foreach ($problem_names as $problem_name)
+	  {
+		 if (isset($problems[$problem_name]))
+		 { 
+		   echo "<td nowrap>" . $problems[$problem_name]  . "</td>";
+		 }
+		 else
+		 {
+		   echo "<td nowrap>-</td>";
+		 }
+	  }
+	  echo      "<td nowrap>$problem_unmatched</td>";
+*/
+	   echo   "</tr>";
+	  $toolset_prev = $toolset;
+	  $kernel_prev = $kernel;
+	}
+  }
+} 
+//print_r($stat_sum);  
+//exit;  
+/*
+foreach ($this->entries['stats'] as $entry)
+{
+    echo "<tr><td>", $this->escape($entry->toolsetName)
+        , "</td><td>", $this->escape($entry->kernelName)
+        , "</td><td>", $this->escape($entry->modelName)
+        , "</td><td>", $this->escape($entry->driverName)
+        //, "</td><td>", $this->escape($entry->moduleName)
+        //, "</td><td>", $this->escape($entry->environmentModel)
+        , "</td><td>", $this->escape($entry->environmentModel)
+        //, "</td><td>", $this->escape($entry->verdict)
+        , "</td><td>", $this->escape($entry->verdict)
+        , "</td><td>", $this->escape($entry->verdict)
+        , "</td><td>", $this->escape($entry->buildStatus)
+        , "</td><td>", $this->escape($entry->maingenStatus)
+        , "</td><td>", $this->escape($entry->dscvStatus)
+        , "</td><td>", $this->escape($entry->riStatus)
+        , "</td><td>", $this->escape($entry->rcvStatus)
+ //       , "</td><td><pre>", $this->escape($entry->errorTrace['1']->errorTrace)
+
+        , "</td><td><pre><a href=\"", $this->url(array(
+          'controller' => 'stats',
+          'action'     => 'errortrace',
+          'driver id' => $entry->driverId,
+          'kernel id' => $entry->kernelId,
+          'model id' => $entry->modelId,
+          'toolset id' => $entry->toolsetId,
+          'scenario id' => $entry->scenarioId,
+        ),
+        'default',
+        true), "\">Error trace</a></pre>"
+
+        , "</td></tr><br>";
+}
+*/
+}
+?>
+</table>
+<?php
+  foreach ($error_traces as $error_trace)
+  {
+	//echo "<a href=\"", $error_trace, "\">Error trace (don't push me!)</a><br>";
+  }
+/*
+<dl>
+    <?php foreach ($this->entries as $entry): ?>
+    <dt><?php echo $this->escape($entry->driver); ?></dt>
+    <dd><?php echo $this->escape($entry->kernel) ?></dd>
+    <?php endforeach ?>
+</dl>*/?>
