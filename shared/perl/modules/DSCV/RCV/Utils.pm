@@ -217,6 +217,7 @@ sub ld_maker
 	my $unbasedir_ref = $args{unbasedir_ref};
 	my $workdir = $args{workdir};
 	my $verify = $args{verifier};
+	my $archivated = $args{archivated} || '';
 
 	return sub{
 		my ($twig, $cmdT) = @_;
@@ -319,6 +320,7 @@ sub ld_maker
 		mkpath(dirname($report));
 		# Tool debug file (to dump the trace of the tool)
 		my $debug = reports_dir($workdir)."/$target.debug";
+		$debug.=".gz" if $archivated;
 		mkpath(dirname($debug));
 		# Trace file (to dump the error trace)
 		my $trace = reports_dir($workdir)."/$target.trace";
