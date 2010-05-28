@@ -408,7 +408,7 @@ close($file_cmds_log)
 close($file_xml_out) 
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
 
-print_debug_info("Delete auxiliary files in the nondebug modes.");
+print_debug_normal("Delete auxiliary files in the nondebug modes.");
 delete_aux_files();
 
 print_debug_normal("Make all successfully.");
@@ -555,13 +555,13 @@ sub exec_status_desc_and_time($)
 sub exec_status_and_desc(@)
 {
   print_debug_trace("Redirect STDERR to the file '$opt_basedir/$tool_temp'.");
-  open(STDERR_SAVE, ">&STDERR")
-    or die("Couldn't open STDERR for write: $ERRNO");
+  open(STDERR_SAVE, '>&', \*STDERR)
+    or die("Couldn't dup STDERR: $ERRNO"); 
   open(STDERR, '>', "$opt_basedir/$tool_temp")
-    or die("Couldn't open file '$opt_basedir/$tool_temp' for write: $ERRNO");
+    or die("Couldn't redirect STDERR to '$opt_basedir/$tool_temp': $ERRNO");
   # Make STDERR unbuffered.
   select(STDERR); 
-  $| = 1;		
+  $OUTPUT_AUTOFLUSH = 1;		
 
   print_debug_trace("Execute the command.");
   my $status = system(@ARG);
@@ -570,8 +570,8 @@ sub exec_status_and_desc(@)
   print_debug_trace("Redirect STDERR to its default place'.");  
   close(STDERR)
     or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO");;
-  open(STDERR, ">&STDERR_SAVE")
-    or die("Couldn't open STDERR for write: $ERRNO");
+  open(STDERR, '>&', STDERR_SAVE)
+    or die("Couldn't dup the old STDERR: $ERRNO");
   
   print_debug_trace("Read failure description.");
   my $file_temp_read;
@@ -1795,7 +1795,7 @@ sub process_cmds()
         {
 		  # Just mark that the output file is generated successfully.	
 	      $cmds_status_ok{$out_text} = $id_attr;
-	      	
+	      my @ok_desc = ();	
           my %log = (
               'cmd' => $log_cmds_cc # The cc command was executed.
             , 'status' => $log_cmds_ok # The cc command is executed successfully.
@@ -1803,7 +1803,7 @@ sub process_cmds()
             , 'id' => $id_attr # The cc command id.
             , 'check' => 0 # The cc command always has 0 check attribute.
             , 'entries' => \@entry_points # The cc command doesn't contain any entry point indeed.
-            , 'desc' => '' # There is no description since all is ok.
+            , 'desc' => \@ok_desc # There is no description since all is ok.
           );
           print_cmd_log(\%log);
         }
@@ -1829,13 +1829,13 @@ sub process_cmds()
 			  push(@cc_error_desc, \@desc);  
 		    }
           }        
-
-          print_debug_trace("Log information on the '$id_attr' command execution status.");        
+ 
           if ($status_in)
           {
+			print_debug_debug("All ld command input files are processed successfully.");  
 		    # Just mark that the output file is generated successfully.	
 	        $cmds_status_ok{$out_text} = $id_attr;
-	      
+	        my @ok_desc = ();	
   		    my %log = (
                 'cmd' => $log_cmds_ld # The ld command was executed.
               , 'status' => $log_cmds_ok # The ld command execution status.
@@ -1843,15 +1843,15 @@ sub process_cmds()
               , 'id' => $id_attr # The ld command id.
               , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
               , 'entries' => \@entry_points # The ld command entry points.
-              , 'desc' => '' # There is no description since all is ok.
+              , 'desc' => \@ok_desc # There is no description since all is ok.
             );		
             print_cmd_log(\%log); 
           }
           else
           {
+		    print_debug_debug("Some ld command input files aren't processed successfully.");  
             # Mark that the output file isn't generated successfully.	
-	        $cmds_status_fail{$out_text} = join_cc_error_desc(@cc_error_desc);  
-			  
+	        $cmds_status_fail{$out_text} = join_cc_error_desc(@cc_error_desc);
     	    my %log = (
                 'cmd' => $log_cmds_ld # The ld command was executed.
               , 'status' => $log_cmds_fail # The ld command failed.
@@ -1859,7 +1859,7 @@ sub process_cmds()
               , 'id' => $id_attr # The ld command id.
               , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
               , 'entries' => \@entry_points # The ld command entry points.
-              , 'desc' => join_cc_error_desc(@cc_error_desc) # The ld command fails due to some input cc commands aren't finished successfully.
+              , 'desc' => $cmds_status_fail{$out_text} # The ld command fails due to some input cc commands aren't finished successfully.
             );
             print_cmd_log(\%log);  
           }
@@ -1966,6 +1966,7 @@ sub process_cmds()
         print_debug_trace("Log information on the '$id_attr' command execution status.");        
         if ($status_in)
         {
+		  print_debug_debug("All ld command input files are processed successfully.");  	
 		  my $status_log;
 		  # 0 status is good.
 		  if ($status)
@@ -1994,6 +1995,7 @@ sub process_cmds()
         }
         else
         {
+		  print_debug_debug("Some ld command input files aren't processed successfully.");  	
 		  # Mark that the output file isn't generated successfully.	
 	      $cmds_status_fail{$out_text} = join_cc_error_desc(@cc_error_desc); 
 	      
