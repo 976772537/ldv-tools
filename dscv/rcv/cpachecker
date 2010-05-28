@@ -123,21 +123,19 @@ sub verify_cpachecker
 		}else{
 			$bv='UNKNOWN';
 		}
-		# Result
+		# Result is derived from verdict
 		my $br = $result->{'CPACHECKER'};
 		vsay (40, "CPACHECKER status is $br\n");
-		if ($br =~ /\byes\b/i) {
-			$br='OK';
-		}elsif($br =~ /\bno\b/i){
+		if($br =~ /\bno\b/i){
 			$br='FAILED';
+		}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
+			$br='OK';
 		}else{
 			$br='FAILED';
 		}
 
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		# CPAchecker doesn't support trace files for now...
-		# When they'll be done, fix it TODO
-		XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
+		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
 		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
 
 		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
@@ -166,6 +164,7 @@ sub verify_cpachecker
 # Call cpachecker
 use IPC::Open3;
 use StreamAutomaton;
+use File::Copy;
 sub call_cpachecker
 {
 	my %args = @_;
@@ -186,7 +185,7 @@ sub call_cpachecker
 	# push @cpachecker_options, "-L",$errloc if $errloc;
 
 	#write ErrorPath.txt and other files to outputpath
-	my $outputpath = "$args{report}-output";
+	my $outputpath = "$args{debug}-stuff";
 	push @cpachecker_options, "-outputpath",$outputpath;
 
 	# For now we do not interpret hints.  We will be generating/copying certain config files for that
@@ -220,10 +219,10 @@ sub call_cpachecker
 	# Sanity check
 	$sanity->blast_called();
 
-	# TODO: Create trace printer
-	my $dumptrace = dumptrace($args{trace});
+	# In CPAchecker trace is in the separate file.  We'll just copy it to $args{trace} at the end
+	my $trace_fname = "$outputpath/ErrorPath.txt";
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict()]);
+	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict()]);
 
 	# Process output and redirect it to file
 	local $_;
@@ -251,13 +250,16 @@ sub call_cpachecker
 	}
 
 	my $result = {%{$verdictor->result()}};
-	# For now, consider that CPAchecker always works correctly
-	$result->{'CPACHECKER'} = "yes";
+	# Don't set it up--it should be set by CPAchecker
+	# $result->{'CPACHECKER'} = "yes";
 	# Add limits
 	$result->{'CPACHECKER-detailed'} .= $result->{'LIMITS'};
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
+
+	# Copy back trace
+	copy($trace_fname,$args{trace}) or die;
 
 	# Add information about limits to result
 	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
@@ -312,30 +314,23 @@ sub cpachecker_verdict
 {
 	return[100_000,sub{
 		my $l=shift or return undef;
-		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.'};
-		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.'};
+		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
+		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
 		return undef;
 	}];
 }
 
 # Trace dumper.  Usage:  my $dumper = dumptrace(filename);
 use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
+my $current_fh;
 sub dumptrace
 {
 	my $fname = shift or die;
-	my $state = TRACE_WAIT;
+	# In CPAchecker, the whole file is the trace
+	my $state = TRACE_READ;
 	my $current_fh;
 	return [1_000_000,sub {
-		# Just return undef -- don't do anything
-		return undef;
-
 		my ($line) = @_;
-		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
-		return undef if $state == TRACE_DONE;
-
-		$line =~ /Error trace: \(final\)/ and do {$state = TRACE_READ; return undef;};
-		$line =~ /Error trace ends \(final\)/ and do {$state = TRACE_DONE; return undef;};
-
 		if ($state == TRACE_READ){
 			unless ($current_fh){
 				open $current_fh, ">>", $fname or die;
