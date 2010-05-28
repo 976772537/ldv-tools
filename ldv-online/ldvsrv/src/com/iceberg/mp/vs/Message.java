@@ -1,4 +1,4 @@
-package com.iceberg.mp;
+package com.iceberg.mp.vs;
 
 import java.io.Serializable;
 

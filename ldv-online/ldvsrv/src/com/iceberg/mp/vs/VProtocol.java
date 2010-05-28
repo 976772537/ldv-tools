@@ -1,10 +1,6 @@
-package com.iceberg.mp;
+package com.iceberg.mp.vs;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
-public class PProtocol {
+public class VProtocol {
     public static final String sGetTask = "GETTASK";
     public static final String sGetTaskOk = "GETTASKOK";
 

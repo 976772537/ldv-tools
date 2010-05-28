@@ -1,4 +1,4 @@
-package com.iceberg.mp;
+package com.iceberg.mp.vs;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-public class PClientProto extends PProtocol {
+public class VClientProto extends VProtocol {
 
         public void Communicate(BufferedInputStream in, BufferedOutputStream out) {
         		try {

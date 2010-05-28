@@ -1,12 +1,9 @@
-package com.iceberg.mp;
+package com.iceberg.mp.vs;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
-public class PServerProto extends PProtocol {
+public class VServerProto extends VProtocol {
 
         public void Communicate(InputStream in, OutputStream out) {
           /*      try {

@@ -1,4 +1,4 @@
-package com.iceberg.mp;
+package com.iceberg.mp.ws;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -6,19 +6,23 @@ import java.io.IOException;
 
 import java.net.Socket;
 
-public class ServerThread extends Thread {
+import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.Scheduler;
+
+public class WServerThread extends Thread {
 	
 	private Socket socket;
-	private ServerProto protocol;
+	private WServerProto protocol;
 	private Scheduler scheduler;
 
-	public ServerThread(Socket socket, ServerProto protocol, Scheduler scheduler) {
+	public WServerThread(Socket socket, WServerProto protocol, Scheduler scheduler) {
 		this.socket = socket;
 		this.protocol = protocol;
 		this.scheduler =  scheduler;
 	}
 
 	public void run() {
+		RunLDV.log.info("WS: Start client connection.");
 		BufferedInputStream in = null;
 		BufferedOutputStream out = null;
 		try {
@@ -36,6 +40,7 @@ public class ServerThread extends Thread {
 				e.printStackTrace();
 			}
 		}
+		RunLDV.log.info("WS: Close client connection.");
 	}
 
 }

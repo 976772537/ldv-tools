@@ -1,4 +1,7 @@
-package com.iceberg.mp;
+package com.iceberg.mp.vs;
+
+import com.iceberg.mp.Task;
+import com.iceberg.mp.Utils;
 
 public class MessageGetTaskOk extends Message {
 
@@ -7,7 +10,7 @@ public class MessageGetTaskOk extends Message {
         private String driver;
 
         public MessageGetTaskOk(Task task) {
-                super(PProtocol.sGetTaskOk);
+                super(VProtocol.sGetTaskOk);
                 driver = Utils.readFile("/home/almer/projects/NC/build.xml");
         }
 
