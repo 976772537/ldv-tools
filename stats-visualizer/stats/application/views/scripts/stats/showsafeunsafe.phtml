@@ -17,11 +17,6 @@
 $i = 1;
 foreach ($this->entries as $entry)
 {
-	if ($entry['verdict'] == 'safe')
-        {
-        continue;
-	}
-	
     echo "<tr>"
         ,   "<td>" . $i++ ."</td>"
         ,   "<td>" . $entry['toolset'] ."</td>"

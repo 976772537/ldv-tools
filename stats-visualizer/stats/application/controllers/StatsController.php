@@ -124,7 +124,8 @@ $outFile = APPLICATION_PATH . "/files/test.txt";
 		$kernelId = $this->_getParam('kernel id');
 		$modelId = $this->_getParam('model id');
 		$toolsetId = $this->_getParam('toolset id');
-
+        $show = $this->_getParam('show');
+        
 		global $mysession;
 			
 		if ($mysession->db_host == 'localhost' && $mysession->db_username == 'joker' && $mysession->db_dbname == 'ldvreports')
@@ -140,7 +141,7 @@ $outFile = APPLICATION_PATH . "/files/test.txt";
         ));
 
         $statistics = new Application_Model_StatsMapper(array('db' => $this->_db));
-        $this->view->entries = $statistics->getSafeUnsafeDesc($kernelId, $modelId, $toolsetId);
+        $this->view->entries = $statistics->getSafeUnsafeDesc($kernelId, $modelId, $toolsetId, $show);
     }
     
     

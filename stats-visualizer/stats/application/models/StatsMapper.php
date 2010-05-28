@@ -507,7 +507,7 @@ else if ($tool == 'maingen')
       }
       return $entries;
 	}   	
-    public function getSafeUnsafeDesc($kernelId, $modelId, $toolsetId)
+    public function getSafeUnsafeDesc($kernelId, $modelId, $toolsetId, $show)
     {
 		      $entries = array();
 	  $sql = 'SELECT  drivers.id AS \'Driver id\'' . 
@@ -528,7 +528,7 @@ else if ($tool == 'maingen')
       $result_set = $this->getDb()->fetchAll($sql);
       foreach ($result_set as $row)
       {
-		  if ($row['Verdict'] != 'unknown')
+		  if ($row['Verdict'] == $show)
 		  {
  		  $entries[] = array('toolset' => $row['Toolset name'], 'kernel' => $row['Kernel name'], 'rule' => $row['Model name']
 		  , 'driver' => $row['Driver name'], 'module' => $row['Module name'], 'env' => $row['Environment model']

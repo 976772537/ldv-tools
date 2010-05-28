@@ -234,7 +234,7 @@ foreach ($stat_sum as $toolset => $kernel_model_module_env)
         ,   "<td colspan='$tool[maingen]'>DEG</td>"
         ,   "<td colspan='$tool[dscv]'>DSCV</td>"
         ,   "<td colspan='$tool[ri]'>RI</td>"
-        ,   "<td colspan='$tool[rcv]'>RCV</td>"
+        ,   "<td colspan='".($tool['rcv']+2)."'>RCV</td>"
         , "</tr>"
         , "<tr align=\"center\" bgcolor=\"#FFFFCC\">"
         ,   "<td rowspan='2'>Input</td>"
@@ -262,7 +262,9 @@ foreach ($stat_sum as $toolset => $kernel_model_module_env)
           echo"<td colspan='$problem_max_numb[ri]' bgcolor='#FFCCCC'>FAIL</td>";
         }
         echo   "<td rowspan='2'>Input</td>"
-        ,   "<td rowspan='2' bgcolor='#CCFFCC'>OK</td>";
+        ,   "<td rowspan='2' bgcolor='#CCFFCC'>OK</td>"
+        ,   "<td rowspan='2' bgcolor='#E3F6CE'>Safe</td>"
+        ,   "<td rowspan='2' bgcolor='#F6E3CE'>Unsafe</td>";
         if ($problem_max_numb['rcv'])
         {
           echo"<td colspan='$problem_max_numb[rcv]' bgcolor='#FFCCCC'>FAIL</td>";
@@ -320,6 +322,8 @@ foreach ($stat_sum_kernel_version_ordered as $toolset => $kernel_model_module_en
 	  $ri_ok = 0;
 	  $ri_fail = 0;
 	  $rcv_ok = 0;
+	  $rcv_safe = 0;
+	  $rcv_unsafe = 0;
 	  $rcv_fail = 0;
       $problems = array('build' => array(), 'maingen' => array(), 'dscv' => array(), 'ri' => array(), 'rcv' => array());
 	    
@@ -546,6 +550,15 @@ if (!is_null($module_env['ri problems']))
 		{
 		  if ($module_env['rcv status'] == 1)
 		  {
+			if ($module_env['verdict'] == 'safe')
+			{
+			  $rcv_safe++;
+			}
+			else if ($module_env['verdict'] == 'unsafe')
+		    {
+			  $rcv_unsafe++;
+		    }
+		      
 		    $rcv_ok++;
 		  }
 		  else if ($module_env['rcv status'] == 0)
@@ -688,17 +701,37 @@ if (!is_null($module_env['rcv problems']))
 	  {
 		if ($rcv_ok)
 		{
+		  if ($rcv_safe)
+		  {
+   	        $rcv_safe = $rcv_safe . " (" . number_format($rcv_safe * 100 / $rcv_ok, $accurate, '.', '') . "%)";
+		  }
+		  else
+		  {
+			$rcv_safe = '-';
+		  }	
+		  if ($rcv_unsafe)
+		  {
+   	        $rcv_unsafe = $rcv_unsafe . " (" . number_format($rcv_unsafe * 100 / $rcv_ok, $accurate, '.', '') . "%)";
+		  }
+		  else
+		  {
+			$rcv_unsafe = '-';
+		  }	
 	      $rcv_ok = $rcv_ok . " (" . number_format($rcv_ok * 100 / $rcv_total, $accurate, '.', '') . "%)";
         }
         else
-        {
+        {	
 		  $rcv_ok = '-';
+		  $rcv_safe = '-';
+		  $rcv_unsafe = '-';
 		}
         $rcv_total = $rcv_total . " (" . number_format($rcv_total * 100 / $total, $accurate, '.', '') . "%)";
       }
       else
       {
 		$rcv_ok = '-';
+		$rcv_safe = '-';
+		$rcv_unsafe = '-';
 		$rcv_total = '-';
 	  }
       
@@ -851,10 +884,11 @@ if (!is_null($module_env['rcv problems']))
 		   echo "<td nowrap>-</td>";
 		 }
 	  }
-	  	   echo     "<td nowrap>$rcv_total</td>";
-	  	   if ($rcv_ok == '-')
+	  	   echo     "<td nowrap>$rcv_total</td>"
+	   ,     "<td nowrap>$rcv_ok</td>";
+	  	   if ($rcv_safe == '-')
 	  	   {
-			   echo "<td nowrap>$rcv_ok</td>";
+			   echo "<td nowrap>-</td>";
 		   }
 		   else
 		   {
@@ -863,7 +897,22 @@ if (!is_null($module_env['rcv problems']))
                    'action'     => 'showsafeunsafe',
                    'kernel id' => $module_env['kernel id'],
                    'model id' => $module_env['model id'],
-                   'toolset id' => $module_env['toolset id']), 'default', true) . "'>$rcv_ok</a></td>";
+                   'toolset id' => $module_env['toolset id'],
+                   'show'=> 'safe'), 'default', true) . "'>$rcv_safe</a></td>";
+	  }
+	  	   if ($rcv_unsafe == '-')
+	  	   {
+			   echo "<td nowrap>-</td>";
+		   }
+		   else
+		   {
+	   echo "<td nowrap><a href='" . $this->url(array(
+                   'controller' => 'stats',
+                   'action'     => 'showsafeunsafe',
+                   'kernel id' => $module_env['kernel id'],
+                   'model id' => $module_env['model id'],
+                   'toolset id' => $module_env['toolset id'],
+                   'show'=> 'unsafe'), 'default', true) . "'>$rcv_unsafe</a></td>";
 	  }
 	  foreach ($problem_names['rcv'] as $problem_name)
 	  {
