@@ -1,6 +1,7 @@
 package com.iceberg.mp.schelduler;
 
 import java.util.List;
+import java.util.Map;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -11,6 +12,10 @@ public class Scheduler extends Thread {
 	private List<Task> taskList = new CopyOnWriteArrayList<Task>();
 	private List<VerClient> clientList = new CopyOnWriteArrayList<VerClient>();
 		
+	public Scheduler(Map<String, String> params) {
+		// TODO Auto-generated constructor stub
+	}
+
 	// список у нас уже синхронизирован...
 	public void putTask(Task task) {
 		taskList.add(task);
