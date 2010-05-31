@@ -8,24 +8,28 @@
 	<property name="dist" location="dist"/>
 	<property name="lib" location="lib"/>
 
+    	<path id="classpath">
+		<fileset dir="${lib}" includes="h2-1.2.136.jar"/>
+	</path>
+
 	<target name="init">
 		<mkdir dir="${build}"/>
 		<mkdir dir="${dist}"/>
 	</target>
-	
+
 	<target name="compile" depends="init">
-		<javac debug="on" srcdir="${src}" destdir="${build}"/>
+		<javac debug="on" srcdir="${src}" destdir="${build}" classpathref="classpath"/>
 	</target>
 	
 	<target name="dist" depends="compile">
-		<jar jarfile="${dist}/master.jar" basedir="${build}">
+		<jar jarfile="${dist}/ldvs.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Main-class" value="com.iceberg.mp.RunLDV"/>
 			</manifest>
 		</jar>
-		<jar jarfile="${dist}/puppet.jar" basedir="${build}">
+		<jar jarfile="${dist}/vsClient.jar" basedir="${build}">
 			<manifest>
-				<attribute name="Main-class" value="com.iceberg.mp.Client"/>
+				<attribute name="Main-class" value="com.iceberg.mp.vs.client.VClient"/>
 			</manifest>
 		</jar>
 	</target>

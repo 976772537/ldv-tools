@@ -31,7 +31,7 @@ public class WSM {
 	}
 	
 	public final static String wrapMsg(String msg) {
-		return xmlheader+tagB_msg+msg+tagE_msg;
+		return xmlheader+tagB_msg+msg+tagE_msg+"\n";
 	}
 
 	public String toWSXML() {

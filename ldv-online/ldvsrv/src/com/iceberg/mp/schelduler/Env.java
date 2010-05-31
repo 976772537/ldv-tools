@@ -1,4 +1,4 @@
-package com.iceberg.mp;
+package com.iceberg.mp.schelduler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +9,8 @@ public class Env {
 	
 	private List<String> rules = new ArrayList<String>();
 	
+	// вынести отсюда статические методы - так как класс будет
+	// передоваться как сообщение
 	public Env(List<String> rules, String name) {
 		this.name = name;
 		this.rules = rules;
@@ -32,5 +34,9 @@ public class Env {
 	
 	public List<String> getRules() {
 		return rules;
+	}
+	
+	public String getName() {
+		return name;
 	}
 }	

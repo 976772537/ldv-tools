@@ -1,5 +1,6 @@
-package com.iceberg.mp;
+package com.iceberg.mp.schelduler;
 
+import java.io.Serializable;
 import java.util.List;
 
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
@@ -11,15 +12,18 @@ import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
  *  - статус задачи имеет право менять только планировщик
  * 
  */
-public class Task {
+public class Task implements Serializable {
 	
+	private static final long serialVersionUID = 1L;
+
 	public static enum Status {
 		TS_WAIT_FOR_VERIFICATION,
 		TS_VERIFICATION_FINISHED,
-		TS_VERIFICATION_IN_PROGRESS
+		TS_VERIFICATION_IN_PROGRESS,
+		TS_PREPARE_FOR_SENDING_TO_VERIFICATION
 	}
 
-	private Status status = Status.TS_WAIT_FOR_VERIFICATION;
+	public Status status = Status.TS_WAIT_FOR_VERIFICATION;
 	
 	private List<Env> envs;
 	private byte[] driver;
@@ -42,18 +46,33 @@ public class Task {
 	}
 	
 	public Status getStatus() {
-		return status;
+		return rwStatus(0,null);
 	}
 	
-	public void setStatus(String status) {
-		// synchronized must be
+	public synchronized Status rwStatus(int operation, Status status) {
+		if(operation == 1) {
+			this.status = status;
+		} else if(operation == 2) {
+			if(status==Status.TS_WAIT_FOR_VERIFICATION) 
+				return this.status;
+			return null;
+		}
+		return this.status;
 	}
-
+	
+	public void setStatus(Status status) {
+		rwStatus(1,status);
+	}
+	
 	public List<Env> getEnvs() {
 		return envs;
 	}
 
 	public byte[] getData() {
 		return driver;
+	}
+
+	public Status getStatusForSending() {
+		return rwStatus(3, null);
 	}
 }	

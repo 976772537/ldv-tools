@@ -1,4 +1,4 @@
-package com.iceberg.mp.ws;
+package com.iceberg.mp.ws.server;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -14,13 +14,14 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.iceberg.mp.RunLDV;
-import com.iceberg.mp.Scheduler;
-import com.iceberg.mp.Task;
+import com.iceberg.mp.schelduler.Scheduler;
+import com.iceberg.mp.schelduler.Task;
+import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 import com.iceberg.mp.ws.wsm.WSM;
 import com.iceberg.mp.ws.wsm.WSMFactory;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
 
-public class WServerProto extends WProtocol {
+public class WServerProtocol implements ServerProtocolInterface {
 	
 	public static NodeList parseMsg(InputStream in) throws SAXException, IOException, ParserConfigurationException {
 		DocumentBuilder xml = DocumentBuilderFactory.newInstance().newDocumentBuilder();
@@ -43,10 +44,9 @@ public class WServerProto extends WProtocol {
 		out.flush();
 	}
 	
-	public void Communicate(InputStream in, OutputStream out, Scheduler scheduler) {
-		try {
+	public void communicate(Scheduler scheduler, InputStream in, OutputStream out) {
+		try {			
 			RunLDV.log.info("WS: Start client protocol.");
-			out.flush();
 			// Get an client msg
 			WSM wsmMsg = getMsg(in);
 			if(wsmMsg.getType().equals(WSMFactory.WSM_WSTOLDVS_TASK_PUT_REQUEST)) {
@@ -81,6 +81,6 @@ public class WServerProto extends WProtocol {
 		} finally {
 			RunLDV.log.info("WS: End client protocol.");
 		}
-	}	
+	}
 
 }
