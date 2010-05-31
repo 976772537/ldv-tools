@@ -283,6 +283,8 @@ class Application_Model_StatsMapper
     public function getErrorDesc($kernelId, $modelId, $toolsetId, $problemName, $tool)
     {
 		      $entries = array();
+	if($modelId)
+	{	      
 	  $sql = 'SELECT ' . 
                'drivers.name AS \'Driver name\'' .
                ', environments.version AS \'Kernel name\'' .
@@ -293,7 +295,20 @@ class Application_Model_StatsMapper
                ', traces.id AS \'Trace id\'' .
                ', traces.result AS Verdict' . " FROM launches LEFT JOIN drivers ON launches.driver_id=drivers.id LEFT JOIN environments ON launches.environment_id=environments.id LEFT JOIN rule_models ON launches.rule_model_id=rule_models.id LEFT JOIN toolsets ON launches.toolset_id=toolsets.id LEFT JOIN scenarios ON launches.scenario_id=scenarios.id LEFT JOIN traces ON launches.trace_id=traces.id WHERE launches.environment_id=$kernelId and launches.rule_model_id=$modelId and launches.toolset_id=$toolsetId"
                . ' ORDER BY toolsets.version, environments.version, rule_models.name, scenarios.executable, scenarios.main';
-
+    }
+    else
+    {
+	  $sql = 'SELECT ' . 
+               'drivers.name AS \'Driver name\'' .
+               ', environments.version AS \'Kernel name\'' .
+               ', rule_models.name AS \'Model name\'' .
+               ', toolsets.version AS \'Toolset name\'' .
+               ', scenarios.executable AS \'Module name\'' .
+               ', scenarios.main AS \'Environment model\'' .
+               ', traces.id AS \'Trace id\'' .
+               ', traces.result AS Verdict' . " FROM launches LEFT JOIN drivers ON launches.driver_id=drivers.id LEFT JOIN environments ON launches.environment_id=environments.id LEFT JOIN rule_models ON launches.rule_model_id=rule_models.id LEFT JOIN toolsets ON launches.toolset_id=toolsets.id LEFT JOIN scenarios ON launches.scenario_id=scenarios.id LEFT JOIN traces ON launches.trace_id=traces.id WHERE launches.environment_id=$kernelId and launches.toolset_id=$toolsetId"
+               . ' ORDER BY toolsets.version, environments.version, rule_models.name, scenarios.executable, scenarios.main';
+	}
       $result_set = $this->getDb()->fetchAll($sql);
       foreach ($result_set as $row)
       {
