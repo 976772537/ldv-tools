@@ -2106,6 +2106,9 @@ sub process_report()
     print_debug_debug("The commmand log command entry points are '@cmd_entry_points'.");
     print_debug_debug("The commmand log command description is '$cmd_desc'.");    
     
+    print_debug_trace("Remove the non-ASCII symbols from description since they aren't parsed correctly.");
+    $cmd_desc =~ s/[^[:ascii:]]//g;
+    
     $cmds_log{$cmd_id} = {
       'cmd name' => $cmd_name, 
       'cmd status' => $cmd_status,
