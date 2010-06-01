@@ -72,24 +72,22 @@ class StatsController extends Zend_Controller_Action
         ));
 
         $statistics = new Application_Model_StatsMapper(array('db' => $this->_db));
-        $this->view->entries = array('stats' => $statistics->getErrorTrace($driverId, $kernelId, $modelId, $toolsetId, $scenarioId));
-           
-/*
+        $errorTrace = $statistics->getErrorTrace($driverId, $kernelId, $modelId, $toolsetId, $scenarioId);
+
 $myFile = APPLICATION_PATH . "/files/testFile.txt";
 $fh = fopen($myFile, 'w') or die("can't open file");
 fwrite($fh, $errorTrace);
 fclose($fh);
 $outFile = APPLICATION_PATH . "/files/test.txt";
-		$output = array();
-		exec("/home/joker/work/14_driver/test_ldv_tools/bin/error-trace-visualizer.pl --engine=blast --report=$myFile --reqs-out=$outFile 2>&1", $output);
-		foreach ($output as $line)
-		{
-		  echo "$line<br>";
-		}
- 
-                        $this->view->entries = array('stats' => $errorTrace);
-		}
-*/
+$output = array();
+exec("/home/joker/work/14_driver/test_ldv_tools/bin/error-trace-visualizer.pl --engine=blast --report=$myFile --report-out=$outFile 2>&1", $output);
+foreach ($output as $line)
+{
+ echo "$line<br>";
+}
+
+//        $this->view->entries = array('stats' => $errorTrace);
+
     }
   
     

@@ -100,28 +100,22 @@ sub read_location($);
 #     Block
 #     FunctionCall
 #     Pred
-#     Return
 #     Skip
 #   annotation
 #     LDV
-#     line
 #     Location
 #     Locals
-#     src
 my %blast = (
   'tree node' => {
     my $element_kind_block = 'Block', \&read_brackets,
     my $element_kind_func_call = 'FunctionCall', \&read_brackets,
     my $element_kind_cond = 'Pred', \&read_brackets,
-    my $element_kind_retn = 'Return', \&read_brackets,
     my $element_kind_skip = 'Skip', ''
   },
   'annotation' => {
     my $element_kind_ldv_comment = 'LDV', \&read_ldv_comment,
-    my $element_kind_line = 'line', \&read_equal_int,
     my $element_kind_params = 'Locals', \&read_locals,
-    my $element_kind_location = 'Location', \&read_location,
-    my $element_kind_src = 'src', \&read_equal_src
+    my $element_kind_location = 'Location', \&read_location
   });
 
 # Prefix for all debug messages.
@@ -134,6 +128,9 @@ my %dependencies;
 # Engines which reports can be parsed are keys and values are corresponding
 # parsing subroutines.
 my %engines = (my $engine_blast = 'blast' => \&process_error_trace_blast);
+
+# The list of all trace entities.
+my @entities = ();
 
 # File handlers.
 my $file_report_in;
@@ -162,6 +159,14 @@ get_opt();
 
 print_debug_normal("Process trace.");
 process_error_trace();
+
+if ($opt_report_out)
+{
+  foreach (@entities)
+  {
+    print("!$_\n");	
+  }
+}
 
 # TODO this must be fixed!
 if ($opt_reqs_out)
@@ -407,7 +412,7 @@ sub process_error_trace_blast()
       {
         if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
         {
-#          print("   @{$element_value}\n") if $element_value;
+		  push(@entities, @{$element_value}) if $element_value;
         }
         # The following line is needed. So read it and concatenate with the 
         # previous one(s).

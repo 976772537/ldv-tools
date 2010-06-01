@@ -2,3 +2,7 @@
 #Vim swaps
 .*.swp
 .*.swo
+
+# Statistics server auxiliary files
+stats-visualizer/stats/application/files/*
+
