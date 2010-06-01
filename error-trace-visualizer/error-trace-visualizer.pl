@@ -9,10 +9,12 @@ Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../shared/perl", "$FindBin::RealBin/../shared/perl/error-trace-visualizer");
 
 # Add some nonstandard local Perl packages.
 use LDV::Utils;
+require Entity;
+require Annotation;
 
 
 ################################################################################
@@ -164,11 +166,11 @@ if ($opt_report_out)
 {
   foreach (@entities)
   {
-    print("!$_\n");	
+    print("!". $_->{'kind'} ."\n");	
   }
 }
 
-# TODO this must be fixed!
+# TODO this must be fixed!!!!!!
 if ($opt_reqs_out)
 {
       if ($opt_engine eq $engine_blast)
@@ -371,6 +373,16 @@ sub process_error_trace()
 
 sub process_error_trace_blast()
 {
+  # The list of current parents.	
+  my @parents = ();	
+
+  # Currently processed entity and annotation.
+  my $entity;
+  my $annotation;
+  
+  # Stored pre annotations.
+  my @pre_annotations = ();
+	
   while(1)
   {
     # Read some element, either tree node (like function call) or annotation
@@ -403,16 +415,35 @@ sub process_error_trace_blast()
         unless ($element_kind 
           or defined($blast{'tree node'}{$element_kind}) 
           or defined($blast{'annotation'}{$element_kind}));  
-        
-#      print("!!!$element_kind:$element_part\n");
-       
+
       # When handler is available then run it. If an element is processed 
       # successfully then a handler returns some defined value.  
       if ($blast{'tree node'}{$element_kind})
       {
         if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
         {
-		  push(@entities, @{$element_value}) if $element_value;
+		  print_debug_trace("Process the '$element_kind' tree node.");
+		  	
+		  # Ignore skips at all.	
+		  if ($element_value)
+		  {
+			$entity = Entity->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
+			
+			# Remember all entities.
+			push(@entities, $entity);
+			
+			# Process entities as tree.
+			push(@parents, $entity) 
+			  if ($entity->ismay_have_children());
+			pop(@parents)
+			  if ($entity->isparent_end());
+    		$entity->set_parent($parents[$#parents])
+    		  if (@parents);
+    		  
+    		# Add pre annotations.
+    		$entity->set_pre_annotations(@pre_annotations);
+    		@pre_annotations = ();  
+		  }
         }
         # The following line is needed. So read it and concatenate with the 
         # previous one(s).
@@ -425,16 +456,25 @@ sub process_error_trace_blast()
       {
         if (defined(my $element_value = $blast{'annotation'}{$element_kind}->($element_content)))
         {
-#            print("   @{$element_value}\n") if $element_value;
-          # Interpret different annotations.
-          if ($element_kind eq $element_kind_location)
+		  print_debug_trace("Process the '$element_kind' annotation.");
+		  
+          # Ignore arificial locations at all.  
+          if ($element_value) 
           {
-            # Ignore arificial locations at all.  
-            if ($element_value)  
+            # Story dependencies. TODO make it entity specific!!!!!!!!!!!!!!!!!!!!!!!
+            if ($element_kind eq $element_kind_location)
             {
               my ($src, $line) = @{$element_value};
               $dependencies{$src} = 1;
             }
+            
+			$annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
+
+            # Process annotation in depend on whethe it pre or post.
+            push(@pre_annotations, $annotation)
+              if ($annotation->ispre_annotation());
+            $entity->set_post_annotations(($annotation))
+              if ($annotation->ispost_annotation());
           }
         }
         # The following line is needed. So read it and concatenate with the 
