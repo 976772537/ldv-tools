@@ -5,10 +5,12 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.sql.Connection;
+import java.sql.SQLException;
 
-import com.iceberg.mp.schelduler.Scheduler;
 import com.iceberg.mp.schelduler.Task;
 import com.iceberg.mp.schelduler.VerClient;
+import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 import com.iceberg.mp.vs.VProtocol;
 import com.iceberg.mp.vs.vsm.VSM;
@@ -17,10 +19,10 @@ import com.iceberg.mp.vs.vsm.VSMClient;
 
 public class VServerProtocol extends VProtocol implements ServerProtocolInterface {
 
-	private static final long sleeptime = 1000;
+	private static final long sleeptime = 5000;
 	
 	@Override
-    public void communicate(Scheduler scheduler, InputStream in, OutputStream out) {
+    public void communicate(ServerConfig config, InputStream in, OutputStream out) {
 		ObjectInputStream ois = null;
 		ObjectOutputStream oos = null;
 		try {
@@ -33,17 +35,14 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             if(msg.getText().equals(sGetTask)) {
             	// проверяем есть ли такой клиент?
             	// если нет, то создаем дескриптор клиента
-            	// и отдаем его планировщику
-            	VerClient vclient = scheduler.getVERClient(((VSMClient)msg).getName());
-            	if(vclient == null) {
-            		vclient = new VerClient((VSMClient)msg);
-            		scheduler.putVERClient(vclient);
-            	}
+            	Connection conn = config.getStorageManager().getConnection();          	
+            	
             	// ждем задачи - проверяем свою очередь
             	// пока в ней не появятся задачи
-            	Task task=null;
-            	while((task = vclient.getTaskForSending()) == null) {
+            	Task task = null;//new Task(null,null);
+            	while(true) {
             		Thread.sleep(sleeptime);
+            		break;
             	}
             	// теперь отсылаем задачу клиенту
             	// ...
@@ -65,6 +64,8 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			// если сон прерван - то разрываем соединение
+			e.printStackTrace();
+		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 	}

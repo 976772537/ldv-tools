@@ -26,7 +26,7 @@ public class ServerThread extends Thread implements ServerThreadInterface {
 		try {
 			in = new BufferedInputStream( socket.getInputStream());
 			out = new BufferedOutputStream( socket.getOutputStream());			
-			protocol.communicate(config.getSchelduler(), in, out);
+			protocol.communicate(config, in, out);
 		} catch(IOException e) {
 			e.printStackTrace();
 		} catch(Throwable e) {

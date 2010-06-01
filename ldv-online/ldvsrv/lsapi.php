@@ -248,8 +248,8 @@ $rules2 = array("64","89");
 $env1 = array('name' => "vanilla", 'rules' => $rules1);
 $env2 = array('name' => "rhkernel", 'rules' => $rules2);
 
-$task['user'] = "Usver";
-$task['driverpath'] = "/home/almer/projects/ldv-online/ldvsrv/lsapi.php";
+$task['user'] = "mong";
+$task['driverpath'] = "/home/iceberg/ldv-tools/ldv-online/ldvsrv/lsapi.php";
 $task['envs'] = array($env1, $env2);
 
 WSPutTask($task);

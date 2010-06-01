@@ -19,7 +19,7 @@ public class Config {
 		try {
 			fin = new BufferedReader(new FileReader(filename));
 			while ((tmp = fin.readLine()) != null) {
-				if(tmp.length()>0 & tmp.charAt(0)!='#')  {
+				if(tmp.length()>0 && tmp.charAt(0)!='#')  {
 					String[] param = tmp.split("=");
 					paramMap.put(param[0],param[1]);
 				}

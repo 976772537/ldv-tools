@@ -6,19 +6,18 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.db.StorageManager;
 
 public class Scheduler extends Thread {
 	
-	private List<Task> taskList = new CopyOnWriteArrayList<Task>();
-	private List<VerClient> clientList = new CopyOnWriteArrayList<VerClient>();
-		
-	public Scheduler(Map<String, String> params) {
-		// TODO Auto-generated constructor stub
+	private StorageManager sManager;
+
+	public Scheduler(Map<String, String> params, StorageManager storageManager) {
+		this.sManager = storageManager;
 	}
 
 	// список у нас уже синхронизирован...
-	public void putTask(Task task) {
-		taskList.add(task);
+	public synchronized void putTask(Task task) {
 		RunLDV.log.info("SCHELDUER: Add task to pull.");
 	}
 
@@ -38,17 +37,13 @@ public class Scheduler extends Thread {
 	}
 	
 	// сделать синхронизированым
-	public void putVERClient(VerClient vclient) {
-		clientList.add(vclient);
+	public synchronized void putVERClient(VerClient vclient) {
 		RunLDV.log.info("SCHELDUER: Add verification client to pull.");
 	}
 
 
-	public VerClient getVERClient(String name) {
-		for(int i=0; i<clientList.size(); i++) {
-			if(clientList.get(i).getVName().equals(name))
-				return clientList.get(i);
-		}
+	public synchronized VerClient getVERClient(String name) {
+		//sManager.getConnection()
 		return null;
 	}
 }

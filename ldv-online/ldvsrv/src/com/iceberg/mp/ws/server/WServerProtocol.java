@@ -4,6 +4,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -14,11 +18,12 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.iceberg.mp.RunLDV;
-import com.iceberg.mp.schelduler.Scheduler;
 import com.iceberg.mp.schelduler.Task;
+import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 import com.iceberg.mp.ws.wsm.WSM;
 import com.iceberg.mp.ws.wsm.WSMFactory;
+import com.iceberg.mp.ws.wsm.WSMLdvtowsResponse;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
 
 public class WServerProtocol implements ServerProtocolInterface {
@@ -44,7 +49,7 @@ public class WServerProtocol implements ServerProtocolInterface {
 		out.flush();
 	}
 	
-	public void communicate(Scheduler scheduler, InputStream in, OutputStream out) {
+	public void communicate(ServerConfig config, InputStream in, OutputStream out) {
 		try {			
 			RunLDV.log.info("WS: Start client protocol.");
 			// Get an client msg
@@ -59,13 +64,14 @@ public class WServerProtocol implements ServerProtocolInterface {
 				byte[] block = new byte[((WSMWsmtoldvsTaskPutRequest)wsmMsg).getSourceLen()];
 				RunLDV.log.info("WS: Full size: "+block.length);
 				in.read(block);
-				RunLDV.log.info("WS: Create task.");
-				Task task = new Task(block,(WSMWsmtoldvsTaskPutRequest)wsmMsg);
+				//RunLDV.log.info("WS: Create task.");
+				//Task task = new Task(block,(WSMWsmtoldvsTaskPutRequest)wsmMsg);
 				RunLDV.log.info("WS: Put task to task-pull.");
-				scheduler.putTask(task);
-				// send response
-				RunLDV.log.info("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
+				Connection conn = config.getStorageManager().getConnection();
+				Task task = Task.create(block,(WSMWsmtoldvsTaskPutRequest)wsmMsg, config);
 				wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
+				if(task==null)	((WSMLdvtowsResponse)wsmReponse).setResult("FAILED");
+				RunLDV.log.info("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
 				sendMsg(out, wsmReponse);
 				RunLDV.log.info("WS: Ok - task transaction finished !");
 			} else {
@@ -77,6 +83,9 @@ public class WServerProtocol implements ServerProtocolInterface {
 		} catch (SAXException e) {
 			e.printStackTrace();
 		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
 			RunLDV.log.info("WS: End client protocol.");

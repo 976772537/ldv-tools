@@ -2,31 +2,29 @@ package com.iceberg.mp.server;
 
 import java.util.Map;
 
-import com.iceberg.mp.db.ConnectionManager;
+import com.iceberg.mp.db.StorageManager;
 import com.iceberg.mp.schelduler.Scheduler;
 
 public class ServerConfig extends Config {
 
 	private Scheduler schelduler;
 	private ServerThreadEnum serverType;
-
-	public ServerConfig(String serverName, int port, Scheduler schelduler, 
-			ServerThreadEnum serverType) {
-		super(serverName, port);
-		this.serverType = serverType;
-		this.schelduler = schelduler;
-	}
+	private StorageManager storageManager;
 
 	public ServerConfig(Map<String, String> params, Scheduler scheduler,
-			ConnectionManager connectmanager ,ServerThreadEnum serverType) {
-		if(serverType.equals(ServerThreadEnum.VS))
-		super(params,String type);
+			StorageManager storageManager ,ServerThreadEnum serverType) {
+		super(params, serverType);
 		this.serverType = serverType;
-		this.schelduler = schelduler;
+		this.schelduler = scheduler;
+		this.storageManager = storageManager;
 	}
 
 	public ServerThreadEnum getServerType() {
 		return serverType;
+	}
+	
+	public StorageManager getStorageManager() {
+		return storageManager;
 	}
 
 	public Scheduler getSchelduler() {
