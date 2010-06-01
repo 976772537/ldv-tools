@@ -1,0 +1,2 @@
+Copy the directory PREFIX/stats to your web server directory, make it accesable and put your path to the path_to_your_server_folder/stats/public/index.php.
+Also you may do this with virtual host configuration and so on.

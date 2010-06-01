@@ -41,14 +41,17 @@ XML::Twig->new( twig_roots => {
 
 my @archive = ($report_xml);
 # Package sources if they are referenced in the report
+my $source_sed = "";
 if (defined $source_dir) {
 	# Remove / from the end of source_dir, for uniformity
 	$source_dir =~ s/\/*$//;
 	push @archive, $source_dir;
+	$source_sed = "-s '|^\Q$source_dir\E\\\/*|sources\/|'";
+}
 
 	# Pack all files
-	print("pax -w -x cpio -s '|^\Q$source_dir\E\\\/*|sources\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ","\n");
-	system("pax -w -x cpio -s '|^\Q$source_dir\E\\\/*|sources\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
+	print("pax -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ","\n");
+	system("pax -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
 	print("Packing traces: \n");
 	for my $trace (@traces){
 		my $trace_absolute = "$work_dir/$trace";
@@ -57,8 +60,5 @@ if (defined $source_dir) {
 		print("pax -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' \n");
 		system("pax -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' ") and die;
 	}
-}else{
-	system("pax -w  ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax'") and die;
-}
 
 

@@ -3,19 +3,22 @@ LDV-MANAGER
 Infrastructure to run and collect statistics of LDV runs.
 
 PREREQUISITES:
+=============
 
-1. Ruby v1.8+
-2. Ruby gems package and the following gems:
+1. MySQL server and libmysqlclient15-dev+ 
+2. Ruby v1.8+
+3. Ruby gems package and the following gems:
 	gem install hpricot
 	gem install activerecord
 	gem install mysql
-3. GNU Make
-4. Perl (with XML::Twig)
-5. MySQL with InnoDB
-6. libmysqlclient15-dev+ 
-6. PAX archiver (that's POSIX standard actually)
+4. GNU Make
+5. Perl
+6. MySQL with InnoDB
+7. PAX archiver (that's POSIX standard actually) and CPIO archiver
+
 
 INSTALLATION
+============
 
 First you should install ldv-manager.  You can do it by changing into its directory and running
 
@@ -28,8 +31,8 @@ or by calling
 from ldv-tools root dir.
 
 
-
 HOW TO USE LDV-MANAGER
+======================
 
 As usual, change into an empty directory.  That will be your working dir.
 
@@ -60,17 +63,27 @@ If you need to run LDV-manager with currently installed tools (instead of making
 
 
 HOW TO USE DATABASE
+===================
 
-LDV-manager doesn't add anything to database.  The 'upload' script does that.
+LDV-manager doesn't add anything to database.  The 'ldv-upload' script does that.
 
 First, you should prepare DB schema.  Just execute results_schema.sql file to ERASE all existing tables and create schema for the new.
 
-Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run upload script on the files that are gotten from the ldv-manager:
+Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run ldv-upload script on the files that are gotten from the ldv-manager:
 
-	ldv-mangaer/upload package_from_ldv_manager.
+	ldv-mangaer/ldv-upload package_from_ldv_manager.
+
+At the point of uploading, Known Problems are automatically calculated based on descriptions.  Problem-scripts (that get description as input and print problems, one per line, as output) reside in ldv-manager/problems/ directory.  If you added more scripts, or modified existing ones, you may call special script.  To recalculate all stats for all scripts in standard directory, run
+
+	ldv-problem-recalc all
+
+To re-run scpecific scripts for specific tools,
+
+	ldv-problem-recalc ri ./ri_script ./ri_another_script
 
 
 SWITCHING AND TUNING C VERIFIERS
+================================
 
 (The following section applies to DSCV and ldv tools as well.)
 

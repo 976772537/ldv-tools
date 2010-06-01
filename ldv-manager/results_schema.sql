@@ -137,8 +137,10 @@ create table launches(
 	driver_id int(10) unsigned not null,
 	toolset_id int(10) unsigned not null,
 	environment_id int(10) unsigned not null,
-	rule_model_id int(10) unsigned not null,
-	scenario_id int(10) unsigned not null,
+-- Can be NULL if rule-instrumentor failed to create a model
+	rule_model_id int(10) unsigned,
+-- Can be NULL if the driver failed to build
+	scenario_id int(10) unsigned,
 
 	trace_id int(10) unsigned not null,
 
