@@ -160,6 +160,7 @@ my $error_semantics = 2;
 # File handlers.
 my $file_cmds_log;
 my $file_report_xml_out;
+my $file_temp = \*STDERR;
 my $file_xml_out;
 
 # Auxiliary files produced during work that must be deleted in the nondebug 
@@ -555,8 +556,9 @@ sub exec_status_desc_and_time($)
 sub exec_status_and_desc(@)
 {
   print_debug_trace("Redirect STDERR to the file '$opt_basedir/$tool_temp'.");
-  open(STDERR_SAVE, '>&', \*STDERR)
+  open(STDERR_SAVE, '>&', $file_temp)
     or die("Couldn't dup STDERR: $ERRNO"); 
+  die("I needed to prevent warning message generation") unless (*STDERR_SAVE);
   open(STDERR, '>', "$opt_basedir/$tool_temp")
     or die("Couldn't redirect STDERR to '$opt_basedir/$tool_temp': $ERRNO");
   # Make STDERR unbuffered.
