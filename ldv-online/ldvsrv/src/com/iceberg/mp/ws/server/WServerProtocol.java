@@ -4,10 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -52,23 +48,19 @@ public class WServerProtocol implements ServerProtocolInterface {
 	public void communicate(ServerConfig config, InputStream in, OutputStream out) {
 		try {			
 			RunLDV.log.info("WS: Start client protocol.");
-			// Get an client msg
 			WSM wsmMsg = getMsg(in);
 			if(wsmMsg.getType().equals(WSMFactory.WSM_WSTOLDVS_TASK_PUT_REQUEST)) {
 				RunLDV.log.info("WS: Client msg type: " + WSMFactory.WSM_WSTOLDVS_TASK_PUT_REQUEST);
 				WSM wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_DESCR_RESPONSE);
 				RunLDV.log.info("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_DESCR_RESPONSE);
 				sendMsg(out, wsmReponse);
-				// read binary data
 				RunLDV.log.info("WS: Read binary data from client.");
 				byte[] block = new byte[((WSMWsmtoldvsTaskPutRequest)wsmMsg).getSourceLen()];
 				RunLDV.log.info("WS: Full size: "+block.length);
 				in.read(block);
-				//RunLDV.log.info("WS: Create task.");
-				//Task task = new Task(block,(WSMWsmtoldvsTaskPutRequest)wsmMsg);
 				RunLDV.log.info("WS: Put task to task-pull.");
-				Connection conn = config.getStorageManager().getConnection();
 				Task task = Task.create(block,(WSMWsmtoldvsTaskPutRequest)wsmMsg, config);
+				block = null;
 				wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
 				if(task==null)	((WSMLdvtowsResponse)wsmReponse).setResult("FAILED");
 				RunLDV.log.info("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
@@ -83,9 +75,6 @@ public class WServerProtocol implements ServerProtocolInterface {
 		} catch (SAXException e) {
 			e.printStackTrace();
 		} catch (ParserConfigurationException e) {
-			e.printStackTrace();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
 			RunLDV.log.info("WS: End client protocol.");

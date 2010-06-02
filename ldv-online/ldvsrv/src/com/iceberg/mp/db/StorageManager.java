@@ -2,7 +2,6 @@ package com.iceberg.mp.db;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map;
@@ -63,11 +62,6 @@ public class StorageManager {
 	public void init() throws IOException, SQLException, ClassNotFoundException {
 		//1. создаем директории, если их нет
 		File fileWorkdir = new File(bins);
-		/*File fwd = new File(workdir);
-		String canonic = fwd.getCanonicalPath();
-		if(fwd.exists()) {
-			System.out.println("It exists");
-		}*/
 		if(!fileWorkdir.exists()) {
 			RunLDV.log.info("Create storage dirs...");
 			if(!fileWorkdir.mkdirs()) {
@@ -85,17 +79,12 @@ public class StorageManager {
 		RunLDV.log.info("Ok");
 		//3. инициализирем таблицы
 		RunLDV.log.info("Initialize tables...");
-		//try {
-		singleConnection.createStatement().execute(SQLINITREQUEST_1);
-		singleConnection.createStatement().execute(SQLINITREQUEST_2);
-		singleConnection.createStatement().execute(SQLINITREQUEST_3);
-		
-		//singleConnection.createStatement().execute("INSERT INTO USERS(privileges,name) VALUES(1,maya);");
-		//singleConnection.commit();
-		//singleConnection.close();
-		//} catch (SQLException e) {
-//			e.printStackTrace();
-		//}
+		Statement st = singleConnection.createStatement();
+		st.execute("DROP TABLE IF EXISTS CLIENTS");
+		st.execute(SQLINITREQUEST_1);
+		st.execute(SQLINITREQUEST_2);
+		st.execute(SQLINITREQUEST_3);
+		st.close();
 		RunLDV.log.info("Ok");
 	}
 	
@@ -110,5 +99,12 @@ public class StorageManager {
 		singleConnection.close();
 		RunLDV.log.info("Ok");
 	}
+
+	@Override
+	protected void finalize() throws Throwable {
+		super.finalize();
+		singleConnection.close();
+	}
+	
 
 }

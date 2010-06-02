@@ -12,6 +12,6 @@ public class SharedKitchen {
 		ds.setUser("sa");
 		ds.setPassword("sa");
 		Connection conn = ds.getConnection();
-		System.out.println();
+		System.out.println(conn);
 	}
 }
