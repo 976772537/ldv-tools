@@ -462,6 +462,12 @@ sub read_brackets($)
   # after all.
   return undef unless ($line =~ /\)$/);
   
+  # Check the balance of open and close brackets. If it isn't correct
+  # then additional strings are needed.
+  my $open_bracket_numb = ($line =~ tr/\(//);
+  my $close_bracket_numb = ($line =~ tr/\)//);
+  return undef if ($open_bracket_numb != $close_bracket_numb);
+  
   # Remove brackets surrounding the line.
   $line =~ /^\(/;
   $line = $POSTMATCH;

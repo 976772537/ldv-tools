@@ -144,12 +144,19 @@ sub hxml_cmdstream {
 				ldv_print("engine in report: ".$engine_blast);
 				my $temp_file = "$report_out.tmp";
 				# remove old temp files
-				system('rm','-f',$temp_file) and die;
+				ldv_dprint("rm -f $temp_file");
+				if(system('rm','-f',$temp_file)) {
+					ldv_wprint("Can't remove temp file: \"$temp_file\".");
+					return;
+				}
 				# call visualizer
-				system($tracevis,"--engine=$engine","--report=$trace","--reqs-out=$temp_file") and die;
+				if(system($tracevis,"--engine=$engine","--report=$trace","--reqs-out=$temp_file")) {
+					ldv_wprint("error-trace-visualizer failed.");
+					return;
+				}
 				if(!( -f $temp_file)) {
-					ldv_eprint("Can't find temp file.");
-					exit(1);
+					ldv_wprint("Can't find temp file.");
+					return;
 				};
 				# read temp file
 				open(FILT,$temp_file); 
@@ -165,21 +172,33 @@ sub hxml_cmdstream {
 						$relpath =~ s/(.*)\/.*$/$1/;
 						my $rel_path_full="$report_out.source/$kernel/$relpath";
 						chomp($rel_path_full);
-						system('mkdir','-p',$rel_path_full) and die;
+						ldv_dprint("mkdir -p $rel_path_full");
+						if(system('mkdir','-p',$rel_path_full)) {
+							ldv_wprint("Can't create dir:\"$rel_path_full\"");
+							return;
+						};
 						chomp($tfile);
-						system('cp',$tfile,$rel_path_full) and die;				
+						ldv_dprint("cp $tfile $rel_path_full");				
+						if(system('cp',$tfile,$rel_path_full)) {
+							ldv_wprint("Can't copy file:\"$tfile\" to \"$rel_path_full\"");
+							return;
+						}		
 					} else {
 						$relpath = $tfile;
 						$relpath =~ s/$work_dir_pattern\/+ldv_tempdir\/+driver\/+(.*)/$1/;
 						$relpath =~ s/(.*)\/.*$/$1/;
 						my $rel_path_full="$report_out.source/$kernel/kernel/$relpath";
 						chomp($rel_path_full);
-						system('mkdir','-p',$rel_path_full) and die;
+						if(system('mkdir','-p',$rel_path_full)) {
+							ldv_wprint("Can't create dir:\"$rel_path_full\".");
+							return;
+						}
+						ldv_dprint("LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel");
 						my $path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel`;
 						chomp($path_to_kernel);
 						if(!(-d $path_to_kernel)) {
-							ldv_eprint("Can't get path for kernel.");
-							exit 1;
+							ldv_wprint("Can't get path for kernel.");
+							return;
 						}
 						my $kernel_file;
 						if( $tfile =~ m/$work_dir_pattern\/+ldv_tempdir\/+driver\/+/ ) {
@@ -189,18 +208,21 @@ sub hxml_cmdstream {
 						}
 						chomp($kernel_file);
 						if(!(-f $kernel_file)) {
-							ldv_eprint("Can't find kernel file.");
-							exit 1;
+							ldv_wprint("Can't find kernel file.");
+							return;
 						}
 						# and now copy it
-						system('cp',$kernel_file,$rel_path_full) and die;				
+						if(system('cp',$kernel_file,$rel_path_full)) {
+							ldv_wprint("Can't copy kernel file.");
+							return;
+						}
 					}
 				}
 			} elsif ($engine eq $engine_cpachecker) {
 				ldv_print("engine in report: ".$engine_cpachecker);
 			} else {
-				ldv_eprint("Unknown engine in report !");
-				exit(1);
+				ldv_wprint("Unknown engine in report !");
+				return;
 			}
 		}
 	}
@@ -299,6 +321,11 @@ sub print_usage
 sub ldv_print
 {
 	print "$psuffix: $_[0]\n";
+}
+
+sub ldv_wprint
+{
+	ldv_print "WARNING: $_[0]";
 }
 
 sub ldv_eprint
