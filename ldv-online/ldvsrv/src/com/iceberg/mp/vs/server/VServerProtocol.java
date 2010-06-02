@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
 import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.schelduler.Task;
 import com.iceberg.mp.schelduler.VerClient;
 import com.iceberg.mp.server.ServerConfig;
@@ -46,8 +47,10 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             		Thread.sleep(sleeptime);
             	RunLDV.log.info("Ok - sending task to verification client");
             	// теперь отсылаем задачу клиенту
-            	oos.writeObject(task);
+            	MTask mtask = new MTask(task);
+            	oos.writeObject(mtask);
             	oos.flush();
+            	mtask = null;
             	RunLDV.log.info("Wait for response - \"get task ok\"");
             	// ожидаем ответа от клиента, что он успешно принял задачу
             	msg = (VSM)ois.readObject();

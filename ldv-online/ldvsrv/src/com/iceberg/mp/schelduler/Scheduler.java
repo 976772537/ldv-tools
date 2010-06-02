@@ -128,10 +128,6 @@ public class Scheduler extends Thread {
 			if(vcList.size() == 0 && btList.size()==0) {
 				try {Thread.sleep(timeout_for_one);} catch (InterruptedException e) {}
 			}
-			// берем задачу и разбиваем ее на множество дочерних...
-			List<Task> mtList = Task.divideByEnvironment(btList.get(0));
-			// раздаем клиентам в пулы
-			
 		}
 	}
 	

@@ -73,7 +73,7 @@ public class Task implements Serializable {
 	public Task(int id_task,String user , int id_user, long size, List<Env> envs,
 			String path, Task.Status status) {
 			this.envs = envs;
-			this.size = 0;
+			this.size = size;
 			this.user = user;
 			this.userId = id_user;
 			this.Id = id_task;
@@ -117,36 +117,32 @@ public class Task implements Serializable {
 			}
 		} else if(operation == 4) {
 			if(this.status==Status.TS_WAIT_FOR_VERIFICATION) {
-				status = Status.TS_PREPARE_FOR_SENDING_TO_VERIFICATION;
+				this.status = Status.TS_PREPARE_FOR_SENDING_TO_VERIFICATION;
 				try {
 					prepareForSending();
 				} catch (FileNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} finally {
-					// поставить стату - BAD_TASK, чтобы планировщик ее удалил
-					status = Status.TS_WAIT_FOR_VERIFICATION;
-				}
+					this.status = Status.TS_WAIT_FOR_VERIFICATION;
+				} 
 			}
 		} else if(operation == 5) {
 			if(this.status==Status.TS_PREPARE_FOR_SENDING_TO_VERIFICATION) {
-				status = Status.TS_VERIFICATION_IN_PROGRESS;
+				this.status = Status.TS_VERIFICATION_IN_PROGRESS;
 				driver = null;
 			}
 		} else if(operation == 6) {
 			if(this.status==Status.TS_VERIFICATION_IN_PROGRESS) {
-				status = Status.TS_WAIT_FOR_VERIFICATION;
+				this.status = Status.TS_WAIT_FOR_VERIFICATION;
 				driver = null;
 			}
 		} else if(operation == 7) {
 			if(this.status==Status.TS_WAIT_FOR_VERIFICATION) {
-				status = Status.TS_DIVIDED;
+				this.status = Status.TS_DIVIDED;
 				driver = null;
 			}
 		} else if(operation == 8) {
 			if(this.status==Status.TS_DIVIDED) {
 				// только finished заносятся в бд
-				status = Status.TS_VERIFICATION_FINISHED;
+				this.status = Status.TS_VERIFICATION_FINISHED;
 				driver = null;
 			}
 		}
@@ -273,7 +269,7 @@ public class Task implements Serializable {
 	}
 
 	public static List<Env> getEnvsFromString(String vparams) {
-		String[] senvs = vparams.split("@");
+		String[] senvs = vparams.substring(1).split("@");
 		List<Env> envList = new ArrayList<Env>();
 		for(String senv : senvs) {
 			String[] srules = senv.split(":");
@@ -298,6 +294,7 @@ public class Task implements Serializable {
 				List<Env> oneList = new ArrayList<Env>();
 				oneList.add(envs.get(i));
 				Task mttask = new Task(i,task.getUser(),task.getUserId(),task.getSize(),oneList,task.getPath(),Task.Status.TS_WAIT_FOR_VERIFICATION);
+				mtList.add(mttask);
 			}
 			return mtList;
 		}
@@ -310,6 +307,29 @@ public class Task implements Serializable {
 	
 	public Status setFinishedFromDivided() {
 		return rwStatus(8, null);
+	}
+
+	public int getId() {
+		return Id;
+	}
+
+	public static String getSerVparams(Task task) {
+		List<Env> envs = task.getEnvs();
+		String vparams="";
+		for(int i=0; i<envs.size();i++) {
+			if(i==0) 
+				vparams+=envs.get(i).getName()+"@";
+			else
+				vparams+=":"+envs.get(i).getName()+"@";
+			List<String> ruleList = envs.get(i).getRules(); 
+			for(int j=0; j<ruleList.size(); j++) {
+				if(j==0) 
+					vparams+=ruleList.get(j);
+				else
+					vparams+=","+ruleList.get(j);				
+			}
+		}
+		return vparams;
 	}
 
 }	

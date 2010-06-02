@@ -7,7 +7,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
-import com.iceberg.mp.schelduler.Task;
+import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.server.ClientConfig;
 import com.iceberg.mp.vs.VProtocol;
 import com.iceberg.mp.vs.vsm.VSM;
@@ -23,13 +23,13 @@ public class VClientProtocol {
 			this.config = config;
 		}
 	
-        public Task VSGetTask() {
+        public MTask VSGetTask() {
     			Socket socket = null;
     			InputStream in  = null;
     			OutputStream out = null;
         		ObjectInputStream ois = null;
         		ObjectOutputStream oos = null;
-        		Task task = null;
+        		MTask task = null;
                 try {
         				socket = new Socket(config.getServerName(), config.getServerPort());
         				in  = socket.getInputStream();
@@ -42,7 +42,7 @@ public class VClientProtocol {
                         // читаем задачу
                         ois = new ObjectInputStream(in);
                         // принимаем задачу
-                        task = (Task)ois.readObject();
+                        task = (MTask)ois.readObject();
                         // говорим что успешно прняли
                         VSMClientGetTaskOk msgGetTaskOk = new VSMClientGetTaskOk(config.getCientName());
                         oos.writeObject(msgGetTaskOk);

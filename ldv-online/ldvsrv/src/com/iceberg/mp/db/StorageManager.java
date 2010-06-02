@@ -14,7 +14,7 @@ public class StorageManager {
 
 	
 	private static final String SQLINITREQUEST_1 = "CREATE CACHED TABLE " +
-		"IF NOT EXISTS CLIENTS(id INT PRIMARY KEY, " +
+		"IF NOT EXISTS CLIENTS(id INT PRIMARY KEY AUTO_INCREMENT, " +
 		"name VARCHAR(255) NOT NULL, status VARCHAR(255) NOT NULL)";
 	// path  не нужен, путь формируется как bins+id
 	private static final String SQLINITREQUEST_2 = "CREATE CACHED TABLE " +

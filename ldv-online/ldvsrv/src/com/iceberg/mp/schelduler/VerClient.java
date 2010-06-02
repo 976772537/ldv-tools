@@ -78,8 +78,8 @@ public class VerClient extends Thread {
 			// если клиента такого нет, то регистрируем
 			int id_client;
 			if(result.getRow()==0 && !result.next()) {
-				st.execute("INSERT INTO CLIENTS(name,status) VALUES(0,'"+vsmmsg.getName()+"','"+Status.VS_WAIT_FOR_TASK+"')");
-				result = st.executeQuery("SELECT * FROM USERS WHERE NAME='"+vsmmsg.getName()+"'");
+				st.execute("INSERT INTO CLIENTS(name,status) VALUES('"+vsmmsg.getName()+"','"+Status.VS_WAIT_FOR_TASK+"')");
+				result = st.executeQuery("SELECT id FROM CLIENTS WHERE NAME='"+vsmmsg.getName()+"'");
 				result.next();
 				id_client = result.getInt("id");
 			} else { // иначе пытаемся достать из пула...
