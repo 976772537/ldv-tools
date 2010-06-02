@@ -21,6 +21,11 @@ require Annotation;
 # Subroutine prototypes.
 ################################################################################
 
+# Add spaces around some operators to make output more nice.
+# args: some string.
+# retn: this string with formatted operators.
+sub add_mising_spaces($);
+
 # Determine the debug level in depend on the environment variable value.
 # args: no.
 # retn: nothing.
@@ -46,6 +51,26 @@ sub print_debug_debug($);
 sub print_debug_trace($);
 sub print_debug_all($);
 
+# Pretty print an error trace.
+# args: the tree root node.
+# retn: nothing.
+sub print_error_trace($);
+
+# Pretty print a blast error trace.
+# args: the tree root node.
+# retn: nothing.
+sub print_error_trace_blast($);
+
+# Pretty print a blast error trace node with all its children and corresponding indent.
+# args: the tree root node and space indent.
+# retn: nothing.
+sub print_error_trace_node_blast($$);
+
+# Print the required number of spaces.
+# args: the number of spaces.
+# retn: nothing.
+sub print_spaces($);
+
 # Process an error trace passed through options.
 # args: no.
 # retn: nothing.
@@ -53,7 +78,7 @@ sub process_error_trace();
 
 # Process a blast error trace.
 # args: no.
-# retn: nothing.
+# retn: the tree root node.
 sub process_error_trace_blast();
 
 # Read something placed into brackets.
@@ -127,12 +152,12 @@ my $debug_name = 'error-trace-visualizer';
 # pathes to corresponding dependencies files.
 my %dependencies;
 
+# Engines which reports can be pretty printed are keys and values are corresponding
+# parsing subroutines.
+my %engines_print = (my $engine_blast = 'blast' => \&print_error_trace_blast);
 # Engines which reports can be parsed are keys and values are corresponding
 # parsing subroutines.
-my %engines = (my $engine_blast = 'blast' => \&process_error_trace_blast);
-
-# The list of all trace entities.
-my @entities = ();
+my %engines_process = ($engine_blast => \&process_error_trace_blast);
 
 # File handlers.
 my $file_report_in;
@@ -149,6 +174,10 @@ my $opt_reqs_out;
 # Some usefull reqular expressions.
 my $regexp_element_kind = '^([^=\(:]+)';
 
+# The number of indentation spaces.
+my $space_indent = 2;
+
+
 ################################################################################
 # Main section.
 ################################################################################
@@ -160,14 +189,11 @@ print_debug_normal("Process the command-line options.");
 get_opt();
 
 print_debug_normal("Process trace.");
-process_error_trace();
+my $tree_root = process_error_trace();
 
 if ($opt_report_out)
 {
-  foreach (@entities)
-  {
-    print("!". $_->{'kind'} ."\n");	
-  }
+  print_error_trace($tree_root);	
 }
 
 # TODO this must be fixed!!!!!!
@@ -202,6 +228,17 @@ print_debug_normal("Make all successfully.");
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub add_mising_spaces($)
+{
+  my $str = shift;
+
+  # Add mising spaces around equality sign.
+  $str =~ s/([^ ])=/$1 =/g;  	
+  $str =~ s/=([^ ])/= $1/g;
+  
+  return $str;
+}
 
 sub get_debug_level()
 {
@@ -362,13 +399,122 @@ sub print_debug_all($)
   vsay('ALL', "$message\n");
 }
 
+sub print_error_trace($)
+{
+  my $tree_root = shift;
+  	
+  print_debug_trace("Check whether specified static verifier engine is supported.");
+  die("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: '" . keys(%engines_print) . "'") 
+    unless(defined($engines_print{$opt_engine}));
+  print_debug_debug("Print the '$opt_engine' static verifier error trace.");
+  $engines_print{$opt_engine}->($tree_root);  
+  print_debug_debug("'$opt_engine' static verifier error trace is printed successfully.");
+}
+
+sub print_error_trace_blast($)
+{
+  my $tree_root = shift;
+  	
+  # Print tree recursively.	
+  print_error_trace_node_blast($tree_root, 0);
+}
+
+sub print_error_trace_node_blast($$)
+{
+  my $tree_node = shift;
+  my $indent = shift;
+  
+  print_debug_trace("Print the '$tree_node->{'kind'}' tree node.");
+
+  # Remove variables scope from values for all tree nodes.
+  ${$tree_node->{'values'}}[0] =~ s/@[_a-zA-Z0-9]+//g;
+  # Make output more formatted.
+  ${$tree_node->{'values'}}[0] = add_mising_spaces(${$tree_node->{'values'}}[0]);
+
+  # Print tree node declaration.
+  print_spaces($indent);
+  if ($tree_node->{'kind'} eq 'Root')
+  {
+    print($file_report_out "entry_point();\n");
+    print_spaces($indent);
+    print($file_report_out "{\n");
+  }
+  elsif ($tree_node->{'kind'} eq 'FunctionCall')
+  {
+    print($file_report_out ${$tree_node->{'values'}}[0], ";\n");
+    print_spaces($indent);
+    print($file_report_out "{\n");    
+  }
+  elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
+  {
+    print($file_report_out ${$tree_node->{'values'}}[0], "{ /* The function body is undefined. */ };\n");
+  }
+  elsif ($tree_node->{'kind'} eq 'Block')
+  {
+	# Split expressions joined together into one block.
+	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
+	my $once = 1;
+	
+	foreach my $expr (@exprs)
+	{	
+	  print_spaces($indent)
+	    unless ($once);
+	  print($file_report_out $expr, ";\n");    	
+	  $once = 0;
+    }	 
+  }
+  elsif ($tree_node->{'kind'} eq 'Return')
+  {
+    print($file_report_out "return ", ${$tree_node->{'values'}}[0], ";\n");    
+  }
+  elsif ($tree_node->{'kind'} eq 'Pred')
+  {
+    print($file_report_out "assert(", ${$tree_node->{'values'}}[0], ");\n");    
+  }
+      
+  # Print tree node children with enlarged indentation if so.
+  if ($tree_node->{'children'})
+  {
+    foreach my $child (@{$tree_node->{'children'}})
+    {
+	  print_error_trace_node_blast($child, ($indent + $space_indent));
+	}
+  }
+  
+  # Print tree node ends if so.
+  if ($tree_node->{'kind'} eq 'Root')
+  {
+    print_spaces($indent);
+    print($file_report_out "}\n");
+  }
+  elsif ($tree_node->{'kind'} eq 'FunctionCall')
+  {
+    print_spaces($indent);
+    print($file_report_out "}\n");    
+  }
+}
+
+sub print_spaces($)
+{
+  my $space_number = shift;
+  
+  # Print identation spaces.
+  for (my $i = 1; $i <= $space_number; $i++)
+  {
+	print($file_report_out ' ');
+  }   
+}
+
 sub process_error_trace()
 {
   print_debug_trace("Check whether specified static verifier engine is supported.");
-  die("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: '" . keys(%engines) . "'") unless(defined($engines{$opt_engine}));
+  die("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: '" . keys(%engines_process) . "'") 
+    unless(defined($engines_process{$opt_engine}));
   print_debug_debug("Process the '$opt_engine' static verifier error trace.");
-  $engines{$opt_engine}->();  
+  my $tree_root = $engines_process{$opt_engine}->();  
   print_debug_debug("'$opt_engine' static verifier error trace is processed successfully.");
+  
+  return $tree_root;
 }
 
 sub process_error_trace_blast()
@@ -383,6 +529,10 @@ sub process_error_trace_blast()
   # Stored pre annotations.
   my @pre_annotations = ();
 	
+  # Create the tree root corresponding to the entry point or main.
+  $entity = Entity->new({'engine' => 'blast', 'kind' => 'Root'});	
+  push(@parents, $entity);
+				
   while(1)
   {
     # Read some element, either tree node (like function call) or annotation
@@ -428,18 +578,15 @@ sub process_error_trace_blast()
 		  if ($element_value)
 		  {
 			$entity = Entity->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
-			
-			# Remember all entities.
-			push(@entities, $entity);
-			
+
 			# Process entities as tree.
+    		$entity->set_parent($parents[$#parents])
+    		  if (@parents);
 			push(@parents, $entity) 
 			  if ($entity->ismay_have_children());
 			pop(@parents)
 			  if ($entity->isparent_end());
-    		$entity->set_parent($parents[$#parents])
-    		  if (@parents);
-    		  
+	  
     		# Add pre annotations.
     		$entity->set_pre_annotations(@pre_annotations);
     		@pre_annotations = ();  
@@ -470,11 +617,17 @@ sub process_error_trace_blast()
             
 			$annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
 
-            # Process annotation in depend on whethe it pre or post.
+            # Process annotation in depend on whether it pre or post.
             push(@pre_annotations, $annotation)
               if ($annotation->ispre_annotation());
-            $entity->set_post_annotations(($annotation))
-              if ($annotation->ispost_annotation());
+            if ($annotation->ispost_annotation())
+            {
+              $entity->set_post_annotations(($annotation));
+              
+              # Update parents since post annotation may change the entity kind.
+              pop(@parents)
+			    if ($entity->isparent_end());  
+			}
           }
         }
         # The following line is needed. So read it and concatenate with the 
@@ -492,6 +645,9 @@ sub process_error_trace_blast()
     # All was read.
     last if ($iselement_read == -1);
   }
+  
+  # Return the tree root node.
+  return $parents[0];
 }
 
 sub read_brackets($)
@@ -566,8 +722,17 @@ sub read_ldv_comment($)
 {
   my $line = shift;
   
-  my @comments = ($line);
-  
+  # Check that line begins with colon. It'll be so if there is no critical error 
+  # in trace.
+  return undef unless ($line =~ /^:/);
+
+  # Remove colon beginning the line and all formatting spaces and tabs placed at the beginning of the line.
+  $line =~ /^:[\s]*/;
+  $line = $POSTMATCH;
+
+  # LDV comments are splited by colons.
+  my @comments = split(/:/, $line);
+
   return \@comments;
 }
 
@@ -594,8 +759,8 @@ sub read_locals($)
   # in trace.
   return undef unless ($line =~ /^:/);
 
-  # Remove colon beginning the line.
-  $line =~ /^:/;
+  # Remove colon beginning the line and all formatting spaces and tabs placed at the beginning of the line.
+  $line =~ /^:[\s]*/;
   $line = $POSTMATCH;
 
   # Function parameters names are splited by spaces.

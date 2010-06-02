@@ -14,7 +14,7 @@ require Annotation;
 my $engine_blast = 'blast';
 
 my %parent_entities = ($engine_blast => {'FunctionCall' => 1});
-my %parent_end_entities = ($engine_blast => {'Return' => 1});
+my %parent_end_entities = ($engine_blast => {'Return' => 1, 'FunctionCallWithoutBody' => 1});
 
 
 sub new($$)
@@ -66,6 +66,12 @@ sub set_parent($$)
   my ($self, $parent) = @ARG;
 
   $self->{'parent'} = $parent;
+  
+  # Also store children to the parent.
+  my @children = ();
+  @children = @{$parent->{'children'}} if ($parent->{'children'});
+  push(@children, $self);
+  $parent->{'children'} = \@children;
 
   return $self;
 }
@@ -76,6 +82,18 @@ sub set_post_annotations($@)
 
   $self->{'post annotations'} = \@post_annotations;
 
+  # Change the entity kind if post annotation require this.
+  foreach my $post_annotation (@post_annotations)  
+  {  
+	if (${$post_annotation}{'kind'} eq 'LDV')
+	{
+      if (${${$post_annotation}{'values'}}[0] and ${${$post_annotation}{'values'}}[0] =~ /undefined function call/)
+      {
+		$self->{'kind'} = 'FunctionCallWithoutBody';
+	  }
+	}  
+  }
+  
   return $self;
 }
 
