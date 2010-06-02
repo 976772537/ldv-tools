@@ -85,6 +85,11 @@ foreach ($output as $line)
 {
  echo "$line<br>";
 }
+#$fh = fopen($outFile, 'r') or die("can't open file");
+echo "<pre>";
+readfile($outFile);
+echo "</pre>";
+#fclose($fh);
 
 //        $this->view->entries = array('stats' => $errorTrace);
 
