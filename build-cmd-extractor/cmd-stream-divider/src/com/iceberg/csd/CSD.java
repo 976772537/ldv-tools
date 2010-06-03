@@ -8,6 +8,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.xml.sax.SAXException;
 
 import com.iceberg.csd.cmdstream.CmdStream;
+import com.iceberg.csd.utils.Logger;
 
 public class CSD {
 	
@@ -27,47 +28,38 @@ public class CSD {
 		if(!getOpts(args)) 
 			System.exit(-1);
 		try {
+			Logger.trace("Try to get input command stream...");
 			CmdStream cmdstream = CmdStream.getCmdStream(cmdfile, WORK_DIR+"/"+basedir);
+			Logger.trace("Ok.");
+			Logger.trace("Generate new command streams..");
 			cmdstream.generateTree(WORK_DIR+"/"+basedir,printdigraph,driversplit,fullcopy,statefile);
+			Logger.trace("Ok.");
 		} catch (ParserConfigurationException e1) {
-			System.out.println("csd: ERROR: parse exception.\n");
+			Logger.err("Parse exception");
 			System.exit(-1);
 		} catch (SAXException e1) {
-			System.out.println("csd: SAX exception.\n");
+			Logger.err("SAX exception");
 			System.exit(-1);
 		} catch (IOException e1) {
-			System.out.println("csd: IO exception.\n");
+			Logger.err("IO exception");
 			System.exit(-1);
 		}
 	}
 	
 	private static boolean getOpts(String[] args) {
+		Logger.getLogLevelFromEnv();
+		
 		if(args.length < 2 ) {
-			System.out.println(usageString);
+			Logger.info(usageString);
 			return false;
 		}	
 		
 		WORK_DIR = System.getenv("WORK_DIR");
 		if(WORK_DIR == null || WORK_DIR.length() == 0) {
-			System.out.println("ERROR: setup WORK_DIR var before!");
-			System.out.println(usageString);
+			Logger.err("setup WORK_DIR var before!");
+			Logger.info(usageString);
 			return false;
 		}
-		
-		String LDV_DEBUG = System.getenv("LDV_DEBUG");
-		if(LDV_DEBUG!=null) {
-			if(LDV_DEBUG.equals("INFO"))
-				ldv_debug=20;
-			else if(LDV_DEBUG.equals("NORMAL"))
-				ldv_debug=10;
-			else if(LDV_DEBUG.equals("DEBUG"))
-				ldv_debug=30;
-			else if	(LDV_DEBUG.equals("TRACE"))
-				ldv_debug=40;
-			else if(LDV_DEBUG.equals("ALL"))
-				ldv_debug=100;
-		}
-
 		
 		for(int i=0; i<args.length; i++) {
 			if(args[i].contains("--basedir=")) {
@@ -91,20 +83,20 @@ public class CSD {
 			if(args[i].equals("--print-digraph")) {
 				printdigraph = true;
 			} else	{
-				System.out.println("csd: ERROR: Unknown parameter: \""+args[i]+"\".");
-				System.out.println(usageString);
+				Logger.err("Unknown parameter: \""+args[i]+"\".");
+				Logger.info(usageString);
 				return false;
 			}
 		}
 		
 		if(basedir==null || basedir.length()==0) {
-			System.out.println("csd: ERROR: Setup option \"--basedir\" - not set.");
+			Logger.err("Setup option \"--basedir\" - not set.");
 			return false;			
 		}		
 
 		File wokrFile = new File(WORK_DIR);
 		if(!wokrFile.exists() || !wokrFile.isDirectory()) {
-			System.out.println("csd: ERROR: WORK_DIR directory: \""+WORK_DIR+"\" - not exists.");
+			Logger.err(" WORK_DIR directory: \""+WORK_DIR+"\" - not exists.");
 			return false;
 		}
 		
@@ -113,34 +105,34 @@ public class CSD {
 //			System.out.println("csd: WARNING: Temp directory: \""+WORK_DIR+"/"+basedir+"\" - not exists. Try to create it");
 			wokrdirFile.mkdirs();
 		} else {
-			System.out.println("csd: ERROR: Temp directory: \""+WORK_DIR+"/"+basedir+"\" - alredy.");
+			Logger.err("Temp directory: \""+WORK_DIR+"/"+basedir+"\" - alredy.");
 			return false;
 		} 
 		
 		if(cmdfile==null || cmdfile.length()==0) {
-			System.out.println("csd: ERROR: Setup option \"--cmdfile\" - and try again.");
+			Logger.err("Setup option \"--cmdfile\" - and try again.");
 			return false;			
 		}
 		
 		File cmdFile = new File(cmdfile);
 		if(!cmdFile.exists()) {
-			System.out.println("csd: ERROR: Can't find input cmdfile: \""+cmdfile+"\".");
+			Logger.err("Can't find input cmdfile: \""+cmdfile+"\".");
 			return false;
 		}
 		
 		if(statefile==null || statefile.length()==0) {
-			System.out.println("csd: ERROR: Setup option \"--state-file\" - and try again.");
+			Logger.err("Setup option \"--state-file\" - and try again.");
 			return false;			
 		}
 		
 		File stateFile = new File(statefile);
 		if(stateFile.exists()) {
-			System.out.println("csd: ERROR: State file already exists: \""+statefile+"\".");
+			Logger.err("State file already exists: \""+statefile+"\".");
 			return false;
 		}
 		
 		if(cmdfileout==null || cmdfileout.length()==0) {
-			System.out.println("csd: WARNING: Option \"--cmdfile-out\" - not set. Use default \"cmd_after_csd\".");
+			Logger.warn("Option \"--cmdfile-out\" - not set. Use default \"cmd_after_csd\".");
 			cmdfileout="cmd_after_csd";		
 		}
 				
