@@ -70,7 +70,7 @@ bce_create_report() {
 		echo "  <build>" >> $BCE_REPORT;
 		echo "    <status>$1</status>" >> $BCE_REPORT;
 		echo "    <time></time>" >> $BCE_REPORT;
-		if [ -f $BCE_STATE ]; then
+		if [ -f "$BCE_STATE" ]; then
 			BCE_ERR_DESCRIPTION=`cat $BCE_STATE`;
 		else
 			BCE_ERR_DESCRIPTION=$2;
@@ -229,6 +229,12 @@ if [ ! -n $env ]; then
 fi;
 if [ ! -n $driver ]; then
 	ldv_print "ERROR: Please setup driver in option: \"--driver\".";
+fi;
+BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
+mkdir $BCE_TEMPDIR;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can't create build-cmd-extractor dir: \"$BCE_TEMPDIR\"";
+	exit 1;
 fi;
 
 TEMP_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
