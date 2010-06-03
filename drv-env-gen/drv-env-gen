@@ -57,6 +57,16 @@ my $xmlbasedir;
 
 # 1. get options.
 get_ldv_opts();
+
+#
+# Sanity cheks
+#
+ldv_dprint("Start sanity checks for input cmd stream file...");
+my $check_twig_handlers = { "$xml_cmd_stream/$xml_cmd_ld"  => \&hxml_cmdstream_check_ld };
+my $check_twig= new XML::Twig(TwigHandlers => $check_twig_handlers);
+$check_twig->parsefile($cmdfile);
+ldv_dprint("Ok");
+
 # 2. create directories
 my $basedir="$workdir/$tempdir";
 my $my_driverdir="$basedir/$driver_dirname";
@@ -90,6 +100,45 @@ if($log_level == 50) {
 }
 $twig->print_to_file($cmdfile_out);
 close(STATEFIL);
+
+#
+# Sanity check
+#
+ldv_dprint("Start sanity checks for generated cmd stream file...");
+$check_twig_handlers = { "$xml_cmd_stream/$xml_cmd_ld"  => \&hxml_cmdstream_check_ld };
+$check_twig= new XML::Twig(TwigHandlers => $check_twig_handlers);
+$check_twig->parsefile($cmdfile_out);
+ldv_dprint("Ok");
+
+sub hxml_cmdstream_check_ld {
+	my $id_ld=$_[1]->att($xml_cmd_attr_id);
+	ldv_dprint("Check LD command with id:\"$id_ld\"...");
+	my @check_childrens_in = $_[1]->children($xml_cmd_in);
+	foreach my $check_section (@check_childrens_in) {
+		my $check_file = $check_section->text;
+		ldv_dprint("Check CC command for input section with file:\"$check_file\"...");
+		if(!is_exists_cc_out_for_this_in($check_file)) {
+			ldv_eprint("LD id=\"$id_ld\"  have no CC command with corresponding out file:\"$check_file\" !!!");
+		}
+		ldv_dprint("CC command exists.");
+	}
+	ldv_dprint("LD command :\"$id_ld\" -Ok.");
+}
+
+sub is_exists_cc_out_for_this_in {
+	my $check_root = $check_twig->root;
+	my @check_cc_sections = $check_root->children($xml_cmd_cc);
+	foreach my $check_cc_section (@check_cc_sections) {
+		my $check_out = $check_cc_section->first_child($xml_cmd_out);
+		if($check_out->text eq $_[0]) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+
 
 #####################################################
 # twig  handlers
@@ -375,6 +424,12 @@ sub ldv_dprint
 	}
 }
 
+sub ldv_wprint
+{
+	if($log_level>=10) {
+		ldv_print("WARNING: $_[0]");
+	}
+}
 sub ldv_tprint
 {
 	if($log_level>=40) {
