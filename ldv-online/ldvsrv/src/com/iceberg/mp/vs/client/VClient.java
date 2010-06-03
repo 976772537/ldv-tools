@@ -27,7 +27,7 @@ public class VClient {
 			} else {
 				System.out.println("Task from user: "+task.getId());
 				System.out.println("Start verification...");
-				startVerification(config, task);
+				String report = startVerification(config, task);
 				System.out.println("Ok.");
 				System.out.println("Try to send results...");
 				if(!protocol.VSSendResults()) {

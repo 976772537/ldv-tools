@@ -12,7 +12,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.iceberg.mp.RunLDV;
 import com.iceberg.mp.db.StorageManager;
-import com.iceberg.mp.server.ClientConfig;
 
 public class Scheduler extends Thread {
 	
