@@ -70,9 +70,6 @@ $ENV{'PATH_TO_CPACHECKER'} = $backend_dir;
 #Check if cpachecker is available
 cpachecker_quick_check();
 
-vsay('WARNING', "Checking unimplemented, exiting with error\n");
-#exit 1;
-
 #======================================================================
 # PREPARE CMDFILE TRAVERSERS AND RUN THEM
 #======================================================================
@@ -108,55 +105,68 @@ sub verify_cpachecker
 	my $repT = XML::Twig::Elt->new('reports');
 
 	for my $main (@{$args{mains}}){
-		my $result = call_cpachecker(%args, main=>$main); 
+		if ($args{already_failed}){
+			# Prepare a failure command
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
+
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
+			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$args{already_failed})->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			XML::Twig::Elt->new('time',{},0)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
+		}else{
+			# OK, need to call CPAchecker
+			my $result = call_cpachecker(%args, main=>$main); 
 	
-		# Print verdict to console and to report 
-		vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
-		vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
+			# Print verdict to console and to report 
+			vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
+			vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
 
-		# Verdict
-		my $bv = $result->{'CPACHECKER-detailed'};
-		if ($bv =~ /\bsafe\b/) {
-			$bv='SAFE';
-		}elsif($bv =~ /\bunsafe\b/){
-			$bv='UNSAFE';
-		}else{
-			$bv='UNKNOWN';
+			# Verdict
+			my $bv = $result->{'CPACHECKER-detailed'};
+			if ($bv =~ /\bsafe\b/) {
+				$bv='SAFE';
+			}elsif($bv =~ /\bunsafe\b/){
+				$bv='UNSAFE';
+			}else{
+				$bv='UNKNOWN';
+			}
+			# Result is derived from verdict
+			my $br = $result->{'CPACHECKER'};
+			vsay (40, "CPACHECKER status is $br\n");
+			if($br =~ /\bno\b/i){
+				$br='FAILED';
+			}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
+				$br='OK';
+			}else{
+				$br='FAILED';
+			}
+
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
+			XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			my $time_sec = $result->{'utime'}+$result->{'stime'};
+			my $time_msec = int($time_sec * 1000);
+			XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
 		}
-		# Result is derived from verdict
-		my $br = $result->{'CPACHECKER'};
-		vsay (40, "CPACHECKER status is $br\n");
-		if($br =~ /\bno\b/i){
-			$br='FAILED';
-		}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
-			$br='OK';
-		}else{
-			$br='FAILED';
-		}
-
-		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
-
-		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
-		XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
-		XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
-
-		# Calculate and output time elapsed
-		my $time_sec = $result->{'utime'}+$result->{'stime'};
-		my $time_msec = int($time_sec * 1000);
-		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
-
-		$rcvResultT->paste(last_child =>$cmdInstT);
-		$cmdInstT->paste($repT);
-
-		#my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		#XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		#XML::Twig::Elt->new('status',{},$result->{'CPACHECKER'})->paste($cmdInstT);
-		#XML::Twig::Elt->new('verdict',{},$result->{'CPACHECKER-detailed'})->paste($cmdInstT);
-		#$cmdInstT->paste($repT);
 	}
 
+CLOSE_REPORT:
 	$repT->print($CPACHECKER_REPORT,'indented');
 	close $CPACHECKER_REPORT;
 }

@@ -120,11 +120,15 @@ sub cilly_file
 	my ($CIL_IN,$CIL_OUT,$CIL_ERR);
 	my $fpid = open3($CIL_IN,$CIL_OUT,$CIL_ERR,@cil_args) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cil_args";
 	LDV::Utils::push_instrument("CIL");
+	my $errors = '';
 	while (<$CIL_OUT>) {
 		vsay ("DEBUG",$_);
+		# Cil prints errors to STDOUT as well :-(
+		$errors.=$_;
 	}
 	while (<$CIL_ERR>) {
 		print ("DEBUG",$_);
+		$errors.=$_;
 	}
 	my $result = Utils::hard_wait($fpid,0);
 	close $CIL_IN;
@@ -132,7 +136,7 @@ sub cilly_file
 	LDV::Utils::pop_instrument();
 
 	chdir $current_dir;
-	return $result;
+	return ($result, $errors);
 }
 
 #======================================================================
@@ -221,13 +225,41 @@ sub ld_maker
 
 	return sub{
 		my ($twig, $cmdT) = @_;
-		# See cc_maker for reasons why a ref is required here
+
+		# Get file names
 		my $unbasedir = $$unbasedir_ref;
 		# Get the list of c files for current linked file
 		# We assume that each c-file is included into any executable file only once (otherwise there would have been undefined references).
 		local $_;
 		my @o_files_raw = map {$unbasedir->($_)} $cmdT->children_text('in');
 		my $target = $unbasedir->($cmdT->first_child_text('out'));
+		
+		# First we set up all options for running verification command
+
+		# If preprocessing or CIL-ling fails, we should report it in a sane way.  This variable is passed to the $verify command given
+		my $fail = undef;
+		# See cc_maker for reasons why a ref is required here
+		# Get hints tag first 
+		my $hintsT = $cmdT->first_child('hints');
+		# Get entry points
+		my @mains = $cmdT->children_text('main');
+		@mains or vsay("WARNING", "No mains specified for file ".$cmdT->first_child_text('out')."\n");
+		# List of error locations
+		my @errlocs = $cmdT->children_text('error');
+		# Report file
+		my $report = reports_dir($workdir)."/$target.report";
+		mkpath(dirname($report));
+		# Tool debug file (to dump the trace of the tool)
+		my $debug = reports_dir($workdir)."/$target.debug";
+		$debug.=".gz" if $archivated;
+		mkpath(dirname($debug));
+		# Trace file (to dump the error trace)
+		my $trace = reports_dir($workdir)."/$target.trace";
+		mkpath(dirname($trace));
+
+		# Common arguments for the verifier command
+		my %common_vercmd_args = (cmd_id=>$cmdT->att('id'), hints=>$hintsT, mains=>\@mains, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug, dbg_target=>$target, workdir=>$workdir);
+
 		# Informaiton about C files should be a reference, for it to be accessible from within subs
 		my $c_files_info = [];
 		# List of c files that were processed.  Used in tracking the assersion that each c file is processed only once.  Value is an o-file, in which the c file was first encountered.
@@ -290,10 +322,10 @@ sub ld_maker
 					);
 					mkpath(dirname($cil_file));
 					$new_record->{cil_file} = $cil_file;
-					cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps);
+					my (undef, $error) = cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps);
 					my $cil_result = $? >> 8;
 					vsay ("DEBUG","CIL exit code is $cil_result\n");
-					$? and die "CIL ERROR!  Recovery is unimplemented"; # TODO
+					$? and do { vsay("WARNING", "CIL ERROR!  Terminating checker.\n"); $fail = "CIL ERROR.  Output:\n$error"; return $verify->(%common_vercmd_args, already_failed=>$fail);  };
 				}else{
 					$new_record->{cil_file} = $new_record->{i_file};
 				}
@@ -306,27 +338,10 @@ sub ld_maker
 
 		# Call the verifier for all of the preprocessed c-files gotten at once, and and supply the additional arguments fetched from the tag record.
 
-		# Get hints tag first 
-		my $hintsT = $cmdT->first_child('hints');
-		# Get entry points
-		my @mains = $cmdT->children_text('main');
-		@mains or vsay("WARNING", "No mains specified for file ".$cmdT->first_child_text('out')."\n");
 		# Get list of files to analyze:
 		my @files = map {$_->{i_file}} @$c_files_info;
-		# List of error locations
-		my @errlocs = $cmdT->children_text('error');
-		# Report file
-		my $report = reports_dir($workdir)."/$target.report";
-		mkpath(dirname($report));
-		# Tool debug file (to dump the trace of the tool)
-		my $debug = reports_dir($workdir)."/$target.debug";
-		$debug.=".gz" if $archivated;
-		mkpath(dirname($debug));
-		# Trace file (to dump the error trace)
-		my $trace = reports_dir($workdir)."/$target.trace";
-		mkpath(dirname($trace));
 
-		$verify->(cmd_id=>$cmdT->att('id'), files => \@files, hints=>$hintsT, mains=>\@mains, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug, dbg_target=>$target); 
+		$verify->(%common_vercmd_args, files => \@files);
 
 	};
 }
