@@ -253,6 +253,7 @@ sub call_cpachecker
 	vsay (20,"CPACHECKER return value: $?\n");
 	vsay (40,"CPACHECKER stats: utime $child{'utime'}, stime $child{'stime'}\n");
 	my $cpachecker_rv = $? >> 8;
+	my $cpachecker_rv_full = $?;
 	if($? == 0){
 		vsay (20,"CPACHECKER OK\n");
 	}else{
@@ -268,8 +269,10 @@ sub call_cpachecker
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
 
-	# Copy back trace
-	copy($trace_fname,$args{trace}) or die;
+	# Copy back trace if it exists
+	if (-r $trace_fname) {
+		copy($trace_fname,$args{trace}) or die;
+	}
 
 	# Add information about limits to result
 	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
