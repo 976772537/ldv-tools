@@ -22,7 +22,7 @@ public class CSD {
 	private static String WORK_DIR = null;
 	private static boolean printdigraph = false;
 	private static final String usageString = "csd: USAGE: WORK_DIR=workdir <LDV_DEBUG=level> java -ea -jar cmd-stream-divider.jar --basedir=basedir --cmdfile=cmdxmlin --cmdfile-out=outfilename --state-file=statefile";
-	
+	private static final String name = "CSD";
 	
 	public static void main(String[] args) {
 		if(!getOpts(args)) 
@@ -48,6 +48,7 @@ public class CSD {
 	
 	private static boolean getOpts(String[] args) {
 		Logger.getLogLevelFromEnv();
+		Logger.setName(name);
 		
 		if(args.length < 2 ) {
 			Logger.info(usageString);
