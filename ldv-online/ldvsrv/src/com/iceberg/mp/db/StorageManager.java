@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map;
 
-import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.Logger;
 import java.io.File;
 import java.io.IOException;
 
@@ -63,41 +63,41 @@ public class StorageManager {
 		//1. создаем директории, если их нет
 		File fileWorkdir = new File(bins);
 		if(!fileWorkdir.exists()) {
-			RunLDV.log.info("Create storage dirs...");
+			Logger.debug("Create storage dirs...");
 			if(!fileWorkdir.mkdirs()) {
-				RunLDV.log.info("Can't create work dirs.");
+				Logger.err("Can't create work dirs.");
 				throw new IOException();
 			}
-			RunLDV.log.info("Ok.");
+			Logger.info("Ok.");
 		}
-		RunLDV.log.info("Open JDBC driver...");
+		Logger.debug("Open JDBC driver...");
 		//2. открываем JDBC драйвер:
 		Class.forName("org.h2.Driver");
 		connectionString = connectionPrefix+":"+dbType+":"+dbworkdir; 
-		RunLDV.log.info("Create new lead connection...");
+		Logger.debug("Create new lead connection...");
 		singleConnection = DriverManager.getConnection(connectionString, dbuser, dbpass);
-		RunLDV.log.info("Ok");
+		Logger.debug("Ok");
 		//3. инициализирем таблицы
-		RunLDV.log.info("Initialize tables...");
+		Logger.debug("Initialize tables...");
 		Statement st = singleConnection.createStatement();
 		st.execute("DROP TABLE IF EXISTS CLIENTS");
 		st.execute(SQLINITREQUEST_1);
 		st.execute(SQLINITREQUEST_2);
 		st.execute(SQLINITREQUEST_3);
 		st.close();
-		RunLDV.log.info("Ok");
+		Logger.debug("Ok");
 	}
 	
 	public synchronized Connection getConnection() throws SQLException {
-		RunLDV.log.info("Try to create new database connection...");
+		Logger.debug("Try to create new database connection...");
 		return DriverManager.getConnection(connectionString, dbuser, dbpass);
 	}
 	
 	public void close() throws SQLException {
 		//1. закрываем все соеждинения
-		RunLDV.log.info("Close lead connection...");
+		Logger.info("Close lead connection...");
 		singleConnection.close();
-		RunLDV.log.info("Ok");
+		Logger.info("Ok");
 	}
 
 	@Override

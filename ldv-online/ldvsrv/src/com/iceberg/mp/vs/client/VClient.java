@@ -6,10 +6,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 
-import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.server.ClientConfig;
 import com.iceberg.mp.server.Config;
@@ -65,7 +64,7 @@ public class VClient {
 					config.getLDVInstalledDir()+"/bin; ldv task "
 					+"--driver="+config.getWorkDir()+"/driver --workdir="+config.getWorkDir()+"/run " +
 					" --report-out="+report+" --env="+task.getVparams();
-			RunLDV.log.info("RUN LDV:" + startString);
+			Logger.trace("RUN LDV:" + startString);
 
 			FileWriter startFile = new FileWriter(config.getWorkDir() +"/start");
 			startFile.write(startString);
@@ -91,9 +90,9 @@ public class VClient {
 			}
 			
 			if(reportFile.exists()) {
-				RunLDV.log.info("Report created in file: " + report);
+				Logger.debug("Report created in file: " + report);
 			} else {
-				RunLDV.log.info("LDV-Tools failed.");
+				Logger.debug("LDV-Tools failed.");
 				report = null;
 			}
 		} catch (FileNotFoundException e) {

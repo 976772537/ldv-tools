@@ -10,7 +10,7 @@ import java.util.Map;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.Logger;
 import com.iceberg.mp.db.StorageManager;
 
 public class Scheduler extends Thread {
@@ -92,14 +92,14 @@ public class Scheduler extends Thread {
 	
 	// список у нас уже синхронизирован...
 	public synchronized void putTask(Task task) {
-		RunLDV.log.info("SCHELDUER: Add task to pull...");
+		Logger.debug("SCHELDUER: Add task to pull...");
 		btList.add(task);
-		RunLDV.log.info("SCHELDUER: Ok");
+		Logger.debug("SCHELDUER: Ok");
 	}
 
 	// только планировщик имеет право работать с VerClient'ами
 	public void run() {
-		RunLDV.log.info("SCHELDUER: Start thread.");		
+		Logger.debug("SCHELDUER: Start thread.");		
 		while(true) {
 			// 1. ищем задачи для верификации
 			if(btList.size()>0) {
@@ -132,9 +132,9 @@ public class Scheduler extends Thread {
 	
 	// сделать синхронизированым
 	public synchronized void putVERClient(VerClient vclient) {
-		RunLDV.log.info("SCHELDUER: Add client to pull...");
+		Logger.debug("SCHELDUER: Add client to pull...");
 		vcList.add(vclient);
-		RunLDV.log.info("SCHELDUER: Ok");
+		Logger.debug("SCHELDUER: Ok");
 	}
 
 	public synchronized VerClient getVERClient(int id_client) {

@@ -5,7 +5,7 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
-import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.Logger;
 import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 
 public class ServerThread extends Thread implements ServerThreadInterface {
@@ -20,7 +20,7 @@ public class ServerThread extends Thread implements ServerThreadInterface {
 	}
 
 	public void run() {
-		RunLDV.log.info(socket.getInetAddress()+": Start client connection.");
+		Logger.info(socket.getInetAddress()+": Start client connection.");
 		BufferedInputStream in = null;
 		BufferedOutputStream out = null;
 		try {
@@ -40,7 +40,7 @@ public class ServerThread extends Thread implements ServerThreadInterface {
 				e.printStackTrace();
 			}
 		}
-		RunLDV.log.info(": Close client connection.");
+		Logger.info(": Close client connection.");
 	}
 	
 }

@@ -13,7 +13,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.Task;
 import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.server.protocol.ServerProtocolInterface;
@@ -26,10 +26,10 @@ public class WServerProtocol implements ServerProtocolInterface {
 	
 	public static NodeList parseMsg(InputStream in) throws SAXException, IOException, ParserConfigurationException {
 		DocumentBuilder xml = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-		RunLDV.log.info("Client msg size: "+in.available());
+		Logger.debug("Client msg size: "+in.available());
 		byte[] content = new byte[in.available()];
 		in.read(content);
-		RunLDV.log.info("Client msg contains: "+(new String(content)));
+		Logger.trace("Client msg contains: "+(new String(content)));
 		ByteArrayInputStream bais = new ByteArrayInputStream(content);  
 		Document doc = xml.parse(bais);
 		return doc.getDocumentElement().getChildNodes();
@@ -47,27 +47,27 @@ public class WServerProtocol implements ServerProtocolInterface {
 	
 	public void communicate(ServerConfig config, InputStream in, OutputStream out) {
 		try {			
-			RunLDV.log.info("WS: Start client protocol.");
+			Logger.info("WS: Start client protocol.");
 			WSM wsmMsg = getMsg(in);
 			if(wsmMsg.getType().equals(WSMFactory.WSM_WSTOLDVS_TASK_PUT_REQUEST)) {
-				RunLDV.log.info("WS: Client msg type: " + WSMFactory.WSM_WSTOLDVS_TASK_PUT_REQUEST);
+				Logger.trace("WS: Client msg type: " + WSMFactory.WSM_WSTOLDVS_TASK_PUT_REQUEST);
 				WSM wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_DESCR_RESPONSE);
-				RunLDV.log.info("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_DESCR_RESPONSE);
+				Logger.trace("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_DESCR_RESPONSE);
 				sendMsg(out, wsmReponse);
-				RunLDV.log.info("WS: Read binary data from client.");
+				Logger.trace("WS: Read binary data from client.");
 				byte[] block = new byte[((WSMWsmtoldvsTaskPutRequest)wsmMsg).getSourceLen()];
-				RunLDV.log.info("WS: Full size: "+block.length);
+				Logger.trace("WS: Full size: "+block.length);
 				in.read(block);
-				RunLDV.log.info("WS: Put task to task-pull.");
+				Logger.trace("WS: Put task to task-pull.");
 				Task task = Task.create(block,(WSMWsmtoldvsTaskPutRequest)wsmMsg, config);
 				block = null;
 				wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
 				if(task==null)	((WSMLdvtowsResponse)wsmReponse).setResult("FAILED");
-				RunLDV.log.info("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
+				Logger.trace("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
 				sendMsg(out, wsmReponse);
-				RunLDV.log.info("WS: Ok - task transaction finished !");
+				Logger.trace("WS: Ok - task transaction finished !");
 			} else {
-				RunLDV.log.info("WS: Unknown client msg type: " + wsmMsg.getType());
+				Logger.debug("WS: Unknown client msg type: " + wsmMsg.getType());
 			}
 		// посмотреть порядок Exceptiono
 		} catch(IOException e) {
@@ -77,7 +77,7 @@ public class WServerProtocol implements ServerProtocolInterface {
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();
 		} finally {
-			RunLDV.log.info("WS: End client protocol.");
+			Logger.info("WS: End client protocol.");
 		}
 	}
 

@@ -7,7 +7,7 @@ import java.nio.channels.IllegalBlockingModeException;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.iceberg.mp.RunLDV;
+import com.iceberg.mp.Logger;
 
 public class Server extends Thread {
 	protected ServerConfig config;
@@ -27,16 +27,16 @@ public class Server extends Thread {
 				currentThread.start();
 			}
 		} catch(SocketTimeoutException e) {
-			RunLDV.log.info("SocketTimeoutException.");
+			Logger.err("SocketTimeoutException.");
 			System.exit(1);
 		} catch(IllegalBlockingModeException e) {
-			RunLDV.log.info("IllegalBlockingModeException.");
+			Logger.err("IllegalBlockingModeException.");
 			System.exit(1);
 		} catch(SecurityException e) {
-			RunLDV.log.info("Security exception");
+			Logger.err("Security exception");
 			System.exit(1);
 		} catch(IOException e) {
-			RunLDV.log.info("Can't get port: " + config.getServerPort());
+			Logger.err("Can't get port: " + config.getServerPort());
 			System.exit(1);
 		} finally {
 			try {
