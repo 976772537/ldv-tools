@@ -1,10 +1,15 @@
 package com.iceberg.mp.vs.client;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
+import com.iceberg.mp.RunLDV;
 import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.server.ClientConfig;
 import com.iceberg.mp.server.Config;
@@ -46,17 +51,51 @@ public class VClient {
 		File tworkdir = new File(config.getWorkDir()+"/run");
 		tworkdir.mkdirs();
 		FileOutputStream fis = null;
+		String report = null;
 		try {
 			fis = new FileOutputStream(config.getWorkDir()+"/driver");
 			fis.write(task.getData());
 			fis.flush();
 			fis.close();
 
+			report = config.getWorkDir() +"/run/ldvs_report.xml";
+			File reportFile = new File(report);
+			reportFile.delete();
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
 					config.getLDVInstalledDir()+"/bin; ldv task "
-					+"--driver="+config.getWorkDir()+"/driver --workdir="+config.getWorkDir()+"/run --env="+
-					task.getVparams();
-			System.out.println("DEBUG:" + startString);
+					+"--driver="+config.getWorkDir()+"/driver --workdir="+config.getWorkDir()+"/run " +
+					" --report-out="+report+" --env="+task.getVparams();
+			RunLDV.log.info("RUN LDV:" + startString);
+
+			FileWriter startFile = new FileWriter(config.getWorkDir() +"/start");
+			startFile.write(startString);
+			startFile.flush();
+			startFile.close();
+			
+			try {
+				Process proc = Runtime.getRuntime().exec("bash "+config.getWorkDir() +"/run/start && exit;");
+				BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+				String line = null;
+				while ((line = br.readLine()) != null) { 
+					System.out.println(line); 
+			    }
+				proc.waitFor();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				/*String[] commands = startString.split(" ");
+				Process proc = Runtime.getRuntime().exec(commands);
+				System.setIn(proc.getInputStream());*/ 
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			if(reportFile.exists()) {
+				RunLDV.log.info("Report created in file: " + report);
+			} else {
+				RunLDV.log.info("LDV-Tools failed.");
+				report = null;
+			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -69,7 +108,8 @@ public class VClient {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			report = null;
 		}
-		return null;
+		return report;
 	}
 }
