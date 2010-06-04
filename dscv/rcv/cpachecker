@@ -180,19 +180,58 @@ sub call_cpachecker
 	my %args = @_;
 	# Options that will be passed to the cpachecker tool
 	my @cpachecker_options = ($cpachecker,@{$args{files}});
+
 	# Set default options
-	# These are: -alias bdd -cref -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0 -nomusts -const
+	# Create a temporary config file.  Config is based on sympredabsCPA
+	my $CPA_CFG; my $cpa_cfg = "$args{workdir}/cpa.cfg"; open $CPA_CFG, ">", $cpa_cfg or die;
+	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
+
+	print $CPA_CFG <<EOF;
+cfa.removeIrrelevantForErrorLocations = true
+analysis.traversal = topsort
+analysis.useRefinement = true
+cegar.refiner = cpa.symbpredabsCPA.SymbPredAbsRefiner
+cpa = cpa.art.ARTCPA
+ARTCPA.cpa = cpa.composite.CompositeCPA
+CompositeCPA.cpas = cpa.location.LocationCPA, cpa.errorlocation.ErrorLocationCPA, cpa.symbpredabsCPA.SymbPredAbsCPA
+automatonAnalysis.inputFile = $LDV_errloc_autom
+EOF
+	close $CPA_CFG;
+
+	# For now, only one error location is supported by CPACHECKER
+	(scalar @{$args{errlocs}} > 1) and die;
+	my $errloc = (@{$args{errlocs}})[0];
+
+	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
+	print $ERRLOC_AUT <<EOF;
+AUTOMATON ErrorLocationAutomaton
+// This Automaton replaces the ErrorLocationCPA. It detects error locations that were defined in the sourcecode.
+
+/* The ErrorLocationCPA had 3 triggers.
+ * The Trigger "(CFAEdge.CFASuccessor instanceOf CFAErrorNode)" could not be implemented in this automaton.
+  */
+
+	INITIAL STATE Init;
+
+	STATE Init :
+	  // label of the next CFA state starts with "error"
+		MATCH LABEL [$errloc.*]
+		// call of assert_fail without arguments
+		|| MATCH {__assert_fail()}
+		// call of assert_fail with any (>0) number of arguments
+		|| MATCH {__assert_fail(\$?)} 
+
+  -> ERROR;
+
+EOF
+	close $LDV_errloc_autom;
+
 	push @cpachecker_options,
-		"-config","$configs_dir/symbpredabsCPA.properties"
+		"-config","$cpa_cfg"
 	;
 
 	# Add mains and error locations
 	push @cpachecker_options, "-entryfunction",$args{main} if $args{main};
-	# For now, only one error location is supported by CPACHECKER
-	(scalar @{$args{errlocs}} > 1) and die;
-	my $errloc = (@{$args{errlocs}})[0];
-	# TODO: find a way to supply error location!
-	# push @cpachecker_options, "-L",$errloc if $errloc;
 
 	#write ErrorPath.txt and other files to outputpath
 	my $outputpath = "$args{debug}-stuff";
