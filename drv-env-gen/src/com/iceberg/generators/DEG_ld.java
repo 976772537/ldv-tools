@@ -10,12 +10,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.iceberg.FSOperationsBase;
+import com.iceberg.Logger;
 
 public class DEG_ld {
 	//private static final String usageString = "USAGE: java -ea -jar ldv_cc.jar input_files -o output_file options";
 	private static List<String> inputFiles = new ArrayList<String>();
 	private static String outputFile; 
+	
+	private static final String name = "ldv-ld";
 
 	public static void main(String[] args) {
 		if(!getOpts(args))
@@ -34,10 +36,10 @@ public class DEG_ld {
 				fin.close();
 			} catch (FileNotFoundException e)
 			{
-				System.out.println("ldv_ld: WARNING: File not found: \""+inputFiles.get(i)+"\".");
+				Logger.warn("File not found: \""+inputFiles.get(i)+"\".");
 				continue;
 			} catch (IOException e) {
-				System.out.println("ldv_ld: WARNING: IO error found while read file: \""+inputFiles.get(i)+"\".");
+				Logger.warn("IO error found while read file: \""+inputFiles.get(i)+"\".");
 				continue;
 			}
 			buffer += sbuffer.toString();
@@ -72,8 +74,11 @@ public class DEG_ld {
 	}
 	
 	private static boolean getOpts(String[] args) {
+		Logger.getLogLevelFromEnv();
+		Logger.setName(name);
+		
 		if(args.length==0) {
-			System.out.println("ldv_ld: ERROR: empty options");
+			Logger.err("empty options");
 			return false;
 		}
 
@@ -81,18 +86,18 @@ public class DEG_ld {
 		for(i=0; i<args.length && !args[i].equals("-o"); i++ ) {
 			File inputFile = new File(args[i]);
 			if(!inputFile.exists())
-				System.out.println("ldv_ld: WARNING: Input file not found: \""+args[i]+"\".");
+				Logger.warn("Input file not found: \""+args[i]+"\".");
 			inputFiles.add(args[i]);
 		}
 		
 		if(inputFiles.size()==0) {
-			System.out.println("ldv_ld: ERROR: No input files.");
+			Logger.err("No input files.");
 			return false;
 		}
 		
 		
 		if(!args[i++].equals("-o")) {
-			System.out.println("ldv_cc: ERROR: After input files must be \"-o outputfile\".");
+			Logger.err("After input files must be \"-o outputfile\".");
 			return false;
 		}
 		

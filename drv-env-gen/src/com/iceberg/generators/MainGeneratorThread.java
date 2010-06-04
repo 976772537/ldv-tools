@@ -1,5 +1,7 @@
 package com.iceberg.generators;
 
+import com.iceberg.Logger;
+
 public class MainGeneratorThread implements Runnable {
 	
 	protected String filename;
@@ -11,7 +13,7 @@ public class MainGeneratorThread implements Runnable {
 	}
 	
 	public void run() {
-		System.out.println("MGEN_THREAD_START: " +filename);
+		Logger.info("MGEN_THREAD_START: " +filename);
 		MainGenerator.generate(this.filename);
 	}
 	

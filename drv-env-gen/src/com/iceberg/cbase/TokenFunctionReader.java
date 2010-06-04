@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import com.iceberg.Logger;
 import com.iceberg.cbase.parsers.ExtendedParserFunction;
 import com.iceberg.cbase.parsers.ExtendedParserStruct;
 import com.iceberg.cbase.parsers.ParserInterface;
@@ -46,13 +47,13 @@ public class TokenFunctionReader {
 			/* распечатаем полученные токены */
 			Iterator<Token> tokenIterator = ltoken.iterator();
 			while(tokenIterator.hasNext())
-				System.out.println(tokenIterator.next().getContent());
+				Logger.trace(tokenIterator.next().getContent());
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
 		long end = System.currentTimeMillis();
-		System.out.println("Time: " + (end-start) + "ms");
+		Logger.info("Time: " + (end-start) + "ms");
 	}
 }

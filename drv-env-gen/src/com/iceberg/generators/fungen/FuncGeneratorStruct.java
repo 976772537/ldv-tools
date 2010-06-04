@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.iceberg.Logger;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
 public class FuncGeneratorStruct implements FuncGenerator {
@@ -34,8 +35,8 @@ public class FuncGeneratorStruct implements FuncGenerator {
 						}
 					} //else
 				} catch(Exception e) {
-					System.out.println("DEBUG ===============================================");
-					System.out.println("ppp :" + replacementParam);
+					Logger.debug("DEBUG ===============================================");
+					Logger.debug("rparam :" + replacementParam);
 				}
 			}
 			startVar++;

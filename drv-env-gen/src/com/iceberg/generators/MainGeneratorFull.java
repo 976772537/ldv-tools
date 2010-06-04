@@ -3,6 +3,8 @@ package com.iceberg.generators;
 import java.util.Iterator;
 import java.util.List;
 
+import com.iceberg.Logger;
+
 public class MainGeneratorFull {
 	public static void main(String[] args) {
 		long startf = System.currentTimeMillis();
@@ -20,11 +22,11 @@ public class MainGeneratorFull {
 
 		while(fileIterator.hasNext()) {
 			String filename = fileIterator.next();
-			System.out.println("GENERATE_RUN: " + filename);
+			Logger.info("GENERATE_RUN: " + filename);
 			MainGenerator.generate(filename);
 		}
 
 		long endf = System.currentTimeMillis();
-		System.out.println("generate time: " + (endf-startf) + "ms");
+		Logger.info("generate time: " + (endf-startf) + "ms");
 	}
 }
