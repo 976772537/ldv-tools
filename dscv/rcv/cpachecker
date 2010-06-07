@@ -55,7 +55,7 @@ my $workdir = $config->{workdir};
 
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000);	# Default memory limit is 1Gb
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000);	# Default memory limit is 1Gb.  It may be overflowed, because it's set as -Xmx
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
 
@@ -243,13 +243,17 @@ EOF
 	# Additional options
 	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
 
-	# Resources limit
+	# Resources limit.  We don't set memlimit--see below
 	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
-		memlimit => $memlimit,
 		id_str => "DSCV_TIMEOUT ",
 		},@cpachecker_options
 	);
+
+	# Set memory limit.
+	# We set memory limit with Java native capabilities.  We use -Xmx and set it to the value supplied by user.  Thus, the memory limit can be overflew a bit, but in return the exception will be native.
+	my $memlimit_kb = int($memlimit / 1024);
+	$ENV{'JAVA_VM_ARGUMENTS'} .= " -Xmx${memlimit_kb}m";
 
 	vsay ('NORMAL',"Running CPACHECKER for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@cpachecker_options,"\n");
@@ -271,7 +275,7 @@ EOF
 	# In CPAchecker trace is in the separate file.  We'll just copy it to $args{trace} at the end
 	my $trace_fname = "$outputpath/ErrorPath.txt";
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict()]);
+	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict(),java_oom()]);
 
 	# Process output and redirect it to file
 	local $_;
@@ -324,7 +328,7 @@ EOF
 =========== Launch information ===========
 Verifier: CPAchecker ($ver4rep)
 Time Limit: $tl4rep
-Memory Limit: $ml4rep
+Memory Limit: $ml4rep (average)
 Additional options: $ENV{'CPACHECKER_OPTIONS'}
 =========== Launch inform ends ===========
 EOR
@@ -361,6 +365,14 @@ sub cpachecker_quick_check
 	vsay ('INFO',"OK\n");
 }
 
+sub java_oom
+{
+	return[10_000,sub{
+		my $l=shift or return undef;
+		$l=~/^Exception.*OutOfMemory/i and return {'LIMITS'=>'Memory Limit Exceeded'};
+		return undef;
+	}];
+}
 
 sub cpachecker_verdict
 {
