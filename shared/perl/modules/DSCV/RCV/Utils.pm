@@ -27,7 +27,7 @@ use File::Find;
 sub foreach_report
 {
 	my ($work_dir, $callback) = @_;
-	find(sub{ /\.report$/ and $callback->($File::Find::name);},reports_dir($work_dir));
+	find({no_chdir=>1, wanted=>sub{ /\.report$/ and $callback->($File::Find::name);}},reports_dir($work_dir));
 }
 
 #======================================================================

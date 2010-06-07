@@ -58,6 +58,12 @@ my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit. 
 my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000);	# Default memory limit is 1Gb.  It may be overflowed, because it's set as -Xmx
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
+# Check if we launch CIL before the verifier
+my $cilly = 1;
+if ($ENV{'NO_CIL'}){
+	vsay(10,"CIL skipped because NO_CIL environment variable is set\n");
+	$cilly='';
+}
 
 # Prepare sanity checks
 my $sanity = DSCV::Sanity->new($config->{sandir});
@@ -84,7 +90,7 @@ my $check_input_file = XML::Twig->new(
 	twig_handlers => {
 		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
 		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>1, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
 	}
 );
 $check_input_file->parsefile($config->{cmdfile});

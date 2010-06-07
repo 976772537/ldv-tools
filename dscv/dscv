@@ -18,7 +18,7 @@ If there's no argument named "inline", C<dscv> runs in cmdfile mode:
 
 Otherwise, DSCV runs in an inline mode:
 
-	dscv --verifier=blast inline options -I include/ files file1.c file2.c
+	dscv --rcv-verifier=blast inline options -I include/ files file1.c file2.c
 
 =head1 DESCRIPTION
 
@@ -75,6 +75,15 @@ Overrides the reachability C verifier passed by rule instrumentor.
 =cut
 $config->{verifier_override} = {} unless exists $config->{verifier_override};
 $optionSpecs{'rcv-verifier=s'} = \$config->{verifier_override}->{rcv};
+
+=item B<--no-aspect>
+
+B<ONLY inline mode!>  Turns off aspectator.  Ignored if some rule models are specified.
+
+=cut
+$config->{inline_aspect} = 1;
+$optionSpecs{'aspect!'} = \$config->{inline_aspect};
+
 
 =back
 
@@ -153,7 +162,7 @@ Working directory for a current instance of LDV scripts.  Unless specified, a cu
 
 =cut
 use Cwd;
-$config->{work_dir} = $ENV{'WORK_DIR'} || getcwd();
+$config->{work_dir} = $ENV{'WORK_DIR'};
 
 =item B<DSCV_HOME>
 
@@ -236,7 +245,7 @@ $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->
 
 # INLINE mode preparation
 
-use File::Path qw(mkpath);
+use File::Path qw(mkpath rmtree);
 # If we're in inline mode, we should create appropriate cmdfile in the working dir and use it as such.
 if ($mode eq 'inline'){
 	# First we parse options
@@ -247,6 +256,11 @@ if ($mode eq 'inline'){
 		# If we haven't processed anything, then something's wrong here.
 		usage("Specify inline mode modifier at the beginning please") if $len eq scalar @args;
 	}
+	# Then we generate workdir
+	$config->{work_dir} = "verify-".join('-',@{$config->{inl_files}});
+	$ENV{'WORK_DIR'} = $config->{work_dir};
+	rmtree($config->{work_dir});
+
 	# Allocate file for "commands"
 	my $CMDFILE;
 	mkpath($config->{work_dir});
@@ -300,7 +314,10 @@ if ($mode eq 'inline'){
 
 	#Prepare usual DSCV options and proceed to the rest of the script
 	$config->{cmdfile}=$cmdfile_name;
-	$config->{properties}=['BZ_1'] if $defprop;
+	if ($defprop){
+		my $default_rule_model = $config->{inline_aspect}?'BZ_1':'BZ_2';
+		$config->{properties}=[$default_rule_model];
+	}
 }
 
 # Sanity check
