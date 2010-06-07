@@ -80,15 +80,16 @@ fwrite($fh, $errorTrace);
 fclose($fh);
 $outFile = APPLICATION_PATH . "/files/test.txt";
 $output = array();
-exec("/home/joker/work/14_driver/test_ldv_tools/bin/error-trace-visualizer.pl --engine=blast --report=$myFile --report-out=$outFile 2>&1", $output);
+exec("LDV_DEBUG=100 /home/joker/work/14_driver/test_ldv_tools/bin/error-trace-visualizer.pl --engine=blast --report=$myFile --report-out=$outFile 2>&1", $output);
+
+#$fh = fopen($outFile, 'r') or die("can't open file");
+echo "<pre>";
+readfile($outFile) or die("can't read file");
+echo "</pre>";
 foreach ($output as $line)
 {
  echo "$line<br>";
 }
-#$fh = fopen($outFile, 'r') or die("can't open file");
-echo "<pre>";
-readfile($outFile);
-echo "</pre>";
 #fclose($fh);
 
 //        $this->view->entries = array('stats' => $errorTrace);
