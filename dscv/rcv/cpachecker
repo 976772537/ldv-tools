@@ -386,6 +386,7 @@ sub cpachecker_verdict
 		my $l=shift or return undef;
 		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
 		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
+		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'CPACHECKER-detailed' => "The system is safe.  Error location is not reachable.", 'CPACHECKER'=>'yes'};
 		return undef;
 	}];
 }
