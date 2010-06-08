@@ -115,8 +115,9 @@ function to_seconds ()
 
 "$@" &
 
-jobs
-watch_pid=`jobs -p 1`
+# We used to using `jobs -p 1`, but that causes race conditions.
+# So instead of it we use $!
+watch_pid=$!
 
 # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
 #(
