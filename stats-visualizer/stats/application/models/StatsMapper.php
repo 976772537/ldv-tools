@@ -520,7 +520,7 @@ else if ($tool == 'maingen')
 	  //    return $entry;	    
 	  //  }
       }
-      return $entries;
+      return array('tool' => $tool, 'entries' => $entries);
 	}   	
     public function getSafeUnsafeDesc($kernelId, $modelId, $toolsetId, $show)
     {

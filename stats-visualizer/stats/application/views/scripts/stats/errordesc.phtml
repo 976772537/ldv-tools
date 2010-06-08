@@ -11,23 +11,24 @@ function minusinsteadofempty($str)
 	 return '-';
   }
 }
-if ($this->entries[0]['tool'] == 'rcv')
+
+if ($this->entries['tool'] == 'rcv')
 {
   echo "<h1>Description of <i>Reachibility C Verifier</i> errors</h1>";
 }
-else if ($this->entries[0]['tool'] == 'ri')
+else if ($this->entries['tool'] == 'ri')
 {
   echo "<h1>Description of <i>Rule Instrumentor</i> errors</h1>";
 }
-else if ($this->entries[0]['tool'] == 'dscv')
+else if ($this->entries['tool'] == 'dscv')
 {
   echo "<h1>Description of <i>Domain Specific C Verifier</i> errors</h1>";
 }
-else if ($this->entries[0]['tool'] == 'maingen')
+else if ($this->entries['tool'] == 'maingen')
 {
   echo "<h1>Description of <i>Driver Environment Generator</i> errors</h1>";
 }
-else if ($this->entries[0]['tool'] == 'build')
+else if ($this->entries['tool'] == 'build')
 {
   echo "<h1>Description of <i>Build Command Extractor</i> errors</h1>";
 }
@@ -46,7 +47,7 @@ echo '<table border="1" cellspacing="0" cellpadding="4">';
         ,   "<td>Problem name</td>"
         ,   "<td>Description</td></tr>";
 $i = 1;
-foreach ($this->entries as $entry)
+foreach ($this->entries['entries'] as $entry)
 {
     echo "<tr>"
         ,   "<td>" . $i++ ."</td>"
@@ -60,5 +61,6 @@ foreach ($this->entries as $entry)
         ,   "<td><pre>" . minusinsteadofempty($entry['desc']) ."</pre></td>"
         , "</tr>";
 	  }
+echo '</table>';
 ?>
-</table>
+
