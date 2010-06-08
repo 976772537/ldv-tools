@@ -74,6 +74,9 @@ class StatsController extends Zend_Controller_Action
         $statistics = new Application_Model_StatsMapper(array('db' => $this->_db));
         $errorTrace = $statistics->getErrorTrace($driverId, $kernelId, $modelId, $toolsetId, $scenarioId);
 
+$this->view->entries = array('stats' => $errorTrace);
+return;
+
 $myFile = APPLICATION_PATH . "/files/testFile.txt";
 $fh = fopen($myFile, 'w') or die("can't open file");
 fwrite($fh, $errorTrace);
