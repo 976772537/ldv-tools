@@ -6,6 +6,7 @@ SHELL= /bin/sh
 BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer kernel-rules cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/sh
 SERVER_SUBDIRS = ldv-manager stats-visualizer
 DEBUG_MAKEFILE_SUBDIRS = build-cmd-extractor cmd-utils  drv-env-gen kernel-rules ldv  ldv-core
+SHARED_SUBDIRS=shared/perl shared/sh
 
 SUBDIRS = $(BUILD_SUBDIRS)
 INSTALL_SUBDIRS = $(SUBDIRS)
@@ -32,7 +33,10 @@ install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
 install-all: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS) $(SERVER_SUBDIRS),install)
 
 # Install only server stuff
-install-srv: $(call forall_subdirs,shared/perl shared/sh $(SERVER_SUBDIRS),install)
+install-srv: $(call forall_subdirs,$(SHARED_SUBDIRS) $(SERVER_SUBDIRS),install)
+
+# Install only shared stuff
+install-shared: $(call forall_subdirs,$(SHARED_SUBDIRS),install)
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
