@@ -1,0 +1,17 @@
+<cmdstream>
+  <basedir>@BASE@</basedir>
+	<test cil="1"/>
+  <cc id="1">
+    <cwd>@CWD@</cwd>
+    <out>@BASE@/win.o</out>
+    <in>@BASE@/win.c</in>
+    <engine>blast</engine>
+  </cc>
+  <ld id="2">
+    <main verdict="SAFE">main</main>
+    <cwd>@CWD@</cwd>
+    <engine>blast</engine>
+    <out check="true">@BASE@/win.exe</out>
+    <in>@BASE@/win.o</in>
+  </ld>
+</cmdstream>

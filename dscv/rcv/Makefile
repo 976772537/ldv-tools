@@ -32,7 +32,21 @@ $1-subdir-%:
 
 endef
 
-# Create subdir wrappers for backends
-$(foreach backend,$(backends),$(eval $(call mksubdir,backends/$(backend))))
+# Unit-testing
+test_backends=mock
 
+# First part of unit-testing subsystem is installing mock objects for DSCV
+mockinstall: backends/mock-subdir-install $(call frontend_target,mock)
+
+$(rcv_install_dir)/mock: mock
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
+
+.PHONY: mockinstall
+
+# Create subdir wrappers for backends
+all_backends=$(backends) $(test_backends)
+$(foreach backend,$(all_backends),$(eval $(call mksubdir,backends/$(backend))))
 
