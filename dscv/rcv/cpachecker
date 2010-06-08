@@ -199,7 +199,7 @@ analysis.useRefinement = true
 cegar.refiner = cpa.symbpredabsCPA.SymbPredAbsRefiner
 cpa = cpa.art.ARTCPA
 ARTCPA.cpa = cpa.composite.CompositeCPA
-CompositeCPA.cpas = cpa.location.LocationCPA, cpa.errorlocation.ErrorLocationCPA, cpa.symbpredabsCPA.SymbPredAbsCPA
+CompositeCPA.cpas = cpa.location.LocationCPA, cpa.automatonAnalysis.ObserverAutomatonCPA, cpa.symbpredabsCPA.SymbPredAbsCPA
 automatonAnalysis.inputFile = $LDV_errloc_autom
 EOF
 	close $CPA_CFG;
