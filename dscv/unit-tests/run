@@ -141,7 +141,7 @@ for my $test(@tests){
 				# Check if the result of checking is correct
 				if ($oracle->{dscvs}->{$ref}){
 					# DSCV error
-					my $descr = $cmdT->field('description');
+					my $descr = $cmdT->first_child('dscv')->field('desc');
 					my $descr_corr = $oracle->{dscvs}->{$ref};
 
 					die "Can't find '$descr_corr' in description of ld[$ref]." unless $descr =~ /$descr_corr/m;
