@@ -1,0 +1,10 @@
+#!/usr/bin/perl
+# Problem finder for DSCV
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/No entry points specified/i and print "No_entries";
+}
+

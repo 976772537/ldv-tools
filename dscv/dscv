@@ -552,12 +552,13 @@ for my $property (@properties){
 # Add <dscv> tag to the report
 sub add_dscv_info
 {
-	my ($rep_entityT,$status_str) = @_;
+	my ($rep_entityT,$status_str,$descr) = @_;
+	$descr ||= '';
 
 	my $dscvT = XML::Twig::Elt->new('dscv');
 	XML::Twig::Elt->new('status',{},$status_str)->paste(last_child=>$dscvT);
 	XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0')->paste(last_child=>$dscvT);
-	XML::Twig::Elt->new('desc',{},"")->paste(last_child=>$dscvT);
+	XML::Twig::Elt->new('desc',{},$descr)->paste(last_child=>$dscvT);
 
 	$dscvT->paste(last_child=>$rep_entityT);
 }
@@ -582,7 +583,14 @@ sub report_about_command
 		}
 	}else{
 		my $repT = XML::Twig::Elt->new($name,{'ref'=>$id});
-		add_dscv_info($repT,'FAILED');
+		# Try to find out what happened
+		# Was it because that main hasn't been specified?
+		unless ($reportsT->findnodes("$name\[\@ref=\"$id\"\]/main")){
+			add_dscv_info($repT,'FAILED','No entry points specified');
+		}else{
+			# If we don't know the reason, let's leave the field empty
+			add_dscv_info($repT,'FAILED');
+		}
 		$repT->paste(last_child=>$big_reportT);
 	}
 }
