@@ -193,13 +193,13 @@ sub call_cpachecker
 	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
 
 	print $CPA_CFG <<EOF;
-cfa.removeIrrelevantForErrorLocations = true
+cfa.removeIrrelevantForErrorLocations = false
 analysis.traversal = topsort
 analysis.useRefinement = true
 cegar.refiner = cpa.symbpredabsCPA.SymbPredAbsRefiner
 cpa = cpa.art.ARTCPA
 ARTCPA.cpa = cpa.composite.CompositeCPA
-CompositeCPA.cpas = cpa.location.LocationCPA, cpa.automatonAnalysis.ObserverAutomatonCPA, cpa.symbpredabsCPA.SymbPredAbsCPA
+CompositeCPA.cpas = cpa.location.LocationCPA, cpa.automatonanalysis.ObserverAutomatonCPA ErrorLocationAutomaton, cpa.symbpredabsCPA.SymbPredAbsCPA
 automatonAnalysis.inputFile = $LDV_errloc_autom
 EOF
 	close $CPA_CFG;
@@ -221,11 +221,11 @@ AUTOMATON ErrorLocationAutomaton
 
 	STATE Init :
 	  // label of the next CFA state starts with "error"
-		MATCH LABEL [$errloc.*]
+		MATCH LABEL [$errloc]
 		// call of assert_fail without arguments
-		|| MATCH {__assert_fail()}
+		//|| MATCH {__assert_fail()}
 		// call of assert_fail with any (>0) number of arguments
-		|| MATCH {__assert_fail(\$?)} 
+		//|| MATCH {__assert_fail(\$?)} 
 
   -> ERROR;
 
