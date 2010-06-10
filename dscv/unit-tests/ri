@@ -1,0 +1,73 @@
+#!/usr/bin/perl
+# Fake rule instrumentor.  Does nothing, just fails sometimes :-)
+
+use strict;
+use Getopt::Long;
+
+print "Hi!  I am a fake Rule Instrumentor!\n";
+
+my $config={
+};
+
+my %optionSpecs = ();
+$optionSpecs{'basedir=s'} = \$config->{basedir};
+$optionSpecs{'rule-model=s'} = \$config->{rule_model};
+$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
+$optionSpecs{'cmdfile-out=s'} = \$config->{cmdfile_out};
+
+$optionSpecs{'report=s'} = \$config->{report};
+$optionSpecs{'report-out=s'} = \$config->{report_out};
+
+GetOptions(%optionSpecs) or die("Unrecognized options!");
+
+# Do some checks
+-d $config->{basedir} or die;
+
+# Fail if we're requested to
+if ($config->{rule_model} ne 'good'){
+	print "Model's not good.  I die.\n";
+}
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	# TODO: make it compliant with unit-testing installation
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
+
+use File::Copy;
+use File::Copy::Recursive qw(dircopy);
+use XML::Twig;
+unless ($config->{report}){
+	# Copy driver and replace basedir
+	my $OUTR; open $OUTR, ">", $config->{cmdfile_out} or die "Can't open file $config->{cmdfile_out}: $!";
+	my $basedir = undef; # ref to basedir
+	XML::Twig->new( twig_roots=> {
+		'basedir' => sub {
+			# Copy driver to the new dir and re-set basedir
+			dircopy($_[1]->text(),$config->{basedir}) or die $!;
+			$$basedir = $_[1]->text();
+			$_[1]->set_text($config->{basedir});
+			$_[1]->print('indented',$OUTR);
+		},
+		'out' => sub{
+			my $t=$_[1]->text();  $t =~ s/^\Q$$basedir/$config->{basedir}/;
+			$_[1]->set_text($t);
+			$_[1]->print($OUTR);
+		},
+		'in' => sub{
+			my $t=$_[1]->text();  $t =~ s/^\Q$$basedir/$config->{basedir}/;
+			$_[1]->set_text($t);
+			$_[1]->print($OUTR);
+		},
+		},
+		twig_print_outside_roots => $OUTR
+	)->parsefile($config->{cmdfile});
+	close $OUTR;
+}else{
+	# Replicate report file
+	copy($config->{report},$config->{report_out}) or die;
+}
+
+# ...and return.
+exit 0;
+

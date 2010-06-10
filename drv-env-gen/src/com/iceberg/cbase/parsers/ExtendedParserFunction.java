@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.iceberg.Logger;
 import com.iceberg.cbase.parsers.options.OptionFunctionName;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.Token;
@@ -192,7 +193,7 @@ oWhile:		while(matcher.find()) {
 						tokens.add(token);
 				}
 			} catch (Exception e) {
-				System.out.println("DEBUG: parse exception - "+ ++parseExceptionCounter);
+				Logger.debug(" parse exception - "+ ++parseExceptionCounter);
 			}
 		}
 		return tokens;
@@ -320,7 +321,7 @@ oWhile:		while(matcher.find()) {
 			try {
 				pBegin=beginMatcher.group();
 			} catch(Exception e) {
-				System.out.println("begin match: function init in params: " + param);
+				Logger.err("begin match: function init in params: " + param);
 			}
 
 			Matcher endMatcher = endPatternLow.matcher(param.substring(pBegin.length()));
@@ -330,7 +331,7 @@ oWhile:		while(matcher.find()) {
 			try {
 				pEnd = endMatcher.group();
 			} catch(Exception e) {
-				System.out.println("end match: function init in params: " + param);
+				Logger.err("end match: function init in params: " + param);
 			}
 
 			return (pBegin+" $var "+pEnd);

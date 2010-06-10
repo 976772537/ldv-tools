@@ -1,0 +1,112 @@
+#!/usr/bin/perl
+# Mock Reachability C Verifier
+
+# Reads input, checks for file existence and dies with a proper exit code.
+
+# First, check what we need to do.
+# For now we just... fail!
+
+use strict;
+use Getopt::Long;
+
+print "Hi!  I am a fake Reachability Verifier!\n";
+
+my $config={
+};
+
+my %optionSpecs = ();
+$optionSpecs{'help'} = \$config->{help};
+$optionSpecs{'main=s'} = \$config->{main};
+
+GetOptions(%optionSpecs) or diec(5,"Unrecognized options!");
+
+my @inputfiles = @ARGV;
+
+
+exit 0 if $config->{help};
+
+# Ok, we're in checking mode.
+sub diec
+{
+	my $code = shift;
+	warn @_;
+	exit $code;
+}
+
+# Verify if all files are there.
+for my $file (@inputfiles){
+	local $! = 5;
+	-r $file or diec(5,"Can't find $file");
+}
+
+# Get the verification result
+my ($result,$found) = (undef,undef);
+for my $file (@inputfiles){
+	local $! = 5;
+	my $FH; open $FH, "<", $file or diec 5,"Can't open file: $!";
+	($result,$found) = verify($FH,$config->{main});
+	close $FH;
+
+	last if $found;
+}
+$result ||= 'UNKNOWN';
+
+unless ($found){
+	diec (3,"Main $config->{main} not found in source files!\n");
+}
+
+# Now "perform the check"!
+if ($ENV{'MOCK_RCV_DO_TIMELIMIT'}){
+	print "Trying to violate a time limit...\n";
+	my $i=0;
+	while ($i<2_000_000_000){
+		$i++;
+	}
+	print "HOW COME I couldn't???";
+}
+if ($ENV{'MOCK_RCV_DO_MEMLIMIT'}){
+	print "Trying to violate a memory limit...\n";
+	my $i=0; my $hash = {};
+	while ($i<2_000_000_000){
+		$hash->{$i++} = $i;
+	}
+	print "HOW COME I couldn't???";
+}
+
+if ($result eq 'SAFE'){
+	print "The system is safe\n";
+}elsif($result eq 'UNSAFE'){
+	print <<EOF;
+The system is unsafe
+
+Error trace: (final)
+No trace!  It's a fake verifier, you remember!? :-)
+Error trace ends (final)
+EOF
+}else{
+	print "Blah blah blah\n";
+}
+
+exit 0;
+
+#======================================
+# Ancillary subroutines
+#======================================
+use constant { MAIN_WAIT => 0, MAIN_READ => 1, MAIN_DONE =>2};
+sub verify
+{
+	my ($FH,$main) = @_;
+	my $read_state = MAIN_WAIT;
+	while (<$FH>){
+		my $l = $_;
+		$l =~ /$main/ and do {print "Found main: $main!\n"; $read_state = MAIN_READ; next;};
+		if ($read_state = MAIN_READ){
+			$l =~ /^}/ and return (undef,1);
+			$l =~ /\bUNSAFE\b/ and return ('UNSAFE',1);
+			$l =~ /\bSAFE\b/ and return ('SAFE',1);
+			$l =~ /\bUNKNOWN\b/ and return ('UNKNOWN',1);
+		}
+	}
+	return (undef,'');
+}
+

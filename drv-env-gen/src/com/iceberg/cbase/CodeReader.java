@@ -3,6 +3,7 @@ package com.iceberg.cbase;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 
+import com.iceberg.Logger;
 import com.iceberg.cbase.readers.ReaderCCommentsDel;
 import com.iceberg.cbase.readers.ReaderWrapper;
 
@@ -19,6 +20,6 @@ public class CodeReader {
 			e.printStackTrace();
 		}
 		long end = System.currentTimeMillis();
-		System.out.println("Time: " + (end-start) + "ms");
+		Logger.info("Time: " + (end-start) + "ms");
 	}
 }

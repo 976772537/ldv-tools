@@ -55,9 +55,15 @@ my $workdir = $config->{workdir};
 
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000);	# Default memory limit is 1Gb
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000);	# Default memory limit is 1Gb.  It may be overflowed, because it's set as -Xmx
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
+# Check if we launch CIL before the verifier
+my $cilly = 1;
+if ($ENV{'NO_CIL'}){
+	vsay(10,"CIL skipped because NO_CIL environment variable is set\n");
+	$cilly='';
+}
 
 # Prepare sanity checks
 my $sanity = DSCV::Sanity->new($config->{sandir});
@@ -69,9 +75,6 @@ $ENV{'PATH_TO_CPACHECKER'} = $backend_dir;
 
 #Check if cpachecker is available
 cpachecker_quick_check();
-
-vsay('WARNING', "Checking unimplemented, exiting with error\n");
-#exit 1;
 
 #======================================================================
 # PREPARE CMDFILE TRAVERSERS AND RUN THEM
@@ -87,7 +90,7 @@ my $check_input_file = XML::Twig->new(
 	twig_handlers => {
 		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
 		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>1, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
 	}
 );
 $check_input_file->parsefile($config->{cmdfile});
@@ -108,55 +111,68 @@ sub verify_cpachecker
 	my $repT = XML::Twig::Elt->new('reports');
 
 	for my $main (@{$args{mains}}){
-		my $result = call_cpachecker(%args, main=>$main); 
+		if ($args{already_failed}){
+			# Prepare a failure command
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
+
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
+			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$args{already_failed})->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			XML::Twig::Elt->new('time',{},0)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
+		}else{
+			# OK, need to call CPAchecker
+			my $result = call_cpachecker(%args, main=>$main); 
 	
-		# Print verdict to console and to report 
-		vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
-		vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
+			# Print verdict to console and to report 
+			vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
+			vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
 
-		# Verdict
-		my $bv = $result->{'CPACHECKER-detailed'};
-		if ($bv =~ /\bsafe\b/) {
-			$bv='SAFE';
-		}elsif($bv =~ /\bunsafe\b/){
-			$bv='UNSAFE';
-		}else{
-			$bv='UNKNOWN';
+			# Verdict
+			my $bv = $result->{'CPACHECKER-detailed'};
+			if ($bv =~ /\bsafe\b/) {
+				$bv='SAFE';
+			}elsif($bv =~ /\bunsafe\b/){
+				$bv='UNSAFE';
+			}else{
+				$bv='UNKNOWN';
+			}
+			# Result is derived from verdict
+			my $br = $result->{'CPACHECKER'};
+			vsay (40, "CPACHECKER status is $br\n");
+			if($br =~ /\bno\b/i){
+				$br='FAILED';
+			}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
+				$br='OK';
+			}else{
+				$br='FAILED';
+			}
+
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
+			XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			my $time_sec = $result->{'utime'}+$result->{'stime'};
+			my $time_msec = int($time_sec * 1000);
+			XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
 		}
-		# Result is derived from verdict
-		my $br = $result->{'CPACHECKER'};
-		vsay (40, "CPACHECKER status is $br\n");
-		if($br =~ /\bno\b/i){
-			$br='FAILED';
-		}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
-			$br='OK';
-		}else{
-			$br='FAILED';
-		}
-
-		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
-
-		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
-		XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
-		XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
-
-		# Calculate and output time elapsed
-		my $time_sec = $result->{'utime'}+$result->{'stime'};
-		my $time_msec = int($time_sec * 1000);
-		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
-
-		$rcvResultT->paste(last_child =>$cmdInstT);
-		$cmdInstT->paste($repT);
-
-		#my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		#XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		#XML::Twig::Elt->new('status',{},$result->{'CPACHECKER'})->paste($cmdInstT);
-		#XML::Twig::Elt->new('verdict',{},$result->{'CPACHECKER-detailed'})->paste($cmdInstT);
-		#$cmdInstT->paste($repT);
 	}
 
+CLOSE_REPORT:
 	$repT->print($CPACHECKER_REPORT,'indented');
 	close $CPACHECKER_REPORT;
 }
@@ -170,19 +186,58 @@ sub call_cpachecker
 	my %args = @_;
 	# Options that will be passed to the cpachecker tool
 	my @cpachecker_options = ($cpachecker,@{$args{files}});
+
 	# Set default options
-	# These are: -alias bdd -cref -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0 -nomusts -const
+	# Create a temporary config file.  Config is based on sympredabsCPA
+	my $CPA_CFG; my $cpa_cfg = "$args{workdir}/cpa.cfg"; open $CPA_CFG, ">", $cpa_cfg or die;
+	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
+
+	print $CPA_CFG <<EOF;
+cfa.removeIrrelevantForErrorLocations = false
+analysis.traversal = topsort
+analysis.useRefinement = true
+cegar.refiner = cpa.symbpredabsCPA.SymbPredAbsRefiner
+cpa = cpa.art.ARTCPA
+ARTCPA.cpa = cpa.composite.CompositeCPA
+CompositeCPA.cpas = cpa.location.LocationCPA, cpa.automatonanalysis.ObserverAutomatonCPA ErrorLocationAutomaton, cpa.symbpredabsCPA.SymbPredAbsCPA
+automatonAnalysis.inputFile = $LDV_errloc_autom
+EOF
+	close $CPA_CFG;
+
+	# For now, only one error location is supported by CPACHECKER
+	(scalar @{$args{errlocs}} > 1) and die;
+	my $errloc = (@{$args{errlocs}})[0];
+
+	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
+	print $ERRLOC_AUT <<EOF;
+AUTOMATON ErrorLocationAutomaton
+// This Automaton replaces the ErrorLocationCPA. It detects error locations that were defined in the sourcecode.
+
+/* The ErrorLocationCPA had 3 triggers.
+ * The Trigger "(CFAEdge.CFASuccessor instanceOf CFAErrorNode)" could not be implemented in this automaton.
+  */
+
+	INITIAL STATE Init;
+
+	STATE Init :
+	  // label of the next CFA state starts with "error"
+		MATCH LABEL [$errloc]
+		// call of assert_fail without arguments
+		//|| MATCH {__assert_fail()}
+		// call of assert_fail with any (>0) number of arguments
+		//|| MATCH {__assert_fail(\$?)} 
+
+  -> ERROR;
+
+EOF
+	close $LDV_errloc_autom;
+
 	push @cpachecker_options,
-		"-config","$configs_dir/symbpredabsCPA.properties"
+		"-config","$cpa_cfg"
 	;
 
 	# Add mains and error locations
 	push @cpachecker_options, "-entryfunction",$args{main} if $args{main};
-	# For now, only one error location is supported by CPACHECKER
-	(scalar @{$args{errlocs}} > 1) and die;
-	my $errloc = (@{$args{errlocs}})[0];
-	# TODO: find a way to supply error location!
-	# push @cpachecker_options, "-L",$errloc if $errloc;
 
 	#write ErrorPath.txt and other files to outputpath
 	my $outputpath = "$args{debug}-stuff";
@@ -194,13 +249,17 @@ sub call_cpachecker
 	# Additional options
 	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
 
-	# Resources limit
+	# Resources limit.  We don't set memlimit--see below
 	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
-		memlimit => $memlimit,
 		id_str => "DSCV_TIMEOUT ",
 		},@cpachecker_options
 	);
+
+	# Set memory limit.
+	# We set memory limit with Java native capabilities.  We use -Xmx and set it to the value supplied by user.  Thus, the memory limit can be overflew a bit, but in return the exception will be native.
+	my $memlimit_kb = int($memlimit / 1024);
+	$ENV{'JAVA_VM_ARGUMENTS'} .= " -Xmx${memlimit_kb}m";
 
 	vsay ('NORMAL',"Running CPACHECKER for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@cpachecker_options,"\n");
@@ -222,7 +281,7 @@ sub call_cpachecker
 	# In CPAchecker trace is in the separate file.  We'll just copy it to $args{trace} at the end
 	my $trace_fname = "$outputpath/ErrorPath.txt";
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict()]);
+	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict(),java_oom()]);
 
 	# Process output and redirect it to file
 	local $_;
@@ -243,6 +302,7 @@ sub call_cpachecker
 	vsay (20,"CPACHECKER return value: $?\n");
 	vsay (40,"CPACHECKER stats: utime $child{'utime'}, stime $child{'stime'}\n");
 	my $cpachecker_rv = $? >> 8;
+	my $cpachecker_rv_full = $?;
 	if($? == 0){
 		vsay (20,"CPACHECKER OK\n");
 	}else{
@@ -258,8 +318,10 @@ sub call_cpachecker
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
 
-	# Copy back trace
-	copy($trace_fname,$args{trace}) or die;
+	# Copy back trace if it exists
+	if (-r $trace_fname) {
+		copy($trace_fname,$args{trace}) or die;
+	}
 
 	# Add information about limits to result
 	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
@@ -272,7 +334,7 @@ sub call_cpachecker
 =========== Launch information ===========
 Verifier: CPAchecker ($ver4rep)
 Time Limit: $tl4rep
-Memory Limit: $ml4rep
+Memory Limit: $ml4rep (average)
 Additional options: $ENV{'CPACHECKER_OPTIONS'}
 =========== Launch inform ends ===========
 EOR
@@ -309,6 +371,14 @@ sub cpachecker_quick_check
 	vsay ('INFO',"OK\n");
 }
 
+sub java_oom
+{
+	return[10_000,sub{
+		my $l=shift or return undef;
+		$l=~/^Exception.*OutOfMemory/i and return {'LIMITS'=>'Memory Limit Exceeded'};
+		return undef;
+	}];
+}
 
 sub cpachecker_verdict
 {
@@ -316,6 +386,7 @@ sub cpachecker_verdict
 		my $l=shift or return undef;
 		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
 		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
+		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'CPACHECKER-detailed' => "The system is safe.  Error location is not reachable.", 'CPACHECKER'=>'yes'};
 		return undef;
 	}];
 }

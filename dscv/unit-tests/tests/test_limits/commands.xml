@@ -1,0 +1,32 @@
+<cmdstream>
+  <basedir>@BASE@</basedir>
+	<test limit="memory"/>
+  <cc id="1">
+    <cwd>@CWD@</cwd>
+    <out>@BASE@/win.o</out>
+    <in>@BASE@/win.c</in>
+    <engine>blast</engine>
+  </cc>
+  <cc id="2">
+    <cwd>@CWD@</cwd>
+    <out>@BASE@/victory.o</out>
+    <in>@BASE@/victory.c</in>
+    <engine>blast</engine>
+  </cc>
+  <ld id="3">
+    <main verdict="UNKNOWN">main_one</main>
+    <cwd>@CWD@</cwd>
+    <engine>blast</engine>
+    <out check="true">@BASE@/prog.exe</out>
+    <in>@BASE@/win.o</in>
+  </ld>
+  <ld id="4">
+    <main verdict="UNKNOWN">main_two</main>
+    <cwd>@CWD@</cwd>
+    <engine>blast</engine>
+    <out check="true">@BASE@/prog2.exe</out>
+    <in>@BASE@/victory.o</in>
+  </ld>
+</cmdstream>
+
+

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 import com.iceberg.FSOperationsBase;
+import com.iceberg.Logger;
 import com.iceberg.cbase.parsers.ExtendedParser;
 import com.iceberg.cbase.parsers.ExtendedParserFunction;
 import com.iceberg.cbase.readers.ReaderCCommentsDel;
@@ -20,12 +21,12 @@ public class Model0049 {
 	public static void main(String[] args) {
 		long startf = System.currentTimeMillis();
 		if(args.length != 3) {
-			System.out.println("USAGE: java -ea model0049g.jar <dirname> <filename.c> <funcionname>");
+			Logger.norm("USAGE: java -ea model0049g.jar <dirname> <filename.c> <funcionname>");
 			return;
 		}
 		generate(args[1],args[0], args[2]);
 		long endf = System.currentTimeMillis();
-		System.out.println("generate time: " + (endf-startf) + "ms");
+		Logger.info("generate time: " + (endf-startf) + "ms");
 	}
 
 	public static void generate(String filename, String dirname, String funname) {
@@ -37,7 +38,7 @@ public class Model0049 {
 		int ipercent=0;
 		while(cfilenamesIterator.hasNext()) {
 			String cfilename = cfilenamesIterator.next();
-			System.out.println("PARSE: " + cfilename);
+			Logger.info("PARSE: " + cfilename);
 			Reader reader;
 			try {
 				reader = new FileReader(cfilename);
@@ -50,7 +51,7 @@ public class Model0049 {
 				/* распарсим функции и добавим их в список */
 				tokens.addAll(ep.parse());
 				ipercent++;
-				System.out.println("PARSE: " + 100*(double)ipercent/(double)(cfilenames.size())+"%");
+				Logger.info("PARSE: " + 100*(double)ipercent/(double)(cfilenames.size())+"%");
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			}
@@ -59,7 +60,7 @@ public class Model0049 {
 		/* добавим искомый токен */
 		tokens.add(new TokenFunctionDecl(funname, "void", null, 0, 0, null, null));
 
-		System.out.println("END_OF_PARSE");
+		Logger.info("END_OF_PARSE");
 		/* связывание функций */
 		/* пройдемся по списку описаний функций
 		 * */
@@ -69,7 +70,7 @@ public class Model0049 {
 			Token tf = outFIterator.next();
 			List<Token> lftokens = tf.getTokens();
 			if (lftokens != null) {
-				System.out.println("ASSIGN: " + 100*(double)(ipercent++)/(double)(tokens.size())+"%");
+				Logger.info("ASSIGN: " + 100*(double)(ipercent++)/(double)(tokens.size())+"%");
 	outcon:		for(int i=0; i<lftokens.size(); i++) {
 					Iterator<Token> innerFIterator = tokens.iterator();
 					while(innerFIterator.hasNext()) {
@@ -88,18 +89,12 @@ public class Model0049 {
 		}
 
 
-		System.out.println("EXCEPTION_COUNTER:" + ExtendedParserFunction.parseExceptionCounter);
-		System.out.println("\n");
-
+		Logger.info("EXCEPTION_COUNTER:" + ExtendedParserFunction.parseExceptionCounter);
 		List<String> callgToken = new ArrayList<String>(100000);
 		callgToken = printGraph(tokens, new ArrayList<Token>(), funname, callgToken);
 		/* теперь выведем весь список на консоль */
-		System.out.println("\n_______________________________________________________\n");
-		System.out.println("\n_______________________________________________________\n");
-		System.out.println("\n_______________________________________________________\n");
-		System.out.println("\n_______________________________________________________\n");
 		for(int i=0; i<callgToken.size(); i++)
-			System.out.println(callgToken.get(i));
+			Logger.norm(callgToken.get(i));
 	}
 
 
@@ -145,7 +140,6 @@ public class Model0049 {
 				tfdstack.add(tfd);
 				if(tfd.getTokens()!=null && tfd.getTokens().size()>0) {
 					//printGraph(new Integer(0), tfdlist, tfdstack, null, null);
-					System.out.println("dddddddd");
 				}
 				tfdstack.remove(tfd);
 			}

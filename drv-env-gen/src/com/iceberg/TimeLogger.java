@@ -17,6 +17,6 @@ public class TimeLogger {
 	}
 	
 	private static void putMsg(String msg) {
-		System.out.print(msg);
+		Logger.info(msg);
 	}
 }

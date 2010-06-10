@@ -6,6 +6,8 @@ import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.iceberg.Logger;
+
 public class MainGeneratorThreadRunner {
 	
 	public static void main(String[] args) {
@@ -42,7 +44,7 @@ public class MainGeneratorThreadRunner {
 		}
 		
 		long endf = System.currentTimeMillis();
-		System.out.println("generate time: " + (endf-startf) + "ms");		
+		Logger.info("generate time: " + (endf-startf) + "ms");		
 	}
 	
 	/* получаем списко с-шников из ядра */

@@ -4,7 +4,7 @@ import java.lang.NumberFormatException;
 
 public class Logger {
 	public static int logLevel = 10;
-	public static String name = "CSD";
+	public static String name = "Logger";
 	
 	public static enum Type {
 		WARNING,
@@ -76,5 +76,9 @@ public class Logger {
 	
 	public static void log(String msg) {
 		System.out.println(name+": "+msg);
+	}
+
+	public static void setName(String sname) {
+		name = sname;
 	}
 }

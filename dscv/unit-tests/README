@@ -1,0 +1,18 @@
+
+UNIT-TESTS for DSCV and RCV backends.
+
+This folder contains them.
+
+To run unit-tests, please, from the parent directory, execute
+
+	prefix=/where/to/install/tests \
+	test_dir=/where/to/execute/tests \
+	make unit-tests
+
+Special "mock" RCV backend is created to test DSCV (it's placed in rcv/backends directory).  Also, a fake Rule-Instrumentor is made, and it is the unit-tests/fakeri script.
+
+
+Each test is a command.xml file and source code files. The command.xml file contains commands to execute, and correct answers in form of parameters.
+
+In source code files, for each main to check there must persist a verdict: safe, unsafe or unknown.  Verdict is a capitalized word that must encounter between first occurence of the name of the main and the next line that starts with '}'.  Note that this string should persist through preprocessing, CILlifying and LLVM-ing (for example, it could be a function with a defined body).
+

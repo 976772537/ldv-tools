@@ -1,0 +1,18 @@
+<cmdstream>
+  <basedir>@BASE@</basedir>
+  <cc id="1">
+    <cwd>@CWD@</cwd>
+    <out>@BASE@/empty.o</out>
+    <in>@BASE@/empty.c</in>
+    <engine>blast</engine>
+  </cc>
+  <ld id="2">
+		<!--No main in this file!-->
+    <!--<main verdict="UNKNOWN">there_is_no_such_main</main>-->
+    <cwd>@CWD@</cwd>
+    <engine>blast</engine>
+    <out check="true">@BASE@/empty.exe</out>
+    <in>@BASE@/empty.o</in>
+  </ld>
+</cmdstream>
+

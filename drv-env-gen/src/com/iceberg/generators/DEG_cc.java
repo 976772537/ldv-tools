@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.iceberg.Logger;
+
 /*
  * формат объектника таков, что можно узнать
  * где и какая метка сгенерирована
@@ -14,10 +16,12 @@ import java.util.List;
  * 
  */
 public class DEG_cc {
+	
 	//private static final String usageString = "USAGE: java -ea -jar ldv_cc.jar input_files -o output_file options";
 	private static List<String> inputFiles = new ArrayList<String>();
 	private static String outputFile;
 	private static String counter;
+	private static final String name = "ldv-cc";
 	
 	public static void main(String[] args) {
 		if(!getOpts(args))
@@ -33,9 +37,11 @@ public class DEG_cc {
 				}
 			}
 			FileWriter outputWriter = new FileWriter(outputFile);
-			for(int i=0; i<inputFiles.size(); i++) 
+			for(int i=0; i<inputFiles.size(); i++) {
+				Logger.debug("Start generator for: \""+inputFiles.get(i)+"\" file.");
 				if(MainGenerator.deg(inputFiles.get(i),counter))
 					outputWriter.append(inputFiles.get(i)+":-DLDV_MAIN"+counter);
+			}
 			outputWriter.close();
 		} catch (IOException e) {
 			System.exit(1);
@@ -43,8 +49,11 @@ public class DEG_cc {
 	}
 	
 	private static boolean getOpts(String[] args) {
+		Logger.getLogLevelFromEnv();
+		Logger.setName(name);
+		
 		if(args.length==0) {
-			System.out.println("ldv_cc: ERROR: empty options");
+			Logger.err("empty options");
 			return false;
 		}
 		
@@ -52,31 +61,31 @@ public class DEG_cc {
 		for(i=0; i<args.length && !args[i].equals("-o"); i++ ) {
 			File inputFile = new File(args[i]);
 			if(!inputFile.exists()) {
-				System.out.println("ldv_cc: WARNING: Input file does't exists: \""+args[i]+"\"");
+				Logger.warn("Input file does't exists: \""+args[i]+"\"");
 				//return false;
 			}
 			inputFiles.add(args[i]);
 		}
 		
 		if(inputFiles.size()==0) {
-			System.out.println("ldv_cc: ERROR: No input files.");
+			Logger.err("No input files.");
 			return false;
 		}
 			
 		if(!args[i++].equals("-o")) {
-			System.out.println("ldv_cc: ERROR: After input files must be \"-o outputfile\".");
+			Logger.err("After input files must be \"-o outputfile\".");
 			return false;
 		}
 		
 		File outputFileObj = new File(args[i]);
 		if(outputFileObj.exists()) {
-			System.out.println("ldv_cc: WARNING: Output file already exists: \""+args[i]+"\".");
+			Logger.warn("Output file already exists: \""+args[i]+"\".");
 		}
 		
 		outputFile = args[i++];
 		
 		if(!args[i++].equals("-c")) {
-			System.out.println("ldv_cc: ERROR: After input files must be \"-c number\".");
+			Logger.err("After input files must be \"-c number\".");
 			return false;
 		}
 		counter = args[i];
