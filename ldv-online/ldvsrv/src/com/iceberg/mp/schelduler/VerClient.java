@@ -18,7 +18,7 @@ public class VerClient extends Thread {
 	private List<Task> taskList = new CopyOnWriteArrayList<Task>();
 	private int id;
 	
-	private static enum Status {
+	public static enum Status {
 		VS_WAIT_FOR_TASK,
 		VS_HAVE_TASKS,
 	}

@@ -31,7 +31,8 @@ public class Task implements Serializable {
 		TS_VERIFICATION_FINISHED,
 		TS_VERIFICATION_IN_PROGRESS,
 		TS_PREPARE_FOR_SENDING_TO_VERIFICATION,
-		TS_DIVIDED
+		TS_DIVIDED, 
+		TS_UPLOADING // задача в процессе загрузки на сервер 
 	}
 	
 	public Status status = Status.TS_WAIT_FOR_VERIFICATION;

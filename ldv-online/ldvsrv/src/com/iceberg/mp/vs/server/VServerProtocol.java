@@ -35,19 +35,18 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             VSM msg = (VSM)ois.readObject();
             if(msg.getText().equals(sGetTask)) {
             	Logger.info("Start \"get task request\"");
-            	// проверяем есть ли такой клиент?
-            	// если нет, то создаем дескриптор клиента
-            	Logger.debug("Get client descriptor.");
-            	VerClient vclient = VerClient.create((VSMClient)msg,config);
+            	// выбираем свободную задачу из своей очереди
+            	Logger.debug("Get task from client queue...");
+//            	VerClient vclient = VerClient.create((VSMClient)msg,config);
             	// ждем задачи - проверяем свою очередь
             	// пока в ней не появятся задачи
-            	Task task = null;//new Task(null,null);
-            	Logger.debug("Thread for verification client wait for task...");
-            	while((task = vclient.getTask())==null)
-            		Thread.sleep(sleeptime);
+//            	Task task = null;//new Task(null,null);
+//            	Logger.debug("Thread for verification client wait for task...");
+//            	while((task = vclient.getTask())==null)
+//            		Thread.sleep(sleeptime);
             	Logger.debug("Ok - sending task to verification client");
             	// теперь отсылаем задачу клиенту
-            	MTask mtask = new MTask(task);
+            	MTask mtask = new MTask(null);
             	oos.writeObject(mtask);
             	oos.flush();
             	mtask = null;

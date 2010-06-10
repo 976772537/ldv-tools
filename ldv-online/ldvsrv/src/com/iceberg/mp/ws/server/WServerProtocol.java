@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.sql.Connection;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -14,6 +15,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.iceberg.mp.Logger;
+import com.iceberg.mp.db.SQLRequests;
 import com.iceberg.mp.schelduler.Task;
 import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.server.protocol.ServerProtocolInterface;
@@ -57,12 +59,10 @@ public class WServerProtocol implements ServerProtocolInterface {
 				Logger.trace("WS: Read binary data from client.");
 				byte[] block = new byte[((WSMWsmtoldvsTaskPutRequest)wsmMsg).getSourceLen()];
 				Logger.trace("WS: Full size: "+block.length);
-				in.read(block);
 				Logger.trace("WS: Put task to task-pull.");
-				Task task = Task.create(block,(WSMWsmtoldvsTaskPutRequest)wsmMsg, config);
-				block = null;
 				wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
-				if(task==null)	((WSMLdvtowsResponse)wsmReponse).setResult("FAILED");
+				if(!SQLRequests.puTaskC(config,(WSMWsmtoldvsTaskPutRequest)wsmMsg, in)) 
+					((WSMLdvtowsResponse)wsmReponse).setResult("FAILED");
 				Logger.trace("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
 				sendMsg(out, wsmReponse);
 				Logger.trace("WS: Ok - task transaction finished !");
