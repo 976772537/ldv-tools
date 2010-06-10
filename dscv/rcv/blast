@@ -167,6 +167,7 @@ sub call_blast
 		"-predH","7","-cref","-craig","2",	# Default heuristics on
 		"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
 		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
+		"-ignoredupfn", # Ignore duplicated functions when constructing CFA
 	;
 
 	# Add mains and error locations
