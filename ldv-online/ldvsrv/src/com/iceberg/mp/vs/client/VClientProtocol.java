@@ -1,5 +1,7 @@
 package com.iceberg.mp.vs.client;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -7,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.server.ClientConfig;
 import com.iceberg.mp.vs.VProtocol;
@@ -48,11 +51,11 @@ public class VClientProtocol {
                         oos.writeObject(msgGetTaskOk);
                         oos.flush();
                 } catch (ClassNotFoundException e) {
-                        System.err.println("MASTER: IOException");
+                		Logger.err("MASTER: IOException");
                         e.printStackTrace();
                 } catch (IOException e) {
+                		Logger.err("MASTER: IOException");
                 		e.printStackTrace();
-                        System.err.println("MASTER: IOException");
                 } finally {
                 		try {
 							in.close();
@@ -83,39 +86,44 @@ public class VClientProtocol {
                 return task;
         }
 
-        public boolean VSSendResults() {
+        public boolean VSSendResults(String report) {
 			Socket socket = null;
 			InputStream in  = null;
 			OutputStream out = null;
     		ObjectInputStream ois = null;
     		ObjectOutputStream oos = null;
+    		FileInputStream fis = null;
             try {
     				socket = new Socket(config.getServerName(), config.getServerPort());
     				in  = socket.getInputStream();
     				out = socket.getOutputStream();
             		oos = new ObjectOutputStream(out);
+            		File fileReport = new File(report);
+            		byte[] data = new byte[(int) fileReport.length()];
+            		fis = new FileInputStream(fileReport);
+            		fis.read(data);
             		// после подключения возвращаем серверу результаты
-                    VSMClientSendResults msgSendResults = new VSMClientSendResults(config.getCientName());
+                    VSMClientSendResults msgSendResults = new VSMClientSendResults(config.getCientName(),data);
                     oos.writeObject(msgSendResults);
                     oos.flush();
                     // читаем ответ
                     ois = new ObjectInputStream(in);
                     VSM msgResponse = (VSM)ois.readObject();
                     if(msgResponse.getText().equals(VProtocol.sSendResultsOk)) {
-                    	System.err.println("Send results - ok");
+                    	Logger.info("Send results - ok");
                     	return true;
                     } else if(msgResponse.getText().equals(VProtocol.sSendResultsFailed)) {
-                    	System.err.println("Failed to sending results");
+                    	Logger.err("Failed to sending results");
                     } else {
-                    	System.err.println("Unknown response....!");
+                    	Logger.err("Unknown response....!");
                     }
                     // говорим что успешно прняли
             } catch (ClassNotFoundException e) {
-                    System.err.println("MASTER: IOException");
+                    Logger.err("MASTER: IOException");
                     e.printStackTrace();
             } catch (IOException e) {
             		e.printStackTrace();
-                    System.err.println("MASTER: IOException");
+            		Logger.err("MASTER: IOException");
             } finally {
             		try {
 						in.close();
@@ -141,6 +149,11 @@ public class VClientProtocol {
 						socket.close();
 					} catch (IOException e) {
 						e.printStackTrace();
+					}
+					try {
+						fis.close();
+					} catch (IOException e) {
+						
 					}
             }
             return false;

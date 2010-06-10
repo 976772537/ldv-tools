@@ -7,6 +7,7 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.iceberg.mp.Logger;
 import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.vs.vsm.VSMClient;
 import com.iceberg.mp.vs.vsm.VSMClientSendResults;
@@ -126,6 +127,7 @@ public class VerClient extends Thread {
 	}
 
 	public boolean sendResults(VSMClientSendResults msg) {
+		Logger.info("Send results function...");
 		return false;
 	}
 }	

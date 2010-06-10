@@ -30,7 +30,7 @@ public class Logger {
 	}
 	
 	public static void getLogLevelFromMap(Map<String, String> params) {
-		getLogLevelFromString(params.get("logLevel"));
+		getLogLevelFromString(params.get("LogLevel"));
 	}
 	
 	public static void getLogLevelFromEnv() {

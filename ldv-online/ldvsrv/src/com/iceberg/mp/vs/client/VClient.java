@@ -1,13 +1,13 @@
 package com.iceberg.mp.vs.client;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.Map;
 
+import com.iceberg.mp.Utils;
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.server.ClientConfig;
@@ -21,29 +21,32 @@ public class VClient {
 			System.out.println("USAGE: java -ea -jar vc.jar client.conf");
 			System.exit(1);
 		}
-		ClientConfig config = new ClientConfig(Config.readParameters(args[0]), ServerThreadEnum.VS);
+		Map<String,String> params = Config.readParameters(args[0]);
+		Logger.getLogLevelFromMap(params);
+		ClientConfig config = new ClientConfig(params, ServerThreadEnum.VS);
 		VClientProtocol protocol = new VClientProtocol(config);
 		while(true) {
 			MTask task = protocol.VSGetTask();
 			if(task == null) {
-				System.out.println("Can't get task...");
+				Logger.err("Can't get task...");
 				System.exit(1);
 			} else {
-				System.out.println("Task from user: "+task.getId());
-				System.out.println("Start verification...");
+				Logger.debug("Task from user: "+task.getId());
+				Logger.info("Start verification...");
 				String report = startVerification(config, task);
-				System.out.println("Ok.");
-				System.out.println("Try to send results...");
-				if(!protocol.VSSendResults()) {
-					System.out.println("Can't send results...");
+				Logger.info("Verification end.");
+				Logger.debug("Try to send results...");
+				if(!protocol.VSSendResults(report)) {
+					Logger.err("Can't send results...");
 					System.exit(1);
 				}
-				System.out.println("Results successfully sending...");
+				Logger.info("Results successfully sending...");
 			}	
 		}
 	}
 	
 	// возвращает строку на репорт
+	@SuppressWarnings("finally")
 	public static String startVerification(ClientConfig config, MTask task) {
 //		LDV_DEBUG=100 ldv task --driver=drivers/char/agp --workdir=. --env=vanilla@37_1 --kernel-driver > ./global.log 2>&1 & tail -f ./global.log
 		// 1. сохраняем файл в wokrdir
@@ -61,33 +64,17 @@ public class VClient {
 			File reportFile = new File(report);
 			reportFile.delete();
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
-					config.getLDVInstalledDir()+"/bin; ldv task "
+					config.getLDVInstalledDir()+"/bin; LV_DEBUG="+Logger.logLevel+" ldv task "
 					+"--driver="+config.getWorkDir()+"/driver --workdir="+config.getWorkDir()+"/run " +
 					" --report-out="+report+" --env="+task.getVparams();
 			Logger.trace("RUN LDV:" + startString);
-
+			Logger.debug("Write start command in file :" + config.getWorkDir() +"/start");
 			FileWriter startFile = new FileWriter(config.getWorkDir() +"/start");
 			startFile.write(startString);
 			startFile.flush();
 			startFile.close();
 			
-			try {
-				Process proc = Runtime.getRuntime().exec("bash "+config.getWorkDir() +"/run/start && exit;");
-				BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-				String line = null;
-				while ((line = br.readLine()) != null) { 
-					System.out.println(line); 
-			    }
-				proc.waitFor();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (InterruptedException e) {
-				/*String[] commands = startString.split(" ");
-				Process proc = Runtime.getRuntime().exec(commands);
-				System.setIn(proc.getInputStream());*/ 
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			Utils.runFromFile(config.getWorkDir() +"/start");
 			
 			if(reportFile.exists()) {
 				Logger.debug("Report created in file: " + report);
@@ -107,8 +94,7 @@ public class VClient {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			report = null;
+			return report;
 		}
-		return report;
 	}
 }
