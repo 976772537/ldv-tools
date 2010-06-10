@@ -22,7 +22,8 @@ $application = new Zend_Application(
     APPLICATION_PATH . '/configs/application.ini'
 );
 
-
+echo APPLICATION_ENV;
+#exit;
 // TO BE DELETED!!!
 // Information about the server default database connection that may be
 // override by the user session settings.
@@ -41,7 +42,15 @@ if (!isset($mysession->db_host))
   $mysession->db_username = 'joker';
   $mysession->db_password = '';
   $mysession->db_dbname = 'ldvreports';
-} 
+}
+
+ date_default_timezone_set('Europe/Berlin');
+ 
+$logger = new Zend_Log();
+$writer = new Zend_Log_Writer_Firebug();
+$logger->addWriter($writer);
+Zend_Registry::set('logger',$logger);
+$logger->log(APPLICATION_ENV, Zend_Log::INFO);
 
 $application->bootstrap()
             ->run();

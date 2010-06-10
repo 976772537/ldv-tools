@@ -45,7 +45,9 @@ class StatsController extends Zend_Controller_Action
           'password' => $mysession->db_password,
           'dbname'   => $mysession->db_dbname
         ));
-
+$profiler = new Zend_Db_Profiler_Firebug('All DB Queries');
+$profiler->setEnabled(true);
+$this->_db->setProfiler($profiler);
         $statistics = new Application_Model_StatsMapper(array('db' => $this->_db));
         $this->view->entries = array('stats' => $statistics->fetchAll());
     }

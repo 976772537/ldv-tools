@@ -111,8 +111,15 @@ class Application_Model_Stats
     
     public function setModel($modelId, $modelName)
     {
-        $this->_modelId = (string)$modelId;
-        $this->_modelName = (string)$modelName;
+        $this->_modelId = $modelId;
+        if (!isset($modelId))
+        {
+		  $this->_modelName = 'Sorry, i\'m not a key...';	
+		}
+		else
+		{
+          $this->_modelName = (string)$modelName;
+        }
         return $this;
     }
 
