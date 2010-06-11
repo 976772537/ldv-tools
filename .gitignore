@@ -3,6 +3,10 @@
 .*.swp
 .*.swo
 
-# Statistics server auxiliary files
-stats-visualizer/stats/application/files/*
-
+# Statistics server auxiliary files. Sorry for them.
+# After the end of active development stage i'll
+# remove them. 
+stats-visualizer/vhosts/ldv-stats/data/db/*
+stats-visualizer/vhosts/ldv-stats/data/trace/*
+stats-visualizer/vhosts/ldv-stats/application/configs/scripts.ini
+stats-visualizer/config
