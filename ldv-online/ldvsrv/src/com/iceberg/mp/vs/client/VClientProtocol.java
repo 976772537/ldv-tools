@@ -20,6 +20,11 @@ import com.iceberg.mp.vs.vsm.VSMClientSendResults;
 
 public class VClientProtocol {
 	
+		public static enum Status {
+			VS_WAIT_FOR_TASK,
+			VS_HAVE_TASKS,
+		}
+	
 		private ClientConfig config;
 		
 		public VClientProtocol(ClientConfig config) {

@@ -1,29 +1,22 @@
 package com.iceberg.mp.db;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.Env;
-import com.iceberg.mp.schelduler.Task;
-import com.iceberg.mp.schelduler.VerClient;
+import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.server.ServerConfig;
-import com.iceberg.mp.vs.client.VClient;
+import com.iceberg.mp.vs.client.VClientProtocol;
+import com.iceberg.mp.vs.vsm.VSMClient;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
-import com.sun.xml.internal.ws.message.ByteArrayAttachment;
 
 public class SQLRequests {
 
@@ -51,7 +44,7 @@ public class SQLRequests {
 	
 	private static final String SQL_CREATE_TASKS = 
 		"CREATE CACHED TABLE IF NOT EXISTS TASKS(id INT PRIMARY KEY AUTO_INCREMENT, id_user "+
-		"INT NOT NULL, status VARCHAR(255) NOT NULL, data BLOB)";
+		"INT NOT NULL, status VARCHAR(255) NOT NULL, size INT, data BLOB)";
 	
 	private static final String SQL_CREATE_ETASKS = 
 		"CREATE CACHED TABLE IF NOT EXISTS ETASKS(id INT PRIMARY KEY AUTO_INCREMENT, id_task "+
@@ -59,7 +52,12 @@ public class SQLRequests {
 	
 	private static final String SQL_CREATE_RTASKS = 
 		"CREATE CACHED TABLE IF NOT EXISTS RTASKS(id INT PRIMARY KEY AUTO_INCREMENT, id_etask "+
-		"INT NOT NULL, status VARCHAR(255) NOT NULL, id_rule INT NOT NULL, id_client INT NOT NULL)";
+		"INT NOT NULL, status VARCHAR(255) NOT NULL, id_rule INT NOT NULL, id_client INT NOT NULL," +
+		" rstatus VARCHAR(255), report CLOB)";
+	
+	private static final String SQL_CREATE_RESULTS = 
+		"CREATE CACHED TABLE IF NOT EXISTS RESULTS(id INT PRIMARY KEY AUTO_INCREMENT, id_rtask "+
+		"INT NOT NULL, rstatus VARCHAR(255) NOT NULL, report CLOB)";
 	
 	public static Statement getTransactionStmt(Connection conn) {
 		Statement stmt = null;
@@ -84,6 +82,7 @@ public class SQLRequests {
 			stmt.execute(SQL_CREATE_TASKS);
 			stmt.execute(SQL_CREATE_ETASKS);
 			stmt.execute(SQL_CREATE_RTASKS);
+			stmt.execute(SQL_CREATE_RESULTS);
 			conn.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -214,7 +213,7 @@ public class SQLRequests {
 		try {
 			ResultSet rs = stmt.executeQuery("SELECT id FROM CLIENTS WHERE name='"+name+"'");
 			if(rs.getRow()==0 && !rs.next()) {
-				stmt.execute("INSERT INTO CLIENTS(name,status) VALUES('"+name+"','"+VerClient.Status.VS_WAIT_FOR_TASK+"')");
+				stmt.execute("INSERT INTO CLIENTS(name,status) VALUES('"+name+"','"+VClientProtocol.Status.VS_WAIT_FOR_TASK+"')");
 				rs = stmt.executeQuery("SELECT id FROM CLIENTS WHERE NAME='"+name+"'");
 				rs.next();
 			}
@@ -248,12 +247,12 @@ public class SQLRequests {
 		return registerTask(conn, id_user, data, msg)==-1?false:true;		
 	}
 	
-	public static boolean setTaskStatus(Connection conn,int id , String status) {
+	public static boolean setStatus(String table, Connection conn,int id , String status) {
 		Statement stmt = getTransactionStmt(conn);
 		boolean result = false;
 		if(stmt==null) return false;
 		try {
-			stmt.executeUpdate("UPDATE TASKS SET status='"+status+"' WHERE id="+id);
+			stmt.executeUpdate("UPDATE "+table+" SET status='"+status+"' WHERE id="+id);
 			try {
 				conn.commit();
 				return true;
@@ -273,6 +272,49 @@ public class SQLRequests {
 		return result;	
 	}
 	
+	private static boolean setStatusW(ServerConfig config, String table, int id, String status) {
+		Connection conn = null;
+		try {
+			conn = config.getStorageManager().getConnection();
+			return setStatus(table, conn, id, status);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return false;
+	}
+	
+	public static boolean setTaskStatus(Connection conn,int id , String status) {
+		return setStatus("TASKS", conn, id, status);
+	}
+	
+	public static boolean setRTaskStatus(Connection conn,int id , String status) {
+		return setStatus("RTASKS", conn, id, status);
+	}
+	
+	public static boolean setETaskStatus(Connection conn,int id , String status) {
+		return setStatus("ETASKS", conn, id, status);
+	}
+	
+	public static boolean setTaskStatusW(ServerConfig config, int id , String status) {
+		return setStatusW(config, "TASKS", id, status);
+	}
+
+	public static boolean setRTaskStatusW(ServerConfig config, int id , String status) {
+		return setStatusW(config, "RTASKS",id, status);
+	}
+	
+	public static boolean setETaskStatusW(ServerConfig config,int id , String status) {
+		return setStatusW(config, "ETASKS",id, status);
+	}
+
+	
+	
 	public static int registerTask(Connection conn, int id_user, InputStream data, WSMWsmtoldvsTaskPutRequest msg) {
 		int id=-1;
 		PreparedStatement stmt = null;
@@ -286,10 +328,9 @@ public class SQLRequests {
 			else
 				id = result.getInt(1)+1;
 			result.close();
-			stmt = conn.prepareStatement("INSERT INTO TASKS(id,id_user,status,data) VALUES("+id+","+id_user+",'"+Task.Status.TS_WAIT_FOR_VERIFICATION+"',?)");
+			stmt = conn.prepareStatement("INSERT INTO TASKS(id,id_user,status,size,data) VALUES("+id+","+id_user+",'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',"+msg.getSourceLen()+",?)");
 			stmt.setBinaryStream (1, data, msg.getSourceLen());
 			stmt.executeUpdate();
-			// add etasks
 			List<Env> envs = msg.getEnvs();
 			for(int i=0; i<envs.size(); i++) {
 				ResultSet lirs = st.executeQuery("SELECT id FROM ENVS WHERE name='"+envs.get(i).getName()+"'");
@@ -307,12 +348,9 @@ public class SQLRequests {
 				else
 					id_etask = eresult.getInt(1)+1;
 				eresult.close();
-				//id, id_parent, id_env, status
-				st.executeUpdate("INSERT INTO ETASKS(id, id_task, id_env, status) VALUES("+id_etask+","+id+","+id_env+",'"+Task.Status.TS_WAIT_FOR_VERIFICATION+"')");
-				// add rtasks
+				st.executeUpdate("INSERT INTO ETASKS(id, id_task, id_env, status) VALUES("+id_etask+","+id+","+id_env+",'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"')");
 				List<String> rules = envs.get(i).getRules();
 				for(int j=0; j<rules.size(); j++) {
-					// TODO: add test for "-1"
 					ResultSet lrrs = st.executeQuery("SELECT id FROM RULES WHERE name='"+rules.get(j)+"'");
 					if(lrrs.getRow()==0 && !lrrs.next()) {
 						st.execute("INSERT INTO RULES(name) VALUES('"+rules.get(j)+"')");
@@ -321,9 +359,7 @@ public class SQLRequests {
 					}
 					int id_rule = lrrs.getInt("id");
 					lrrs.close();
-					//id, id_parent, id_rule, id_client, status
-					st.executeUpdate("INSERT INTO RTASKS(id_etask, id_rule, id_client, status) VALUES("+id_etask+","+id_rule+",0,'"+Task.Status.TS_WAIT_FOR_VERIFICATION+"')");
-					// add rtasks					
+					st.executeUpdate("INSERT INTO RTASKS(id_etask, id_rule, id_client, status) VALUES("+id_etask+","+id_rule+",0,'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"')");	
 				}
 			}
 			conn.commit();
@@ -353,16 +389,239 @@ public class SQLRequests {
 			conn = config.getStorageManager().getConnection();
 			return puTask(conn, wsmMsg, in);
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
 			try {
 				conn.close();
 			} catch (SQLException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 		return false;
+	}
+
+
+	public static MTask getTaskForClientW(VSMClient msg, ServerConfig config) {
+		Connection conn = null;
+		try {
+			conn = config.getStorageManager().getConnection();
+			return getTaskForClient(conn, msg);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return null;
+	}
+	
+	public static MTask getTaskForClient(Connection conn, VSMClient msg) {
+		// сначала зарегистририуем клиента, если такого нет
+		int id_client = registerOrGetClientId(conn, msg.getName());
+		if(id_client<0) return null;
+		// теперь возмем для него задачу
+		return selectTask(conn, id_client);
+	}
+
+	private static MTask selectTask(Connection conn, int id_client) {
+		Statement stmt = getTransactionStmt(conn);
+		MTask result = null;
+		InputStream is = null;
+		if(stmt==null) return null;
+		try {
+			ResultSet rs = stmt.executeQuery("SELECT id, id_rule, id_etask FROM RTASKS WHERE status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"' AND id_client="+id_client+" ORDER BY id_etask LIMIT 1");
+			if(rs.getRow()==0 && !rs.next()) 
+				return null;
+			int id = rs.getInt("id");
+			int id_rule = rs.getInt("id_rule");
+			int id_etask = rs.getInt("id_etask");
+			rs = stmt.executeQuery("SELECT id_task, id_env FROM ETASKS WHERE id="+id_etask);
+			if(rs.getRow()==0 && !rs.next()) 
+				return null;
+			int id_task = rs.getInt("id_task");
+			int id_env = rs.getInt("id_env");
+			rs = stmt.executeQuery("SELECT name FROM RULES WHERE id="+id_rule);
+			if(rs.getRow()==0 && !rs.next()) 
+				return null;
+			String rule = rs.getString("name");
+			rs = stmt.executeQuery("SELECT name FROM ENVS WHERE id="+id_env);
+			if(rs.getRow()==0 && !rs.next()) 
+				return null;
+			String env = rs.getString("name");
+			rs = stmt.executeQuery("SELECT data,size FROM TASKS WHERE id="+id_task);	
+			if(rs.getRow()==0 && !rs.next()) 
+				return null;
+			int size = rs.getInt("size");
+			is = rs.getBinaryStream("data");
+			byte[] data = new byte[size];
+			is.read(data);
+			result = new MTask(id,data,env+"@"+rule);
+			stmt.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"' WHERE id="+id);
+			conn.commit();
+		} catch (SQLException e1) {
+			try {
+				conn.rollback();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			e1.printStackTrace();
+		} catch (IOException e) {
+			try {
+				conn.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			e.printStackTrace();
+		} finally {
+			try {
+				stmt.close();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			try {
+				if(is!=null) is.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return result;	
+	}
+
+	public static boolean setRTaskStatusW_WAIT_FOR_VERIFIFCATION(	ServerConfig config, MTask mtask) {
+		return setRTaskStatusW(config, mtask.getId(), MTask.Status.TS_VERIFICATION_IN_PROGRESS+"");
+	}
+
+	public static List<Integer> getClientsIdW_W_WAIT_FOR_TASK(StorageManager smanager) {
+		Connection conn = null;
+		try {
+			conn = smanager.getConnection();
+			return getClientsId_W_WAIT_FOR_TASK(conn);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return null;
+	}
+
+	public static List<Integer> getClientsId_W_WAIT_FOR_TASK(Connection conn) {
+		Statement stmt = getTransactionStmt(conn);
+		List<Integer> listWFV = new ArrayList<Integer>();
+		if(stmt==null) return null;
+		try {
+			ResultSet rs = stmt.executeQuery("SELECT id FROM CLIENTS WHERE status='"+VClientProtocol.Status.VS_WAIT_FOR_TASK+"'");
+			while(rs.next()) {
+				listWFV.add(rs.getInt("id"));
+			}
+			conn.commit();
+		} catch (SQLException e1) {
+			try {
+				conn.rollback();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			e1.printStackTrace();
+		} finally {
+			try {
+				stmt.close();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		}	
+		return listWFV;
+	}
+	
+	public static List<Integer> getRTasksIdW_WAIT_FOR_VERIFICATION(StorageManager smanager) {
+		Connection conn = null;
+		try {
+			conn = smanager.getConnection();
+			return getRTasksId_WAIT_FOR_VERIFICATION(conn);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return null;
+	}
+	
+	public static List<Integer> getRTasksId_WAIT_FOR_VERIFICATION(Connection conn) {
+		Statement stmt = getTransactionStmt(conn);
+		List<Integer> listWFV = new ArrayList<Integer>();
+		if(stmt==null) return null;
+		try {
+			ResultSet rs = stmt.executeQuery("SELECT id FROM RTASKS WHERE id_client=0 AND status='"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"'");
+			while(rs.next()) {
+				listWFV.add(rs.getInt("id"));
+			}
+			conn.commit();
+		} catch (SQLException e1) {
+			try {
+				conn.rollback();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			e1.printStackTrace();
+		} finally {
+			try {
+				stmt.close();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		}	
+		return listWFV;
+	}
+
+	public static boolean setTaskToCLientW(StorageManager smanager, Integer id_client, Integer id_rtask) {
+		Connection conn = null;
+		try {
+			conn = smanager.getConnection();
+			return setTaskToCLient(conn, id_client, id_rtask);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return false;
+	}
+
+	private static boolean setTaskToCLient(Connection conn, Integer id_client, Integer id_rtask) {
+		Statement stmt = getTransactionStmt(conn);
+		boolean result = false;
+		if(stmt==null) return result;
+		try {
+			stmt.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"', id_client="+id_client+" WHERE id="+id_rtask);
+//			stmt.executeUpdate("UPDATE CLIENTS SET status='"+VClientProtocol.Status.VS_HAVE_TASKS+"', id_client="+id_client+" WHERE id="+id_rtask);
+			conn.commit();
+			result = true;
+		} catch (SQLException e1) {
+			try {
+				conn.rollback();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			e1.printStackTrace();
+		} finally {
+			try {
+				stmt.close();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		}	
+		return result;
 	}
 }

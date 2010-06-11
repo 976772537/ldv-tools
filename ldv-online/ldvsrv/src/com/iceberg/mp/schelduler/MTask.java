@@ -4,6 +4,16 @@ import java.io.Serializable;
 
 public class MTask implements Serializable {
 	
+	public static enum Status {
+		TS_WAIT_FOR_VERIFICATION,
+		TS_VERIFICATION_FINISHED,
+		TS_VERIFICATION_IN_PROGRESS,
+		TS_PREPARE_FOR_SENDING_TO_VERIFICATION,
+		TS_DIVIDED, 
+		TS_UPLOADING // задача в процессе загрузки на сервер 
+	}
+	
+	
 	public int getId() {
 		return id;
 	}
@@ -20,10 +30,11 @@ public class MTask implements Serializable {
 	private int id;
 	private String vparams;
 	private byte[] data;
-	
-	public MTask(Task task) {
-		this.id = task.getId();
-		this.data = task.getData();
-		this.vparams = Task.getSerVparams(task);
+
+	public MTask(int id, byte[] data, String vparams) {
+		this.id = id;
+		this.data = data;
+		this.vparams = vparams;
 	}
+	
 }

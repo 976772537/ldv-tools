@@ -15,7 +15,7 @@ import com.iceberg.mp.server.Config;
 import com.iceberg.mp.server.ServerThreadEnum;
 
 public class VClient {
-
+	
 	public static void main(String[] args) {
 		if(args.length!=1) {
 			System.out.println("USAGE: java -ea -jar vc.jar client.conf");
@@ -42,6 +42,7 @@ public class VClient {
 				}
 				Logger.info("Results successfully sending...");
 			}	
+			break;
 		}
 	}
 	
@@ -64,7 +65,7 @@ public class VClient {
 			File reportFile = new File(report);
 			reportFile.delete();
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
-					config.getLDVInstalledDir()+"/bin; LV_DEBUG="+Logger.logLevel+" ldv task "
+					config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" ldv task "
 					+"--driver="+config.getWorkDir()+"/driver --workdir="+config.getWorkDir()+"/run " +
 					" --report-out="+report+" --env="+task.getVparams();
 			Logger.trace("RUN LDV:" + startString);

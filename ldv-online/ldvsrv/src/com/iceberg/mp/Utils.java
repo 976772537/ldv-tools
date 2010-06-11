@@ -2,16 +2,13 @@ package com.iceberg.mp;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.zip.GZIPOutputStream;
 
 public class Utils {
 	
-	public byte[] compress(String wrokdir, String outfile) {
+	/*public byte[] compress(String wrokdir, String outfile) {
 		GZIPOutputStream gos = null;
 		FileOutputStream fos = null;
 		BufferedOutputStream bobs = null;
@@ -28,7 +25,7 @@ public class Utils {
 			e.printStackTrace();
 		}		
 		return null;	
-	}
+	}*/
 	
 	public static void runFromFile(String filename) {
 		Runtime rt = Runtime.getRuntime();

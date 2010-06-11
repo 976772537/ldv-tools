@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.sql.Connection;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -16,7 +15,6 @@ import org.xml.sax.SAXException;
 
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.db.SQLRequests;
-import com.iceberg.mp.schelduler.Task;
 import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 import com.iceberg.mp.ws.wsm.WSM;

@@ -47,9 +47,6 @@ public class RunLDV {
 		Logger.info("Init connectManager...");
 		storageManager.init();
 		Logger.info("ConnectManager successfully initialized.");
-		Logger.info("Initializing schelduler...");
-		scheduler.init();
-		Logger.info("Schelduler successfully initialized.");
 		Logger.info("Starting schelduler...");
 		scheduler.start();
 		Logger.info("Schelduler successfully started.");
