@@ -168,6 +168,7 @@ sub call_blast
 		"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
 		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
 		"-ignoredupfn", # Ignore duplicated functions when constructing CFA
+		"-nosserr", # Ignore "combining structure and non-structure values" error.  LLVM emits such nasty code.
 	;
 
 	# Add mains and error locations
