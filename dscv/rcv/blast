@@ -202,7 +202,11 @@ sub call_blast
 			"-alias","bdd"	# Turn alias analysis on
 		;
 	}
+
+	# External settings
 	push @blast_options,(split /\s+/,$ENV{'BLAST_OPTIONS'});
+	# Solver
+	push @blast_options,"-smt" if $ENV{'BLAST_SOLVER'};
 
 	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 	# To Limit resources for BLAST we use timeout script.
@@ -287,6 +291,7 @@ Verifier: BLAST ($ver4rep)
 Time Limit: $tl4rep
 Memory Limit: $ml4rep
 Additional options: $ENV{'BLAST_OPTIONS'}
+Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
 =========== Launch inform ends ===========
 EOR
 
