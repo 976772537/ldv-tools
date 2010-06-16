@@ -37,7 +37,7 @@ install-all: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS) $(SERVER_SUBDIRS
 install-srv: $(call forall_subdirs,$(SHARED_SUBDIRS) $(SERVER_SUBDIRS),install)
 
 # Install only statistics server
-install-stats-server: pre_test $(call forall_subdirs,$(SHARED_SUBDIRS) $(STATS_SERVER_SUBDIRS),install)
+install-stats-server: pre_tests $(call forall_subdirs,$(SHARED_SUBDIRS) $(STATS_SERVER_SUBDIRS),install)
 
 # Install only shared stuff
 install-shared: $(call forall_subdirs,$(SHARED_SUBDIRS),install)

@@ -1,4 +1,10 @@
-To install the statics server you may copy the file config.sample to config and
-define your own values of variables there. Also you may specify them through
-the corresponding environment variables. Note that environment variables are
-preferable.
+To install the statics server you may copy the file 'config.sample' that is
+placed in the current directory to the file 'config' and define your own values
+of variables there. Also you may specify them through the corresponding
+environment variables. Note that environment variables are preferable.
+
+Note! Most likely you must install the statistics server under root since it
+copy files to web server virtual host and configuration directories.
+
+After installation you must restart your web server to see the statistics server
+on the specified port (8999 by default).

@@ -1,10 +1,54 @@
 INSTALL_DIR = __install
 
-# Paths to binaries relatively to installation directory.
-BINDIR_ASPECTATOR = aspectator
-
 # File that contains statistics server variables defined by user.
 CONFIG = config
+
+ifneq ($(wildcard $(CONFIG)),)
+  include $(CONFIG)
+endif 
+
+VHOST_DIR = vhosts
+STATS_DIR = ldv-stats
+STATS_ROOT = public
+
+WEB_SERVER = apache2
+WEB_SERVER_VHOSTS_CONF_DIR = vhosts.d
+WEB_SERVER_VHOSTS_CONF = ldv-stats.conf
+WEB_SERVER_VHOSTS_CONF_VHOSTS_DIR = LDV_STATS_VHOSTS_DIR
+WEB_SERVER_VHOSTS_CONF_STATS_ROOT = LDV_STATS_ROOT
+WEB_SERVER_VHOSTS_CONF_APPLICATION_ENV = LDV_STATS_APPLICATION_ENV
+WEB_SERVER_CONF_DIR = conf.d
+WEB_SERVER_CONF = ldv-stats.conf
+WEB_SERVER_CONF_PORT = LDV_STATS_PORT
+
+# Default values of statistics server port and application environment.
+DEFAULT_PORT = 8999
+DEFAULT_APPLICATION_ENV = production
+
+# Zend framework shared directory. It's relative to the prefix directory.
+ZEND_FRAMEWORK_DIR = shared/php/Zend
+# Zend framework link. It's relative to the statistics server virtual directory.
+ZEND_FRAMEWORK_LINK = $(STATS_DIR)/library/Zend
+
+# Some data files. They are relative to the statistics server directory.
+STATS_DATA = data
+STATS_DB = db
+STATS_PROFILE_DB = profile.db
+STATS_TRACE = trace
+STATS_TRACE_ORIGINAL = original
+STATS_TRACE_PROCESSED = processed
+
+# The application directory. It's relative to the statistics server directory.
+STATS_APPLICATION = application
+
+# Some configuration files. They are relative to the application directory.
+STATS_CONFIG = configs
+STATS_CONFIG_SCRIPTS = scripts.ini
+STATS_CONFIG_ERROR_TRACE_VISUALIZER = [error-trace-visualizer]
+STATS_CONFIG_SCRIPT = script = 
+
+# Error trace visualizer script. It's relative to the bin directory.
+ERROR_TRACE_VISUALIZER = error-trace-visualizer.pl
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified. 
@@ -15,9 +59,6 @@ exec_prefix = ${prefix}
 bindir = ${exec_prefix}/bin
 mandir = ${prefix}/man
 
-# Paths to binaries symlinks relatively to bindir.
-BIN_COMPILER = compiler
-
 # Phony targets.
 .PHONY: all install test clean
 
@@ -27,10 +68,40 @@ all:
 
 # Install needed files to specified paths.
 install:
-	if [ -f $(CONFIG) ]; then cat $(CONFIG) || exit 1; fi
+	@if [ ! -n "$(LDV_STATS_CONF_DIR)" ]; then echo 'Specify the LDV_STATS_CONF_DIR variable value!' && exit 1; else echo 'LDV_STATS_CONF_DIR is $(LDV_STATS_CONF_DIR)'; fi
+	@if [ ! -n "$(LDV_STATS_VHOSTS_CONF_DIR)" ]; then echo 'Specify the LDV_STATS_VHOSTS_CONF_DIR variable value!' && exit 1; else echo 'LDV_STATS_VHOSTS_CONF_DIR is $(LDV_STATS_VHOSTS_CONF_DIR)'; fi
+	@if [ ! -n "$(LDV_STATS_VHOSTS_DIR)" ]; then echo 'Specify the LDV_STATS_VHOSTS_DIR variable value!' && exit 1; else echo 'LDV_STATS_VHOSTS_DIR is $(LDV_STATS_VHOSTS_DIR)'; fi
+	if [ ! -n "$(LDV_STATS_PORT)" ]; then echo 'The default LDV_STATS_PORT "$(DEFAULT_PORT)" is used' && export LDV_STATS_PORT=$(DEFAULT_PORT); else echo 'LDV_STATS_PORT is $(LDV_STATS_PORT)'; export LDV_STATS_PORT=$(LDV_STATS_PORT); fi; \
+	if [ ! -n "$(LDV_STATS_APPLICATION_ENV)" ]; then echo 'The default LDV_STATS_APPLICATION_ENV "$(DEFAULT_APPLICATION_ENV)" is used' && export LDV_STATS_APPLICATION_ENV=$(DEFAULT_APPLICATION_ENV); else echo 'LDV_STATS_APPLICATION_ENV is $(LDV_STATS_APPLICATION_ENV)'; export LDV_STATS_APPLICATION_ENV=$(LDV_STATS_APPLICATION_ENV); fi; \
+	\
+	cat $(WEB_SERVER)/$(WEB_SERVER_CONF_DIR)/$(WEB_SERVER_CONF) | sed -e 's/$(WEB_SERVER_CONF_PORT)/$(LDV_STATS_PORT)/g' > $(LDV_STATS_CONF_DIR)/$(WEB_SERVER_CONF); \
+	cat $(WEB_SERVER)/$(WEB_SERVER_VHOSTS_CONF_DIR)/$(WEB_SERVER_VHOSTS_CONF) | \
+	  sed -e "s/$(WEB_SERVER_CONF_PORT)/$$LDV_STATS_PORT/g" \
+	    -e 's|$(WEB_SERVER_VHOSTS_CONF_VHOSTS_DIR)|$(LDV_STATS_VHOSTS_DIR)|g' \
+	    -e 's|$(WEB_SERVER_VHOSTS_CONF_STATS_ROOT)|$(STATS_DIR)/$(STATS_ROOT)|g' \
+	    -e "s|$(WEB_SERVER_VHOSTS_CONF_APPLICATION_ENV)|$$LDV_STATS_APPLICATION_ENV|g" \
+	  > $(LDV_STATS_VHOSTS_CONF_DIR)/$(WEB_SERVER_VHOSTS_CONF);
+	
+	cp -r $(VHOST_DIR)/$(STATS_DIR) $(LDV_STATS_VHOSTS_DIR) || exit 1;
+	ln -sfT "$(prefix)/$(ZEND_FRAMEWORK_DIR)" "$(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LINK)" || exit 1;
+	@echo Create the needed files
+	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB) || exit 1; fi
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB)
+	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE) || exit 1; fi
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL)
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED)
+	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG) || exit 1; fi
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_SCRIPTS)
+	@echo Give the correct access to the needed files to the statistics server
+	if [ ! -n "$(LDV_STATS_USER)" -o ! -n "$(LDV_STATS_GROUP)" ]; then echo 'Specify the LDV_STATS_USER and LDV_STATS_GROUP variable values if you want to grant the correct access to the statistics server!'; \
+	  else echo 'LDV_STATS_USER is $(LDV_STATS_USER)'; echo 'LDV_STATS_GROUP is $(LDV_STATS_GROUP)'; \
+	    chown $(LDV_STATS_USER):$(LDV_STATS_GROUP) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED) || exit 1; \
+	fi
+	@echo Add pathes to scripts to the statistics server script configuration file
+	echo -e "$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_SCRIPTS)
 
 test:
 	@echo The statistics server doesn\'t have any test
 
 clean:
-	@echo The statistics server doesn\'t require cleaning
+	rm -rf $(INSTALL_DIR) || exit 1
