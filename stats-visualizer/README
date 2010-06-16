@@ -1,0 +1,4 @@
+To install the statics server you may copy the file config.sample to config and
+define your own values of variables there. Also you may specify them through
+the corresponding environment variables. Note that environment variables are
+preferable.
