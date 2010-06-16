@@ -27,7 +27,7 @@ install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
 	if [ ! -d $(prefix)/$(LDV_SHARED_PHP_DIRNAME) ]; then mkdir -p $(prefix)/$(LDV_SHARED_PHP_DIRNAME) || exit 1; fi
-	cp -r $(ZEND_LIBRARY) $(prefix)/$(LDV_SHARED_PHP_DIRNAME)
+	cp -r $(ZEND_LIBRARY) $(prefix)/$(LDV_SHARED_PHP_DIRNAME) || exit 1
 
 test:
 	@echo The php shares doesn\'t have any test
