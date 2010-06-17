@@ -55,7 +55,7 @@ public class WSMFactory {
 		map.put(WSM_LDVSTOWS_TASK_DESCR_RESPONSE, WSMLdvstowsTaskDescrResponse.class);
 		map.put(WSM_LDVSTOWS_TASK_PUT_RESPONSE, WSMLdvstowsTaskPutResponse.class);
 		map.put(WSM_WSTOLDVS_TASK_STATUS_GET_REQUEST, WSMWstoldvsTaskStatusGetRequest.class);
-		//map.put(WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE, WSMLdvstowsTaskStatusGetResponse.class);
+		map.put(WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE, WSMLdvstowsTaskGetStatusResponse.class);
 		return map;
 	}
 	

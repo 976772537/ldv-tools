@@ -19,6 +19,7 @@ import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 import com.iceberg.mp.ws.wsm.WSM;
 import com.iceberg.mp.ws.wsm.WSMFactory;
+import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskGetStatusResponse;
 import com.iceberg.mp.ws.wsm.WSMLdvtowsResponse;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
 import com.iceberg.mp.ws.wsm.WSMWstoldvsTaskStatusGetRequest;
@@ -67,9 +68,10 @@ public class WServerProtocol implements ServerProtocolInterface {
 				Logger.trace("WS: Ok - \"task put\"  - transaction finished !");
 			} else if (wsmMsg.getType().equals(WSMFactory.WSM_WSTOLDVS_TASK_STATUS_GET_REQUEST)) {
 				Logger.trace("WS: Client msg type: " + WSMFactory.WSM_WSTOLDVS_TASK_STATUS_GET_REQUEST);
-				WSMWstoldvsTaskStatusGetRequest msgTSGRequest = (WSMWstoldvsTaskStatusGetRequest)wsmMsg; 
-				Logger.trace("WS: Client:\""+msgTSGRequest.getUser()+"\" request status for task id: " + msgTSGRequest.getId());
-				//WSM wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE);				
+				WSM wsmResponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE);
+				SQLRequests.fillTaskStatusW(config,(WSMLdvstowsTaskGetStatusResponse)wsmResponse,(WSMWstoldvsTaskStatusGetRequest)wsmMsg);
+				Logger.trace("WS: Send status to web-client.");
+				sendMsg(out, wsmResponse);
 				Logger.trace("WS: Ok - \"task status get\" transaction finished !");
 			} else {
 				Logger.debug("WS: Unknown client msg type: " + wsmMsg.getType());

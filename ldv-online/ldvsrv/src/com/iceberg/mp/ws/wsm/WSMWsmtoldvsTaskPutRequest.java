@@ -6,6 +6,7 @@ import java.util.List;
 import org.w3c.dom.NodeList;
 
 import com.iceberg.mp.schelduler.Env;
+import com.iceberg.mp.schelduler.Rule;
 
 public class WSMWsmtoldvsTaskPutRequest extends WSM {
 	
@@ -21,11 +22,13 @@ public class WSMWsmtoldvsTaskPutRequest extends WSM {
 	private String user;
 	private int sourcelen;
 	
-	private static List<String> parseRules(NodeList nl) {
-		List<String> ruleList = new ArrayList<String>();  
-		for(int i=0; i<nl.getLength(); i++)
-			if(nl.item(i).getNodeName().equals(WSMWsmtoldvsTaskPutRequest.tag_rule))
-				ruleList.add(nl.item(i).getTextContent());
+	private static List<Rule> parseRules(NodeList nl) {
+		List<Rule> ruleList = new ArrayList<Rule>();  
+		for(int i=0; i<nl.getLength(); i++) {
+			if(nl.item(i).getNodeName().equals(WSMWsmtoldvsTaskPutRequest.tag_rule)) {
+				ruleList.add(new Rule(nl.item(i).getTextContent()));
+			}
+		}
 		return ruleList;
 	}
 	
@@ -34,7 +37,7 @@ public class WSMWsmtoldvsTaskPutRequest extends WSM {
 		for(int i=0; i<nl.getLength(); i++) {
 			if(nl.item(i).getNodeName().equals(WSMWsmtoldvsTaskPutRequest.tag_env)) {
 				String envName = nl.item(i).getAttributes().getNamedItem(attr_name).getTextContent();
-				List<String> ruleList = parseRules(nl.item(i).getChildNodes());  
+				List<Rule> ruleList = parseRules(nl.item(i).getChildNodes());  
 				envList.add(new Env(ruleList,envName));
 			}
 		}

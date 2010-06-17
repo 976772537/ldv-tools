@@ -13,12 +13,15 @@ import java.util.List;
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.Env;
 import com.iceberg.mp.schelduler.MTask;
+import com.iceberg.mp.schelduler.Rule;
 import com.iceberg.mp.server.ServerConfig;
 import com.iceberg.mp.vs.client.Result;
 import com.iceberg.mp.vs.client.VClientProtocol;
 import com.iceberg.mp.vs.vsm.VSMClient;
 import com.iceberg.mp.vs.vsm.VSMClientSendResults;
+import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskGetStatusResponse;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
+import com.iceberg.mp.ws.wsm.WSMWstoldvsTaskStatusGetRequest;
 import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 
 public class SQLRequests {
@@ -352,12 +355,12 @@ public class SQLRequests {
 					id_etask = eresult.getInt(1)+1;
 				eresult.close();
 				st.executeUpdate("INSERT INTO ETASKS(id, id_task, id_env, status) VALUES("+id_etask+","+id+","+id_env+",'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"')");
-				List<String> rules = envs.get(i).getRules();
+				List<Rule> rules = envs.get(i).getRules();
 				for(int j=0; j<rules.size(); j++) {
-					ResultSet lrrs = st.executeQuery("SELECT id FROM RULES WHERE name='"+rules.get(j)+"'");
+					ResultSet lrrs = st.executeQuery("SELECT id FROM RULES WHERE name='"+rules.get(j).getName()+"'");
 					if(lrrs.getRow()==0 && !lrrs.next()) {
 						st.execute("INSERT INTO RULES(name) VALUES('"+rules.get(j)+"')");
-						lrrs = st.executeQuery("SELECT id FROM RULES WHERE NAME='"+rules.get(j)+"'");
+						lrrs = st.executeQuery("SELECT id FROM RULES WHERE NAME='"+rules.get(j).getName()+"'");
 						lrrs.next();
 					}
 					int id_rule = lrrs.getInt("id");
@@ -732,4 +735,117 @@ public class SQLRequests {
 		}
 		return false;
 	}
+
+	public static boolean fillTaskStatusW(ServerConfig config,
+			WSMLdvstowsTaskGetStatusResponse wsmResponse,
+			WSMWstoldvsTaskStatusGetRequest wsmMsg) {
+		Connection conn = null;
+		try {
+			conn = config.getStorageManager().getConnection();
+			conn.setAutoCommit(false);
+			return fillTaskStatus(conn,wsmResponse,wsmMsg);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return false;	
+	}
+	
+	public static boolean fillTaskStatus(Connection conn,
+			WSMLdvstowsTaskGetStatusResponse wsmResponse,
+			WSMWstoldvsTaskStatusGetRequest wsmMsg) {
+		Statement st = getTransactionStmt(conn);
+		boolean result = false;
+		if(st==null) return result;
+		try {
+			// 1. сначала выбираем пользователя по имени
+			ResultSet rs = st.executeQuery("SELECT id FROM USERS WHERE name='"+wsmMsg.getUser()+"'");
+			if(rs.getRow()==0 && !rs.next()) 
+				return false;
+			int id_user = rs.getInt("id");
+			rs.close();			
+			// 2. выбираем задачу, которую нам подсунули
+			rs = st.executeQuery("SELECT id,status FROM TASKS WHERE id_user="+id_user+" AND id="+wsmMsg.getId());
+			if(rs.getRow()==0 && !rs.next()) 
+				return false;
+			int id_task = rs.getInt("id");
+			String task_status = rs.getString("status");
+			rs.close();
+			// 3. выбираем все энвайронменты этой задачи
+			List<Env> envs = new ArrayList<Env>();
+			rs = st.executeQuery("SELECT id,status,id_env FROM ETASKS WHERE id_task="+id_task);
+			Statement stl = conn.createStatement();
+			while(rs.next()) {
+				int id_etask = rs.getInt("id");
+				int id_env = rs.getInt("id_env");
+				//String etask_status = rs.getString("status");
+				
+				ResultSet rsl = stl.executeQuery("SELECT name FROM ENVS WHERE id="+id_env);
+				if(rsl.getRow()==0 && !rsl.next()) 
+					return false;
+				String env_name = rsl.getString("name");
+				rsl.close();
+				
+				// теперь выберем все rtask для ткущего энвайронмента				
+				List<Rule> rules = new ArrayList<Rule>();
+				rsl = stl.executeQuery("SELECT id,id_rule,status,rstatus FROM RTASKS WHERE id_etask="+id_etask);
+				Statement stlr = conn.createStatement();
+				while(rsl.next()) {
+					int id_rtask = rsl.getInt("id");
+					int id_rule = rsl.getInt("id_rule");
+					//String task_rstatus = rsl.getString("status");
+					//String rtask_rstatus = rsl.getString("rstatus");
+					
+					ResultSet rslr = stlr.executeQuery("SELECT name FROM RULES WHERE id="+id_rule);
+					if(rslr.getRow()==0 && !rslr.next()) 
+						return false;
+					String rule_name = rslr.getString("name");
+					rslr.close();
+					List<Result> results = null;
+//					if(rtask_rstatus.equals("UNSAFE")) {
+						// теперь выберем все result для текущего правила
+						results = new ArrayList<Result>();
+						rslr = stlr.executeQuery("SELECT id,rstatus FROM RESULTS WHERE id_rtask="+id_rtask);
+						while(rslr.next()) {
+							int id_result = rslr.getInt("id");
+							String result_rstatus = rslr.getString("rstatus");
+							Result resultl = new Result(result_rstatus,id_result);
+							results.add(resultl);
+						}
+						rslr.close();
+
+//					}
+					Rule rule = new Rule(id_rule, results, rule_name);
+					rules.add(rule);
+				}
+				rsl.close();
+				Env env = new Env(rules, env_name);
+				envs.add(env);
+			}
+			wsmResponse.setParameters(id_task, envs, task_status);
+			rs.close();
+			conn.commit();
+			result = true;
+		} catch (SQLException e1) {
+			try {
+				conn.rollback();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			e1.printStackTrace();
+		} finally {
+			try {
+				st.close();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		}	
+		return result;
+	}
+
 }

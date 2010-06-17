@@ -48,5 +48,5 @@ public class WSM {
 
 	public void setType(String type) {
 		this.type = type;
-	}
+	}	
 }

@@ -7,6 +7,12 @@ public class Result implements Serializable{
 	public String getRresult() {
 		return rresult;
 	}
+	
+	private int id;
+	
+	public int getId(int id) {
+		return id;
+	}
 
 	public byte[] getReport() {
 		return report;
@@ -20,4 +26,10 @@ public class Result implements Serializable{
     	this.rresult = rresult;
     	this.report = report;
     }
+    
+    public Result(String rresult, int id) {
+    	this.rresult = rresult;
+    	this.id = id;
+    }
+
 }
