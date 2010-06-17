@@ -669,6 +669,37 @@ public class SQLRequests {
 			// теперь запишем верхний результат
 			st = conn.createStatement();
 			st.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+resultsMsg.getId());
+			// порверим остальные RTASK'и
+			// для этго найдем id_etask
+			//
+			ResultSet result = st.executeQuery("SELECT id_etask FROM RTASKS WHERE id="+resultsMsg.getId()+" LIMIT 1");
+			if(result.getRow()==0 && !result.next()) 
+				return false;
+			int id_etask = result.getInt("id_etask");
+			result.close();
+			
+			result = st.executeQuery("SELECT id FROM RTASKS WHERE id_etask="+id_etask+"AND status!='"+MTask.Status.TS_VERIFICATION_FINISHED+"'");
+			if(result.getRow()==0 && !result.next()) {
+				result.close();
+				// если RTASK'ов с незавершенным результатом нет, то обновляем etask
+				st.executeUpdate("UPDATE ETASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+id_etask);
+				// теперь проверяем, есть ли незавершенные e_task'и
+				result = st.executeQuery("SELECT id_task FROM ETASKS WHERE id="+id_etask+" LIMIT 1");
+				if(result.getRow()==0 && !result.next()) 
+					return false;
+				int id_task = result.getInt("id_task");
+				result.close();
+				result = st.executeQuery("SELECT id FROM ETASKS WHERE id_task="+id_task+" AND status!='"+MTask.Status.TS_VERIFICATION_FINISHED+"'");
+				if(result.getRow()==0 && !result.next()) {
+					result.close();
+					// если нет, то обновляем задачу
+					st.executeUpdate("UPDATE TASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+id_task);
+				} else {
+					result.close();
+				}
+			} else {
+				result.close();
+			}
 			
 			conn.commit();
 			stmt.close();
