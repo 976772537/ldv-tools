@@ -44,7 +44,7 @@ function getlddv() {
 }
 	
 function view_main_page() {
-	$view = view_upload_driver_form();
+	view_upload_driver_form();
 }
 
 function view_header() {
@@ -62,16 +62,7 @@ function view_header() {
 function view_upload_driver_form() {
 	?>
 	<form action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
-	Select driver to be uploaded:
 	<input type="file" name="file" size=50/>
-	Select kernels:
-	<select name="envs">
-	<option value="All kernels">All kernels</option>
-	<?php
-	$envs = WSGetSupportedEnvList();
-	foreach($envs as $env) {?>
-		<option value="<?php print $env['name']; ?>"><?php print $env['name']; ?></option> <?php } ?>
-	</select>;
     	<input type='hidden' name="action" value="upload_driver">
 	<input type="submit" name="submit" value="Submit" /></p>
 	</form>
@@ -92,7 +83,7 @@ function action_upload_driver() {
                 return;
         }
         $file_size = $_FILES['file']['size'];
-        if($file_size > 10999) {
+        if($file_size > 1000999) {
                 print '<b><font color="red">File size too long.</font></b><br>';
                 view_upload_driver_form();
                 return;
@@ -101,10 +92,17 @@ function action_upload_driver() {
 	$task['user'] = "mong";
 	$task['driverpath'] = $_FILES['file']['tmp_name'];
 	$task['envs'] = WSGetSupportedEnvList();
-	if(WSPutTask($task))
+	if(WSPutTask($task)) {
                 print '<b><font color="red">Task successfully uploading..</font></b><br>';
-	else
+	} else {
                 print '<b><font color="red">Error upload task</font></b><br>';
+	}
+}
+
+function view_task_status() {
+	$task['user'] = "mong";
+	$task['id']=1;
+	$status = WSGetTaskStatus($task);
 }
 
 $action=request_var('action','');
@@ -115,15 +113,18 @@ view_header();
 if ($action == "upload" && !$exit)
 {
 	view_upload_driver_form();
-	print($view);
 }
 else if ($action == "upload_driver" && !$exit)
 {
 	action_upload_driver();
 }
+else if ($action == "get_status" && !$exit) 
+{
+	view_task_status();
+}
 else 
 {
-	$view = view_main_page();
+	view_main_page();
 }
 
 ?>

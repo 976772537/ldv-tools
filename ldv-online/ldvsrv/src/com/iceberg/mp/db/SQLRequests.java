@@ -10,8 +10,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.naming.BinaryRefAddr;
-
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.Env;
 import com.iceberg.mp.schelduler.MTask;

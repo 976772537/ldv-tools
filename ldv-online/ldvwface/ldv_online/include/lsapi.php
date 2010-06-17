@@ -12,6 +12,8 @@ define("WS_LL_NORMAL", "NORMAL");
 define("WSM_WSTOLDVS_TASK_PUT_REQUEST","WSTOLDVS_TASK_PUT_REQUEST");
 define("WSM_LDVSTOWS_TASK_PUT_RESPONSE","LDVSTOWS_TASK_PUT_RESPONSE");
 define("WSM_LDVSTOWS_TASK_DESCR_RESPONSE","LDVSTOWS_TASK_DESCR_RESPONSE");
+define("WSM_WSTOLDVS_TASK_STATUS_GET_REQUEST","WSTOLDVS_TASK_STATUS_GET_REQUEST");
+define("WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE","LDVSTOWS_TASK_STATUS_GET_RESPONSE");
 
 #
 # WS Net function defines
@@ -25,8 +27,10 @@ define("WS_LDVS_SERVER_NAME","localhost");
 # get kernel list strucure
 #
 function WSGetSupportedEnvList() {
-	$rules1 = array("77_1","43_1");
-	$rules2 = array("77_1","32_1");
+//	$rules1 = array("77_1","43_1");
+	$rules1 = array("32_1","32_1");
+//	$rules2 = array("77_1","32_1");
+	$rules2 = array("32_1","32_1");
 	
 	$env1 = array('name' => "vanilla", 'rules' => $rules1);
 	$env2 = array('name' => "rhkernel", 'rules' => $rules2);
@@ -97,6 +101,22 @@ function WSIsDebug() {
 #
 # If error - returns null
 #
+function WSM_DEBUG_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task) {
+	if(WSIsDebug()) {
+		if(empty($task['user'])) {
+			WSPrintE('Field "user" - not found.');
+			return false;
+		} else if(empty($task['id'])) {
+			WSPrintE('Field "id" - not found.');
+			return false;
+		} else if($task['id']<=0) {
+			WSPrintE('Task id must be greater than 0.');
+			return false;
+		}
+	}
+	return true;
+}
+
 function WSM_DEBUG_XML_WSTOLDVS_TASK_PUT_REQUEST($task) {
 	if(WSIsDebug()) {
 		if(empty($task['user'])) {
@@ -138,6 +158,16 @@ function WSM_XML_WSTOLDVS_TASK_PUT_REQUEST($task) {
 	return WSMWrapMsg($WSMsg);
 }
 
+function WSM_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task) {
+	# some checks
+	if(!WSM_DEBUG_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task)) return;
+	$WSMsg='<type>'.WSM_WSTOLDVS_TASK_STATUS_GET_REQUEST.'</type>';
+	$WSMsg.='<user>'.$task['user'].'</user>';
+	$WSMsg.='<id>'.$task['id'].'</id>';
+	return WSMWrapMsg($WSMsg);
+}
+
+
 #
 # small function for parse xml strings
 #
@@ -158,6 +188,8 @@ function WSM_OBJ_XML($wsm) {
 	$msg = WSM_OBJ_XML_StandartParse($wsm);
 	if($msg['type'] == WSM_LDVSTOWS_TASK_DESCR_RESPONSE || $msg['type'] == WSM_LDVSTOWS_TASK_PUT_RESPONSE) {
 		return $msg;
+	} else if($msg['type'] == WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE) {
+		
 	} else {
 		WSPrintE('Unknown msg type: "'.$msg['type'].'".');
 	}
@@ -187,6 +219,11 @@ function WSM_OBJ_XML_LDVSTOWS_TASK_PUT_RESPONSE($wsm) {
 	if(WSM_OBJ_XML_ResultSharedTest($msg,WSM_LDVSTOWS_TASK_PUT_RESPONSE)) return true;
 }
 
+function WSM_OBJ_XML_LDVSTOWS_TASK_STATUS_GET_RESPONSE($wsm) {
+	$msg = WSM_OBJ_XML($wsm);
+	if(!WSM_OBJ_XML_ResultSharedTest($msg,WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE)) return;
+	return $msg;
+}
 
 #
 # Net functions 
@@ -211,11 +248,23 @@ function WSRead($sock) {
 	return $buffer;
 }
 
-
 #
 # WS Server API functions
+# WSPutTask - upload task to LDVS
+# for verification
 #
+# Use it like this:
+# $rules1 = array("8_1","32_1");
+# $rules2 = array("64","89");
 #
+# $env1 = array('name' => "vanilla", 'rules' => $rules1);
+# $env2 = array('name' => "rhkernel", 'rules' => $rules2);
+#
+# $task['user'] = "mong";
+# $task['driverpath'] = "/home/iceberg/ldv-tools/ldv-online/ldvsrv/lsapi.php";
+# $task['envs'] = array($env1, $env2);
+#
+# WSPutTask($task);
 function WSPutTask($task) {
 	$sock = WSConnect();
 	if(empty($sock)) return;
@@ -255,7 +304,48 @@ function WSPutTask($task) {
 	return true;
 }
 
-
+#
+# Get task status -
+# get all information about 
+# task 
+#
+# input:
+# task -> user - username
+#      -> id   - id for task
+#
+# return next information
+#
+#         _ task _
+# 	/         \
+#      |         envs[i] 
+#   status      /    \ 
+#          rules[i]   status
+#           /     \
+#      results[i]  status?     
+#        /   \
+#   status   report
+#
+#
+function WSGetTaskStatus($task) {
+	$sock = WSConnect();
+	if(empty($sock)) return;
+	WSPrintD("Try to create WSM message.");
+	$WSMsg = WSM_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task);
+	WSPrintD("WSM Message contains:$WSMMsg");
+	if(empty($WSMsg)) { fclose($sock); return; };
+	WSPrintD("Send request:$WSMsg");
+	fputs($sock,$WSMsg);
+	# wait for response LDVSTOWS_TASK_DESCR_RESPONSE
+	WSPrintD('Wait for response LDVSTOWS_TASK_GET_STATUS_RESPONSE');
+	WSPrintD(fgets($sock));
+/*	if(WSM_OBJ_XML_LDVSTOWS_TASK_GET_STATUS_RESPONSE(fgets($sock)) == null) {
+		fclose($sock);
+		return;
+	}*/
+	fclose($sock);
+	WSPrintD('Task status successfully get.');
+	return true;
+}
 /*$rules1 = array("8_1","32_1");
 $rules2 = array("64","89");
 
