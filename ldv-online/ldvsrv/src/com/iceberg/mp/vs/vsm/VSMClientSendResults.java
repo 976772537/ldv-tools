@@ -1,22 +1,45 @@
 package com.iceberg.mp.vs.vsm;
 
 import com.iceberg.mp.vs.VProtocol;
+import com.iceberg.mp.vs.client.Result;
 
 public class VSMClientSendResults extends VSMClient {
 
-	// здесь должен храниться объект, в котором расписано по всем
-	// энваронментам и правилам статусы!!!
-	private byte[] data;	
-	
-	public VSMClientSendResults(String name,byte[] data) {
-		super(VProtocol.sSendResults, name);
-		this.data = data;
-	}
-	
 	private static final long serialVersionUID = 1L;
 	
-	public byte[] getData() {
-		return this.data;
+	private int id;
+	private String presult = ""; 
+
+	public String getStatus() {
+		return presult;
+	}
+	
+	public int getId() {
+		return id;
 	}
 
+	public String getRresult() {
+		return rresult;
+	}
+
+	public byte[] getReport() {
+		return report;
+	}
+
+	public Result[] getResults() {
+		return results;
+	}
+
+	private String rresult;
+	private byte[] report;
+	private Result[] results;
+	
+	public VSMClientSendResults(String name, String rresult, byte[] report, Result[] results, int id, String status) {
+		super(VProtocol.sSendResults, name);
+		this.id = id;
+		this.rresult = rresult;
+		this.report = report;
+		this.results = results;
+		this.presult = status;
+	}
 }

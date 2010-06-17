@@ -36,7 +36,7 @@ public class VClient {
 				String report = startVerification(config, task);
 				Logger.info("Verification end.");
 				Logger.debug("Try to send results...");
-				if(!protocol.VSSendResults(report)) {
+				if(!protocol.VSSendResults(report,task.getId())) {
 					Logger.err("Can't send results...");
 					System.exit(1);
 				}

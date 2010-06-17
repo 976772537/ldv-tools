@@ -14,6 +14,7 @@ import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 import com.iceberg.mp.vs.VProtocol;
 import com.iceberg.mp.vs.vsm.VSM;
 import com.iceberg.mp.vs.vsm.VSMClient;
+import com.iceberg.mp.vs.vsm.VSMClientSendResults;
 import com.iceberg.mp.vs.vsm.VSMSendResultsFailed;
 import com.iceberg.mp.vs.vsm.VSMSendResultsOk;
 
@@ -57,8 +58,11 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             } else if(msg.getText().equals(sSendResults)) {
             	Logger.info("Start \"send results request\"");
             	Logger.debug("Get client descriptor.");
+            	// сдесь загружаем результат в базу
+            	VSMClientSendResults resultsMsg = (VSMClientSendResults)msg;
+            	//SQLRequests.uploadResults(msg);
             	
-            	if(true) {
+            	if(SQLRequests.uploadResultsW(config,resultsMsg)) {
             		Logger.info("Request \"send results\" - ok");
             		msg = new VSMSendResultsOk();
             	} else {

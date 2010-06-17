@@ -10,13 +10,18 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.naming.BinaryRefAddr;
+
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.Env;
 import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.server.ServerConfig;
+import com.iceberg.mp.vs.client.Result;
 import com.iceberg.mp.vs.client.VClientProtocol;
 import com.iceberg.mp.vs.vsm.VSMClient;
+import com.iceberg.mp.vs.vsm.VSMClientSendResults;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
+import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 
 public class SQLRequests {
 
@@ -53,11 +58,11 @@ public class SQLRequests {
 	private static final String SQL_CREATE_RTASKS = 
 		"CREATE CACHED TABLE IF NOT EXISTS RTASKS(id INT PRIMARY KEY AUTO_INCREMENT, id_etask "+
 		"INT NOT NULL, status VARCHAR(255) NOT NULL, id_rule INT NOT NULL, id_client INT NOT NULL," +
-		" rstatus VARCHAR(255), report CLOB)";
+		" rstatus VARCHAR(255), report BLOB)";
 	
 	private static final String SQL_CREATE_RESULTS = 
 		"CREATE CACHED TABLE IF NOT EXISTS RESULTS(id INT PRIMARY KEY AUTO_INCREMENT, id_rtask "+
-		"INT NOT NULL, rstatus VARCHAR(255) NOT NULL, report CLOB)";
+		"INT NOT NULL, rstatus VARCHAR(255) NOT NULL, report BLOB)";
 	
 	public static Statement getTransactionStmt(Connection conn) {
 		Statement stmt = null;
@@ -605,7 +610,6 @@ public class SQLRequests {
 		if(stmt==null) return result;
 		try {
 			stmt.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"', id_client="+id_client+" WHERE id="+id_rtask);
-//			stmt.executeUpdate("UPDATE CLIENTS SET status='"+VClientProtocol.Status.VS_HAVE_TASKS+"', id_client="+id_client+" WHERE id="+id_rtask);
 			conn.commit();
 			result = true;
 		} catch (SQLException e1) {
@@ -623,5 +627,80 @@ public class SQLRequests {
 			}
 		}	
 		return result;
+	}
+
+	public static boolean uploadResultsW(ServerConfig config, VSMClientSendResults resultsMsg) {
+		Connection conn = null;
+		try {
+			conn = config.getStorageManager().getConnection();
+			conn.setAutoCommit(false);
+			return uploadResults(conn, resultsMsg);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return false;	
+	}
+	
+	public static boolean uploadResults(Connection conn, VSMClientSendResults resultsMsg) {
+		PreparedStatement stmt = null;
+		Statement st = null;
+		try {
+			Result[] results = resultsMsg.getResults();
+			ByteInputStream bis = null;
+			for(int i=0; i<results.length; i++) {
+				if(results[i].getRresult().equals("UNSAFE")) {
+					stmt = conn.prepareStatement("INSERT INTO RESULTS(id_rtask, rstatus, report) VALUES("
+							+resultsMsg.getId()+",'"+results[i].getRresult()+"',?)");
+					bis = new ByteInputStream(results[i].getReport(),results[i].getReport().length);
+					stmt.setBinaryStream (1, bis , results[i].getReport().length);
+				} else {
+					stmt = conn.prepareStatement("INSERT INTO RESULTS(id_rtask, rstatus) VALUES("
+							+resultsMsg.getId()+",'"+results[i].getRresult()+"')");
+				}
+				stmt.executeUpdate();
+			}
+					
+			// теперь запишем верхний результат
+			st = conn.createStatement();
+			st.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+resultsMsg.getId());
+			
+			conn.commit();
+			stmt.close();
+			bis.close();
+			st.close();
+			return true; 
+		} catch (SQLException e1) {
+			Logger.err("SQL can't set set autocommit option in false or create statement.");
+			try {
+				e1.printStackTrace();
+				conn.rollback();
+				if(stmt!=null)
+					stmt.close();
+				if(st!=null) 
+					st.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		} catch (IOException e) {
+			Logger.err("SQL can't set set autocommit option in false or create statement.");
+			try {
+				e.printStackTrace();
+				conn.rollback();
+				if(stmt!=null)
+					stmt.close();
+				if(st!=null) 
+					st.close();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			e.printStackTrace();
+		}
+		return false;
 	}
 }
