@@ -75,9 +75,22 @@ tasks:=$(call cartprod,$(tag),$(tasks),$(delim))
 calls:=$(call cartprod,$(drivers),$(calls),$(delim))
 calls:=$(call cartprod,$(tag),$(calls),$(delim))
 
+env_names:=$(foreach env,$(envs),$(call envname,$(env)))
+# LDV script accepts input in such form: "linux-2.6.31.2@31_2,8_1:linux-2.6.28@31_2,8_1"
+ldv_rules:=$(shell echo '$(rule_models)' | sed -e 's/ \+/,/g')
+ldv_task:=$(addsuffix @$(ldv_rules),$(env_names))
+ldv_task:=$(call joinlist,$(ldv_task),:)
+
+# Descriptor of tasks for use in target names
+ldv_task_for_targ:=$(call joinlist,$(env_names),$(delim))$(delim)$(call joinlist,$(rule_models),$(delim))
+
+ifneq ($(kernel_driver),)
+Kernel_driver=--kernel-driver
+endif
+
 # Make tasks actual task files
 # Note that we add $(Verifier) into the targets, since tasks should be distpatched by it as well
-tasks_targets:=$(tasks:%=$(WORK_DIR)/%$(Verifier)/finished)
+tasks_targets:=$(tasks:%=$(WORK_DIR)/%$(ldv_task_for_targ)$(Verifier)/finished)
 
 all: $(tasks_targets)
 
@@ -87,37 +100,28 @@ all: $(tasks_targets)
 # Split tasks into rules
 
 # Since Make doesn't support double distpatching (e.g. rules like "dir/%/%/finished: ... "), we generate targets explicitely, from the veriables supplied as input.  These rules are stored in variables rule_for_something and are evaluated in foreach-eval loops.
+#
+# In the following tasks touch-es are commented in order to make the system restart each time
 
 define rule_for_task
-$$(WORK_DIR)/$(1)$(Verifier)/finished: Env=$(call get_env_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)$(Verifier)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)$(Verifier)/finished: Rule_model=$(call get_rulemodel_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)$(Verifier)/finished: Dir=$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Env=$(call get_env_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Rule_model=$(call get_rulemodel_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Dir=$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))
 
-$$(WORK_DIR)/$(1)$(Verifier)/finished: $$(WORK_DIR)/$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))$(Verifier)/finished
-	cd $$(WORK_DIR) && ln -s -T -f $$(Dir) $(1)
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(call get_tag_raw,$(1),$(delim))$(delim)$(call get_driver_raw,$(1),$(delim))$(delim)$(call get_name_raw,$(1),$(delim))$(ldv_task_for_targ)$(Verifier)/finished
 endef
-
-env_names:=$(foreach env,$(envs),$(call envname,$(env)))
-# LDV script accepts input in such form: "linux-2.6.31.2@31_2,8_1:linux-2.6.28@31_2,8_1"
-ldv_rules:=$(shell echo '$(rule_models)' | sed -e 's/ \+/,/g')
-ldv_task:=$(addsuffix @$(ldv_rules),$(env_names))
-ldv_task:=$(call joinlist,$(ldv_task),:)
-
-ifneq ($(kernel_driver),)
-Kernel_driver=--kernel-driver
-endif
 
 # $(@D) has a slash at the end.  We should remove it
 rmtr=$(call sed,$(1),s/\/$$//)
 
 define rule_for_tag_driver
-$$(WORK_DIR)/$(1)$(Verifier)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)$(Verifier)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
-$$(WORK_DIR)/$(1)$(Verifier)/finished: Result_report=
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Result_report=
 
 # We add dependency on the archive with file to allow consecutive launches
-$$(WORK_DIR)/$(1)$(Verifier)/checked: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
 	if [[ "$$(Tag)" != "$(Current)" ]] ; then \
@@ -125,15 +129,15 @@ $$(WORK_DIR)/$(1)$(Verifier)/checked: $(call get_tag,$(1),$(delim)) $(if $(kerne
 	fi ;\
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
 	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver)
-	touch $$@
+	#touch $$@
 
-$$(WORK_DIR)/$(1)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(Verifier)/checked
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked
 	@# Add ancillary information to reports and post it to target directory
 	@echo $(call mkize,$(1))
 	@mkdir -p $$(dir $(RESULTS_DIR)/$$(call rmtr,$$(@D)).report.xml)
-	$(Script_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml
-	$(Script_dir)package $(TMP_DIR)/$(call mkize,$(1))$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(Verifier).pax -s '|^$(TMP_DIR)\/*||'
-	touch $$@
+	$(Script_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $(name) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml
+	$(Script_dir)package $(TMP_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).pax -s '|^$(TMP_DIR)\/*||'
+	#touch $$@
 endef
 
 $(foreach task,$(tasks),$(eval $(call rule_for_task,$(task))))
