@@ -124,6 +124,8 @@ create table tasks(
 	username varchar(50),
 	timestamp datetime,
 
+	description text,
+
 	primary key (id)
 ) ENGINE=InnoDB;
 

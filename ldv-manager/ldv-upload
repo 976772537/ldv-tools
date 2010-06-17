@@ -35,8 +35,9 @@ class Task
 			# Create task for user/given timestamp
 			username = (tag/"username").inner_html
 			timestamp = (tag/"timestamp").inner_html.to_datetime
-			task = Task.find_or_create_by_username_and_timestamp(username,timestamp)
-			raise "Couldn't find task for username=#{username.to_s} and timestamp=#{timestamp.to_s}" unless task
+			description = (tag/"description").inner_html
+			task = Task.find_or_create_by_username_and_timestamp_and_description(username,timestamp,description)
+			raise "Couldn't find task for username=#{username.to_s} and timestamp=#{timestamp.to_s} and description=#{description}" unless task
 			return task
 		end
 
@@ -116,7 +117,7 @@ else
 end
 
 # Create current task unless it's already added
-task = Task.from_xml(doc/"reports/launch_info")
+task = Task.from_xml(doc/"reports/launch_info/task")
 
 # Fetch dources (due to not very beautiful structure of the output reports, the sources are fetched beforehand).
 sources_dir = File.join(tmpdir,"sources/")
