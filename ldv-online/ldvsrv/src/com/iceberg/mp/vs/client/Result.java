@@ -10,7 +10,7 @@ public class Result implements Serializable{
 	
 	private int id;
 	
-	public int getId(int id) {
+	public int getId() {
 		return id;
 	}
 

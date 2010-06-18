@@ -7,6 +7,7 @@ public class Rule {
 
 	private int id;
 	private String name;
+	private String status;
 	private List<Result> results;
 	
 	public Rule(int id, List<Result> results) {
@@ -14,13 +15,13 @@ public class Rule {
 		this.results = results;
 	}
 	
-	public Rule(int id, List<Result> results, String name) {
+	public Rule(int id, List<Result> results, String name, String status) {
 		this.id = id;
 		this.results = results;
 		this.name = name;
 	}
 	
-	public List<Result> getReLists() {
+	public List<Result> getResults() {
 		return results;
 	}
 	
@@ -34,6 +35,10 @@ public class Rule {
 	
 	public String getName() {
 		return name;
+	}
+
+	public String getStatus() {
+		return status;
 	}
 
 }

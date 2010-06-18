@@ -43,6 +43,7 @@ public class WServerProtocol implements ServerProtocolInterface {
 	
 	public static void sendMsg(OutputStream out, WSM wsm) throws IOException {
 		String wsmString = wsm.toWSXML();
+		Logger.trace("WS: MSG sent:"+wsmString);
 		out.write(wsmString.getBytes());
 		out.flush();
 	}

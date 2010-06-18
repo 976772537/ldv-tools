@@ -798,8 +798,8 @@ public class SQLRequests {
 				while(rsl.next()) {
 					int id_rtask = rsl.getInt("id");
 					int id_rule = rsl.getInt("id_rule");
-					//String task_rstatus = rsl.getString("status");
-					//String rtask_rstatus = rsl.getString("rstatus");
+					//String task_statusl = rsl.getString("status");
+					String rtask_rstatus = rsl.getString("rstatus");
 					
 					ResultSet rslr = stlr.executeQuery("SELECT name FROM RULES WHERE id="+id_rule);
 					if(rslr.getRow()==0 && !rslr.next()) 
@@ -820,14 +820,14 @@ public class SQLRequests {
 						rslr.close();
 
 //					}
-					Rule rule = new Rule(id_rule, results, rule_name);
+					Rule rule = new Rule(id_rule, results, rule_name, rtask_rstatus);
 					rules.add(rule);
 				}
 				rsl.close();
 				Env env = new Env(rules, env_name);
 				envs.add(env);
 			}
-			wsmResponse.setParameters(id_task, envs, task_status);
+			wsmResponse.setParameters(id_task, envs, task_status, wsmMsg.getUser());
 			rs.close();
 			conn.commit();
 			result = true;
