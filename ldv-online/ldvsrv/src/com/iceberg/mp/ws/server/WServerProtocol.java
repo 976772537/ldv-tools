@@ -84,6 +84,8 @@ public class WServerProtocol implements ServerProtocolInterface {
 			e.printStackTrace();
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();
+		} catch(Throwable e) {
+			e.printStackTrace();
 		} finally {
 			Logger.info("WS: End client protocol.");
 		}

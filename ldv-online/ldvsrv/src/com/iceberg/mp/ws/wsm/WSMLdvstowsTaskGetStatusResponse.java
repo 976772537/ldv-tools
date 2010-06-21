@@ -3,6 +3,7 @@ package com.iceberg.mp.ws.wsm;
 import java.util.List;
 
 import com.iceberg.mp.schelduler.Env;
+import com.iceberg.mp.schelduler.MTask;
 import com.iceberg.mp.schelduler.Rule;
 import com.iceberg.mp.vs.client.Result;
 
@@ -70,13 +71,15 @@ public class WSMLdvstowsTaskGetStatusResponse extends WSM {
 			for(int j=0; j<rules.size(); j++) {
 				msg += '<'+tag_rule+" name=\""+rules.get(j).getName()+"\">";
 				msg += tagB_status + rules.get(j).getStatus() + tagE_status;
-				List<Result> results = rules.get(j).getResults();
-				for(int k=0; k<results.size(); k++) {
-					msg += tagB_result;
-					msg += tagB_verdict + results.get(k).getRresult()+ tagE_verdict;
-					if(results.get(k).getRresult().equals("UNSAFE"))
-						msg += tagB_report + results.get(k).getId()+ tagE_report;	
-					msg += tagE_result;
+				if(rules.get(j).getStatus().equals(MTask.Status.TS_VERIFICATION_FINISHED+"")) {
+					List<Result> results = rules.get(j).getResults();
+					for(int k=0; k<results.size(); k++) {
+						msg += tagB_result;
+						msg += tagB_verdict + results.get(k).getRresult()+ tagE_verdict;
+						if(results.get(k).getRresult().equals("UNSAFE"))
+							msg += tagB_report + results.get(k).getId()+ tagE_report;	
+						msg += tagE_result;
+					}
 				}
 				msg += tagE_rule;
 			}

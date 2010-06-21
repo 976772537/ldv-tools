@@ -359,8 +359,8 @@ public class SQLRequests {
 				for(int j=0; j<rules.size(); j++) {
 					ResultSet lrrs = st.executeQuery("SELECT id FROM RULES WHERE name='"+rules.get(j).getName()+"'");
 					if(lrrs.getRow()==0 && !lrrs.next()) {
-						st.execute("INSERT INTO RULES(name) VALUES('"+rules.get(j)+"')");
-						lrrs = st.executeQuery("SELECT id FROM RULES WHERE NAME='"+rules.get(j).getName()+"'");
+						st.execute("INSERT INTO RULES(name) VALUES('"+rules.get(j).getName()+"')");
+						lrrs = st.executeQuery("SELECT id FROM RULES WHERE name='"+rules.get(j).getName()+"'");
 						lrrs.next();
 					}
 					int id_rule = lrrs.getInt("id");
@@ -783,6 +783,7 @@ public class SQLRequests {
 			while(rs.next()) {
 				int id_etask = rs.getInt("id");
 				int id_env = rs.getInt("id_env");
+				String env_status = rs.getString("status");
 				//String etask_status = rs.getString("status");
 				
 				ResultSet rsl = stl.executeQuery("SELECT name FROM ENVS WHERE id="+id_env);
@@ -798,7 +799,7 @@ public class SQLRequests {
 				while(rsl.next()) {
 					int id_rtask = rsl.getInt("id");
 					int id_rule = rsl.getInt("id_rule");
-					//String task_statusl = rsl.getString("status");
+					String rtask_status = rsl.getString("status");
 					String rtask_rstatus = rsl.getString("rstatus");
 					
 					ResultSet rslr = stlr.executeQuery("SELECT name FROM RULES WHERE id="+id_rule);
@@ -807,7 +808,7 @@ public class SQLRequests {
 					String rule_name = rslr.getString("name");
 					rslr.close();
 					List<Result> results = null;
-//					if(rtask_rstatus.equals("UNSAFE")) {
+					if(rtask_status.equals(MTask.Status.TS_VERIFICATION_FINISHED+"")) {
 						// теперь выберем все result для текущего правила
 						results = new ArrayList<Result>();
 						rslr = stlr.executeQuery("SELECT id,rstatus FROM RESULTS WHERE id_rtask="+id_rtask);
@@ -819,12 +820,14 @@ public class SQLRequests {
 						}
 						rslr.close();
 
-//					}
-					Rule rule = new Rule(id_rule, results, rule_name, rtask_rstatus);
+					} else {
+						rtask_status=MTask.Status.TS_VERIFICATION_IN_PROGRESS+"";
+					}
+					Rule rule = new Rule(id_rtask, results, rule_name, rtask_status, rtask_rstatus);
 					rules.add(rule);
 				}
 				rsl.close();
-				Env env = new Env(rules, env_name);
+				Env env = new Env(rules, env_name, env_status);
 				envs.add(env);
 			}
 			wsmResponse.setParameters(id_task, envs, task_status, wsmMsg.getUser());

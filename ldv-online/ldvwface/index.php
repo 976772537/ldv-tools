@@ -103,6 +103,16 @@ function view_task_status() {
 	$task['user'] = "mong";
 	$task['id']=1;
 	$status = WSGetTaskStatus($task);
+	if(empty($status)) {
+		print "Can't get status for your task.";
+		return;
+	}
+	// print our result
+	print 'Result for task id='.$task['id'].'.';
+	print_r($status);
+/*	foreach($status['envs'] as $env) {
+		print $env['status']."\n";
+	}*/
 }
 
 $action=request_var('action','');

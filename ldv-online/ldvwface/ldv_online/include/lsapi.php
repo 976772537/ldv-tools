@@ -179,6 +179,37 @@ function WSM_OBJ_XML_StandartParse($wsm) {
 	return $msg;
 }
 
+function WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg) {
+	$msg['user'] = preg_replace("/.*<user>(.*)<\/user>.*/", "$1", $msg['wsmbuf']);
+	$msg['id'] = preg_replace("/.*<id>(.*)<\/id>.*/", "$1", $msg['wsmbuf']);
+	preg_match_all("/<env name=.*?<\/env>/", $msg['wsmbuf'],$env_matches);
+	$a_envs = array();
+	foreach ($env_matches[0] as $env_key => $env) {
+		$env_name = preg_replace("/\"\">/", "$1", $env);
+		$a_rules = array();
+		preg_match_all("/<rule name=.*?<\/rule>/", $env,$rule_matches);
+		foreach ($rule_matches[0] as $rule_key => $rule) {
+			$rule_status = preg_replace("/.*<status>(.*)<\/status>.*/", "$1", $rule);
+			$rule_name = preg_replace("/\"\">/", "$1", $rule);
+			$a_results = array();
+			preg_match_all("/<result>.*?<\/result>/", $rule,$results);
+			foreach ($results[0] as $result_key => $result) {
+				$result_verdict = preg_replace("/.*<verdict>(.*)<\/verdict>.*/", "$1", $result);
+				$result_report_id = preg_replace("/.*<report>(.*)<\/report>.*/", "$1", $result);
+				$a_result = array('verdict' => $result_verdict, 'report' => $result_report_id);
+				array_push($a_results,$a_result);	
+			}
+			$a_rule = array('name' => $rule_name, 'status' => $rule_status, 'results' => $a_results);
+			array_push($a_rules,$a_rule);	
+		}
+	}
+	$a_env = array( 'name' => $env_name, 'rules' => $a_rules);
+	array_push($a_envs,$a_env);	
+	$msg['envs'] = $a_envs;
+	return $msg;
+}
+
+
 #
 # Functions that conver WMS from XMl format
 # 	to corresponding PHP structures;
@@ -189,7 +220,7 @@ function WSM_OBJ_XML($wsm) {
 	if($msg['type'] == WSM_LDVSTOWS_TASK_DESCR_RESPONSE || $msg['type'] == WSM_LDVSTOWS_TASK_PUT_RESPONSE) {
 		return $msg;
 	} else if($msg['type'] == WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE) {
-		
+		$msg = WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg);
 	} else {
 		WSPrintE('Unknown msg type: "'.$msg['type'].'".');
 	}
@@ -202,10 +233,10 @@ function WSM_OBJ_XML_ResultSharedTest($msg,$type) {
 		WSPrintE("Not $type message from WS. Type \"".$msg['type'].'".');
 		return false;
 	}
-	if($msg['result'] != "OK") {
+/*	if($msg['result'] != "OK") {
 		WSPrintE('Result: "'.$msg['type'].'".');
 		return false;
-	}
+	}*/
 	return true;
 }
 
@@ -336,15 +367,16 @@ function WSGetTaskStatus($task) {
 	WSPrintD("Send request:$WSMsg");
 	fputs($sock,$WSMsg);
 	# wait for response LDVSTOWS_TASK_DESCR_RESPONSE
-	WSPrintD('Wait for response LDVSTOWS_TASK_GET_STATUS_RESPONSE');
-	WSPrintD(fgets($sock));
-/*	if(WSM_OBJ_XML_LDVSTOWS_TASK_GET_STATUS_RESPONSE(fgets($sock)) == null) {
+	WSPrintD('Wait for response LDVSTOWS_TASK_STATUS_GET_RESPONSE');
+	$results = WSM_OBJ_XML_LDVSTOWS_TASK_STATUS_GET_RESPONSE(fgets($sock));
+	if(empty($results)) {
+		WSPrintD('Empty results');
 		fclose($sock);
 		return;
-	}*/
+	}
 	fclose($sock);
 	WSPrintD('Task status successfully get.');
-	return true;
+	return $results;
 }
 /*$rules1 = array("8_1","32_1");
 $rules2 = array("64","89");

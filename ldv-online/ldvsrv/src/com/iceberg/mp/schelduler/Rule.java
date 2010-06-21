@@ -8,6 +8,7 @@ public class Rule {
 	private int id;
 	private String name;
 	private String status;
+	private String rstatus;
 	private List<Result> results;
 	
 	public Rule(int id, List<Result> results) {
@@ -15,10 +16,12 @@ public class Rule {
 		this.results = results;
 	}
 	
-	public Rule(int id, List<Result> results, String name, String status) {
+	public Rule(int id, List<Result> results, String name, String status, String rstatus) {
 		this.id = id;
 		this.results = results;
 		this.name = name;
+		this.status = status;
+		this.rstatus = rstatus;
 	}
 	
 	public List<Result> getResults() {
@@ -40,5 +43,10 @@ public class Rule {
 	public String getStatus() {
 		return status;
 	}
+	
+	public String getRstatus() {
+		return rstatus;
+	}
+
 
 }
