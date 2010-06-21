@@ -42,7 +42,7 @@ public class VClient {
 				}
 				Logger.info("Results successfully sending...");
 			}	
-			break;
+			//break;
 		}
 	}
 	
