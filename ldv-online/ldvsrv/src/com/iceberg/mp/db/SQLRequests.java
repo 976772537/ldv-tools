@@ -20,6 +20,7 @@ import com.iceberg.mp.vs.client.VClientProtocol;
 import com.iceberg.mp.vs.vsm.VSMClient;
 import com.iceberg.mp.vs.vsm.VSMClientSendResults;
 import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskGetStatusResponse;
+import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskPutResponse;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
 import com.iceberg.mp.ws.wsm.WSMWstoldvsTaskStatusGetRequest;
 import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
@@ -245,12 +246,14 @@ public class SQLRequests {
 	}
 	
 	
-	public static boolean puTask(Connection conn, WSMWsmtoldvsTaskPutRequest msg, InputStream data) {
+	public static boolean puTask(Connection conn, WSMWsmtoldvsTaskPutRequest msg, WSMLdvstowsTaskPutResponse ldvtowsResponse, InputStream data) {
 		// зарегистрируем пользователя
 		int id_user = registerOrGetUserId(conn, msg.getUser());
 		if(id_user<0) return false;
 		// зарегистрируем задачу
-		return registerTask(conn, id_user, data, msg)==-1?false:true;		
+		int id = registerTask(conn, id_user, data, msg);
+		ldvtowsResponse.setId(id);
+		return id==-1?false:true;		
 	}
 	
 	public static boolean setStatus(String table, Connection conn,int id , String status) {
@@ -389,11 +392,11 @@ public class SQLRequests {
 	}
 
 	public static boolean puTaskC(ServerConfig config,
-			WSMWsmtoldvsTaskPutRequest wsmMsg, InputStream in) {
+			WSMWsmtoldvsTaskPutRequest wsmMsg, WSMLdvstowsTaskPutResponse ldvtowsResponse, InputStream in) {
 		Connection conn = null;
 		try {
 			conn = config.getStorageManager().getConnection();
-			return puTask(conn, wsmMsg, in);
+			return puTask(conn, wsmMsg, ldvtowsResponse, in);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {

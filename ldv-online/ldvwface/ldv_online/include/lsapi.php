@@ -84,8 +84,8 @@ function WSPrintN($string) {
 }
 
 function WSPrintByLogLevel($string,$type) {
-	if(WSIsDebug())
-		print("<b>$type:</b> $string\n<br>");
+/*	if(WSIsDebug())
+		print("<b>$type:</b> $string\n<br>");*/
 }
 
 function WSIsDebug() {
@@ -175,7 +175,14 @@ function WSM_OBJ_XML_StandartParse($wsm) {
 	$wsm=trim($wsm); 
 	$msg['wsmbuf'] = preg_replace("/.*<msg>(.*)<\/msg>.*/", "$1", $wsm);
 	$msg['type'] = preg_replace("/.*<type>(.*)<\/type>.*/", "$1", $msg['wsmbuf']);
-	$msg['result'] = preg_replace("/.*<result>(.*)<\/result>.*/", "$1", $msg['wsmbuf']);
+	preg_match("/<result>(.*?)<\/result>/", $msg['wsmbuf'], $result);
+	$msg['result'] = $result[1];
+	return $msg;
+}
+
+function WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_PUT_RESPONSE($msg) {
+	$msg['id'] = preg_replace("/.*<id>(.*)<\/id>.*/", "$1", $msg['wsmbuf']);
+	unset($msg['wsmbuf']);
 	return $msg;
 }
 
@@ -185,12 +192,12 @@ function WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg) {
 	preg_match_all("/<env name=.*?<\/env>/", $msg['wsmbuf'],$env_matches);
 	$a_envs = array();
 	foreach ($env_matches[0] as $env_key => $env) {
-		$env_name = preg_replace("/\"\">/", "$1", $env);
+		$env_name = preg_replace("/.*<env name=\"(.*?)\">.*/", "$1", $env);
 		$a_rules = array();
 		preg_match_all("/<rule name=.*?<\/rule>/", $env,$rule_matches);
 		foreach ($rule_matches[0] as $rule_key => $rule) {
 			$rule_status = preg_replace("/.*<status>(.*)<\/status>.*/", "$1", $rule);
-			$rule_name = preg_replace("/\"\">/", "$1", $rule);
+			$rule_name = preg_replace("/.*<rule name=\"(.*?)\">.*/", "$1", $rule);
 			$a_results = array();
 			preg_match_all("/<result>.*?<\/result>/", $rule,$results);
 			foreach ($results[0] as $result_key => $result) {
@@ -202,10 +209,11 @@ function WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg) {
 			$a_rule = array('name' => $rule_name, 'status' => $rule_status, 'results' => $a_results);
 			array_push($a_rules,$a_rule);	
 		}
+		$a_env = array( 'name' => $env_name, 'rules' => $a_rules);
+		array_push($a_envs,$a_env);	
 	}
-	$a_env = array( 'name' => $env_name, 'rules' => $a_rules);
-	array_push($a_envs,$a_env);	
 	$msg['envs'] = $a_envs;
+	unset($msg['wsmbuf']);
 	return $msg;
 }
 
@@ -217,8 +225,10 @@ function WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg) {
 #
 function WSM_OBJ_XML($wsm) {
 	$msg = WSM_OBJ_XML_StandartParse($wsm);
-	if($msg['type'] == WSM_LDVSTOWS_TASK_DESCR_RESPONSE || $msg['type'] == WSM_LDVSTOWS_TASK_PUT_RESPONSE) {
+	if($msg['type'] == WSM_LDVSTOWS_TASK_DESCR_RESPONSE) {
 		return $msg;
+	} else if($msg['type'] == WSM_LDVSTOWS_TASK_PUT_RESPONSE) {
+		$msg = WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_PUT_RESPONSE($msg);
 	} else if($msg['type'] == WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE) {
 		$msg = WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg);
 	} else {
@@ -233,10 +243,10 @@ function WSM_OBJ_XML_ResultSharedTest($msg,$type) {
 		WSPrintE("Not $type message from WS. Type \"".$msg['type'].'".');
 		return false;
 	}
-/*	if($msg['result'] != "OK") {
+	if($msg['result'] != "OK") {
 		WSPrintE('Result: "'.$msg['type'].'".');
 		return false;
-	}*/
+	}
 	return true;
 }
 
@@ -247,7 +257,8 @@ function WSM_OBJ_XML_LDVSTOWS_TASK_DESCR_RESPONSE($wsm) {
 
 function WSM_OBJ_XML_LDVSTOWS_TASK_PUT_RESPONSE($wsm) {
 	$msg = WSM_OBJ_XML($wsm);
-	if(WSM_OBJ_XML_ResultSharedTest($msg,WSM_LDVSTOWS_TASK_PUT_RESPONSE)) return true;
+	if(!WSM_OBJ_XML_ResultSharedTest($msg,WSM_LDVSTOWS_TASK_PUT_RESPONSE)) return;
+	return $msg;
 }
 
 function WSM_OBJ_XML_LDVSTOWS_TASK_STATUS_GET_RESPONSE($wsm) {
@@ -326,13 +337,14 @@ function WSPutTask($task) {
 	fclose($fh);
 	# try to get LDVSTOWS_TASK_PUT_RESPONSE
 	WSPrintD('Wait for LDVSTOWS_TASK_PUT_RESPONSE.');
-	if(WSM_OBJ_XML_LDVSTOWS_TASK_PUT_RESPONSE(fgets($sock)) == null) {
+	$response = WSM_OBJ_XML_LDVSTOWS_TASK_PUT_RESPONSE(fgets($sock));
+	if($response == null) {
 		fclose($sock);
 		return;
 	}
 	fclose($sock);
 	WSPrintD('Task successfully put to LDVS Server.');
-	return true;
+	return $response['id'];
 }
 
 #

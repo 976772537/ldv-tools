@@ -20,7 +20,7 @@ public class Env {
 	}
 	
 	public Env(List<Rule> ruleList, String name) {
-		this.rules = rules;
+		this.rules = ruleList;
 		this.name = name;
 	}
 

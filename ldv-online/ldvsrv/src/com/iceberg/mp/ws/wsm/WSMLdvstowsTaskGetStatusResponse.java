@@ -63,7 +63,7 @@ public class WSMLdvstowsTaskGetStatusResponse extends WSM {
 	
 	public String toWSXML() {
 		// перобразовываем все в xml
-		String msg = tagB_user + this.user + tagE_user +
+		String msg = tagB_result+ "OK"+tagE_result+ tagB_user + this.user + tagE_user +
 			tagB_id + task_id + tagE_id;
 		for(int i=0; i<envs.size(); i++) {
 			msg += '<'+tag_env+" name=\""+envs.get(i).getName()+"\">";

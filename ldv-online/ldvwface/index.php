@@ -1,3 +1,4 @@
+<link rel='stylesheet' id='login-css'  href='form.css' type='text/css' media='all' />
 <?php
 require_once("ldv_online/include/include.php");
 
@@ -55,16 +56,28 @@ function view_header() {
 			padding: 0; /* Убираем поля */
 		} 
 		</style>
-		<div style="width: 100%; height: 30px; background: #666666;"></div>
+		<div style="width: 100%; height: 30px; background: #666666;">
+			<span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;LDV Online iteration</span>
+		</div>
 	<?php	
 }
 
 function view_upload_driver_form() {
 	?>
-	<form action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
-	<input type="file" name="file" size=50/>
-    	<input type='hidden' name="action" value="upload_driver">
-	<input type="submit" name="submit" value="Submit" /></p>
+	<form name="loginform" id="loginform"  action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
+	<p>
+		<span style="font-style: bold; color: #686868; font-size: 150%;">Select driver and start verification !</span>
+	</p>
+
+
+	        <p>
+	                <label><br />
+	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
+	        </p>
+	        <p class="submit">
+	                <input type="submit" name="submit" id="wp-submit" class="button-primary" value="Start verification!" tabindex="100" />
+	        </p>
+		    	<input type='hidden' name="action" value="upload_driver">
 	</form>
 	<?php
 }
@@ -92,27 +105,50 @@ function action_upload_driver() {
 	$task['user'] = "mong";
 	$task['driverpath'] = $_FILES['file']['tmp_name'];
 	$task['envs'] = WSGetSupportedEnvList();
-	if(WSPutTask($task)) {
-                print '<b><font color="red">Task successfully uploading..</font></b><br>';
+	$task['id'] = WSPutTask($task);
+	if($task['id']) {
+             // print '<b><font color="red">Task successfully uploading with id '.$task['id'].' ..</font></b><br>';
+		view_task_status($task);
 	} else {
                 print '<b><font color="red">Error upload task</font></b><br>';
 	}
 }
 
-function view_task_status() {
-	$task['user'] = "mong";
-	$task['id']=1;
+function view_task_status($task) {
 	$status = WSGetTaskStatus($task);
 	if(empty($status)) {
 		print "Can't get status for your task.";
 		return;
 	}
-	// print our result
-	print 'Result for task id='.$task['id'].'.';
-	print_r($status);
-/*	foreach($status['envs'] as $env) {
-		print $env['status']."\n";
-	}*/
+	
+	?>
+	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task['id']; ?>">
+	<form name="loginform" id="loginform">
+	<p>
+		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results:</span>
+	</p>
+	<table border="1" cellspacing="0" cellpadding="4" width="100%">
+        	<tr>
+			<th style="font-style: bold; color: #686868;">task</th>
+			<th style="font-style: bold; color: #686868;">environment</th>
+			<th style="font-style: bold; color: #686868;">rule</th>
+			<th style="font-style: bold; color: #686868;">result</th>
+	        <tr>
+		<?php foreach($status['envs'] as $env) { ?>
+			<?php foreach($env['rules'] as $rule) { ?>
+				<?php foreach($rule['results'] as $result) { ?>
+				<tr>
+					<td><?php print $status['id']; ?></td>
+					<td><?php print $env['name']; ?></td>
+					<td><?php print $rule['name']; ?></td>
+					<td><?php print $result['verdict']; ?></td>
+				</tr>
+				<?php } ?>
+			<?php } ?>
+		<?php } ?>
+	</table>
+	</form>
+	<?php
 }
 
 $action=request_var('action','');
@@ -130,7 +166,9 @@ else if ($action == "upload_driver" && !$exit)
 }
 else if ($action == "get_status" && !$exit) 
 {
-	view_task_status();
+	$task_id = request_var('task_id','');
+	$task = array('user' => "mong", 'id' => $task_id);
+	view_task_status($task);
 }
 else 
 {

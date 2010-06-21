@@ -13,6 +13,10 @@ public class WSM {
 	public final static String tag_type = "type";
 	public final static String tagB_type = "<type>";
 	public final static String tagE_type = "</type>";
+	
+	public final static String tag_result = "result";
+	public final static String tagB_result = "<result>";
+	public final static String tagE_result = "</result>";
 
 	
 	private String type = null;

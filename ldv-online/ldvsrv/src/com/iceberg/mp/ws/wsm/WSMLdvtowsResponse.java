@@ -13,4 +13,8 @@ public class WSMLdvtowsResponse extends WSM {
 	public String toWSXML() {
 		return super.toWSXML(tagB_result+result+tagE_result);
 	}
+	
+	public String toWSXML(String msg) {
+		return super.toWSXML(tagB_result+result+tagE_result+msg);
+	}
 }

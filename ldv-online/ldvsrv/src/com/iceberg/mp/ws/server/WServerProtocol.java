@@ -20,6 +20,7 @@ import com.iceberg.mp.server.protocol.ServerProtocolInterface;
 import com.iceberg.mp.ws.wsm.WSM;
 import com.iceberg.mp.ws.wsm.WSMFactory;
 import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskGetStatusResponse;
+import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskPutResponse;
 import com.iceberg.mp.ws.wsm.WSMLdvtowsResponse;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
 import com.iceberg.mp.ws.wsm.WSMWstoldvsTaskStatusGetRequest;
@@ -62,7 +63,7 @@ public class WServerProtocol implements ServerProtocolInterface {
 				Logger.trace("WS: Full size: "+block.length);
 				Logger.trace("WS: Put task to task-pull.");
 				wsmReponse = WSMFactory.create(WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
-				if(!SQLRequests.puTaskC(config,(WSMWsmtoldvsTaskPutRequest)wsmMsg, in)) 
+				if(!SQLRequests.puTaskC(config,(WSMWsmtoldvsTaskPutRequest)wsmMsg, (WSMLdvstowsTaskPutResponse)wsmReponse, in)) 
 					((WSMLdvtowsResponse)wsmReponse).setResult("FAILED");
 				Logger.trace("WS: Send to client msg: " + WSMFactory.WSM_LDVSTOWS_TASK_PUT_RESPONSE);
 				sendMsg(out, wsmReponse);
