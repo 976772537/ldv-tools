@@ -81,6 +81,8 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		} catch (Throwable e) {
+			e.printStackTrace();
 		} finally {
 			try {
 				oos.close();

@@ -707,7 +707,8 @@ public class SQLRequests {
 			
 			conn.commit();
 			stmt.close();
-			bis.close();
+			if(bis!=null)
+				bis.close();
 			st.close();
 			return true; 
 		} catch (SQLException e1) {
