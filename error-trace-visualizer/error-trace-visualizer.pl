@@ -26,6 +26,11 @@ require Annotation;
 # retn: this string with formatted operators.
 sub add_mising_spaces($);
 
+# Check wether the given engine is supported.
+# args: no.
+# retn: nothing.
+sub check_engine();
+
 # Determine the debug level in depend on the environment variable value.
 # args: no.
 # retn: nothing.
@@ -152,12 +157,11 @@ my $debug_name = 'error-trace-visualizer';
 # pathes to corresponding dependencies files.
 my %dependencies;
 
-# Engines which reports can be pretty printed are keys and values are corresponding
-# parsing subroutines.
-my %engines_print = (my $engine_blast = 'blast' => \&print_error_trace_blast);
-# Engines which reports can be parsed are keys and values are corresponding
-# parsing subroutines.
-my %engines_process = ($engine_blast => \&process_error_trace_blast);
+# Engines which reports can be processed are keys and values are 
+# corresponding processing subroutines.
+my %engines = (my $engine_blast = 'blast' => 
+                 {'print', \&print_error_trace_blast, 
+                  'process', \&process_error_trace_blast});
 
 # File handlers.
 my $file_report_in;
@@ -289,6 +293,16 @@ sub get_opt()
     help();
   }
 
+  unless (defined($engines{$opt_engine}))
+  {
+    warn("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: \n");
+    foreach my $engine (keys(%engines))
+    {
+      warn("  - '$engine'\n");
+	}
+	die();
+  }
+
   unless ($opt_report_out or $opt_reqs_out)
   {
     warn("You must specify either the option --report-out|o or --reqs-out in the command-line");
@@ -403,11 +417,8 @@ sub print_error_trace($)
 {
   my $tree_root = shift;
   	
-  print_debug_trace("Check whether specified static verifier engine is supported.");
-  die("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: '" . keys(%engines_print) . "'") 
-    unless(defined($engines_print{$opt_engine}));
   print_debug_debug("Print the '$opt_engine' static verifier error trace.");
-  $engines_print{$opt_engine}->($tree_root);  
+  $engines{$opt_engine}{'print'}->($tree_root);  
   print_debug_debug("'$opt_engine' static verifier error trace is printed successfully.");
 }
 
@@ -507,11 +518,8 @@ sub print_spaces($)
 
 sub process_error_trace()
 {
-  print_debug_trace("Check whether specified static verifier engine is supported.");
-  die("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: '" . keys(%engines_process) . "'") 
-    unless(defined($engines_process{$opt_engine}));
   print_debug_debug("Process the '$opt_engine' static verifier error trace.");
-  my $tree_root = $engines_process{$opt_engine}->();  
+  my $tree_root = $engines{$opt_engine}{'process'}->();  
   print_debug_debug("'$opt_engine' static verifier error trace is processed successfully.");
   
   return $tree_root;
