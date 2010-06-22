@@ -31,7 +31,13 @@ public class WServerProtocol implements ServerProtocolInterface {
 		DocumentBuilder xml = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 		Logger.debug("Client msg size: "+in.available());
 		byte[] content = new byte[in.available()];
+		if(content == null || content.length == 0) {
+			Logger.warn("First check - client msg is null!");	
+		}
 		in.read(content);
+		if(content == null) {
+			Logger.warn("Client msg is null!");	
+		}
 		Logger.trace("Client msg contains: "+(new String(content)));
 		ByteArrayInputStream bais = new ByteArrayInputStream(content);  
 		Document doc = xml.parse(bais);

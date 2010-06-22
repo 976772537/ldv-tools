@@ -84,8 +84,8 @@ function WSPrintN($string) {
 }
 
 function WSPrintByLogLevel($string,$type) {
-/*	if(WSIsDebug())
-		print("<b>$type:</b> $string\n<br>");*/
+	if(WSIsDebug())
+		print("<b>$type:</b> $string\n<br>");
 }
 
 function WSIsDebug() {
@@ -374,7 +374,7 @@ function WSGetTaskStatus($task) {
 	if(empty($sock)) return;
 	WSPrintD("Try to create WSM message.");
 	$WSMsg = WSM_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task);
-	WSPrintD("WSM Message contains:$WSMMsg");
+	WSPrintD("WSM Message contains:$WSMsg");
 	if(empty($WSMsg)) { fclose($sock); return; };
 	WSPrintD("Send request:$WSMsg");
 	fputs($sock,$WSMsg);
