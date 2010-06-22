@@ -137,7 +137,7 @@ sub get_opt()
       
       die(); 
     }
-    print_debug_debug("The results will be put to the '$opt_out' directory.");
+    print_debug_debug("The choosen test set is '$opt_test_set'.");
   }
   
   print_debug_debug("The command-line options are processed successfully.");
