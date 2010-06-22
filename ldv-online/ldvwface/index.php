@@ -66,7 +66,7 @@ function view_upload_driver_form() {
 	?>
 	<form name="loginform" id="loginform"  action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
 	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Select driver and start verification !</span>
+		<span style="font-style: bold; color: #686868; font-size: 150%;">Start verification !</span>
 	</p>
 
 

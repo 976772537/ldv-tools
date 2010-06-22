@@ -209,7 +209,7 @@ public class VClientProtocol {
 						else if(ldNodeList.item(j).getNodeName().equals("trace"))
 							trace = ldNodeList.item(j).getTextContent();
 					}			
-					if(verdict.equals("SAFE") || verdict.equals("UNKNOWN")) {
+					if(verdict.equals("SAFE") || verdict.equals("UNKNOWN") || verdict.equals("FAILED")) {
 						Result result = new Result(verdict,null);
 						results.add(result);
 					} else if(verdict.equals("UNSAFE")) {
