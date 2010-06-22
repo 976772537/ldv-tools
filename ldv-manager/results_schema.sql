@@ -148,6 +148,8 @@ create table launches(
 
 	task_id int(10) unsigned,
 
+	status enum('queued','running','failed','finished') not null,
+
 	primary key (id),
 	UNIQUE (driver_id,toolset_id,environment_id,rule_model_id,scenario_id,task_id),
 
