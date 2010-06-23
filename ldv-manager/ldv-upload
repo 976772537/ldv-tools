@@ -310,6 +310,8 @@ end
 
 	launch.trace = trace
 
+	launch.status = 'finished'
+
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 end
