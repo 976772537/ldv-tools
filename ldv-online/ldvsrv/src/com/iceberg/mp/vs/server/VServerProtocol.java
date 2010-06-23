@@ -51,7 +51,7 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             		Logger.info("Request \"get task \" - ok");
             	} else { // а вот в этом случае мы не выходим ....
             		Logger.info("Request \"get task \" - failed");
-            		SQLRequests.setRTaskStatusW_WAIT_FOR_VERIFIFCATION(config,mtask);
+            		SQLRequests.setSplittedTaskStatusW_WAIT_FOR_VERIFIFCATION(config,mtask);
             	}
             	mtask = null;
             	// и выходим
@@ -61,8 +61,7 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             	// сдесь загружаем результат в базу
             	VSMClientSendResults resultsMsg = (VSMClientSendResults)msg;
             	//SQLRequests.uploadResults(msg);
-            	
-            	if(SQLRequests.uploadResultsW(config,resultsMsg)) {
+            	if(SQLRequests.setSplittedTaskResultW(config,resultsMsg)) {
             		Logger.info("Request \"send results\" - ok");
             		msg = new VSMSendResultsOk();
             	} else {

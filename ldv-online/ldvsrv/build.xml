@@ -10,6 +10,7 @@
 
     	<path id="classpath">
 		<fileset dir="${lib}" includes="h2-1.2.136.jar"/>
+		<fileset dir="${lib}" includes="mysql-connector-java-5.1.12-bin.jar"/>
 	</path>
 
 	<target name="init">

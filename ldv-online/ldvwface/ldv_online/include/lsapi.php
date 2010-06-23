@@ -32,8 +32,8 @@ function WSGetSupportedEnvList() {
 //	$rules2 = array("77_1","32_1");
 	$rules2 = array("32_1","32_1");
 	
-	$env1 = array('name' => "vanilla", 'rules' => $rules1);
-	$env2 = array('name' => "rhkernel", 'rules' => $rules2);
+	$env1 = array('name' => "linux-2.6.33.3", 'rules' => $rules1);
+	$env2 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules2);
 
 	$envs = array($env1, $env2);
 	return $envs;
@@ -148,6 +148,7 @@ function WSM_XML_WSTOLDVS_TASK_PUT_REQUEST($task) {
 	$WSMsg='<type>'.WSM_WSTOLDVS_TASK_PUT_REQUEST.'</type>';
 	$WSMsg.='<user>'.$task['user'].'</user>';
 	$WSMsg.='<sourcelen>'.filesize($task['driverpath']).'</sourcelen>';
+	$WSMsg.='<driver>'.$task['driverpath'].'</driver>';
 	foreach($task['envs'] as $env_key => $env) {
 		$WSMsg.='<env name="'.$env['name'].'">';
 			foreach($env['rules'] as $rule_key => $rule) {
@@ -370,6 +371,16 @@ function WSPutTask($task) {
 #
 #
 function WSGetTaskStatus($task) {
+	$result = array( 'status' => "UNKNOWN");
+	$results = array($result);
+	$rule = array ('status' => "UNKNOWN", 'results' => $results);
+	$rules = array($rule);
+	$env = array( 'status' => "OK", 'rules' => $rules);
+	$envs = array($env);
+	$tresult = array( 'id' => 1, 'status' => "OK", 'envs' => $envs);
+	return $tresult;
+	
+	/* Next part - getting results from LDV Server not used in new arch.  */
 	$sock = WSConnect();
 	if(empty($sock)) return;
 	WSPrintD("Try to create WSM message.");
@@ -390,15 +401,4 @@ function WSGetTaskStatus($task) {
 	WSPrintD('Task status successfully get.');
 	return $results;
 }
-/*$rules1 = array("8_1","32_1");
-$rules2 = array("64","89");
-
-$env1 = array('name' => "vanilla", 'rules' => $rules1);
-$env2 = array('name' => "rhkernel", 'rules' => $rules2);
-
-$task['user'] = "mong";
-$task['driverpath'] = "/home/iceberg/ldv-tools/ldv-online/ldvsrv/lsapi.php";
-$task['envs'] = array($env1, $env2);
-
-WSPutTask($task);*/
 ?>

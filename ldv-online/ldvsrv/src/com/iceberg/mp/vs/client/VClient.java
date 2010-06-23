@@ -67,7 +67,7 @@ public class VClient {
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
 					config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" ldv task "
 					+"--driver="+config.getWorkDir()+"/driver --workdir="+config.getWorkDir()+"/run " +
-					" --report-out="+report+" --env="+task.getVparams();
+					" --report-out="+report+" --env="+task.getEnv()+"@"+task.getRule();
 			Logger.trace("RUN LDV:" + startString);
 			Logger.debug("Write start command in file :" + config.getWorkDir() +"/start");
 			FileWriter startFile = new FileWriter(config.getWorkDir() +"/start");

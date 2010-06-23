@@ -30,7 +30,7 @@ public class Scheduler extends Thread {
 		Logger.debug("SCHELDUER: Start thread.");		
 		while(true) {
 			// 1. ищем номера задач RTASKS в статусе WAIT_FOR_VERIFICATION...
-			List<Integer> idOfWaitingTasks = SQLRequests.getRTasksIdW_WAIT_FOR_VERIFICATION(sManager);
+			List<Integer> idOfWaitingTasks = SQLRequests.getSplittedTasksIdW_WAIT_FOR_VERIFICATION(sManager);
 			if(idOfWaitingTasks!=null && idOfWaitingTasks.size()>0) {
 				// 2. ожидаем свободных машин для верификации
 				List<Integer> idOfWaitingClients = null;
@@ -40,7 +40,7 @@ public class Scheduler extends Thread {
 						// распределяем все задачи равномерно или как-нибудь по-другому, не важно
 						for(int j=0, k=0; j<idOfWaitingTasks.size(); j++, k++) {
 							if(k>=idOfWaitingClients.size()) k=0;
-							SQLRequests.setTaskToCLientW(sManager, idOfWaitingClients.get(k), idOfWaitingTasks.get(j));
+							SQLRequests.setSplittedTaskToCLientW(sManager, idOfWaitingClients.get(k), idOfWaitingTasks.get(j));
 						}
 						break;
 					} 

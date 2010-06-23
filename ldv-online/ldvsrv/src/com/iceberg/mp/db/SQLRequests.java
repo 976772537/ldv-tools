@@ -13,58 +13,41 @@ import java.util.List;
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.Env;
 import com.iceberg.mp.schelduler.MTask;
-import com.iceberg.mp.schelduler.Rule;
 import com.iceberg.mp.server.ServerConfig;
-import com.iceberg.mp.vs.client.Result;
 import com.iceberg.mp.vs.client.VClientProtocol;
 import com.iceberg.mp.vs.vsm.VSMClient;
 import com.iceberg.mp.vs.vsm.VSMClientSendResults;
-import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskGetStatusResponse;
 import com.iceberg.mp.ws.wsm.WSMLdvstowsTaskPutResponse;
 import com.iceberg.mp.ws.wsm.WSMWsmtoldvsTaskPutRequest;
-import com.iceberg.mp.ws.wsm.WSMWstoldvsTaskStatusGetRequest;
-import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 
 public class SQLRequests {
 
 	/*
-	 * Init db requests;
+	 * Init db H2 - inner pulls and drivers sources ;
+	 * 
 	 * 
 	 */
-	private static final String SQL_CREATE_ENVS = 
-		"CREATE CACHED TABLE IF NOT EXISTS ENVS(id INT PRIMARY KEY AUTO_INCREMENT," +
-		" name VARCHAR(255) NOT NULL)";
-
-	private static final String SQL_CREATE_RULES = 
-		"CREATE CACHED TABLE IF NOT EXISTS RULES(id INT PRIMARY KEY AUTO_INCREMENT," +
-		" name VARCHAR(255) NOT NULL)";
-	
-	private static final String SQL_CREATE_USERS = 
-		"CREATE CACHED TABLE IF NOT EXISTS USERS(id INT PRIMARY KEY AUTO_INCREMENT, name "+
-		"VARCHAR(255) NOT NULL, priv INT NOT NULL)";
+	private static final String SQL_DROP_CLIENTS = "DROP TABLE IF EXISTS CLIENTS";
 	
 	private static final String SQL_CREATE_CLIENTS = 
 		"CREATE CACHED TABLE IF NOT EXISTS CLIENTS(id INT PRIMARY KEY AUTO_INCREMENT, name "+
 		"VARCHAR(255) NOT NULL, status VARCHAR(255) NOT NULL)";
 	
-	private static final String SQL_DROP_CLIENTS = "DROP TABLE IF EXISTS CLIENTS";
-	
 	private static final String SQL_CREATE_TASKS = 
-		"CREATE CACHED TABLE IF NOT EXISTS TASKS(id INT PRIMARY KEY AUTO_INCREMENT, id_user "+
-		"INT NOT NULL, status VARCHAR(255) NOT NULL, size INT, data BLOB)";
+		"CREATE CACHED TABLE IF NOT EXISTS TASKS(id INT PRIMARY KEY AUTO_INCREMENT, " +
+		"status VARCHAR(255) NOT NULL, size INT, data BLOB)";
+		
+	private static final String SQL_CREATE_SPLITTED_TASKS = 
+		"CREATE CACHED TABLE IF NOT EXISTS SPLITTED_TASKS(id INT PRIMARY KEY AUTO_INCREMENT, parent_id "+
+		"INT NOT NULL, env VARCHAR(100), rule CHAR(5), status VARCHAR(255) NOT NULL, client_id INT NOT NULL)";
 	
-	private static final String SQL_CREATE_ETASKS = 
-		"CREATE CACHED TABLE IF NOT EXISTS ETASKS(id INT PRIMARY KEY AUTO_INCREMENT, id_task "+
-		"INT NOT NULL, status VARCHAR(255) NOT NULL, id_env INT NOT NULL)";
+	/*
+	 * Init db stats
+	 * 
+	 * 
+	 * 
+	 */
 	
-	private static final String SQL_CREATE_RTASKS = 
-		"CREATE CACHED TABLE IF NOT EXISTS RTASKS(id INT PRIMARY KEY AUTO_INCREMENT, id_etask "+
-		"INT NOT NULL, status VARCHAR(255) NOT NULL, id_rule INT NOT NULL, id_client INT NOT NULL," +
-		" rstatus VARCHAR(255), report BLOB)";
-	
-	private static final String SQL_CREATE_RESULTS = 
-		"CREATE CACHED TABLE IF NOT EXISTS RESULTS(id INT PRIMARY KEY AUTO_INCREMENT, id_rtask "+
-		"INT NOT NULL, rstatus VARCHAR(255) NOT NULL, report BLOB)";
 	
 	public static Statement getTransactionStmt(Connection conn) {
 		Statement stmt = null;
@@ -77,19 +60,14 @@ public class SQLRequests {
 		return stmt;
 	}
 	
-	public static boolean initDb(Connection conn) {
+	public static boolean initInnerDbTables(Connection conn) {
 		Statement stmt = getTransactionStmt(conn);
 		if(stmt==null) return false;
 		try {
-			stmt.execute(SQL_CREATE_USERS);
-			stmt.execute(SQL_CREATE_RULES);
 			stmt.execute(SQL_DROP_CLIENTS);
 			stmt.execute(SQL_CREATE_CLIENTS);
-			stmt.execute(SQL_CREATE_ENVS);
 			stmt.execute(SQL_CREATE_TASKS);
-			stmt.execute(SQL_CREATE_ETASKS);
-			stmt.execute(SQL_CREATE_RTASKS);
-			stmt.execute(SQL_CREATE_RESULTS);
+			stmt.execute(SQL_CREATE_SPLITTED_TASKS);
 			conn.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -107,110 +85,13 @@ public class SQLRequests {
 			e.printStackTrace();
 		}
 		return true;
-	}
-	
-	@SuppressWarnings("finally")
-	public static int registerOrGetUserId(Connection conn, String name) {
-		int id = -1;
-		Statement stmt = getTransactionStmt(conn);
-		if(stmt==null) return id;
-		
-		try {
-			ResultSet rs = stmt.executeQuery("SELECT id FROM USERS WHERE name='"+name+"'");
-			if(rs.getRow()==0 && !rs.next()) {
-				stmt.execute("INSERT INTO USERS(name,priv) VALUES('"+name+"',0)");
-				rs = stmt.executeQuery("SELECT id FROM USERS WHERE NAME='"+name+"'");
-				rs.next();
-			}
-			id = rs.getInt("id");
-			rs.close();
-			try {
-				conn.commit();
-				stmt.close();
-			} catch (SQLException e) {
-				conn.rollback();
-				id = -1;
-			}
-		} catch (SQLException e1) {
-			e1.printStackTrace();
-		} finally {
-			try {
-				stmt.close();
-			} catch (final SQLException e) {
-				e.printStackTrace();
-			}
-			return id;
-		}
-	}
-	
-	@SuppressWarnings("finally")
-	public static int registerOrGetEnvId(Connection conn, String name) {
-		int id = -1;
-		Statement stmt = getTransactionStmt(conn);
-		if(stmt==null) return id;
-		
-		try {
-			ResultSet rs = stmt.executeQuery("SELECT id FROM ENVS WHERE name='"+name+"'");
-			if(rs.getRow()==0 && !rs.next()) {
-				stmt.execute("INSERT INTO ENVS(name) VALUES('"+name+"')");
-				rs = stmt.executeQuery("SELECT id FROM ENVS WHERE NAME='"+name+"'");
-				rs.next();
-			}
-			id = rs.getInt("id");
-			rs.close();
-			try {
-				conn.commit();
-				stmt.close();
-			} catch (SQLException e) {
-				conn.rollback();
-				id = -1;
-			}
-		} catch (SQLException e1) {
-			e1.printStackTrace();
-		} finally {
-			try {
-				stmt.close();
-			} catch (final SQLException e) {
-				e.printStackTrace();
-			}
-			return id;
-		}
-	}
-	
-	@SuppressWarnings("finally")
-	public static int registerOrGetRuleId(Connection conn, String name) {
-		int id = -1;
-		Statement stmt = getTransactionStmt(conn);
-		if(stmt==null) return id;
-		
-		try {
-			ResultSet rs = stmt.executeQuery("SELECT id FROM RULES WHERE name='"+name+"'");
-			if(rs.getRow()==0 && !rs.next()) {
-				stmt.execute("INSERT INTO RULES(name) VALUES('"+name+"')");
-				rs = stmt.executeQuery("SELECT id FROM RULES WHERE NAME='"+name+"'");
-				rs.next();
-			}
-			id = rs.getInt("id");
-			rs.close();
-			try {
-				conn.commit();
-				stmt.close();
-			} catch (SQLException e) {
-				conn.rollback();
-				id = -1;
-			}
-		} catch (SQLException e1) {
-			e1.printStackTrace();
-		} finally {
-			try {
-				stmt.close();
-			} catch (final SQLException e) {
-				e.printStackTrace();
-			}
-			return id;
-		}
-	}
-		
+	}		
+
+	/**
+	 * @param conn - connection to inner db
+	 * @param name - unique name of client (might be hotname or ip or other...)
+	 * @return client unique identificator
+	 */
 	@SuppressWarnings("finally")
 	public static int registerOrGetClientId(Connection conn, String name) {
 		int id = -1;
@@ -246,12 +127,11 @@ public class SQLRequests {
 	}
 	
 	
-	public static boolean puTask(Connection conn, WSMWsmtoldvsTaskPutRequest msg, WSMLdvstowsTaskPutResponse ldvtowsResponse, InputStream data) {
-		// зарегистрируем пользователя
-		int id_user = registerOrGetUserId(conn, msg.getUser());
-		if(id_user<0) return false;
-		// зарегистрируем задачу
-		int id = registerTask(conn, id_user, data, msg);
+	public static boolean puTask(Connection conn, Connection sconn,  WSMWsmtoldvsTaskPutRequest msg, WSMLdvstowsTaskPutResponse ldvtowsResponse, InputStream data) {
+		// зарегистрируем задачу во внутренней ДБ
+		int id = registerTask(conn, sconn, data, msg);
+		// TODO: регистрируем задачу во нешней ДБ
+		// устанавливаем id-шник задачи для ответа
 		ldvtowsResponse.setId(id);
 		return id==-1?false:true;		
 	}
@@ -298,88 +178,160 @@ public class SQLRequests {
 		return false;
 	}
 	
-	public static boolean setTaskStatus(Connection conn,int id , String status) {
-		return setStatus("TASKS", conn, id, status);
+	public static boolean setSplittedTaskStatusW(ServerConfig config, int id , String status) {
+		// set status queued to external db
+		return setStatsStatusForTask(config,"queued",id) && setStatusW(config, "SPLITTED_TASKS",id, status);
 	}
 	
-	public static boolean setRTaskStatus(Connection conn,int id , String status) {
-		return setStatus("RTASKS", conn, id, status);
+	public static boolean setStatsStatusForTask(ServerConfig config, String status, int id) {
+		boolean result = false;
+		Connection sconn = null;
+		Statement st = null;
+		try {
+			sconn = config.getStorageManager().getStatsConnection();
+			st = sconn.createStatement();
+			st.executeUpdate("UPDATE launches SET status='queued' WHERE id="+id);
+			st.close();
+			result = true;
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				sconn.close();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		}	
+		return result;		
 	}
 	
-	public static boolean setETaskStatus(Connection conn,int id , String status) {
-		return setStatus("ETASKS", conn, id, status);
-	}
-	
-	public static boolean setTaskStatusW(ServerConfig config, int id , String status) {
-		return setStatusW(config, "TASKS", id, status);
-	}
-
-	public static boolean setRTaskStatusW(ServerConfig config, int id , String status) {
-		return setStatusW(config, "RTASKS",id, status);
-	}
-	
-	public static boolean setETaskStatusW(ServerConfig config,int id , String status) {
-		return setStatusW(config, "ETASKS",id, status);
-	}
-
-	
-	
-	public static int registerTask(Connection conn, int id_user, InputStream data, WSMWsmtoldvsTaskPutRequest msg) {
+	public static int registerTask(Connection conn, Connection sconn, InputStream data, WSMWsmtoldvsTaskPutRequest msg) {
 		int id=-1;
 		PreparedStatement stmt = null;
 		Statement st = null;
 		try {
 			conn.setAutoCommit(false);
 			st = conn.createStatement();
+			
 			ResultSet result = st.executeQuery("SELECT MAX(id) FROM TASKS");
-			if(result.getRow()==0 && !result.next())
-				id = 1;	
-			else
-				id = result.getInt(1)+1;
+			id = result.getRow()==0 && !result.next() ? 1 : result.getInt(1)+1;
 			result.close();
-			stmt = conn.prepareStatement("INSERT INTO TASKS(id,id_user,status,size,data) VALUES("+id+","+id_user+",'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',"+msg.getSourceLen()+",?)");
+			
+			stmt = conn.prepareStatement("INSERT INTO TASKS(id,status,size,data) " +
+					"VALUES("+id+",'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',"+msg.getSourceLen()+",?)");
 			stmt.setBinaryStream (1, data, msg.getSourceLen());
 			stmt.executeUpdate();
+			stmt.close();
+
+			result = st.executeQuery("SELECT MAX(id) FROM SPLITTED_TASKS");
+			int id_splitted_task_starts = result.getRow()==0 && !result.next() ? 1 : result.getInt(1)+1;
+			result.close();
+			int id_splitted_task = id_splitted_task_starts; 
 			List<Env> envs = msg.getEnvs();
-			for(int i=0; i<envs.size(); i++) {
-				ResultSet lirs = st.executeQuery("SELECT id FROM ENVS WHERE name='"+envs.get(i).getName()+"'");
-				if(lirs.getRow()==0 && !lirs.next()) {
-					st.execute("INSERT INTO ENVS(name) VALUES('"+envs.get(i).getName()+"')");
-					lirs = st.executeQuery("SELECT id FROM ENVS WHERE NAME='"+envs.get(i).getName()+"'");
-					lirs.next();
-				}
-				int id_env = lirs.getInt("id");
-				lirs.close();
-				ResultSet eresult = st.executeQuery("SELECT MAX(id) FROM ETASKS");
-				int id_etask;
-				if(eresult.getRow()==0 && !eresult.next())
-					id_etask = 1;	
-				else
-					id_etask = eresult.getInt(1)+1;
-				eresult.close();
-				st.executeUpdate("INSERT INTO ETASKS(id, id_task, id_env, status) VALUES("+id_etask+","+id+","+id_env+",'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"')");
-				List<Rule> rules = envs.get(i).getRules();
-				for(int j=0; j<rules.size(); j++) {
-					ResultSet lrrs = st.executeQuery("SELECT id FROM RULES WHERE name='"+rules.get(j).getName()+"'");
-					if(lrrs.getRow()==0 && !lrrs.next()) {
-						st.execute("INSERT INTO RULES(name) VALUES('"+rules.get(j).getName()+"')");
-						lrrs = st.executeQuery("SELECT id FROM RULES WHERE name='"+rules.get(j).getName()+"'");
-						lrrs.next();
-					}
-					int id_rule = lrrs.getInt("id");
-					lrrs.close();
-					st.executeUpdate("INSERT INTO RTASKS(id_etask, id_rule, id_client, status) VALUES("+id_etask+","+id_rule+",0,'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"')");	
+			for(Env env : envs) {
+				List<String> rules = env.getRules();
+				for(String rule : rules) {
+					st.execute("INSERT INTO SPLITTED_TASKS(id,parent_id, env, rule, status, client_id) " +
+							"VALUES("+ id_splitted_task++ +","+id+", '"+env.getName()+"','"+rule+"','"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',0)");
 				}
 			}
-			conn.commit();
-			stmt.close();
+			
 			st.close();
-			return id; 
-		} catch (SQLException e1) {
-			Logger.err("SQL can't set set autocommit option in false or create statement.");
 			try {
-				e1.printStackTrace();
+				conn.commit();
+			} catch(SQLException e) {
+				e.printStackTrace();
 				conn.rollback();
+				return -1;
+			}
+			sconn.setAutoCommit(false);
+			// STATS DB LOGIC
+			// and now register task in stats db
+			st = sconn.createStatement();
+			// заливаем в tasks     // TODO: Транзакция?
+			st.executeUpdate("INSERT INTO tasks(id,username) VALUES("+id+",'"+msg.getUser()+"');");
+			// заливаем в drivers
+			ResultSet srs = st.executeQuery("SELECT MAX(id) FROM drivers;");
+			int driver_id = srs.getRow()==0 && !srs.next() ? 1 : srs.getInt(1)+1; 
+			srs.close();
+			st.executeUpdate("INSERT INTO drivers(id, name, origin) VALUES("+driver_id+",'"+msg.getDriver()+"','external')");
+			// заливаем launches    // TODO: Транзакция?
+			//srs = st.executeQuery("SELECT MAX(id) FROM launches;");
+			//int id_launch = srs.getRow()==0 && !srs.next() ? 1 : srs.getInt(1)+1; 
+			//srs.close();
+			// заливаем тулсет, если его нет
+			srs = st.executeQuery("SELECT id FROM toolsets WHERE version='current' AND verifier='blast';");	
+			if(srs.getRow()==0 && !srs.next()) {
+				srs.close();
+				st.executeUpdate("INSERT INTO toolsets(version,verifier) VALUES('current','blast')");
+				srs = st.executeQuery("SELECT id FROM toolsets WHERE version='current' AND verifier='blast';");
+				srs.next();
+			}
+			int toolset_id = srs.getInt("id");
+			srs.close();		
+			
+			envs = msg.getEnvs();
+			
+			id_splitted_task = id_splitted_task_starts;
+			for(Env env : envs) {
+				// заливаем енвайронмент если его нет 
+				srs = st.executeQuery("SELECT id FROM environments WHERE version='"+env.getName()+"' AND kind='vanilla';");	
+				if(srs.getRow()==0 && !srs.next()) {
+					srs.close();
+					st.executeUpdate("INSERT INTO environments(version,kind) VALUES('"+env.getName()+"','vanilla')");
+					srs = st.executeQuery("SELECT id FROM environments WHERE version='"+env.getName()+"' AND kind='vanilla';");
+					srs.next();
+				}
+				int env_id = srs.getInt("id");
+				srs.close();		
+				
+				List<String> rules = env.getRules();
+				for(String rule : rules) {
+					// заливаем модель если ее нет 
+					srs = st.executeQuery("SELECT id FROM rule_models WHERE name='"+rule+"';");	
+					if(srs.getRow()==0 && !srs.next()) {
+						srs.close();
+						st.executeUpdate("INSERT INTO rule_models(name) VALUES('"+rule+"')");
+						srs = st.executeQuery("SELECT id FROM rule_models WHERE name='"+rule+"';");
+						srs.next();
+					}
+					int rule_id = srs.getInt("id");
+					srs.close();		
+					// заливаем launces					
+					Logger.trace("INSERT INTO launches(id,driver_id, toolset_id, environment_id, rule_model_id, task_id, status, trace_id, scenario_id) "+
+							"VALUES("+ id_splitted_task +","+driver_id+","+toolset_id+","+env_id+","+rule_id+","+id+",'queued',null,null)");
+					st.executeUpdate("INSERT INTO launches(id,driver_id, toolset_id, environment_id, rule_model_id, task_id, status, trace_id, scenario_id) "+
+							"VALUES("+ id_splitted_task++ +","+driver_id+","+toolset_id+","+env_id+","+rule_id+","+id+",'queued',null,null)");
+				}
+			}
+			try {
+				sconn.commit();
+			} catch(SQLException e) {
+				e.printStackTrace();
+				sconn.rollback();
+				return -1;
+			}
+			return id; 
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} catch (Throwable e) {
+			e.printStackTrace();
+		} finally {
+				/*try {
+					if(conn!=null)
+						conn.close();					
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				try {
+					if(sconn!=null)
+						sconn.close();					
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}*/
+			try {
 				if(stmt!=null)
 					stmt.close();
 				if(st!=null) 
@@ -394,14 +346,19 @@ public class SQLRequests {
 	public static boolean puTaskC(ServerConfig config,
 			WSMWsmtoldvsTaskPutRequest wsmMsg, WSMLdvstowsTaskPutResponse ldvtowsResponse, InputStream in) {
 		Connection conn = null;
+		Connection sconn = null;
 		try {
 			conn = config.getStorageManager().getConnection();
-			return puTask(conn, wsmMsg, ldvtowsResponse, in);
+			sconn = config.getStorageManager().getStatsConnection();
+			return puTask(conn, sconn, wsmMsg, ldvtowsResponse, in);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
 			try {
-				conn.close();
+				if(conn!=null)
+					conn.close();
+				if(sconn!=null)
+					conn.close();
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
@@ -412,14 +369,19 @@ public class SQLRequests {
 
 	public static MTask getTaskForClientW(VSMClient msg, ServerConfig config) {
 		Connection conn = null;
+		Connection sconn = null;
 		try {
 			conn = config.getStorageManager().getConnection();
-			return getTaskForClient(conn, msg);
+			sconn = config.getStorageManager().getStatsConnection();
+			return getTaskForClient(conn, sconn, msg);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
 			try {
-				conn.close();
+				if(conn!=null)
+					conn.close();
+				if(sconn!=null)
+					sconn.close();
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
@@ -427,50 +389,63 @@ public class SQLRequests {
 		return null;
 	}
 	
-	public static MTask getTaskForClient(Connection conn, VSMClient msg) {
+	public static MTask getTaskForClient(Connection conn, Connection sconn, VSMClient msg) {
 		// сначала зарегистририуем клиента, если такого нет
 		int id_client = registerOrGetClientId(conn, msg.getName());
 		if(id_client<0) return null;
 		// теперь возмем для него задачу
-		return selectTask(conn, id_client);
+		return selectSplittedTaskForClient(conn, sconn, id_client);
 	}
 
-	private static MTask selectTask(Connection conn, int id_client) {
+	private static MTask selectSplittedTaskForClient(Connection conn, Connection sconn, int client_id) {
 		Statement stmt = getTransactionStmt(conn);
 		MTask result = null;
 		InputStream is = null;
 		if(stmt==null) return null;
 		try {
-			ResultSet rs = stmt.executeQuery("SELECT id, id_rule, id_etask FROM RTASKS WHERE status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"' AND id_client="+id_client+" ORDER BY id_etask LIMIT 1");
+			ResultSet rs = stmt.executeQuery("SELECT id, env, rule, parent_id FROM SPLITTED_TASKS WHERE status='"
+					+MTask.Status.TS_QUEUED+"' AND client_id="+client_id+" ORDER BY parent_id LIMIT 1");
 			if(rs.getRow()==0 && !rs.next()) 
 				return null;
 			int id = rs.getInt("id");
-			int id_rule = rs.getInt("id_rule");
-			int id_etask = rs.getInt("id_etask");
-			rs = stmt.executeQuery("SELECT id_task, id_env FROM ETASKS WHERE id="+id_etask);
-			if(rs.getRow()==0 && !rs.next()) 
-				return null;
-			int id_task = rs.getInt("id_task");
-			int id_env = rs.getInt("id_env");
-			rs = stmt.executeQuery("SELECT name FROM RULES WHERE id="+id_rule);
-			if(rs.getRow()==0 && !rs.next()) 
-				return null;
-			String rule = rs.getString("name");
-			rs = stmt.executeQuery("SELECT name FROM ENVS WHERE id="+id_env);
-			if(rs.getRow()==0 && !rs.next()) 
-				return null;
-			String env = rs.getString("name");
-			rs = stmt.executeQuery("SELECT data,size FROM TASKS WHERE id="+id_task);	
+			int parent_id = rs.getInt("parent_id");
+			String env = rs.getString("env");
+			String rule = rs.getString("rule");
+			rs.close();
+			
+			rs = stmt.executeQuery("SELECT data,size FROM TASKS WHERE id="+parent_id);	
 			if(rs.getRow()==0 && !rs.next()) 
 				return null;
 			int size = rs.getInt("size");
-			is = rs.getBinaryStream("data");
+			is = rs.getBinaryStream("data");	
 			byte[] data = new byte[size];
 			is.read(data);
-			result = new MTask(id,data,env+"@"+rule);
-			stmt.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"' WHERE id="+id);
-			conn.commit();
+			result = new MTask(id, env, rule, data);
+			rs.close();
+			stmt.executeUpdate("UPDATE SPLITTED_TASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"' WHERE id="+id);
+			try {
+				conn.commit();
+			} catch(SQLException e) {
+				conn.rollback();
+				e.printStackTrace();
+				return null;
+			}
+			// STATS DB LOGIC
+			// update status from queued to running
+			sconn.setAutoCommit(false);
+			Statement st = sconn.createStatement();
+			st.executeUpdate("UPDATE launches SET status='running' WHERE id="+result.getId());
+			st.close();
+			try {
+				sconn.commit();
+			} catch(SQLException e) {
+				sconn.rollback();
+				result = null;
+				e.printStackTrace();
+				return null;
+			}			
 		} catch (SQLException e1) {
+			result = null;
 			try {
 				conn.rollback();
 			} catch (SQLException e) {
@@ -478,6 +453,7 @@ public class SQLRequests {
 			}
 			e1.printStackTrace();
 		} catch (IOException e) {
+			result = null;
 			try {
 				conn.rollback();
 			} catch (SQLException e1) {
@@ -499,8 +475,8 @@ public class SQLRequests {
 		return result;	
 	}
 
-	public static boolean setRTaskStatusW_WAIT_FOR_VERIFIFCATION(	ServerConfig config, MTask mtask) {
-		return setRTaskStatusW(config, mtask.getId(), MTask.Status.TS_VERIFICATION_IN_PROGRESS+"");
+	public static boolean setSplittedTaskStatusW_WAIT_FOR_VERIFIFCATION(ServerConfig config, MTask mtask) {
+		return setSplittedTaskStatusW(config, mtask.getId(), MTask.Status.TS_VERIFICATION_IN_PROGRESS+"");
 	}
 
 	public static List<Integer> getClientsIdW_W_WAIT_FOR_TASK(StorageManager smanager) {
@@ -519,7 +495,7 @@ public class SQLRequests {
 		}
 		return null;
 	}
-
+	
 	public static List<Integer> getClientsId_W_WAIT_FOR_TASK(Connection conn) {
 		Statement stmt = getTransactionStmt(conn);
 		List<Integer> listWFV = new ArrayList<Integer>();
@@ -529,6 +505,7 @@ public class SQLRequests {
 			while(rs.next()) {
 				listWFV.add(rs.getInt("id"));
 			}
+			rs.close();
 			conn.commit();
 		} catch (SQLException e1) {
 			try {
@@ -547,11 +524,11 @@ public class SQLRequests {
 		return listWFV;
 	}
 	
-	public static List<Integer> getRTasksIdW_WAIT_FOR_VERIFICATION(StorageManager smanager) {
+	public static List<Integer> getSplittedTasksIdW_WAIT_FOR_VERIFICATION(StorageManager smanager) {
 		Connection conn = null;
 		try {
 			conn = smanager.getConnection();
-			return getRTasksId_WAIT_FOR_VERIFICATION(conn);
+			return getSplittedTasksId_WAIT_FOR_VERIFICATION(conn);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
@@ -564,23 +541,23 @@ public class SQLRequests {
 		return null;
 	}
 	
-	public static List<Integer> getRTasksId_WAIT_FOR_VERIFICATION(Connection conn) {
+	public static List<Integer> getSplittedTasksId_WAIT_FOR_VERIFICATION(Connection conn) {
 		Statement stmt = getTransactionStmt(conn);
 		List<Integer> listWFV = new ArrayList<Integer>();
 		if(stmt==null) return null;
 		try {
-			ResultSet rs = stmt.executeQuery("SELECT id FROM RTASKS WHERE id_client=0 AND status='"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"'");
-			while(rs.next()) {
+			ResultSet rs = stmt.executeQuery("SELECT id FROM SPLITTED_TASKS WHERE client_id=0 AND status='"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"'");
+			while(rs.next())
 				listWFV.add(rs.getInt("id"));
-			}
 			conn.commit();
-		} catch (SQLException e1) {
+			rs.close();
+		} catch (SQLException e) {
 			try {
 				conn.rollback();
-			} catch (SQLException e) {
-				e.printStackTrace();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
 			}
-			e1.printStackTrace();
+			e.printStackTrace();
 		} finally {
 			try {
 				stmt.close();
@@ -591,11 +568,11 @@ public class SQLRequests {
 		return listWFV;
 	}
 
-	public static boolean setTaskToCLientW(StorageManager smanager, Integer id_client, Integer id_rtask) {
+	public static boolean setSplittedTaskToCLientW(StorageManager smanager, int client_id, int splitted_task_id) {
 		Connection conn = null;
 		try {
 			conn = smanager.getConnection();
-			return setTaskToCLient(conn, id_client, id_rtask);
+			return setSplittedTaskToCLient(conn, client_id, splitted_task_id);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
@@ -608,12 +585,14 @@ public class SQLRequests {
 		return false;
 	}
 
-	private static boolean setTaskToCLient(Connection conn, Integer id_client, Integer id_rtask) {
+	private static boolean setSplittedTaskToCLient(Connection conn, Integer client_id, Integer splitted_task_id) {
 		Statement stmt = getTransactionStmt(conn);
 		boolean result = false;
 		if(stmt==null) return result;
 		try {
-			stmt.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"', id_client="+id_client+" WHERE id="+id_rtask);
+			stmt.executeUpdate("UPDATE SPLITTED_TASKS SET status='"
+					+MTask.Status.TS_QUEUED+"', client_id="+client_id+" WHERE id="+splitted_task_id);
+			stmt.close();
 			conn.commit();
 			result = true;
 		} catch (SQLException e1) {
@@ -633,14 +612,16 @@ public class SQLRequests {
 		return result;
 	}
 
-	public static boolean uploadResultsW(ServerConfig config, VSMClientSendResults resultsMsg) {
+	public static boolean setSplittedTaskResultW(ServerConfig config, VSMClientSendResults resultsMsg) {
 		Connection conn = null;
 		try {
 			conn = config.getStorageManager().getConnection();
 			conn.setAutoCommit(false);
-			return uploadResults(conn, resultsMsg);
+			return setSplittedTaskResult(conn, resultsMsg);
 		} catch (SQLException e) {
 			e.printStackTrace();
+		} catch (Throwable e) {
+			e.printStackTrace();		
 		} finally {
 			try {
 				conn.close();
@@ -651,208 +632,124 @@ public class SQLRequests {
 		return false;	
 	}
 	
-	public static boolean uploadResults(Connection conn, VSMClientSendResults resultsMsg) {
-		PreparedStatement stmt = null;
+	public static boolean setSplittedTaskResult(Connection conn, VSMClientSendResults resultsMsg) {
 		Statement st = null;
-		try {
-			Result[] results = resultsMsg.getResults();
-			ByteInputStream bis = null;
-			for(int i=0; i<results.length; i++) {
-				if(results[i].getRresult().equals("UNSAFE")) {
-					stmt = conn.prepareStatement("INSERT INTO RESULTS(id_rtask, rstatus, report) VALUES("
-							+resultsMsg.getId()+",'"+results[i].getRresult()+"',?)");
-					bis = new ByteInputStream(results[i].getReport(),results[i].getReport().length);
-					stmt.setBinaryStream (1, bis , results[i].getReport().length);
-				} else {
-					stmt = conn.prepareStatement("INSERT INTO RESULTS(id_rtask, rstatus) VALUES("
-							+resultsMsg.getId()+",'"+results[i].getRresult()+"')");
-				}
-				stmt.executeUpdate();
-			}
-					
-			// теперь запишем верхний результат
+		try {								
 			st = conn.createStatement();
-			st.executeUpdate("UPDATE RTASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+resultsMsg.getId());
-			// порверим остальные RTASK'и
-			// для этго найдем id_etask
-			//
-			ResultSet result = st.executeQuery("SELECT id_etask FROM RTASKS WHERE id="+resultsMsg.getId()+" LIMIT 1");
-			if(result.getRow()==0 && !result.next()) 
+				st.executeUpdate("UPDATE SPLITTED_TASKS SET status='"
+						+resultsMsg.getStatus()+"' WHERE id="+resultsMsg.getId());
+			// теперь порверим - все ли раздельные задачи для родительской задачи завершены?
+			// для этого найдем parent_id
+			ResultSet rs = st.executeQuery("SELECT parent_id FROM SPLITTED_TASKS WHERE id="+resultsMsg.getId()+" LIMIT 1");
+			if(rs.getRow()==0 && !rs.next()) 
 				return false;
-			int id_etask = result.getInt("id_etask");
-			result.close();
-			
-			result = st.executeQuery("SELECT id FROM RTASKS WHERE id_etask="+id_etask+"AND status!='"+MTask.Status.TS_VERIFICATION_FINISHED+"'");
-			if(result.getRow()==0 && !result.next()) {
-				result.close();
-				// если RTASK'ов с незавершенным результатом нет, то обновляем etask
-				st.executeUpdate("UPDATE ETASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+id_etask);
-				// теперь проверяем, есть ли незавершенные e_task'и
-				result = st.executeQuery("SELECT id_task FROM ETASKS WHERE id="+id_etask+" LIMIT 1");
-				if(result.getRow()==0 && !result.next()) 
-					return false;
-				int id_task = result.getInt("id_task");
-				result.close();
-				result = st.executeQuery("SELECT id FROM ETASKS WHERE id_task="+id_task+" AND status!='"+MTask.Status.TS_VERIFICATION_FINISHED+"'");
-				if(result.getRow()==0 && !result.next()) {
-					result.close();
-					// если нет, то обновляем задачу
-					st.executeUpdate("UPDATE TASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+id_task);
-				} else {
-					result.close();
-				}
-			} else {
-				result.close();
+			int parent_id = rs.getInt("parent_id");
+			rs.close();
+			// и запорсим все раздельные задачи
+			rs = st.executeQuery("SELECT id FROM SPLITTED_TASKS WHERE parent_id="+parent_id+"AND status!='"+MTask.Status.TS_VERIFICATION_FINISHED+"'");
+			if(rs.getRow()==0 && !rs.next()) {
+				rs.close();
+				// если таких нет, то установим статус родительской задачи в FINISHED
+				st.executeUpdate("UPDATE TASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+parent_id);
 			}
-			
-			conn.commit();
-			stmt.close();
-			if(bis!=null)
-				bis.close();
 			st.close();
-			return true; 
-		} catch (SQLException e1) {
-			Logger.err("SQL can't set set autocommit option in false or create statement.");
+			conn.commit();			
+			return true;
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} catch (Throwable e) {
+			e.printStackTrace();
+		} finally {
 			try {
-				e1.printStackTrace();
-				conn.rollback();
-				if(stmt!=null)
-					stmt.close();
-				if(st!=null) 
-					st.close();
+				conn.close();
 			} catch (SQLException e) {
 				e.printStackTrace();
-			}
-		} catch (IOException e) {
-			Logger.err("SQL can't set set autocommit option in false or create statement.");
-			try {
-				e.printStackTrace();
-				conn.rollback();
-				if(stmt!=null)
-					stmt.close();
-				if(st!=null) 
-					st.close();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
-			e.printStackTrace();
+			}			
 		}
 		return false;
 	}
+	
+	public static String statsDropScript1="drop table if exists launches;";
+	public static String statsDropScript2="drop table if exists sources;";
+	public static String statsDropScript3="drop table if exists problems_stats;";
+	public static String statsDropScript4="drop table if exists problems;";
+	public static String statsDropScript5="drop table if exists traces;";
+	public static String statsDropScript6="drop table if exists stats;";
+	public static String statsDropScript7="drop table if exists scenarios;";
+	public static String statsDropScript8="drop table if exists rule_models;";
+	public static String statsDropScript9="drop table if exists drivers;";
+	public static String statsDropScript10="drop table if exists environments;";
+	
+	public static String statsDropScript11="drop table if exists tasks;";
+	public static String statsDropScript12="drop table if exists toolsets;";
+	
+	
+	public static String statsCreateScript1 = "create table if not exists environments (id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,	version VARCHAR(20) NOT NULL, kind VARCHAR(20), PRIMARY KEY (id)) ENGINE=InnoDB;";
+	public static String statsCreateScript2 = "create table if not exists drivers (id int(10) unsigned not null auto_increment, name varchar(255) not null, origin enum('kernel','external') not null, primary key (id), key (name)) ENGINE=InnoDB;";
+	public static String statsCreateScript3 = "create table if not exists rule_models(id int(10) unsigned not null auto_increment,name varchar(20), description varchar(200), primary key (id)) ENGINE=InnoDB;";
+	public static String statsCreateScript4 = "create table if not exists toolsets(id int(10) unsigned not null auto_increment, version varchar(100) not null, verifier varchar(100) not null default \"model-specific\", primary key(id), unique (version,verifier), key (version), key (verifier)) ENGINE=InnoDB;";	
+	public static String statsCreateScript5 = "create table if not exists scenarios(id int(10) unsigned not null auto_increment, driver_id int(10) unsigned not null, executable varchar(255) not null, main varchar(100) not null, primary key (id), foreign key (driver_id) references drivers(id)	) ENGINE=InnoDB;";
+	public static String statsCreateScript6 = "create table if not exists stats(id int(10) unsigned not null auto_increment, success boolean not null default false,	time int(10) not null default 0, loc int(10) not null default 0, description text, primary key (id)) ENGINE=InnoDB;";
+	public static String statsCreateScript7 = "create table if not exists traces(id int(10) unsigned not null auto_increment, build_id int(10) unsigned not null, maingen_id int(10) unsigned, dscv_id int(10) unsigned,	ri_id int(10) unsigned, rcv_id int(10) unsigned,result enum('safe','unsafe','unknown') not null default 'unknown', error_trace mediumtext, verifier varchar(100), primary key (id), foreign key (build_id) references stats(id), foreign key (maingen_id) references stats(id), foreign key (dscv_id) references stats(id),	foreign key (ri_id) references stats(id), foreign key (rcv_id) references stats(id)) ENGINE=InnoDB;"; 
+	public static String statsCreateScript8 = "create table if not exists sources(id int(10) unsigned not null auto_increment, trace_id int(10) unsigned not null, name varchar(255) not null, contents blob, primary key (id), foreign key (trace_id) references traces(id)	) ENGINE=InnoDB;";
+	public static String statsCreateScript9 = "create table if not exists tasks(id int(10) unsigned not null auto_increment, username varchar(50), timestamp datetime, driver_spec varchar(255), driver_spec_origin enum('kernel','external'), description text,	primary key (id)) ENGINE=InnoDB;";
+	public static String statsCreateScript10 = "create table if not exists launches(id int(10) unsigned not null auto_increment, driver_id int(10) unsigned not null, toolset_id int(10) unsigned not null, environment_id int(10) unsigned not null, rule_model_id int(10) unsigned, scenario_id int(10) unsigned, trace_id int(10) unsigned, task_id int(10) unsigned, status enum('queued','running','failed','finished') not null, primary key (id), UNIQUE (driver_id,toolset_id,environment_id,rule_model_id,scenario_id,task_id), foreign key (driver_id) references drivers(id), foreign key (toolset_id) references toolsets(id), foreign key (environment_id) references environments(id), foreign key (rule_model_id) references rule_models(id), foreign key (scenario_id) references scenarios(id), foreign key (trace_id) references traces(id),	foreign key (task_id) references tasks(id)) ENGINE=InnoDB;";
+	
+	public static String statsCreateScript11 = "create table if not exists problems(id int(10) unsigned not null auto_increment, name varchar(100), description text, PRImary key (id), key (name)) ENGINE=InnoDB;";
+	public static String statsCreateScript12 = "create table if not exists problems_stats(stats_id int(10) unsigned not null, problem_id int(10) unsigned not null, unique (stats_id,problem_id), foreign key (stats_id) references stats(id) on delete cascade, foreign key (problem_id) references problems(id) on delete cascade) ENGINE=InnoDB;";
 
-	public static boolean fillTaskStatusW(ServerConfig config,
-			WSMLdvstowsTaskGetStatusResponse wsmResponse,
-			WSMWstoldvsTaskStatusGetRequest wsmMsg) {
-		Connection conn = null;
+	
+	
+	public static void initStatsDbTables(Connection conn) {
+		Statement stmt = getTransactionStmt(conn);
 		try {
-			conn = config.getStorageManager().getConnection();
-			conn.setAutoCommit(false);
-			return fillTaskStatus(conn,wsmResponse,wsmMsg);
+			// drop block
+			stmt.execute(statsDropScript1);
+			stmt.execute(statsDropScript2);
+			stmt.execute(statsDropScript3);
+			stmt.execute(statsDropScript4);
+			stmt.execute(statsDropScript5);
+			stmt.execute(statsDropScript6);
+			stmt.execute(statsDropScript7);
+			stmt.execute(statsDropScript8);
+			stmt.execute(statsDropScript9);
+			stmt.execute(statsDropScript10);
+			
+			// add drop block
+			stmt.execute(statsDropScript11);
+			stmt.execute(statsDropScript12);
+			
+			// create block IF EXISTS
+			stmt.execute(statsCreateScript1);
+			stmt.execute(statsCreateScript2);
+			stmt.execute(statsCreateScript3);
+			stmt.execute(statsCreateScript4);
+			stmt.execute(statsCreateScript5);
+			stmt.execute(statsCreateScript6);
+			stmt.execute(statsCreateScript7);
+			stmt.execute(statsCreateScript8);
+			stmt.execute(statsCreateScript9);
+			stmt.execute(statsCreateScript10);
+			stmt.execute(statsCreateScript11);
+			stmt.execute(statsCreateScript12);
+			
+			conn.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
+			try {
+				conn.rollback();
+			} catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 		} finally {
 			try {
 				conn.close();
 			} catch (SQLException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		return false;	
-	}
-	
-	public static boolean fillTaskStatus(Connection conn,
-			WSMLdvstowsTaskGetStatusResponse wsmResponse,
-			WSMWstoldvsTaskStatusGetRequest wsmMsg) {
-		Statement st = getTransactionStmt(conn);
-		boolean result = false;
-		if(st==null) return result;
-		try {
-			// 1. сначала выбираем пользователя по имени
-			ResultSet rs = st.executeQuery("SELECT id FROM USERS WHERE name='"+wsmMsg.getUser()+"'");
-			if(rs.getRow()==0 && !rs.next()) 
-				return false;
-			int id_user = rs.getInt("id");
-			rs.close();			
-			// 2. выбираем задачу, которую нам подсунули
-			rs = st.executeQuery("SELECT id,status FROM TASKS WHERE id_user="+id_user+" AND id="+wsmMsg.getId());
-			if(rs.getRow()==0 && !rs.next()) 
-				return false;
-			int id_task = rs.getInt("id");
-			String task_status = rs.getString("status");
-			rs.close();
-			// 3. выбираем все энвайронменты этой задачи
-			List<Env> envs = new ArrayList<Env>();
-			rs = st.executeQuery("SELECT id,status,id_env FROM ETASKS WHERE id_task="+id_task);
-			Statement stl = conn.createStatement();
-			while(rs.next()) {
-				int id_etask = rs.getInt("id");
-				int id_env = rs.getInt("id_env");
-				String env_status = rs.getString("status");
-				//String etask_status = rs.getString("status");
-				
-				ResultSet rsl = stl.executeQuery("SELECT name FROM ENVS WHERE id="+id_env);
-				if(rsl.getRow()==0 && !rsl.next()) 
-					return false;
-				String env_name = rsl.getString("name");
-				rsl.close();
-				
-				// теперь выберем все rtask для ткущего энвайронмента				
-				List<Rule> rules = new ArrayList<Rule>();
-				rsl = stl.executeQuery("SELECT id,id_rule,status,rstatus FROM RTASKS WHERE id_etask="+id_etask);
-				Statement stlr = conn.createStatement();
-				while(rsl.next()) {
-					int id_rtask = rsl.getInt("id");
-					int id_rule = rsl.getInt("id_rule");
-					String rtask_status = rsl.getString("status");
-					String rtask_rstatus = rsl.getString("rstatus");
-					
-					ResultSet rslr = stlr.executeQuery("SELECT name FROM RULES WHERE id="+id_rule);
-					if(rslr.getRow()==0 && !rslr.next()) 
-						return false;
-					String rule_name = rslr.getString("name");
-					rslr.close();
-					List<Result> results = null;
-					if(rtask_status.equals(MTask.Status.TS_VERIFICATION_FINISHED+"")) {
-						// теперь выберем все result для текущего правила
-						results = new ArrayList<Result>();
-						rslr = stlr.executeQuery("SELECT id,rstatus FROM RESULTS WHERE id_rtask="+id_rtask);
-						while(rslr.next()) {
-							int id_result = rslr.getInt("id");
-							String result_rstatus = rslr.getString("rstatus");
-							Result resultl = new Result(result_rstatus,id_result);
-							results.add(resultl);
-						}
-						rslr.close();
-
-					} else {
-						rtask_status=MTask.Status.TS_VERIFICATION_IN_PROGRESS+"";
-					}
-					Rule rule = new Rule(id_rtask, results, rule_name, rtask_status, rtask_rstatus);
-					rules.add(rule);
-				}
-				rsl.close();
-				Env env = new Env(rules, env_name, env_status);
-				envs.add(env);
-			}
-			wsmResponse.setParameters(id_task, envs, task_status, wsmMsg.getUser());
-			rs.close();
-			conn.commit();
-			result = true;
-		} catch (SQLException e1) {
-			try {
-				conn.rollback();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-			e1.printStackTrace();
-		} finally {
-			try {
-				st.close();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
-		}	
-		return result;
 	}
 
 }
