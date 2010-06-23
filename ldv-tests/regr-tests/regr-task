@@ -1,0 +1,10 @@
+driver=xxx.tar.gz;origin=external;kernel=linux-2.6.32.8;model=32_1;module=a.ko;main=ldv_main1;verdict=safe
+driver=xxx.tar.gz;origin=external;kernel=linux-2.6.32.8;model=32_1;module=a.ko;main=ldv_main2;verdict=unsafe
+driver=xxx.tar.gz;origin=external;kernel=linux-2.6.32.8;model=32_1;module=b.ko;main=ldv_main;verdict=safe
+driver=xxx.tar.gz;origin=external;kernel=linux-2.6.32.8;model=32_1;module=c.ko;main=ldv_main;RI_status=fail;problems=Grammar Error, Compilation Fail
+driver=xxx.tar.gz;origin=external;kernel=linux-2.6.32.8;model=8_1;module=a.ko;main=ldv_main;verdict=safe
+driver=drivers/media/;origin=kernel;kernel=linux-2.6.33;model=32_1;module=a.ko;main=ldv_main;verdict=safe
+driver=drivers/net/;origin=kernel;kernel=linux-2.6.33;model=32_1;module=a.ko;main=ldv_main;RCV_status=fail;problems=Exception, BLAST_combinig
+driver=yyy.tar.gz;origin=external;kernel=linux-2.6.32.8;model=8_1;module=a.ko;main=ldv_main;verdict=safe
+driver=yyy.tar.gz;origin=external;kernel=linux-2.6.32.8;model=8_1;module=a.ko;main=ldv_main;BUILD_status=fail;problems=Compilation Error
+driver=yyy.tar.gz;origin=external;kernel=linux-2.6.32.9;model=8_1;module=b.ko;main=ldv_main;verdict=unsafe
