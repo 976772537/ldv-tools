@@ -1,5 +1,7 @@
 INSTALL_DIR = __install
 
+TEST_TASK = regr-task-small
+
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified..
 ifndef prefix
@@ -13,8 +15,8 @@ mandir = ${prefix}/man
 # Phony targets.
 .PHONY: all install test clean
 
-SMALL_TEST_DIR=ldv-tests/regr-tests/test-sets/small/
-TMP_DIR=__install_drivers
+SMALL_TEST_DIR = ldv-tests/regr-tests/test-sets/small/
+TMP_DIR = __install_drivers
 
 # Compilation
 all: 
@@ -29,6 +31,7 @@ install: all
 	@$(call test_prefix)
 	if [ ! -d $(prefix)/$(SMALL_TEST_DIR) ]; then mkdir -p $(prefix)/$(SMALL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR}/* $(prefix)/$(SMALL_TEST_DIR) || exit 1;
+	cp $(TEST_TASK) $(prefix)/$(SMALL_TEST_DIR) || exit 1;
 
 # Clean
 clean: 
