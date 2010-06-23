@@ -124,6 +124,9 @@ create table tasks(
 	username varchar(50),
 	timestamp datetime,
 
+	driver_spec varchar(255),
+	driver_spec_origin enum('kernel','external'),
+
 	description text,
 
 	primary key (id)

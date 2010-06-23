@@ -112,5 +112,9 @@ USING LDV-MANAGER WITH LDV BACKEND
 
 If ldv-manager should have a sane support of statuses, it should be run with ldv_statuses=1 option.  This turns on setting and changing statuses of launches when ldv abnormally terminates.
 
+Setting environment variable ldv_statuses=1 also turns on a special ldv-upload functionality.  In addition to setting statuses of the launches inside the pack, it tries, for each Launch, to find and update status of a special "marker" Launch with no Scenario specification (but with the same Task, Driver, Kernel, and Rule).  The status is updated to finished or failed (which one stands for what is unspecified) as soon as the upload of all launches contained in the package completes.
+
 Without the ldv_statuses option, ldv-manager fails if ldv fails abnormally.
+
+LDV_TASK_ID environment variable will make ldv-manager script prepare packages that refer to a specific task (instead of creating a task on theior own based on the machine parameters, such as user name and date, and on some input data).
 
