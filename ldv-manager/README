@@ -33,6 +33,7 @@ from ldv-tools root dir.
 
 HOW TO USE LDV-MANAGER
 ======================
+(on using ldv-manager within LDV backend, consult also 'USING LDV-MANAGER WITH LDV BACKEND' section)
 
 As usual, change into an empty directory.  That will be your working dir.
 
@@ -48,7 +49,6 @@ Here's how the call looks like (make sure you've installed LDV manager, and ldv-
 	"envs=linux-2.6.31.2.tar.bz2" \
 	"drivers=wl12xx.tar.bz2" \
 	"rule_models=8_1 32_1"
-	ldv_statuses=0
 
 If you are checking kernel drivers, then specify the folder you want to check in `drivers` variable, AND also set `kernel_driver=1` in addition to the other options.
 
