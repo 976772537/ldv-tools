@@ -2,3 +2,6 @@
 #Vim swaps
 .*.swp
 .*.swo
+
+#Archives of drivers
+ldv-tests/regr-tests/test-sets/small/__install_drivers

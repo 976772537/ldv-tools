@@ -25,7 +25,7 @@ define test_prefix
         if [ ! -n "$(prefix)" ]; then echo "please specify prefix"; exit 1; fi
 endef
 
-install: 
+install: all 
 	@$(call test_prefix)
 	if [ ! -d $(prefix)/$(SMALL_TEST_DIR) ]; then mkdir -p $(prefix)/$(SMALL_TEST_DIR); fi
 	cp -r ${TMP_DIR}/* $(prefix)/$(SMALL_TEST_DIR) 
