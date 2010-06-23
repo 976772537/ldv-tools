@@ -36,8 +36,12 @@ class Task
 			username = (tag/"username").inner_html
 			timestamp = (tag/"timestamp").inner_html.to_datetime
 			description = (tag/"description").inner_html
-			task = Task.find_or_create_by_username_and_timestamp_and_description(username,timestamp,description)
-			raise "Couldn't find task for username=#{username.to_s} and timestamp=#{timestamp.to_s} and description=#{description}" unless task
+			driver_spec = (tag/"driver").inner_html
+			driver_spec = nil if driver_spec.empty?
+			driver_spec_origin = (tag/"driver_origin").inner_html
+			driver_spec_origin = nil if driver_spec_origin.empty?
+			task = Task.find_or_create_by_username_and_timestamp_and_description_and_driver_spec_and_driver_spec_origin(username,timestamp,description,driver_spec,driver_spec_origin)
+			raise "Couldn't find or create task for username=#{username.to_s} and timestamp=#{timestamp.to_s} and description=#{description} and driver=#{driver_spec.to_s} with driver_origin=#{driver_spec_origin.to_s}" unless task
 			return task
 		end
 
@@ -132,6 +136,21 @@ end
 # Traces will be taken from this folder
 traces_dir = File.join(tmpdir,"traces")
 
+# Records, for which master status is already set up
+class MasterStats
+	def initialize
+		@fixed = Hash.new
+	end
+	def fix(driver,kernel,rule)
+		@fixed["#{driver}:#{kernel}:#{rule}"] = true
+	end
+
+	def lookup(driver,kernel,rule)
+		@fixed.include? "#{driver}:#{kernel}:#{rule}"
+	end
+end
+masters = MasterStats.new
+
 (doc/"ld").each do |ld|
 	kernel_name = ld.attributes['kernel']
 	kernel = Environment.find_or_create_by_version(kernel_name)
@@ -166,6 +185,7 @@ traces_dir = File.join(tmpdir,"traces")
 
 		# Because of :autosave property, recursively saves all records
 		launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+		masters.fix(kernel_name,local_driver_name,rule_model_name)
 		next
 	end
 
@@ -294,4 +314,30 @@ end
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 end
 
+# Update status of special tasks that have driver, kernel and rule set, but don't have any model
+# Let's track already processed items to save db queries
+(doc/"ld").each do |ld|
+	kernel_name = ld.attributes['kernel']
+	kernel = Environment.find_or_create_by_version(kernel_name)
+
+	local_driver_name = ld.attributes['driver_name'] || driver_name
+	raise "Driver name is empty for ld #{ld.attributes['id']}!" if local_driver_name.nil? || local_driver_name.empty?
+	driver = Driver.find_or_create_by_name_and_origin(local_driver_name,driver_origin)
+
+	rule_model_name = ld.attributes['model']
+	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
+
+	unless masters.lookup(kernel_name,local_driver_name,rule_model_name)
+		# Save launch to DB with just a few details
+		launch = Launch.find_by_driver_id_and_environment_id_and_rule_model_id_and_scenario_id(driver.id,kernel.id,rule_model.id,nil)
+
+		if launch
+			launch.status = 'finished'
+
+			# Because of :autosave property, recursively saves all records
+			launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+		end
+		masters.fix(kernel_name,local_driver_name,rule_model_name)
+	end
+end
 
