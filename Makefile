@@ -5,6 +5,7 @@ SHELL= /bin/sh
 
 BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer kernel-rules cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/sh
 SERVER_SUBDIRS = ldv-manager stats-visualizer
+TEST_SUBDIRS = ldv-tests
 DEBUG_MAKEFILE_SUBDIRS = build-cmd-extractor cmd-utils  drv-env-gen kernel-rules ldv  ldv-core
 SHARED_SUBDIRS=shared/perl shared/sh
 
@@ -26,27 +27,31 @@ endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
-all-all: $(call forall_subdirs,$(SUBDIRS) $(SERVER_SUBDIRS),all)
+all-all: $(call forall_subdirs,$(SUBDIRS) $(SERVER_SUBDIRS) $(TEST_SUBDIRS),all)
 
 install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
 
-install-all: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS) $(SERVER_SUBDIRS),install)
+install-all: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS) $(SERVER_SUBDIRS) $(TEST_SUBDIRS),install)
 
 # Install only server stuff
 install-srv: $(call forall_subdirs,$(SHARED_SUBDIRS) $(SERVER_SUBDIRS),install)
+
+# Install only test stuff
+install-test: $(call forall_subdirs,$(SHARED_SUBDIRS) $(TEST_SUBDIRS),install)
 
 # Install only shared stuff
 install-shared: $(call forall_subdirs,$(SHARED_SUBDIRS),install)
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
-clean-all: $(call forall_subdirs,$(CLEAN_SUBDIRS) $(SERVER_SUBDIRS),clean)
+clean-all: $(call forall_subdirs,$(CLEAN_SUBDIRS) $(SERVER_SUBDIRS) $(TEST_SUBDIRS),clean)
 
 distclean: clean
 
 # Let's instantiate rules for subdirs:
 $(foreach subdir,$(SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(SERVER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(TEST_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 
 
 pre_tests:

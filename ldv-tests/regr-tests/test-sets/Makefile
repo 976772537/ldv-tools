@@ -1,6 +1,6 @@
 INSTALL_DIR = __install
 
-TEST_DIRS = regr-tests
+TEST_DIRS = small medium big
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified.
@@ -14,7 +14,7 @@ mandir = ${prefix}/man
 # Phony targets.
 .PHONY: all install test clean
 
-# Building, testing, cleaning and installation aren't needed for ldv-tests themselves. Just for subdirectories.
+# Building, testing, cleaning and installation aren't needed for test sets themselves. Just for subdirectories.
 all:
 	for test_dir in $(TEST_DIRS); do cd $(TEST_DIRS) || exit 1; $(MAKE) $@ || exit 1; done
 
