@@ -48,6 +48,7 @@ Here's how the call looks like (make sure you've installed LDV manager, and ldv-
 	"envs=linux-2.6.31.2.tar.bz2" \
 	"drivers=wl12xx.tar.bz2" \
 	"rule_models=8_1 32_1"
+	ldv_statuses=0
 
 If you are checking kernel drivers, then specify the folder you want to check in `drivers` variable, AND also set `kernel_driver=1` in addition to the other options.
 
@@ -59,7 +60,7 @@ If you want to re-run the process for an already checked driver, you most likely
 
 For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.  By the way, you may erase only `finished` file from the directory, if you only want to re-package the checking results.  By erasing `checked` file, you re-run the whole check.
 
-If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.
+If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.  In this case LDV_GIT_REPO may be omitted.
 
 
 HOW TO USE DATABASE
@@ -104,4 +105,12 @@ To save typing, you may add these variables to config.mk, but don't forget to ex
 To tune BLAST with options, you may set BLAST_OPTIONS environment variable.
 
 Information about these limits and these options is saved into the description field for rcv tool.
+
+
+USING LDV-MANAGER WITH LDV BACKEND
+==================================
+
+If ldv-manager should have a sane support of statuses, it should be run with ldv_statuses=1 option.  This turns on setting and changing statuses of launches when ldv abnormally terminates.
+
+Without the ldv_statuses option, ldv-manager fails if ldv fails abnormally.
 

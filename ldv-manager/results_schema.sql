@@ -144,7 +144,7 @@ create table launches(
 -- Can be NULL if the driver failed to build
 	scenario_id int(10) unsigned,
 
-	trace_id int(10) unsigned not null,
+	trace_id int(10) unsigned,
 
 	task_id int(10) unsigned,
 
