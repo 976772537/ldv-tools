@@ -1,0 +1,180 @@
+#!/usr/bin/perl -w
+# Runs tests
+
+use strict;
+use FindBin;
+BEGIN {
+	$ENV{'DSCV_HOME'} ||= "$FindBin::Bin/..";
+}
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
+
+print "PREFIX:   $ENV{'prefix'}\n";
+print "TEST DIR: $ENV{'test_dir'}\n";
+print "TEST SRC: $ENV{'test_src_dir'}\n";
+
+# Copy tests from source to target dirs
+use FindBin;
+my $test_sources_D = $ENV{'test_src_dir'};
+my $test_destination = $ENV{'test_dir'};
+
+my @tests = split(/\s+/, `cd $test_sources_D && ls -d test*`);
+
+unless (@tests){
+	die "No tests found!  Any errors above?";
+}
+
+#Clear tests dir before copying
+use File::Path qw(mkpath rmtree);
+rmtree($test_destination);
+mkpath($test_destination);
+
+
+sub psystem
+{
+	local $"=" ";
+	print "@_\n";
+	return system @_;
+}
+
+# Do the actual copy
+use File::Copy::Recursive qw(dircopy);
+for my $test (@tests){
+	dircopy("$test_sources_D/$test","$test_destination/$test/case") or die $!;
+	print "Copied $test from $test_sources_D/$test to $test_destination\n";
+
+	my $bd = "$test_destination/$test/case";
+	my $dd = "$test_destination/$test/case";
+	# TODO: recursively replace directories in commands.xml files
+	psystem ("perl","-p","-i","-e","s/\\\@CWD\\\@/\Q$dd\E/;","$dd/commands.xml");
+	psystem ("perl","-p","-i","-e","s/\\\@BASE\\\@/\Q$bd\E/;","$dd/commands.xml");
+	print "ok\n";
+}
+
+# Run tests
+use Cwd;
+my $current_D = getcwd();
+
+use XML::Twig;
+
+my %failures = ();
+
+for my $test(@tests){
+	my $td = "$test_destination/$test/case";
+	my $dd = "$test_destination/$test";
+
+	chdir $dd;
+
+	my $report = "$dd/out.xml";
+
+	eval {
+		# Check test result.  First we get the correct answer out of input command.xml
+		my $oracle = {};
+		XML::Twig->new( twig_handlers => {
+			'ld/main' => sub{
+				my ($twig, $cmdT) = @_;
+				$oracle->{mains} ||= {};
+				$oracle->{mains}->{$cmdT->parent->id(), $cmdT->text()} = $cmdT->att('verdict');
+			},
+			'ld' => sub{
+				my ($twig, $cmdT) = @_;
+				# If there are no mains specified, DSCV should fail with an error.
+				return if $cmdT->children('main');
+				$oracle->{dscvs} ||= {};
+				$oracle->{dscvs}->{$cmdT->id()} = 'No entry points specified';
+			},
+			'cmdstream/test' => sub {
+				my ($twig, $cmdT) = @_;
+				if ($cmdT->att('limit')){
+					$oracle->{limits} = $cmdT->att('limit');
+				}
+				$oracle->{cilly} = $cmdT->att('cil');
+				$oracle->{fail} = $cmdT->att('fail');
+			}
+		})->parsefile("$td/commands.xml");
+
+
+		# Execute test
+		print "PATH=$ENV{'PATH'}\n";
+		$ENV{'WORK_DIR'} = "$dd/wd";
+		print "running test $test\n";
+
+		my @run_dscv = ("dscv","--cmdfile=$td/commands.xml","--rule-models=good","--report-out=$report","--rcv-verifier=mock");
+		print "WORK_DIR=$ENV{'WORK_DIR'} @run_dscv\n";
+
+		# Re-set environment
+		$ENV{'MOCK_RCV_DO_TIMELIMIT'} = undef;
+		$ENV{'RCV_TIMELIMIT'} = undef;
+		$ENV{'MOCK_RCV_DO_MEMLIMIT'} = undef;
+		$ENV{'RCV_MEMLIMIT'} = undef;
+		$ENV{'MOCK_RCV_CILLY'} = undef;
+		# Prepare special tunes
+		if ($oracle->{limits} eq 'time'){
+		  $ENV{'MOCK_RCV_DO_TIMELIMIT'} = 5;
+		  $ENV{'RCV_TIMELIMIT'} = 5;
+		}
+		if ($oracle->{limits} eq 'memory'){
+		  $ENV{'MOCK_RCV_DO_MEMLIMIT'} = 60;
+		  $ENV{'RCV_MEMLIMIT'} = 60;
+		}
+		$ENV{'MOCK_RCV_CILLY'} = 'yes' if $oracle->{cilly};
+		
+		system(@run_dscv);
+		die if $? && !$oracle->{fail};
+		die "dscv should have failed, but it didn't!" if !$? && $oracle->{fail};
+		goto PASSED if $oracle->{fail};
+
+		# Now check the output result
+		die unless -r $report;
+
+		my $result = {};
+		XML::Twig->new( twig_handlers => {
+			'ld' => sub{
+				my ($twig, $cmdT) = @_;
+				# Ask the oracle if the main with such name exists
+				my $ref = $cmdT->att('ref');
+				my $main = $cmdT->att('main');
+				die "Unknown main printed: ld[$ref, $main]" if !exists $oracle->{dscvs}->{$ref} && !exists $oracle->{mains}->{$ref, $main} ;
+
+				# Check if the result of checking is correct
+				if ($oracle->{dscvs}->{$ref}){
+					# DSCV error
+					my $descr = $cmdT->first_child('dscv')->field('desc');
+					my $descr_corr = $oracle->{dscvs}->{$ref};
+
+					die "Can't find '$descr_corr' in description of ld[$ref]." unless $descr =~ /$descr_corr/m;
+				}else{
+					# RCV error
+					my $exp = $oracle->{mains}->{$ref, $main};
+					my $got = $cmdT->field('verdict');
+					die "Incorrect result for ld[$ref, $main]: expected $exp, gotten $got." unless $exp eq $got;
+					if ($exp eq 'UNSAFE'){
+						my $trace = $cmdT->field('trace');
+						die "No trace found in $trace for unsafe ld[$ref, $main]" unless `cat $trace`;
+					}
+				}
+			},
+		})->parsefile("$report");
+
+	PASSED:
+		print "\n\nTest $test passed!\n\n\n";
+
+	};
+	if ($@) {
+		print "\n\nTest $test failed!\n\n\n";
+		$failures{$test} = $@;
+	}
+}
+
+chdir $current_D;
+
+if (%failures){
+	print "\n\nThe following tests FAILED:\n\n";
+	print "$_: $failures{$_}" for keys %failures;
+	exit 1;
+}
+
+exit 0;
+

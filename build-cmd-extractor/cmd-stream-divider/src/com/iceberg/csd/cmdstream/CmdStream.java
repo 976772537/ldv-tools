@@ -18,6 +18,7 @@ import org.xml.sax.SAXException;
 
 import com.iceberg.csd.CSD;
 import com.iceberg.csd.FSOperationBase;
+import com.iceberg.csd.utils.Logger;
 
 public class CmdStream {
 	
@@ -105,7 +106,7 @@ public class CmdStream {
 			if(statefile!=null)
 				stateFw = new FileWriter(statefile);
 		} catch (IOException e1) {
-			System.out.println("csd: ERROR: Can't create state file:\""+statefile+"\".");
+			Logger.err("Can't create state file:\""+statefile+"\".");
 			System.exit(1);
 		}
 		if(driversplit) {
@@ -133,7 +134,7 @@ public class CmdStream {
 
 						} else
 						{
-						System.out.println("csd: WARNING: Elment have no out!");
+							Logger.warn("Elment have no out!");
 						}
 					}
 				}
@@ -161,7 +162,7 @@ public class CmdStream {
 					lcmd.add(stack.get(i));
 					CmdStream lcmdstream = new CmdStream(lcmd,inBasedir);
 					independentCommands.add(lcmdstream);
-					System.out.println("csd: NORMAL: Generate cmdstream for driver: \""+stack.get(i).out.get(0)+"\".");
+					Logger.norm("Generate cmdstream for driver: \""+stack.get(i).out.get(0)+"\".");
 				}
 			}
 		} else
@@ -201,29 +202,29 @@ public class CmdStream {
 					}
 				}
 			} catch (IOException e) {
-				System.out.println("csd: WARNING: Failed \""+tempdir+"/"+genFilename+"1"+".xml"+"\".");
+				Logger.warn("Failed \""+tempdir+"/"+genFilename+"1"+".xml"+"\".");
 			}
 		}
 		if(stateFw!=null)
 			try {
 				stateFw.close();
 			} catch (IOException e) {
-				System.out.println("csd: ERROR: Can't close state file after write:\""+statefile+"\".");
+				Logger.err("Can't close state file after write:\""+statefile+"\".");
 				System.exit(1);
 			}
-		System.out.println("csd: NORMAL: Number of extracted command streams: "+independentCommands.size()+".");
+		Logger.norm("Number of extracted command streams: "+independentCommands.size()+".");
 	}
 
 	private boolean relocateDriver(String newDriverDirString, boolean fullcopy) {
 		File newDriverDir = new File(newDriverDirString);
 		if(newDriverDir.exists()) {
-			System.out.println("csd: WARNING: Directory \""+newDriverDirString+"\" - already exists. Try to rewrite it.");
+			Logger.warn("Directory \""+newDriverDirString+"\" - already exists. Try to rewrite it.");
 			FSOperationBase.removeDirectoryRecursive(newDriverDir);
 		}
 		newDriverDir.mkdirs();
 		File oldDriverDir = new File(inBasedir);
 		if(!oldDriverDir.exists()) {
-			System.out.println("csd: ERROR: Basedir \""+inBasedir+"\" - not exists.");
+			Logger.err("Basedir \""+inBasedir+"\" - not exists.");
 			System.exit(1);
 		}
 		String newDDFullCanPath = newDriverDir.getAbsolutePath();
@@ -234,7 +235,7 @@ public class CmdStream {
 				FSOperationBase.copyDirectory(oldDriverDir, newDriverDir);
 			}
 		} catch (IOException e) {
-			System.out.println("csd: ERROR: Can't copy directory.");
+			Logger.err("Can't copy directory.");
 			System.exit(1);
 		}
 		List<Command> lCmdList = cmdlist;

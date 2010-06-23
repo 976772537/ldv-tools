@@ -4,6 +4,8 @@ import java.io.File;
 
 import org.w3c.dom.Node;
 
+import com.iceberg.csd.utils.Logger;
+
 public class CommandCC extends Command {
 
 	public CommandCC(Node item) {
@@ -23,7 +25,7 @@ public class CommandCC extends Command {
 				File file = new File(in.get(i));
 				String parentDir = file.getParent();
 				if(parentDir==null) {
-					System.out.println("csd: ERROR: Parent dir is null.");
+					Logger.err("Parent dir is null.");
 					return false;
 				}
 				Opt copt = new Opt("-I"+parentDir);

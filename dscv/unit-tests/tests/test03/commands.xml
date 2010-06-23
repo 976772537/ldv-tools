@@ -1,0 +1,25 @@
+<cmdstream>
+  <basedir>@BASE@</basedir>
+  <cc id="1">
+    <cwd>@CWD@</cwd>
+    <out>@BASE@/win.o</out>
+    <in>@BASE@/win.c</in>
+    <engine>blast</engine>
+  </cc>
+  <cc id="2">
+    <cwd>@CWD@</cwd>
+    <out>@BASE@/victory.o</out>
+    <in>@BASE@/victory.c</in>
+    <engine>blast</engine>
+  </cc>
+  <ld id="3">
+    <main verdict="SAFE">the_only_main</main>
+    <cwd>@CWD@</cwd>
+    <engine>blast</engine>
+    <out check="true">@BASE@/prog.exe</out>
+    <in>@BASE@/win.o</in>
+    <in>@BASE@/victory.o</in>
+  </ld>
+</cmdstream>
+
+

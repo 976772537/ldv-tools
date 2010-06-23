@@ -33,6 +33,7 @@ from ldv-tools root dir.
 
 HOW TO USE LDV-MANAGER
 ======================
+(on using ldv-manager within LDV backend, consult also 'USING LDV-MANAGER WITH LDV BACKEND' section)
 
 As usual, change into an empty directory.  That will be your working dir.
 
@@ -59,7 +60,7 @@ If you want to re-run the process for an already checked driver, you most likely
 
 For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.  By the way, you may erase only `finished` file from the directory, if you only want to re-package the checking results.  By erasing `checked` file, you re-run the whole check.
 
-If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.
+If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.  In this case LDV_GIT_REPO may be omitted.
 
 
 HOW TO USE DATABASE
@@ -104,4 +105,16 @@ To save typing, you may add these variables to config.mk, but don't forget to ex
 To tune BLAST with options, you may set BLAST_OPTIONS environment variable.
 
 Information about these limits and these options is saved into the description field for rcv tool.
+
+
+USING LDV-MANAGER WITH LDV BACKEND
+==================================
+
+If ldv-manager should have a sane support of statuses, it should be run with ldv_statuses=1 option.  This turns on setting and changing statuses of launches when ldv abnormally terminates.
+
+Setting environment variable ldv_statuses=1 also turns on a special ldv-upload functionality.  In addition to setting statuses of the launches inside the pack, it tries, for each Launch, to find and update status of a special "marker" Launch with no Scenario specification (but with the same Task, Driver, Kernel, and Rule).  The status is updated to finished or failed (which one stands for what is unspecified) as soon as the upload of all launches contained in the package completes.
+
+Without the ldv_statuses option, ldv-manager fails if ldv fails abnormally.
+
+LDV_TASK_ID environment variable will make ldv-manager script prepare packages that refer to a specific task (instead of creating a task on theior own based on the machine parameters, such as user name and date, and on some input data).
 

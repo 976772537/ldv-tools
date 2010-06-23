@@ -2,11 +2,20 @@
 # Problem finder for BLAST tool
 
 $\ = "\n";
+$, = "\n";
 while (<>){
 	chomp;
 	/exception/i and print "Exception";
 	/combining structure and non-structure values/i and print "BLAST_combinig";
+	/Attempt to access a non structure value as a structure/i and print "BLAST_LLVM_nonstruct";
 	/Memory Limit Exceeded/i and print "Out_of_memory";
 	/Time Limit Exceeded/i and print "Time_limit";
+	/C_System_Descr.initialize: duplicate function name/i and print "Dupl_function", "BLAST_frontend";
+	/Recursive Call Graph/i and print "Recursion";
+	/Simplify raised exception End_of_file/i and print "Solver";
+	/Unary operation on pointer not supported/i and print "BLAST_Unsupported", "BLAST_frontend";
+	/frontc reported an error/i and print "BLAST_Compile", "BLAST_frontend";
+	/AlignOfE not handled/i and print "BLAST_Unsupported", "BLAST_frontend";
+	/convertCilExp: align not handled/i and print "BLAST_Unsupported", "BLAST_frontend";
 }
 

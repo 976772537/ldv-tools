@@ -25,3 +25,20 @@ endef
 $(eval $(call mksubdir,rcv))
 
 
+# Place to install unit tests is controlled by $(prefix) variable, so we can re-use existing targets
+unit-tests: $(dscv_target) rcv-subdir-mockinstall $(bindir)/dscv-unit-tests-run $(bindir)/rule-instrumentor.pl
+	export PATH=$(bindir):$(PATH) ; test_src_dir=$(abspath unit-tests/tests) dscv-unit-tests-run
+	@echo ALL TESTS PASSED
+
+$(bindir)/dscv-unit-tests-run: unit-tests/run
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
+$(bindir)/rule-instrumentor.pl: unit-tests/ri
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
+
+

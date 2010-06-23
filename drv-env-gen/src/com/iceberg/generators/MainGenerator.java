@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
 import com.iceberg.FSOperationsBase;
+import com.iceberg.Logger;
 import com.iceberg.cbase.parsers.ExtendedParser;
 import com.iceberg.cbase.parsers.ExtendedParserSimple;
 import com.iceberg.cbase.parsers.ExtendedParserStruct;
@@ -45,12 +46,12 @@ public class MainGenerator {
 
 		long startf = System.currentTimeMillis();
 		if(args.length != 1) {
-			System.out.println("USAGE: java -ea -jar mgenerator.jar <filename.c>");
+			Logger.norm("USAGE: java -ea -jar mgenerator.jar <filename.c>");
 			return;
 		}
 		generate(args[0]);
 		long endf = System.currentTimeMillis();
-		System.out.println("generate time: " + (endf-startf) + "ms");
+		Logger.info("generate time: " + (endf-startf) + "ms");
 	}
 
 
@@ -64,16 +65,18 @@ public class MainGenerator {
 	
 	public static boolean deg(String filename, String counter) {
 		File file = new File(filename);
-		if(!file.exists())
+		if(!file.exists()) {
+			Logger.warn("File \""+filename+"\" - not exists."); 
 			return false;
+		}
 		return generateByIndex(filename, counter, filename, true);
 	}
 
 	public static boolean generateByIndex(String filename, String index, String destFilename, boolean isgenerateIfdefAroundMains) {
 		Matcher matcher = pattern.matcher(filename);
 		if(!matcher.find()) {
-			System.out.println("could not match C-extension");
-			System.out.println("USAGE: java -ea -jar mgenerator.jar <*>.c");
+			Logger.err("could not match C-extension");
+			Logger.norm("USAGE: java -ea -jar mgenerator.jar <*>.c");
 			return false;
 		}
 		if(destFilename == null)
@@ -91,8 +94,13 @@ public class MainGenerator {
 			/* создадим экземпляр парсера функций из макросов module_init и module_exit */
 			ExtendedParser epSimple = new ExtendedParserSimple(wreader);
 			/* распарсим структуры */
+			Logger.debug("Pasring standart kernel driver structures...");
 			List<Token> ltoken = ep.parse();
-			ltoken.addAll(epSimple.parse());
+			Logger.debug("Ok. I have taken "+ltoken.size()+" structures.");
+			Logger.debug("Pasring standart kernel driver macroses: module_init, module_exit, etc...");
+			List<Token> macros_ltoken = epSimple.parse();
+			Logger.debug("Ok. I have taken "+macros_ltoken.size()+" structures.");
+			ltoken.addAll(macros_ltoken);
 			if (ltoken.size() == 0)
 				return false;
 			FileWriter fw = new FileWriter(destFilename);
@@ -100,14 +108,16 @@ public class MainGenerator {
 			StringBuffer sb = new StringBuffer();
 			sb.append("\n\n\n\n\n");
 			if (isgenerateIfdefAroundMains) {
+				Logger.debug("Option isgenerateIfdefAroundMains - on.");
 				assert(index != null);
+				Logger.trace("Append ifdef-macro: \"#ifdef LDV_MAIN"+index+"\".");
 				sb.append("#ifdef LDV_MAIN"+index+"\n");
 			}
 			sb.append("\t/*###########################################################################*/\n");
 			sb.append("\t/*############## Driver Environment Generator 0.1 output ####################*/\n");
 			sb.append("\t/*###########################################################################*/\n");
 			sb.append("\n\n");
-
+			Logger.trace("Pre-main code:");
 			sb.append("void check_final_state(void);\n");
 			sb.append("void check_return_value(int res);\n");
 			sb.append("extern int IN_INTERRUPT;\n");
@@ -115,12 +125,14 @@ public class MainGenerator {
 		//	if(index == null)
 		//		sb.append("void ldv_main(void) {\n\n\n");
 		//	else
-				sb.append("void ldv_main"+index+"(void) {\n\n\n");
+			Logger.trace("Start appending main function: \"+void ldv_main"+index+"(void)\"...");
+			sb.append("void ldv_main"+index+"(void) {\n\n\n");
 
 			
 			/* создадим счетчик */
 			int generatorCounter = 0;
 			FuncGenerator fg = FuncGeneratorFactory.create(GenerateOptions.DRIVER_FUN_STRUCT_FUNCTIONS);
+			Logger.trace("Start appending \"VARIABLE DECLARATION PART\"...");
 			sb.append("\n/*============================= VARIABLE DECLARATION PART   =============================*/");
 			int localCounter = generatorCounter;
 			int tmpcounter = 0;
@@ -134,6 +146,7 @@ public class MainGenerator {
 					continue;
 				TokenStruct token = (TokenStruct)ptoken;
 				if(token.hasInnerTokens()) {
+						Logger.trace("Start appending declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
 						sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getType() + " **/");
 						Iterator<Token> innerTokenIterator = token.getTokens().iterator();
 						while(innerTokenIterator.hasNext()) {
@@ -169,10 +182,12 @@ public class MainGenerator {
 							sb = new StringBuffer();
 						}
 						sb.append("\n");
+						Logger.trace("Ok. Var declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
 				}
 			}
 			sb.append("\n\n\n");
-
+			Logger.trace("Appending for \"VARIABLE DECLARATION PART\" successfully finished");
+			Logger.trace("Start appending \"VARIABLE INITIALIZING PART\"...");
 			sb.append("\n/*============================= VARIABLE INITIALIZING PART  =============================*/");
 			sb.append("IN_INTERRUPT = 1;\n");
 			tokenIterator = ltoken.iterator();
@@ -183,6 +198,7 @@ public class MainGenerator {
 					continue;
 				TokenStruct token = (TokenStruct)ptoken;
 				if(token.hasInnerTokens()) {
+						Logger.trace("Start appending inittialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
 						sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
 						Iterator<Token> innerTokenIterator = token.getTokens().iterator();
 						while(innerTokenIterator.hasNext()) {
@@ -217,13 +233,16 @@ public class MainGenerator {
 							sb = new StringBuffer();
 						}
 						sb.append("\n");
+						Logger.trace("Ok. Var initialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
 				}
 			}
 			sb.append("\n\n\n");
-
+			Logger.trace("Appending for \"VARIABLE INITIALIZING\" successfully finished");
+			Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");
 			sb.append("\n/*============================= FUNCTION CALL SECTION       =============================*/");
 			tokenIterator = ltoken.iterator();
 			localCounter = generatorCounter;
+			Logger.trace("Append part before standart functions.");
 			while(tokenIterator.hasNext()) {
 				/* первое, что мы сделаем, так это найдем init функции */
 				Token mtoken = tokenIterator.next();
@@ -263,6 +282,7 @@ public class MainGenerator {
 				}
 			}
 
+			Logger.trace("Append standart functions calls.");
 			//sb.append("\n/*============================= FUNCTION CALL SECTION       =============================*/");
 			tokenIterator = ltoken.iterator();
 			localCounter = generatorCounter;
@@ -319,7 +339,7 @@ public class MainGenerator {
 						sb.append("\n");
 				}
 			}
-
+			Logger.trace("Append calls after stndart functions.");
 			//sb.append("\n/*============================= FUNCTION CALL SECTION       =============================*/");
 			tokenIterator = ltoken.iterator();
 			localCounter = generatorCounter;
@@ -356,12 +376,14 @@ public class MainGenerator {
 					sb.append("\n");
 				}
 			}
-			
+			Logger.trace("Start appending end section...");
+			Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
 			sb.append("\n\n\n\tcheck_final_state();\n");
 			sb.append("\treturn;\n}\n");
-			if (isgenerateIfdefAroundMains)
+			if (isgenerateIfdefAroundMains) {
+				Logger.trace("Append macros: \"#endif\" for our function.");
 				sb.append("#endif\n");
-
+			}
 			fw.write(sb.toString());
 			fw.close();
 			return true;

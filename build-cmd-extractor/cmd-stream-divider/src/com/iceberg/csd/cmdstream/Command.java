@@ -10,6 +10,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import com.iceberg.csd.FSOperationBase;
+import com.iceberg.csd.utils.Logger;
 
 public class Command {
 	private List<Opt> opts = new ArrayList<Opt>();
@@ -135,7 +136,7 @@ public class Command {
 			String parentDirString =  newFilePlace.getParent();
 			File parentDir = new File(parentDirString);
 			if(!iscopy && !parentDir.exists() && !parentDir.mkdirs()) {
-				System.out.println("csd: ERROR: Can't create dir for in file.");
+				Logger.err("Can't create dir for in file.");
 				return false;
 			}
 			File infile = new File(strList.get(i));

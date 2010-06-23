@@ -124,6 +124,11 @@ create table tasks(
 	username varchar(50),
 	timestamp datetime,
 
+	driver_spec varchar(255),
+	driver_spec_origin enum('kernel','external'),
+
+	description text,
+
 	primary key (id)
 ) ENGINE=InnoDB;
 
@@ -142,9 +147,11 @@ create table launches(
 -- Can be NULL if the driver failed to build
 	scenario_id int(10) unsigned,
 
-	trace_id int(10) unsigned not null,
+	trace_id int(10) unsigned,
 
 	task_id int(10) unsigned,
+
+	status enum('queued','running','failed','finished') not null,
 
 	primary key (id),
 	UNIQUE (driver_id,toolset_id,environment_id,rule_model_id,scenario_id,task_id),

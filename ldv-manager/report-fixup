@@ -8,7 +8,7 @@ Usage:
 EOF
 }
 
-my ($report_xml,$git_tag,$driver_name,$driver_origin,$sources_dir,$work_dir) = @ARGV;
+my ($report_xml,$git_tag,$driver_name,$driver_origin,$task_name,$sources_dir,$work_dir) = @ARGV;
 $work_dir or usage();
 
 use strict;
@@ -22,7 +22,19 @@ sub handle_report
 	# Add more verifiers here if you want to override them
 	$verifier ||= $ENV{'RCV_VERIFIER'};
 	XML::Twig::Elt->new('globalverifier',{},$verifier)->paste($launchT) if defined $verifier;
-	XML::Twig::Elt->new('timestamp',{},`date`)->paste($launchT);
+	my $taskT = XML::Twig::Elt->new('task');
+	if ($ENV{'LDV_TASK_ID'}){
+		XML::Twig::Elt->new('task_id',{},$ENV{'LDV_TASK_ID'})->paste($taskT);
+	}else{
+		my $date = `date`; chomp $date;
+		XML::Twig::Elt->new('timestamp',{},$date)->paste($taskT);
+		my $user = `id -un`; chomp $user;
+		XML::Twig::Elt->new('username',{},$user)->paste($taskT);
+		XML::Twig::Elt->new('description',{},$task_name)->paste($taskT);
+		XML::Twig::Elt->new('driver',{},$driver_name)->paste($taskT);
+		XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($taskT);
+	}
+	$taskT->paste($launchT);
 	XML::Twig::Elt->new('driver',{},$driver_name)->paste($launchT);
 	XML::Twig::Elt->new('driver_origin',{},$driver_origin)->paste($launchT);
 	XML::Twig::Elt->new('tag',{},$git_tag)->paste($launchT);

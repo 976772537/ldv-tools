@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 
+import com.iceberg.csd.utils.Logger;
+
 public class FSOperationBase {
 	
 	public static void removeDirectoryRecursive(File source) {
@@ -40,7 +42,7 @@ public class FSOperationBase {
 				srcChannel.transferTo(0, srcChannel.size(), destChannel);
 			} catch (IOException e)
 			{
-				System.out.println("csd: ERROR: Can't copy file.");
+				Logger.err("Can't copy file from \""+srcFilename+"\" to \""+dstFilename+"\".");
 			} finally {
 				try {
 					srcChannel.close();

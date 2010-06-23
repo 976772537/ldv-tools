@@ -10,6 +10,7 @@ ldv-manager.mk
 defs.mk
 
 report-fixup
+failed-run
 package
 
 upload-daemon
@@ -20,6 +21,8 @@ Makefile
 
 ldv-problem
 problems/
+	dscv/
+		problems
 	rcv/
 		blast
 		test

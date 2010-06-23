@@ -70,7 +70,7 @@ bce_create_report() {
 		echo "  <build>" >> $BCE_REPORT;
 		echo "    <status>$1</status>" >> $BCE_REPORT;
 		echo "    <time></time>" >> $BCE_REPORT;
-		if [ -f $BCE_STATE ]; then
+		if [ -f "$BCE_STATE" ]; then
 			BCE_ERR_DESCRIPTION=`cat $BCE_STATE`;
 		else
 			BCE_ERR_DESCRIPTION=$2;
@@ -230,6 +230,12 @@ fi;
 if [ ! -n $driver ]; then
 	ldv_print "ERROR: Please setup driver in option: \"--driver\".";
 fi;
+BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
+mkdir $BCE_TEMPDIR;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can't create build-cmd-extractor dir: \"$BCE_TEMPDIR\"";
+	exit 1;
+fi;
 
 TEMP_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
 mkdir $TEMP_DIR;
@@ -294,6 +300,17 @@ if [ $? -ne 0 ]; then
         ldv_print "ERROR: Cmd extractor failed.";
 	bce_ldv_report "FAILED" "Build command extractor failed.";
         exit 0;
+fi;
+
+#
+# FAST FIX : remove LD commands that contains <in> sections 
+#            without corresponding CC commands !!!
+#
+$LDV_HOME/ldv-core/fast_fix_cmdstream.pl $XML_AFTER_BCE;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Fast fix failed.";
+	bce_ldv_report "FAILED" "Fast fix for cmdstream failed.";
+	exit 0;
 fi;
 
 #

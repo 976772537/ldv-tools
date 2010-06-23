@@ -1,0 +1,339 @@
+#!/usr/bin/perl
+
+# RCV Frontend for MOCK tool.
+
+#======================================================================
+# PROCESS OPTIONS AND SET UP INITIAL VARIABLES
+#======================================================================
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	# TODO: make it compliant with unit-testing installation
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
+
+use strict;
+use Pod::Usage;
+use Getopt::Long;
+
+# Project modules -- are not necessary
+use LDV::Utils;
+use DSCV::RCV::Utils;
+use DSCV::Sanity;
+use Utils;
+
+# File modules
+use File::Basename;
+use File::Path qw(mkpath);
+
+my $config={
+	cmdfile=>'',
+};
+
+my %optionSpecs = ();
+
+$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
+$optionSpecs{'workdir=s'} = \$config->{workdir};
+$optionSpecs{'sanity-dir=s'} = \$config->{sandir};
+
+GetOptions(%optionSpecs) or die("Unrecognized options!");
+
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('rcv-mock');
+
+
+# Prepare initial variables
+my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
+my $backend_dir = "$shared_dir/rcv/backends/mock";
+my $mock = "$backend_dir/mock";
+my $workdir = $config->{workdir};
+
+-f $config->{cmdfile} or die "MOCK's command file $config->{cmdfile} is not found";
+-d $backend_dir or die "MOCK's directory $backend_dir is not a directory";
+-x $mock or die "MOCK's toplevel executable $mock is not an executable file";
+-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+
+# Resource limits processing
+my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
+vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
+
+
+# Prepare sanity checks -- important to check if it's alright in this subsystem.
+my $sanity = DSCV::Sanity->new($config->{sandir});
+
+
+# Add path for mock's supplementary scripts.  Prepending to system's to override other PATHs.
+$ENV{'PATH'} = "$backend_dir/:".$ENV{'PATH'};
+
+#Check if mock is available
+mock_quick_check();
+
+
+#======================================================================
+# PREPARE CMDFILE TRAVERSERS AND RUN THEM
+#======================================================================
+use XML::Twig;
+
+# Base Dir of system being checked
+my $base_dir = undef;
+my $unbasedir = undef;
+
+# Now all subroutines are initialized.  Let's start processing the cmdfile.
+my $check_input_file = XML::Twig->new(
+	twig_handlers => {
+		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
+		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_mock, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>$ENV{'MOCK_RCV_PREPROCESS'}, cilly=>$ENV{'MOCK_RCV_CILLY'},cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps", archivated=>1),
+	}
+);
+$check_input_file->parsefile($config->{cmdfile});
+
+exit 0;
+# NO CODE AFTER THIS POINT!
+
+
+#======================================================================
+# MOCK-SPECIFIC ROUTINES
+#======================================================================
+
+sub verify_mock
+{
+	my %args = @_;
+	$args{report} or die;
+	open my $MOCK_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+	my $repT = XML::Twig::Elt->new('reports');
+
+	for my $main (@{$args{mains}}){
+		if ($args{already_failed}){
+			# Prepare a failure command
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
+
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'mock'});
+			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$args{already_failed})->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			XML::Twig::Elt->new('time',{},0)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
+		}else{
+			my $result = call_mock(%args, main=>$main);
+
+			# Print verdict to console and to report
+			vsay (10,"$main: MOCK status: $result->{'MOCK'}\n");
+			vsay (20,"$main: MOCK verdict: $result->{'MOCK-detailed'}\n");
+
+			my $bv = $result->{'MOCK-detailed'};
+			if ($bv =~ /\bsafe\b/) {
+				$bv='SAFE';
+			}elsif($bv =~ /\bunsafe\b/){
+				$bv='UNSAFE';
+			}else{
+				$bv='UNKNOWN';
+			}
+
+			my $br = $result->{'MOCK'};
+			if ($br =~ /\byes\b/i) {
+				$br='OK';
+			}elsif($br =~ /\bno\b/i){
+				$br='FAILED';
+			}else{
+				$br='FAILED';
+			}
+
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+			# Confess who is responsible for that mess
+			XML::Twig::Elt->new('verifier',{},'MOCK')->paste($cmdInstT);
+
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'mock'});
+			XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$result->{'MOCK-detailed'})->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			my $time_sec = $result->{'utime'}+$result->{'stime'};
+			my $time_msec = int($time_sec * 1000);
+			XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
+		}
+	}
+
+	$repT->print($MOCK_REPORT,'indented');
+	close $MOCK_REPORT;
+}
+
+# Call mock
+use IPC::Open3;
+use StreamAutomaton;
+use IO::Compress::Gzip qw($GzipError);
+sub call_mock
+{
+	my %args = @_;
+	my @mock_options = ("mock");
+	push @mock_options, "--main=$args{main}" if $args{main};
+	# Options that will be passed to the mock tool
+	push @mock_options, @{$args{files}};
+
+	# Add mains and error locations
+
+	# For now, only one error location is supported by MOCK
+	(scalar @{$args{errlocs}} > 1) and die;
+	my $errloc = (@{$args{errlocs}})[0];
+	push @mock_options, "-L",$errloc if $errloc;
+
+	# Fork and run MOCK in a child process.	Redirect its output (std and err) to a file
+	# To Limit resources for MOCK we use timeout script.
+	@mock_options = DSCV::RCV::Utils::set_up_timeout({
+		timelimit => $timelimit,
+		memlimit => $memlimit,
+		id_str => "DSCV_TIMEOUT ",
+		},@mock_options
+	);
+	# Identification to distinguish timeout's messages from other stuff
+
+	# Tell arguments
+	vsay ('NORMAL',"Running MOCK for $args{dbg_target}, entry $args{main}...\n");
+	vsay (20,@mock_options,"\n");
+
+	# Open file to redirect
+	# The streams will be printing GZIP-compressed text.
+	# TODO: Make it parallel.  Currently it's all processed inline, in the same thread.
+	my $MOCK_DEBUG = new IO::Compress::Gzip $args{debug} or die "gzip failed: $GzipError\n";
+	my ($MOCK_IN,$MOCK_OUT,$MOCK_ERR);
+	# Fork mock
+	local $"=" ";
+	my $fpid = open3($MOCK_IN,$MOCK_OUT,$MOCK_ERR,@mock_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @mock_options";
+
+	vsay (20,"MOCK debug trace is being written to $args{debug}\n");
+
+	# Sanity check
+	$sanity->blast_called();
+
+	# Create trace printer
+	my $dumptrace = dumptrace($args{trace});
+	# Create verdict calculator
+	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'})]);
+
+	# Process output and redirect it to file
+	local $_;
+	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
+	while (<$MOCK_OUT>) {
+		print $MOCK_DEBUG $_;
+		$verdictor->chew_line($_);
+	}
+	while (<$MOCK_ERR>) {
+		print $MOCK_DEBUG $_;
+		$verdictor->chew_line($_);
+	}
+
+	my %child = Utils::hard_wait($fpid,0);
+	close $MOCK_DEBUG;
+
+	vsay (40,"MOCK open3 return value: $?\n");
+	vsay (20,"MOCK return value: $?\n");
+	vsay (40,"MOCK stats: utime $child{'utime'}, stime $child{'stime'}\n");
+	my $mock_rv = $? >> 8;
+	# NOTE that exit code 2 is for OCaml unhandled exceptions
+	if ($mock_rv == 5){
+		# MOCK didn't find input file -- integration error
+		die "MOCK couldn't find some input files";
+	}elsif($mock_rv == 3){
+		die "MOCK couldn't find entry point/error location";
+	}elsif($? == 0){
+		vsay (20,"MOCK OK\n");
+	}else{
+		vsay (20,"MOCK failed with exit code $mock_rv.  But who cares?\n");
+	}
+
+	my $result = {%{$verdictor->result()}};
+	$result->{'MOCK'} .= $result->{'BLAST'};
+	$result->{'MOCK-detailed'} .= $result->{'BLAST-detailed'};
+	$result->{'MOCK-detailed'} .= $result->{'LIMITS'};
+	# Add timing information into the result returned
+	$result->{'utime'} = $child{'utime'};
+	$result->{'stime'} = $child{'stime'};
+
+	# Add information about limits to result
+	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
+	my $ml4rep = $memlimit ? "$memlimit Kb" : "not set";
+	# Should be like this, but MOCK doesn't support it...
+	#my $ver4rep = `pbast.opt --version`;
+	my $ver4rep = "";
+	$result->{'MOCK-detailed'} .= <<EOR ;
+
+=========== Launch information ===========
+Verifier: MOCK ($ver4rep)
+Time Limit: $tl4rep
+Memory Limit: $ml4rep
+Additional options: $ENV{'MOCK_OPTIONS'}
+=========== Launch inform ends ===========
+EOR
+
+	return $result;
+}
+
+
+
+# Perform MOCK quick check before running any verifications
+sub mock_quick_check
+{
+	$" = ' ';      # For error reporting
+	vsay ('INFO', "Trying to run mock without arguments to see it it works...");
+	my @mock_args = ("mock","--help");
+	my $CHEW_MOCK_OUT;
+	my $fpid = open $CHEW_MOCK_OUT,"-|";
+	defined $fpid or die "Can't fork?  Wtf";
+	if ($fpid == 0){
+		# child
+		# Run mock
+		exec @mock_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @mock_args";
+		exit 1;
+	}
+	# Parent
+	# Ignore mock's output.
+	my %wpres = Utils::hard_wait($fpid,0);
+	# \n to complement previous message
+	$? == 0 or die "\nINTEGRATION ERROR.  MOCK test exited with non-zero return code $?.";
+	# Ok, now we can close the pipe
+	close($CHEW_MOCK_OUT);
+
+	vsay ('INFO',"OK\n");
+}
+
+
+
+# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
+use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
+sub dumptrace
+{
+	my $fname = shift or die;
+	my $state = TRACE_WAIT;
+	my $current_fh;
+	return [1_000_000,sub {
+
+		my ($line) = @_;
+		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
+		return undef if $state == TRACE_DONE;
+
+		$line =~ /Error trace: \(final\)/ and do {$state = TRACE_READ; return undef;};
+		$line =~ /Error trace ends \(final\)/ and do {$state = TRACE_DONE; return undef;};
+
+		if ($state == TRACE_READ){
+			unless ($current_fh){
+				open $current_fh, ">>", $fname or die;
+			}
+			print $current_fh $line;
+		}
+		return undef;
+	}];
+}
+
+  

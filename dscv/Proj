@@ -28,3 +28,52 @@ rcv/
 	backends/cpachecker/
 		Makefile
 
+! Unit testing
+rcv/
+	mock
+	backends/mock/
+		mock
+		Makefile
+unit-tests/
+	README
+	run
+	ri
+	tests/
+		test01/
+			commands.xml
+			win.c
+		test02/
+			win.c
+			victory.c
+			commands.xml
+		test03/
+			win.c
+			victory.c
+			commands.xml
+		test_notmain/
+			empty.c
+			commands.xml
+		test_nomains/
+			empty.c
+			commands.xml
+		test_limits/
+			win.c
+			victory.c
+			commands.xml
+		test_limits/
+			win.c
+			victory.c
+			commands.xml
+		test_limits_time/
+			win.c
+			victory.c
+			commands.xml
+		test_cil/
+			commands.xml
+			win.c
+		test_cil_fail/
+			commands.xml
+			win.c
+		test_nofile/
+			commands.xml
+
