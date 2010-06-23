@@ -14,7 +14,7 @@ do
 		echo Drvdir=$DRVDIR
 		DRVARCH=`echo $DRVDIR | sed 's/\.\///g' | sed 's/\//--/g'`;
 		echo "Packing $DRVARCH.tar.bz2"
-		tar cvfj $DRVARCH.tar.bz2 $DRVDIR
+		tar cvfj $DRVARCH.tar.bz2 ./drivers/$DRVDIR
 		MGR_CMD=${MGR_PREFIX}${DRVARCH}.tar.bz2$LN
 		echo $MGR_CMD;
 		eval $MGR_CMD;		
