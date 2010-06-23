@@ -145,6 +145,30 @@ traces_dir = File.join(tmpdir,"traces")
 
 	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['module_name'],ld.attributes['main'])
 
+	#Get status, and if it's "failed" skip the rest
+	status = (ld/"ldv_status").inner_html.downcase
+	if status == "failed"
+		# Save launch to DB with just a few details
+		launch = Launch.new
+
+		# Assign a primary key
+		launch.driver = driver
+		launch.environment = kernel
+		launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,global_verifier)
+		launch.rule_model = rule_model
+		launch.scenario = nil
+		launch.task = task
+		launch.status = status
+
+		launch = launch.load_on_duplicate_key
+
+		launch.trace = nil
+
+		# Because of :autosave property, recursively saves all records
+		launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+		next
+	end
+
 	trace = Trace.new
 	#verdict
 	verdict = (ld/"verdict").inner_html.downcase
@@ -232,6 +256,7 @@ traces_dir = File.join(tmpdir,"traces")
 	launch = launch.load_on_duplicate_key
 
 	launch.trace = trace
+	launch.status = "finished"
 
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"

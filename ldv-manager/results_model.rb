@@ -36,6 +36,13 @@ class Launch < ActiveRecord::Base
 	belongs_to :task, :autosave => true
 	belongs_to :trace, :autosave => true
 	validates_associated :task, :trace
+
+	validate :trace_vs_status
+
+	# Check that trace is here iff result is 'finished'
+	def trace_vs_status
+		!trace.nil? && status == 'finished'
+	end
 end
 
 class Task < ActiveRecord::Base

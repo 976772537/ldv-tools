@@ -61,6 +61,13 @@ $(warning Variable "name" is empty, falling back to "default")
 name=default
 endif
 
+########################
+# Process options
+ifneq ($(ldv_statuses),)
+# This command mitigates error in ldv command, and instead sets the fail status
+Fail_status_set= || $(Script_dir)failed-run "$(envs)" "$(drivers)" "$(kernel_driver)" "$(rule_models)"  >$$(@D)/report_after_ldv.xml
+endif
+
 #########################
 # Split input into tasks
 
@@ -130,7 +137,7 @@ $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked: $(call get_tag,$(1),$(
 		export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
 	fi ;\
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
-	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver)
+	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver) $(Fail_status_set)
 	#touch $$@
 
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked
