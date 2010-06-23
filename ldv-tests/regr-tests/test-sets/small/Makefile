@@ -18,7 +18,7 @@ TMP_DIR=__install_drivers
 
 # Compilation
 all: 
-	./pack-drivers.sh ${TMP_DIR}
+	./pack-drivers.sh ${TMP_DIR} || exit 1
 
 # Installation
 define test_prefix
@@ -27,10 +27,10 @@ endef
 
 install: all 
 	@$(call test_prefix)
-	if [ ! -d $(prefix)/$(SMALL_TEST_DIR) ]; then mkdir -p $(prefix)/$(SMALL_TEST_DIR); fi
-	cp -r ${TMP_DIR}/* $(prefix)/$(SMALL_TEST_DIR) 
+	if [ ! -d $(prefix)/$(SMALL_TEST_DIR) ]; then mkdir -p $(prefix)/$(SMALL_TEST_DIR) || exit 1; fi
+	cp -r ${TMP_DIR}/* $(prefix)/$(SMALL_TEST_DIR) || exit 1;
 
 # Clean
 clean: 
 	@$(call test_prefix)
-	rm -r ${TMP_DIR}
+	rm -r ${TMP_DIR} || exit 1
