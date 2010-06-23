@@ -35,7 +35,9 @@ LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
 
 # Sanity checks
 ifeq ($(LDV_GIT_REPO),)
+ifneq ($(tag),current)
 $(error You should specify git repository in LDV_GIT_REPO)
+endif
 endif
 
 # Makefile that performs LDV management
