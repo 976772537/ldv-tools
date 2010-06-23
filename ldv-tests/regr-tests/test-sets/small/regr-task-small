@@ -1,0 +1,4 @@
+driver=tests-model-08_1--test-doubleget.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=08_1
+driver=tests-model-08_1--test-safe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=08_1
+driver=tests-model-08_1--test-safe2.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=08_1
+
