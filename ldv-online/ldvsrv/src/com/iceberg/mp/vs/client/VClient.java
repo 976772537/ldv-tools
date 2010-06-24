@@ -5,8 +5,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
+import com.iceberg.mp.FSOperationBase;
 import com.iceberg.mp.Utils;
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.MTask;
@@ -33,10 +35,10 @@ public class VClient {
 			} else {
 				Logger.debug("Task from user: "+task.getId());
 				Logger.info("Start verification...");
-				String report = startVerification(config, task);
+				boolean result = startVerification(config, task);
 				Logger.info("Verification end.");
 				Logger.debug("Try to send results...");
-				if(!protocol.VSSendResults(report,task.getId())) {
+				if(!protocol.VSSendResults(result,task.getId())) {
 					Logger.err("Can't send results...");
 					System.exit(1);
 				}
@@ -47,55 +49,99 @@ public class VClient {
 	}
 	
 	// возвращает строку на репорт
-	@SuppressWarnings("finally")
-	public static String startVerification(ClientConfig config, MTask task) {
-//		LDV_DEBUG=100 ldv task --driver=drivers/char/agp --workdir=. --env=vanilla@37_1 --kernel-driver > ./global.log 2>&1 & tail -f ./global.log
+	public static boolean startVerification(ClientConfig config, MTask task) {
+		Logger.trace("Before VClient run: ");
+		Logger.info("  1. Create workdir (config have corresponding option WorkDir).");
+		Logger.info("  2. Put into workdir kernels.");
+		Logger.info("  3. Install LDV tools.");
+		Logger.info("  4. Set-up variable WorkDir in client config.");
+		Logger.info("  5. Set-up variable LDVInstalledDir.");
 		// 1. сохраняем файл в wokrdir
 		File tworkdir = new File(config.getWorkDir()+"/run");
 		tworkdir.mkdirs();
 		FileOutputStream fis = null;
-		String report = null;
 		try {
 			fis = new FileOutputStream(config.getWorkDir()+"/driver");
 			fis.write(task.getData());
 			fis.flush();
 			fis.close();
 
-			report = config.getWorkDir() +"/run/ldvs_report.xml";
-			File reportFile = new File(report);
-			reportFile.delete();
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
-					config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" ldv task "
-					+"--driver="+config.getWorkDir()+"/driver --workdir="+config.getWorkDir()+"/run " +
-					" --report-out="+report+" --env="+task.getEnv()+"@"+task.getRule();
-			Logger.trace("RUN LDV:" + startString);
-			Logger.debug("Write start command in file :" + config.getWorkDir() +"/start");
-			FileWriter startFile = new FileWriter(config.getWorkDir() +"/start");
-			startFile.write(startString);
-			startFile.flush();
-			startFile.close();
+			config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getId()+
+			" LDV_GIT_REPO=git://itgdev.igroup.ispras.ru/ldv-tools.git ldv_statuses=1 ldv-manager tag=current \"envs=../"+
+			task.getEnv()+".tar.bz2\" \"drivers="+config.getWorkDir()+"/driver\" \"rule_models="+
+			task.getRule()+"\" 2>&1";
+			runCommand(config.getWorkDir() +"/start", startString);	
 			
-			Utils.runFromFile(config.getWorkDir() +"/start");
 			
-			if(reportFile.exists()) {
+			File driverFile = new File(config.getWorkDir()+"/driver");
+			driverFile.delete();
+			//  and now upload all paxes
+			// 1. Search paxes:
+			Logger.debug("Search pax files...");
+			List<String> paxList = FSOperationBase.getDirContentRecursivePax(config.getWorkDir() +"/run/finished");
+			if(paxList == null || paxList.size()==0) {
+				Logger.debug("Can't find pax files - verification failed.");
+				return false;
+			} 
+			Logger.debug("Number of pax files: "+paxList.size());
+			Logger.debug("Start uploading pax files.");
+			for(String paxFileString : paxList) {
+				// upload pax file
+				Logger.debug("Start upload pax file: "+paxFileString);				
+				startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
+				config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getId()+
+				" LDVDB="+config.getStatsDBName()+" LDVUSER="+config.getStatsDBUser()+
+				" LDVDBPASSWD="+config.getStatsDBPass()+" LDVDBHOST="+config.getStatsDBHost()+
+				" ldv_statuses=1 ldv-upload "+paxFileString+" 2>&1";
+				runCommand(config.getWorkDir() +"/start", startString);	
+				// delete it
+				Logger.debug("Delete pax file: "+paxFileString);
+				(new File(paxFileString)).delete();
+			}
+			Logger.debug("All pax files uploaded.");
+			/** TODO: clean ./run directory
+			/* For this action ldv-manager must have 
+			/* variable for external kernel prepare dir!
+			 */
+/*			if(reportFile.exists()) {
 				Logger.debug("Report created in file: " + report);
 			} else {
 				Logger.debug("LDV-Tools failed.");
 				report = null;
-			}
+			}*/
+			return true;
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
 			try {
 				fis.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			return report;
 		}
+		return false;
+	}
+	
+	public static boolean runCommand(String tempfile, String command) {
+		boolean result = false;
+		Logger.trace("RUN command:" + command);
+		Logger.debug("Write start command in file :" + tempfile);
+		File startFile = new File(tempfile);
+		FileWriter startFileWriter;
+		try {
+			startFileWriter = new FileWriter(startFile);
+			startFileWriter.write(command);
+			startFileWriter.flush();
+			startFileWriter.close();
+			Utils.runFromFile(tempfile);
+			startFile.delete();
+			result = true;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return result;
 	}
 }

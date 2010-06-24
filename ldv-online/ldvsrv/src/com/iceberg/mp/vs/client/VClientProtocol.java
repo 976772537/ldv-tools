@@ -42,7 +42,7 @@ public class VClientProtocol {
         				out = socket.getOutputStream();
                 		oos = new ObjectOutputStream(out);
                 		// после подключения говорим серверу о том, что готовы взять задачу
-                        VSMClientGetTask msgGetTask = new VSMClientGetTask(config.getCientName());
+                        VSMClientGetTask msgGetTask = new VSMClientGetTask(socket.getInetAddress()+"");
                         oos.writeObject(msgGetTask);
                         oos.flush();
                         // читаем задачу
@@ -50,7 +50,7 @@ public class VClientProtocol {
                         // принимаем задачу
                         task = (MTask)ois.readObject();
                         // говорим что успешно прняли
-                        VSMClientGetTaskOk msgGetTaskOk = new VSMClientGetTaskOk(config.getCientName());
+                        VSMClientGetTaskOk msgGetTaskOk = new VSMClientGetTaskOk(socket.getInetAddress()+"");
                         oos.writeObject(msgGetTaskOk);
                         oos.flush();
                 } catch (ClassNotFoundException e) {
@@ -89,7 +89,7 @@ public class VClientProtocol {
                 return task;
         }
 
-        public boolean VSSendResults(String report, int id) {
+        public boolean VSSendResults(boolean result, int id) {
 			Socket socket = null;
 			InputStream in  = null;
 			OutputStream out = null;
@@ -100,8 +100,9 @@ public class VClientProtocol {
     				in  = socket.getInputStream();
     				out = socket.getOutputStream();
             		oos = new ObjectOutputStream(out);
-            		//1. парсим отчет, в случае любой ошибки возвращаем FAILED серверу
-            		VSMClientSendResults msgSendResults =  new VSMClientSendResults(config.getCientName(), id, MTask.Status.TS_VERIFICATION_FINISHED+"");
+            		//1. в случае любой ошибки возвращаем FAILED серверу
+            		VSMClientSendResults msgSendResults =  new VSMClientSendResults(socket.getInetAddress()+"", 
+            				id, result ? MTask.Status.TS_VERIFICATION_FINISHED+"" : MTask.Status.TS_VERIFICATION_FAILED+"");
             		// после подключения возвращаем серверу результаты
                     oos.writeObject(msgSendResults);
                     oos.flush();

@@ -8,7 +8,8 @@ public class MTask implements Serializable {
 		TS_WAIT_FOR_VERIFICATION,
 		TS_VERIFICATION_FINISHED,
 		TS_VERIFICATION_IN_PROGRESS,
-		TS_QUEUED
+		TS_QUEUED,
+		TS_VERIFICATION_FAILED
 	}
 	
 	private static final long serialVersionUID = 1L;

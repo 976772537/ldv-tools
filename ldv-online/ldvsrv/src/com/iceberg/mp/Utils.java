@@ -8,25 +8,6 @@ import java.io.PrintWriter;
 
 public class Utils {
 	
-	/*public byte[] compress(String wrokdir, String outfile) {
-		GZIPOutputStream gos = null;
-		FileOutputStream fos = null;
-		BufferedOutputStream bobs = null;
-		
-		FileOutputStream fileos;
-		try {
-			fileos = new FileOutputStream(outfile);
-			BufferedOutputStream bos = new BufferedOutputStream(fileos);
-			gos = new GZIPOutputStream(bos);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			Logger.err("Error during compress data");
-			e.printStackTrace();
-		}		
-		return null;	
-	}*/
-	
 	public static void runFromFile(String filename) {
 		Runtime rt = Runtime.getRuntime();
 		Process proc = null;

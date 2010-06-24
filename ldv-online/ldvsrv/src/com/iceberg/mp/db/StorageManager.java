@@ -114,12 +114,12 @@ public class StorageManager {
 	}
 		
 	public synchronized Connection getConnection() throws SQLException {
-		Logger.debug("Try to create new database connection...");
+		//Logger.debug("Try to create new database connection...");
 		return DriverManager.getConnection(connectionString, dbuser, dbpass);
 	}
 	
 	public synchronized Connection getStatsConnection() throws SQLException {
-		Logger.debug("Try to create new database connection...");
+		//Logger.debug("Try to create new database connection...");
 		return DriverManager.getConnection(statsConnectionString);
 	}
 	
