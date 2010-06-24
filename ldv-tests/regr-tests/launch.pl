@@ -1,15 +1,20 @@
 #! /usr/bin/perl -w
 
 
+use Cwd qw(abs_path cwd);
 use English;
 use Env qw(LDV_DEBUG);
+use File::Basename qw(fileparse);
+use File::Copy qw(copy);
+use File::Find qw(find);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
+use File::Path qw(mkpath);
 use strict;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../../shared/perl");
 
 # Add some nonstandard local Perl packages.
 use LDV::Utils;
@@ -30,10 +35,20 @@ sub get_debug_level();
 # retn: nothing.
 sub get_opt();
 
+# Obtain tasks for the ldv-manager.
+# args: no.
+# retn: nothing.
+sub get_tasks();
+
 # Print help message on the screen and exit.
 # args: no.
 # retn: nothing.
 sub help();
+
+# Pass tasks to the ldv-manager.
+# args: no.
+# retn: nothing.
+sub launch_tasks();
 
 # Obtain needed files and dirs and check their presence.
 # args: no.
@@ -49,26 +64,53 @@ sub print_debug_debug($);
 sub print_debug_trace($);
 sub print_debug_all($);
 
+# Verify that ldv-manager tasks are proper.
+# args: no.
+# retn: nothing.
+sub verify_tasks();
+
 
 ################################################################################
 # Global variables.
 ################################################################################
 
+# An absolute path to the current working directory.
+my $current_working_dir;
+
 # Prefix for all debug messages.
 my $debug_name = 'regr-test-launcher';
+
+# Path to the binary of ldv-manager.
+my $ldv_manager_bin = "$FindBin::RealBin/../../bin/ldv-manager";
+# A directory from where ldv-manager will be launched. It's relative to the 
+# current working directory.
+my $ldv_manager_work_dir = "ldv-manager-work-dir";
 
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_help;
 my $opt_out;
 my $opt_test_set;
 
-# This hash contains unique tasks (some keys) to be executed.
+# Two different kinds of drivers (external in archives and kernel internal).
+my $origin_external = 'external';
+my $origin_kernel = 'kernel';
+
+# The available predefined test sets.
+my %predefined_test_sets = ('small' => 1, 'medium' => 1, 'big' => 1);
+# An absolute path to the directory containing predefined test sets.
+my $predefined_test_sets_dir = "$FindBin::RealBin/../../ldv-tests/regr-tests/test-sets";
+
+# A prefix to the regression test task.
+my $regr_task_prefix = 'regr-task-';
+
+# This hash contains unique tasks to be executed. Task is '(driver, kernel, 
+# model)'.
 my %tasks;
 
-# The task set to be used.
-my $task_set;
-# The available predefined task sets.
-my %test_sets = ('small' => 1, 'medium' => 1, 'big' => 1);
+# The test set to be used. It's an absolute path to the test set task file.
+my $test_set;
+# The directory of the test set.
+my $test_set_dir;
 
 
 ################################################################################
@@ -84,7 +126,21 @@ get_opt();
 print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories.");
 prepare_files_and_dirs();
 
+print_debug_normal("Obtain tasks for the ldv-manager.");
+get_tasks();
 
+print_debug_normal("Check that ldv-manager tasks are given in the proper way.");
+verify_tasks();
+
+print_debug_normal("Launch the necessary tasks by means of ldv-manager.");
+launch_tasks();
+
+
+#print_debug_normal("Obtain tasks for the ldv-manager.");
+#collect_results();
+
+
+print_debug_normal("Make all successfully.");
 
 
 ################################################################################
@@ -126,21 +182,75 @@ sub get_opt()
 
   if ($opt_test_set)
   {
-	unless (defined($test_sets{$opt_test_set}))
+	# I.e. the absolute path to the regression test task.
+	if ($opt_test_set =~ /\//)
+	{
+      die("The file '$opt_test_set' specified through the option --test-set doesn't exist: $ERRNO")
+        unless (-f $opt_test_set);	  
+	}
+	# One of the predefined test sets.
+	else
 	{  
-      warn("The test set specified through the option --test-set can't be processed. Please use one of the following ones:\n");
+	  unless (defined($predefined_test_sets{$opt_test_set}))
+	  {  
+        warn("The test set '$opt_test_set' specified through the option --test-set can't be processed. Please use one of the following ones:\n");
       
-      foreach my $test_set (keys(%test_sets))
-      {
-		warn("  - '$test_set'\n");
-	  }
+        foreach my $test_set (keys(%predefined_test_sets))
+        {
+		  warn("  - '$test_set'\n");
+	    }
       
-      die(); 
+        die(); 
+      }
     }
+    
     print_debug_debug("The choosen test set is '$opt_test_set'.");
   }
   
   print_debug_debug("The command-line options are processed successfully.");
+}
+
+sub get_tasks()
+{
+  open(my $file_test_set, '<', "$test_set")
+    or die("Can't open the file '$test_set' for read: $ERRNO");	
+  
+  print_debug_trace("Begin to process the test set task file.");
+  foreach my $launch (<$file_test_set>)
+  {
+	chomp($launch);
+	print_debug_trace("Parse the launch information '$launch'");  
+	my @launch_info = split(/;/, $launch);
+	
+	# Launch information contains the following infomation:
+	#   (necessary)
+	#   - driver (either archive or kernel drivers subdirectory)
+	#   - driver origin (external | kernel)
+	#   - kernel (kernel name corresponding to the archive)
+	#   - model (model identifier)
+	#   (the rest isn't interesting for launcher).
+	# Each launch information has form 'name=value'.
+	# Read first four fielrds of launch information array.
+	my @launch_info_keys;
+	for (my $i = 0; $i < 4; $i++)
+	{
+	  die("Incorrect format of the test set task file. Field '$i' is corrupted.")
+	    unless ($launch_info[$i]);
+	  
+	  # Obtain value of field.
+	  $launch_info[$i] =~ /=/;
+	  
+	  push(@launch_info_keys, $POSTMATCH);
+	}
+	print_debug_debug("Key values are '@launch_info_keys'.");	
+    
+    # Add keys for the ldv-manager tasks.	
+    $tasks{$launch_info_keys[0]}{$launch_info_keys[1]}{$launch_info_keys[2]}{$launch_info_keys[3]} = 1;
+  }  
+  print_debug_debug("Finish to process the test set task file.");
+      
+  close($file_test_set) 
+    or die("Can't close the file '$test_set': $ERRNO\n");
 }
 
 sub help()
@@ -148,7 +258,8 @@ sub help()
     print(STDERR << "EOM");
 
 NAME
-  $PROGRAM_NAME: the tool is intended to launch some regression tests.
+  $PROGRAM_NAME: the tool is intended to launch one regression test accordingly 
+    to the correspoding task.
 
 SYNOPSIS
   $PROGRAM_NAME [option...]
@@ -164,9 +275,11 @@ OPTIONS
     placed to the current directory.
 
   --test-set <name>
-    <name> must be one of the predefined test set names. It's optional.
-    If this option isn't specified, then current folder is scanned for
-    the regression test tasks.
+    <name> may be one of the predefined test set names or may be absolute
+    path to the regression test task file. It's optional. If this option isn't 
+    specified, then current folder is scanned for the first regression test 
+    task. Note then regression test task is a file beginning with the 
+    '$regr_task_prefix' prefix.
 
 ENVIRONMENT VARIABLES
 
@@ -175,19 +288,76 @@ ENVIRONMENT VARIABLES
     level. It uses the standard designatures to distinguish different
     debug information printings. Each next level includes all previous
     levels and its own messages.
-    
-  LDV_TAG 
-    It's an optional environment variable that specifies a toolset tag. 
-    It may be either some git tag or git commit or 'current' (the last
-    is used by default). 
 
 EOM
 
   exit(1);
 }
 
+sub launch_tasks()
+{
+  foreach my $driver (keys(%tasks))
+  {
+	foreach my $origin (keys(%{$tasks{$driver}}))
+	{
+	  foreach my $kernel (keys(%{$tasks{$driver}{$origin}}))
+	  {
+		foreach my $model (keys(%{$tasks{$driver}{$origin}{$kernel}}))
+	    {  
+		  my @args = ($ldv_manager_bin, 'tag=current', "envs=$kernel", "drivers=$driver", "rule_models=$model");		
+		  print_debug_info("Execute the command '@args'.");	
+	    }
+	  }
+    }
+  }
+}
+
 sub prepare_files_and_dirs()
 {
+  # Try to obtain regression test task in case when it isn't specified through
+  # the absolute path.
+  if ($opt_test_set)
+  {
+	# It's already choosen.  
+	if ($opt_test_set =~ /\//)
+	{
+	  $test_set = $opt_test_set;
+	}
+    # Obtain it from the predefined test sets pathes.
+	else
+	{  
+	  die("Can't find test set '$opt_test_set' in the predefined test sets directory '$predefined_test_sets_dir/$opt_test_set'") 
+	    unless (-d "$predefined_test_sets_dir/$opt_test_set");
+	
+	  # TODO At this step we need to find appropriate file.
+	  exit 0;
+	}
+  }
+  # Obtain it from the current directory.
+  unless ($opt_test_set)
+  {
+	exit 0;
+  }
+
+  $test_set = abs_path($test_set) 
+    or die("Can't obtain the absolute path of '$test_set'");
+  print_debug_debug("The test set file absolute path is '$test_set'.");
+  
+  print_debug_trace("Try to find the test set directory.");
+  my @test_set_path = fileparse($test_set)
+    or die("Can't find a directory of the file '$test_set'");
+  $test_set_dir = $test_set_path[1];
+  print_debug_debug("The test set directory is '$test_set_dir'.");
+    
+  $current_working_dir = Cwd::cwd() 
+    or die("Can't obtain the current working directory");
+  print_debug_debug("The current working directory is '$current_working_dir'.");
+  
+  die("You run launcher in the already used directory. Please remove ldv-manager working directory '$current_working_dir/$ldv_manager_work_dir' and corresponding test results") 
+    if (-d "$current_working_dir/$ldv_manager_work_dir");
+  
+  mkpath("$current_working_dir/$ldv_manager_work_dir")
+    or die("Couldn't recursively create directory '$current_working_dir/$ldv_manager_work_dir': $ERRNO");
 }
 
 sub print_debug_normal($)
@@ -225,3 +395,71 @@ sub print_debug_all($)
   vsay('ALL', "$message\n");
 }
 
+sub verify_tasks()
+{
+  # Already copied external drivers and kernels.
+  my %drivers;
+  my %kernels;
+
+  # Tasks with the correct names of kernels.
+  my %tasks_fixed;
+  	
+  foreach my $driver (keys(%tasks))
+  {
+	foreach my $origin (keys(%{$tasks{$driver}}))
+	{
+	  foreach my $kernel (keys(%{$tasks{$driver}{$origin}}))
+	  {
+		foreach my $model (keys(%{$tasks{$driver}{$origin}{$kernel}}))
+	    { 
+		  # Check that needed external drivers and kernels are present and copy 
+		  # them to the ldv-manager working directory.
+		  if ($origin eq $origin_external)
+		  {
+			unless ($drivers{$driver})
+			{  
+		      if (-f "$test_set_dir/$driver")
+		      {
+		        copy("$test_set_dir/$driver", "$current_working_dir/$ldv_manager_work_dir/$driver")
+                  or die("Can't copy the file '$test_set_dir/$driver' to the file '$current_working_dir/$ldv_manager_work_dir/$driver'");
+		        print_debug_debug("The external driver file '$test_set_dir/$driver' was copied to the '$current_working_dir/$ldv_manager_work_dir/$driver'.");
+		      }
+  		      else
+		      {
+			    die("There is no driver '$driver' in the test set directory '$test_set_dir'");
+		      }
+		      
+		      $drivers{$driver} = 1;
+		    }
+		  }
+  	      
+		  unless ($kernels{$kernel})
+  	      {
+			my $kernel_real;
+			
+			print_debug_trace("Try to find the kernel by its short name in the test set directory '$test_set_dir'");  
+  	        find(sub { my $kernel_full = $_; if ($kernel_full =~ /^$kernel/) { die("The matched kernels full names are ambiguous.") if ($kernel_real); $kernel_real = $kernel_full;}}, $test_set_dir);
+  	        
+  	        if ($kernel_real and -f "$test_set_dir/$kernel_real")
+  	        {
+		      copy("$test_set_dir/$kernel_real", "$current_working_dir/$ldv_manager_work_dir/$kernel_real")
+                or die("Can't copy the file '$test_set_dir/$kernel_real' to the file '$current_working_dir/$ldv_manager_work_dir/$kernel_real'");
+		      print_debug_debug("The kernel file '$test_set_dir/$kernel_real' was copied to the '$current_working_dir/$ldv_manager_work_dir/$kernel_real'.");
+			}
+			else
+			{
+  	          die("There is no kernel '$kernel' (short name) in the test set directory '$test_set_dir'");
+  	        }
+  	        
+  	        $kernels{$kernel} = $kernel_real;
+	      }
+	      
+	      $tasks_fixed{$driver}{$origin}{$kernels{$kernel}}{$model} = 1;
+	    }
+	  }
+    }
+  }
+  
+  print_debug_trace("Fix the tasks for the ldv-manager");
+  %tasks = %tasks_fixed;
+}
