@@ -264,8 +264,8 @@ sub help()
     print(STDERR << "EOM");
 
 NAME
-  $PROGRAM_NAME: the tool is intended to launch one regression test accordingly 
-    to the correspoding task.
+  $PROGRAM_NAME: the tool is intended to launch the ldv-manager to obtain new 
+    results for the regression test.
 
 SYNOPSIS
   $PROGRAM_NAME [option...]
