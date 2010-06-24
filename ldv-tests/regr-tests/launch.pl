@@ -246,6 +246,7 @@ sub get_tasks()
   foreach my $launch (<$file_test_set>)
   {
 	chomp($launch);
+	next if ($launch =~ /^\s*$/);
 	print_debug_trace("Parse the launch information '$launch'");  
 	my @launch_info = split(/;/, $launch);
 	
