@@ -3,7 +3,7 @@
 
 use Cwd qw(abs_path cwd);
 use English;
-use Env qw(LDV_DEBUG);
+use Env qw(LDV_DEBUG LDV_REGR_TEST_LAUNCHER_DEBUG);
 use File::Basename qw(fileparse);
 use File::Copy qw(copy);
 use File::Find qw(find);
@@ -17,7 +17,7 @@ use strict;
 use lib("$FindBin::RealBin/../../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use LDV::Utils;
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
 
 ################################################################################
@@ -28,11 +28,6 @@ use LDV::Utils;
 # args: no.
 # retn: nothing.
 sub collect_results();
-
-# Determine the debug level in depend on the environment variable value.
-# args: no.
-# retn: nothing.
-sub get_debug_level();
 
 # Process command-line options. To see detailed description of these options 
 # run script with --help option.
@@ -59,15 +54,6 @@ sub launch_tasks();
 # args: no.
 # retn: nothing.
 sub prepare_files_and_dirs();
-
-# Debug functions. They print some information in depend on the debug level.
-# args: string to be printed.
-# retn: nothing.
-sub print_debug_normal($);
-sub print_debug_info($);
-sub print_debug_debug($);
-sub print_debug_trace($);
-sub print_debug_all($);
 
 # Verify that ldv-manager tasks are proper.
 # args: no.
@@ -131,27 +117,27 @@ my $test_set_dir;
 ################################################################################
 
 # Obtain the debug level.
-get_debug_level();
+get_debug_level($debug_name, $LDV_DEBUG, $LDV_REGR_TEST_LAUNCHER_DEBUG);
 
-print_debug_normal("Process the command-line options.");
+print_debug_normal("Process the command-line options");
 get_opt();
 
-print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories.");
+print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
 prepare_files_and_dirs();
 
-print_debug_normal("Obtain tasks for the ldv-manager.");
+print_debug_normal("Obtain tasks for the ldv-manager");
 get_tasks();
 
-print_debug_normal("Check that ldv-manager tasks are given in the proper way.");
+print_debug_normal("Check that ldv-manager tasks are given in the proper way");
 verify_tasks();
 
-print_debug_normal("Launch the necessary tasks by means of ldv-manager.");
+print_debug_normal("Launch the necessary tasks by means of ldv-manager");
 launch_tasks();
 
-print_debug_normal("Copy results obtained from for the ldv-manager to the specified directory.");
+print_debug_normal("Copy results obtained from for the ldv-manager to the specified directory");
 collect_results();
 
-print_debug_normal("Make all successfully.");
+print_debug_normal("Make all successfully");
 
 
 ################################################################################
@@ -171,25 +157,12 @@ sub collect_results()
           copy("$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result", "$result_dir/$result")
             or die("Can't copy the file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' to the file '$result_dir/$result'");
         
-          print_debug_debug("The external driver file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' was copied to the '$result_dir/$result'.");
+          print_debug_debug("The external driver file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' was copied to the '$result_dir/$result'");
         }
       }, "$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir");   
   }
   
-  print_debug_normal("The ldv-manager results are in the '$result_dir' directory now.");	          
-}
-
-sub get_debug_level()
-{
-  LDV::Utils::push_instrument($debug_name);
-
-  # By default (in case when LDV_DEBUG environment variables is't specified) or 
-  # when LDV_DEBUG is 0 just information on errors is printed. Otherwise:  
-  if (defined($LDV_DEBUG))
-  {
-    LDV::Utils::set_verbosity($LDV_DEBUG);
-    print_debug_debug("The debug level is set correspondingly to the LDV_DEBUG environment variable value '$LDV_DEBUG'.");
-  }
+  print_debug_normal("The ldv-manager results are in the '$result_dir' directory now");	          
 }
 
 sub get_opt()
@@ -209,7 +182,7 @@ sub get_opt()
   {
     die("The directory specified through the option --results|o doesn't exist: $ERRNO")
       unless (-d $opt_out);
-    print_debug_debug("The results will be put to the '$opt_out' directory.");
+    print_debug_debug("The results will be put to the '$opt_out' directory");
   }
 
   if ($opt_test_set)
@@ -236,10 +209,10 @@ sub get_opt()
       }
     }
     
-    print_debug_debug("The choosen test set is '$opt_test_set'.");
+    print_debug_debug("The choosen test set is '$opt_test_set'");
   }
   
-  print_debug_debug("The command-line options are processed successfully.");
+  print_debug_debug("The command-line options are processed successfully");
 }
 
 sub get_tasks()
@@ -247,12 +220,12 @@ sub get_tasks()
   open(my $file_test_set, '<', "$test_set")
     or die("Can't open the file '$test_set' for read: $ERRNO");	
   
-  print_debug_trace("Begin to process the test set task file.");
+  print_debug_trace("Begin to process the test set task file");
   foreach my $launch (<$file_test_set>)
   {
 	chomp($launch);
 	next if ($launch =~ /^\s*$/);
-	print_debug_trace("Parse the launch information '$launch'.");  
+	print_debug_trace("Parse the launch information '$launch'");  
 	my @launch_info = split(/;/, $launch);
 	
 	# Launch information contains the following infomation:
@@ -275,12 +248,12 @@ sub get_tasks()
 	  
 	  push(@launch_info_keys, $POSTMATCH);
 	}
-	print_debug_debug("Key values are '@launch_info_keys'.");	
+	print_debug_debug("Key values are '@launch_info_keys'");	
     
     # Add keys for the ldv-manager tasks.	
     $tasks{$launch_info_keys[0]}{$launch_info_keys[1]}{$launch_info_keys[2]}{$launch_info_keys[3]} = 1;
   }  
-  print_debug_debug("Finish to process the test set task file.");
+  print_debug_debug("Finish to process the test set task file");
       
   close($file_test_set) 
     or die("Can't close the file '$test_set': $ERRNO\n");
@@ -322,6 +295,10 @@ ENVIRONMENT VARIABLES
     debug information printings. Each next level includes all previous
     levels and its own messages.
 
+  LDV_REGR_TEST_LAUNCHER_DEBUG
+    Like LDV_DEBUG but it has more priority. It specifies a debug 
+    level just for this instrument.
+    
 EOM
 
   exit(1);
@@ -338,16 +315,16 @@ sub launch_tasks()
 		foreach my $model (keys(%{$tasks{$driver}{$origin}{$kernel}}))
 	    {  
 		  my @args = ($ldv_manager_bin, 'tag=current', "envs=$kernel", "drivers=$driver", "rule_models=$model");		
-		  print_debug_info("Execute the command '@args'.");
+		  print_debug_info("Execute the command '@args'");
 
-          print_debug_trace("Go to the ldv-manager working directory '$current_working_dir/$ldv_manager_work_dir' to launch it.");
+          print_debug_trace("Go to the ldv-manager working directory '$current_working_dir/$ldv_manager_work_dir' to launch it");
           chdir("$current_working_dir/$ldv_manager_work_dir")
             or die("Can't change directory to '$current_working_dir/$ldv_manager_work_dir'");
             		  
 		  my $status = system(@args);
-          print_debug_debug("The ldv-manager returns '$status'.");
+          print_debug_debug("The ldv-manager returns '$status'");
           
-          print_debug_trace("Go to the initial working directory '$current_working_dir'.");
+          print_debug_trace("Go to the initial working directory '$current_working_dir'");
           chdir($current_working_dir)
             or die("Can't change directory to '$current_working_dir'");
 	    }
@@ -385,17 +362,17 @@ sub prepare_files_and_dirs()
 
   $test_set = abs_path($test_set) 
     or die("Can't obtain the absolute path of '$test_set'");
-  print_debug_debug("The test set file absolute path is '$test_set'.");
+  print_debug_debug("The test set file absolute path is '$test_set'");
   
-  print_debug_trace("Try to find the test set directory.");
+  print_debug_trace("Try to find the test set directory");
   my @test_set_path = fileparse($test_set)
     or die("Can't find a directory of the file '$test_set'");
   $test_set_dir = $test_set_path[1];
-  print_debug_debug("The test set directory is '$test_set_dir'.");
+  print_debug_debug("The test set directory is '$test_set_dir'");
     
   $current_working_dir = Cwd::cwd() 
     or die("Can't obtain the current working directory");
-  print_debug_debug("The current working directory is '$current_working_dir'.");
+  print_debug_debug("The current working directory is '$current_working_dir'");
   
   die("You run launcher in the already used directory. Please remove ldv-manager working directory '$current_working_dir/$ldv_manager_work_dir' and corresponding test results") 
     if (-d "$current_working_dir/$ldv_manager_work_dir");
@@ -403,7 +380,7 @@ sub prepare_files_and_dirs()
   mkpath("$current_working_dir/$ldv_manager_work_dir")
     or die("Couldn't recursively create directory '$current_working_dir/$ldv_manager_work_dir': $ERRNO");
     
-  print_debug_trace("Obtain the directory where results will be put.");  
+  print_debug_trace("Obtain the directory where results will be put");  
   if ($opt_out)
   {
 	$result_dir = $opt_out;
@@ -412,9 +389,9 @@ sub prepare_files_and_dirs()
   {
 	$result_dir = $current_working_dir;  
   }
-  print_debug_debug("The ldv-manager results will be put to the '$result_dir' directory.");
+  print_debug_debug("The ldv-manager results will be put to the '$result_dir' directory");
   
-  print_debug_trace("Check that there is no results left from the previous launches.");
+  print_debug_trace("Check that there is no results left from the previous launches");
   find(sub 
     { 
       my $file = $_; 
@@ -422,41 +399,6 @@ sub prepare_files_and_dirs()
       die("You want to put results to the directory '$result_dir' that already contains some results")
 	    if ($file =~ /$ldv_manager_result_suffix$/);
 	}, "$result_dir");   
-}
-
-sub print_debug_normal($)
-{
-  my $message = shift;
-  
-  vsay('NORMAL', "$message\n");
-}
-
-sub print_debug_info($)
-{
-  my $message = shift;
-  
-  vsay('INFO', "$message\n");
-}
-
-sub print_debug_debug($)
-{
-  my $message = shift;
-  
-  vsay('DEBUG', "$message\n");
-}
-
-sub print_debug_trace($)
-{
-  my $message = shift;
-  
-  vsay('TRACE', "$message\n");
-}
-
-sub print_debug_all($)
-{
-  my $message = shift;
-  
-  vsay('ALL', "$message\n");
 }
 
 sub verify_tasks()
@@ -486,7 +428,7 @@ sub verify_tasks()
 		      {
 		        copy("$test_set_dir/$driver", "$current_working_dir/$ldv_manager_work_dir/$driver")
                   or die("Can't copy the file '$test_set_dir/$driver' to the file '$current_working_dir/$ldv_manager_work_dir/$driver'");
-		        print_debug_debug("The external driver file '$test_set_dir/$driver' was copied to the '$current_working_dir/$ldv_manager_work_dir/$driver'.");
+		        print_debug_debug("The external driver file '$test_set_dir/$driver' was copied to the '$current_working_dir/$ldv_manager_work_dir/$driver'");
 		      }
   		      else
 		      {
@@ -501,7 +443,7 @@ sub verify_tasks()
   	      {
 			my $kernel_real;
 			
-			print_debug_trace("Try to find the kernel by its short name in the test set directory '$test_set_dir'.");  
+			print_debug_trace("Try to find the kernel by its short name in the test set directory '$test_set_dir'");  
   	        find(sub 
   	          { 
 				my $kernel_full = $_; 
@@ -517,7 +459,7 @@ sub verify_tasks()
   	        {
 		      copy("$test_set_dir/$kernel_real", "$current_working_dir/$ldv_manager_work_dir/$kernel_real")
                 or die("Can't copy the file '$test_set_dir/$kernel_real' to the file '$current_working_dir/$ldv_manager_work_dir/$kernel_real'");
-		      print_debug_debug("The kernel file '$test_set_dir/$kernel_real' was copied to the '$current_working_dir/$ldv_manager_work_dir/$kernel_real'.");
+		      print_debug_debug("The kernel file '$test_set_dir/$kernel_real' was copied to the '$current_working_dir/$ldv_manager_work_dir/$kernel_real'");
 			}
 			else
 			{
@@ -533,6 +475,6 @@ sub verify_tasks()
     }
   }
   
-  print_debug_trace("Fix the tasks for the ldv-manager.");
+  print_debug_trace("Fix the tasks for the ldv-manager");
   %tasks = %tasks_fixed;
 }
