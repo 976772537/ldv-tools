@@ -1,15 +1,17 @@
 #! /usr/bin/perl -w
 
 
+use Cwd qw(cwd);
 use English;
 use Env qw(LDV_DEBUG LDV_REGR_TEST_DEBUG LDVDBHOSTTEST LDVDBTEST LDVUSERTEST LDVDBPASSWDTEST);
+use File::Path qw(mkpath);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../../shared/perl");
+use lib("$FindBin::RealBin/../shared/perl");
 
 # Add some nonstandard local Perl packages.
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
@@ -30,20 +32,43 @@ sub get_opt();
 # retn: nothing.
 sub help();
 
+# Obtain needed files and dirs and check their presence.
+# args: no.
+# retn: nothing.
+sub prepare_files_and_dirs();
+
 
 ################################################################################
 # Global variables.
 ################################################################################
 
+# An absolute path to the current working directory.
+my $current_working_dir;
+
 # Prefix for all debug messages.
 my $debug_name = 'regr-test';
+
+# The working and results directories of the launcher. They are relative to the
+# current working directory.
+my $launcher_results_dir = 'launcher-results-dir';
+my $launcher_working_dir = 'launcher-working-dir';
 
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_help;
 my $opt_test_set;
 
-# A prefix to the regression test task.
+# The prefix to the regression test task.
 my $regr_task_prefix = 'regr-task-';
+
+# Scripts required for regression tests performing. They are in the tool 
+# auxiliary directory.
+my $script_launch = 'launch.pl';
+my $script_upload = 'upload.pl';
+my $script_load = 'load.pl';
+my $script_check = 'check.pl';
+
+# The auxiliary directory where regression tests auxiliary scripts are placed.
+my $tool_aux_dir = "$FindBin::RealBin/../ldv-tests/regr-tests";
 
 
 ################################################################################
@@ -55,6 +80,23 @@ get_debug_level($debug_name, $LDV_DEBUG, $LDV_REGR_TEST_DEBUG);
 
 print_debug_normal("Process the command-line options");
 get_opt();
+
+print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
+prepare_files_and_dirs();
+
+my @args = ("$tool_aux_dir/$script_launch", "--results", "$current_working_dir/$launcher_results_dir");
+push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);		
+print_debug_info("Execute the command '@args'");
+
+print_debug_trace("Go to the launcher working directory '$current_working_dir/$launcher_working_dir' to launch it");
+chdir("$current_working_dir/$launcher_working_dir")
+  or die("Can't change directory to '$current_working_dir/$launcher_working_dir'");
+            		 
+die("The launcher fails") if (system(@args));
+          
+print_debug_trace("Go to the initial working directory '$current_working_dir'");
+chdir($current_working_dir)
+  or die("Can't change directory to '$current_working_dir'");
 
 print_debug_normal("Make all successfully");
 
@@ -111,8 +153,44 @@ ENVIRONMENT VARIABLES
   LDV_REGR_TEST_DEBUG
     Like LDV_DEBUG but it has more priority. It specifies a debug 
     level just for this instrument.
+  
+  LDVDBHOSTTEST, LDVDBTEST, LDVUSERTEST, LDVDBPASSWDTEST  
+    Keeps settings (host, database, user and password) for connection 
+    to some database. Note that these environments variables (except LDVDBPASSWDTEST)
+    must always be presented!
     
 EOM
 
   exit(1);
+}
+
+sub prepare_files_and_dirs()
+{
+  $current_working_dir = Cwd::cwd() 
+    or die("Can't obtain the current working directory");
+  print_debug_debug("The current working directory is '$current_working_dir'");
+  	
+  print_debug_trace("Check that database connection is setup");
+  die("You don't setup connection to your testing database. See --help for details")
+    unless ($LDVDBHOSTTEST and $LDVDBTEST and $LDVUSERTEST);
+
+  print_debug_debug("The database settings are following: '$LDVDBHOSTTEST', '$LDVDBTEST', '$LDVUSERTEST' (host, database and user)");
+
+  print_debug_trace("Check presence of scripts");
+  die ("There is no the launcher script '$tool_aux_dir/$script_launch'")
+    unless (-x "$tool_aux_dir/$script_launch");
+  die ("There is no the uploader script '$tool_aux_dir/$script_upload'")
+    unless (-x "$tool_aux_dir/$script_upload");
+  die ("There is no the loader script '$tool_aux_dir/$script_load'")
+    unless (-x "$tool_aux_dir/$script_load");
+  die ("There is no the checker script '$tool_aux_dir/$script_check'")
+    unless (-x "$tool_aux_dir/$script_check");
+  
+  die("You run regression tests in the already used directory. Please remove directories '$current_working_dir/$launcher_working_dir' and '$current_working_dir/$launcher_results_dir'") 
+    if (-d "$current_working_dir/$launcher_working_dir" or -d "$current_working_dir/$launcher_results_dir");  
+  print_debug_trace("Create auxiliary directories for the launcher");
+  mkpath("$current_working_dir/$launcher_working_dir")
+    or die("Couldn't recursively create directory '$current_working_dir/$launcher_working_dir': $ERRNO");          
+  mkpath("$current_working_dir/$launcher_results_dir")
+    or die("Couldn't recursively create directory '$current_working_dir/$launcher_results_dir': $ERRNO");   
 }

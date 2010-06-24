@@ -7,10 +7,10 @@ use Env qw(LDV_DEBUG LDV_REGR_TEST_LAUNCHER_DEBUG);
 use File::Basename qw(fileparse);
 use File::Copy qw(copy);
 use File::Find qw(find);
+use File::Path qw(mkpath);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
-use File::Path qw(mkpath);
 use strict;
 
 # Add some local Perl packages.
@@ -73,12 +73,12 @@ my $debug_name = 'regr-test-launcher';
 
 # Path to the binary of the ldv-manager.
 my $ldv_manager_bin = "$FindBin::RealBin/../../bin/ldv-manager";
-# A directory where the ldd-manager puts its results. It's relative to the
+# The directory where the ldd-manager puts its results. It's relative to the
 # ldv-manager working directory.
 my $ldv_manager_result_dir = 'finished';
 # The ldv-manager results are identified by their suffix.
 my $ldv_manager_result_suffix = '.pax';
-# A directory from where the ldv-manager will be launched. It's relative to the 
+# The directory from where the ldv-manager will be launched. It's relative to the 
 # current working directory.
 my $ldv_manager_work_dir = 'ldv-manager-work-dir';
 
@@ -96,10 +96,10 @@ my %predefined_test_sets = ('small' => 1, 'medium' => 1, 'big' => 1);
 # An absolute path to the directory containing predefined test sets.
 my $predefined_test_sets_dir = "$FindBin::RealBin/../../ldv-tests/regr-tests/test-sets";
 
-# A prefix to the regression test task.
+# The prefix to the regression test task.
 my $regr_task_prefix = 'regr-task-';
 
-# A directory where results (ldv-manager archives) will be putted.
+# The directory where results (ldv-manager archives) will be putted.
 my $result_dir;
 
 # This hash contains unique tasks to be executed. Task is '(driver, kernel, 
