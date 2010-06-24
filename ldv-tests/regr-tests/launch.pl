@@ -24,6 +24,11 @@ use LDV::Utils;
 # Subroutine prototypes.
 ################################################################################
 
+# Collect the ldv-manager results.
+# args: no.
+# retn: nothing.
+sub collect_results();
+
 # Determine the debug level in depend on the environment variable value.
 # args: no.
 # retn: nothing.
@@ -80,11 +85,14 @@ my $current_working_dir;
 # Prefix for all debug messages.
 my $debug_name = 'regr-test-launcher';
 
-# Path to the binary of ldv-manager.
+# Path to the binary of the ldv-manager.
 my $ldv_manager_bin = "$FindBin::RealBin/../../bin/ldv-manager";
-# A directory from where ldv-manager will be launched. It's relative to the 
+# A directory where the ldd-manager puts its results. It's relative to the
+# ldv-manager working directory.
+my $ldv_manager_result_dir = 'finished';
+# A directory from where the ldv-manager will be launched. It's relative to the 
 # current working directory.
-my $ldv_manager_work_dir = "ldv-manager-work-dir";
+my $ldv_manager_work_dir = 'ldv-manager-work-dir';
 
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_help;
@@ -102,6 +110,9 @@ my $predefined_test_sets_dir = "$FindBin::RealBin/../../ldv-tests/regr-tests/tes
 
 # A prefix to the regression test task.
 my $regr_task_prefix = 'regr-task-';
+
+# A directory where results (ldv-manager archives) will be putted.
+my $result_dir;
 
 # This hash contains unique tasks to be executed. Task is '(driver, kernel, 
 # model)'.
@@ -135,10 +146,8 @@ verify_tasks();
 print_debug_normal("Launch the necessary tasks by means of ldv-manager.");
 launch_tasks();
 
-
-#print_debug_normal("Obtain tasks for the ldv-manager.");
-#collect_results();
-
+print_debug_normal("Copy results obtained from for the ldv-manager to the specified directory.");
+collect_results();
 
 print_debug_normal("Make all successfully.");
 
@@ -146,6 +155,24 @@ print_debug_normal("Make all successfully.");
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub collect_results()
+{
+  if (-d "$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir")
+  {	
+    find(sub 
+      { 
+        my $result = $_;
+         
+        copy("$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result", "$result_dir/$result")
+          or die("Can't copy the file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' to the file '$result_dir/$result'");
+        
+        print_debug_debug("The external driver file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' was copied to the '$result_dir/$result'.");
+      }, "$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir");
+  }
+  
+  print_debug_normal("The ldv-manager results are in the '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir' directory now");	          
+}
 
 sub get_debug_level()
 {
@@ -305,7 +332,18 @@ sub launch_tasks()
 		foreach my $model (keys(%{$tasks{$driver}{$origin}{$kernel}}))
 	    {  
 		  my @args = ($ldv_manager_bin, 'tag=current', "envs=$kernel", "drivers=$driver", "rule_models=$model");		
-		  print_debug_info("Execute the command '@args'.");	
+		  print_debug_info("Execute the command '@args'.");
+
+          print_debug_trace("Go to the ldv-manager working directory '$current_working_dir/$ldv_manager_work_dir' to launch it.");
+          chdir("$current_working_dir/$ldv_manager_work_dir")
+            or die("Can't change directory to '$current_working_dir/$ldv_manager_work_dir'");
+            		  
+		  my $status = system(@args);
+          print_debug_debug("The ldv-manager returns '$status'.");
+          
+          print_debug_trace("Go to the initial working directory '$current_working_dir'.");
+          chdir($current_working_dir)
+            or die("Can't change directory to '$current_working_dir'");
 	    }
 	  }
     }
@@ -358,6 +396,17 @@ sub prepare_files_and_dirs()
   
   mkpath("$current_working_dir/$ldv_manager_work_dir")
     or die("Couldn't recursively create directory '$current_working_dir/$ldv_manager_work_dir': $ERRNO");
+    
+  print_debug_trace("Obtain the directory where results will be put");  
+  if ($opt_out)
+  {
+	$result_dir = $opt_out;
+  }
+  else
+  {
+	$result_dir = $current_working_dir;  
+  }
+  print_debug_debug("The ldv-manager results will be put to the '$result_dir' directory");  
 }
 
 sub print_debug_normal($)
@@ -438,7 +487,7 @@ sub verify_tasks()
 			my $kernel_real;
 			
 			print_debug_trace("Try to find the kernel by its short name in the test set directory '$test_set_dir'");  
-  	        find(sub { my $kernel_full = $_; if ($kernel_full =~ /^$kernel/) { die("The matched kernels full names are ambiguous.") if ($kernel_real); $kernel_real = $kernel_full;}}, $test_set_dir);
+  	        find(sub { my $kernel_full = $_; if ($kernel_full =~ /^$kernel/) { die("The matched kernels full names are ambiguous.") if ($kernel_real); $kernel_real = $kernel_full;} }, $test_set_dir);
   	        
   	        if ($kernel_real and -f "$test_set_dir/$kernel_real")
   	        {
