@@ -90,6 +90,8 @@ my $ldv_manager_bin = "$FindBin::RealBin/../../bin/ldv-manager";
 # A directory where the ldd-manager puts its results. It's relative to the
 # ldv-manager working directory.
 my $ldv_manager_result_dir = 'finished';
+# The ldv-manager results are identified by their suffix.
+my $ldv_manager_result_suffix = '.pax';
 # A directory from where the ldv-manager will be launched. It's relative to the 
 # current working directory.
 my $ldv_manager_work_dir = 'ldv-manager-work-dir';
@@ -163,15 +165,18 @@ sub collect_results()
     find(sub 
       { 
         my $result = $_;
-         
-        copy("$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result", "$result_dir/$result")
-          or die("Can't copy the file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' to the file '$result_dir/$result'");
         
-        print_debug_debug("The external driver file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' was copied to the '$result_dir/$result'.");
-      }, "$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir");
+        if (-f $result)
+        { 
+          copy("$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result", "$result_dir/$result")
+            or die("Can't copy the file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' to the file '$result_dir/$result'");
+        
+          print_debug_debug("The external driver file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' was copied to the '$result_dir/$result'.");
+        }
+      }, "$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir");   
   }
   
-  print_debug_normal("The ldv-manager results are in the '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir' directory now");	          
+  print_debug_normal("The ldv-manager results are in the '$result_dir' directory now.");	          
 }
 
 sub get_debug_level()
@@ -247,7 +252,7 @@ sub get_tasks()
   {
 	chomp($launch);
 	next if ($launch =~ /^\s*$/);
-	print_debug_trace("Parse the launch information '$launch'");  
+	print_debug_trace("Parse the launch information '$launch'.");  
 	my @launch_info = split(/;/, $launch);
 	
 	# Launch information contains the following infomation:
@@ -398,7 +403,7 @@ sub prepare_files_and_dirs()
   mkpath("$current_working_dir/$ldv_manager_work_dir")
     or die("Couldn't recursively create directory '$current_working_dir/$ldv_manager_work_dir': $ERRNO");
     
-  print_debug_trace("Obtain the directory where results will be put");  
+  print_debug_trace("Obtain the directory where results will be put.");  
   if ($opt_out)
   {
 	$result_dir = $opt_out;
@@ -407,7 +412,16 @@ sub prepare_files_and_dirs()
   {
 	$result_dir = $current_working_dir;  
   }
-  print_debug_debug("The ldv-manager results will be put to the '$result_dir' directory");  
+  print_debug_debug("The ldv-manager results will be put to the '$result_dir' directory.");
+  
+  print_debug_trace("Check that there is no results left from the previous launches.");
+  find(sub 
+    { 
+      my $file = $_; 
+      
+      die("You want to put results to the directory '$result_dir' that already contains some results")
+	    if ($file =~ /$ldv_manager_result_suffix$/);
+	}, "$result_dir");   
 }
 
 sub print_debug_normal($)
@@ -487,9 +501,18 @@ sub verify_tasks()
   	      {
 			my $kernel_real;
 			
-			print_debug_trace("Try to find the kernel by its short name in the test set directory '$test_set_dir'");  
-  	        find(sub { my $kernel_full = $_; if ($kernel_full =~ /^$kernel/) { die("The matched kernels full names are ambiguous.") if ($kernel_real); $kernel_real = $kernel_full;} }, $test_set_dir);
-  	        
+			print_debug_trace("Try to find the kernel by its short name in the test set directory '$test_set_dir'.");  
+  	        find(sub 
+  	          { 
+				my $kernel_full = $_; 
+				
+				if ($kernel_full =~ /^$kernel/) 
+				{ 
+				  die("The matched kernels full names are ambiguous.") if ($kernel_real); 
+				  $kernel_real = $kernel_full;
+				} 
+		      }, $test_set_dir);   
+  	          
   	        if ($kernel_real and -f "$test_set_dir/$kernel_real")
   	        {
 		      copy("$test_set_dir/$kernel_real", "$current_working_dir/$ldv_manager_work_dir/$kernel_real")
@@ -510,6 +533,6 @@ sub verify_tasks()
     }
   }
   
-  print_debug_trace("Fix the tasks for the ldv-manager");
+  print_debug_trace("Fix the tasks for the ldv-manager.");
   %tasks = %tasks_fixed;
 }
