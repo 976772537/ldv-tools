@@ -55,6 +55,14 @@ my $current_working_dir;
 # Prefix for all debug messages.
 my $debug_name = 'regr-test';
 
+# The default placement of difference. It's relative to the current working 
+# directory.
+my $diff_file = 'regr-test.diff';
+# The diff/merge tool to be used.
+my $diff_merge_tool;
+# The standard diff tool.
+my $diff_tool = 'diff -u';
+
 # The working and results directories of the launcher. They are relative to the
 # current working directory.
 my $launcher_results_dir = 'launcher-results-dir';
@@ -64,6 +72,8 @@ my $launcher_working_dir = 'launcher-working-dir';
 my $ldv_loader_bin = "ldv-load.pl";
 
 # Command-line options. Use --help option to see detailed description of them.
+my $opt_diff_file;
+my $opt_diff_merge_tool;
 my $opt_help;
 my $opt_test_set;
 
@@ -110,6 +120,8 @@ print_debug_normal("Make all successfully");
 sub get_opt()
 {
   unless (GetOptions(
+    'diff-file|o=s' => \$opt_diff_file,
+    'diff-tool|t=s' => \$opt_diff_merge_tool,
     'help|h' => \$opt_help,
     'test-set=s' => \$opt_test_set))
   {
@@ -133,10 +145,20 @@ SYNOPSIS
   $PROGRAM_NAME [option...]
 
 OPTIONS
+    
+  -t, --diff-tool, --merge-tool <tool>
+    <tool> is a some diff/merge tool (e.g. 'diff', 'meld' and so on) with
+    some options (e.g. 'diff -u'). It's optional. The standard diff tool 'diff -u' is
+    used when it isn't specified.
 
   -h, --help
     Print this help and exit with a error.
-
+    
+  -o, diff-file <file>
+    <file> is a file where the compare results will be put. It's optional.
+    For some diff/merge tool (e.g. 'meld') it useless. If it isn't specified 
+    then the output is placed to the file '$diff_file' in the current directory.  
+    
   --test-set <name>
     <name> may be one of the predefined test set names or may be absolute
     path to the regression test task file. It's optional. If this option isn't 
@@ -191,10 +213,19 @@ sub perform_regr_test()
   die("The uploader fails") if (check_system_call());
 
   print_debug_normal("Load results to the new task file");
-  @args = ($ldv_loader_bin, "-o", "$current_working_dir/$task_file");
+  @args = ($ldv_loader_bin, "--task", "$current_working_dir/$task_file");
   print_debug_info("Execute the command '@args'");
   system(@args);
   die("The loader fails") if (check_system_call());
+
+  print_debug_normal("Compare the old and the new results");
+  @args = ("$tool_aux_dir/$script_check", "--task", "$current_working_dir/$task_file", "--diff-file", "$diff_file", "--t", "$diff_merge_tool");
+  push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);	
+  print_debug_info("Execute the command '@args'");
+  system(@args);
+  die("The checker fails") if (check_system_call());
+  
+  print_debug_normal("The result of the regression test is placed to the file '$diff_file'");
 }
 
 sub prepare_files_and_dirs()
@@ -226,5 +257,22 @@ sub prepare_files_and_dirs()
   mkpath("$current_working_dir/$launcher_working_dir")
     or die("Couldn't recursively create directory '$current_working_dir/$launcher_working_dir': $ERRNO");          
   mkpath("$current_working_dir/$launcher_results_dir")
-    or die("Couldn't recursively create directory '$current_working_dir/$launcher_results_dir': $ERRNO");   
+    or die("Couldn't recursively create directory '$current_working_dir/$launcher_results_dir': $ERRNO");
+    
+  print_debug_trace("Obtain the diff/merge tool");  
+  if ($opt_diff_merge_tool)
+  {
+	$diff_merge_tool = $opt_diff_merge_tool;  
+  }
+  else
+  {
+	$diff_merge_tool = $diff_tool;  
+  }  
+  print_debug_debug("The diff/merge tool is '$diff_merge_tool'");  
+
+  print_debug_trace("Try to obtain the diff file");
+  $diff_file = $opt_diff_file if ($opt_diff_file);
+  die("You run checker in the already used directory. Please remove task file '$diff_file'")
+    if (-f $diff_file);
+  print_debug_debug("The diff file is '$diff_file'");     
 }

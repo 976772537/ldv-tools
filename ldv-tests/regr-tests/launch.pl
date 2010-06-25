@@ -186,7 +186,8 @@ sub get_opt()
       unless (-d $opt_out);
     print_debug_debug("The results will be put to the '$opt_out' directory");
   }
-
+  
+  # TODO make a module!!!
   if ($opt_test_set)
   {
 	# I.e. the absolute path to the regression test task.
@@ -219,6 +220,7 @@ sub get_opt()
 
 sub get_tasks()
 {
+  # TODO separate task and results.	
   open(my $file_test_set, '<', "$test_set")
     or die("Can't open the file '$test_set' for read: $ERRNO");	
   
@@ -339,6 +341,7 @@ sub launch_tasks()
 
 sub prepare_files_and_dirs()
 {
+  # TODO make it as a module.	
   # Try to obtain regression test task in case when it isn't specified through
   # the absolute path.
   if ($opt_test_set)

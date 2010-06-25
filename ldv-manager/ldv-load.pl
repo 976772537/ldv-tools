@@ -57,7 +57,7 @@ my $db_host = 'localhost';
 my $db_password = '';
 
 # Prefix for all debug messages.
-my $debug_name = '';
+my $debug_name = 'ldv-loader';
 
 # File handlers.
 my $file_task_new;
@@ -133,7 +133,7 @@ OPTIONS
   -o, --task <file>
     <file> is a path to a file where all launches results from the database 
     will be placed. It's optional. If it isn't specified then results are 
-    placed to the file '' in the current directory.
+    placed to the file '$task_file' in the current directory.
 
 ENVIRONMENT VARIABLES
 
