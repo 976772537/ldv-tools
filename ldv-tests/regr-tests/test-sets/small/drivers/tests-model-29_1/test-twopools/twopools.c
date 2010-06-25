@@ -25,9 +25,9 @@ static const struct file_operations misc_fops = {
 static int misc_open(struct inode * inode, struct file * file)
 {
 	int err;
-	struct dma_pool *pool, pool2;
+	struct dma_pool *pool, *pool2;
 	dma_addr_t dma_handle;
-	struct my_desc *item, item2;
+	struct my_desc *item, *item2;
 
         /* create a pool of consistent memory blocks */
         pool = dma_pool_create("my_desc_pool",

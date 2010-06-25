@@ -22,7 +22,7 @@ static int misc_open(struct inode * inode, struct file * file)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&my_lock, flags);
-	alock();
+	alock(&mylock);
 	spin_unlock_irqrestore(&my_lock, flags);
 	return 0;
 }

@@ -23,6 +23,7 @@ static int misc_open(struct inode * inode, struct file * file)
 
 static int __init my_init(void)
 {
+	unsigned long flags;
 	spin_lock(&my_lock);
 	spin_lock_irqsave(&my_lock, flags);
 	return 0;
