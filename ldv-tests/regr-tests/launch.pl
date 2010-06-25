@@ -70,8 +70,8 @@ my $current_working_dir;
 # Prefix for all debug messages.
 my $debug_name = 'regr-test-launcher';
 
-# Path to the binary of the ldv-manager.
-my $ldv_manager_bin = "$FindBin::RealBin/../../bin/ldv-manager";
+# Path to the binary of the ldv-manager. It will be found in the PATH.
+my $ldv_manager_bin = "ldv-manager";
 # The directory where the ldd-manager puts its results. It's relative to the
 # ldv-manager working directory.
 my $ldv_manager_result_dir = 'finished';
@@ -396,7 +396,11 @@ sub prepare_files_and_dirs()
   {
     die("You want to put results to the directory '$result_dir' that already contains some results (e.g. '$file')")
 	  if (-f $file and $file =~ /$ldv_manager_result_suffix$/);	  
-  } 
+  }
+  
+  print_debug_trace("Check presence of scripts");
+  die ("There is no the ldv-manager executable '$ldv_manager_bin' in your PATH")
+    unless (-x "$ldv_manager_bin"); 
 }
 
 sub verify_tasks()
