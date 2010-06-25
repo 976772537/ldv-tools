@@ -4,7 +4,7 @@ package LDV::Utils;
 
 use strict;
 use vars qw(@ISA @EXPORT_OK @EXPORT);
-@EXPORT=qw(&vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
+@EXPORT=qw(&vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level check_system_call);
 #@EXPORT_OK=qw(set_verbosity);
 use base qw(Exporter);
 
@@ -131,6 +131,29 @@ sub get_debug_level
     set_verbosity($ldv_debug);
     print_debug_debug("The debug level is set correspondingly to the general LDV_DEBUG environment variable value '$ldv_debug'.");
   }
+}
+
+sub check_system_call
+{
+  # This is got almost directly from the Perl manual: 
+  # http://perldoc.perl.org/functions/system.html
+  if ($? == -1) 
+  {
+    print("Failed to execute: $!\n");
+    return -1;
+  }
+  elsif ($? & 127) 
+  {
+    printf("Child died with signal %d, %s coredump\n", ($? & 127), ($? & 128) ? 'with' : 'without');
+    return ($? & 127);
+  }
+  elsif ($? >> 8)
+  {
+    printf("Child exited with value %d\n", ($? >> 8));
+    return ($? >> 8);
+  }
+  
+  return 0;
 }
 
 1;
