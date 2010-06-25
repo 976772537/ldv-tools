@@ -14,6 +14,11 @@ public class FSOperationBase {
 	}
 
 	public static List<String> getDirContentRecursivePrepare(String dirname, final String filter) {
+		File dir = new File(dirname);
+		if(!dir.exists()) {
+			Logger.err("Directory \""+dirname+"\" does not exists.");
+			return null;
+		}
 		return getDirContentRecursive(dirname+"/", filter);		
 	}
 	
