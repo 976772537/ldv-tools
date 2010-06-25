@@ -331,13 +331,19 @@ end
 
 	unless masters.lookup(kernel_name,local_driver_name,rule_model_name)
 		# Save launch to DB with just a few details
-		launch = Launch.find_by_driver_id_and_environment_id_and_rule_model_id_and_scenario_id(driver.id,kernel.id,rule_model.id,nil)
+		if rule_model.nil?
+			launches = [Launch.find_by_driver_id_and_environment_id_and_rule_model_id_and_scenario_id(driver.id,kernel.id,rule_model.id,nil)]
+		else
+			# If rule_model is unspecified, we should update all relevant records
+			launches = Launch.find_all_by_driver_id_and_environment_id_and_scenario_id(driver.id,kernel.id,nil)
+		end
 
-		if launch
-			launch.status = 'finished'
-
-			# Because of :autosave property, recursively saves all records
-			launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+		launches.each do |launch|
+			if launch
+				launch.status = 'finished'
+				# Because of :autosave property, recursively saves all records
+				launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+			end
 		end
 		masters.fix(kernel_name,local_driver_name,rule_model_name)
 	end
