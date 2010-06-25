@@ -89,7 +89,7 @@ function action_upload_driver() {
                 view_upload_driver_form();
                 return;
         }
-        $file = $_FILES['file']['name'];
+        $file = $_FILES['file']['name']; // or tmp_name?
         if(!$file) {
                 print '<b><font color="red">Empty filename field.</font></b><br>';
                 view_upload_driver_form();
@@ -104,6 +104,7 @@ function action_upload_driver() {
 
 	$task['user'] = "mong";
 	$task['driverpath'] = $_FILES['file']['tmp_name'];
+	$task['drivername'] = $_FILES['file']['name'];
 	$task['envs'] = WSGetSupportedEnvList();
 	$task['id'] = WSPutTask($task);
 	if($task['id']) {

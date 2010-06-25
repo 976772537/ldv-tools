@@ -27,12 +27,10 @@ define("WS_LDVS_SERVER_NAME","localhost");
 # get kernel list strucure
 #
 function WSGetSupportedEnvList() {
-//	$rules1 = array("77_1","43_1");
-	$rules1 = array("32_1","32_1");
-//	$rules2 = array("77_1","32_1");
-	$rules2 = array("32_1","32_1");
+	$rules1 = array("32_1","77_1");
+	$rules2 = array("32_1","77_1");
 	
-	$env1 = array('name' => "linux-2.6.33.3", 'rules' => $rules1);
+	$env1 = array('name' => "linux-2.6.32.12", 'rules' => $rules1);
 	$env2 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules2);
 
 	$envs = array($env1, $env2);
@@ -125,6 +123,9 @@ function WSM_DEBUG_XML_WSTOLDVS_TASK_PUT_REQUEST($task) {
 		} else if(empty($task['driverpath'])) {
 			WSPrintE('Field "driverpath" - not found.');
 			return false;
+		} else if(empty($task['drivername'])) {			
+			WSPrintE('Field "drivername" - not found.');
+			return false;
 		} else if(!file_exists($task['driverpath'])) {
 			WSPrintE('File '.$task['driverpath'].'" - not exists.');
 			return false;
@@ -148,7 +149,7 @@ function WSM_XML_WSTOLDVS_TASK_PUT_REQUEST($task) {
 	$WSMsg='<type>'.WSM_WSTOLDVS_TASK_PUT_REQUEST.'</type>';
 	$WSMsg.='<user>'.$task['user'].'</user>';
 	$WSMsg.='<sourcelen>'.filesize($task['driverpath']).'</sourcelen>';
-	$WSMsg.='<driver>'.$task['driverpath'].'</driver>';
+	$WSMsg.='<driver>'.$task['drivername'].'</driver>';
 	foreach($task['envs'] as $env_key => $env) {
 		$WSMsg.='<env name="'.$env['name'].'">';
 			foreach($env['rules'] as $rule_key => $rule) {

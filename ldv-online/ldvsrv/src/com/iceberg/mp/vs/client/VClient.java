@@ -61,20 +61,20 @@ public class VClient {
 		tworkdir.mkdirs();
 		FileOutputStream fis = null;
 		try {
-			fis = new FileOutputStream(config.getWorkDir()+"/driver");
+			fis = new FileOutputStream(config.getWorkDir()+"/run/"+task.getDriver());
 			fis.write(task.getData());
 			fis.flush();
 			fis.close();
 
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
-			config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getId()+
+			config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getParentId()+
 			" LDV_GIT_REPO=git://itgdev.igroup.ispras.ru/ldv-tools.git ldv_statuses=1 ldv-manager tag=current \"envs=../"+
-			task.getEnv()+".tar.bz2\" \"drivers="+config.getWorkDir()+"/driver\" \"rule_models="+
+			task.getEnv()+".tar.bz2\" \"drivers="+task.getDriver()+"\" \"rule_models="+
 			task.getRule()+"\" 2>&1";
 			runCommand(config.getWorkDir() +"/start", startString);	
 			
 			
-			File driverFile = new File(config.getWorkDir()+"/driver");
+			File driverFile = new File(config.getWorkDir()+"/run/"+task.getDriver());
 			driverFile.delete();
 			//  and now upload all paxes
 			// 1. Search paxes:
@@ -90,7 +90,7 @@ public class VClient {
 				// upload pax file
 				Logger.debug("Start upload pax file: "+paxFileString);				
 				startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
-				config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getId()+
+				config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getParentId()+
 				" LDVDB="+config.getStatsDBName()+" LDVUSER="+config.getStatsDBUser()+
 				" LDVDBPASSWD="+config.getStatsDBPass()+" LDVDBHOST="+config.getStatsDBHost()+
 				" ldv_statuses=1 ldv-upload "+paxFileString+" 2>&1";

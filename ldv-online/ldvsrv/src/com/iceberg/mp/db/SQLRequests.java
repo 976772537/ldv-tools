@@ -205,110 +205,127 @@ public class SQLRequests {
 		return result;		
 	}
 	
+	/**
+	 * не делает false на autoCommit
+	 * @param conn
+	 * @param bs
+	 * @param modify
+	 * @return
+	 * @throws SQLException 
+	 * @throws SQLException 
+	 */
+	public static int getLastKeyFromStatement(Statement st) throws SQLException {
+		ResultSet rs = st.getGeneratedKeys();
+		int lastKey = -1;
+		if (rs.next()) lastKey = rs.getInt(1);
+		rs.close();
+		return lastKey;
+	}
+	
+	public static int modifyAndGetIdPrep(Connection conn, InputStream bs, int length, String modify) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement(modify,Statement.RETURN_GENERATED_KEYS);
+		stmt.setBinaryStream (1, bs, length);
+		stmt.executeUpdate();
+		int lastKey = getLastKeyFromStatement(stmt);
+		stmt.close();
+		return lastKey;
+	}
+	
+	public static int modifyAndGetId(Statement st, String modify) throws SQLException {
+		st.executeUpdate(modify, Statement.RETURN_GENERATED_KEYS);
+		return getLastKeyFromStatement(st);
+	}
+	
+	public static int modifyAndGetIdUnsafe(Statement st, String insertString, String selectString) throws SQLException {
+		st.executeUpdate(insertString);
+		ResultSet srs = st.executeQuery(selectString);
+		srs.next();
+		int id = srs.getInt(1); 
+		srs.close();		
+		return id;
+	}
+	
+	public static int modifyAndGetIdUnsafe2(Statement st, String insertString, String selectString) throws SQLException {
+		ResultSet rs = st.executeQuery(selectString);
+		if(rs.getRow()==0 && !rs.next()) {
+			rs.close();
+			st.executeUpdate(insertString);
+			rs = st.executeQuery(selectString);				
+			rs.next();
+		}
+		int id = rs.getInt("id");
+		rs.close();
+		return id;
+	}
+	
 	public static int registerTask(Connection conn, Connection sconn, InputStream data, WSMWsmtoldvsTaskPutRequest msg) {
 		int id=-1;
 		PreparedStatement stmt = null;
+		Statement ste = null;
 		Statement st = null;
 		try {
 			conn.setAutoCommit(false);
+			id =modifyAndGetIdPrep(conn, data, msg.getSourceLen(), "INSERT INTO TASKS(status,size,data) VALUES('"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',"+msg.getSourceLen()+",?)");	
 			st = conn.createStatement();
-			
-			ResultSet result = st.executeQuery("SELECT MAX(id) FROM TASKS");
-			id = result.getRow()==0 && !result.next() ? 1 : result.getInt(1)+1;
-			result.close();
-			
-			stmt = conn.prepareStatement("INSERT INTO TASKS(id,status,size,data) " +
-					"VALUES("+id+",'"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',"+msg.getSourceLen()+",?)");
-			stmt.setBinaryStream (1, data, msg.getSourceLen());
-			stmt.executeUpdate();
-			stmt.close();
-
-			result = st.executeQuery("SELECT MAX(id) FROM SPLITTED_TASKS");
-			int id_splitted_task_starts = result.getRow()==0 && !result.next() ? 1 : result.getInt(1)+1;
-			result.close();
-			int id_splitted_task = id_splitted_task_starts; 
-			List<Env> envs = msg.getEnvs();
-			for(Env env : envs) {
-				List<String> rules = env.getRules();
-				for(String rule : rules) {
-					st.execute("INSERT INTO SPLITTED_TASKS(id,parent_id, env, rule, status, client_id) " +
-							"VALUES("+ id_splitted_task++ +","+id+", '"+env.getName()+"','"+rule+"','"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',0)");
-				}
-			}
-			
-			st.close();
-			try {
-				conn.commit();
-			} catch(SQLException e) {
-				e.printStackTrace();
-				conn.rollback();
-				return -1;
-			}
-			sconn.setAutoCommit(false);
 			// STATS DB LOGIC
+			sconn.setAutoCommit(false);
 			// and now register task in stats db
-			st = sconn.createStatement();
-			// заливаем в tasks     // TODO: Транзакция?
-			st.executeUpdate("INSERT INTO tasks(id,username) VALUES("+id+",'"+msg.getUser()+"');");
+			ste = sconn.createStatement();
+			// заливаем в tasks  без транзакций - задачу заливает только один поток - планировщик(
+			// сторона веб-морды)
+			ste.executeUpdate("INSERT INTO tasks(id,username) VALUES("+id+",'"+msg.getUser()+"');");
 			// заливаем в drivers
-			ResultSet srs = st.executeQuery("SELECT MAX(id) FROM drivers;");
-			int driver_id = srs.getRow()==0 && !srs.next() ? 1 : srs.getInt(1)+1; 
-			srs.close();
-			st.executeUpdate("INSERT INTO drivers(id, name, origin) VALUES("+driver_id+",'"+msg.getDriver()+"','external')");
-			// заливаем launches    // TODO: Транзакция?
-			//srs = st.executeQuery("SELECT MAX(id) FROM launches;");
-			//int id_launch = srs.getRow()==0 && !srs.next() ? 1 : srs.getInt(1)+1; 
-			//srs.close();
-			// заливаем тулсет, если его нет
-			srs = st.executeQuery("SELECT id FROM toolsets WHERE version='current' AND verifier='blast';");	
-			if(srs.getRow()==0 && !srs.next()) {
-				srs.close();
-				st.executeUpdate("INSERT INTO toolsets(version,verifier) VALUES('current','blast')");
-				srs = st.executeQuery("SELECT id FROM toolsets WHERE version='current' AND verifier='blast';");
-				srs.next();
-			}
-			int toolset_id = srs.getInt("id");
-			srs.close();		
+
+			//int driver_id = modifyAndGetIdUnsafe(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+"' AND origin ='external';");
+			int driver_id = modifyAndGetIdUnsafe2(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+"' AND origin ='external';");
 			
-			envs = msg.getEnvs();
 			
-			id_splitted_task = id_splitted_task_starts;
+			int toolset_id = modifyAndGetIdUnsafe(ste, "INSERT IGNORE INTO toolsets(version) VALUES('current')","SELECT id FROM toolsets WHERE version='current' AND verifier='model-specific';");
+			ResultSet srs = null;
+			List<Env> envs = msg.getEnvs();			
 			for(Env env : envs) {
-				// заливаем енвайронмент если его нет 
-				srs = st.executeQuery("SELECT id FROM environments WHERE version='"+env.getName()+"' AND kind='vanilla';");	
-				if(srs.getRow()==0 && !srs.next()) {
-					srs.close();
-					st.executeUpdate("INSERT INTO environments(version,kind) VALUES('"+env.getName()+"','vanilla')");
-					srs = st.executeQuery("SELECT id FROM environments WHERE version='"+env.getName()+"' AND kind='vanilla';");
-					srs.next();
-				}
-				int env_id = srs.getInt("id");
-				srs.close();		
-				
+
+				int env_id = modifyAndGetIdUnsafe2(ste,"INSERT INTO environments(version,kind) VALUES('"+env.getName()+"','vanilla')" , "SELECT id FROM environments WHERE version='"+env.getName()+"' AND kind='vanilla';");	
+
 				List<String> rules = env.getRules();
 				for(String rule : rules) {
-					// заливаем модель если ее нет 
-					srs = st.executeQuery("SELECT id FROM rule_models WHERE name='"+rule+"';");	
-					if(srs.getRow()==0 && !srs.next()) {
-						srs.close();
-						st.executeUpdate("INSERT INTO rule_models(name) VALUES('"+rule+"')");
-						srs = st.executeQuery("SELECT id FROM rule_models WHERE name='"+rule+"';");
-						srs.next();
-					}
-					int rule_id = srs.getInt("id");
-					srs.close();		
-					// заливаем launces					
-					Logger.trace("INSERT INTO launches(id,driver_id, toolset_id, environment_id, rule_model_id, task_id, status, trace_id, scenario_id) "+
-							"VALUES("+ id_splitted_task +","+driver_id+","+toolset_id+","+env_id+","+rule_id+","+id+",'queued',null,null)");
-					st.executeUpdate("INSERT INTO launches(id,driver_id, toolset_id, environment_id, rule_model_id, task_id, status, trace_id, scenario_id) "+
-							"VALUES("+ id_splitted_task++ +","+driver_id+","+toolset_id+","+env_id+","+rule_id+","+id+",'queued',null,null)");
+					// заливаем модель если ее нет
+					int rule_id = modifyAndGetIdUnsafe2(ste, "INSERT INTO rule_models(name) VALUES('"+rule+"')", "SELECT id FROM rule_models WHERE name='"+rule+"';");
+					// заливаем launches					
+					Logger.trace("INSERT INTO launches(driver_id, toolset_id, environment_id, rule_model_id, task_id, status, trace_id, scenario_id) "+
+							"VALUES("+driver_id+","+toolset_id+","+env_id+","+rule_id+","+id+",'queued',null,null)");
+					ste.executeUpdate("INSERT INTO launches(driver_id, toolset_id, environment_id, rule_model_id, task_id, status, trace_id, scenario_id) "+
+							"VALUES("+driver_id+","+toolset_id+","+env_id+","+rule_id+","+id+",'queued',null,null)");					
+					//sconn.commit();
+					// заливаем splitted_tasks
+					// чтобы синхронизировать номера мы выбираем номер из таблицы launches, так как 
+					// только из нее можно взять уникальный id задачи по другим уникальным в сумме полям
+					// далее под этим номером заливаем задачу во внутреннюю БД
+					Logger.trace("SELECT id FROM launches WHERE driver_id="+driver_id+" AND toolset_id="+toolset_id+
+							" AND environment_id="+env_id+" AND rule_model_id="+rule_id+" AND task_id="+id+" AND status='queued' " +
+							" AND trace_id<=>null AND scenario_id<=>null;");
+					
+					srs = ste.executeQuery("SELECT id FROM launches WHERE driver_id="+driver_id+" AND toolset_id="+toolset_id+
+							" AND environment_id="+env_id+" AND rule_model_id="+rule_id+" AND task_id="+id+" AND status='queued' " +
+							" AND trace_id<=>null AND scenario_id<=>null;");
+					srs.next();
+					int launch_id = srs.getInt("id"); 
+					srs.close();
+					
+					Logger.trace("INSERT INTO SPLITTED_TASKS(id,parent_id, env, rule, status, client_id) " +
+							"VALUES("+ launch_id +","+id+", '"+env.getName()+"','"+rule+"','"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',0)");					
+					st.execute("INSERT INTO SPLITTED_TASKS(id,parent_id, env, rule, status, client_id) " +
+									"VALUES("+ launch_id +","+id+", '"+env.getName()+"','"+rule+"','"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',0)");					
+					
 				}
 			}
 			try {
 				sconn.commit();
+				conn.commit();
 			} catch(SQLException e) {
 				e.printStackTrace();
 				sconn.rollback();
+				conn.rollback();
 				return -1;
 			}
 			return id; 
@@ -317,25 +334,13 @@ public class SQLRequests {
 		} catch (Throwable e) {
 			e.printStackTrace();
 		} finally {
-				/*try {
-					if(conn!=null)
-						conn.close();					
-				} catch (SQLException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
-				try {
-					if(sconn!=null)
-						sconn.close();					
-				} catch (SQLException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}*/
 			try {
 				if(stmt!=null)
 					stmt.close();
 				if(st!=null) 
 					st.close();
+				if(ste!=null)
+					ste.close();
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
@@ -420,7 +425,6 @@ public class SQLRequests {
 			is = rs.getBinaryStream("data");	
 			byte[] data = new byte[size];
 			is.read(data);
-			result = new MTask(id, env, rule, data);
 			rs.close();
 			stmt.executeUpdate("UPDATE SPLITTED_TASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"' WHERE id="+id);
 			try {
@@ -434,8 +438,16 @@ public class SQLRequests {
 			// update status from queued to running
 			sconn.setAutoCommit(false);
 			Statement st = sconn.createStatement();
-			st.executeUpdate("UPDATE launches SET status='running' WHERE id="+result.getId());
+			//SELECT * FROM orders WHERE snum=(SELECT snum FROM salespeople) 
+			//rs = stmt.executeQuery("SELECT driver_id FROM launches WHERE id="+id);
+			rs = st.executeQuery("SELECT name FROM drivers WHERE id=(SELECT driver_id FROM launches WHERE id="+id+")");
+			if(rs.getRow()==0 && !rs.next()) 
+				return null;
+			String driver_name = rs.getString("name");
+			rs.close();
+			st.executeUpdate("UPDATE launches SET status='running' WHERE id="+id);			
 			st.close();
+			result = new MTask(id, parent_id, env,driver_name, rule, data);
 			try {
 				sconn.commit();
 			} catch(SQLException e) {
