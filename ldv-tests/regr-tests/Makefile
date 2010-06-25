@@ -6,7 +6,6 @@ TEST_SETS_DIR = test-sets
 REGR_TEST = regr-test.pl
 REGR_TEST_LAUNCH = launch.pl
 REGR_TEST_UPLOAD = upload.pl
-REGR_TEST_LOAD = load.pl
 REGR_TEST_CHECK = check.pl
 
 # LDV tests directory. It's relative to the prefix.
@@ -42,5 +41,5 @@ install:
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
 	cp $(REGR_TEST) $(bindir) || exit 1;
 	if [ ! -d $(prefix)/$(LDV_TEST_DIR)/$(REGR_TEST_DIR) ]; then mkdir -p $(prefix)/$(LDV_TEST_DIR)/$(REGR_TEST_DIR) || exit 1; fi
-	cp $(REGR_TEST_LAUNCH) $(REGR_TEST_UPLOAD) $(REGR_TEST_LOAD) $(REGR_TEST_CHECK) $(prefix)/$(LDV_TEST_DIR)/$(REGR_TEST_DIR) || exit 1
+	cp $(REGR_TEST_LAUNCH) $(REGR_TEST_UPLOAD) $(REGR_TEST_CHECK) $(prefix)/$(LDV_TEST_DIR)/$(REGR_TEST_DIR) || exit 1
 	cd $(TEST_SETS_DIR) || exit 1; $(MAKE) $@ || exit 1
