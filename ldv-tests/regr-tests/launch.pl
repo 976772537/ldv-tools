@@ -315,6 +315,7 @@ sub launch_tasks()
 		foreach my $model (keys(%{$tasks{$driver}{$origin}{$kernel}}))
 	    {  
 		  my @args = ($ldv_manager_bin, 'tag=current', "envs=$kernel", "drivers=$driver", "rule_models=$model", "name=$task_name");		
+		  push(@args, 'kernel_driver=1') if ($origin eq $origin_kernel);
 		  print_debug_info("Execute the command '@args'");
 
           print_debug_trace("Go to the ldv-manager working directory '$current_working_dir/$ldv_manager_work_dir' to launch it");
