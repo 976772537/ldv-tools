@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Script says absolute path to the results schema sql script.
+
+# Path to the script relatively to the LDV_HOME.
+RESULTS_SCHEMA_SQL=ldv-manager/results_schema.sql
+
+LDV_HOME=`readlink -f \`dirname $0\`/../`
+
+if [ -f "$LDV_HOME/$RESULTS_SCHEMA_SQL" ]
+then
+    echo "$LDV_HOME/$RESULTS_SCHEMA_SQL"
+    exit 0;
+else
+    echo "The resutls schema sql script '$LDV_HOME/$RESULTS_SCHEMA_SQL' doesn't exist!"
+    exit 1;
+fi
+
