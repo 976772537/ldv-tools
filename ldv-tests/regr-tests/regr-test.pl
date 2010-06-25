@@ -34,6 +34,11 @@ sub get_opt();
 # retn: nothing.
 sub help();
 
+# Make regression test itself.
+# args: no.
+# retn: nothing.
+sub perform_regr_test();
+
 # Obtain needed files and dirs and check their presence.
 # args: no.
 # retn: nothing.
@@ -55,6 +60,9 @@ my $debug_name = 'regr-test';
 my $launcher_results_dir = 'launcher-results-dir';
 my $launcher_working_dir = 'launcher-working-dir';
 
+# Path to the binary of the ldv-load. It must be found in the PATH.
+my $ldv_loader_bin = "ldv-load.pl";
+
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_help;
 my $opt_test_set;
@@ -66,8 +74,11 @@ my $regr_task_prefix = 'regr-task-';
 # auxiliary directory.
 my $script_launch = 'launch.pl';
 my $script_upload = 'upload.pl';
-my $script_load = 'load.pl';
 my $script_check = 'check.pl';
+
+# The file where the new results will be put. It's relative to the current
+# working directory.
+my $task_file = 'regr-task-new';
 
 # The auxiliary directory where regression tests auxiliary scripts are placed.
 my $tool_aux_dir = "$FindBin::RealBin/../ldv-tests/regr-tests";
@@ -86,23 +97,8 @@ get_opt();
 print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
 prepare_files_and_dirs();
 
-my @args = ("$tool_aux_dir/$script_launch", "--results", "$current_working_dir/$launcher_results_dir");
-push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);		
-print_debug_info("Execute the command '@args'");
-
-print_debug_trace("Go to the launcher working directory '$current_working_dir/$launcher_working_dir' to launch it");
-chdir("$current_working_dir/$launcher_working_dir")
-  or die("Can't change directory to '$current_working_dir/$launcher_working_dir'");
-            		 
-die("The launcher fails") if (system(@args));
-          
-print_debug_trace("Go to the initial working directory '$current_working_dir'");
-chdir($current_working_dir)
-  or die("Can't change directory to '$current_working_dir'");
-
-my @args = ("$tool_aux_dir/$script_upload", "--results", "$current_working_dir/$launcher_results_dir");
-print_debug_info("Execute the command '@args'");
-die("The uploader fails") if (system(@args));
+print_debug_normal("Launch ldv-manager, obtain results, upload them to the database, load results to the new task file and compare it with the existing one");
+perform_regr_test();
 
 print_debug_normal("Make all successfully");
 
@@ -170,6 +166,37 @@ EOM
   exit(1);
 }
 
+sub perform_regr_test()
+{
+  print_debug_normal("Start to launch ldv-manager and obtain the results");	
+  my @args = ("$tool_aux_dir/$script_launch", "--results", "$current_working_dir/$launcher_results_dir");
+  push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);		
+  print_debug_info("Execute the command '@args'");
+
+  print_debug_trace("Go to the launcher working directory '$current_working_dir/$launcher_working_dir' to launch it");
+  chdir("$current_working_dir/$launcher_working_dir")
+    or die("Can't change directory to '$current_working_dir/$launcher_working_dir'");
+            		 
+  system(@args);
+  die("The launcher fails") if (check_system_call());
+          
+  print_debug_trace("Go to the initial working directory '$current_working_dir'");
+  chdir($current_working_dir)
+    or die("Can't change directory to '$current_working_dir'");
+ 
+  print_debug_normal("Upload the obtain results to the database"); 
+  @args = ("$tool_aux_dir/$script_upload", "--results", "$current_working_dir/$launcher_results_dir");
+  print_debug_info("Execute the command '@args'");
+  system(@args);
+  die("The uploader fails") if (check_system_call());
+
+  print_debug_normal("Load results to the new task file");
+  @args = ($ldv_loader_bin, "-o", "$current_working_dir/$task_file");
+  print_debug_info("Execute the command '@args'");
+  system(@args);
+  die("The loader fails") if (check_system_call());
+}
+
 sub prepare_files_and_dirs()
 {
   $current_working_dir = Cwd::cwd() 
@@ -187,10 +214,11 @@ sub prepare_files_and_dirs()
     unless (-x "$tool_aux_dir/$script_launch");
   die ("There is no the uploader script '$tool_aux_dir/$script_upload'")
     unless (-x "$tool_aux_dir/$script_upload");
-  die ("There is no the loader script '$tool_aux_dir/$script_load'")
-    unless (-x "$tool_aux_dir/$script_load");
   die ("There is no the checker script '$tool_aux_dir/$script_check'")
     unless (-x "$tool_aux_dir/$script_check");
+  
+  die("You run regression tests in the already used directory. Please remove file '$current_working_dir/$task_file'")
+    if (-f "$current_working_dir/$task_file");
   
   die("You run regression tests in the already used directory. Please remove directories '$current_working_dir/$launcher_working_dir' and '$current_working_dir/$launcher_results_dir'") 
     if (-d "$current_working_dir/$launcher_working_dir" or -d "$current_working_dir/$launcher_results_dir");  

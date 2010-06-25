@@ -79,8 +79,8 @@ my $ldv_manager_bin = "ldv-manager";
 my $ldv_manager_result_dir = 'finished';
 # The ldv-manager results are identified by their suffix.
 my $ldv_manager_result_suffix = '.pax';
-# The directory from where the ldv-manager will be launched. It's relative to the 
-# current working directory.
+# The directory from where the ldv-manager will be launched. It's relative to 
+# the current working directory.
 my $ldv_manager_work_dir = 'ldv-manager-work-dir';
 
 # Command-line options. Use --help option to see detailed description of them.
