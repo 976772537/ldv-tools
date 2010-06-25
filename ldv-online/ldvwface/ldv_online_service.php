@@ -89,7 +89,7 @@ function action_upload_driver() {
                 view_upload_driver_form();
                 return;
         }
-        $file = $_FILES['file']['name']; // or tmp_name?
+        $file = $_FILES['file']['name'];
         if(!$file) {
                 print '<b><font color="red">Empty filename field.</font></b><br>';
                 view_upload_driver_form();
@@ -108,7 +108,7 @@ function action_upload_driver() {
 	$task['envs'] = WSGetSupportedEnvList();
 	$task['id'] = WSPutTask($task);
 	if($task['id']) {
-             // print '<b><font color="red">Task successfully uploading with id '.$task['id'].' ..</font></b><br>';
+             	// print '<b><font color="red">Task successfully uploading with id '.$task['id'].' ..</font></b><br>';
 		view_task_status($task);
 	} else {
                 print '<b><font color="red">Error upload task</font></b><br>';
@@ -116,7 +116,7 @@ function action_upload_driver() {
 }
 
 function view_task_status($task) {
-	$status = WSGetTaskStatus($task);
+	$status = WSGetTaskReport($task);
 	if(empty($status)) {
 		print "Can't get status for your task.";
 		return;
@@ -157,6 +157,9 @@ $exit=false;
 
 
 view_header();
+WSInit("/home/iceberg/ldv-tools/ldv-online/ldvsrv/debug/server.conf");
+// function for develop some new functions in lsapi.php
+
 if ($action == "upload" && !$exit)
 {
 	view_upload_driver_form();

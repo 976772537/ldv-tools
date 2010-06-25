@@ -3,8 +3,11 @@
 # Log degines
 #
 define("WS_LL_DEBUG", "DEBUG");
+define("WS_LL_TRACE", "TRACE");
+define("WS_LL_ALL", "ALL");
 define("WS_LL_ERROR", "ERROR");
 define("WS_LL_NORMAL", "NORMAL");
+define("WS_LL_INFO", "INFO");
 
 #
 # WS Protocol defines
@@ -12,16 +15,75 @@ define("WS_LL_NORMAL", "NORMAL");
 define("WSM_WSTOLDVS_TASK_PUT_REQUEST","WSTOLDVS_TASK_PUT_REQUEST");
 define("WSM_LDVSTOWS_TASK_PUT_RESPONSE","LDVSTOWS_TASK_PUT_RESPONSE");
 define("WSM_LDVSTOWS_TASK_DESCR_RESPONSE","LDVSTOWS_TASK_DESCR_RESPONSE");
-define("WSM_WSTOLDVS_TASK_STATUS_GET_REQUEST","WSTOLDVS_TASK_STATUS_GET_REQUEST");
-define("WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE","LDVSTOWS_TASK_STATUS_GET_RESPONSE");
 
 #
 # WS Net function defines
 #
-define("WS_BLOCK_SIZE",8192);
-define("WS_LDVS_SERVER_PORT",11111);
-define("WS_LDVS_SERVER_NAME","localhost");
+function WSInit($ldvs_server_config) {
+	define("WS_BLOCK_SIZE",8192);
+	if(empty($ldvs_server_config)) {
+		WSInitDefault();
+		WSInitPrint();
+		return;
+	} 
+	if(!is_file($ldvs_server_config)) {
+		WSPrintE("Can't find file with configuration.");
+		WSInitDefault();
+		WSInitPrint();
+		return;
+	}
+        if(($file_array=file($ldvs_server_config))) {
+                for($i=0; $i<count($file_array); $i++) {
+			if(preg_match('/LDVServerAddress=(.*)/', $file_array[$i], $lmatches)) 
+				define("WS_LDVS_SERVER_NAME",$lmatches[1]);
+                       	if(preg_match('/WSPort=(.*)/', $file_array[$i], $lmatches))
+				define("WS_LDVS_SERVER_PORT",$lmatches[1]);
+                        if(preg_match('/StatsDBUser=(.*)/', $file_array[$i], $lmatches))
+				define("WS_SDB_USER",$lmatches[1]);
+                        if(preg_match('/StatsDBPass=(.*)/', $file_array[$i], $lmatches))
+				define("WS_SDB_PASS",$lmatches[1]);
+                        if(preg_match('/StatsDBName=(.*)/', $file_array[$i], $lmatches))
+				define("WS_SDB_NAME",$lmatches[1]);
+                       	if(preg_match('/StatsDBHost=(.*)/', $file_array[$i], $lmatches))
+				define("WS_SDB_HOST",$lmatches[1]);
+                       	if(preg_match('/StatsDBPort=(.*)/', $file_array[$i], $lmatches))
+				define("WS_SDB_PORT",$lmatches[1]);
+                       	if(preg_match('/LogLevel=(.*)/', $file_array[$i], $lmatches))
+				define("WS_LDV_DEBUG",$lmatches[1]);
+		}
+		WSInitPrint();
+		// TODO: test all options!
+        } else {
+		WSPrintE("Can't read file with configuration.");
+		WSInitDefault();
+		WSInitPrint();
+	}
+}
 
+function WSInitPrint() {
+	WSPrintD("Set up WS_LDVS_SERVER_NAME=".WS_LDVS_SERVER_NAME);
+	WSPrintD("Set up WS_LDVS_SERVER_PORT=".WS_LDVS_SERVER_PORT);
+	WSPrintD("Set up WS_SDB_USER=".WS_SDB_USER);
+	WSPrintD("Set up WS_SDB_PASS=".WS_SDB_PASS);
+	WSPrintD("Set up WS_SDB_NAME=".WS_SDB_NAME);
+	WSPrintD("Set up WS_SDB_HOST=".WS_SDB_HOST);
+	WSPrintD("Set up WS_SDB_PORT=".WS_SDB_PORT);
+}
+
+function WSInitDefault() {
+	WSPrintD("Try to use default configureation.");
+	// how to connect to LDV Server
+	define("WS_LDVS_SERVER_PORT",11111);
+	define("WS_LDVS_SERVER_NAME","localhost");
+	// options for stats db
+	define("WS_SDB_USER","statsuserd");
+	define("WS_SDB_PASS","statspass");
+	define("WS_SDB_NAME","statsdb");
+	define("WS_SDB_HOST","10.10.2.82");
+	define("WS_SDB_PORT","3306");
+	// TODO: log level 
+	define("WS_LDV_DEBUG","100");
+}
 
 #
 # get kernel list strucure
@@ -79,6 +141,18 @@ function WSPrintE($string) {
 
 function WSPrintN($string) {
 	WSPrintByLogLevel($string,WS_LL_NORMAL);
+}
+
+function WSPrintT($string) {
+	WSPrintByLogLevel($string,WS_LL_TRACE);
+}
+
+function WSPrintA($string) {
+	WSPrintByLogLevel($string,WS_LL_ALL);
+}
+
+function WSPrintI($string) {
+	WSPrintByLogLevel($string,WS_LL_INFO);
 }
 
 function WSPrintByLogLevel($string,$type) {
@@ -160,16 +234,6 @@ function WSM_XML_WSTOLDVS_TASK_PUT_REQUEST($task) {
 	return WSMWrapMsg($WSMsg);
 }
 
-function WSM_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task) {
-	# some checks
-	if(!WSM_DEBUG_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task)) return;
-	$WSMsg='<type>'.WSM_WSTOLDVS_TASK_STATUS_GET_REQUEST.'</type>';
-	$WSMsg.='<user>'.$task['user'].'</user>';
-	$WSMsg.='<id>'.$task['id'].'</id>';
-	return WSMWrapMsg($WSMsg);
-}
-
-
 #
 # small function for parse xml strings
 #
@@ -188,38 +252,6 @@ function WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_PUT_RESPONSE($msg) {
 	return $msg;
 }
 
-function WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg) {
-	$msg['user'] = preg_replace("/.*<user>(.*)<\/user>.*/", "$1", $msg['wsmbuf']);
-	$msg['id'] = preg_replace("/.*<id>(.*)<\/id>.*/", "$1", $msg['wsmbuf']);
-	preg_match_all("/<env name=.*?<\/env>/", $msg['wsmbuf'],$env_matches);
-	$a_envs = array();
-	foreach ($env_matches[0] as $env_key => $env) {
-		$env_name = preg_replace("/.*<env name=\"(.*?)\">.*/", "$1", $env);
-		$a_rules = array();
-		preg_match_all("/<rule name=.*?<\/rule>/", $env,$rule_matches);
-		foreach ($rule_matches[0] as $rule_key => $rule) {
-			$rule_status = preg_replace("/.*<status>(.*)<\/status>.*/", "$1", $rule);
-			$rule_name = preg_replace("/.*<rule name=\"(.*?)\">.*/", "$1", $rule);
-			$a_results = array();
-			preg_match_all("/<result>.*?<\/result>/", $rule,$results);
-			foreach ($results[0] as $result_key => $result) {
-				$result_verdict = preg_replace("/.*<verdict>(.*)<\/verdict>.*/", "$1", $result);
-				$result_report_id = preg_replace("/.*<report>(.*)<\/report>.*/", "$1", $result);
-				$a_result = array('verdict' => $result_verdict, 'report' => $result_report_id);
-				array_push($a_results,$a_result);	
-			}
-			$a_rule = array('name' => $rule_name, 'status' => $rule_status, 'results' => $a_results);
-			array_push($a_rules,$a_rule);	
-		}
-		$a_env = array( 'name' => $env_name, 'rules' => $a_rules);
-		array_push($a_envs,$a_env);	
-	}
-	$msg['envs'] = $a_envs;
-	unset($msg['wsmbuf']);
-	return $msg;
-}
-
-
 #
 # Functions that conver WMS from XMl format
 # 	to corresponding PHP structures;
@@ -231,10 +263,9 @@ function WSM_OBJ_XML($wsm) {
 		return $msg;
 	} else if($msg['type'] == WSM_LDVSTOWS_TASK_PUT_RESPONSE) {
 		$msg = WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_PUT_RESPONSE($msg);
-	} else if($msg['type'] == WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE) {
-		$msg = WSM_OBJ_XML_Parse_WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE($msg);
 	} else {
 		WSPrintE('Unknown msg type: "'.$msg['type'].'".');
+		return null;
 	}
 	unset($msg['wsmbuf']);
 	return $msg;
@@ -260,12 +291,6 @@ function WSM_OBJ_XML_LDVSTOWS_TASK_DESCR_RESPONSE($wsm) {
 function WSM_OBJ_XML_LDVSTOWS_TASK_PUT_RESPONSE($wsm) {
 	$msg = WSM_OBJ_XML($wsm);
 	if(!WSM_OBJ_XML_ResultSharedTest($msg,WSM_LDVSTOWS_TASK_PUT_RESPONSE)) return;
-	return $msg;
-}
-
-function WSM_OBJ_XML_LDVSTOWS_TASK_STATUS_GET_RESPONSE($wsm) {
-	$msg = WSM_OBJ_XML($wsm);
-	if(!WSM_OBJ_XML_ResultSharedTest($msg,WSM_LDVSTOWS_TASK_STATUS_GET_RESPONSE)) return;
 	return $msg;
 }
 
@@ -371,35 +396,68 @@ function WSPutTask($task) {
 #   status   report
 #
 #
-function WSGetTaskStatus($task) {
-	$result = array( 'status' => "UNKNOWN");
+function WSGetTaskReport($task) {
+	$result = array( 'verdict' => "UNKNOWN");
 	$results = array($result);
-	$rule = array ('status' => "UNKNOWN", 'results' => $results);
+	$rule = array ('name' => "32_1", 'status' => "UNKNOWN", 'results' => $results);
 	$rules = array($rule);
-	$env = array( 'status' => "OK", 'rules' => $rules);
+	$env = array( 'name' => "linux-2.6.32.12", 'status' => "OK", 'rules' => $rules);
 	$envs = array($env);
 	$tresult = array( 'id' => 1, 'status' => "OK", 'envs' => $envs);
-	return $tresult;
 	
-	/* Next part - getting results from LDV Server not used in new arch.  */
-	$sock = WSConnect();
-	if(empty($sock)) return;
-	WSPrintD("Try to create WSM message.");
-	$WSMsg = WSM_XML_WSTOLDVS_TASK_STATUS_GET_REQUEST($task);
-	WSPrintD("WSM Message contains:$WSMsg");
-	if(empty($WSMsg)) { fclose($sock); return; };
-	WSPrintD("Send request:$WSMsg");
-	fputs($sock,$WSMsg);
-	# wait for response LDVSTOWS_TASK_DESCR_RESPONSE
-	WSPrintD('Wait for response LDVSTOWS_TASK_STATUS_GET_RESPONSE');
-	$results = WSM_OBJ_XML_LDVSTOWS_TASK_STATUS_GET_RESPONSE(fgets($sock));
-	if(empty($results)) {
-		WSPrintD('Empty results');
-		fclose($sock);
+	$conn = WSStatsConnect();
+	// test if task with this id and username exists
+	WSPrintT("SELECT id FROM tasks WHERE id=".$task['id']." AND username='".$task['user']."';");
+	$result = mysql_query("SELECT id FROM tasks WHERE id=".$task['id']." AND username='".$task['user']."'",$conn);
+	if(mysql_num_rows($result)==0) {
+		WSPrintE("Could not find task or wrong user.");
 		return;
 	}
-	fclose($sock);
-	WSPrintD('Task status successfully get.');
-	return $results;
+
+
+	WSStatsDisconnect($conn);
+	// get all small task statuses
+/*	while($row = mysql_fetch_array($result))
+  	{
+  		echo $row['FirstName'] . " " . $row['LastName'];
+  		echo "<br />";
+	}*/
+	return $tresult;
 }
+
+#
+# Sandbox - for develop new functions
+#
+/*function WSSandbox() {
+	$conn = WSStatsConnect();
+	WSStatsDisconnect($conn);
+}*/
+
+#
+# Database functions 
+#
+function WSStatsConnect() {
+	$conn = mysql_connect(WS_SDB_HOST, WS_SDB_USER, WS_SDB_PASS);
+	if(!$conn) {
+		WSPrintE('Could not connect to stats DB host: '.mysql_error());
+		return;
+	}	
+	if(!mysql_select_db(WS_SDB_NAME)) {
+		WSPrintE('Could not select stats db: '.mysql_error());
+		return;
+	}
+	return $conn;
+}
+
+function WSStatsDisconnect($conn) {
+	if(empty($conn)) {
+		WSPrintE("Could not close epmty connection.");
+		return;
+	}
+	if(!mysql_close($conn))	
+		PrintE('Could not close connection to stats db: '.mysql_error());
+}
+
+
+
 ?>
