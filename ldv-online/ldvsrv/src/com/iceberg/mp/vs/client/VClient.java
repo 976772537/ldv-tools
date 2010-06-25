@@ -104,12 +104,6 @@ public class VClient {
 			/* For this action ldv-manager must have 
 			/* variable for external kernel prepare dir!
 			 */
-/*			if(reportFile.exists()) {
-				Logger.debug("Report created in file: " + report);
-			} else {
-				Logger.debug("LDV-Tools failed.");
-				report = null;
-			}*/
 			return true;
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
