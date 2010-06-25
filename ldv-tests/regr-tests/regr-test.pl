@@ -14,8 +14,10 @@ use strict;
 use lib("$FindBin::RealBin/../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
-
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info 
+  print_debug_debug print_debug_trace print_debug_all get_debug_level 
+  check_system_call);
+  
 
 ################################################################################
 # Subroutine prototypes.

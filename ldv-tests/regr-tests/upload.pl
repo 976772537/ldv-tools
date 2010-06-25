@@ -2,7 +2,7 @@
 
 
 use English;
-use Env qw(LDV_DEBUG LDV_REGR_TEST_UPLOADER_DEBUG LDVDBHOSTTEST LDVDBTEST LDVUSERTEST LDVDBPASSWDTEST);
+use Env qw(LDV_DEBUG LDV_REGR_TEST_UPLOADER_DEBUG LDVDBHOSTTEST LDVDBTEST LDVUSERTEST LDVDBPASSWDTEST PATH);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
@@ -12,8 +12,10 @@ use strict;
 use lib("$FindBin::RealBin/../../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
-
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info 
+  print_debug_debug print_debug_trace print_debug_all get_debug_level 
+  check_system_call);
+  
 
 ################################################################################
 # Subroutine prototypes.
@@ -53,10 +55,13 @@ my $debug_name = 'regr-test-uploader';
 
 # The ldv-manager results are identified by their suffix.
 my $ldv_manager_result_suffix = '.pax';
+# Path to the binary that tells a path to sql script that contains cleaning and 
+# creating of the test database. It must be found in the PATH.
+my $ldv_path_to_results_sql_bin = "path-to-results-schema-sql";
 # The sql script that contains cleaning and creating of the test database.
-my $ldv_results_sql = "$FindBin::RealBin/../../ldv-manager/results_schema.sql";
-# Path to the binary of the ldv-upload.
-my $ldv_uploader_bin = "$FindBin::RealBin/../../bin/ldv-upload";
+my $ldv_results_sql;
+# Path to the binary of the ldv-upload. It must be found in the PATH.
+my $ldv_uploader_bin = "ldv-upload";
 # Environments variables that specify the database connection for the ldv-upload.
 my $ldv_uploader_host = 'LDVDBHOST';
 my $ldv_uploader_database = 'LDVDB';
@@ -180,7 +185,20 @@ sub prepare_files_and_dirs()
   {
 	$result_dir = $current_working_dir;  
   }
-  print_debug_debug("The launcher results directory is '$result_dir'");  
+  print_debug_debug("The launcher results directory is '$result_dir'");
+  
+  print_debug_info("Execute the command '$ldv_path_to_results_sql_bin'");
+  my @lines = `$ldv_path_to_results_sql_bin`;
+  die("There is no the script that says the path to results schema sql executable in your PATH!") 
+    if (check_system_call() == -1);
+  # This script must always finish success.    
+  die("The script that says the path to results schema sql returns '" . ($CHILD_ERROR >> 8) . "'") 
+    if ($CHILD_ERROR >> 8);
+  die("The script doesn't say the path to results schema sql in the first line") 
+    unless (defined($lines[0]));
+  chomp($lines[0]);
+  $ldv_results_sql = $lines[0];
+  print_debug_debug("The results schema sql scipt is '$ldv_results_sql'");
 }
 
 sub upload_results()
@@ -192,7 +210,12 @@ sub upload_results()
   $cmd .= " <$ldv_results_sql";
   print_debug_info("Execute the command '$cmd'");
   `$cmd`;
-  die("The mysql returns '" . ($? >> 8) . "'") if ($? >> 8);
+  die("There is no the mysql executable in your PATH!") 
+    if (check_system_call() == -1);
+  # This is checked separately since mysql isn't the part of the LDV toolset but 
+  # it's too important for toolset.    
+  die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'") 
+    if ($CHILD_ERROR >> 8);
 
   foreach my $file (<$result_dir/*>) 
   {
@@ -217,8 +240,9 @@ sub upload_results()
         print_debug_debug("The password '$LDVDBPASSWDTEST' is setup for the ldv-upload");		
 	  }
       print_debug_info("Execute the command '@args'");
-      my $status = system(@args);
-      print_debug_debug("The ldv-upload returns '$status'");  
+      system(@args);
+      die("There is no the ldv-manager executable in your PATH!") 
+		 if (check_system_call() == -1);
       # Unset special environments variables.
       delete($ENV{$ldv_uploader_database});
       delete($ENV{$ldv_uploader_user});
