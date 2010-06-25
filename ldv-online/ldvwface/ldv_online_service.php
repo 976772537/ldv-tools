@@ -1,6 +1,6 @@
-<link rel='stylesheet' id='login-css'  href='form.css' type='text/css' media='all' />
 <?php
-require_once("ldv_online/include/include.php");
+//<link rel='stylesheet' id='login-css'  href='ldv/styles/form.css' type='text/css' media='all' />
+require_once("ldv/include/include.php");
 
 function html($text)
 {
