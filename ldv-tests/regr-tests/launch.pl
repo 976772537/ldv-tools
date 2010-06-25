@@ -6,7 +6,6 @@ use English;
 use Env qw(LDV_DEBUG LDV_REGR_TEST_LAUNCHER_DEBUG);
 use File::Basename qw(fileparse);
 use File::Copy qw(copy);
-use File::Find qw(find);
 use File::Path qw(mkpath);
 use FindBin;
 use Getopt::Long qw(GetOptions);
@@ -102,6 +101,9 @@ my $regr_task_prefix = 'regr-task-';
 # The directory where results (ldv-manager archives) will be putted.
 my $result_dir;
 
+# The name of the launcher task.
+my $task_name = 'regression-test';
+
 # This hash contains unique tasks to be executed. Task is '(driver, kernel, 
 # model)'.
 my %tasks;
@@ -148,18 +150,16 @@ sub collect_results()
 {
   if (-d "$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir")
   {	
-    find(sub 
+	foreach my $result (<$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/*>) 
+    {
+      if (-f $result and $result =~ /([^\/]*$ldv_manager_result_suffix)$/)
       { 
-        my $result = $_;
+        copy("$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$1", "$result_dir/$1")
+          or die("Can't copy the file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$1' to the file '$result_dir/$1'");
         
-        if (-f $result)
-        { 
-          copy("$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result", "$result_dir/$result")
-            or die("Can't copy the file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' to the file '$result_dir/$result'");
-        
-          print_debug_debug("The external driver file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$result' was copied to the '$result_dir/$result'");
-        }
-      }, "$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir");   
+        print_debug_debug("The ldv-manager results file '$current_working_dir/$ldv_manager_work_dir/$ldv_manager_result_dir/$1' was copied to the '$result_dir/$1'");
+      }
+    }
   }
   
   print_debug_normal("The ldv-manager results are in the '$result_dir' directory now");	          
@@ -180,7 +180,7 @@ sub get_opt()
 
   if ($opt_out)
   {
-    die("The directory specified through the option --results|o doesn't exist: $ERRNO")
+    die("The directory '$opt_out' specified through the option --results|o doesn't exist: $ERRNO")
       unless (-d $opt_out);
     print_debug_debug("The results will be put to the '$opt_out' directory");
   }
@@ -314,7 +314,7 @@ sub launch_tasks()
 	  {
 		foreach my $model (keys(%{$tasks{$driver}{$origin}{$kernel}}))
 	    {  
-		  my @args = ($ldv_manager_bin, 'tag=current', "envs=$kernel", "drivers=$driver", "rule_models=$model");		
+		  my @args = ($ldv_manager_bin, 'tag=current', "envs=$kernel", "drivers=$driver", "rule_models=$model", "name=$task_name");		
 		  print_debug_info("Execute the command '@args'");
 
           print_debug_trace("Go to the ldv-manager working directory '$current_working_dir/$ldv_manager_work_dir' to launch it");
@@ -392,13 +392,11 @@ sub prepare_files_and_dirs()
   print_debug_debug("The ldv-manager results will be put to the '$result_dir' directory");
   
   print_debug_trace("Check that there is no results left from the previous launches");
-  find(sub 
-    { 
-      my $file = $_; 
-      
-      die("You want to put results to the directory '$result_dir' that already contains some results")
-	    if ($file =~ /$ldv_manager_result_suffix$/);
-	}, "$result_dir");   
+  foreach my $file (<$result_dir/*>) 
+  {
+    die("You want to put results to the directory '$result_dir' that already contains some results (e.g. '$file')")
+	  if (-f $file and $file =~ /$ldv_manager_result_suffix$/);	  
+  } 
 }
 
 sub verify_tasks()
@@ -444,17 +442,14 @@ sub verify_tasks()
 			my $kernel_real;
 			
 			print_debug_trace("Try to find the kernel by its short name in the test set directory '$test_set_dir'");  
-  	        find(sub 
-  	          { 
-				my $kernel_full = $_; 
-				
-				if ($kernel_full =~ /^$kernel/) 
-				{ 
-				  die("The matched kernels full names are ambiguous.") if ($kernel_real); 
-				  $kernel_real = $kernel_full;
-				} 
-		      }, $test_set_dir);   
-  	          
+            foreach my $kernel_full (<$test_set_dir/*>) 
+            {	
+		      if ($kernel_full =~ /($kernel[^\/]*)$/) 
+			  {	 
+				die("The matched kernels full names are ambiguous ('$kernel_real' and '$1' both matches to '$kernel').") if ($kernel_real); 
+				$kernel_real = $1;
+			  }
+			}	 	  
   	        if ($kernel_real and -f "$test_set_dir/$kernel_real")
   	        {
 		      copy("$test_set_dir/$kernel_real", "$current_working_dir/$ldv_manager_work_dir/$kernel_real")

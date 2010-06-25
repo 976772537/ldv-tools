@@ -98,6 +98,10 @@ print_debug_trace("Go to the initial working directory '$current_working_dir'");
 chdir($current_working_dir)
   or die("Can't change directory to '$current_working_dir'");
 
+my @args = ("$tool_aux_dir/$script_upload", "--results", "$current_working_dir/$launcher_results_dir");
+print_debug_info("Execute the command '@args'");
+die("The uploader fails") if (system(@args));
+
 print_debug_normal("Make all successfully");
 
 
@@ -156,8 +160,8 @@ ENVIRONMENT VARIABLES
   
   LDVDBHOSTTEST, LDVDBTEST, LDVUSERTEST, LDVDBPASSWDTEST  
     Keeps settings (host, database, user and password) for connection 
-    to some database. Note that these environments variables (except LDVDBPASSWDTEST)
-    must always be presented!
+    to the database. Note that LDVDBTEST and LDVUSERTEST must always be 
+    presented!
     
 EOM
 
@@ -172,7 +176,7 @@ sub prepare_files_and_dirs()
   	
   print_debug_trace("Check that database connection is setup");
   die("You don't setup connection to your testing database. See --help for details")
-    unless ($LDVDBHOSTTEST and $LDVDBTEST and $LDVUSERTEST);
+    unless ($LDVDBTEST and $LDVUSERTEST);
 
   print_debug_debug("The database settings are following: '$LDVDBHOSTTEST', '$LDVDBTEST', '$LDVUSERTEST' (host, database and user)");
 
