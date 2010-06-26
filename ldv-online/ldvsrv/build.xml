@@ -9,8 +9,14 @@
 	<property name="lib" location="lib"/>
 
     	<path id="classpath">
+		<!-- H2 database and JDBC driver for H2 -->
 		<fileset dir="${lib}" includes="h2-1.2.136.jar"/>
+		<!-- MySQL JDBC driver -->
 		<fileset dir="${lib}" includes="mysql-connector-java-5.1.12-bin.jar"/>
+		<!-- Apache connections pool -->	
+		<fileset dir="${lib}" includes="commons-collections-3.2.1.jar"/>
+		<fileset dir="${lib}" includes="commons-dbcp-1.4.jar"/>
+		<fileset dir="${lib}" includes="commons-pool-1.5.4.jar"/>
 	</path>
 
 	<target name="init">

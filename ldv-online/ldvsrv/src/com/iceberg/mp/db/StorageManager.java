@@ -1,13 +1,19 @@
 package com.iceberg.mp.db;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
 
 import com.iceberg.mp.Logger;
+
 import java.io.File;
 import java.io.IOException;
+
+import org.apache.commons.dbcp.ConnectionFactory;
+import org.apache.commons.dbcp.DriverManagerConnectionFactory;
+import org.apache.commons.dbcp.PoolableConnectionFactory;
+import org.apache.commons.dbcp.PoolingDataSource;
+import org.apache.commons.pool.impl.GenericObjectPool;
 
 public class StorageManager {
 
@@ -24,6 +30,9 @@ public class StorageManager {
 	private String statsDbname;
 	private String statsDbport;
 
+	private PoolingDataSource statsPoolingDataSource;
+	private PoolingDataSource poolingDataSource;
+
 	
 	private static final String connectionPrefix = "jdbc";
 	private static final String dbType = "h2";
@@ -31,10 +40,6 @@ public class StorageManager {
 	private static final String dblockmode = ";LOCK_MODE=3;AUTO_SERVER=TRUE";
 
 	private String connectionString;
-
-	private Connection statsSingleConnection;
-	
-	private Connection singleConnection;
 	
 	private static final String statsConnectionPrefix = "jdbc";
 	private static final String statsDbType = "mysql";
@@ -72,11 +77,14 @@ public class StorageManager {
 		connectionString = connectionPrefix+":"+dbType+":"+dbworkdir+dblockmode; 
 		Logger.debug("Create new lead connection...");
 		Logger.trace("Connection URL:\""+connectionString+"\"");
-		singleConnection = DriverManager.getConnection(connectionString, dbuser, dbpass);
+		// Create connection pool
+		poolingDataSource = createDBConnectionsPool(connectionString, dbuser, dbpass);
 		Logger.debug("Ok");
 		//3. инициализирем таблицы
 		Logger.debug("Initialize tables...");
-		SQLRequests.initInnerDbTables(singleConnection);
+		Connection conn = poolingDataSource.getConnection();
+		SQLRequests.initInnerDbTables(conn);
+		conn.close();
 		Logger.debug("Ok");		
 	}
 	
@@ -91,19 +99,27 @@ public class StorageManager {
 		Logger.debug("Open JDBC driver...");
 		Class.forName(statsDbdriver);
 		//jdbc:mysql://repos.insttech.washington.edu:3306/johndoe
-		statsConnectionString = statsConnectionPrefix+":"+statsDbType+"://"+statsDbhost+":"+statsDbport+"/"
-			+statsDbname+"?user="+statsDbuser+"&password="+statsDbpass;
+		statsConnectionString = statsConnectionPrefix+":"+statsDbType+"://"+statsDbhost+":"+statsDbport+"/"+statsDbname; //?user="+statsDbuser+"&password="+statsDbpass;
 		Logger.debug("Create new lead connection for stats DB...");
 		Logger.trace("Connection URL for stats DB:\""+statsConnectionString+"\"");
-		statsSingleConnection = DriverManager.getConnection(statsConnectionString);
+		// create connection pool
+		statsPoolingDataSource = createDBConnectionsPool(statsConnectionString, statsDbuser, statsDbpass);
 		Logger.debug("Ok");
 		//3. инициализирем таблицы
 		Logger.debug("Initialize tables...");
-		SQLRequests.initStatsDbTables(statsSingleConnection);
+		Connection conn = statsPoolingDataSource.getConnection();
+		SQLRequests.initStatsDbTables(conn);
+		conn.close();
 		Logger.debug("Ok");		
 	}
-
-
+	
+	public static PoolingDataSource createDBConnectionsPool(String connectionString, String username, String password) {
+		GenericObjectPool connectionPool = new GenericObjectPool(null);
+		ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(connectionString, username, password);
+		new PoolableConnectionFactory(connectionFactory, connectionPool, null,null, false, true);
+		return new PoolingDataSource(connectionPool);		
+	}
+	
 	public void init() throws IOException, SQLException, ClassNotFoundException {
 		Logger.debug("Initialize inner DB...");
 		initInnerDB();
@@ -114,24 +130,16 @@ public class StorageManager {
 	}
 		
 	public synchronized Connection getConnection() throws SQLException {
-		//Logger.debug("Try to create new database connection...");
-		return DriverManager.getConnection(connectionString, dbuser, dbpass);
+		return poolingDataSource.getConnection();
 	}
 	
-	public synchronized Connection getStatsConnection() throws SQLException {
-		//Logger.debug("Try to create new database connection...");
-		return DriverManager.getConnection(statsConnectionString);
+	public Connection getStatsConnection() throws SQLException {
+		return statsPoolingDataSource.getConnection();
 	}
 	
 	@Override
 	protected void finalize() throws Throwable {
 		super.finalize();
-		Logger.debug("Close inner DB lead connection...");
-		singleConnection.close();
-		Logger.debug("Ok.");
-		Logger.debug("Close stats DB lead connection...");
-		statsSingleConnection.close();
-		Logger.debug("Ok.");
 	}
 	
 }
