@@ -390,52 +390,60 @@ function WSPutTask($task) {
 #      |         envs[i] 
 #   status      /    \ 
 #          rules[i]   status
-#           /     \
+#          ?/     \
 #      results[i]  status?     
 #        /   \
 #   status   report
 #
 #
 function WSGetTaskReport($task) {
-	$result = array( 'verdict' => "UNKNOWN");
-	$results = array($result);
-	$rule = array ('name' => "32_1", 'status' => "UNKNOWN", 'results' => $results);
-	$rules = array($rule);
-	$env = array( 'name' => "linux-2.6.32.12", 'status' => "OK", 'rules' => $rules);
-	$envs = array($env);
-	$tresult = array( 'id' => 1, 'status' => "OK", 'envs' => $envs);
-	
 	$conn = WSStatsConnect();
+	$result = WSStatsQuery('SELECT launches.id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task['id'].' AND tasks.username=\''.$task['user'].'\' AND launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND launches.scenario_id<=>NULL AND launches.trace_id<=>NULL ORDER BY env, rule;');
 	// test if task with this id and username exists
-	WSPrintT("SELECT id FROM tasks WHERE id=".$task['id']." AND username='".$task['user']."';");
-	$result = mysql_query("SELECT id FROM tasks WHERE id=".$task['id']." AND username='".$task['user']."'",$conn);
 	if(mysql_num_rows($result)==0) {
 		WSPrintE("Could not find task or wrong user.");
 		return;
-	}
-
-
-	WSStatsDisconnect($conn);
-	// get all small task statuses
-/*	while($row = mysql_fetch_array($result))
+	}	
+	$i=-1;
+	$j=0;
+	$last_env;
+	while($row = mysql_fetch_array($result))
   	{
-  		echo $row['FirstName'] . " " . $row['LastName'];
-  		echo "<br />";
-	}*/
-	return $tresult;
+		if(empty($last_env) || $last_env!=$row['env']) {
+			$i++;
+			$j=0;
+			$last_env = $row['env'];
+			$task['envs'][$i]['name']=$row['env'];
+			unset($last_rule);
+		}
+		$task['envs'][$i]['rules'][$j]['name']=$row['rule'];
+		$task['envs'][$i]['rules'][$j++]['status']=$row['status'];
+	}
+	WSStatsDisconnect($conn);
+	return $task;
 }
 
-#
-# Sandbox - for develop new functions
-#
-/*function WSSandbox() {
+function WSGetHistory($user) {
 	$conn = WSStatsConnect();
+	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver from tasks,launches,drivers WHERE tasks.username=\''.$user.'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
+	$i=0;
+	while($row = mysql_fetch_array($result))
+  	{
+		$history[$i]['id'] = $row['id'];
+		$history[$i++]['driver'] = $row['driver'];
+	}
 	WSStatsDisconnect($conn);
-}*/
+	return $history;
+}
 
 #
 # Database functions 
 #
+function WSStatsQuery($query) {
+	WSPrintT($query);
+	return mysql_query($query);
+}
+
 function WSStatsConnect() {
 	$conn = mysql_connect(WS_SDB_HOST, WS_SDB_USER, WS_SDB_PASS);
 	if(!$conn) {
@@ -451,13 +459,11 @@ function WSStatsConnect() {
 
 function WSStatsDisconnect($conn) {
 	if(empty($conn)) {
-		WSPrintE("Could not close epmty connection.");
+		WSPrintE('Could not close epmty connection.');
 		return;
 	}
 	if(!mysql_close($conn))	
 		PrintE('Could not close connection to stats db: '.mysql_error());
 }
-
-
 
 ?>

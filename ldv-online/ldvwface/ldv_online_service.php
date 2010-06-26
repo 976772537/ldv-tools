@@ -115,6 +115,30 @@ function action_upload_driver() {
 	}
 }
 
+function view_user_history($user) {
+	$history = WSGetHistory($user);
+	?>
+	<form name="loginform" id="loginform">
+	<p>
+		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification history:</span>
+	</p>
+	<table border="1" cellspacing="0" cellpadding="4" width="100%">
+        	<tr>
+			<th style="font-style: bold; color: #686868;">task</th>
+			<th style="font-style: bold; color: #686868;">driver</th>
+	        <tr>
+		<?php foreach($history as $item) { ?>
+			<tr>
+				<td><?php print $item['id']; ?></td>
+				<td><?php print $item['driver']; ?></td>
+			</tr>
+		<?php } ?>
+	</table>
+	</form>
+	<?php
+}
+
+
 function view_task_status($task) {
 	$status = WSGetTaskReport($task);
 	if(empty($status)) {
@@ -137,14 +161,12 @@ function view_task_status($task) {
 	        <tr>
 		<?php foreach($status['envs'] as $env) { ?>
 			<?php foreach($env['rules'] as $rule) { ?>
-				<?php foreach($rule['results'] as $result) { ?>
 				<tr>
 					<td><?php print $status['id']; ?></td>
 					<td><?php print $env['name']; ?></td>
 					<td><?php print $rule['name']; ?></td>
-					<td><?php print $result['verdict']; ?></td>
+					<td><?php print $rule['status']; ?></td>
 				</tr>
-				<?php } ?>
 			<?php } ?>
 		<?php } ?>
 	</table>
@@ -154,7 +176,6 @@ function view_task_status($task) {
 
 $action=request_var('action','');
 $exit=false;
-
 
 view_header();
 WSInit("/home/iceberg/ldv-tools/ldv-online/ldvsrv/debug/server.conf");
@@ -167,6 +188,10 @@ if ($action == "upload" && !$exit)
 else if ($action == "upload_driver" && !$exit)
 {
 	action_upload_driver();
+}
+else if ($action == "get_history" && !$exit) {
+	$user = request_var('user','');
+	view_user_history($user);
 }
 else if ($action == "get_status" && !$exit) 
 {

@@ -27,7 +27,10 @@ public class SQLRequests {
 	 * 
 	 * 
 	 */
+	private static final String SQL_DROP_TASKS = "DROP TABLE IF EXISTS TASKS";
+	private static final String SQL_DROP_SPLITTED_TASKS = "DROP TABLE IF EXISTS SPLITTED_TASKS";
 	private static final String SQL_DROP_CLIENTS = "DROP TABLE IF EXISTS CLIENTS";
+
 	
 	private static final String SQL_CREATE_CLIENTS = 
 		"CREATE CACHED TABLE IF NOT EXISTS CLIENTS(id INT PRIMARY KEY AUTO_INCREMENT, name "+
@@ -65,6 +68,9 @@ public class SQLRequests {
 		if(stmt==null) return false;
 		try {
 			stmt.execute(SQL_DROP_CLIENTS);
+			stmt.execute(SQL_DROP_TASKS);
+			stmt.execute(SQL_DROP_SPLITTED_TASKS);
+			
 			stmt.execute(SQL_CREATE_CLIENTS);
 			stmt.execute(SQL_CREATE_TASKS);
 			stmt.execute(SQL_CREATE_SPLITTED_TASKS);
@@ -438,8 +444,6 @@ public class SQLRequests {
 			// update status from queued to running
 			sconn.setAutoCommit(false);
 			Statement st = sconn.createStatement();
-			//SELECT * FROM orders WHERE snum=(SELECT snum FROM salespeople) 
-			//rs = stmt.executeQuery("SELECT driver_id FROM launches WHERE id="+id);
 			rs = st.executeQuery("SELECT name FROM drivers WHERE id=(SELECT driver_id FROM launches WHERE id="+id+")");
 			if(rs.getRow()==0 && !rs.next()) 
 				return null;
