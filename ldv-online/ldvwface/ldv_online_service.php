@@ -48,6 +48,7 @@ function view_main_page() {
 	view_upload_driver_form();
 }
 
+
 function view_header() {
 	?>
 		<style type="text/css">
@@ -57,19 +58,25 @@ function view_header() {
 		} 
 		</style>
 		<div style="width: 100%; height: 30px; background: #666666;">
-			<span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;LDV Online iteration</span>
+			<a href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;history</span></a>
+			<a href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;upload</span></a>
+		<!--	<div class="menu">
+				<ul>
+					<li>hello1</li>
+					<li>hello2</li>
+					<li>hello3</li>
+				</ul>
+			</div>-->
 		</div>
 	<?php	
 }
 
 function view_upload_driver_form() {
 	?>
-	<form name="loginform" id="loginform"  action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
+	<form action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 150%;">Start verification !</span>
 	</p>
-
-
 	        <p>
 	                <label><br />
 	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
@@ -102,23 +109,22 @@ function action_upload_driver() {
                 return;
         }
 
-	$task['user'] = "mong";
 	$task['driverpath'] = $_FILES['file']['tmp_name'];
 	$task['drivername'] = $_FILES['file']['name'];
 	$task['envs'] = WSGetSupportedEnvList();
 	$task['id'] = WSPutTask($task);
 	if($task['id']) {
-             	// print '<b><font color="red">Task successfully uploading with id '.$task['id'].' ..</font></b><br>';
-		view_task_status($task);
+		header('Location: '.myself().'?action=get_status&task_id='.$task['id']);
 	} else {
                 print '<b><font color="red">Error upload task</font></b><br>';
 	}
 }
 
-function view_user_history($user) {
-	$history = WSGetHistory($user);
+function view_user_history() {
+	$history = WSGetHistory();
+	$i=1;
 	?>
-	<form name="loginform" id="loginform">
+	<form>
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification history:</span>
 	</p>
@@ -126,11 +132,15 @@ function view_user_history($user) {
         	<tr>
 			<th style="font-style: bold; color: #686868;">task</th>
 			<th style="font-style: bold; color: #686868;">driver</th>
+			<th style="font-style: bold; color: #686868;">date</th>
+		<!--	<th style="font-style: bold; color: #686868;">status</th> -->
 	        <tr>
 		<?php foreach($history as $item) { ?>
 			<tr>
-				<td><?php print $item['id']; ?></td>
+				<td><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><?php print $i++; ?></a></td>
 				<td><?php print $item['driver']; ?></td>
+				<td><?php print $item['timestamp']; ?></td>
+	<!--			<td>not implemented</td> -->
 			</tr>
 		<?php } ?>
 	</table>
@@ -138,38 +148,86 @@ function view_user_history($user) {
 	<?php
 }
 
+function view_detailed_report($trace_id) {
+	$trace = WSGetDetailedReport($trace_id);
+	?>
+	<form>
+	<p>
+		<span style="font-style: bold; color: #686868; font-size: 150%;">Error trace for driver: <?php print $trace['drivername']; ?></span>
+	</p>
+	<?php print $trace['error_trace'];?>	
+	</form>
+	<?php
+}
 
-function view_task_status($task) {
-	$status = WSGetTaskReport($task);
+function view_task_status($task_id) {
+	$status = WSGetTaskReport($task_id);
 	if(empty($status)) {
 		print "Can't get status for your task.";
 		return;
 	}
-	
 	?>
-	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task['id']; ?>">
+
+	<?php if($status['status'] != 'finished') { ?>
+	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>">
+	<?php } ?>
+	<script>
+  		$(document).ready(function(){
+			$("#progressbar").progressbar({
+				value: <?php print $status['progress']; ?> 
+			});
+  		});
+	</script>
+
+
 	<form name="loginform" id="loginform">
 	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results:</span>
+		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results for driver: <?php print $status['drivername']; ?></span>
 	</p>
+	<?php $i=1; ?>
+	<?php if($status['finished'] != 0) { ?>
 	<table border="1" cellspacing="0" cellpadding="4" width="100%">
         	<tr>
-			<th style="font-style: bold; color: #686868;">task</th>
+			<th style="font-style: bold; color: #686868;">launch</th>
 			<th style="font-style: bold; color: #686868;">environment</th>
 			<th style="font-style: bold; color: #686868;">rule</th>
-			<th style="font-style: bold; color: #686868;">result</th>
+			<th style="font-style: bold; color: #686868;">status</th>
 	        <tr>
+		<?php $i=1; ?>
 		<?php foreach($status['envs'] as $env) { ?>
 			<?php foreach($env['rules'] as $rule) { ?>
+				<?php if(($rule['status'] == 'finished' || $rule['status'] == 'running') && count($rule['results'])!=0) { ?>
 				<tr>
-					<td><?php print $status['id']; ?></td>
+					<td><?php print $i++; ?></td>
 					<td><?php print $env['name']; ?></td>
 					<td><?php print $rule['name']; ?></td>
 					<td><?php print $rule['status']; ?></td>
 				</tr>
+				<?php foreach($rule['results'] as $result) { ?>
+				<tr>
+					<td colspan=3/>
+					<td>
+					<?php if($result['status'] == 'unsafe') { ?> 
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
+					<?php } else if($result['status']=='safe') { ?>
+						safe
+					<?php } else { ?>
+						unknown
+					<?php } ?>
+					</td>
+				</tr>
+				<?php } ?>
+				<?php } ?>
 			<?php } ?>
 		<?php } ?>
 	</table>
+	<?php } ?>
+	<?php if($status['status'] != 'finished') { ?>
+	<p>
+		<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span>
+		<div id="progressbar"></div>
+	</p>
+	<?php } ?>
 	</form>
 	<?php
 }
@@ -178,8 +236,12 @@ $action=request_var('action','');
 $exit=false;
 
 view_header();
+/**
+ * 
+ *  Configuration file
+ *
+ */ 
 WSInit("/home/iceberg/ldv-tools/ldv-online/ldvsrv/debug/server.conf");
-// function for develop some new functions in lsapi.php
 
 if ($action == "upload" && !$exit)
 {
@@ -189,15 +251,19 @@ else if ($action == "upload_driver" && !$exit)
 {
 	action_upload_driver();
 }
-else if ($action == "get_history" && !$exit) {
-	$user = request_var('user','');
-	view_user_history($user);
+else if ($action == "get_history" && !$exit)
+{
+	view_user_history();
+}
+else if ($action == "detailed_report" && !$exit) 
+{
+	$trace_id = request_var('trace_id','');
+	view_detailed_report($trace_id);	
 }
 else if ($action == "get_status" && !$exit) 
 {
 	$task_id = request_var('task_id','');
-	$task = array('user' => "mong", 'id' => $task_id);
-	view_task_status($task);
+	view_task_status($task_id);
 }
 else 
 {

@@ -156,8 +156,8 @@ function WSPrintI($string) {
 }
 
 function WSPrintByLogLevel($string,$type) {
-	if(WSIsDebug())
-		print("<b>$type:</b> $string\n<br>");
+//	if(WSIsDebug())
+//		print("<b>$type:</b> $string\n<br>");
 }
 
 function WSIsDebug() {
@@ -319,6 +319,9 @@ function WSRead($sock) {
 
 #
 # WS Server API functions
+#
+
+#
 # WSPutTask - upload task to LDVS
 # for verification
 #
@@ -329,12 +332,14 @@ function WSRead($sock) {
 # $env1 = array('name' => "vanilla", 'rules' => $rules1);
 # $env2 = array('name' => "rhkernel", 'rules' => $rules2);
 #
-# $task['user'] = "mong";
-# $task['driverpath'] = "/home/iceberg/ldv-tools/ldv-online/ldvsrv/lsapi.php";
+# $task['user'] = "mong"; --- NOT NEEDED
+# $task['driverpath'] = "/home/iceberg/ldv-tools/ldv-online/ldvsrv/lsapi.tar.bz2";
+# $task['drivername'] = "lsapi.tar.bz2";
 # $task['envs'] = array($env1, $env2);
 #
 # WSPutTask($task);
 function WSPutTask($task) {
+	$task['user']=WSGetUser();
 	$sock = WSConnect();
 	if(empty($sock)) return;
 	$WSMsg = WSM_XML_WSTOLDVS_TASK_PUT_REQUEST($task);
@@ -379,57 +384,105 @@ function WSPutTask($task) {
 # get all information about 
 # task 
 #
-# input:
-# task -> user - username
-#      -> id   - id for task
+# input: id - id for task
 #
 # return next information
 #
-#         _ task _
-# 	/         \
-#      |         envs[i] 
-#   status      /    \ 
-#          rules[i]   status
-#          ?/     \
-#      results[i]  status?     
+#         _ task _______________________________________________
+# 	/   |     \          \                          \       \ 
+#      |   id     envs[i]     progress                   \        finished
+#   status      /    \        (percent of finished tasks) \   (number of finfished tasks)
+#          rules[i]   status                               \
+#           /     \                                      running
+#      results[i]  status?                            (number of runnig tasks) 
 #        /   \
-#   status   report
+#   status   report_id??
 #
 #
-function WSGetTaskReport($task) {
+function WSGetTaskReport($task_id) {
 	$conn = WSStatsConnect();
-	$result = WSStatsQuery('SELECT launches.id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task['id'].' AND tasks.username=\''.$task['user'].'\' AND launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND launches.scenario_id<=>NULL AND launches.trace_id<=>NULL ORDER BY env, rule;');
-	// test if task with this id and username exists
-	if(mysql_num_rows($result)==0) {
+	$result = WSStatsQuery('SELECT launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY scenario_id, trace_id, env, rule;');
+	if(mysql_num_rows($result) == 0) {
 		WSPrintE("Could not find task or wrong user.");
 		return;
 	}	
 	$i=-1;
 	$j=0;
+	$count=0;
 	$last_env;
+	$task['progress'] = 1;
+	$finfished = 0;
 	while($row = mysql_fetch_array($result))
   	{
+		$task['driver_id']=$row['driver_id'];
+		$task['drivername']=$row['drivername'];
 		if(empty($last_env) || $last_env!=$row['env']) {
 			$i++;
 			$j=0;
 			$last_env = $row['env'];
 			$task['envs'][$i]['name']=$row['env'];
+			$task['envs'][$i]['environment_id']=$row['environment_id'];
 			unset($last_rule);
 		}
 		$task['envs'][$i]['rules'][$j]['name']=$row['rule'];
-		$task['envs'][$i]['rules'][$j++]['status']=$row['status'];
+		$task['envs'][$i]['rules'][$j]['results']=array();
+		$task['envs'][$i]['rules'][$j]['id']=$row['id'];
+		$task['envs'][$i]['rules'][$j]['status']=$row['status'];
+		$task['envs'][$i]['rules'][$j]['rule_model_id']=$row['rule_model_id'];
+		if($row['status'] == 'finished') 
+			$finished++;
+		$j++;
+		$count++;
+	}
+	if($finished == $count) {
+		$task['progress'] = 100;
+		$task['status'] = 'finished';
+	} else {
+		$task['progress'] = $finished*(100/$count);
+	}
+	$task['finished'] = $finished;
+	// select result - very bad part - 
+        // TODO: replace it to first select
+	$result = WSStatsQuery('SELECT launches.id, launches.rule_model_id,  launches.environment_id, launches.trace_id, traces.result FROM launches, traces, tasks WHERE tasks.id='.$task_id.' AND launches.driver_id='.$task['driver_id'].' AND launches.task_id=tasks.id AND traces.id=trace_id AND scenario_id IS NOT NULL;');
+	while($row = mysql_fetch_array($result)) {
+		foreach ($task['envs'] as $env_key => $env) {
+			if($env['environment_id']==$row['environment_id'])
+			foreach($env['rules'] as $rule_key => $rule) {
+				if($rule['rule_model_id']==$row['rule_model_id']) {
+					$ver_result = array('status'=>  $row['result'], 'trace_id' => $row['trace_id']);
+					array_push($task['envs'][$env_key]['rules'][$rule_key]['results'],$ver_result);
+					break 2;
+				}
+			}
+		}
 	}
 	WSStatsDisconnect($conn);
 	return $task;
 }
 
-function WSGetHistory($user) {
+function WSGetDetailedReport($trace_id) {
 	$conn = WSStatsConnect();
-	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver from tasks,launches,drivers WHERE tasks.username=\''.$user.'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
+	// TODO: add user=user .....
+	$result = WSStatsQuery('SELECT traces.id AS id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, traces.error_trace FROM launches, environments, rule_models, drivers, traces WHERE traces.id='.$trace_id.' AND launches.trace_id=traces.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NOT NULL AND trace_id IS NOT NULL;');
+	if($row = mysql_fetch_array($result)) {
+		$trace['trace_id']=$row['id'];
+		$trace['env']=$row['env'];
+		$trace['rule']=$row['rule'];
+		$trace['drivername']=$row['driver'];
+		$trace['error_trace']=$row['error_trace'];
+	}
+	WSStatsDisconnect($conn);
+	return $trace;
+}
+
+function WSGetHistory() {
+	$conn = WSStatsConnect();
+	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.username=\''.WSGetUser().'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
 	$i=0;
 	while($row = mysql_fetch_array($result))
   	{
 		$history[$i]['id'] = $row['id'];
+		$history[$i]['timestamp'] = $row['timestamp'];
 		$history[$i++]['driver'] = $row['driver'];
 	}
 	WSStatsDisconnect($conn);
@@ -465,5 +518,13 @@ function WSStatsDisconnect($conn) {
 	if(!mysql_close($conn))	
 		PrintE('Could not close connection to stats db: '.mysql_error());
 }
+
+#
+# Drupal user functions
+#
+function WSGetUser() {
+	return 'mong';
+}
+
 
 ?>

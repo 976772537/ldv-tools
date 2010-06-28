@@ -32,6 +32,7 @@
 		<jar jarfile="${dist}/ldvs.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Main-class" value="com.iceberg.mp.RunLDV"/>
+				<attribute name="Class-Path" value="../lib/commons-collections-3.2.1.jar ../lib/commons-dbcp-1.4.jar ../lib/commons-pool-1.5.4.jar ../lib/h2-1.2.136.jar ../lib/mysql-connector-java-5.1.12-bin.jar"/>
 			</manifest>
 		</jar>
 		<jar jarfile="${dist}/vsClient.jar" basedir="${build}">

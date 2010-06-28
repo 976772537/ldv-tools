@@ -279,7 +279,7 @@ public class SQLRequests {
 			ste = sconn.createStatement();
 			// заливаем в tasks  без транзакций - задачу заливает только один поток - планировщик(
 			// сторона веб-морды)
-			ste.executeUpdate("INSERT INTO tasks(id,username) VALUES("+id+",'"+msg.getUser()+"');");
+			ste.executeUpdate("INSERT INTO tasks(id,username,timestamp) VALUES("+id+",'"+msg.getUser()+"',now());");
 			// заливаем в drivers
 
 			//int driver_id = modifyAndGetIdUnsafe(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+"' AND origin ='external';");
