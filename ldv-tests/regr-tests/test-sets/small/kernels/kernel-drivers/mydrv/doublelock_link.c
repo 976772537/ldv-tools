@@ -16,13 +16,13 @@ static const struct file_operations misc_fops = {
         .open           = misc_open,
 };
 
-void alock(void);
+void alock(spinlock_t *lock);
 
 static int misc_open(struct inode * inode, struct file * file)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&my_lock, flags);
-	alock(&mylock);
+	alock(&my_lock);
 	spin_unlock_irqrestore(&my_lock, flags);
 	return 0;
 }
