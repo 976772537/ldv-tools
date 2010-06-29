@@ -1,0 +1,29 @@
+#!/usr/bin/perl -w
+# Creates a dummy report that each launch supplied failed
+
+use strict;
+use XML::Twig;
+
+print STDERR "Printing FAILURE REPORT since ldv failed!\n";
+
+my ($envs,$drivers,$kernel_driver,$rule_models) = @ARGV;
+# Check sanity
+$rule_models or die "Not enough arguments! Dead";
+# Prepare arrays
+my @drivers = split /\s+/,$drivers or die;
+my @envs = split /\s+/,$envs or die;
+my @rule_models = split /\s+/,$rule_models or die;
+my $ref=1;
+
+my $reportsT = XML::Twig::Elt->new("reports");
+
+# Sample report header
+# <ld check="true" driver_name="wl12xx.tar.bz2" kernel="linux-2.6.31.2" main="ldv_main0" model="08_1" module_name="main.ko" ref="2">
+for my $driver (@drivers) { for my $env (@envs) { for my $rule_model (@rule_models){
+	my $ldT = XML::Twig::Elt->new("ld", {check=>'true', driver_name=>$driver, kernel=>$env, model=>$rule_model, 'ref'=>$ref++});
+	XML::Twig::Elt->new("ldv_status",{},"failed")->paste(last_child => $ldT);
+	$ldT->paste($reportsT);
+}}}
+
+$reportsT->print("indented");
+
