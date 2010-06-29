@@ -20,7 +20,7 @@ drop table if exists environments ;
 -- Environments table holds kernels
 create table environments (
 	id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-	version VARCHAR(20) NOT NULL,
+	version VARCHAR(50) NOT NULL,
 	kind VARCHAR(20),
 	PRIMARY KEY (id)
 ) ENGINE=InnoDB;
