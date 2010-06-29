@@ -290,9 +290,9 @@ public class SQLRequests {
 			ResultSet srs = null;
 			List<Env> envs = msg.getEnvs();			
 			for(Env env : envs) {
-
+				
 				int env_id = modifyAndGetIdUnsafe2(ste,"INSERT INTO environments(version,kind) VALUES('"+env.getName()+"','vanilla')" , "SELECT id FROM environments WHERE version='"+env.getName()+"' AND kind='vanilla';");	
-
+				
 				List<String> rules = env.getRules();
 				for(String rule : rules) {
 					// заливаем модель если ее нет
@@ -309,15 +309,16 @@ public class SQLRequests {
 					// далее под этим номером заливаем задачу во внутреннюю БД
 					Logger.trace("SELECT id FROM launches WHERE driver_id="+driver_id+" AND toolset_id="+toolset_id+
 							" AND environment_id="+env_id+" AND rule_model_id="+rule_id+" AND task_id="+id+" AND status='queued' " +
-							" AND trace_id<=>null AND scenario_id<=>null;");
+							" AND trace_id IS NULL AND scenario_id IS NULL;");
 					
 					srs = ste.executeQuery("SELECT id FROM launches WHERE driver_id="+driver_id+" AND toolset_id="+toolset_id+
 							" AND environment_id="+env_id+" AND rule_model_id="+rule_id+" AND task_id="+id+" AND status='queued' " +
-							" AND trace_id<=>null AND scenario_id<=>null;");
+							" AND trace_id IS NULL AND scenario_id IS NULL;");
 					srs.next();
 					int launch_id = srs.getInt("id"); 
 					srs.close();
-					
+					//sconn.commit();
+					//conn.commit();
 					Logger.trace("INSERT INTO SPLITTED_TASKS(id,parent_id, env, rule, status, client_id) " +
 							"VALUES("+ launch_id +","+id+", '"+env.getName()+"','"+rule+"','"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"',0)");					
 					st.execute("INSERT INTO SPLITTED_TASKS(id,parent_id, env, rule, status, client_id) " +

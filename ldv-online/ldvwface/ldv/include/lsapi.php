@@ -89,11 +89,12 @@ function WSInitDefault() {
 # get kernel list strucure
 #
 function WSGetSupportedEnvList() {
-	$rules1 = array("32_1","77_1");
-	$rules2 = array("32_1","77_1");
+	$rules1 = array('32_1','77_1','08_1','29_1','37_1','39_1','43_1','60_1','68_1');
+//	$rules2 = array("32_1","77_1");
 	
 	$env1 = array('name' => "linux-2.6.32.12", 'rules' => $rules1);
-	$env2 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules2);
+//	$env2 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules2);
+	$env2 = array('name' => "linux-2.6.33.3", 'rules' => $rules1);
 
 	$envs = array($env1, $env2);
 	return $envs;
@@ -411,7 +412,7 @@ function WSGetTaskReport($task_id) {
 	$count=0;
 	$last_env;
 	$task['progress'] = 1;
-	$finfished = 0;
+	$finished = 0;
 	while($row = mysql_fetch_array($result))
   	{
 		$task['driver_id']=$row['driver_id'];
@@ -475,6 +476,11 @@ function WSGetDetailedReport($trace_id) {
 	return $trace;
 }
 
+function WSGetHistory2() {
+//SELECT DISTINCT tasks.id AS id,drivers.name AS driver, tasks.timestamp,launches.status FROM tasks,launches,drivers WHERE launches.task_id=tasks.id AND tasks.username='mong' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id AND launches.trace_id IS NULL AND launches.scenario_id IS NULL ORDER BY id, driver;
+//	$conn = WSSt
+}
+
 function WSGetHistory() {
 	$conn = WSStatsConnect();
 	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.username=\''.WSGetUser().'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
@@ -523,6 +529,9 @@ function WSStatsDisconnect($conn) {
 # Drupal user functions
 #
 function WSGetUser() {
+	// Drupal integration
+       /* global $user;
+	return $user;*/
 	return 'mong';
 }
 

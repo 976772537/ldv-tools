@@ -57,16 +57,15 @@ function view_header() {
 			padding: 0; /* Убираем поля */
 		} 
 		</style>
-		<div style="width: 100%; height: 30px; background: #666666;">
+	<!--	<div style="width: 100%; height: 30px; background: #666666;">
 			<a href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;history</span></a>
-			<a href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;upload</span></a>
-		<!--	<div class="menu">
-				<ul>
-					<li>hello1</li>
-					<li>hello2</li>
-					<li>hello3</li>
-				</ul>
-			</div>-->
+			<a href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;upload</span></a> -->
+		</div>
+		<div class="mini_menu">
+
+
+			<a href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;history</span></a>
+			<a href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;upload</span></a> 
 		</div>
 	<?php	
 }
@@ -77,6 +76,22 @@ function view_upload_driver_form() {
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 150%;">Start verification !</span>
 	</p>
+
+        <h4>1.  Ensure that drivers satisfy the following requirements:</h4>
+                <ul>
+                <li> The driver is archived using gzip or bzip2 and has one of the following extensions: .tar.bz2, tar.gz, .tgz</li>
+                <li> Archive should contain:</li>
+                        o Makefile (written to be compiled with the kernel)<br>
+                                + obj-m is mandatory<br>
+                        o Sources needed by Makefile<br>
+                <li> Archive should not contain generated files left from builds</li>
+                </ul>
+        <h4>2. Upload driver. </h4>
+        <h4>3. Wait for results.</h4>
+        </ul>
+
+
+
 	        <p>
 	                <label><br />
 	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
@@ -127,6 +142,10 @@ function view_user_history() {
 	<form>
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification history:</span>
+	</p>
+	<p>
+		<span>You may see more detailed information about your verification task by clicking on the corresponding links.
+		Note that this page is refreshed every 15 seconds.</span>
 	</p>
 	<table border="1" cellspacing="0" cellpadding="4" width="100%">
         	<tr>
