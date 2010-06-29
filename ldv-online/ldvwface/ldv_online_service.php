@@ -144,25 +144,24 @@ function view_user_history() {
 		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification history:</span>
 	</p>
 	<p>
-		<span>You may see more detailed information about your verification task by clicking on the corresponding links.
-		Note that this page is refreshed every 15 seconds.</span>
+		<span>You may see more detailed information about your verification task by clicking on the corresponding links.</span>
 	</p>
-	<table border="1" cellspacing="0" cellpadding="4" width="100%">
-        	<tr>
-			<th style="font-style: bold; color: #686868;">task</th>
-			<th style="font-style: bold; color: #686868;">driver</th>
-			<th style="font-style: bold; color: #686868;">date</th>
-		<!--	<th style="font-style: bold; color: #686868;">status</th> -->
-	        <tr>
+
+	<div class="tablediv">
+		<div class="rowdiv_head">
+			<div class="col10"><span class="table_headers">task</span></div>
+			<div class="col60"><span class="table_headers">driver</span></div>
+			<div class="col30"><span class="table_headers">date</span></div>
+		</div>
 		<?php foreach($history as $item) { ?>
-			<tr>
-				<td><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><?php print $i++; ?></a></td>
-				<td><?php print $item['driver']; ?></td>
-				<td><?php print $item['timestamp']; ?></td>
+			<div class="rowdiv" align=left style="background-color: #EEEFFF;">
+				<div class="col10"><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><?php print $i++; ?></a></div>
+				<div class="col60"><?php print $item['driver']; ?></div>
+				<div class="col30"><?php print $item['timestamp']; ?></div>
 	<!--			<td>not implemented</td> -->
-			</tr>
+			</div>
 		<?php } ?>
-	</table>
+	</div>
 	</form>
 	<?php
 }
@@ -205,6 +204,85 @@ function view_task_status($task_id) {
 	</p>
 	<?php $i=1; ?>
 	<?php if($status['finished'] != 0) { ?>
+
+
+        <script>
+		$(document).ready(function(){
+       		 $(".rowdiv_minihead_collapsible").click(function() {
+                	$(this).parent().children().not(".rowdiv_minihead_collapsible").slideToggle("fast");
+       		 });
+        	$(".rowdiv_minihead_collapsible").parent().children().not(".rowdiv_minihead_collapsible").hide();
+		});
+        </script>
+	
+	<div class="tablediv">
+		<div class="rowdiv_head">	
+			<div class="col10"><span>launch</span></div>
+			<div class="col40"><span>environmnet</span></div>
+			<div class="col30"><span>rule</span></div>
+			<div class="col20"><span>status</span></div>
+		</div>
+        	<div class="rowdiv"><div class="rowdivactivator">	
+			<div class="rowdiv_minihead_collapsible">
+				<div >
+				<div style="background-color: #EEEFFF;"><span>1</span></div>
+				<div style="background-color: #EEEFFF;"><span>2</span></div>
+				<div style="background-color: #EEEFFF;"><span>3</span></div>
+				<div style="background-color: #EEEFFF;"><span>4</span></div>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div class="col60">1</div>
+					<div class="col40">2</div>
+				</div>
+			</div>
+		</div></div>
+	</div>
+
+	<div class="tablediv">
+		<div class="rowdiv_head">
+			<div class="col10"><span>launch</span></div>
+			<div class="col40"><span>environmnet</span></div>
+			<div class="col30"><span>rule</span></div>
+			<div class="col20"><span>status</span></div>
+		</div>
+
+		<?php $i=1; ?>
+		<?php foreach($status['envs'] as $env) { ?>
+		<?php foreach($env['rules'] as $rule) { ?>
+		<?php if(($rule['status'] == 'finished' || $rule['status'] == 'running') && count($rule['results'])!=0) { ?>
+		          <div class="rowdiv"><div class="rowdivactivator">	
+			<div class="rowdiv_minihead_collapsible">
+				<div class="col10" style="background-color: #EEEFFF;"><span><?php print $i++; ?></span></div>
+				<div class="col40" style="background-color: #EEEFFF;"><span><?php print $env['name']; ?></span></div>
+				<div class="col30" style="background-color: #EEEFFF;"><span><?php print $rule['name']; ?></span></div>
+				<div class="col20" style="background-color: #EEEFFF;"><span><?php print $rule['status']; ?></span></div>
+			</div>
+			<div>
+				<?php foreach($rule['results'] as $result) { ?>
+				<div>
+					<div class="col60">&nbsp;</div>
+					<div class="col40">
+					<?php if($result['status'] == 'unsafe') { ?> 
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
+					<?php } else if($result['status']=='safe') { ?>
+						safe
+					<?php } else { ?>
+						unknown
+					<?php } ?>
+					</div>
+				</div>
+				<?php  } ?>
+			</div>
+		</div></div>
+		<?php } ?>
+		<?php } ?>
+		<?php } ?>
+	</div>
+
+
+<!--
 	<table border="1" cellspacing="0" cellpadding="4" width="100%">
         	<tr>
 			<th style="font-style: bold; color: #686868;">launch</th>
@@ -239,7 +317,7 @@ function view_task_status($task_id) {
 				<?php } ?>
 			<?php } ?>
 		<?php } ?>
-	</table>
+	</table>-->
 	<?php } ?>
 	<?php if($status['status'] != 'finished') { ?>
 	<p>

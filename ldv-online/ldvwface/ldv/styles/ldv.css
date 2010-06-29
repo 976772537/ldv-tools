@@ -1,6 +1,12 @@
-A { 
- text-decoration: none; /* Отменяем подчеркивание у ссылки */
-}
+	A { 
+		 text-decoration: none; /* Отменяем подчеркивание у ссылки */
+	}
+
+	.table_headers {
+		font-style: bold;
+		 color: #686868;
+	}	
+
 	.tempo {
 		background-color: #CCCCCC;
 	}
@@ -43,6 +49,7 @@ A {
         .col20 { float: left; display: table-cell; width: 20%;}
         .col30 { float: left; display: table-cell; width: 30%;}
         .col40 { float: left; display: table-cell; width: 40%;}
+        .col60 { float: left; display: table-cell; width: 60%;}
         .col41 { float: left; display: table-cell; width: 41%;}
         .col31 { float: left; display: table-cell; width: 31%;}
         .col30 { float: left; display: table-cell; width: 30%;}
