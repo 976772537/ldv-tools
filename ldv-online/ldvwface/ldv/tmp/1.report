@@ -1,0 +1,198 @@
+
+                                                Location: id=20#1 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/console.c.common.i"; line=0
+                                                Location: id=20#1 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/console.c.common.i"; line=0
+FunctionCall(__BLAST_initialize_/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/console.c.common.i())
+Locals: 
+                                                Location: id=28#1 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=206
+   Block(info = &(usbcons_info);usbcons.name[ 0 ] = 116;usbcons.name[ 1 ] =
+116;usbcons.name[ 2 ] = 121;usbcons.name[ 3 ] = 85;usbcons.name[ 4 ] =
+83;usbcons.name[ 5 ] = 66;usbcons.name[ 6 ] = 0;usbcons.name[ 7 ] =
+0;usbcons.name[ 8 ] = 0;usbcons.name[ 9 ] = 0;usbcons.name[ 10 ] =
+0;usbcons.name[ 11 ] = 0;usbcons.name[ 12 ] = 0;usbcons.name[ 13 ] =
+0;usbcons.name[ 14 ] = 0;usbcons.name[ 15 ] = 0;usbcons.write =
+&(usb_console_write);usbcons.read = 0;usbcons.device =
+&(usb_console_device);usbcons.unblank = 0;usbcons.setup =
+&(usb_console_setup);usbcons.early_setup = 0;usbcons.flags = 1;usbcons.index
+= -1;usbcons.cflag = 0;usbcons.data = &(usb_serial_tty_driver);usbcons.next =
+0;ldv_mutex = 1;)
+                                                Location: id=28#2 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/console.c.common.i"; line=0
+   Block(Return(0);)
+Skip
+                                                Location: id=20#3 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=342
+Block(var1@ldv_main0 = 0;IN_INTERRUPT = 1;)
+                                                Location: id=20#4 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=358
+FunctionCall(tmp@ldv_main0 = kmalloc(1, 208))
+Locals:  size@kmalloc flags@kmalloc
+                                                Location: id=11#1 src="include/linux/slub_def.h"; line=245
+   Pred(0  ==  0)
+                                                Location: id=11#10 src="include/linux/slub_def.h"; line=262
+   FunctionCall(tmp___1@kmalloc = __kmalloc(size@kmalloc, flags@kmalloc))
+LDV: undefined function called: __kmalloc
+                                                Location: id=11#22 (Artificial)
+   Skip
+                                                Location: id=11#23 src="include/linux/slub_def.h"; line=262
+   Block(__retres8@kmalloc = tmp___1@kmalloc;)
+                                                Location: id=11#8 src="include/linux/slub_def.h"; line=241
+   Block(Return(__retres8@kmalloc);)
+Skip
+                                                Location: id=20#6 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=358
+Block(var0@ldv_main0 = tmp@ldv_main0;)
+                                                Location: id=20#7 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=359
+FunctionCall(tmp___0@ldv_main0 = kmalloc(1, 208))
+Locals:  size@kmalloc flags@kmalloc
+                                                Location: id=11#1 src="include/linux/slub_def.h"; line=245
+   Pred(0  ==  0)
+                                                Location: id=11#10 src="include/linux/slub_def.h"; line=262
+   FunctionCall(tmp___1@kmalloc = __kmalloc(size@kmalloc, flags@kmalloc))
+LDV: undefined function called: __kmalloc
+                                                Location: id=11#22 (Artificial)
+   Skip
+                                                Location: id=11#23 src="include/linux/slub_def.h"; line=262
+   Block(__retres8@kmalloc = tmp___1@kmalloc;)
+                                                Location: id=11#8 src="include/linux/slub_def.h"; line=241
+   Block(Return(__retres8@kmalloc);)
+Skip
+                                                Location: id=20#9 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=359
+Block(var1@ldv_main0 = tmp___0@ldv_main0;)
+                                                Location: id=20#10 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=361
+FunctionCall(tmp___1@ldv_main0 = kmalloc(1, 208))
+Locals:  size@kmalloc flags@kmalloc
+                                                Location: id=11#1 src="include/linux/slub_def.h"; line=245
+   Pred(0  ==  0)
+                                                Location: id=11#10 src="include/linux/slub_def.h"; line=262
+   FunctionCall(tmp___1@kmalloc = __kmalloc(size@kmalloc, flags@kmalloc))
+LDV: undefined function called: __kmalloc
+                                                Location: id=11#22 (Artificial)
+   Skip
+                                                Location: id=11#23 src="include/linux/slub_def.h"; line=262
+   Block(__retres8@kmalloc = tmp___1@kmalloc;)
+                                                Location: id=11#8 src="include/linux/slub_def.h"; line=241
+   Block(Return(__retres8@kmalloc);)
+Skip
+                                                Location: id=20#12 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=361
+Block(var3@ldv_main0 = tmp___1@ldv_main0;)
+                                                Location: id=20#13 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=362
+FunctionCall(tmp___2@ldv_main0 = kmalloc(1, 208))
+Locals:  size@kmalloc flags@kmalloc
+                                                Location: id=11#1 src="include/linux/slub_def.h"; line=245
+   Pred(0  ==  0)
+                                                Location: id=11#10 src="include/linux/slub_def.h"; line=262
+   FunctionCall(tmp___1@kmalloc = __kmalloc(size@kmalloc, flags@kmalloc))
+LDV: undefined function called: __kmalloc
+                                                Location: id=11#22 (Artificial)
+   Skip
+                                                Location: id=11#23 src="include/linux/slub_def.h"; line=262
+   Block(__retres8@kmalloc = tmp___1@kmalloc;)
+                                                Location: id=11#8 src="include/linux/slub_def.h"; line=241
+   Block(Return(__retres8@kmalloc);)
+Skip
+                                                Location: id=20#15 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=362
+Block(var4@ldv_main0 = tmp___2@ldv_main0;)
+                                                Location: id=20#16 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=364
+FunctionCall(tmp___3@ldv_main0 = kmalloc(1, 208))
+Locals:  size@kmalloc flags@kmalloc
+                                                Location: id=11#1 src="include/linux/slub_def.h"; line=245
+   Pred(0  ==  0)
+                                                Location: id=11#10 src="include/linux/slub_def.h"; line=262
+   FunctionCall(tmp___1@kmalloc = __kmalloc(size@kmalloc, flags@kmalloc))
+LDV: undefined function called: __kmalloc
+                                                Location: id=11#22 (Artificial)
+   Skip
+                                                Location: id=11#23 src="include/linux/slub_def.h"; line=262
+   Block(__retres8@kmalloc = tmp___1@kmalloc;)
+                                                Location: id=11#8 src="include/linux/slub_def.h"; line=241
+   Block(Return(__retres8@kmalloc);)
+Skip
+                                                Location: id=20#18 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=364
+Block(var5@ldv_main0 = tmp___3@ldv_main0;)
+                                                Location: id=20#19 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=365
+FunctionCall(tmp___4@ldv_main0 = kmalloc(1, 208))
+Locals:  size@kmalloc flags@kmalloc
+                                                Location: id=11#1 src="include/linux/slub_def.h"; line=245
+   Pred(0  ==  0)
+                                                Location: id=11#10 src="include/linux/slub_def.h"; line=262
+   FunctionCall(tmp___1@kmalloc = __kmalloc(size@kmalloc, flags@kmalloc))
+LDV: undefined function called: __kmalloc
+                                                Location: id=11#22 (Artificial)
+   Skip
+                                                Location: id=11#23 src="include/linux/slub_def.h"; line=262
+   Block(__retres8@kmalloc = tmp___1@kmalloc;)
+                                                Location: id=11#8 src="include/linux/slub_def.h"; line=241
+   Block(Return(__retres8@kmalloc);)
+Skip
+                                                Location: id=20#21 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=365
+Block(var6@ldv_main0 = tmp___4@ldv_main0;)
+                                                Location: id=20#22 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=373
+FunctionCall(usb_console_write(var0@ldv_main0, var1@ldv_main0, var2@ldv_main0))
+Locals:  co@usb_console_write buf@usb_console_write count@usb_console_write
+                                                Location: id=15#1 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=207
+   Block(port@usb_console_write = * (info ).port;retval@usb_console_write =
+-19;)
+                                                Location: id=15#2 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=211
+   Pred(port@usb_console_write  ==  0)
+                                                Location: id=15#3 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=203
+   Block(Return(0);)
+Skip
+                                                Location: id=20#24 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=375
+FunctionCall(usb_console_setup(var3@ldv_main0, var4@ldv_main0))
+Locals:  co@usb_console_setup options@usb_console_setup
+                                                Location: id=14#1 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=59
+   Block(info@usb_console_setup = &(usbcons_info);baud@usb_console_setup =
+9600;bits@usb_console_setup = 8;parity@usb_console_setup =
+110;doflow@usb_console_setup = 0;cflag@usb_console_setup =
+3200;tty@usb_console_setup = 0;termios@usb_console_setup = 0;)
+                                                Location: id=14#2 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=72
+   Pred(debug  ==  0)
+                                                Location: id=14#6 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=74
+   Pred(options@usb_console_setup  ==  0)
+                                                Location: id=14#29 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=88
+   Pred(baud@usb_console_setup  !=  0)
+                                                Location: id=14#32 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=92
+   Pred(bits@usb_console_setup  !=  7)
+                                                Location: id=14#34 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=96
+   Pred(bits@usb_console_setup  ==  8)
+                                                Location: id=14#141 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=97
+   Block(cflag@usb_console_setup = cflag@usb_console_setup  |  48;)
+                                                Location: id=14#35 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=101
+   Pred(parity@usb_console_setup  !=  111)
+                                                Location: id=14#37 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=101
+   Pred(parity@usb_console_setup  !=  79)
+                                                Location: id=14#133 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=104
+   Pred(parity@usb_console_setup  !=  101)
+                                                Location: id=14#135 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=104
+   Pred(parity@usb_console_setup  !=  69)
+                                                Location: id=14#138 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=100
+   Pred(0  ==  0)
+                                                Location: id=14#38 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=108
+   Block(* (co@usb_console_setup ).cflag = cflag@usb_console_setup;)
+                                                Location: id=14#39 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=114
+   FunctionCall(serial@usb_console_setup =
+usb_serial_get_by_index(* (co@usb_console_setup ).index))
+LDV: undefined function called: usb_serial_get_by_index
+                                                Location: id=14#40 (Artificial)
+   Skip
+                                                Location: id=14#41 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=115
+   Pred(serial@usb_console_setup  !=  0)
+                                                Location: id=14#43 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=121
+   FunctionCall(retval@usb_console_setup =
+usb_autopm_get_interface(* (serial@usb_console_setup ).interface))
+LDV: undefined function called: usb_autopm_get_interface
+                                                Location: id=14#47 (Artificial)
+   Skip
+                                                Location: id=14#48 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=122
+   Pred(retval@usb_console_setup  !=  0)
+                                                Location: id=14#49 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=198
+   FunctionCall(usb_serial_put(serial@usb_console_setup))
+LDV: undefined function called: NOT_IMPLEMENTED_FUNCTION
+                                                Location: id=14#51 (Artificial)
+   Skip
+                                                Location: id=14#52 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c"; line=199
+   FunctionCall(mutex_unlock(serial@usb_console_setup  foffset  disc_mutex))
+Locals:  lock@mutex_unlock
+                                                Location: id=26#1 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c"; line=62
+      Pred(IN_INTERRUPT  ==  1)
+                                                Location: id=26#2 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c"; line=63
+      Pred(ldv_mutex  !=  2)
+                                                Location: id=26#5 src="/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c"; line=63
+      FunctionCall(__blast_assert())
+Locals: 

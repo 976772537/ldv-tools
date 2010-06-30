@@ -158,7 +158,6 @@ function view_user_history() {
 				<div class="col10"><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><?php print $i++; ?></a></div>
 				<div class="col60"><?php print $item['driver']; ?></div>
 				<div class="col30"><?php print $item['timestamp']; ?></div>
-	<!--			<td>not implemented</td> -->
 			</div>
 		<?php } ?>
 	</div>
@@ -206,7 +205,7 @@ function view_task_status($task_id) {
 	<?php if($status['finished'] != 0) { ?>
 
 
-        <script>
+       <script>
 		$(document).ready(function(){
        		 $(".rowdiv_minihead_collapsible").click(function() {
                 	$(this).parent().children().not(".rowdiv_minihead_collapsible").slideToggle("fast");
@@ -215,7 +214,7 @@ function view_task_status($task_id) {
 		});
         </script>
 	
-	<div class="tablediv">
+<!--	<div class="tablediv">
 		<div class="rowdiv_head">	
 			<div class="col10"><span>launch</span></div>
 			<div class="col40"><span>environmnet</span></div>
@@ -224,12 +223,8 @@ function view_task_status($task_id) {
 		</div>
         	<div class="rowdiv"><div class="rowdivactivator">	
 			<div class="rowdiv_minihead_collapsible">
-				<div >
-				<div style="background-color: #EEEFFF;"><span>1</span></div>
-				<div style="background-color: #EEEFFF;"><span>2</span></div>
-				<div style="background-color: #EEEFFF;"><span>3</span></div>
-				<div style="background-color: #EEEFFF;"><span>4</span></div>
-				</div>
+				<div style="display: table-cell; width:500px ;  background-color: #EEEFFF;"><span>4</span></div>
+				<div style="display: table-cell; width:450px ; background-color: #EEEFFF;"><span>4</span></div>
 			</div>
 			<div>
 				<div>
@@ -238,7 +233,7 @@ function view_task_status($task_id) {
 				</div>
 			</div>
 		</div></div>
-	</div>
+	</div>-->
 
 	<div class="tablediv">
 		<div class="rowdiv_head">
@@ -247,7 +242,6 @@ function view_task_status($task_id) {
 			<div class="col30"><span>rule</span></div>
 			<div class="col20"><span>status</span></div>
 		</div>
-
 		<?php $i=1; ?>
 		<?php foreach($status['envs'] as $env) { ?>
 		<?php foreach($env['rules'] as $rule) { ?>

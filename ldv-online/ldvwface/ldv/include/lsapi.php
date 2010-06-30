@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <?php
 #
 # Log degines
@@ -95,8 +97,10 @@ function WSGetSupportedEnvList() {
 	$env1 = array('name' => "linux-2.6.32.12", 'rules' => $rules1);
 //	$env2 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules2);
 	$env2 = array('name' => "linux-2.6.33.3", 'rules' => $rules1);
+//	$env3 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules1);
 
 	$envs = array($env1, $env2);
+	//$envs = array($env2);
 	return $envs;
 }
 
@@ -157,8 +161,8 @@ function WSPrintI($string) {
 }
 
 function WSPrintByLogLevel($string,$type) {
-//	if(WSIsDebug())
-//		print("<b>$type:</b> $string\n<br>");
+	if(WSIsDebug())
+		print("<b>$type:</b> $string\n<br>");
 }
 
 function WSIsDebug() {
@@ -439,7 +443,7 @@ function WSGetTaskReport($task_id) {
 		$task['progress'] = 100;
 		$task['status'] = 'finished';
 	} else {
-		$task['progress'] = $finished*(100/$count);
+		$task['progress'] = round($finished*(100/$count));
 	}
 	$task['finished'] = $finished;
 	// select result - very bad part - 
@@ -461,24 +465,56 @@ function WSGetTaskReport($task_id) {
 	return $task;
 }
 
-function WSGetDetailedReport($trace_id) {
+function __WSGetDetailedReport($trace_id) {
 	$conn = WSStatsConnect();
 	// TODO: add user=user .....
-	$result = WSStatsQuery('SELECT traces.id AS id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, traces.error_trace FROM launches, environments, rule_models, drivers, traces WHERE traces.id='.$trace_id.' AND launches.trace_id=traces.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NOT NULL AND trace_id IS NOT NULL;');
+	$result = WSStatsQuery('SELECT traces.id AS id, traces.verifier, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, traces.error_trace FROM launches, environments, rule_models, drivers, traces WHERE traces.id='.$trace_id.' AND launches.trace_id=traces.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NOT NULL AND trace_id IS NOT NULL;');
 	if($row = mysql_fetch_array($result)) {
 		$trace['trace_id']=$row['id'];
 		$trace['env']=$row['env'];
 		$trace['rule']=$row['rule'];
 		$trace['drivername']=$row['driver'];
 		$trace['error_trace']=$row['error_trace'];
+		$trace['verifier']=$row['verifier'];
 	}
 	WSStatsDisconnect($conn);
 	return $trace;
 }
 
-function WSGetHistory2() {
-//SELECT DISTINCT tasks.id AS id,drivers.name AS driver, tasks.timestamp,launches.status FROM tasks,launches,drivers WHERE launches.task_id=tasks.id AND tasks.username='mong' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id AND launches.trace_id IS NULL AND launches.scenario_id IS NULL ORDER BY id, driver;
-//	$conn = WSSt
+function WSGetDetailedReport($trace_id) {
+	$trace = __WSGetDetailedReport($trace_id);
+	$pwd = getcwd();
+	$tmpdir = $pwd.'/ldv/tmp';
+	// TODO:  test if this file already exists
+	print(": ".$tmpdir."<br>");
+	$tmpfile = $tmpdir.'/1';
+	print(": ".$tmpfile."<br>");
+	$tmpfile_report = $tmpdir.'/1.report';
+	// write report to file
+	// apache dir must be chmod a+x recursive 
+	$freport = fopen($tmpfile_report, 'w');
+	if(!$freport) {
+		WSPrintD('Can\'t open file for write source trace: '.$tmpfile_report);
+		WSPrintD('Check permissions.');
+		return;
+	}
+	// write our data
+	fwrite($freport, $trace['error_trace']);
+	fclose($freport);
+	$etv = $pwd.'/ldv/etv/bin/error-trace-visualizer.pl';
+	WSPrintD(exec('/usr/bin/perl '.$etv.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' -o '.$tmpfile));
+	WSPrintT('/usr/bin/perl '.$etv.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' -o '.$tmpfile);
+	// read report :
+	$fh = fopen($tmpfile, "rb");
+	if(!$fh) {
+		WSPrintD('Can\'t open tempfile with trace:'.$tmpfile);
+		return;
+	}
+	$size = filesize($tmpfile);
+	WSPrintD('Trace have size: '.$size);
+	$trace['error_trace'] = fread($fh,$size);
+	fclose($fh);
+	return $trace;	
 }
 
 function WSGetHistory() {

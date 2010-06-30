@@ -701,7 +701,7 @@ public class SQLRequests {
 	public static String statsDropScript12="drop table if exists toolsets;";
 	
 	
-	public static String statsCreateScript1 = "create table if not exists environments (id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,	version VARCHAR(20) NOT NULL, kind VARCHAR(20), PRIMARY KEY (id)) ENGINE=InnoDB;";
+	public static String statsCreateScript1 = "create table if not exists environments (id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, version VARCHAR(50) NOT NULL, kind VARCHAR(20), PRIMARY KEY (id)) ENGINE=InnoDB;";
 	public static String statsCreateScript2 = "create table if not exists drivers (id int(10) unsigned not null auto_increment, name varchar(255) not null, origin enum('kernel','external') not null, primary key (id), key (name)) ENGINE=InnoDB;";
 	public static String statsCreateScript3 = "create table if not exists rule_models(id int(10) unsigned not null auto_increment,name varchar(20), description varchar(200), primary key (id)) ENGINE=InnoDB;";
 	public static String statsCreateScript4 = "create table if not exists toolsets(id int(10) unsigned not null auto_increment, version varchar(100) not null, verifier varchar(100) not null default \"model-specific\", primary key(id), unique (version,verifier), key (version), key (verifier)) ENGINE=InnoDB;";	
