@@ -58,7 +58,7 @@ public class Model0049 {
 		}
 
 		/* добавим искомый токен */
-		tokens.add(new TokenFunctionDecl(funname, "void", null, 0, 0, null, null));
+		tokens.add(new TokenFunctionDecl(funname, "void", null, 0, 0, null, null, null));
 
 		Logger.info("END_OF_PARSE");
 		/* связывание функций */

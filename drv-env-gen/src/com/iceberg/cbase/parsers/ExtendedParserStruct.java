@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import com.iceberg.cbase.parsers.options.OptionStructType;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.Token;
+import com.iceberg.cbase.tokens.TokenFunctionDecl;
 import com.iceberg.cbase.tokens.TokenStruct;
 
 public class ExtendedParserStruct extends ExtendedParser {
@@ -77,12 +78,27 @@ public class ExtendedParserStruct extends ExtendedParser {
 			List<Token> functions = innerParserFunctions.parse();
 			/* отсортируем по шаблону */
 			List<Token> sortedFunctions;
+			List<String[]> fnamesPattern = new ArrayList<String[]>(fnames);
 			if( this.patternCallQueue == 1)
 				sortedFunctions = PatternSort.sortByPattern(sNameAndType[1], fnames, functions);
 			else
 				sortedFunctions = functions;
+			/* установим ldvCommentContent */
+			for(Token itoken: sortedFunctions) {
+				if(itoken instanceof TokenFunctionDecl) {
+					TokenFunctionDecl tfd = (TokenFunctionDecl)itoken;
+					// ищем для него соответствующий тип
+					for(int i=0; i<fnamesPattern.size(); i++) {
+						if(fnamesPattern.get(i)[0].equals(tfd.getName())) {
+							tfd.setCallback(fnamesPattern.get(i)[1]);
+							break;
+						}
+					}
+				}
+			}
+			
 			/* и создадим токен - структуру */
-			token = new TokenStruct(sNameAndType[0],sNameAndType[1],start,nend,tokenClearContent,sortedFunctions);
+			token = new TokenStruct(sNameAndType[0],sNameAndType[1],start,nend,tokenClearContent,null,sortedFunctions);
 		}
 		return token;
 	}

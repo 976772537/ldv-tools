@@ -17,10 +17,10 @@ public class TokenFunctionDeclSimple extends TokenFunctionDecl {
 		return this.simpleType;
 	}
 
-	public TokenFunctionDeclSimple(String name, String retType,
+	public TokenFunctionDeclSimple(String name, String retType, 
 			List<String> replacementParams, int beginIndex, int endIndex,
-			String content, SimpleType simpleType) {
-		super(name, retType, replacementParams, beginIndex, endIndex, content, null);
+			String content, String ldvCommentContent, SimpleType simpleType) {
+		super(name, retType, replacementParams, beginIndex, endIndex, content, ldvCommentContent, null);
 		tokens = new ArrayList<Token>();
 		tokens.add(this);
 		this.simpleType = simpleType;

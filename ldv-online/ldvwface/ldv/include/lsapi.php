@@ -415,7 +415,6 @@ function WSGetTaskReport($task_id) {
 	$j=0;
 	$count=0;
 	$last_env;
-	$task['progress'] = 1;
 	$finished = 0;
 	while($row = mysql_fetch_array($result))
   	{
@@ -442,6 +441,8 @@ function WSGetTaskReport($task_id) {
 	if($finished == $count) {
 		$task['progress'] = 100;
 		$task['status'] = 'finished';
+	} else if ($finished == 0) {
+		$task['progress'] = 1;
 	} else {
 		$task['progress'] = round($finished*(100/$count));
 	}

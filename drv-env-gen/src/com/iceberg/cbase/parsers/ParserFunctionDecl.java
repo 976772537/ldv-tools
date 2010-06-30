@@ -96,7 +96,7 @@ public class ParserFunctionDecl extends Parser {
 				String[] sNameAndRetType = parseNameAndType(tokenClearContent);
 				List<String> replacementParams = createReplacementParams(tokenClearContent);
 				TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType[0],
-						sNameAndRetType[1],replacementParams,m.start(),m.end(),tokenClearContent, null);
+						sNameAndRetType[1],replacementParams,m.start(),m.end(),tokenClearContent ,null,null);
 				tlist.add(token);
 			}
 		return tlist;

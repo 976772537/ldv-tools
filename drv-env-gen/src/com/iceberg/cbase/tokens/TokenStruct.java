@@ -18,8 +18,8 @@ public class TokenStruct extends Token {
 	}
 	
 	public TokenStruct(String name, String type, int beginIndex, int endIndex, String content, 
-			List<Token> functionDeclList) {
-		super(beginIndex, endIndex, content, functionDeclList);
+			String ldvCommentContent, List<Token> functionDeclList) {
+		super(beginIndex, endIndex, content, ldvCommentContent, functionDeclList);
 		this.name = name;
 		this.type = type;
 	}

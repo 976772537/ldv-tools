@@ -9,10 +9,11 @@ public class TokenFunctionDecl extends Token {
 
 	private String name;
 	private String retType;
+	private String callback;
 	private List<String> replacementParams;
 
-	public TokenFunctionDecl(String name, String retType, List<String> replacementParams, int beginIndex, int endIndex, String content, List<Token> innerTokens) {
-		super(beginIndex, endIndex, content, innerTokens);
+	public TokenFunctionDecl(String name, String retType, List<String> replacementParams, int beginIndex, int endIndex, String content, String ldvCommentContent, List<Token> innerTokens) {
+		super(beginIndex, endIndex, content, ldvCommentContent, innerTokens);
 		this.name = name;
 		this.retType = retType;
 		this.replacementParams = replacementParams;
@@ -20,6 +21,11 @@ public class TokenFunctionDecl extends Token {
 
 	public String getName() {
 		return name;
+	}
+	
+	public void setCallback(String callback) {
+		this.callback = callback;
+		this.ldvCommentContent = callback; 
 	}
 
 	public String getRetType() {

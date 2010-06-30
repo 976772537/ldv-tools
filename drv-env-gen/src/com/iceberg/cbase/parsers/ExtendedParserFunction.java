@@ -135,7 +135,7 @@ public class ExtendedParserFunction extends ExtendedParser {
 		if(this.parseFunctionCalls)
 			functionInnerCalls = parseInnerCalls(this.getReader().readAll().substring(start,end));
 		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType[0],
-				sNameAndRetType[1],replacementParams,start,end,tokenClearContent,functionInnerCalls);
+				sNameAndRetType[1],replacementParams,start,end,tokenClearContent,null,functionInnerCalls);
 		return token;
 	}
 
@@ -156,7 +156,7 @@ public class ExtendedParserFunction extends ExtendedParser {
 
 	public static int parseExceptionCounter = 0;
 
-	/* на вход подается - тело функции, вместе с заголовком "abracadanre() { if.. print.. }" */
+	/* на вход подается - тело функции, вместе с заголовком "abracadabre() { if.. print.. }" */
 	private static List<Token> parseInnerCalls(String buffer) {
 		List<Token> tokens = new ArrayList<Token>();
 		/* подготавливаем и компилим паттерны */
@@ -174,7 +174,7 @@ oWhile:		while(matcher.find()) {
 				for(int i=0; i<ckeywordsMap.size(); i++)
 					if(ckeywordsMap.get(i).equals(callsString)) continue oWhile;
 				/* здесь создаем токен и отправляем в списиок */
-				Token token = new Token(matcher.start(), matcher.end(), callsString, null);
+				Token token = new Token(matcher.start(), matcher.end(), callsString, null, null);
 				boolean isExitsts = false;
 
 		/*		if (buffer.contains("m_extract_one_cell") && token.getContent().contains("atomic_inc")) {
