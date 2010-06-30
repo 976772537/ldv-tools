@@ -437,53 +437,82 @@ sub print_error_trace_node_blast($$)
   
   print_debug_trace("Print the '$tree_node->{'kind'}' tree node.");
 
-  # Remove variables scope from values for all tree nodes.
-  ${$tree_node->{'values'}}[0] =~ s/@[_a-zA-Z0-9]+//g;
-  # Make output more formatted.
-  ${$tree_node->{'values'}}[0] = add_mising_spaces(${$tree_node->{'values'}}[0]);
-
+  # Process tree node values a bit.
+  if (${$tree_node->{'values'}}[0])
+  {
+    # Remove names scope for all tree nodes.
+    ${$tree_node->{'values'}}[0] =~ s/@[_a-zA-Z0-9]+//g;
+    # Add spaces around some operators.
+    ${$tree_node->{'values'}}[0] = add_mising_spaces(${$tree_node->{'values'}}[0]);
+  }
+  
+  # Get source and line if so.
+  my $src = '';
+  my $line = '';
+  if ($tree_node->{'pre annotations'})
+  {
+	foreach my $pre_annotation (@{$tree_node->{'pre annotations'}})
+	{
+	  if ($pre_annotation->{'kind'} eq 'Location')
+	  {
+		$src = $pre_annotation->{'values'}[0];
+	    $line = $pre_annotation->{'values'}[1];  
+	  }
+	}
+  }
+  
   # Print tree node declaration.
-  print_spaces($indent);
   if ($tree_node->{'kind'} eq 'Root')
   {
-    print($file_report_out "entry_point();\n");
+    print($file_report_out "<div class='ETVEntryPoint'>");
     print_spaces($indent);
-    print($file_report_out "{\n");
+    print($file_report_out "entry_point()", ";</div>");
+    print_spaces($indent);
+    print($file_report_out "<div class='ETVEntryPointBody'>{");
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCall')
   {
-    print($file_report_out ${$tree_node->{'values'}}[0], ";\n");
+    print($file_report_out "<div class='ETVFunctionCall' title='$src:$line'>");
     print_spaces($indent);
-    print($file_report_out "{\n");    
+    print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
+    print($file_report_out "<div class='ETVFunctionBody'>");
+    print_spaces($indent);
+    print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
   {
-    print($file_report_out ${$tree_node->{'values'}}[0], "{ /* The function body is undefined. */ };\n");
+    print($file_report_out "<div class='ETVFunctionCallWithoutBody'>");
+    print_spaces($indent);
+    print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
   }
   elsif ($tree_node->{'kind'} eq 'Block')
   {
 	# Split expressions joined together into one block.
 	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
-	my $once = 1;
+	print($file_report_out "<div class='ETVBlock' title='$src:$line'>");
 	
 	foreach my $expr (@exprs)
 	{	
-	  print_spaces($indent)
-	    unless ($once);
-	  print($file_report_out $expr, ";\n");    	
-	  $once = 0;
-    }	 
+	  print_spaces($indent);
+	  print($file_report_out $expr, ";<br>");
+    }
+    
+    print($file_report_out "</div>");	 
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
-    print($file_report_out "return ", ${$tree_node->{'values'}}[0], ";\n");    
+    print($file_report_out "<div class='ETVReturn' title='$src:$line'>");
+    print_spaces($indent);
+    print($file_report_out "return ", "<span class='ETVReturnValue'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
   }
   elsif ($tree_node->{'kind'} eq 'Pred')
   {
-    print($file_report_out "assert(", ${$tree_node->{'values'}}[0], ");\n");    
+    print($file_report_out "<div class='ETVAssert' title='$src:$line'>");
+    print_spaces($indent);
+    print($file_report_out "assert(", "<span class='ETVAssertCondition'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
   }
       
-  # Print tree node children with enlarged indentation if so.
+  # Print all tree node children with enlarged indentation.
   if ($tree_node->{'children'})
   {
     foreach my $child (@{$tree_node->{'children'}})
@@ -492,16 +521,12 @@ sub print_error_trace_node_blast($$)
 	}
   }
   
-  # Print tree node ends if so.
-  if ($tree_node->{'kind'} eq 'Root')
+  # Print the close brace after the body of root and function calls nodes.
+  if ($tree_node->{'kind'} eq 'Root' 
+    or $tree_node->{'kind'} eq 'FunctionCall')
   {
     print_spaces($indent);
-    print($file_report_out "}\n");
-  }
-  elsif ($tree_node->{'kind'} eq 'FunctionCall')
-  {
-    print_spaces($indent);
-    print($file_report_out "}\n");    
+    print($file_report_out "}</div>");
   }
 }
 
