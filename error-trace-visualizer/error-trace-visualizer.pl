@@ -168,6 +168,9 @@ my $file_report_in;
 my $file_report_out;
 my $file_reqs_out;
 
+# The unique html tags identifier.
+my $html_id = 0;
+
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_engine;
 my $opt_help;
@@ -464,24 +467,25 @@ sub print_error_trace_node_blast($$)
   # Print tree node declaration.
   if ($tree_node->{'kind'} eq 'Root')
   {
-    print($file_report_out "<div class='ETVEntryPoint'>");
+    print($file_report_out "<div class='ETVEntryPoint' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "entry_point()", ";</div>");
+    print($file_report_out "<div class='ETVEntryPointBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "<div class='ETVEntryPointBody'>{");
+    print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCall')
   {
-    print($file_report_out "<div class='ETVFunctionCall' title='$src:$line'>");
+    print($file_report_out "<div class='ETVFunctionCall' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
-    print($file_report_out "<div class='ETVFunctionBody'>");
+    print($file_report_out "<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
   {
-    print($file_report_out "<div class='ETVFunctionCallWithoutBody'>");
+    print($file_report_out "<div class='ETVFunctionCallWithoutBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
   }
@@ -489,7 +493,7 @@ sub print_error_trace_node_blast($$)
   {
 	# Split expressions joined together into one block.
 	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
-	print($file_report_out "<div class='ETVBlock' title='$src:$line'>");
+	print($file_report_out "<div class='ETVBlock' title='$src:$line' id='ETV", ($html_id++), "'>");
 	
 	foreach my $expr (@exprs)
 	{	
@@ -501,13 +505,13 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
-    print($file_report_out "<div class='ETVReturn' title='$src:$line'>");
+    print($file_report_out "<div class='ETVReturn' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "return ", "<span class='ETVReturnValue'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
   }
   elsif ($tree_node->{'kind'} eq 'Pred')
   {
-    print($file_report_out "<div class='ETVAssert' title='$src:$line'>");
+    print($file_report_out "<div class='ETVAssert' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "assert(", "<span class='ETVAssertCondition'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
   }
@@ -535,10 +539,14 @@ sub print_spaces($)
   my $space_number = shift;
   
   # Print identation spaces.
+  print($file_report_out "<span class='ETVIdentation'>");
+  
   for (my $i = 1; $i <= $space_number; $i++)
   {
 	print($file_report_out ' ');
-  }   
+  }
+  
+  print($file_report_out "</span>");
 }
 
 sub process_error_trace()

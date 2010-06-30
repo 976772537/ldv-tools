@@ -1,0 +1,70 @@
+.ETVAssert
+{
+  color: green;
+  font-size: 8pt;
+}
+
+.ETVAssertCondition
+{
+  color: green;
+  font-weight: bold;
+  font-size: 8pt;
+}
+
+.ETVBlock
+{
+  color: #686868;
+  font-size: 6pt;
+}
+
+.ETVEntryPoint
+{
+  color: red;
+  font-weight: bold;
+  font-size: 8pt;
+}
+
+.ETVEntryPointBody
+{
+  color: red;
+  font-size: 8pt;
+}
+
+.ETVFunctionBody
+{
+  color: green;
+  font-size: 8pt;
+}
+
+.ETVFunctionCall
+{
+  color: red;
+  font-weight: bold;
+  font-size: 8pt;
+}
+
+.ETVFunctionCallWithoutBody
+{
+  font-style: italic;
+  font-size: 8pt;
+}
+
+.ETVIdentation
+{
+  font-weight: normal;
+  white-space: pre-wrap;
+  font-size: 8pt;
+}
+
+.ETVReturn
+{
+  color: blue;
+  font-size: 8pt;
+}
+
+.ETVReturnValue
+{
+  color: blue;
+  font-weight: bold;
+  font-size: 8pt;
+}
