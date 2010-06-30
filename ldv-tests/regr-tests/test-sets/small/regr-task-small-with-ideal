@@ -35,6 +35,7 @@ driver=tests-model-60_1--test-doubleadd.tar.bz2;origin=external;kernel=mykernel-
 driver=tests-model-60_1--test-move.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=60_1;module=drivers/tests-model-60_1/test-move/move.ko;main=ldv_main0;verdict=unsafe;ideal=safe
 driver=tests-model-60_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=60_1;module=drivers/tests-model-60_1/test-safe/safe.ko;main=ldv_main0;verdict=safe;ideal=safe
 driver=tests-model-60_1--test-twoelems.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=60_1;module=drivers/tests-model-60_1/test-twoelems/twoelems.ko;main=ldv_main0;verdict=unsafe;ideal=safe
+driver=tests-model-68_1--test-freenull.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=68_1;module=drivers/tests-model-68_1/test-freenull/freenull.ko;main=ldv_main0;verdict=unsafe;ideal=safe
 driver=tests-model-68_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=68_1;module=drivers/tests-model-68_1/test-safe/safe.ko;main=ldv_main0;verdict=safe;ideal=safe
 driver=tests-model-68_1--test-singlefree.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=68_1;module=drivers/tests-model-68_1/test-singlefree/singlefree.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe
 driver=tests-model-68_1--test-twourb.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=68_1;module=drivers/tests-model-68_1/test-twourb/twourb.ko;main=ldv_main0;verdict=unsafe;ideal=safe
