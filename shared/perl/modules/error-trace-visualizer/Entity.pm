@@ -13,7 +13,7 @@ require Annotation;
 
 my $engine_blast = 'blast';
 
-my %parent_entities = ($engine_blast => {'FunctionCall' => 1});
+my %parent_entities = ($engine_blast => {'FunctionCall' => 1, 'FunctionCallInitialization' => 1});
 my %parent_end_entities = ($engine_blast => {'Return' => 1, 'FunctionCallWithoutBody' => 1});
 
 
@@ -34,13 +34,22 @@ sub blast($)
 {
   my $init = shift;
   
-  # Blast has an one special block, the return block. Make it here.
+  # Blast has some special entities. Make them here.
+  # The return block.
   if (${$init}{'kind'} eq 'Block')
   {
 	if (${${$init}{'values'}}[0] =~ /^Return\(([^\)]*)\);/)
 	{
 	  ${$init}{'kind'} = 'Return';
 	  ${${$init}{'values'}}[0] = $1;
+	}
+  }
+  # The initialization.
+  elsif (${$init}{'kind'} eq 'FunctionCall')
+  {
+	if (${${$init}{'values'}}[0] =~ /^__BLAST_initialize_/)
+	{
+	  ${$init}{'kind'} = 'FunctionCallInitialization';
 	}
   }
   

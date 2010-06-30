@@ -71,6 +71,11 @@ sub print_error_trace_blast($);
 # retn: nothing.
 sub print_error_trace_node_blast($$);
 
+# Add entities global show/hide links.
+# args: (the entitity class; the human readable entity class).
+# retn: nothing.
+sub print_show_hide_global($$);
+
 # Print the required number of spaces.
 # args: the number of spaces.
 # retn: nothing.
@@ -182,7 +187,7 @@ my $opt_reqs_out;
 my $regexp_element_kind = '^([^=\(:]+)';
 
 # The number of indentation spaces.
-my $space_indent = 2;
+my $space_indent = 3;
 
 
 ################################################################################
@@ -429,7 +434,29 @@ sub print_error_trace_blast($)
 {
   my $tree_root = shift;
   	
+  # Print entities global show/hide links.	
+  print_show_hide_global('ETVEntryPoint', 'entry point');
+  print_show_hide_global('ETVEntryPointBody', 'entry point body');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVFunctionCall', 'function calls');
+  print_show_hide_global('ETVFunctionCallInitialization', 'initialization function calls');
+  print_show_hide_global('ETVFunctionCallWithoutBody', 'function without body calls');
+  print_show_hide_global('ETVFunctionBody', 'function bodies');
+  print_show_hide_global('ETVFunctionInitializationBody', 'initialization function bodies');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVBlock', 'blocks');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVReturn', 'returns');
+  print_show_hide_global('ETVReturnValue', 'return values');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVAssert', 'asserts');
+  print_show_hide_global('ETVAssertCondition', 'assert conditions');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVIdentation', 'identation');
+  print($file_report_out "<br>");
+  
   # Print tree recursively.	
+  print($file_report_out "<br>\n");
   print_error_trace_node_blast($tree_root, 0);
 }
 
@@ -483,6 +510,15 @@ sub print_error_trace_node_blast($$)
     print_spaces($indent);
     print($file_report_out "{");    
   }
+  elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
+  {
+    print($file_report_out "\n<div class='ETVFunctionCallInitialization' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
+    print($file_report_out "\n<div class='ETVFunctionInitializationBody' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out "{");    
+  }
   elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
   {
     print($file_report_out "\n<div class='ETVFunctionCallWithoutBody' id='ETV", ($html_id++), "'>");
@@ -525,9 +561,10 @@ sub print_error_trace_node_blast($$)
 	}
   }
   
-  # Print the close brace after the body of root and function calls nodes.
+  # Print the close brace after the body of root and function bodies nodes.
   if ($tree_node->{'kind'} eq 'Root' 
-    or $tree_node->{'kind'} eq 'FunctionCall')
+    or $tree_node->{'kind'} eq 'FunctionCall'
+    or $tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
     print_spaces($indent);
     print($file_report_out "}</div>");
@@ -547,6 +584,36 @@ sub print_spaces($)
   }
   
   print($file_report_out "</span>");
+}
+
+sub print_show_hide_global($$)
+{
+  my $entity_class = shift;
+  my $entity_class_human_readable = shift;
+  
+  print($file_report_out 
+    "\n<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('a.#${entity_class}ShowHide').toggle"
+    , "\n    ("
+    , "\n      function()"
+    , "\n      {"
+    , "\n        \$('.$entity_class').hide();"
+    , "\n        \$(this).html('Show $entity_class_human_readable');"
+    , "\n      }"
+    , "\n      , function()"
+    , "\n      {"
+    , "\n        \$('.$entity_class').show();"
+    , "\n        \$(this).html('Hide $entity_class_human_readable');"
+    , "\n      }"
+    , "\n    );"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>"
+    , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>\n"); 
 }
 
 sub process_error_trace()

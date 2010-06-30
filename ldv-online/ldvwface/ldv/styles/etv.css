@@ -36,10 +36,23 @@
   font-size: 8pt;
 }
 
+.ETVFunctionInitializationBody
+{
+  color: green;
+  font-size: 8pt;
+}
+
 .ETVFunctionCall
 {
   color: red;
   font-weight: bold;
+  font-size: 8pt;
+}
+
+.ETVFunctionCallInitialization
+{
+  color: red;
+  font-style: italic;
   font-size: 8pt;
 }
 
