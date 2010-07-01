@@ -406,6 +406,47 @@ function WSPutTask($task) {
 #
 function WSGetTaskReport($task_id) {
 	$conn = WSStatsConnect();
+
+
+	// TODO: Fix ldv-uploader !
+	// NOW WE HAVE TWO WORKAROUNDS:
+	// First when in environmnets ldv-uploader add wrong environment version in case of failed 
+	// verification results (driver not compiled with kernel or have no ld commands):
+	// Run verification with 
+	// Environmnets: 32_1,77_1,08_1,29_1,37_1,39_1,43_1,60_1,68_1
+	// On each kernels: linux-2.6.33.3, linux-2.6.32.12
+	// In one task on driver serial-safe.tar.bz2 - from dir safe
+	$result = WSStatsQuery('SELECT id,version FROM environments WHERE version LIKE \'%.tar.bz2\';');
+	while($row = mysql_fetch_array($result)) {
+			preg_match('/(.*)\.tar\.bz2$/', $row['version'], $lmatches);
+			$fixed_version=$lmatches[1];
+			// find original environmnet version
+			$fresult = WSStatsQuery('SELECT id,version FROM environments WHERE version=\''.$fixed_version.'\';');
+			if($frow = mysql_fetch_array($fresult)) {
+				// fix all results - 1. replace env_id with fixed env_id
+				WSStatsQuery('UPDATE launches SET environment_id='.$frow['id'].' WHERE scenario_id IS NULL AND trace_id IS NULL AND status=\'failed\';');
+				// replace status running with status finished - OR SET IT TO FAILED?
+				WSStatsQuery('UPDATE launches SET status=\'finished\' WHERE scenario_id IS NULL AND trace_id IS NULL AND status=\'running\' AND environment_id='.$frow['id'].';');
+			}
+			// remove wrong kernel environment
+			WSStatsQuery('DELETE FROM environments WHERE id='.$row['id'].';');
+	}
+	// TODO: Add workaround for task for linux-2.6.35-rc3 - wl...., when launch have status finished
+	//  and some other records in launches table with scenario_id or trace_id null
+	// 1. if records with null and failed exists then we replace status running with status 
+	// finished on ocrresponding records (rule + kernel compile failed)
+	// Run verification with 
+	// Environmnets: 32_1,77_1
+	// On each kernels: linux-2.6.33.3, linux-2.6.35-rc3
+	// In one task with driver wl.. unsafe
+	$result = WSStatsQuery('SELECT driver_id,toolset_id,environment_id,task_id FROM launches WHERE rule_model_id IS NULL AND scenario_id IS NULL AND trace_id IS NOT NULL AND status=\'finished\';');
+	while($row = mysql_fetch_array($result)) {
+		WSStatsQuery('UPDATE launches SET status=\'finished\' WHERE task_id='.$row['task_id'].' AND environment_id='.$row['environment_id'].' AND toolset_id='.$row['toolset_id'].' AND driver_id='.$row['driver_id'].' AND rule_model_id IS NOT NULL AND scenario_id IS NULL AND trace_id IS NULL AND status=\'running\';');
+	}
+
+
+
+
 	$result = WSStatsQuery('SELECT launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY scenario_id, trace_id, env, rule;');
 	if(mysql_num_rows($result) == 0) {
 		WSPrintE("Could not find task or wrong user.");
@@ -435,9 +476,13 @@ function WSGetTaskReport($task_id) {
 		$task['envs'][$i]['rules'][$j]['rule_model_id']=$row['rule_model_id'];
 		if($row['status'] == 'finished') 
 			$finished++;
+		if($row['status'] != 'failed')
+			$count++;
 		$j++;
-		$count++;
+		WSPrintT($row['rule'].' '.$row['env'].' '.$row['status']);
 	}
+	WSPrintD('Count: '.$count);
+	WSPrintD('All finished: '.$finished);
 	if($finished == $count) {
 		$task['progress'] = 100;
 		$task['status'] = 'finished';
@@ -487,9 +532,7 @@ function WSGetDetailedReport($trace_id) {
 	$pwd = getcwd();
 	$tmpdir = $pwd.'/ldv/tmp';
 	// TODO:  test if this file already exists
-	print(": ".$tmpdir."<br>");
 	$tmpfile = $tmpdir.'/1';
-	print(": ".$tmpfile."<br>");
 	$tmpfile_report = $tmpdir.'/1.report';
 	// write report to file
 	// apache dir must be chmod a+x recursive 

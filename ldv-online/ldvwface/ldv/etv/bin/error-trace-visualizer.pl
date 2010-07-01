@@ -71,6 +71,16 @@ sub print_error_trace_blast($);
 # retn: nothing.
 sub print_error_trace_node_blast($$);
 
+# Add entities global show/hide links.
+# args: (the entitity class; the human readable entity class).
+# retn: nothing.
+sub print_show_hide_global($$);
+
+# Add entities local show/hide links.
+# args: (the entitity identifier).
+# retn: nothing.
+sub print_show_hide_local($);
+
 # Print the required number of spaces.
 # args: the number of spaces.
 # retn: nothing.
@@ -163,6 +173,9 @@ my %engines = (my $engine_blast = 'blast' =>
                  {'print', \&print_error_trace_blast, 
                   'process', \&process_error_trace_blast});
 
+# The value is the entity class to be hide by default.
+my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializationBody' => 1, 'ETVBlock' => 1);
+
 # File handlers.
 my $file_report_in;
 my $file_report_out;
@@ -182,7 +195,7 @@ my $opt_reqs_out;
 my $regexp_element_kind = '^([^=\(:]+)';
 
 # The number of indentation spaces.
-my $space_indent = 2;
+my $space_indent = 3;
 
 
 ################################################################################
@@ -429,7 +442,43 @@ sub print_error_trace_blast($)
 {
   my $tree_root = shift;
   	
+  # Print entities global show/hide links.	
+  print_show_hide_global('ETVEntryPoint', 'entry point');
+  print_show_hide_global('ETVEntryPointBody', 'entry point body');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVFunctionCall', 'function calls');
+  print_show_hide_global('ETVFunctionCallInitialization', 'initialization function calls');
+  print_show_hide_global('ETVFunctionCallWithoutBody', 'function without body calls');
+  print_show_hide_global('ETVFunctionBody', 'function bodies');
+  print_show_hide_global('ETVFunctionInitializationBody', 'initialization function bodies');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVBlock', 'blocks');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVReturn', 'returns');
+  print_show_hide_global('ETVReturnValue', 'return values');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVAssert', 'asserts');
+  print_show_hide_global('ETVAssertCondition', 'assert conditions');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVIdentation', 'identation');
+  print($file_report_out "<br>");
+  
+  foreach my $entity_hide (keys(%entity_hide))
+  {
+    print($file_report_out 
+      "\n<script type='text/javascript'>"
+      , "\n\$(document).ready"
+      , "\n("
+      , "\n  function()"
+      , "\n  {"
+      , "\n    \$('a.#${entity_hide}ShowHide').click()"
+      , "\n  }"
+      , "\n);"
+      , "\n</script>"); 	  
+  }
+  
   # Print tree recursively.	
+  print($file_report_out "<br>\n");
   print_error_trace_node_blast($tree_root, 0);
 }
 
@@ -464,28 +513,82 @@ sub print_error_trace_node_blast($$)
 	}
   }
   
+  # Get formal parameter names if so.
+  my @names = ();
+  if ($tree_node->{'post annotations'})
+  {
+	foreach my $post_annotation (@{$tree_node->{'post annotations'}})
+	{
+	  if ($post_annotation->{'kind'} eq 'Locals')
+	  {
+		foreach my $name (@{$post_annotation->{'values'}})
+		{
+		  # Remove parameter name scope.
+		  $name =~ s/@[_a-zA-Z0-9]+//g;
+		  push(@names, $name);	
+		}  
+	  }
+	}
+  }
+
   # Print tree node declaration.
   if ($tree_node->{'kind'} eq 'Root')
   {
-    print($file_report_out "<div class='ETVEntryPoint' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVEntryPoint' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
+    print_show_hide_local("ETV$html_id");
     print($file_report_out "entry_point()", ";</div>");
-    print($file_report_out "<div class='ETVEntryPointBody' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVEntryPointBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCall')
   {
-    print($file_report_out "<div class='ETVFunctionCall' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionCall' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
+    print_show_hide_local("ETV$html_id");
+    # Add formal parameters names comments.
+    my $val = ${$tree_node->{'values'}}[0];
+    my $pos = 0;
+
+    while (@names)
+    {
+	  my $name = shift(@names);
+	  my $comment = " /* $name */";
+	  my $comment_length = length($comment);
+	  
+	  my $pos_cur;
+	  	
+	  if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = index($val, ')', $pos)) != -1)
+	  {
+		$val = substr($val, 0, $pos_cur) . $comment . substr($val, $pos_cur);
+		$pos = $pos_cur + $comment_length + 1;
+		next;  
+	  }
+	  
+	  last;
+	}
+
+    $val =~ s/(\/\*[^\*\/]*\*\/)/<span class='ETVFunctionFormalParamName'>$1<\/span>/g;
+
+    print($file_report_out $val, ";</div>");
+    print($file_report_out "\n<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out "{");    
+  }
+  elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
+  {
+    print($file_report_out "\n<div class='ETVFunctionCallInitialization' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print_show_hide_local("ETV$html_id"); 
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
-    print($file_report_out "<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionInitializationBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
   {
-    print($file_report_out "<div class='ETVFunctionCallWithoutBody' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionCallWithoutBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
   }
@@ -493,25 +596,34 @@ sub print_error_trace_node_blast($$)
   {
 	# Split expressions joined together into one block.
 	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
-	print($file_report_out "<div class='ETVBlock' title='$src:$line' id='ETV", ($html_id++), "'>");
+	print($file_report_out "\n<div class='ETVBlock' title='$src:$line' id='ETV", ($html_id++), "'>");
+	my $isshow_hide = 1;
+	$isshow_hide = 0 unless (scalar(@exprs) > 1);
 	
 	foreach my $expr (@exprs)
-	{	
-	  print_spaces($indent);
+	{
+	  print_spaces($indent);		
+	  print_show_hide_local("ETV$html_id") if ($isshow_hide);
 	  print($file_report_out $expr, ";<br>");
+	  
+	  if ($isshow_hide)
+	  {
+	    print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
+		$isshow_hide = 0;
+	  }
     }
     
-    print($file_report_out "</div>");	 
+    print($file_report_out "</span></div>");	 
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
-    print($file_report_out "<div class='ETVReturn' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVReturn' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "return ", "<span class='ETVReturnValue'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
   }
   elsif ($tree_node->{'kind'} eq 'Pred')
   {
-    print($file_report_out "<div class='ETVAssert' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVAssert' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "assert(", "<span class='ETVAssertCondition'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
   }
@@ -525,9 +637,10 @@ sub print_error_trace_node_blast($$)
 	}
   }
   
-  # Print the close brace after the body of root and function calls nodes.
+  # Print the close brace after the body of root and function bodies nodes.
   if ($tree_node->{'kind'} eq 'Root' 
-    or $tree_node->{'kind'} eq 'FunctionCall')
+    or $tree_node->{'kind'} eq 'FunctionCall'
+    or $tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
     print_spaces($indent);
     print($file_report_out "}</div>");
@@ -547,6 +660,65 @@ sub print_spaces($)
   }
   
   print($file_report_out "</span>");
+}
+
+sub print_show_hide_global($$)
+{
+  my $entity_class = shift;
+  my $entity_class_human_readable = shift;
+  
+  print($file_report_out 
+    "\n<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('a.#${entity_class}ShowHide').toggle"
+    , "\n    ("
+    , "\n      function()"
+    , "\n      {"
+    , "\n        \$('.$entity_class').hide();"
+    , "\n        \$(this).html('Show $entity_class_human_readable');"
+    , "\n      }"
+    , "\n      , function()"
+    , "\n      {"
+    , "\n        \$('.$entity_class').show();"
+    , "\n        \$(this).html('Hide $entity_class_human_readable');"
+    , "\n      }"
+    , "\n    );"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>"
+    , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>\n"); 
+}
+
+sub print_show_hide_local($)
+{
+  my $entity_id = shift;
+  
+  print($file_report_out 
+    "<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('a.#${entity_id}ShowHide').toggle"
+    , "\n    ("
+    , "\n      function()"
+    , "\n      {"
+    , "\n        \$('#$entity_id').hide();"
+    , "\n        \$(this).html('+');"
+    , "\n      }"
+    , "\n      , function()"
+    , "\n      {"
+    , "\n        \$('#$entity_id').show();"
+    , "\n        \$(this).html('-');"
+    , "\n      }"
+    , "\n    );"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>"
+    , "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n"); 	
 }
 
 sub process_error_trace()

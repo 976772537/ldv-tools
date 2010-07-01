@@ -1,5 +1,4 @@
 <?php
-//<link rel='stylesheet' id='login-css'  href='ldv/styles/form.css' type='text/css' media='all' />
 require_once("ldv/include/include.php");
 
 function html($text)
@@ -183,8 +182,40 @@ function view_task_status($task_id) {
 		print "Can't get status for your task.";
 		return;
 	}
+	/* treeTable framework
+	<form>
+	<link href="http://ludo.cubicphuse.nl/jquery-plugins/treeTable/src/stylesheets/jquery.treeTable.css" rel="stylesheet" type="text/css" /> 
+	<link href="http://ludo.cubicphuse.nl/jquery-plugins/treeTable/doc/stylesheets/master.css" rel="stylesheet" type="text/css" />
+	<table id="tree">
+		<caption>Simple collapsible</caption>
+		<thead>
+			<tr>
+				<th>one</th>
+				<th>twoe</th>
+			</tr>
+		</thead>
+		<tbody>
+	  		<tr id="node-1">
+   				 <td>Parent 1</td>
+   				 <td>Parent 1</td>
+			</tr>
+  			<tr id="node-2" class="child-of-node-1">
+   				 <td>Child 2</td>
+   				 <td>Child 2</td>
+	 		</tr>
+  			<tr id="node-3" class="child-of-node-2">
+   				 <td>Child 3</td>
+   				 <td>Child 3</td>
+ 			</tr>
+		</tbody>
+	</table>
+	</form>
+	<script type="text/javascript">
+  		$(document).ready(function()  {
+ 			 $("#tree").treeTable();
+		});
+	</script>*/
 	?>
-
 	<?php if($status['status'] != 'finished') { ?>
 	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>">
 	<?php } ?>
@@ -212,7 +243,7 @@ function view_task_status($task_id) {
        		 });
         	$(".rowdiv_minihead_collapsible").parent().children().not(".rowdiv_minihead_collapsible").hide();
 		});
-        </script>
+        </script> 
 	
 <!--	<div class="tablediv">
 		<div class="rowdiv_head">	
