@@ -173,6 +173,9 @@ my %engines = (my $engine_blast = 'blast' =>
                  {'print', \&print_error_trace_blast, 
                   'process', \&process_error_trace_blast});
 
+# The value is the entity class to be hide by default.
+my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializationBody' => 1, 'ETVBlock' => 1);
+
 # File handlers.
 my $file_report_in;
 my $file_report_out;
@@ -460,6 +463,20 @@ sub print_error_trace_blast($)
   print_show_hide_global('ETVIdentation', 'identation');
   print($file_report_out "<br>");
   
+  foreach my $entity_hide (keys(%entity_hide))
+  {
+    print($file_report_out 
+      "\n<script type='text/javascript'>"
+      , "\n\$(document).ready"
+      , "\n("
+      , "\n  function()"
+      , "\n  {"
+      , "\n    \$('a.#${entity_hide}ShowHide').click()"
+      , "\n  }"
+      , "\n);"
+      , "\n</script>"); 	  
+  }
+  
   # Print tree recursively.	
   print($file_report_out "<br>\n");
   print_error_trace_node_blast($tree_root, 0);
@@ -496,6 +513,24 @@ sub print_error_trace_node_blast($$)
 	}
   }
   
+  # Get formal parameter names if so.
+  my @names = ();
+  if ($tree_node->{'post annotations'})
+  {
+	foreach my $post_annotation (@{$tree_node->{'post annotations'}})
+	{
+	  if ($post_annotation->{'kind'} eq 'Locals')
+	  {
+		foreach my $name (@{$post_annotation->{'values'}})
+		{
+		  # Remove parameter name scope.
+		  $name =~ s/@[_a-zA-Z0-9]+//g;
+		  push(@names, $name);	
+		}  
+	  }
+	}
+  }
+
   # Print tree node declaration.
   if ($tree_node->{'kind'} eq 'Root')
   {
@@ -512,7 +547,29 @@ sub print_error_trace_node_blast($$)
     print($file_report_out "\n<div class='ETVFunctionCall' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
-    print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
+    # Add formal parameters names comments.
+    my $val = ${$tree_node->{'values'}}[0];
+    my $pos = 0;
+
+    while (@names)
+    {
+	  my $name = shift(@names);
+	  my $comment = " /* $name */";
+	  my $comment_length = length($comment);
+	  
+	  my $pos_cur;
+	  	
+	  if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = index($val, ')', $pos)) != -1)
+	  {
+		$val = substr($val, 0, $pos_cur) . " /* $name */" . substr($val, $pos_cur);
+		$pos = $pos_cur + $comment_length + 1;
+		next;  
+	  }
+	  
+	  last;
+	}
+
+    print($file_report_out $val, ";</div>");
     print($file_report_out "\n<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
