@@ -241,7 +241,7 @@ sub upload_results()
 	  }
       print_debug_info("Execute the command '@args'");
       system(@args);
-      die("There is no the ldv-manager executable in your PATH!") 
+      die("There is no the ldv-upload executable in your PATH!") 
 		 if (check_system_call() == -1);
       # Unset special environments variables.
       delete($ENV{$ldv_uploader_database});
