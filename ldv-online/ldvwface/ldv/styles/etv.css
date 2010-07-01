@@ -81,3 +81,10 @@
   font-weight: bold;
   font-size: 8pt;
 }
+
+.ETVShowHide
+{
+  font-weight: normal;
+  white-space: pre-wrap;
+  font-size: 8pt;
+}

@@ -76,6 +76,11 @@ sub print_error_trace_node_blast($$);
 # retn: nothing.
 sub print_show_hide_global($$);
 
+# Add entities local show/hide links.
+# args: (the entitity identifier).
+# retn: nothing.
+sub print_show_hide_local($);
+
 # Print the required number of spaces.
 # args: the number of spaces.
 # retn: nothing.
@@ -496,6 +501,7 @@ sub print_error_trace_node_blast($$)
   {
     print($file_report_out "\n<div class='ETVEntryPoint' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
+    print_show_hide_local("ETV$html_id");
     print($file_report_out "entry_point()", ";</div>");
     print($file_report_out "\n<div class='ETVEntryPointBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
@@ -505,6 +511,7 @@ sub print_error_trace_node_blast($$)
   {
     print($file_report_out "\n<div class='ETVFunctionCall' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
+    print_show_hide_local("ETV$html_id");
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
     print($file_report_out "\n<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
@@ -514,6 +521,7 @@ sub print_error_trace_node_blast($$)
   {
     print($file_report_out "\n<div class='ETVFunctionCallInitialization' title='$src:$line' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
+    print_show_hide_local("ETV$html_id"); 
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
     print($file_report_out "\n<div class='ETVFunctionInitializationBody' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
@@ -530,14 +538,23 @@ sub print_error_trace_node_blast($$)
 	# Split expressions joined together into one block.
 	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
 	print($file_report_out "\n<div class='ETVBlock' title='$src:$line' id='ETV", ($html_id++), "'>");
+	my $isshow_hide = 1;
+	$isshow_hide = 0 unless (scalar(@exprs) > 1);
 	
 	foreach my $expr (@exprs)
-	{	
-	  print_spaces($indent);
+	{
+	  print_spaces($indent);		
+	  print_show_hide_local("ETV$html_id") if ($isshow_hide);
 	  print($file_report_out $expr, ";<br>");
+	  
+	  if ($isshow_hide)
+	  {
+	    print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
+		$isshow_hide = 0;
+	  }
     }
     
-    print($file_report_out "</div>");	 
+    print($file_report_out "</span></div>");	 
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
@@ -614,6 +631,35 @@ sub print_show_hide_global($$)
     , "\n);"
     , "\n</script>"
     , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>\n"); 
+}
+
+sub print_show_hide_local($)
+{
+  my $entity_id = shift;
+  
+  print($file_report_out 
+    "<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('a.#${entity_id}ShowHide').toggle"
+    , "\n    ("
+    , "\n      function()"
+    , "\n      {"
+    , "\n        \$('#$entity_id').hide();"
+    , "\n        \$(this).html('+');"
+    , "\n      }"
+    , "\n      , function()"
+    , "\n      {"
+    , "\n        \$('#$entity_id').show();"
+    , "\n        \$(this).html('-');"
+    , "\n      }"
+    , "\n    );"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>"
+    , "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n"); 	
 }
 
 sub process_error_trace()
