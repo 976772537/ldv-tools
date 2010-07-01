@@ -561,13 +561,15 @@ sub print_error_trace_node_blast($$)
 	  	
 	  if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = index($val, ')', $pos)) != -1)
 	  {
-		$val = substr($val, 0, $pos_cur) . " /* $name */" . substr($val, $pos_cur);
+		$val = substr($val, 0, $pos_cur) . $comment . substr($val, $pos_cur);
 		$pos = $pos_cur + $comment_length + 1;
 		next;  
 	  }
 	  
 	  last;
 	}
+
+    $val =~ s/(\/\*[^\*\/]*\*\/)/<span class='ETVFunctionFormalParamName'>$1<\/span>/g;
 
     print($file_report_out $val, ";</div>");
     print($file_report_out "\n<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
