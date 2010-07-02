@@ -5,6 +5,6 @@ drivers-media-video-gspca-main | 7 min | Time limit 15 min | original driver wit
 drivers-media-video-gspca-main-2 | 5 sec | 60 sec | Only functions reachable from ldv_main0
 drivers-media-video-gspca-main-3 | 3 sec | 17 sec | Some part of auxiliary functions removed
 drivers-media-video-gspca-main-4 | 2 sec | 8 sec | Only functions from error trace call stack
-test-doublelock | 392ms | 398ms | Small exmaple from regr tests
+test-doublelock | 392ms | 988ms | Small exmaple from regr tests
 test-doublelock-2 +350 | 6 sec | 73 sec | added 350 equal lines: x.a=y.b-z.c+x.b
 test-doublelock-2 +1050 | 2 min | Time limit 15 min | added 1050 lines
