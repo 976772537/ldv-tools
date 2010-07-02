@@ -1,0 +1,10 @@
+envs=linux-2.6.32.15.tar.bz2 drivers=ONE_FROM_THE_LIST "rule_models=32_1 32_2"
+
+driver | 32_1 | 32_2 | note
+drivers-media-video-gspca-main | 7 min | Time limit 15 min | original driver with the only function dev_read in the generated ldv_main0
+drivers-media-video-gspca-main-2 | 5 sec | 60 sec | Only functions reachable from ldv_main0
+drivers-media-video-gspca-main-3 | 3 sec | 17 sec | Some part of auxiliary functions removed
+drivers-media-video-gspca-main-4 | 2 sec | 8 sec | Only functions from error trace call stack
+test-doublelock | 392ms | 398ms | Small exmaple from regr tests
+test-doublelock-2 +350 | 6 sec | 73 sec | added 350 equal lines: x.a=y.b-z.c+x.b
+test-doublelock-2 +1050 | 2 min | Time limit 15 min | added 1050 lines
