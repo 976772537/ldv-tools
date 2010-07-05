@@ -4,7 +4,7 @@ package LDV::Utils;
 
 use strict;
 use vars qw(@ISA @EXPORT_OK @EXPORT);
-@EXPORT=qw(&vsay);
+@EXPORT=qw(&vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level check_system_call);
 #@EXPORT_OK=qw(set_verbosity);
 use base qw(Exporter);
 
@@ -73,6 +73,87 @@ sub vsay
 		print $debug_stream "$level_string: ";
 		print $debug_stream @_;
 	}
+}
+
+# Debug printing functions output some information in depend on the debug level.
+# args: the only string to be printed with a small formatting.
+# retn: nothing.
+sub print_debug_warning
+{
+  vsay('WARNING', "$_[0].\n");
+}
+sub print_debug_normal
+{
+  vsay('NORMAL', "$_[0].\n");
+}
+sub print_debug_info
+{
+  vsay('INFO', "$_[0].\n");
+}
+sub print_debug_debug
+{
+  vsay('DEBUG', "$_[0].\n");
+}
+sub print_debug_trace
+{
+  vsay('TRACE', "$_[0].\n");
+}
+sub print_debug_all
+{
+  vsay('ALL', "$_[0].\n");
+}
+
+# Determine the debug level in depend on the passed arguments.
+# args: (the tool to be debugged name; the LDV_DEBUG value; the tool debug value).
+# retn: nothing.
+sub get_debug_level
+{
+  my $tool_debug_name = shift;
+  
+  return 0 unless ($tool_debug_name);
+  	
+  push_instrument($tool_debug_name);
+
+  # By default (in case when neither the LDV_DEBUG nor the tool debug
+  # environment variables aren't specified) or when they are both 0 just 
+  # information on critical errors is printed. 
+  # Otherwise the tool debug environment variable is preferable.
+  my $ldv_debug = shift;
+  my $tool_debug = shift;
+    
+  if ($tool_debug)
+  {
+    set_verbosity($tool_debug);
+    print_debug_debug("The debug level is set correspondingly to the tool debug environment variable value '$tool_debug'");
+  }
+  elsif ($ldv_debug)
+  {
+    set_verbosity($ldv_debug);
+    print_debug_debug("The debug level is set correspondingly to the general LDV_DEBUG environment variable value '$ldv_debug'.");
+  }
+}
+
+sub check_system_call
+{
+  # This is got almost directly from the Perl manual: 
+  # http://perldoc.perl.org/functions/system.html
+  if ($? == -1) 
+  {
+    print("Failed to execute: $!\n");
+    return -1;
+  }
+  elsif ($? & 127) 
+  {
+    printf("Child died with signal %d, %s coredump\n", ($? & 127), ($? & 128) ? 'with' : 'without');
+    return ($? & 127);
+  }
+  elsif ($? >> 8)
+  {
+    printf("Child exited with value %d\n", ($? >> 8));
+    return ($? >> 8);
+  }
+  
+  return 0;
 }
 
 1;

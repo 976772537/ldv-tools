@@ -15,6 +15,7 @@ use lib("$FindBin::RealBin/../shared/perl", "$FindBin::RealBin/../shared/perl/er
 use LDV::Utils;
 require Entity;
 require Annotation;
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
 
 ################################################################################
@@ -203,9 +204,9 @@ my $space_indent = 3;
 ################################################################################
 
 # Obtain the debug level.
-get_debug_level();
+get_debug_level($debug_name, $LDV_DEBUG, $LDV_ERROR_TRACE_VISUALIZER_DEBUG);
 
-print_debug_normal("Process the command-line options.");
+print_debug_normal("Process the command-line options");
 get_opt();
 
 print_debug_normal("Process trace.");
@@ -228,7 +229,7 @@ if ($opt_reqs_out)
          }
 }
 
-print_debug_trace("Close file handlers.");
+print_debug_trace("Close file handlers");
 close($file_report_in) 
   or die("Can't close the file '$opt_report_in': $ERRNO\n");
 if ($opt_report_out)
@@ -242,7 +243,7 @@ if ($opt_reqs_out)
     or die("Can't close the file '$opt_reqs_out': $ERRNO\n");
 }
   
-print_debug_normal("Make all successfully.");
+print_debug_normal("Make all successfully");
 
 
 ################################################################################
@@ -288,7 +289,7 @@ sub get_opt()
     warn("No options were specified through the command-line. Please see help to understand how to use this tool");
     help();
   }
-  print_debug_trace("The options '@ARGV' were passed to the instrument through the command-line.");
+  print_debug_trace("The options '@ARGV' were passed to the instrument through the command-line");
 
   unless (GetOptions(
     'engine=s' => \$opt_engine,
@@ -297,7 +298,7 @@ sub get_opt()
     'report-out|o=s' => \$opt_report_out,
     'reqs-out=s' => \$opt_reqs_out))
   {
-    warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool.");
+    warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool");
     help();
   }
 
@@ -329,21 +330,21 @@ sub get_opt()
   {
     open($file_report_out, '>', "$opt_report_out")
       or die("Can't open the file '$opt_report_out' specified through the option --report-out|o for write: $ERRNO");
-    print_debug_debug("The report output file is '$opt_report_out'.");
+    print_debug_debug("The report output file is '$opt_report_out'");
   }
   
   if ($opt_reqs_out)
   {
     open($file_reqs_out, '>', "$opt_reqs_out")
       or die("Can't open the file '$opt_reqs_out' specified through the option --reqs-out for write: $ERRNO");
-    print_debug_debug("The requrements output file is '$opt_reqs_out'.");
+    print_debug_debug("The requrements output file is '$opt_reqs_out'");
   }
   
   open($file_report_in, '<', "$opt_report_in")
     or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for read: $ERRNO");
-  print_debug_debug("The report input file is '$opt_report_in'.");
+  print_debug_debug("The report input file is '$opt_report_in'");
   
-  print_debug_debug("The command-line options are processed successfully.");
+  print_debug_debug("The command-line options are processed successfully");
 }
 
 sub help()
