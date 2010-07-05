@@ -1,0 +1,132 @@
+	A { 
+		 text-decoration: none; /* Отменяем подчеркивание у ссылки */
+	}
+
+	.table_headers {
+		font-style: bold;
+		 color: #686868;
+	}	
+
+	.tempo {
+		background-color: #CCCCCC;
+	}
+
+	.tablediv {
+		display:  table;
+		width: 100%;
+		border:1px solid  #BBBBBB;
+		border-spacing:5px;/*cellspacing:poor IE support for  this*/
+		border-collapse: collapse;
+	}
+       .collapsible_rowdiv  {
+                display:  table-row;
+                width: auto;
+        }
+        .rowdiv_head  {
+                display:  table-row;
+        	border:1px solid  #BBBBBB;
+		background: #BBBBBB;
+		border-spacing:5px;/*cellspacing:poor IE support for  this*/
+		border-collapse: collapse;
+	        width: auto;
+        }
+
+        .rowdiv  {
+                display:  table-row;
+        	border:1px solid  #BBBBBB;
+		border-spacing:5px;/*cellspacing:poor IE support for  this*/
+		border-collapse: collapse;
+	        width: auto;
+        }
+        .col10 { float: left; display: table-cell; width: 10%;}
+        .col16 { float: left; display: table-cell; width: 16%; word-wrap: break-word;}
+        .col27 { float: left; display: table-cell; width: 27%; word-wrap: break-word;}
+        .col37 { float: left; display: table-cell; width: 37%; word-wrap: break-word;}
+        .col18 { float: left; display: table-cell; width: 18%;}
+        .col23 { float: left; display: table-cell; width: 23%;}
+        .col05 { float: left; display: table-cell; width:  5%;}
+        .col71 { float: left; display: table-cell; width: 71%;}
+        .col20 { float: left; display: table-cell; width: 20%;}
+        .col30 { float: left; display: table-cell; width: 30%;}
+        .col40 { float: left; display: table-cell; width: 40%;}
+        .col60 { float: left; display: table-cell; width: 60%;}
+        .col41 { float: left; display: table-cell; width: 41%;}
+        .col31 { float: left; display: table-cell; width: 31%;}
+        .col30 { float: left; display: table-cell; width: 30%;}
+
+        .col24r { float: left; display: table-cell; width: 24%; background: #CD3333;}
+        .col24g { float: left; display: table-cell; width: 24%; background: #66CD00;}
+        .col24y { float: left; display: table-cell; width: 24%; background: #FFFF00;}
+  	.col40r { float: left; display: table-cell; width: 40%; background: #CD3333;}
+        .col40g { float: left; display: table-cell; width: 40%; background: #66CD00;}
+        .col40y { float: left; display: table-cell; width: 40%; background: #FFFF00;}
+	.col31r { float: left; display: table-cell; width: 31%; background: #CD3333;}
+        .col31g { float: left; display: table-cell; width: 31%; background: #66CD00;}
+        .col31y { float: left; display: table-cell; width: 31%; background: #FFFF00;}
+	.col30r { float: left; display: table-cell; width: 30%; background: #CD3333;}
+        .col30g { float: left; display: table-cell; width: 30%; background: #66CD00;}
+        .col30y { float: left; display: table-cell; width: 30%; background: #FFFF00;}
+	.col41r { float: left; display: table-cell; width: 41%; background: #CD3333;}
+        .col41g { float: left; display: table-cell; width: 41%; background: #66CD00;}
+        .col41y { float: left; display: table-cell; width: 41%; background: #FFFF00;}
+
+
+        .col50 { float: left; display: table-cell; width: 50%;}
+        .col54 { float: left; display: table-cell; width: 54%;}
+        .col60 { float: left; display: table-cell; width: 60%;}
+        .col24 { float: left; display: table-cell; width: 24%;}
+        .col26 { float: left; display: table-cell; width: 26%;}
+        .col30 { float: left; display: table-cell; width: 30%;}
+        .col70 { float: left; display: table-cell; width: 70%;}
+        .col02 { float: left; display: table-cell; width:  2%;}
+        .col58 { float: left; display: table-cell; width: 58%;}
+        .col78 { float: left; display: table-cell; width: 78%;}
+
+        	.col10a { display: table-cell; width: 95px;}
+        	.col16a { display: table-cell; width:152px; word-wrap: break-word;}
+       		.col27a { display: table-cell; width: 256.5px; word-wrap: break-word;}
+
+        .col37a { display: table-cell; width: 37%; word-wrap: break-word;}
+        .col18a { display: table-cell; width: 18%;}
+        .col23a { display: table-cell; width: 23%;}
+        .col05a { display: table-cell; width:  5%;}
+        .col71a { display: table-cell; width: 71%;}
+
+      		.col20a { display: table-cell; width: 190px;}
+        	.col30a { display: table-cell; width: 280px;}
+	        .col40a { display: table-cell; width: 380px;}
+	        .col60a { display: table-cell; width: 570px;}
+
+        .col41a { display: table-cell; width: 41%;}
+        .col31a { display: table-cell; width: 31%;}
+        .col30a { display: table-cell; width: 30%;}
+
+        .col24ar { display: table-cell; width: 24%; background: #CD3333;}
+        .col24ag { display: table-cell; width: 24%; background: #66CD00;}
+        .col24ay { display: table-cell; width: 24%; background: #FFFF00;}
+  	.col40ar { display: table-cell; width: 40%; background: #CD3333;}
+        .col40ag { display: table-cell; width: 40%; background: #66CD00;}
+        .col40ay { display: table-cell; width: 40%; background: #FFFF00;}
+	.col31ar { display: table-cell; width: 31%; background: #CD3333;}
+        .col31ag { display: table-cell; width: 31%; background: #66CD00;}
+        .col31ay { display: table-cell; width: 31%; background: #FFFF00;}
+	.col30ar { display: table-cell; width: 30%; background: #CD3333;}
+        .col30ag { display: table-cell; width: 30%; background: #66CD00;}
+        .col30ay { display: table-cell; width: 30%; background: #FFFF00;}
+	.col41ar { display: table-cell; width: 41%; background: #CD3333;}
+        .col41ag { display: table-cell; width: 41%; background: #66CD00;}
+        .col41ay { display: table-cell; width: 41%; background: #FFFF00;}
+
+
+        .col50a { float: left; display: table-cell; width: 50%;}
+        .col54a { float: left; display: table-cell; width: 54%;}
+        .col60a { float: left; display: table-cell; width: 60%;}
+        .col24a { float: left; display: table-cell; width: 24%;}
+        .col26a { float: left; display: table-cell; width: 26%;}
+        .col30a { float: left; display: table-cell; width: 30%;}
+        .col70a { float: left; display: table-cell; width: 70%;}
+        .col02a { float: left; display: table-cell; width:  2%;}
+        .col58a { float: left; display: table-cell; width: 58%;}
+        .col78a { float: left; display: table-cell; width: 78%;}
+
+

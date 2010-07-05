@@ -9,14 +9,20 @@ public class Token implements ReaderInterface {
 	private int beginIndex = 0;
 	private int endIndex = 0;
 	private String content=null;
+	protected String ldvCommentContent=null;
 	protected List<Token> tokens;
 
-	public Token(int beginIndex, int endIndex, String content, List<Token> tokens) {
+	public Token(int beginIndex, int endIndex, String content, String ldvCommentContent, List<Token> tokens) {
 		super();
+		this.ldvCommentContent = ldvCommentContent;
 		this.tokens = tokens;
 		this.beginIndex = beginIndex;
 		this.endIndex = endIndex;
 		this.content = content;
+	}
+	
+	public String getLdvCommentContent() {
+		return ldvCommentContent;
 	}
 
 	public List<Token> getTokens() {

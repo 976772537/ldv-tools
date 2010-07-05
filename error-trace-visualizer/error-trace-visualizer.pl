@@ -9,15 +9,27 @@ Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../shared/perl", "$FindBin::RealBin/../shared/perl/error-trace-visualizer");
 
 # Add some nonstandard local Perl packages.
 use LDV::Utils;
+require Entity;
+require Annotation;
 
 
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+# Add spaces around some operators to make output more nice.
+# args: some string.
+# retn: this string with formatted operators.
+sub add_mising_spaces($);
+
+# Check wether the given engine is supported.
+# args: no.
+# retn: nothing.
+sub check_engine();
 
 # Determine the debug level in depend on the environment variable value.
 # args: no.
@@ -44,6 +56,36 @@ sub print_debug_debug($);
 sub print_debug_trace($);
 sub print_debug_all($);
 
+# Pretty print an error trace.
+# args: the tree root node.
+# retn: nothing.
+sub print_error_trace($);
+
+# Pretty print a blast error trace.
+# args: the tree root node.
+# retn: nothing.
+sub print_error_trace_blast($);
+
+# Pretty print a blast error trace node with all its children and corresponding indent.
+# args: the tree root node and space indent.
+# retn: nothing.
+sub print_error_trace_node_blast($$);
+
+# Add entities global show/hide links.
+# args: (the entitity class; the human readable entity class).
+# retn: nothing.
+sub print_show_hide_global($$);
+
+# Add entities local show/hide links.
+# args: (the entitity identifier).
+# retn: nothing.
+sub print_show_hide_local($);
+
+# Print the required number of spaces.
+# args: the number of spaces.
+# retn: nothing.
+sub print_spaces($);
+
 # Process an error trace passed through options.
 # args: no.
 # retn: nothing.
@@ -51,7 +93,7 @@ sub process_error_trace();
 
 # Process a blast error trace.
 # args: no.
-# retn: nothing.
+# retn: the tree root node.
 sub process_error_trace_blast();
 
 # Read something placed into brackets.
@@ -100,28 +142,22 @@ sub read_location($);
 #     Block
 #     FunctionCall
 #     Pred
-#     Return
 #     Skip
 #   annotation
 #     LDV
-#     line
 #     Location
 #     Locals
-#     src
 my %blast = (
   'tree node' => {
     my $element_kind_block = 'Block', \&read_brackets,
     my $element_kind_func_call = 'FunctionCall', \&read_brackets,
     my $element_kind_cond = 'Pred', \&read_brackets,
-    my $element_kind_retn = 'Return', \&read_brackets,
     my $element_kind_skip = 'Skip', ''
   },
   'annotation' => {
     my $element_kind_ldv_comment = 'LDV', \&read_ldv_comment,
-    my $element_kind_line = 'line', \&read_equal_int,
     my $element_kind_params = 'Locals', \&read_locals,
-    my $element_kind_location = 'Location', \&read_location,
-    my $element_kind_src = 'src', \&read_equal_src
+    my $element_kind_location = 'Location', \&read_location
   });
 
 # Prefix for all debug messages.
@@ -131,14 +167,22 @@ my $debug_name = 'error-trace-visualizer';
 # pathes to corresponding dependencies files.
 my %dependencies;
 
-# Engines which reports can be parsed are keys and values are corresponding
-# parsing subroutines.
-my %engines = (my $engine_blast = 'blast' => \&process_error_trace_blast);
+# Engines which reports can be processed are keys and values are 
+# corresponding processing subroutines.
+my %engines = (my $engine_blast = 'blast' => 
+                 {'print', \&print_error_trace_blast, 
+                  'process', \&process_error_trace_blast});
+
+# The value is the entity class to be hide by default.
+my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializationBody' => 1, 'ETVBlock' => 1);
 
 # File handlers.
 my $file_report_in;
 my $file_report_out;
 my $file_reqs_out;
+
+# The unique html tags identifier.
+my $html_id = 0;
 
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_engine;
@@ -149,6 +193,10 @@ my $opt_reqs_out;
 
 # Some usefull reqular expressions.
 my $regexp_element_kind = '^([^=\(:]+)';
+
+# The number of indentation spaces.
+my $space_indent = 3;
+
 
 ################################################################################
 # Main section.
@@ -161,9 +209,14 @@ print_debug_normal("Process the command-line options.");
 get_opt();
 
 print_debug_normal("Process trace.");
-process_error_trace();
+my $tree_root = process_error_trace();
 
-# TODO this must be fixed!
+if ($opt_report_out)
+{
+  print_error_trace($tree_root);	
+}
+
+# TODO this must be fixed!!!!!!
 if ($opt_reqs_out)
 {
       if ($opt_engine eq $engine_blast)
@@ -195,6 +248,17 @@ print_debug_normal("Make all successfully.");
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub add_mising_spaces($)
+{
+  my $str = shift;
+
+  # Add mising spaces around equality sign.
+  $str =~ s/([^ ])=/$1 =/g;  	
+  $str =~ s/=([^ ])/= $1/g;
+  
+  return $str;
+}
 
 sub get_debug_level()
 {
@@ -243,6 +307,16 @@ sub get_opt()
   {
     warn("You must specify the options --engine, --report|c in the command-line");
     help();
+  }
+
+  unless (defined($engines{$opt_engine}))
+  {
+    warn("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: \n");
+    foreach my $engine (keys(%engines))
+    {
+      warn("  - '$engine'\n");
+	}
+	die();
   }
 
   unless ($opt_report_out or $opt_reqs_out)
@@ -355,17 +429,326 @@ sub print_debug_all($)
   vsay('ALL', "$message\n");
 }
 
+sub print_error_trace($)
+{
+  my $tree_root = shift;
+  	
+  print_debug_debug("Print the '$opt_engine' static verifier error trace.");
+  $engines{$opt_engine}{'print'}->($tree_root);  
+  print_debug_debug("'$opt_engine' static verifier error trace is printed successfully.");
+}
+
+sub print_error_trace_blast($)
+{
+  my $tree_root = shift;
+  	
+  # Print entities global show/hide links.	
+  print_show_hide_global('ETVEntryPoint', 'entry point');
+  print_show_hide_global('ETVEntryPointBody', 'entry point body');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVFunctionCall', 'function calls');
+  print_show_hide_global('ETVFunctionCallInitialization', 'initialization function calls');
+  print_show_hide_global('ETVFunctionCallWithoutBody', 'function without body calls');
+  print_show_hide_global('ETVFunctionBody', 'function bodies');
+  print_show_hide_global('ETVFunctionInitializationBody', 'initialization function bodies');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVBlock', 'blocks');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVReturn', 'returns');
+  print_show_hide_global('ETVReturnValue', 'return values');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVAssert', 'asserts');
+  print_show_hide_global('ETVAssertCondition', 'assert conditions');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVIdentation', 'identation');
+  print($file_report_out "<br>");
+  
+  foreach my $entity_hide (keys(%entity_hide))
+  {
+    print($file_report_out 
+      "\n<script type='text/javascript'>"
+      , "\n\$(document).ready"
+      , "\n("
+      , "\n  function()"
+      , "\n  {"
+      , "\n    \$('a.#${entity_hide}ShowHide').click()"
+      , "\n  }"
+      , "\n);"
+      , "\n</script>"); 	  
+  }
+  
+  # Print tree recursively.	
+  print($file_report_out "<br>\n");
+  print_error_trace_node_blast($tree_root, 0);
+}
+
+sub print_error_trace_node_blast($$)
+{
+  my $tree_node = shift;
+  my $indent = shift;
+  
+  print_debug_trace("Print the '$tree_node->{'kind'}' tree node.");
+
+  # Process tree node values a bit.
+  if (${$tree_node->{'values'}}[0])
+  {
+    # Remove names scope for all tree nodes.
+    ${$tree_node->{'values'}}[0] =~ s/@[_a-zA-Z0-9]+//g;
+    # Add spaces around some operators.
+    ${$tree_node->{'values'}}[0] = add_mising_spaces(${$tree_node->{'values'}}[0]);
+  }
+  
+  # Get source and line if so.
+  my $src = '';
+  my $line = '';
+  if ($tree_node->{'pre annotations'})
+  {
+	foreach my $pre_annotation (@{$tree_node->{'pre annotations'}})
+	{
+	  if ($pre_annotation->{'kind'} eq 'Location')
+	  {
+		$src = $pre_annotation->{'values'}[0];
+	    $line = $pre_annotation->{'values'}[1];  
+	  }
+	}
+  }
+  
+  # Get formal parameter names if so.
+  my @names = ();
+  if ($tree_node->{'post annotations'})
+  {
+	foreach my $post_annotation (@{$tree_node->{'post annotations'}})
+	{
+	  if ($post_annotation->{'kind'} eq 'Locals')
+	  {
+		foreach my $name (@{$post_annotation->{'values'}})
+		{
+		  # Remove parameter name scope.
+		  $name =~ s/@[_a-zA-Z0-9]+//g;
+		  push(@names, $name);	
+		}  
+	  }
+	}
+  }
+
+  # Print tree node declaration.
+  if ($tree_node->{'kind'} eq 'Root')
+  {
+    print($file_report_out "\n<div class='ETVEntryPoint' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print_show_hide_local("ETV$html_id");
+    print($file_report_out "entry_point()", ";</div>");
+    print($file_report_out "\n<div class='ETVEntryPointBody' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out "{");    
+  }
+  elsif ($tree_node->{'kind'} eq 'FunctionCall')
+  {
+    print($file_report_out "\n<div class='ETVFunctionCall' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print_show_hide_local("ETV$html_id");
+    # Add formal parameters names comments.
+    my $val = ${$tree_node->{'values'}}[0];
+    my $pos = 0;
+
+    while (@names)
+    {
+	  my $name = shift(@names);
+	  my $comment = " /* $name */";
+	  my $comment_length = length($comment);
+	  
+	  my $pos_cur;
+	  	
+	  if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = index($val, ')', $pos)) != -1)
+	  {
+		$val = substr($val, 0, $pos_cur) . $comment . substr($val, $pos_cur);
+		$pos = $pos_cur + $comment_length + 1;
+		next;  
+	  }
+	  
+	  last;
+	}
+
+    $val =~ s/(\/\*[^\*\/]*\*\/)/<span class='ETVFunctionFormalParamName'>$1<\/span>/g;
+
+    print($file_report_out $val, ";</div>");
+    print($file_report_out "\n<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out "{");    
+  }
+  elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
+  {
+    print($file_report_out "\n<div class='ETVFunctionCallInitialization' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print_show_hide_local("ETV$html_id"); 
+    print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
+    print($file_report_out "\n<div class='ETVFunctionInitializationBody' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out "{");    
+  }
+  elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
+  {
+    print($file_report_out "\n<div class='ETVFunctionCallWithoutBody' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
+  }
+  elsif ($tree_node->{'kind'} eq 'Block')
+  {
+	# Split expressions joined together into one block.
+	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
+	print($file_report_out "\n<div class='ETVBlock' title='$src:$line' id='ETV", ($html_id++), "'>");
+	my $isshow_hide = 1;
+	$isshow_hide = 0 unless (scalar(@exprs) > 1);
+	
+	foreach my $expr (@exprs)
+	{
+	  print_spaces($indent);		
+	  print_show_hide_local("ETV$html_id") if ($isshow_hide);
+	  print($file_report_out $expr, ";<br>");
+	  
+	  if ($isshow_hide)
+	  {
+	    print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
+		$isshow_hide = 0;
+	  }
+    }
+    
+    print($file_report_out "</span>")
+      if (scalar(@exprs) > 1);	 
+    
+    print($file_report_out "</div>");	 
+  }
+  elsif ($tree_node->{'kind'} eq 'Return')
+  {
+    print($file_report_out "\n<div class='ETVReturn' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out "return ", "<span class='ETVReturnValue'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
+  }
+  elsif ($tree_node->{'kind'} eq 'Pred')
+  {
+    print($file_report_out "\n<div class='ETVAssert' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out "assert(", "<span class='ETVAssertCondition'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
+  }
+      
+  # Print all tree node children with enlarged indentation.
+  if ($tree_node->{'children'})
+  {
+    foreach my $child (@{$tree_node->{'children'}})
+    {
+	  print_error_trace_node_blast($child, ($indent + $space_indent));
+	}
+  }
+  
+  # Print the close brace after the body of root and function bodies nodes.
+  if ($tree_node->{'kind'} eq 'Root' 
+    or $tree_node->{'kind'} eq 'FunctionCall'
+    or $tree_node->{'kind'} eq 'FunctionCallInitialization')
+  {
+    print_spaces($indent);
+    print($file_report_out "}</div>");
+  }
+}
+
+sub print_spaces($)
+{
+  my $space_number = shift;
+  
+  # Print identation spaces.
+  print($file_report_out "<span class='ETVIdentation'>");
+  
+  for (my $i = 1; $i <= $space_number; $i++)
+  {
+	print($file_report_out ' ');
+  }
+  
+  print($file_report_out "</span>");
+}
+
+sub print_show_hide_global($$)
+{
+  my $entity_class = shift;
+  my $entity_class_human_readable = shift;
+  
+  print($file_report_out 
+    "\n<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('a.#${entity_class}ShowHide').toggle"
+    , "\n    ("
+    , "\n      function()"
+    , "\n      {"
+    , "\n        \$('.$entity_class').hide();"
+    , "\n        \$(this).html('Show $entity_class_human_readable');"
+    , "\n      }"
+    , "\n      , function()"
+    , "\n      {"
+    , "\n        \$('.$entity_class').show();"
+    , "\n        \$(this).html('Hide $entity_class_human_readable');"
+    , "\n      }"
+    , "\n    );"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>"
+    , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>\n"); 
+}
+
+sub print_show_hide_local($)
+{
+  my $entity_id = shift;
+  
+  print($file_report_out 
+    "<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('a.#${entity_id}ShowHide').toggle"
+    , "\n    ("
+    , "\n      function()"
+    , "\n      {"
+    , "\n        \$('#$entity_id').hide();"
+    , "\n        \$(this).html('+');"
+    , "\n      }"
+    , "\n      , function()"
+    , "\n      {"
+    , "\n        \$('#$entity_id').show();"
+    , "\n        \$(this).html('-');"
+    , "\n      }"
+    , "\n    );"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>"
+    , "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n"); 	
+}
+
 sub process_error_trace()
 {
-  print_debug_trace("Check whether specified static verifier engine is supported.");
-  die("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: '" . keys(%engines) . "'") unless(defined($engines{$opt_engine}));
   print_debug_debug("Process the '$opt_engine' static verifier error trace.");
-  $engines{$opt_engine}->();  
+  my $tree_root = $engines{$opt_engine}{'process'}->();  
   print_debug_debug("'$opt_engine' static verifier error trace is processed successfully.");
+  
+  return $tree_root;
 }
 
 sub process_error_trace_blast()
 {
+  # The list of current parents.	
+  my @parents = ();	
+
+  # Currently processed entity and annotation.
+  my $entity;
+  my $annotation;
+  
+  # Stored pre annotations.
+  my @pre_annotations = ();
+	
+  # Create the tree root corresponding to the entry point or main.
+  $entity = Entity->new({'engine' => 'blast', 'kind' => 'Root'});	
+  push(@parents, $entity);
+				
   while(1)
   {
     # Read some element, either tree node (like function call) or annotation
@@ -398,16 +781,32 @@ sub process_error_trace_blast()
         unless ($element_kind 
           or defined($blast{'tree node'}{$element_kind}) 
           or defined($blast{'annotation'}{$element_kind}));  
-        
-#      print("!!!$element_kind:$element_part\n");
-       
+
       # When handler is available then run it. If an element is processed 
       # successfully then a handler returns some defined value.  
       if ($blast{'tree node'}{$element_kind})
       {
         if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
         {
-#          print("   @{$element_value}\n") if $element_value;
+		  print_debug_trace("Process the '$element_kind' tree node.");
+		  	
+		  # Ignore skips at all.	
+		  if ($element_value)
+		  {
+			$entity = Entity->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
+
+			# Process entities as tree.
+    		$entity->set_parent($parents[$#parents])
+    		  if (@parents);
+			push(@parents, $entity) 
+			  if ($entity->ismay_have_children());
+			pop(@parents)
+			  if ($entity->isparent_end());
+	  
+    		# Add pre annotations.
+    		$entity->set_pre_annotations(@pre_annotations);
+    		@pre_annotations = ();  
+		  }
         }
         # The following line is needed. So read it and concatenate with the 
         # previous one(s).
@@ -420,16 +819,31 @@ sub process_error_trace_blast()
       {
         if (defined(my $element_value = $blast{'annotation'}{$element_kind}->($element_content)))
         {
-#            print("   @{$element_value}\n") if $element_value;
-          # Interpret different annotations.
-          if ($element_kind eq $element_kind_location)
+		  print_debug_trace("Process the '$element_kind' annotation.");
+		  
+          # Ignore arificial locations at all.  
+          if ($element_value) 
           {
-            # Ignore arificial locations at all.  
-            if ($element_value)  
+            # Story dependencies. TODO make it entity specific!!!!!!!!!!!!!!!!!!!!!!!
+            if ($element_kind eq $element_kind_location)
             {
               my ($src, $line) = @{$element_value};
               $dependencies{$src} = 1;
             }
+            
+			$annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
+
+            # Process annotation in depend on whether it pre or post.
+            push(@pre_annotations, $annotation)
+              if ($annotation->ispre_annotation());
+            if ($annotation->ispost_annotation())
+            {
+              $entity->set_post_annotations(($annotation));
+              
+              # Update parents since post annotation may change the entity kind.
+              pop(@parents)
+			    if ($entity->isparent_end());  
+			}
           }
         }
         # The following line is needed. So read it and concatenate with the 
@@ -447,6 +861,9 @@ sub process_error_trace_blast()
     # All was read.
     last if ($iselement_read == -1);
   }
+  
+  # Return the tree root node.
+  return $parents[0];
 }
 
 sub read_brackets($)
@@ -521,8 +938,17 @@ sub read_ldv_comment($)
 {
   my $line = shift;
   
-  my @comments = ($line);
-  
+  # Check that line begins with colon. It'll be so if there is no critical error 
+  # in trace.
+  return undef unless ($line =~ /^:/);
+
+  # Remove colon beginning the line and all formatting spaces and tabs placed at the beginning of the line.
+  $line =~ /^:[\s]*/;
+  $line = $POSTMATCH;
+
+  # LDV comments are splited by colons.
+  my @comments = split(/:/, $line);
+
   return \@comments;
 }
 
@@ -549,8 +975,8 @@ sub read_locals($)
   # in trace.
   return undef unless ($line =~ /^:/);
 
-  # Remove colon beginning the line.
-  $line =~ /^:/;
+  # Remove colon beginning the line and all formatting spaces and tabs placed at the beginning of the line.
+  $line =~ /^:[\s]*/;
   $line = $POSTMATCH;
 
   # Function parameters names are splited by spaces.

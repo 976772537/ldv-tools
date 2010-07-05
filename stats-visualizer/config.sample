@@ -1,0 +1,33 @@
+#
+# If you want you may once edit values of some variables and copy this file near
+# to a file named as 'config'. Note that 'config' file is ignored by git. Also
+# you may setup all values through the corresponding environment variables.
+#
+# Note that variable definitions must have the following 'make' form:
+#   'name_of_variable = value_of_variable'.
+#
+
+# Web server configuration directory.
+#LDV_STATS_CONF_DIR = /etc/apache2/conf.d
+
+# Web server virtual hosts configuration directory.
+#LDV_STATS_VHOSTS_CONF_DIR = /etc/apache2/vhosts.d
+
+# Web server virtual hosts directory.
+#LDV_STATS_VHOSTS_DIR = /srv/www/vhosts
+
+# Following two options may be optional in depend on your system.
+# They are needed to change access to some files to make them writable for
+# the statistics server.
+# Web server user.
+#LDV_STATS_USER = wwwrun
+# Web server group.
+#LDV_STATS_GROUP = www
+
+# Statistics server port (8999 is default).
+#LDV_STATS_PORT = 8999
+
+# Statistics server application environment. It may be either 'production' or
+# 'staging' or 'testing' or 'development' ('production' is default).
+#LDV_STATS_APPLICATION_ENV = production
+

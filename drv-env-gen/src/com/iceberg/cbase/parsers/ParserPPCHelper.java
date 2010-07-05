@@ -101,7 +101,7 @@ public class ParserPPCHelper extends Parser {
 			if(state == parserStates.BLOCK_NULL_AFTER_PREP) {
 				String content = sbuffer.toString();
 				TokenPpcDirective.PPCType ppctype = getType(content);
-				Token token = new TokenPpcDirective(startIndex,i-1,content,	ppctype);
+				Token token = new TokenPpcDirective(startIndex,i-1,content,null,ppctype);
 				tokens.add(token);
 			}
 			/*if(tokens.size() == 66 ) {

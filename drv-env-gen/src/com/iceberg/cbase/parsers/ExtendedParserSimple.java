@@ -42,6 +42,7 @@ public class ExtendedParserSimple extends ExtendedParser {
 					oneToken.getBeginIndex() ,
 					oneToken.getEndIndex(),
 					oneToken.getContent(),
+					null,
 					TokenFunctionDeclSimple.SimpleType.ST_MODULE_INIT);
 		} else
 			if(nameAndType[1].equals("module_exit")) {
@@ -49,7 +50,8 @@ public class ExtendedParserSimple extends ExtendedParser {
 						oneToken.getRetType(), oneToken.getReplacementParams(),
 						oneToken.getBeginIndex() ,
 						oneToken.getEndIndex(),
-						oneToken.getContent(),
+						oneToken.getContent(), 
+						null, 
 						TokenFunctionDeclSimple.SimpleType.ST_MODULE_EXIT);
 		}
 		return token;
