@@ -15,7 +15,8 @@ use lib("$FindBin::RealBin/../shared/perl", "$FindBin::RealBin/../shared/perl/er
 use LDV::Utils;
 require Entity;
 require Annotation;
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info 
+  print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
 
 ################################################################################
@@ -32,11 +33,6 @@ sub add_mising_spaces($);
 # retn: nothing.
 sub check_engine();
 
-# Determine the debug level in depend on the environment variable value.
-# args: no.
-# retn: nothing.
-sub get_debug_level();
-
 # Process command-line options. To see detailed description of these options 
 # run script with --help option.
 # args: no.
@@ -47,15 +43,6 @@ sub get_opt();
 # args: no.
 # retn: nothing.
 sub help();
-
-# Debug functions. They print some information in depend on the debug level.
-# args: string to be printed.
-# retn: nothing.
-sub print_debug_normal($);
-sub print_debug_info($);
-sub print_debug_debug($);
-sub print_debug_trace($);
-sub print_debug_all($);
 
 # Pretty print an error trace.
 # args: the tree root node.
@@ -261,27 +248,6 @@ sub add_mising_spaces($)
   return $str;
 }
 
-sub get_debug_level()
-{
-  LDV::Utils::push_instrument($debug_name);
-
-  # By default (in case when neither LDV_DEBUG nor 
-  # LDV_ERROR_TRACE_VISUALIZER_DEBUG environment variables aren't specified) or 
-  # when LDV_DEBUG and LDV_ERROR_TRACE_VISUALIZER_DEBUG are 0 just information 
-  # on errors is printed. 
-  # Otherwise:  
-  if (defined($LDV_ERROR_TRACE_VISUALIZER_DEBUG))
-  {
-    LDV::Utils::set_verbosity($LDV_ERROR_TRACE_VISUALIZER_DEBUG);
-    print_debug_debug("The debug level is set correspondingly to the LDV_ERROR_TRACE_VISUALIZER_DEBUG environment variable value '$LDV_ERROR_TRACE_VISUALIZER_DEBUG'.");
-  }
-  elsif (defined($LDV_DEBUG))
-  {
-    LDV::Utils::set_verbosity($LDV_DEBUG);
-    print_debug_debug("The debug level is set correspondingly to the LDV_DEBUG environment variable value '$LDV_DEBUG'.");
-  }
-}
-
 sub get_opt()
 {
   if (scalar(@ARGV) == 0)
@@ -393,41 +359,6 @@ ENVIRONMENT VARIABLES
 EOM
 
   exit(1);
-}
-
-sub print_debug_normal($)
-{
-  my $message = shift;
-  
-  vsay('NORMAL', "$message\n");
-}
-
-sub print_debug_info($)
-{
-  my $message = shift;
-  
-  vsay('INFO', "$message\n");
-}
-
-sub print_debug_debug($)
-{
-  my $message = shift;
-  
-  vsay('DEBUG', "$message\n");
-}
-
-sub print_debug_trace($)
-{
-  my $message = shift;
-  
-  vsay('TRACE', "$message\n");
-}
-
-sub print_debug_all($)
-{
-  my $message = shift;
-  
-  vsay('ALL', "$message\n");
 }
 
 sub print_error_trace($)
