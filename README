@@ -4,8 +4,10 @@
      prefix=/path/to/your/installation/directory make install-srv
 3. To install the statistics server use:
      prefix=/path/to/your/installation/directory make install-stats-server
-4. To install all use:
+4. To install tests use:
+     prefix=/path/to/your/installation/directory make install-test
+5. To install all use:
      prefix=/path/to/your/installation/directory make install-all
 
-Note, that '3' and '4' most likely require root privelegies and additional
+Note, that '3' and '5' most likely require root privelegies and additional
 setup. See 'stats-visualizer/README' for details. 

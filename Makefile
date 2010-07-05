@@ -28,7 +28,6 @@ endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
-<<<<<<< HEAD
 all-all: $(call forall_subdirs,$(SUBDIRS) $(SERVER_SUBDIRS) $(STATS_SERVER_SUBDIRS) $(TEST_SUBDIRS),all)
 
 install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
