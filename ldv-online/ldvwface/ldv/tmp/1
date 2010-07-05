@@ -349,7 +349,7 @@ $(document).ready
 </script><a id='ETV1ShowHide' href='#' class='ETVShowHide'>-</a>
 entry_point();</div>
 <div class='ETVEntryPointBody' id='ETV1'><span class='ETVIdentation'></span>{
-<div class='ETVFunctionCallInitialization' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/console.c.common.i:0' id='ETV2'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+<div class='ETVFunctionCallInitialization' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/main.c.common.i:0' id='ETV2'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
@@ -370,9 +370,9 @@ $(document).ready
   }
 );
 </script><a id='ETV3ShowHide' href='#' class='ETVShowHide'>-</a>
-__BLAST_initialize_/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/console.c.common.i();</div>
+__BLAST_initialize_/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/main.c.common.i();</div>
 <div class='ETVFunctionInitializationBody' id='ETV3'><span class='ETVIdentation'>   </span>{
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:206' id='ETV4'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:669' id='ETV4'><span class='ETVIdentation'>      </span><script type='text/javascript'>
 $(document).ready
 (
   function()
@@ -393,249 +393,207 @@ $(document).ready
   }
 );
 </script><a id='ETV5ShowHide' href='#' class='ETVShowHide'>-</a>
-info = &(usbcons_info);<br>
-<span class='ETVBlockContinue' id='ETV5'><span class='ETVIdentation'>      </span>usbcons.name[ 0 ] = 116;<br><span class='ETVIdentation'>      </span>usbcons.name[ 1 ] = 116;<br><span class='ETVIdentation'>      </span>usbcons.name[ 2 ] = 121;<br><span class='ETVIdentation'>      </span>usbcons.name[ 3 ] = 85;<br><span class='ETVIdentation'>      </span>usbcons.name[ 4 ] = 83;<br><span class='ETVIdentation'>      </span>usbcons.name[ 5 ] = 66;<br><span class='ETVIdentation'>      </span>usbcons.name[ 6 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 7 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 8 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 9 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 10 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 11 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 12 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 13 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 14 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.name[ 15 ] = 0;<br><span class='ETVIdentation'>      </span>usbcons.write = &(usb_console_write);<br><span class='ETVIdentation'>      </span>usbcons.read = 0;<br><span class='ETVIdentation'>      </span>usbcons.device = &(usb_console_device);<br><span class='ETVIdentation'>      </span>usbcons.unblank = 0;<br><span class='ETVIdentation'>      </span>usbcons.setup = &(usb_console_setup);<br><span class='ETVIdentation'>      </span>usbcons.early_setup = 0;<br><span class='ETVIdentation'>      </span>usbcons.flags = 1;<br><span class='ETVIdentation'>      </span>usbcons.index = -1;<br><span class='ETVIdentation'>      </span>usbcons.cflag = 0;<br><span class='ETVIdentation'>      </span>usbcons.data = &(usb_serial_tty_driver);<br><span class='ETVIdentation'>      </span>usbcons.next = 0;<br><span class='ETVIdentation'>      </span>ldv_mutex = 1;<br></span></div>
-<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/console.c.common.i:0' id='ETV6'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>0</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:353' id='ETV7'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+bcast_addr[ 0 ] = 255;<br>
+<span class='ETVBlockContinue' id='ETV5'><span class='ETVIdentation'>      </span>bcast_addr[ 1 ] = 255;<br><span class='ETVIdentation'>      </span>bcast_addr[ 2 ] = 255;<br><span class='ETVIdentation'>      </span>bcast_addr[ 3 ] = 255;<br><span class='ETVIdentation'>      </span>bcast_addr[ 4 ] = 255;<br><span class='ETVIdentation'>      </span>bcast_addr[ 5 ] = 255;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 0 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 0 ].bitrate = 10;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 0 ].hw_value = 1;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 0 ].hw_value_short = 1;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 1 ].flags = 1;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 1 ].bitrate = 20;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 1 ].hw_value = 2;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 1 ].hw_value_short = 2;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 2 ].flags = 1;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 2 ].bitrate = 55;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 2 ].hw_value = 4;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 2 ].hw_value_short = 4;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 3 ].flags = 1;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 3 ].bitrate = 110;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 3 ].hw_value = 32;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 3 ].hw_value_short = 32;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 4 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 4 ].bitrate = 60;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 4 ].hw_value = 8;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 4 ].hw_value_short = 8;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 5 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 5 ].bitrate = 90;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 5 ].hw_value = 16;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 5 ].hw_value_short = 16;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 6 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 6 ].bitrate = 120;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 6 ].hw_value = 64;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 6 ].hw_value_short = 64;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 7 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 7 ].bitrate = 180;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 7 ].hw_value = 128;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 7 ].hw_value_short = 128;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 8 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 8 ].bitrate = 240;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 8 ].hw_value = 512;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 8 ].hw_value_short = 512;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 9 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 9 ].bitrate = 360;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 9 ].hw_value = 1024;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 9 ].hw_value_short = 1024;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 10 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 10 ].bitrate = 480;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 10 ].hw_value = 2048;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 10 ].hw_value_short = 2048;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 11 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 11 ].bitrate = 540;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 11 ].hw_value = 4096;<br><span class='ETVIdentation'>      </span>wl12xx_rates[ 11 ].hw_value_short = 4096;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].center_freq = 2412;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].hw_value = 1;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 0 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].center_freq = 2417;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].hw_value = 2;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 1 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].center_freq = 2422;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].hw_value = 3;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 2 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].center_freq = 2427;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].hw_value = 4;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 3 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].center_freq = 2432;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].hw_value = 5;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 4 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].center_freq = 2437;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].hw_value = 6;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 5 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].center_freq = 2442;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].hw_value = 7;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 6 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].center_freq = 2447;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].hw_value = 8;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 7 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].center_freq = 2452;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].hw_value = 9;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 8 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].center_freq = 2457;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].hw_value = 10;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 9 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].center_freq = 2462;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].hw_value = 11;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 10 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].center_freq = 2467;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].hw_value = 12;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 11 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].center_freq = 2472;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].hw_value = 13;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].max_antenna_gain = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].max_power = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].beacon_found = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].orig_flags = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].orig_mag = 0;<br><span class='ETVIdentation'>      </span>wl12xx_channels[ 12 ].orig_mpwr = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.channels = wl12xx_channels;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.bitrates = wl12xx_rates;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.band = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.n_channels = 53248/  4096  +  0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.n_bitrates = 9216  /  768  + 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.cap = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.ht_supported = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.ampdu_factor = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.ampdu_density = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 0 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 1 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 2 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 3 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 4 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 5 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 6 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 7 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 8 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_mask[ 9 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.rx_highest = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.tx_params = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.reserved[ 0 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.reserved[ 1 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_band_2ghz.ht_cap.mcs.reserved[ 2 ] = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.tx = &(wl12xx_op_tx);<br><span class='ETVIdentation'>      </span>wl12xx_ops.start = &(wl12xx_op_start);<br><span class='ETVIdentation'>      </span>wl12xx_ops.stop = &(wl12xx_op_stop);<br><span class='ETVIdentation'>      </span>wl12xx_ops.add_interface = &(wl12xx_op_add_interface);<br><span class='ETVIdentation'>      </span>wl12xx_ops.remove_interface = &(wl12xx_op_remove_interface);<br><span class='ETVIdentation'>      </span>wl12xx_ops.config = &(wl12xx_op_config);<br><span class='ETVIdentation'>      </span>wl12xx_ops.bss_info_changed = &(wl12xx_op_bss_info_changed);<br><span class='ETVIdentation'>      </span>wl12xx_ops.prepare_multicast = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.configure_filter = &(wl12xx_op_configure_filter);<br><span class='ETVIdentation'>      </span>wl12xx_ops.set_tim = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.set_key = &(wl12xx_op_set_key);<br><span class='ETVIdentation'>      </span>wl12xx_ops.update_tkip_key = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.hw_scan = &(wl12xx_op_hw_scan);<br><span class='ETVIdentation'>      </span>wl12xx_ops.sw_scan_start = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.sw_scan_complete = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.get_stats = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.get_tkip_seq = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.set_rts_threshold = &(wl12xx_op_set_rts_threshold);<br><span class='ETVIdentation'>      </span>wl12xx_ops.sta_notify = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.conf_tx = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.get_tx_stats = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.get_tsf = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.set_tsf = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.reset_tsf = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.tx_last_beacon = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.ampdu_action = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.rfkill_poll = 0;<br><span class='ETVIdentation'>      </span>wl12xx_ops.testmode_cmd = 0;<br><span class='ETVIdentation'>      </span>nokia_oui[ 0 ] = 0;<br><span class='ETVIdentation'>      </span>nokia_oui[ 1 ] = 31;<br><span class='ETVIdentation'>      </span>nokia_oui[ 2 ] = 223;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.id_table = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.probe = &(wl12xx_probe);<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.remove = &(wl12xx_remove);<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.shutdown = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.suspend = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.resume = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.name = "wl12xx";<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.bus = &(spi_bus_type);<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.owner = &(__this_module);<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.mod_name = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.suppress_bind_attrs = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.probe = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.remove = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.shutdown = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.suspend = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.resume = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.groups = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.pm = 0;<br><span class='ETVIdentation'>      </span>wl12xx_spi_driver.driver.p = 0;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 0 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 1 ] = 105;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 2 ] = 99;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 3 ] = 101;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 4 ] = 110;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 5 ] = 115;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 6 ] = 101;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 7 ] = 61;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 8 ] = 71;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 9 ] = 80;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 10 ] = 76;<br><span class='ETVIdentation'>      </span>__mod_license1357[ 11 ] = 0;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 0 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 1 ] = 117;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 2 ] = 116;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 3 ] = 104;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 4 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 5 ] = 114;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 6 ] = 61;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 7 ] = 75;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 8 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 9 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 10 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 11 ] = 101;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 12 ] = 32;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 13 ] = 86;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 14 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 15 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 16 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 17 ] = 32;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 18 ] = 60;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 19 ] = 75;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 20 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 21 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 22 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 23 ] = 101;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 24 ] = 46;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 25 ] = 86;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 26 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 27 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 28 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 29 ] = 64;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 30 ] = 110;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 31 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 32 ] = 107;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 33 ] = 105;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 34 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 35 ] = 46;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 36 ] = 99;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 37 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 38 ] = 109;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 39 ] = 62;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 40 ] = 44;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 41 ] = 32;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 42 ] = 76;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 43 ] = 117;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 44 ] = 99;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 45 ] = 105;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 46 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 47 ] = 110;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 48 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 49 ] = 32;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 50 ] = 67;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 51 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 52 ] = 101;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 53 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 54 ] = 104;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 55 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 56 ] = 32;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 57 ] = 60;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 58 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 59 ] = 117;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 60 ] = 99;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 61 ] = 105;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 62 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 63 ] = 110;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 64 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 65 ] = 46;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 66 ] = 99;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 67 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 68 ] = 101;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 69 ] = 108;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 70 ] = 104;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 71 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 72 ] = 64;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 73 ] = 110;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 74 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 75 ] = 107;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 76 ] = 105;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 77 ] = 97;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 78 ] = 46;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 79 ] = 99;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 80 ] = 111;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 81 ] = 109;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 82 ] = 62;<br><span class='ETVIdentation'>      </span>__mod_author1359[ 83 ] = 0;<br><span class='ETVIdentation'>      </span>ldv_mutex = 1;<br></span></div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/cmdfiles/rcv/32_1/preprocessed/main.c.common.i:0' id='ETV6'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>0</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1578' id='ETV7'><span class='ETVIdentation'>   </span>IN_INTERRUPT = 1;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1583' id='ETV8'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV8ShowHide').toggle
+    $('a.#ETV9ShowHide').toggle
     (
       function()
       {
-        $('#ETV8').hide();
+        $('#ETV9').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV8').show();
+        $('#ETV9').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV8ShowHide' href='#' class='ETVShowHide'>-</a>
-var1 = 0;<br>
-<span class='ETVBlockContinue' id='ETV8'><span class='ETVIdentation'>   </span>IN_INTERRUPT = 1;<br></span></div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:377' id='ETV9'><span class='ETVIdentation'>   </span><script type='text/javascript'>
-$(document).ready
-(
-  function()
-  {
-    $('a.#ETV10ShowHide').toggle
-    (
-      function()
-      {
-        $('#ETV10').hide();
-        $(this).html('+');
-      }
-      , function()
-      {
-        $('#ETV10').show();
-        $(this).html('-');
-      }
-    );
-  }
-);
-</script><a id='ETV10ShowHide' href='#' class='ETVShowHide'>-</a>
+</script><a id='ETV9ShowHide' href='#' class='ETVShowHide'>-</a>
 tmp = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
-<div class='ETVFunctionBody' id='ETV10'><span class='ETVIdentation'>   </span>{
-<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV11'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV12'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
-<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV13'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
-<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV14'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:377' id='ETV15'><span class='ETVIdentation'>   </span>var0 = tmp;<br></span></div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:379' id='ETV16'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+<div class='ETVFunctionBody' id='ETV9'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV10'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV11'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV12'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV13'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1583' id='ETV14'><span class='ETVIdentation'>   </span>var0 = tmp;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1585' id='ETV15'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV17ShowHide').toggle
+    $('a.#ETV16ShowHide').toggle
     (
       function()
       {
-        $('#ETV17').hide();
+        $('#ETV16').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV17').show();
+        $('#ETV16').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV17ShowHide' href='#' class='ETVShowHide'>-</a>
+</script><a id='ETV16ShowHide' href='#' class='ETVShowHide'>-</a>
 tmp___0 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
-<div class='ETVFunctionBody' id='ETV17'><span class='ETVIdentation'>   </span>{
-<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV18'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV19'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
-<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV20'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
-<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV21'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:379' id='ETV22'><span class='ETVIdentation'>   </span>var1 = tmp___0;<br></span></div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:382' id='ETV23'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+<div class='ETVFunctionBody' id='ETV16'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV17'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV18'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV19'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV20'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1585' id='ETV21'><span class='ETVIdentation'>   </span>var1 = tmp___0;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1597' id='ETV22'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV24ShowHide').toggle
+    $('a.#ETV23ShowHide').toggle
     (
       function()
       {
-        $('#ETV24').hide();
+        $('#ETV23').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV24').show();
+        $('#ETV23').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV24ShowHide' href='#' class='ETVShowHide'>-</a>
+</script><a id='ETV23ShowHide' href='#' class='ETVShowHide'>-</a>
 tmp___1 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
-<div class='ETVFunctionBody' id='ETV24'><span class='ETVIdentation'>   </span>{
-<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV25'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV26'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
-<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV27'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
-<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV28'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:382' id='ETV29'><span class='ETVIdentation'>   </span>var3 = tmp___1;<br></span></div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:384' id='ETV30'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+<div class='ETVFunctionBody' id='ETV23'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV24'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV25'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV26'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV27'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1597' id='ETV28'><span class='ETVIdentation'>   </span>var2 = tmp___1;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1609' id='ETV29'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV31ShowHide').toggle
+    $('a.#ETV30ShowHide').toggle
     (
       function()
       {
-        $('#ETV31').hide();
+        $('#ETV30').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV31').show();
+        $('#ETV30').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV31ShowHide' href='#' class='ETVShowHide'>-</a>
+</script><a id='ETV30ShowHide' href='#' class='ETVShowHide'>-</a>
 tmp___2 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
-<div class='ETVFunctionBody' id='ETV31'><span class='ETVIdentation'>   </span>{
-<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV32'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV33'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
-<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV34'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
-<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV35'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:384' id='ETV36'><span class='ETVIdentation'>   </span>var4 = tmp___2;<br></span></div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:387' id='ETV37'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+<div class='ETVFunctionBody' id='ETV30'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV31'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV32'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV33'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV34'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1609' id='ETV35'><span class='ETVIdentation'>   </span>var3 = tmp___2;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1621' id='ETV36'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV38ShowHide').toggle
+    $('a.#ETV37ShowHide').toggle
     (
       function()
       {
-        $('#ETV38').hide();
+        $('#ETV37').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV38').show();
+        $('#ETV37').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV38ShowHide' href='#' class='ETVShowHide'>-</a>
+</script><a id='ETV37ShowHide' href='#' class='ETVShowHide'>-</a>
 tmp___3 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
-<div class='ETVFunctionBody' id='ETV38'><span class='ETVIdentation'>   </span>{
-<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV39'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV40'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
-<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV41'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
-<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV42'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:387' id='ETV43'><span class='ETVIdentation'>   </span>var5 = tmp___3;<br></span></div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:389' id='ETV44'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+<div class='ETVFunctionBody' id='ETV37'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV38'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV39'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV40'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV41'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1621' id='ETV42'><span class='ETVIdentation'>   </span>var4 = tmp___3;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1623' id='ETV43'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV45ShowHide').toggle
+    $('a.#ETV44ShowHide').toggle
     (
       function()
       {
-        $('#ETV45').hide();
+        $('#ETV44').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV45').show();
+        $('#ETV44').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV45ShowHide' href='#' class='ETVShowHide'>-</a>
+</script><a id='ETV44ShowHide' href='#' class='ETVShowHide'>-</a>
 tmp___4 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
-<div class='ETVFunctionBody' id='ETV45'><span class='ETVIdentation'>   </span>{
-<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV46'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV47'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
-<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV48'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
-<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV49'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:389' id='ETV50'><span class='ETVIdentation'>   </span>var6 = tmp___4;<br></span></div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:400' id='ETV51'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+<div class='ETVFunctionBody' id='ETV44'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV45'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV46'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV47'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV48'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1623' id='ETV49'><span class='ETVIdentation'>   </span>var5 = tmp___4;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1635' id='ETV50'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV52ShowHide').toggle
+    $('a.#ETV51ShowHide').toggle
     (
       function()
       {
-        $('#ETV52').hide();
+        $('#ETV51').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV52').show();
+        $('#ETV51').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV52ShowHide' href='#' class='ETVShowHide'>-</a>
-usb_console_write(var0 <span class='ETVFunctionFormalParamName'>/* co */</span>, var1 <span class='ETVFunctionFormalParamName'>/* buf */</span>, var2 <span class='ETVFunctionFormalParamName'>/* count */</span>);</div>
-<div class='ETVFunctionBody' id='ETV52'><span class='ETVIdentation'>   </span>{
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:207' id='ETV53'><span class='ETVIdentation'>      </span><script type='text/javascript'>
-$(document).ready
-(
-  function()
-  {
-    $('a.#ETV54ShowHide').toggle
-    (
-      function()
-      {
-        $('#ETV54').hide();
-        $(this).html('+');
-      }
-      , function()
-      {
-        $('#ETV54').show();
-        $(this).html('-');
-      }
-    );
-  }
-);
-</script><a id='ETV54ShowHide' href='#' class='ETVShowHide'>-</a>
-port = * (info ).port;<br>
-<span class='ETVBlockContinue' id='ETV54'><span class='ETVIdentation'>      </span>retval = -19;<br></span></div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:211' id='ETV55'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>port  = =  0</span>);</div>
-<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:203' id='ETV56'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>0</span>;</div><span class='ETVIdentation'>   </span>}</div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:403' id='ETV57'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+</script><a id='ETV51ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___5 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV51'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV52'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV53'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV54'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV55'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1635' id='ETV56'><span class='ETVIdentation'>   </span>var6 = tmp___5;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1637' id='ETV57'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
@@ -656,49 +614,70 @@ $(document).ready
   }
 );
 </script><a id='ETV58ShowHide' href='#' class='ETVShowHide'>-</a>
-usb_console_setup(var3 <span class='ETVFunctionFormalParamName'>/* co */</span>, var4 <span class='ETVFunctionFormalParamName'>/* options */</span>);</div>
+tmp___6 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
 <div class='ETVFunctionBody' id='ETV58'><span class='ETVIdentation'>   </span>{
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:59' id='ETV59'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV59'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV60'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV61'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV62'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1637' id='ETV63'><span class='ETVIdentation'>   </span>var7 = tmp___6;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1649' id='ETV64'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV60ShowHide').toggle
+    $('a.#ETV65ShowHide').toggle
     (
       function()
       {
-        $('#ETV60').hide();
+        $('#ETV65').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV60').show();
+        $('#ETV65').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV60ShowHide' href='#' class='ETVShowHide'>-</a>
-info = &(usbcons_info);<br>
-<span class='ETVBlockContinue' id='ETV60'><span class='ETVIdentation'>      </span>baud = 9600;<br><span class='ETVIdentation'>      </span>bits = 8;<br><span class='ETVIdentation'>      </span>parity = 110;<br><span class='ETVIdentation'>      </span>doflow = 0;<br><span class='ETVIdentation'>      </span>cflag = 3200;<br><span class='ETVIdentation'>      </span>tty = 0;<br><span class='ETVIdentation'>      </span>termios = 0;<br></span></div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:72' id='ETV61'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>debug  = =  0</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:74' id='ETV62'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>options  = =  0</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:88' id='ETV63'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>baud  ! =  0</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:92' id='ETV64'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>bits  ! =  7</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:96' id='ETV65'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>bits  = =  8</span>);</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:97' id='ETV66'><span class='ETVIdentation'>      </span>cflag = cflag  |  48;<br></span></div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:101' id='ETV67'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>parity  ! =  111</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:101' id='ETV68'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>parity  ! =  79</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:104' id='ETV69'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>parity  ! =  101</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:104' id='ETV70'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>parity  ! =  69</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:100' id='ETV71'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
-<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:108' id='ETV72'><span class='ETVIdentation'>      </span>* (co ).cflag = cflag;<br></span></div>
-<div class='ETVFunctionCallWithoutBody' id='ETV73'><span class='ETVIdentation'>      </span>serial = usb_serial_get_by_index(* (co ).index)  { /* The function body is undefined. */ };</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:115' id='ETV74'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>serial  ! =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV75'><span class='ETVIdentation'>      </span>retval = usb_autopm_get_interface(* (serial ).interface)  { /* The function body is undefined. */ };</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:122' id='ETV76'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>retval  ! =  0</span>);</div>
-<div class='ETVFunctionCallWithoutBody' id='ETV77'><span class='ETVIdentation'>      </span>usb_serial_put(serial)  { /* The function body is undefined. */ };</div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/console.c.common.c:199' id='ETV78'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+</script><a id='ETV65ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___7 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV65'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV66'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV67'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV68'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV69'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1649' id='ETV70'><span class='ETVIdentation'>   </span>var8 = tmp___7;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1661' id='ETV71'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV72ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV72').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV72').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV72ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___8 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV72'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV73'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV74'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV75'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV76'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1661' id='ETV77'><span class='ETVIdentation'>   </span>var10 = tmp___8;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1663' id='ETV78'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
@@ -719,30 +698,714 @@ $(document).ready
   }
 );
 </script><a id='ETV79ShowHide' href='#' class='ETVShowHide'>-</a>
-mutex_unlock(serial  foffset  disc_mutex <span class='ETVFunctionFormalParamName'>/* lock */</span>);</div>
-<div class='ETVFunctionBody' id='ETV79'><span class='ETVIdentation'>      </span>{
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:62' id='ETV80'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>IN_INTERRUPT  = =  1</span>);</div>
-<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:63' id='ETV81'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>ldv_mutex  ! =  2</span>);</div>
-<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--serial-safe.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:63' id='ETV82'><span class='ETVIdentation'>         </span><script type='text/javascript'>
+tmp___9 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV79'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV80'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV81'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV82'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV83'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1663' id='ETV84'><span class='ETVIdentation'>   </span>var12 = tmp___9;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1665' id='ETV85'><span class='ETVIdentation'>   </span><script type='text/javascript'>
 $(document).ready
 (
   function()
   {
-    $('a.#ETV83ShowHide').toggle
+    $('a.#ETV86ShowHide').toggle
     (
       function()
       {
-        $('#ETV83').hide();
+        $('#ETV86').hide();
         $(this).html('+');
       }
       , function()
       {
-        $('#ETV83').show();
+        $('#ETV86').show();
         $(this).html('-');
       }
     );
   }
 );
-</script><a id='ETV83ShowHide' href='#' class='ETVShowHide'>-</a>
+</script><a id='ETV86ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___10 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV86'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV87'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV88'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV89'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV90'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1665' id='ETV91'><span class='ETVIdentation'>   </span>var14 = tmp___10;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1679' id='ETV92'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV93ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV93').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV93').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV93ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___11 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV93'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV94'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV95'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV96'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV97'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1679' id='ETV98'><span class='ETVIdentation'>   </span>var15 = tmp___11;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1681' id='ETV99'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV100ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV100').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV100').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV100ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___12 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV100'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV101'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV102'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV103'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV104'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1681' id='ETV105'><span class='ETVIdentation'>   </span>var17 = tmp___12;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1683' id='ETV106'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV107ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV107').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV107').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV107ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___13 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV107'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV108'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV109'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV110'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV111'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1683' id='ETV112'><span class='ETVIdentation'>   </span>var18 = tmp___13;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1685' id='ETV113'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV114ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV114').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV114').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV114ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___14 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV114'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV115'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV116'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV117'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV118'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1685' id='ETV119'><span class='ETVIdentation'>   </span>var19 = tmp___14;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1699' id='ETV120'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV121ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV121').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV121').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV121ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___15 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV121'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV122'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV123'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV124'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV125'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1699' id='ETV126'><span class='ETVIdentation'>   </span>var20 = tmp___15;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1701' id='ETV127'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV128ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV128').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV128').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV128ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___16 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV128'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV129'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV130'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV131'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV132'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1701' id='ETV133'><span class='ETVIdentation'>   </span>var21 = tmp___16;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1715' id='ETV134'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV135ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV135').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV135').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV135ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___17 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV135'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV136'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV137'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV138'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV139'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1715' id='ETV140'><span class='ETVIdentation'>   </span>var22 = tmp___17;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1729' id='ETV141'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV142ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV142').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV142').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV142ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___18 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV142'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV143'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV144'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV145'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV146'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1729' id='ETV147'><span class='ETVIdentation'>   </span>var24 = tmp___18;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1731' id='ETV148'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV149ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV149').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV149').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV149ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___19 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV149'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV150'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV151'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV152'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV153'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1731' id='ETV154'><span class='ETVIdentation'>   </span>var25 = tmp___19;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1733' id='ETV155'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV156ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV156').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV156').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV156ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___20 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV156'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV157'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV158'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV159'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV160'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1733' id='ETV161'><span class='ETVIdentation'>   </span>var26 = tmp___20;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1750' id='ETV162'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV163ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV163').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV163').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV163ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___21 = kmalloc(1 <span class='ETVFunctionFormalParamName'>/* size */</span>, 208 <span class='ETVFunctionFormalParamName'>/* flags */</span>);</div>
+<div class='ETVFunctionBody' id='ETV163'><span class='ETVIdentation'>   </span>{
+<div class='ETVAssert' title='include/linux/slub_def.h:245' id='ETV164'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>0  = =  0</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV165'><span class='ETVIdentation'>      </span>tmp___1 = __kmalloc(size, flags)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='include/linux/slub_def.h:262' id='ETV166'><span class='ETVIdentation'>      </span>__retres8 = tmp___1;<br></span></div>
+<div class='ETVReturn' title='include/linux/slub_def.h:241' id='ETV167'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres8</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1750' id='ETV168'><span class='ETVIdentation'>   </span>var28 = tmp___21;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1769' id='ETV169'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV170ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV170').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV170').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV170ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp___22 = wl12xx_init();</div>
+<div class='ETVFunctionBody' id='ETV170'><span class='ETVIdentation'>   </span>{
+<div class='ETVFunctionCallWithoutBody' id='ETV171'><span class='ETVIdentation'>      </span>ret = spi_register_driver(&(wl12xx_spi_driver))  { /* The function body is undefined. */ };</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1338' id='ETV172'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>ret  > =  0</span>);</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1344' id='ETV173'><span class='ETVIdentation'>      </span>__retres2 = ret;<br></span></div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1333' id='ETV174'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres2</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1769' id='ETV175'><span class='ETVIdentation'>   </span>assert(<span class='ETVAssertCondition'>tmp___22  = =  0</span>);</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1778' id='ETV176'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV177ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV177').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV177').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV177ShowHide' href='#' class='ETVShowHide'>-</a>
+wl12xx_op_tx(var0 <span class='ETVFunctionFormalParamName'>/* hw */</span>, var1 <span class='ETVFunctionFormalParamName'>/* skb */</span>);</div>
+<div class='ETVFunctionBody' id='ETV177'><span class='ETVIdentation'>   </span>{
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:298' id='ETV178'><span class='ETVIdentation'>      </span>wl = * (hw ).priv;<br></span></div>
+<div class='ETVFunctionCallWithoutBody' id='ETV179'><span class='ETVIdentation'>      </span>skb_queue_tail(wl  foffset tx_queue, skb)  { /* The function body is undefined. */ };</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV180'><span class='ETVIdentation'>      </span>schedule_work(wl  foffset  tx_work)  { /* The function body is undefined. */ };</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:308' id='ETV181'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV182ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV182').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV182').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV182ShowHide' href='#' class='ETVShowHide'>-</a>
+tmp = skb_queue_len(wl  foffset tx_queue <span class='ETVFunctionFormalParamName'>/* list_ */</span>);</div>
+<div class='ETVFunctionBody' id='ETV182'><span class='ETVIdentation'>      </span>{
+<div class='ETVBlock' title='include/linux/skbuff.h:797' id='ETV183'><span class='ETVIdentation'>         </span>__retres2 = * (list_ ).qlen;<br></span></div>
+<div class='ETVReturn' title='include/linux/skbuff.h:795' id='ETV184'><span class='ETVIdentation'>         </span>return <span class='ETVReturnValue'>__retres2</span>;</div><span class='ETVIdentation'>      </span>}</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:308' id='ETV185'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>tmp  <  20</span>);</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:319' id='ETV186'><span class='ETVIdentation'>      </span>__retres5 = 0;<br></span></div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:296' id='ETV187'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres5</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1790' id='ETV188'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV189ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV189').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV189').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV189ShowHide' href='#' class='ETVShowHide'>-</a>
+wl12xx_op_start(var2 <span class='ETVFunctionFormalParamName'>/* hw */</span>);</div>
+<div class='ETVFunctionBody' id='ETV189'><span class='ETVIdentation'>   </span>{
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:324' id='ETV190'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV191ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV191').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV191').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV191ShowHide' href='#' class='ETVShowHide'>-</a>
+wl = * (hw ).priv;<br>
+<span class='ETVBlockContinue' id='ETV191'><span class='ETVIdentation'>      </span>ret = 0;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:329' id='ETV192'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV193ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV193').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV193').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV193ShowHide' href='#' class='ETVShowHide'>-</a>
+mutex_lock(wl  foffset  mutex <span class='ETVFunctionFormalParamName'>/* lock */</span>);</div>
+<div class='ETVFunctionBody' id='ETV193'><span class='ETVIdentation'>      </span>{
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:44' id='ETV194'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>IN_INTERRUPT  = =  1</span>);</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:45' id='ETV195'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>ldv_mutex  = =  1</span>);</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:46' id='ETV196'><span class='ETVIdentation'>         </span>ldv_mutex = 2;<br></span></div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:43' id='ETV197'><span class='ETVIdentation'>         </span>return <span class='ETVReturnValue'>0</span>;</div><span class='ETVIdentation'>      </span>}</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:331' id='ETV198'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>* (wl ).state  = =  0</span>);</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:338' id='ETV199'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV200ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV200').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV200').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV200ShowHide' href='#' class='ETVShowHide'>-</a>
+ret = wl12xx_chip_wakeup(wl <span class='ETVFunctionFormalParamName'>/* wl */</span>);</div>
+<div class='ETVFunctionBody' id='ETV200'><span class='ETVIdentation'>      </span>{
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:168' id='ETV201'><span class='ETVIdentation'>         </span>ret = 0;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:170' id='ETV202'><span class='ETVIdentation'>         </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV203ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV203').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV203').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV203ShowHide' href='#' class='ETVShowHide'>-</a>
+wl12xx_power_on(wl <span class='ETVFunctionFormalParamName'>/* wl */</span>);</div>
+<div class='ETVFunctionBody' id='ETV203'><span class='ETVIdentation'>         </span>{
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:59' id='ETV204'><span class='ETVIdentation'>            </span>mem_2 = * (wl ).set_power;<br></span></div>
+<div class='ETVFunctionCallWithoutBody' id='ETV205'><span class='ETVIdentation'>            </span>* (mem_2 )(1)  { /* The function body is undefined. */ };</div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:57' id='ETV206'><span class='ETVIdentation'>            </span>return <span class='ETVReturnValue'>0</span>;</div><span class='ETVIdentation'>         </span>}</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV207'><span class='ETVIdentation'>         </span>msleep(* (wl ).chip.power_on_sleep)  { /* The function body is undefined. */ };</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV208'><span class='ETVIdentation'>         </span>wl12xx_spi_reset(wl)  { /* The function body is undefined. */ };</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV209'><span class='ETVIdentation'>         </span>wl12xx_spi_init(wl)  { /* The function body is undefined. */ };</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV210'><span class='ETVIdentation'>         </span>wl12xx_set_partition(wl, 0, 0, 3145728, 34816)  { /* The function body is undefined. */ };</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:184' id='ETV211'><span class='ETVIdentation'>         </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV212ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV212').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV212').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV212ShowHide' href='#' class='ETVShowHide'>-</a>
+wl12xx_fw_wakeup(wl <span class='ETVFunctionFormalParamName'>/* wl */</span>);</div>
+<div class='ETVFunctionBody' id='ETV212'><span class='ETVIdentation'>         </span>{
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:155' id='ETV213'><span class='ETVIdentation'>            </span>elp_reg = 1;<br></span></div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:156' id='ETV214'><span class='ETVIdentation'>            </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV215ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV215').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV215').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV215ShowHide' href='#' class='ETVShowHide'>-</a>
+wl12xx_write32(wl <span class='ETVFunctionFormalParamName'>/* wl */</span>, 131068 <span class='ETVFunctionFormalParamName'>/* addr */</span>, elp_reg <span class='ETVFunctionFormalParamName'>/* val */</span>);</div>
+<div class='ETVFunctionBody' id='ETV215'><span class='ETVIdentation'>            </span>{
+<div class='ETVFunctionCallWithoutBody' id='ETV216'><span class='ETVIdentation'>               </span>wl12xx_spi_write(wl, addr, &(val), 256)  { /* The function body is undefined. */ };</div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/spi.h:104' id='ETV217'><span class='ETVIdentation'>               </span>return <span class='ETVReturnValue'>0</span>;</div><span class='ETVIdentation'>            </span>}</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:157' id='ETV218'><span class='ETVIdentation'>            </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV219ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV219').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV219').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV219ShowHide' href='#' class='ETVShowHide'>-</a>
+elp_reg = wl12xx_read32(wl <span class='ETVFunctionFormalParamName'>/* wl */</span>, 131068 <span class='ETVFunctionFormalParamName'>/* addr */</span>);</div>
+<div class='ETVFunctionBody' id='ETV219'><span class='ETVIdentation'>            </span>{
+<div class='ETVFunctionCallWithoutBody' id='ETV220'><span class='ETVIdentation'>               </span>wl12xx_spi_read(wl, addr, &(response), 256)  { /* The function body is undefined. */ };</div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/spi.h:101' id='ETV221'><span class='ETVIdentation'>               </span>return <span class='ETVReturnValue'>response</span>;</div><span class='ETVIdentation'>            </span>}</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:159' id='ETV222'><span class='ETVIdentation'>            </span>assert(<span class='ETVAssertCondition'>elp_reg  &  2  ! =  0</span>);</div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:151' id='ETV223'><span class='ETVIdentation'>            </span>return <span class='ETVReturnValue'>0</span>;</div><span class='ETVIdentation'>         </span>}</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV224'><span class='ETVIdentation'>         </span>* (wl ).chip.id = wl12xx_reg_read32(wl, 3167860)  { /* The function body is undefined. */ };</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:194' id='ETV225'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>* (wl ).chip.id  ! =  117637377</span>);</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:201' id='ETV226'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>* (wl ).chip.id  = =  67305729</span>);</div>
+<div class='ETVFunctionCallWithoutBody' id='ETV227'><span class='ETVIdentation'>         </span>printk("<3>wl12xx: ERROR unsupported chip id: 0x%x\n", * (wl ).chip.id)  { /* The function body is undefined. */ };</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:206' id='ETV228'><span class='ETVIdentation'>         </span>ret = -19;<br></span></div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:224' id='ETV229'><span class='ETVIdentation'>         </span>return <span class='ETVReturnValue'>ret</span>;</div><span class='ETVIdentation'>      </span>}</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:339' id='ETV230'><span class='ETVIdentation'>      </span>assert(<span class='ETVAssertCondition'>ret  <  0</span>);</div>
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:340' id='ETV231'><span class='ETVIdentation'>      </span>__retres6 = ret;<br></span></div>
+<div class='ETVReturn' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:322' id='ETV232'><span class='ETVIdentation'>      </span>return <span class='ETVReturnValue'>__retres6</span>;</div><span class='ETVIdentation'>   </span>}</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:1802' id='ETV233'><span class='ETVIdentation'>   </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV234ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV234').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV234').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV234ShowHide' href='#' class='ETVShowHide'>-</a>
+wl12xx_op_stop(var3 <span class='ETVFunctionFormalParamName'>/* hw */</span>);</div>
+<div class='ETVFunctionBody' id='ETV234'><span class='ETVIdentation'>   </span>{
+<div class='ETVBlock' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:369' id='ETV235'><span class='ETVIdentation'>      </span>wl = * (hw ).priv;<br></span></div>
+<div class='ETVFunctionCallWithoutBody' id='ETV236'><span class='ETVIdentation'>      </span>printk("<7>wl12xx: down\n")  { /* The function body is undefined. */ };</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/main.c.common.c:375' id='ETV237'><span class='ETVIdentation'>      </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV238ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV238').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV238').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV238ShowHide' href='#' class='ETVShowHide'>-</a>
+mutex_lock(wl  foffset  mutex <span class='ETVFunctionFormalParamName'>/* lock */</span>);</div>
+<div class='ETVFunctionBody' id='ETV238'><span class='ETVIdentation'>      </span>{
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:44' id='ETV239'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>IN_INTERRUPT  = =  1</span>);</div>
+<div class='ETVAssert' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:45' id='ETV240'><span class='ETVIdentation'>         </span>assert(<span class='ETVAssertCondition'>ldv_mutex  ! =  1</span>);</div>
+<div class='ETVFunctionCall' title='/home/iceberg/ldvtest/ldv-online/client/run/work/current--X--wl12xx.tar.bz2--X--defaultlinux-2.6.32.12--X--32_1/linux-2.6.32.12/csd_deg_dscv/0/dscv_tempdir/dscv/ri/32_1/kernel-rules/files/model0032.c:45' id='ETV241'><span class='ETVIdentation'>         </span><script type='text/javascript'>
+$(document).ready
+(
+  function()
+  {
+    $('a.#ETV242ShowHide').toggle
+    (
+      function()
+      {
+        $('#ETV242').hide();
+        $(this).html('+');
+      }
+      , function()
+      {
+        $('#ETV242').show();
+        $(this).html('-');
+      }
+    );
+  }
+);
+</script><a id='ETV242ShowHide' href='#' class='ETVShowHide'>-</a>
 __blast_assert();</div>
-<div class='ETVFunctionBody' id='ETV83'><span class='ETVIdentation'>         </span>{<span class='ETVIdentation'>         </span>}</div><span class='ETVIdentation'>      </span>}</div><span class='ETVIdentation'>   </span>}</div><span class='ETVIdentation'></span>}</div>
+<div class='ETVFunctionBody' id='ETV242'><span class='ETVIdentation'>         </span>{<span class='ETVIdentation'>         </span>}</div><span class='ETVIdentation'>      </span>}</div><span class='ETVIdentation'>   </span>}</div><span class='ETVIdentation'></span>}</div>

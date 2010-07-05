@@ -182,39 +182,55 @@ function view_task_status($task_id) {
 		print "Can't get status for your task.";
 		return;
 	}
-	/* treeTable framework
-	<form>
-	<link href="http://ludo.cubicphuse.nl/jquery-plugins/treeTable/src/stylesheets/jquery.treeTable.css" rel="stylesheet" type="text/css" /> 
-	<link href="http://ludo.cubicphuse.nl/jquery-plugins/treeTable/doc/stylesheets/master.css" rel="stylesheet" type="text/css" />
-	<table id="tree">
-		<caption>Simple collapsible</caption>
-		<thead>
-			<tr>
-				<th>one</th>
-				<th>twoe</th>
-			</tr>
-		</thead>
-		<tbody>
-	  		<tr id="node-1">
-   				 <td>Parent 1</td>
-   				 <td>Parent 1</td>
-			</tr>
-  			<tr id="node-2" class="child-of-node-1">
-   				 <td>Child 2</td>
-   				 <td>Child 2</td>
-	 		</tr>
-  			<tr id="node-3" class="child-of-node-2">
-   				 <td>Child 3</td>
-   				 <td>Child 3</td>
- 			</tr>
-		</tbody>
-	</table>
-	</form>
+	// jQuery UI framework
+	?>
 	<script type="text/javascript">
-  		$(document).ready(function()  {
- 			 $("#tree").treeTable();
-		});
-	</script>*/
+			$(function(){
+				// Accordion
+				$("#accordion").accordion({ header: "h3" });
+			});
+	</script>
+		
+		<form>
+		<p>
+		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results for driver: <?php print $status['drivername']; ?></span>
+		</p>
+		<div id="accordion">
+                <?php $i=1; ?>
+                <?php foreach($status['envs'] as $env) { ?>
+                <?php foreach($env['rules'] as $rule) { ?>
+                <?php if(($rule['status'] == 'finished' || $rule['status'] == 'running') && count($rule['results'])!=0) { ?>
+			<div>
+				<h3>
+					<table>
+						<tr>
+							<td width="10%">&nbsp;</td>
+							<td width="10%"><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $i++; ?></span></td>
+							<td width="40%"><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $env['name']; ?></span></td>
+							<td width="30%"><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $rule['name']; ?></span></td>
+							<td><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $rule['status']; ?></span></td>
+						</tr>
+					</table>
+				</h3>
+				<?php foreach($rule['results'] as $result) { ?>
+					<div>
+                                        <?php if($result['status'] == 'unsafe') { ?>
+                                                <a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><span style="font-style: bold; color: red; font-size: 100%;"><?php print $result['status']; ?></span></a>
+                                        <?php } else if($result['status']=='safe') { ?>
+                                                <span style="font-style: bold; color: green; font-size: 110%;">safe</span>
+                                        <?php } else { ?>
+                                                <span style="font-style: bold; color: black; font-size: 110%;">unknown</span>
+                                        <?php } ?>
+					</div>
+				<?php } ?>
+			</div>
+		<?php } ?>
+		<?php } ?>
+		<?php } ?>
+		</div>
+	<?php 
+
+	
 	?>
 	<?php if($status['status'] != 'finished') { ?>
 	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>">
@@ -226,12 +242,7 @@ function view_task_status($task_id) {
 			});
   		});
 	</script>
-
-
-	<form name="loginform" id="loginform">
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results for driver: <?php print $status['drivername']; ?></span>
-	</p>
+	<?php /*
 	<?php $i=1; ?>
 	<?php if($status['finished'] != 0) { ?>
 
@@ -245,27 +256,6 @@ function view_task_status($task_id) {
 		});
         </script> 
 	
-<!--	<div class="tablediv">
-		<div class="rowdiv_head">	
-			<div class="col10"><span>launch</span></div>
-			<div class="col40"><span>environmnet</span></div>
-			<div class="col30"><span>rule</span></div>
-			<div class="col20"><span>status</span></div>
-		</div>
-        	<div class="rowdiv"><div class="rowdivactivator">	
-			<div class="rowdiv_minihead_collapsible">
-				<div style="display: table-cell; width:500px ;  background-color: #EEEFFF;"><span>4</span></div>
-				<div style="display: table-cell; width:450px ; background-color: #EEEFFF;"><span>4</span></div>
-			</div>
-			<div>
-				<div>
-					<div class="col60">1</div>
-					<div class="col40">2</div>
-				</div>
-			</div>
-		</div></div>
-	</div>-->
-
 	<div class="tablediv">
 		<div class="rowdiv_head">
 			<div class="col10"><span>launch</span></div>
@@ -304,51 +294,13 @@ function view_task_status($task_id) {
 		<?php } ?>
 		<?php } ?>
 		<?php } ?>
-	</div>
-
-
-<!--
-	<table border="1" cellspacing="0" cellpadding="4" width="100%">
-        	<tr>
-			<th style="font-style: bold; color: #686868;">launch</th>
-			<th style="font-style: bold; color: #686868;">environment</th>
-			<th style="font-style: bold; color: #686868;">rule</th>
-			<th style="font-style: bold; color: #686868;">status</th>
-	        <tr>
-		<?php $i=1; ?>
-		<?php foreach($status['envs'] as $env) { ?>
-			<?php foreach($env['rules'] as $rule) { ?>
-				<?php if(($rule['status'] == 'finished' || $rule['status'] == 'running') && count($rule['results'])!=0) { ?>
-				<tr>
-					<td><?php print $i++; ?></td>
-					<td><?php print $env['name']; ?></td>
-					<td><?php print $rule['name']; ?></td>
-					<td><?php print $rule['status']; ?></td>
-				</tr>
-				<?php foreach($rule['results'] as $result) { ?>
-				<tr>
-					<td colspan=3/>
-					<td>
-					<?php if($result['status'] == 'unsafe') { ?> 
-						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
-					<?php } else if($result['status']=='safe') { ?>
-						safe
-					<?php } else { ?>
-						unknown
-					<?php } ?>
-					</td>
-				</tr>
-				<?php } ?>
-				<?php } ?>
-			<?php } ?>
-		<?php } ?>
-	</table>-->
-	<?php } ?>
+	</div> 
+	<?php } */ ?>
 	<?php if($status['status'] != 'finished') { ?>
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span>
 		<div id="progressbar"></div>
-	</p>
+	</p> 
 	<?php } ?>
 	</form>
 	<?php

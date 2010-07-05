@@ -161,8 +161,8 @@ function WSPrintI($string) {
 }
 
 function WSPrintByLogLevel($string,$type) {
-	if(WSIsDebug())
-		print("<b>$type:</b> $string\n<br>");
+//	if(WSIsDebug())
+//		print("<b>$type:</b> $string\n<br>");
 }
 
 function WSIsDebug() {
