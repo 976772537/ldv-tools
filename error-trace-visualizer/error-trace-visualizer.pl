@@ -613,7 +613,10 @@ sub print_error_trace_node_blast($$)
 	  }
     }
     
-    print($file_report_out "</span></div>");	 
+    print($file_report_out "</span>")
+      if (scalar(@exprs) > 1);	 
+    
+    print($file_report_out "</div>");	 
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
