@@ -1,0 +1,4 @@
+driver=drivers/mtd/;origin=kernel;kernel=linux-2.6.32.15.tar.bz2;model=FF_1;
+driver=drivers/mtd/;origin=kernel;kernel=linux-2.6.32.15.tar.bz2;model=FF_2;
+driver=drivers/mtd/;origin=kernel;kernel=linux-2.6.34.tar.bz2;model=FF_1;
+driver=drivers/mtd/;origin=kernel;kernel=linux-2.6.34.tar.bz2;model=FF_2;

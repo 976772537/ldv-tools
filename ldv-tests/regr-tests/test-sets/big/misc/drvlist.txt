@@ -1,0 +1,40 @@
+BZ
+drivers/media/video/ 153
+
+FF
+drivers/usb/serial/ 44
+
+IGNORE
+drivers/media/dvb/ 121
+drivers/mtd/ 79
+
+BZ
+drivers/net/wireless/ 70
+drivers/md/ 22
+drivers/block/paride/ 22
+drivers/infiniband/ 19
+drivers/misc/ 18
+drivers/input/misc/ 16
+drivers/usb/host/ 14
+drivers/gpu/drm/ 13
+drivers/lguest/ 1
+
+IGNORE TBD check csiSat killing
+drivers/char/agp/ 11
+drivers/acpi/ 13
+drivers/ieee1394/ 8
+drivers/message/fusion/ 7
+drivers/net/wimax/ 3
+drivers/scsi/megaraid/ 3
+drivers/dma/ 2
+
+
+driver=YOUR_DIRVER_DIR;origin=kernel;kernel=YOUR_KERNEL_ARCHIVE;model=FF_1;
+driver=YOUR_DIRVER_DIR;origin=kernel;kernel=YOUR_KERNEL_ARCHIVE;model=FF_2;
+
+for i in `cat drvdirs.txt`; do
+echo "driver=$i;origin=kernel;kernel=linux-2.6.32.15.tar.bz2;model=FF_1;"
+echo "driver=$i;origin=kernel;kernel=linux-2.6.32.15.tar.bz2;model=FF_2;"
+echo "driver=$i;origin=kernel;kernel=linux-2.6.34.tar.bz2;model=FF_1;"
+echo "driver=$i;origin=kernel;kernel=linux-2.6.34.tar.bz2;model=FF_2;"
+done
