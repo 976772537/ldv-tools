@@ -26,4 +26,5 @@ install:
 	if [ ! -d $(prefix)/$(BIG_TEST_DIR) ]; then mkdir -p $(prefix)/$(BIG_TEST_DIR) || exit 1; fi
 	cp -r *.tar.bz2 $(prefix)/$(BIG_TEST_DIR) || exit 1;
 	cp $(TEST_TASK) $(prefix)/$(BIG_TEST_DIR) || exit 1;
+	cp regr-test-big-* $(prefix)/$(BIG_TEST_DIR) || exit 1;
 

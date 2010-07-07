@@ -1,0 +1,6 @@
+csiSAT hangs on
+rcv-blast: INFO: /home/mutilin/opt/ldv/bin/../shared/sh/timeout -m 1000000 -t 900 pblast.opt /home/mutilin/temp/ldv-tools-test/regr-tests/launcher-working-dir/ldv-manager-work-dir/work/current--X--drivers/usb/serial/--X--regression-testlinux-2.6.32.15--X--FF_1/linux-2.6.32.15/csd_deg_dscv/19/dscv_tempdir/dscv/cmdfiles/rcv/FF_1/preprocessed/drivers-usb-serial-iuu_phoenix.ko.linked.cbe.i -predH 7 -cref -craig 2 -lattice -include-lattice symb -nomusts -const -ignoredupfn -nosserr -main ldv_main0 -L llvm_cbe_LDV_ERROR -cldepth 0 -alias bdd 
+
+the same for FF_2 and linux-2.6.34
+
+it should be killed manually
