@@ -1,5 +1,5 @@
 /** 
- * The test checks that double spin lock is detected on the models 39_1,39_2
+ * The test checks that double mutex lock is detected on the models 32_1,32_2
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

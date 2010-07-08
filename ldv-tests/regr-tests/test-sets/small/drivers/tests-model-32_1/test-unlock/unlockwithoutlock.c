@@ -1,5 +1,4 @@
 /** 
- * The test checks that spin unlock without spin lock is detected on the models 39_1,39_2
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
