@@ -705,7 +705,7 @@ function WSGetRuleByNumber($rule_XML_ID) {
                 }
 		// While  filed NAME is not released - print 'NAME' -> "Its rule name". 
 		// TODO: 'NAME' => $rule_XML_NAME
-    $rule = array('ID' => $rule_XML_ID, 'NAME' =>"It's a rule name.", 'TYPE' => $rule_XML_TYPE, 'STATUS' => $rule_XML_STATUS, 'TITLE' => $rule_XML_TITLE, 'SUMMARY' => $rule_XML_SUMMARY,
+    $rule = array('ID' => $rule_XML_ID, 'NAME' =>$rule_XML_NAME, 'TYPE' => $rule_XML_TYPE, 'STATUS' => $rule_XML_STATUS, 'TITLE' => $rule_XML_TITLE, 'SUMMARY' => $rule_XML_SUMMARY,
         'DESCRIPTION' => $rule_XML_DESCRIPTION, 'EXAMPLE' => $rule_XML_EXAMPLE, 'LINKS' => $rule_XML_LINKS,
         'NOTES' => $rule_XML_NOTES);
     return $rule;
