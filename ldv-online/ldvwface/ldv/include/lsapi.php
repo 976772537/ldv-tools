@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <?php
 #
-# Log degines
+# Log defines
 #
 define("WS_LL_DEBUG", "DEBUG");
 define("WS_LL_TRACE", "TRACE");
@@ -49,6 +49,10 @@ function WSInit($ldvs_server_config) {
 				define("WS_SDB_NAME",$lmatches[1]);
                        	if(preg_match('/StatsDBHost=(.*)/', $file_array[$i], $lmatches))
 				define("WS_SDB_HOST",$lmatches[1]);
+                       	if(preg_match('/RulesDBPath=(.*)/', $file_array[$i], $lmatches))
+				define("WS_RULES_DB_PATH",$lmatches[1]);
+                       	if(preg_match('/ModelsDBPath=(.*)/', $file_array[$i], $lmatches))
+				define("WS_MODELS_DB_PATH",$lmatches[1]);
                        	if(preg_match('/StatsDBPort=(.*)/', $file_array[$i], $lmatches))
 				define("WS_SDB_PORT",$lmatches[1]);
                        	if(preg_match('/LogLevel=(.*)/', $file_array[$i], $lmatches))
@@ -71,6 +75,8 @@ function WSInitPrint() {
 	WSPrintD("Set up WS_SDB_NAME=".WS_SDB_NAME);
 	WSPrintD("Set up WS_SDB_HOST=".WS_SDB_HOST);
 	WSPrintD("Set up WS_SDB_PORT=".WS_SDB_PORT);
+	WSPrintD("Set up WS_RULES_DB_PATH=".WS_RULES_DB_PATH);
+	WSPrintD("Set up WS_MODELS_DB_PATH=".WS_MODELS_DB_PATH);
 }
 
 function WSInitDefault() {
@@ -86,6 +92,8 @@ function WSInitDefault() {
 	define("WS_SDB_PORT","3306");
 	// TODO: log level 
 	define("WS_LDV_DEBUG","100");
+	define("WS_MODELS_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/model-db.xml");
+	define("WS_RULES_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/rules/DRVRULES_en.trl");
 }
 
 #
@@ -162,8 +170,8 @@ function WSPrintI($string) {
 }
 
 function WSPrintByLogLevel($string,$type) {
-//	if(WSIsDebug())
-//		print("<b>$type:</b> $string\n<br>");
+	if(WSIsDebug())
+		print("<b>$type:</b> $string\n<br>");
 }
 
 function WSIsDebug() {
@@ -461,7 +469,10 @@ function WSGetTaskReport($task_id) {
 	while($row = mysql_fetch_array($result))
   	{
 		$task['driver_id']=$row['driver_id'];
-		$task['drivername']=$row['drivername'];
+		// Fix for driver name that uploading to ldvs twice
+                $task['drivername'] = preg_replace('/_\d+$/','', $row['drivername']);
+		//	$task['drivername']=$row['drivername'];
+		$task['ldvs_drivername']=$row['drivername'];
 		if(empty($last_env) || $last_env!=$row['env']) {
 			$i++;
 			$j=0;
@@ -574,7 +585,8 @@ function WSGetHistory() {
   	{
 		$history[$i]['id'] = $row['id'];
 		$history[$i]['timestamp'] = $row['timestamp'];
-		$history[$i++]['driver'] = $row['driver'];
+                $history[$i]['ldvs_drivername'] = $row['driver'];
+                $history[$i++]['driver'] = preg_replace('/_\d+$/','', $row['driver']);
 	}
 	WSStatsDisconnect($conn);
 	return $history;
@@ -624,11 +636,11 @@ function WSGetUser() {
 # functions to work with rules db
 #
 function WSGetRulesXml() {
-	return "./ldv/rules/DRVRULES_en.trl";
+	return WS_RULES_DB_PATH;
 }
 
 function WSGetModelDbXml() {
-	return "./ldv/rules/model-db.xml";
+	return WS_MODELS_DB_PATH;
 }
 
 

@@ -283,7 +283,7 @@ public class SQLRequests {
 			// заливаем в drivers
 
 			//int driver_id = modifyAndGetIdUnsafe(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+"' AND origin ='external';");
-			int driver_id = modifyAndGetIdUnsafe2(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+"' AND origin ='external';");
+			int driver_id = modifyAndGetIdUnsafe2(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+'_'+id+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+'_'+id+"' AND origin ='external';");
 			
 			
 			int toolset_id = modifyAndGetIdUnsafe(ste, "INSERT IGNORE INTO toolsets(version) VALUES('current')","SELECT id FROM toolsets WHERE version='current' AND verifier='model-specific';");
