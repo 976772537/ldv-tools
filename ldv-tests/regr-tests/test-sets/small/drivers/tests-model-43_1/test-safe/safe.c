@@ -1,11 +1,11 @@
 /** 
- * The test checks that correct spin lock is safe on the models 39_1,39_2
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/major.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 static DEFINE_SPINLOCK(my_lock);
 
