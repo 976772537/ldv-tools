@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/major.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 static DEFINE_SPINLOCK(my_lock);
 
