@@ -168,6 +168,7 @@ my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializat
 my $file_report_in;
 my $file_report_out;
 my $file_reqs_out;
+my $file_src_files;
 
 # The unique html tags identifier.
 my $html_id = 0;
@@ -178,6 +179,7 @@ my $opt_help;
 my $opt_report_in;
 my $opt_report_out;
 my $opt_reqs_out;
+my $opt_src_files;
 
 # Some usefull reqular expressions.
 my $regexp_element_kind = '^([^=\(:]+)';
@@ -262,7 +264,8 @@ sub get_opt()
     'help|h' => \$opt_help,
     'report|c=s' => \$opt_report_in,
     'report-out|o=s' => \$opt_report_out,
-    'reqs-out=s' => \$opt_reqs_out))
+    'reqs-out=s' => \$opt_reqs_out,
+    'src-files=s' => \$opt_src_files))
   {
     warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool");
     help();
@@ -297,6 +300,15 @@ sub get_opt()
     open($file_report_out, '>', "$opt_report_out")
       or die("Can't open the file '$opt_report_out' specified through the option --report-out|o for write: $ERRNO");
     print_debug_debug("The report output file is '$opt_report_out'");
+  
+    # When the error trace is visualized it'll good if corresponding sources are
+    # presented too.
+    if ($opt_src_files)
+    {
+      open($file_src_files, '<', "$opt_src_files")
+        or die("Can't open the file '$opt_src_files' specified through the option --src-files for read: $ERRNO");
+      print_debug_debug("The source code file is '$opt_src_files'");	  
+	}
   }
   
   if ($opt_reqs_out)
@@ -343,6 +355,11 @@ OPTIONS
     <file> is an absolute path to a file that will contain a list of
     required for report files. This is needed to gather all 
     requirements that will be used then in the visualization mode.
+
+  --src-files <file>
+    <file> is an absolute path to a file containing source code 
+    referenced by the given error trace. It's optional. If there is no
+    such option then no source code is shown.
     
 ENVIRONMENT VARIABLES
 
