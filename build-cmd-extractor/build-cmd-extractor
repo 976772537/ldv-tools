@@ -200,13 +200,14 @@ fi;
 
 ldv_print "NORMAL: Make driver."
 if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>&1";
+	ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $statefile 2>&1";
 	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
 else
 	# TODO: replace this hack!
 	# prepare kernel for external driver
 	make allmodconfig 2>$statefile;
 	if [ $? -ne 0 ]; then 
+		shield_xml $statefile;
 		ldv_print "ERROR: Can't configure kernel.";
 	        if [ -f "$statefile" ]; then
 	                echo "Can't configure kernel." >>$statefile;
@@ -217,6 +218,7 @@ else
 	fi;
 	make init 2>$statefile;
 	if [ $? -ne 0 ]; then 
+		shield_xml $statefile;
 		ldv_print "ERROR: Can't init kernel.";
 	        if [ -f "$statefile" ]; then
 	                echo "Can't init kernel." >>$statefile;
@@ -234,6 +236,7 @@ else
 	BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;
 fi;
 if [ $? -ne 0 ]; then
+	shield_xml $statefile;
 	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
         if [ -f "$statefile" ]; then
                 echo "Compile error." >>$statefile;

@@ -32,3 +32,10 @@ print_usage_and_exit() {
 		exit 1;
 }
 
+shield_xml() {
+	sed -i -e "s/>/\&gt/g" $1;
+	sed -i -e "s/</\&lt/g" $1;
+	sed -i -e "s/\&/\&amp/g" $1;
+	sed -i -e 's/"/\&quot/g' $1;
+	sed -i -e "s/'/\&apos;/g" $1;
+}
