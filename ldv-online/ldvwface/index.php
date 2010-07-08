@@ -56,10 +56,9 @@ function view_header() {
 			padding: 0; /* Убираем поля */
 		} 
 		</style>
-	<!--	<div style="width: 100%; height: 30px; background: #666666;">
-			<a href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;history</span></a>
-			<a href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;upload</span></a> -->
-		</div>
+		<!--<div style="width: 100%; height: 20px; background: #666666;">
+			<span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;LDV Online 83.149.198.16</span>
+		</div> -->
 		<div class="mini_menu">
 
 
@@ -88,9 +87,6 @@ function view_upload_driver_form() {
         <h4>2. Upload driver. </h4>
         <h4>3. Wait for results.</h4>
         </ul>
-
-
-
 	        <p>
 	                <label><br />
 	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
@@ -184,54 +180,11 @@ function view_task_status($task_id) {
 	}
 	// jQuery UI framework
 	?>
-	<script type="text/javascript">
-			$(function(){
-				// Accordion
-				$("#accordion").accordion({ header: "h3" });
-			});
-	</script>
 		
-		<form>
-		<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results for driver: <?php print $status['drivername']; ?></span>
-		</p>
-		<div id="accordion">
-                <?php $i=1; ?>
-                <?php foreach($status['envs'] as $env) { ?>
-                <?php foreach($env['rules'] as $rule) { ?>
-                <?php if(($rule['status'] == 'finished' || $rule['status'] == 'running') && count($rule['results'])!=0) { ?>
-			<div>
-				<h3>
-					<table>
-						<tr>
-							<td width="10%">&nbsp;</td>
-							<td width="10%"><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $i++; ?></span></td>
-							<td width="40%"><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $env['name']; ?></span></td>
-							<td width="30%"><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $rule['name']; ?></span></td>
-							<td><span style="font-style: bold; color: #FFFFFF; font-size: 110%;"><?php print $rule['status']; ?></span></td>
-						</tr>
-					</table>
-				</h3>
-				<?php foreach($rule['results'] as $result) { ?>
-					<div>
-                                        <?php if($result['status'] == 'unsafe') { ?>
-                                                <a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><span style="font-style: bold; color: red; font-size: 100%;"><?php print $result['status']; ?></span></a>
-                                        <?php } else if($result['status']=='safe') { ?>
-                                                <span style="font-style: bold; color: green; font-size: 110%;">safe</span>
-                                        <?php } else { ?>
-                                                <span style="font-style: bold; color: black; font-size: 110%;">unknown</span>
-                                        <?php } ?>
-					</div>
-				<?php } ?>
-			</div>
-		<?php } ?>
-		<?php } ?>
-		<?php } ?>
-		</div>
-	<?php 
-
+	<form>
+	<p>
+	<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results for driver: <?php print $status['drivername']; ?></span>
 	
-	?>
 	<?php if($status['status'] != 'finished') { ?>
 	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>">
 	<?php } ?>
@@ -242,10 +195,39 @@ function view_task_status($task_id) {
 			});
   		});
 	</script>
-	<?php /*
+
+	<table width="100%" border="1" style="border-collapse: collapse;">
+		<tr>
+			<th>kernel</th>
+			<th>title</th>
+			<th>verdict</th>
+		</tr>
+		<?php foreach($status['envs'] as $env) { ?>
+			<?php foreach($env['rules'] as $rule) { ?>
+			<?php foreach($rule['results'] as $result) { ?>
+			<tr>	
+				<td><?php print $env['name']; ?></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
+				<?php if($result['status'] == 'unsafe') { ?> 
+				<td bgcolor="red">
+					<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
+				<?php } else if($result['status']=='safe') { ?>
+				<td bgcolor="#66CC33">
+					safe
+				<?php } else { ?>
+				<td bgcolor="yellow">
+					unknown
+				<?php } ?>
+				</td>
+			<tr>		
+			<?php } ?>
+			<?php } ?>
+		<?php } ?>
+	</table>
+
+<!--
 	<?php $i=1; ?>
 	<?php if($status['finished'] != 0) { ?>
-
 
        <script>
 		$(document).ready(function(){
@@ -255,7 +237,7 @@ function view_task_status($task_id) {
         	$(".rowdiv_minihead_collapsible").parent().children().not(".rowdiv_minihead_collapsible").hide();
 		});
         </script> 
-	
+		
 	<div class="tablediv">
 		<div class="rowdiv_head">
 			<div class="col10"><span>launch</span></div>
@@ -295,13 +277,13 @@ function view_task_status($task_id) {
 		<?php } ?>
 		<?php } ?>
 	</div> 
-	<?php } */ ?>
+	<?php }  ?>
 	<?php if($status['status'] != 'finished') { ?>
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span>
 		<div id="progressbar"></div>
 	</p> 
-	<?php } ?>
+	<?php } ?> -->
 	</form>
 	<?php
 }
@@ -309,13 +291,15 @@ function view_task_status($task_id) {
 $action=request_var('action','');
 $exit=false;
 
+
+
 view_header();
 /**
  * 
  *  Configuration file
  *
  */ 
-WSInit("/home/iceberg/ldv-tools/ldv-online/ldvsrv/debug/server.conf");
+WSInit("server.conf");
 
 if ($action == "upload" && !$exit)
 {

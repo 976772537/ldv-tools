@@ -28,6 +28,7 @@ function WSInit($ldvs_server_config) {
 		WSInitPrint();
 		return;
 	} 
+	WSPrintT($ldvs_server_config);
 	if(!is_file($ldvs_server_config)) {
 		WSPrintE("Can't find file with configuration.");
 		WSInitDefault();
@@ -91,7 +92,7 @@ function WSInitDefault() {
 # get kernel list strucure
 #
 function WSGetSupportedEnvList() {
-	$rules1 = array('32_1','77_1','08_1','29_1','37_1','39_1','43_1','60_1','68_1');
+	$rules1 = array('32_1','77_1','08_1','29_1','37_1','43_1','60_1','68_1');
 //	$rules2 = array("32_1","77_1");
 	
 	$env1 = array('name' => "linux-2.6.32.12", 'rules' => $rules1);
@@ -469,11 +470,15 @@ function WSGetTaskReport($task_id) {
 			$task['envs'][$i]['environment_id']=$row['environment_id'];
 			unset($last_rule);
 		}
-		$task['envs'][$i]['rules'][$j]['name']=$row['rule'];
+		$task['envs'][$i]['rules'][$j]['model_ident']=$row['rule'];
 		$task['envs'][$i]['rules'][$j]['results']=array();
 		$task['envs'][$i]['rules'][$j]['id']=$row['id'];
 		$task['envs'][$i]['rules'][$j]['status']=$row['status'];
 		$task['envs'][$i]['rules'][$j]['rule_model_id']=$row['rule_model_id'];
+		// Add information from model_db and rules db
+		$rule_info = WSGetRuleInfoByLDVIdent($task['envs'][$i]['rules'][$j]['model_ident']);
+		$task['envs'][$i]['rules'][$j]['tooltip']=$rule_info['TITLE'];
+		$task['envs'][$i]['rules'][$j]['name']=$rule_info['NAME'];
 		if($row['status'] == 'finished') 
 			$finished++;
 		if($row['status'] != 'failed')
@@ -615,5 +620,99 @@ function WSGetUser() {
 	return 'mong';
 }
 
+#
+# functions to work with rules db
+#
+function WSGetRulesXml() {
+	return "./ldv/rules/DRVRULES_en.trl";
+}
+
+function WSGetModelDbXml() {
+	return "./ldv/rules/model-db.xml";
+}
+
+
+#
+# 32_1 -> 0032
+#
+function WSGetRuleIdByLDVIdent($rule_id) {
+	//TODO: trim rule id
+	$dom = new DomDocument();
+	$dom->load(WSGetModelDbXml());
+	foreach ($dom->getElementsByTagName('model') as $model) {
+		if ($model->hasAttribute('id') && $model->getAttribute('id') == $rule_id) {
+			foreach ($model->childNodes as $model_node) {
+				if ( $model_node->nodeType == 1 && $model_node->nodeName == 'rule')
+					return $model_node->textContent;
+			}
+		}
+	}
+}
+
+function WSGetRuleNodeById($rule_id) {
+	$dom = new DomDocument();
+	$dom->load(WSGetRulesXml());
+	foreach ($dom->documentElement->childNodes as $articles) {
+		if ($articles->nodeType == 1 &&
+			$articles->nodeName == 'RULE_ERROR' ||
+			$articles->nodeName == 'RULE_WARNING' ||
+			$articles->nodeName == 'RULE_RECOMMENDATION') {
+			foreach ($articles->childNodes as $articles_l1) {
+				if ( $articles_l1->nodeType == 1 &&
+					$articles_l1->nodeName == 'ID' &&
+					$articles_l1->textContent == $rule_id)
+				return $articles;
+			}
+		}
+	}
+}
+
+function WSGetRuleByNumber($rule_XML_ID) {
+    $dom_node = WSGetRuleNodeById($rule_XML_ID);
+    if(!isset($dom_node)) {
+        print "Rule not exists.<br>";
+        return;
+    }
+    $rule_XML_TYPE = $dom_node->nodeName;
+    foreach ($dom_node->childNodes as $articles)
+            if ($articles->nodeType == 1)
+            switch ($articles->nodeName) {
+                case 'NAME':
+                    $rule_XML_NAME = $articles->textContent;
+                    break;
+                case 'TITLE':
+                    $rule_XML_TITLE = $articles->textContent;
+                    break;
+                case 'STATUS':
+                    $rule_XML_S = $articles->textContent;
+                    break;
+                case 'SUMMARY':
+                    $rule_XML_SUMMARY = $articles->textContent;
+                    break;
+                case 'DESCRIPTION':
+                    $rule_XML_DESCRIPTION = $articles->textContent;
+                    break;
+                case 'NOTES':
+//                    $rule_XML_NOTES = preg_replace('/\n/','<br>', $articles->textContent);
+                    $rule_XML_NOTES = $articles->textContent;
+                    break;
+                case 'LINKS':
+                    $rule_XML_LINKS = $articles->textContent;
+                    break;
+                case 'EXAMPLE':
+                    $rule_XML_EXAMPLE = $articles->textContent;
+                    break;
+                }
+		// While  filed NAME is not released - print 'NAME' -> "Its rule name". 
+		// TODO: 'NAME' => $rule_XML_NAME
+    $rule = array('ID' => $rule_XML_ID, 'NAME' =>"It's a rule name.", 'TYPE' => $rule_XML_TYPE, 'STATUS' => $rule_XML_STATUS, 'TITLE' => $rule_XML_TITLE, 'SUMMARY' => $rule_XML_SUMMARY,
+        'DESCRIPTION' => $rule_XML_DESCRIPTION, 'EXAMPLE' => $rule_XML_EXAMPLE, 'LINKS' => $rule_XML_LINKS,
+        'NOTES' => $rule_XML_NOTES);
+    return $rule;
+}
+
+function WSGetRuleInfoByLDVIdent($rule_ldv_id) {
+	return WSGetRuleByNumber(WSGetRuleIdByLDVIdent($rule_ldv_id));
+}
 
 ?>

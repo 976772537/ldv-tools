@@ -1,0 +1,2318 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ROOT item="y" tlversion="1.2.0"
+line0="{*Name*}"
+line1="{*Name*}"
+childtype="DEFAULT"
+icon="book_1">
+<Name type="Text" ref="y">LINUX DRIVER RULES</Name>
+<LEGEND item="y"
+line0="{*Name*}"
+line1="{*Name*}"
+line2="{*DESCRIPTION*}">
+<Name type="Text" ref="y">Legend</Name>
+<DESCRIPTION type="Text">Format of the fields: markdown
+
+Mandatory fields:
+ID, NAME, DESCRIPTION
+
+Optional fields:
+SUMMARY, etc
+
+Notes on fields:
+SUMMARY - short description of the rule, if DESCRIPTION is long
+LINKS - has the following types:
+  - bug-desc -&gt; bugzilla entry
+  - fix-commit -&gt; bugfix example
+  - docs -&gt; documentation
+
+VERIFICATION - ideas about checking the rule not visible to the public
+
+STATUS - if PUBLISHED then it will be visible on the web site</DESCRIPTION>
+</LEGEND>
+<RULE_ERROR item="y"
+line0="{*ID*}: {*TITLE*}"
+line1="&lt;table border=&quot;1&quot;&gt;"
+line2="&lt;tr&gt;&lt;td&gt;"
+line3="&lt;b&gt;&lt;font color=&quot;red&quot;&gt;{*ID*}: {*TITLE*}&lt;/font&gt;&lt;/b&gt;"
+line4="&lt;/td&gt;&lt;/tr&gt;"
+line5="&lt;tr&gt;&lt;td&gt;"
+line6="&lt;b&gt;SUMMARY&lt;/b&gt;"
+line7="{*SUMMARY*}"
+line8="&lt;/td&gt;&lt;/tr&gt;"
+line9="&lt;tr&gt;&lt;td&gt;"
+line10="&lt;b&gt;DESCRIPTION&lt;/b&gt;"
+line11="{*DESCRIPTION*}"
+line12="&lt;/td&gt;&lt;/tr&gt;"
+line13="&lt;tr&gt;&lt;td&gt;"
+line14="&lt;b&gt;LINKS&lt;/b&gt;"
+line15="{*LINKS*}"
+line16="&lt;/td&gt;&lt;/tr&gt;"
+line17="&lt;tr&gt;&lt;td&gt;"
+line18="&lt;b&gt;KERNEL VERSION:&lt;/b&gt; {*KERNEL_VERSION*}&lt;br/&gt;"
+line19="&lt;b&gt;ARCH:&lt;/b&gt; {*ARCH*}&lt;br/&gt;"
+line20="&lt;b&gt;SUBSYSTEM:&lt;/b&gt; {*SUBSYSTEM*}"
+line21="&lt;/td&gt;&lt;/tr&gt;"
+line22="&lt;tr&gt;&lt;td&gt;"
+line23="&lt;b&gt;EXAMPLE&lt;/b&gt;"
+line24="{*EXAMPLE*}"
+line25="&lt;/td&gt;&lt;/tr&gt;"
+line26="&lt;tr&gt;&lt;td&gt;"
+line27="&lt;b&gt;NOTES&lt;/b&gt;"
+line28="{*NOTES*}"
+line29="&lt;/td&gt;&lt;/tr&gt;"
+line30="&lt;/table&gt;"
+childtype="RULE"
+generic="RULE"
+icon="x_3">
+<TITLE type="Text" ref="y">Using user-space data in kernel modules</TITLE>
+<ID type="Text" prefix="ID ">0001</ID>
+<SUMMARY type="Text">You should use special functions `copy_from_user()` and `copy_to_user()` to transfer data between kernel space and user space.</SUMMARY>
+<DESCRIPTION type="Text" lines="7">The purpose of this rule is to exclude possible errors when working with pointers that reference user-space data buffer from kernel module (driver). 
+
+It's required to forbid a direct usage of the user-space variables that are marked by the attribute `__user` as parameters of standard formatting functions (e.g. `sprintf`) because it leads to an addressing error, as these pointers belong to a separate segment.</DESCRIPTION>
+<VERIFICATION type="Text">Warning message in the case of missing the required attributes of parameters.
+Problems described in the rule often arise when working with interfaces which transfer information between user's file system and kernel module being developed (description of this interfaces is in the header file fs.h)</VERIFICATION>
+<LINKS type="Text"></LINKS>
+<KERNEL_VERSION type="Text"></KERNEL_VERSION>
+<ARCH type="Text"></ARCH>
+<SUBSYSTEM type="Text"></SUBSYSTEM>
+<EXAMPLE type="Text">**Correct example:**
+
+    static ssize_t dev_read(struct file * file,char * __user buf, size_t size,loff_t offset)
+    {
+        copy_to_user(buf,msg,strlen(msg));
+        return strlen(msg);
+    }
+
+This code implements the reading interface for an object of the Linux char device. Data are copied to user buffer with the help of the system `copy_to_user()` function, that encapsulates multiple `put_user()` calls and implements the byte-serial copying that takes the basic address of the user process segment into account.</EXAMPLE>
+<NOTES type="Text"></NOTES>
+<STATUS type="Choice" format="UNPUBLISHED/PUBLISHED" init="UNPUBLISHED">PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_WARNING item="y"
+line0="{*ID*}: {*TITLE*}"
+line1="&lt;table border=&quot;1&quot;&gt;"
+line2="&lt;tr&gt;&lt;td&gt;"
+line3="&lt;b&gt;&lt;font color=&quot;orange&quot;&gt;{*ID*}: {*TITLE*}&lt;/font&gt;&lt;/b&gt;"
+line4="&lt;/td&gt;&lt;/tr&gt;"
+line5="&lt;tr&gt;&lt;td&gt;"
+line6="&lt;b&gt;SUMMARY&lt;/b&gt;"
+line7="{*SUMMARY*}"
+line8="&lt;/td&gt;&lt;/tr&gt;"
+line9="&lt;tr&gt;&lt;td&gt;"
+line10="&lt;b&gt;DESCRIPTION&lt;/b&gt;"
+line11="{*DESCRIPTION*}"
+line12="&lt;/td&gt;&lt;/tr&gt;"
+line13="&lt;tr&gt;&lt;td&gt;"
+line14="&lt;b&gt;LINKS&lt;/b&gt;"
+line15="{*LINKS*}"
+line16="&lt;/td&gt;&lt;/tr&gt;"
+line17="&lt;tr&gt;&lt;td&gt;"
+line18="&lt;b&gt;KERNEL VERSION:&lt;/b&gt; {*KERNEL_VERSION*}&lt;br/&gt;"
+line19="&lt;b&gt;ARCH:&lt;/b&gt; {*ARCH*}&lt;br/&gt;"
+line20="&lt;b&gt;SUBSYSTEM:&lt;/b&gt; {*SUBSYSTEM*}"
+line21="&lt;/td&gt;&lt;/tr&gt;"
+line22="&lt;tr&gt;&lt;td&gt;"
+line23="&lt;b&gt;EXAMPLE&lt;/b&gt;"
+line24="{*EXAMPLE*}"
+line25="&lt;/td&gt;&lt;/tr&gt;"
+line26="&lt;tr&gt;&lt;td&gt;"
+line27="&lt;b&gt;NOTES&lt;/b&gt;"
+line28="{*NOTES*}"
+line29="&lt;/td&gt;&lt;/tr&gt;"
+line30="&lt;/table&gt;"
+generic="RULE"
+icon="warning">
+<TITLE type="Text" ref="y">Usage of specialized attributes for parameters of interfaces for interaction with the user-space.</TITLE>
+<ID type="Text" prefix="ID ">0002</ID>
+<SUMMARY type="Text"></SUMMARY>
+<DESCRIPTION type="Text">This is a simplification of the rule ID 0001 verification procedure.
+The purpose is to increase code readability increase and simplify its debugging.
+
+Verification:
+To check the rule we should compare the code being verified that contains prototypes of the function interfaces to the user-space applications (e.g. from the header file fs.h). Warning is raised in the case of missing the required parameters' attributes.</DESCRIPTION>
+<VERIFICATION type="Text"></VERIFICATION>
+<LINKS type="Text"></LINKS>
+<KERNEL_VERSION type="Text"></KERNEL_VERSION>
+<ARCH type="Text"></ARCH>
+<SUBSYSTEM type="Text"></SUBSYSTEM>
+<EXAMPLE type="Text">static ssize_t dev_read(struct file * file,char * __user buf, size_t size, loff_t offset)
+Parameter buf of char* type keeps the buffer address in the address space of the user process, thus its direct usage by input-output functions of the kernel module is inadmissible.</EXAMPLE>
+<NOTES type="Text"></NOTES>
+<STATUS type="Choice" format="UNPUBLISHED/PUBLISHED" init="UNPUBLISHED"></STATUS>
+</RULE_WARNING>
+<RULE_WARNING item="y">
+<TITLE>The specialized attributes' usage for initialization and finalization functions of the module.</TITLE>
+<ID>0003</ID>
+<DESCRIPTION>There is a possibility of the system resources optimization when using device driver as a static part of the kernel (not as a connected module).
+At first it's possible due to deallocation of the memory that is occupied by the initialization function (init) after kernel activation. And at second because finalization function (exit) doesn't use memory (because the kernel memory unloading occurs only when memory stops).
+
+It is recommended to use the new initialization/deactivation mechanism of the kernel modules (module_init()/module_exit()), but not the old one.
+
+Verification:
+To verify the rule we should get identifiers (names) of the functions that are transfered to the macros module_init(...) and module_exit(...), and check that their prototypes have attributes __init and __exit respectively.</DESCRIPTION>
+<EXAMPLE>EXAMPLES OF THE IMPLEMENTED RECOMMENDATIONS:
+2.6.25 -&gt; drivers/net/ac3200.c
+2.6.25 -&gt; drivers/net/apne.c
+2.6.25 -&gt; drivers/net/arcnet/capmode.c
+
+static int __init start_module() { ... }
+static void __exit stop_module() { ... }
+module_init(start_module);
+module_exit(stop_module);</EXAMPLE>
+</RULE_WARNING>
+<RULE_WARNING item="y">
+<TITLE>Specialized attributes for data, that are used only by initialization functions of a starting module.</TITLE>
+<ID>0004</ID>
+<DESCRIPTION>The purpose is to optimize system resources by unloading data with an attribute &quot;use only by starting initialization procedure&quot; (__initdata) after module activation.
+
+Verification consists in getting variable identifiers that are used only in the initialization functions. We should take into account basic initialization function which is passed to the module_init() macro, and also all enclosed functions which are not used after initialization. Then we should verify that __initdata attribute is present for all such variables.</DESCRIPTION>
+<EXAMPLE>static int __initdata var;
+static char __initdata str[]=&quot;string&quot;;</EXAMPLE>
+</RULE_WARNING>
+<RULE_RECOMMENDATION item="y"
+line0="{*ID*}: {*TITLE*}"
+line1="&lt;table border=&quot;1&quot;&gt;"
+line2="&lt;tr&gt;&lt;td&gt;"
+line3="&lt;b&gt;&lt;font color=&quot;green&quot;&gt;{*ID*}: {*TITLE*}&lt;/font&gt;&lt;/b&gt;"
+line4="&lt;/td&gt;&lt;/tr&gt;"
+line5="&lt;tr&gt;&lt;td&gt;"
+line6="&lt;b&gt;SUMMARY&lt;/b&gt;"
+line7="{*SUMMARY*}"
+line8="&lt;/td&gt;&lt;/tr&gt;"
+line9="&lt;tr&gt;&lt;td&gt;"
+line10="&lt;b&gt;DESCRIPTION&lt;/b&gt;"
+line11="{*DESCRIPTION*}"
+line12="&lt;/td&gt;&lt;/tr&gt;"
+line13="&lt;tr&gt;&lt;td&gt;"
+line14="&lt;b&gt;VERIFICATION&lt;/b&gt;"
+line15="{*VERIFICATION*}"
+line16="&lt;/td&gt;&lt;/tr&gt;"
+line17="&lt;tr&gt;&lt;td&gt;"
+line18="&lt;b&gt;LINKS&lt;/b&gt;"
+line19="{*LINKS*}"
+line20="&lt;/td&gt;&lt;/tr&gt;"
+line21="&lt;tr&gt;&lt;td&gt;"
+line22="&lt;b&gt;KERNEL VERSION:&lt;/b&gt; {*KERNEL_VERSION*}&lt;br/&gt;"
+line23="&lt;b&gt;ARCH:&lt;/b&gt; {*ARCH*}&lt;br/&gt;"
+line24="&lt;b&gt;SUBSYSTEM:&lt;/b&gt; {*SUBSYSTEM*}"
+line25="&lt;/td&gt;&lt;/tr&gt;"
+line26="&lt;tr&gt;&lt;td&gt;"
+line27="&lt;b&gt;EXAMPLE&lt;/b&gt;"
+line28="{*EXAMPLE*}"
+line29="&lt;/td&gt;&lt;/tr&gt;"
+line30="&lt;tr&gt;&lt;td&gt;"
+line31="&lt;b&gt;NOTES&lt;/b&gt;"
+line32="{*NOTES*}"
+line33="&lt;/td&gt;&lt;/tr&gt;"
+line34="&lt;/table&gt;"
+generic="RULE"
+icon="bell">
+<TITLE type="Text" ref="y">Using C99 structure initialization instead of GCC style</TITLE>
+<ID type="Text" prefix="ID ">0005</ID>
+<SUMMARY type="Text"></SUMMARY>
+<DESCRIPTION type="Text">For maximum portability and for more understandability of code by people who are not aware of GCC style it is recommended to use C99 style of structure initialization.</DESCRIPTION>
+<VERIFICATION type="Text"></VERIFICATION>
+<LINKS type="Text"></LINKS>
+<KERNEL_VERSION type="Text"></KERNEL_VERSION>
+<ARCH type="Text"></ARCH>
+<SUBSYSTEM type="Text">CODING STYLE</SUBSYSTEM>
+<EXAMPLE type="Text">GCC style:
+struct file_operations fops = {
+read: device_read,
+write: device_write,
+open: device_open,
+release: device_release
+};
+
+C99 style:
+static struct file_operations fop = {
+.open = &amp;dev_open,
+.release = &amp;dev_close,
+.read = &amp;dev_read,
+.write = &amp;dev_write,
+.ioctl = &amp;dev_ioctl
+};</EXAMPLE>
+<NOTES type="Text"></NOTES>
+<STATUS type="Choice" format="UNPUBLISHED/PUBLISHED" init="UNPUBLISHED"></STATUS>
+</RULE_RECOMMENDATION>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Using type from extended standards</TITLE>
+<ID>0006</ID>
+<DESCRIPTION>For maximum portability and for more understandability of code by people who are not aware of Linux kernel types it is recommended to use types from extended C standards supported by GCC 3.x-4.x (e.g. C99) instead of specific Linux kernel types (include/linux/types.h).</DESCRIPTION>
+<SUBSYSTEM>CODING STYLE</SUBSYSTEM>
+<EXAMPLE>Using uint8_t (C99) instead of __u8 and u_int8_t</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Unexpected values in return of driver callback-functions.</TITLE>
+<ID>0007</ID>
+<DESCRIPTION>The purpose is to exclude the possibility of unexpected values returned  to the calling system procedure that can interpret such a result as an internal error. In this case the OS kernel often fails with &quot;Oops&quot; messages.
+
+Verification:
+It's forbidden to return directly the values got from calls to procedures that potentially can return values outside [-n,0] range, where n is the max value that the function can return in the case of mistake.
+Return codes are in the kernel header files (include/linux/errno.h).</DESCRIPTION>
+<EXAMPLE>static int usb_device_open(struct inode *inode, struct file *file) {
+        int retval = 0;
+        ...
+        retval = usb_device_init();
+        if ( retval &lt; 0)
+                info(&quot;Failed initialization&quot;);
+        ...
+        return retval;
+}
+
+If the callback-method was completed successfully the calling procedure expects to get zero value; but in our case a positive value can be returned and OS will interpret it as a driver function error, though the function has been correctly completed.
+It's required to check the return value with the help of additional conditions:
+static int usb_device_open(struct inode *inode, struct file *file) {
+        int retval = 0;
+        ...
+// some initialization
+        retval = usb_device_init();
+        if ( retval &lt; 0)
+                info(&quot;Failed initialization&quot;);
+        ...
+// failed
+        if ( retval &lt; 0)
+                return retval;
+// success
+        else
+                return 0;
+}
+
+---------------------------------------------------------------
+Real driver code example is presented here:
+
+$KERNEL_SOURCE/drivers/char/toshiba.c
+Some code sample of callback function ioctl:
+...
+static int tosh_ioctl(struct inode *ip, struct file *fp, unsigned int cmd,
+	unsigned long arg)
+{
+	SMMRegisters regs;
+	SMMRegisters __user *argp = (SMMRegisters __user *)arg;
+	unsigned short ax,bx;
+	int err;
+
+	if (!argp)
+		return -EINVAL;
+
+	if (copy_from_user(&amp;regs, argp, sizeof(SMMRegisters)))
+		return -EFAULT;
+
+	switch (cmd) {
+		case TOSH_SMM:
+			ax = regs.eax &amp; 0xff00;
+			bx = regs.ebx &amp; 0xffff;
+			/* block HCI calls to read/write memory &amp; PCI devices */
+			if (((ax==0xff00) || (ax==0xfe00)) &amp;&amp; (bx&gt;0x0069))
+				return -EINVAL;
+
+			/* do we need to emulate the fan ? */
+			if (tosh_fan==1) {
+				if (((ax==0xf300) || (ax==0xf400)) &amp;&amp; (bx==0x0004)) {
+					err = tosh_emulate_fan(&amp;regs);
+					break;
+				}
+			}
+			err = tosh_smm(&amp;regs);
+			break;
+		default:
+			return -EINVAL;
+	}
+
+        if (copy_to_user(argp, &amp;regs, sizeof(SMMRegisters)))
+        	return -EFAULT;
+
+//!!!RETURN CODE ERROR CHECKING
+	return (err==0) ? 0:-EINVAL;
+}
+
+...</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Driver is always or needlessly in the &quot;not available for unloading&quot; state</TITLE>
+<ID>0008</ID>
+<SUMMARY>Once you blocked a driver using `try_module_get(...)` you should unblock it by `module_put(...)`.</SUMMARY>
+<DESCRIPTION>The purpose is to exclude possibility to block unload of a driver (kernel module) without objective reasons (e.g. using it by any OS objects or user processes).
+The possibility of blocking the driver makes its usage awkward and sometimes influences stability of the system work in a whole.
+
+The rule says that you should call the necessary procedure/macro that unblocks the driver if it was blocked before. Thus the driver can be unloaded if it is not used by other OS modules or user processes.</DESCRIPTION>
+<VERIFICATION>Usually `try_module_get(...)` and `module_put(...)` procedures/macros are called in the same functional block thus verification of the nested functions can be excluded.</VERIFICATION>
+<LINKS>[bugfix example drivers/mtd/mtd_blkdevs.c](http://lkml.org/lkml/2010/1/12/246)</LINKS>
+<EXAMPLE>**Incorrect example:**
+
+    static int dev_open(struct inode*, struct file*)
+    {
+        try_module_get(THIS_MODULE);
+        ...
+        //the absence of the module_put(THIS_MODULE) call for decreasing the value of the semaphore-counter that defines a possibility of the module unloading.
+    }
+
+**Incorrect example drivers/mtd/mtd_blkdevs.c:**
+
+    static int blktrans_open(struct block_device *bdev, fmode_t mode)
+    {
+        struct mtd_blktrans_dev *dev = bdev-&gt;bd_disk-&gt;private_data;
+        struct mtd_blktrans_ops *tr = dev-&gt;tr;
+        int ret = -ENODEV;
+        
+        if (!get_mtd_device(NULL, dev-&gt;mtd-&gt;index))
+            goto out;
+        
+        if (!try_module_get(tr-&gt;owner))
+            goto out_tr;
+        
+        /* FIXME: Locking. A hot pluggable device can go away
+           (del_mtd_device can be called for it) without its module
+           being unloaded. */
+        dev-&gt;mtd-&gt;usecount++;
+        
+        ret = 0;
+        if (tr-&gt;open &amp;&amp; (ret = tr-&gt;open(dev))) {
+            dev-&gt;mtd-&gt;usecount--;
+            put_mtd_device(dev-&gt;mtd);
+        out_tr:
+            module_put(tr-&gt;owner);
+        }
+    out:
+        return ret;
+    }
+
+1. If `try_module_get(tr-&gt;owner) == 0` then we goto label `out_tr`
+2. At label `out_tr` we call `module_put` on the unloaded driver
+
+To fix the error we should replace:
+
+            goto out_tr;
+
+by
+
+            goto out;</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Calling a function of low-level memory allocation to request for block with a size that is not a multiple of virtual memory page size.</TITLE>
+<ID>0009</ID>
+<DESCRIPTION>The purpose is to exclude potential errors in a low-level functions which do not verify input parameters (to increase productivity) or use algorithms that are not originally intended to work with the values multiple of the virtual memory page size.
+
+Verification:
+It's required to check that the PAGE_ALIGN(...) macro is used before passing block size to low-level functions of memory allocation. Usually macro is used directly when parameters are passed to the function (see example), so it's enough to check only a set of lexemes that are responsible for the function call.</DESCRIPTION>
+<EXAMPLE>Usage of the low-level memory allocation function __get_free_pages:
+static inline void *mem_alloc(size_t size) {
+        void *mem;
+        mem = (void *)__get_free_pages(GFP_ATOMIC, get_order((PAGE_ALIGN(size))); 
+//It's necessary to use the PAGE_ALIGN macro to make the value of the allocated block multiple of the page size.
+        ...
+        return mem;
+}
+
+In many drivers macro of the direct byte alignment by get_order() is used:
+/s390/char/tty3270.c
+/scsi/53c7xx.c
+/scsi/ncr53c8xx.c</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Usage of a GFP_ATOMIC flag in a function of memory allocation kmalloc(...) in a context of interrupt.</TITLE>
+<ID>0010</ID>
+<DESCRIPTION>When calling memory allocation function from the context of interrupt it's required to ensure a non-preemptible execution of the function; but in the case of GFP_KERNEL flag, function execution can be preempted, because a greater number of operations to find and allocate memory blocks is executed.
+
+Verification:
+If some function is positioned as one that &quot;is executed in a context of interrupt&quot; then it's required to ensure checking for a necessary usage of the GFP_ATOMIC flag in the memory allocation functions for kernel modules.</DESCRIPTION>
+<EXAMPLE>void* ptr = kmalloc(size,GFP_ATOMIC);</EXAMPLE>
+</RULE_ERROR>
+<RULE_WARNING item="y">
+<TITLE>Absence of delays between data recordings into input-output ports.</TITLE>
+<ID>0011</ID>
+<DESCRIPTION>The purpose is to exclude potential errors connected with the late set up of real values of input-output ports through peculiarities of an interaction between OS and a platform.
+It's recommended to use specialized procedures/macros inb_p(...)/outb_p(...) instead of procedures/macros inb(...)/outb(...) in a group of instructions of setting/getting input-output ports values; these specialized procedures/macros provide the required delay enough to set up the required values.
+
+Verification:
+It's required to notify about a requirement of inb_p/outb_p (and so on) functions using when detecting consecutive multiple calls which use input-output ports functions.</DESCRIPTION>
+<EXAMPLE>outb_p(0 , PORT1 + 1); 
+outb_p(0x80 , PORT1 + 3);
+outb_p(0x02 , PORT1 + 0);
+outb_p(0x03 , PORT1 + 3);
+This fragment can cause problems with the delays in setting up port values.  So an error in the protocol format of the interaction with the device is possible. It's recommended to use functions that implement an additional delay.</EXAMPLE>
+<NOTES>It's required to execute at least one instruction between two consecutive outb. Otherwise we should recommend to use inb_p/outb_p functions.</NOTES>
+</RULE_WARNING>
+<RULE_WARNING item="y">
+<TITLE>Getting an access to the file system object (using functions open/close/read/write)</TITLE>
+<ID>0012</ID>
+<DESCRIPTION>The purpose is to exclude a possibility of an erroneous finish of a module, concerned with the absence of a required file in the current root directory (or for a relative or absolute path). The reason of this behavior is an uncertain root directory of the module (it can be both a root directory of the init area in the case of module loading when starting a kernel and a root directory of a root user (that can be changed by the chroot command) when loading module dynamically).
+
+Verification:
+It's required to deny a system call open(...) usage inside functions implemented by the kernel module.</DESCRIPTION>
+<EXAMPLE>int some_kernel_module_func()
+{
+int fd;
+if((fd=open(CONFIG_FILE_PATH,O_RDWR,0))!=-1)
+{
+...
+}
+}</EXAMPLE>
+</RULE_WARNING>
+<RULE_WARNING item="y">
+<TITLE>Making a decision according to the name of a current interrupted user process.</TITLE>
+<ID>0013</ID>
+<DESCRIPTION>The purpose is to exclude possible module behavior errors connected with a wrong identification of the interrupted process. This can be caused by the existence of a process with the same name as the requested process or by a deliberate substitution to affect the module and the kernel in a whole.
+
+Verification:
+It's required to warn about the usage of the current-&gt;comm pointer in the comparison operations of strings in the module functions.</DESCRIPTION>
+<EXAMPLE>int some_kernel_module_func()
+{
+if(!strcmp(current-&gt;comm,&quot;smb&quot;)) 
+{
+...
+}
+}</EXAMPLE>
+</RULE_WARNING>
+<RULE_ERROR item="y">
+<TITLE>An implicit usage of the floating-point arithmetic operations.</TITLE>
+<ID>0016</ID>
+<DESCRIPTION>The purpose is to exclude the floating-point arithmetic operations that are forbidden for both kernel components and dynamically downloading modules.
+
+Verification:
+It's required to process the original module source code by gcc compiler with the -msoft-float key.</DESCRIPTION>
+<EXAMPLE>Header file:
+...
+#define NTSC 14.31818
+#define calc_freq(n,m,k) ((NTSC * (n+8))/((m+2)*(1&lt;&lt;k)))
+...
+
+Kernel module code:
+...
+int fi;
+fi = calc_freq(n,m,k);
+...
+
+Developer may not know that this macro expands to the floating-point operation that is impossible in the kernel modules.</EXAMPLE>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Using extended method for controlling char device interfaces</TITLE>
+<ID>0017</ID>
+<DESCRIPTION>CDEV method allows a user to skip checks  in the code (especially connected with controlling minor versions of registered device). The method uses sysfs which is positioned as a replacement of /proc. It makes this method more preferable than using register_chrdev()/unregister_chrdev(). Note that in some cases using CDEV method may not be efficient, so this rule is only a recommendation.</DESCRIPTION>
+<SUBSYSTEM>CDEV</SUBSYSTEM>
+<EXAMPLE>struct cdev* mydev = cdev_alloc();
+cdev_init(mydev,/*struct file_operations*/my_file_ops);
+mydev-&gt;owner=THIS_MODULE;
+kobject_set_name(&amp;mydev-&gt;kobj,&quot;mydev_%d&quot;,/*identifier*/devnum);
+if(!cdev_add(mydev,MAJOR_VERSION_START_ID,COUNT))
+{
+//error handling
+kobject_put(&amp;mydev-&gt;kobj);
+//mandatory to use to decrease reference count
+}
+else
+{
+//Normal case
+...
+//Release
+cdev_del(mydev);
+}</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Correctly releasing objects after failed cdev_add</TITLE>
+<ID>0018</ID>
+<DESCRIPTION>If cdev_add returns error (non zero return code) then you must call kobject_put and must not call cdev_del. Calling cdev_del for a char device handler which was not successfully registered in the system with cdev_add might cause abnormal termination.
+
+struct cdev* mydev = cdev_alloc();
+//initialization
+if(!cdev_add(mydev,MAJOR_VERSION_START_ID,COUNT))
+{
+//error handling
+kobject_put(&amp;mydev-&gt;kobj);
+//must be used to decrease reference count
+}
+else
+{
+//normal case
+...
+//free
+cdev_del(mydev);
+}</DESCRIPTION>
+<SUBSYSTEM>CDEV</SUBSYSTEM>
+<EXAMPLE>drivers/s390/char/vmlogrdr.c:
+
+rc = cdev_add(vmlogrdr_cdev, vmlogrdr_cdev-&gt;dev, MAXMINOR);
+if (!rc)
+return 0;
+
+// cleanup: cdev is not fully registered, no cdev_del here!
+kobject_put(&amp;vmlogrdr_cdev-&gt;kobj);
+vmlogrdr_cdev=NULL;
+return rc;</EXAMPLE>
+<NOTES>kobject_put may be called indirectly, e.g. scsi_device_put in drivers/scsi/osd/osd_uld.c</NOTES>
+</RULE_ERROR>
+<RULE_WARNING item="y">
+<TITLE>Accessing per-cpu variables using  get_cpu_var()/put_cpu_var() instead of per_cpu()</TITLE>
+<ID>0020</ID>
+<DESCRIPTION>Kernels 2.6.x are preemptive, so context switch to other code is possible on the single CPU. Functions get_cpu_var()/put_cpu_var() acquire required locks on the single CPU (unlike per_cpu()).</DESCRIPTION>
+<KERNEL_VERSION>2.6.x</KERNEL_VERSION>
+<ARCH>SMP/NUMA</ARCH>
+<EXAMPLE>Code of /net/socket.c:
+
+DEFINE_PER_CPU(long,sockets_in_use);
+...
+get_cpu_var(sockets_in_use)++;
+//Important: result of get_cpu_var() is a lvalue</EXAMPLE>
+</RULE_WARNING>
+<RULE_WARNING item="y">
+<TITLE>The proper usage of the locking mechanism of the kernel level preemptibility.</TITLE>
+<ID>0021</ID>
+<DESCRIPTION>It allows to avoid conflicts when re-entering a call-back procedure provided by the driver. Usage of the macros of the data separation between different CPU (DEFINE_PER_CPU(), get_cpu_var() and so on) is not enough because the principle of a kernel level preemptibility of the version 2.6.x systems allows race conditions of the kernel level code at the same CPU (kernel level procedure can be replaced by the similar one in most cases).
+If the re-entering to the system can cause wrong functioning of the driver it's required to use the specialized mechanism of the disabling preemption: preempt_enable()/preempt_disable()/preempt_disable_no_resched()
+
+IT'S IMPORTANT: Wherever it's possible it's required to allow preemptions because it positively affects the system average response time (e.g. system reaction to an external interrupts). Thus preempt_disable()/preempt_enable() functions are recommended only in the critical code regions (It is similar to the usage of cli()/sti() for blocking the masked interrupts in the kernels of 2.4.x).
+
+
+It's required to verify:
+a) Mandatory preempt_enable() call after the preempt_disable() function (it's similar to spin_lock() usage).
+b) If the size of the code between calls where preemptions are disabled is huge (TODO: it's required to set the boundary) - to recommend code decomposition to the small segments that require disabling preemptions because it will positively affect the productivity.</DESCRIPTION>
+<EXAMPLE>int some_kernel_module_func()
+{
+...
+preempt_disable();
+//this code is protected from the race conditions
+preempt_enable_no_resched();
+//this code is not protected from the race conditions
+...
+schedule(); //transfer the control to the scheduler
+...
+}</EXAMPLE>
+</RULE_WARNING>
+<RULE_WARNING item="y">
+<TITLE>The usage of the new waiting mechanism that replaced specialized sleep_on()/wake_up() methods.</TITLE>
+<ID>0022</ID>
+<DESCRIPTION>The usage of the sleep_on()/wake_up() functions is not safe in the context of modern SMP/NUMA systems and kernel preemptions, so their complete exclusion from the kernel code is expected (it didn't occur in the experimental version 2.5.x for some reasons).
+Thus for future portability it's required to use a new implementation of mechanism of the waiting queue:
+a) New waiting queue is created by the DECLARE_WAIT_QUEUE_HEAD(name) macro.
+b) A new queue object that contains task_struct of the current process is created by the DECLARE_WAITQUEUE(name, current) macro.
+c.1) Adding the object to the queue add_wait_queue(&amp;queue, &amp;wait).
+c.2) The extended group of adding to the waiting queue (includes installation of the STATE_INTERRUPTIBLE/STATE_UNINTERRUPTIBLE state with the help of prepare_to_wait()).
+
+Verification:
+It's required to search for calls of the sleep_on() functions in the module code and to warn that this function of adding to the queue is out of date and needs to be replaced.</DESCRIPTION>
+<EXAMPLE>Usage of the general approach:
+
+DECLARE_WAIT_QUEUE_HEAD(queue);
+DECLARE_WAITQUEUE(wait, current);
+    for (;;) {
+        add_wait_queue(&amp;queue, &amp;wait);
+        set_current_state(TASK_INTERRUPTIBLE);
+	if (condition)
+	    break;
+        schedule();
+	remove_wait_queue(&amp;queue, &amp;wait);
+	if (signal_pending(current))
+	    return -ERESTARTSYS;
+    }
+    set_current_state(TASK_RUNNING);
+
+Usage of the extended approach (macro prepare_to_wait()):
+    DECLARE_WAIT_QUEUE_HEAD(queue);
+    DEFINE_WAIT(wait);
+
+    while (! condition) {
+        prepare_to_wait(&amp;queue, &amp;wait, TASK_INTERRUPTIBLE);
+	if (! condition)
+	    schedule();
+        finish_wait(&amp;queue, &amp;wait)
+    }</EXAMPLE>
+</RULE_WARNING>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Using a simplified mechanism of the adding to the waiting queue (wait_event())</TITLE>
+<ID>0023</ID>
+<DESCRIPTION>The purpose is to simplify the code understanding and the driver developing by using pre-implemented functions for adding to the waiting queue:
+wait_event(queue,event), where event is a boolean condition and if its value is &quot;true&quot; then it shows that tasks of the queue can proceed to an active state (TASK_RUNNABLE).
+
+Verification:
+When using add_wait_queue()/prepare_to_wait() functions it's required to show a recommendation which says that it's necessary to consider the usage of the functions of the wait_event() family.</DESCRIPTION>
+<EXAMPLE>/arch/sh/drivers/dma/dma-api.c:
+
+if (channel-&gt;flags &amp; DMA_TEI_CAPABLE) {
+    wait_event(channel-&gt;wait_queue,          (info-&gt;ops-&gt;get_residue(channel) == 0));
+return;
+}</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_RECOMMENDATION item="y">
+<TITLE>A simplified way of waiting queue usage with one waiter and one initiator.</TITLE>
+<ID>0024</ID>
+<DESCRIPTION>The purpose is to simplify the code understanding  and a process of waiting queue implementation. Note that this simplified method is often used in the kernel source code so it can be used in the drivers if maximum flexibility and portability are important for these drivers.
+
+Verification:
+When code included to the ID 0022,0023 rules is found there should be a warning that it's possible to use simplified waiting queues.</DESCRIPTION>
+<LINKS>http://lwn.net/Articles/23993/</LINKS>
+<EXAMPLE>Instead of writing a huge amount of code for putting the task into the waiting queue it's possible to use the completion object in such a way
+Declaration and initialization of completion:
+DECLARE_COMPLETION(name);
+...
+//waiting for some event
+wait_for_completion(struct completion*);
+...
+//wake up anybody who is waiting
+complete(struct completion*);</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Releasing resources of gendisk interface</TITLE>
+<ID>0026</ID>
+<DESCRIPTION>The resources of gendisk interface should be released correctly. Otherwise it may lead to memory leaks and other errors caused by accessing nonexistent elements of gendisk.
+For functions `alloc_disk`, `add_disk` it is required to use corresponding `put_disk`, `del_disk`.</DESCRIPTION>
+<SUBSYSTEM>BLOCK DEVICES</SUBSYSTEM>
+<EXAMPLE>**Correct example:**
+
+    struct gendisk* gd;
+    int init_module()
+    {
+        ...
+        gd=alloc_disk(32 /*the number of minor devices*/);
+        //further initialization of gendisk
+        gd-&gt;first_minor=0;
+        ...
+    }
+
+    void module_exit()
+    {
+        ...
+        //finishing work of gendisk and releasing resources
+        del_gendisk(gd); //switch off object interface
+        put_disk(gd); //free memory
+    }</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Correct use of request queues for block devices</TITLE>
+<ID>0027</ID>
+<DESCRIPTION>To avoid resource leakage request queues should be deactivated and released. If initialization of request queue (`struct request_queue`) was done by `blk_init_queue()` function, then for the deletion it is required to call `blk_cleanup_queue()`.</DESCRIPTION>
+<SUBSYSTEM>BLOCK DEVICES</SUBSYSTEM>
+<EXAMPLE>**Correct example:**
+
+    struct gendisk* gd;
+    int init_module()
+    {
+        ...
+        gd=alloc_disk(32 /*the number of minor devices*/);
+        //further initialization of gendisk
+        gd-&gt;first_minor=0;
+        ...
+        //initialization of request queue
+        Queue = blk_init_queue(sbd_request /*request handler for new added tasks*/, &amp;lock_point /*spinlock_t* */);
+        if (Queue == NULL) goto out;
+        blk_queue_hardsect_size(Queue, HARD_SECT_SIZE);
+        //request queue activation
+        gd-&gt;queue=Queue;
+    }
+
+    void module_exit()
+    {
+        ...
+        //ending work and releasing gendisk resources
+        del_gendisk(gd); //switch off object
+        //Note: it also deactivates request queue gd-&gt;queue
+        put_disk(gd); //free memory
+        
+        //deactivation and releasing request queue resources
+        blk_cleanup_queue(Queue);
+    }</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Setting the name of the kobject-type object before its registration in the sysfs file system.</TITLE>
+<ID>0028</ID>
+<DESCRIPTION>The purpose is to avoid  possible errors or wrong interpretation of the pointer to object name. 
+The function kobject_set_name(...) is used to set the object name, the direct usage of the pointer char* k_name is not allowed.
+
+Verification:
+It's required to verify that if method kobject_add() is applied to this object then the object name is set with the help of kobject_set_name(...) function. Usually both calls of initialization function of reference counter (kobject_init()) and setting of the object name and its representation in sysfs are in the same block.
+
+ADDITION:
+It's required to forbid dereference of pointer to the char* k_name object. It should be modified only by the specialized kobject_set_name(...) method.</DESCRIPTION>
+<EXAMPLE>struct kobject mykobj;
+kobject_init(&amp;mykobj);
+//It's necessary to set object name for correct representation in sysfs.
+kobject_set_name(&amp;mykobj,&quot;NAME&quot;);
+kobject_add(&amp;mykobj);</EXAMPLE>
+<NOTES>Examples of system drivers for verification:
+$KERNEL_SOURCE/drivers/md/md.c
+$KERNEL_SOURCE/drivers/block/elevator.c
+$KERNEL_SOURCE/drivers/block/ll_rw_blk.c
+$KERNEL_SOURCE/drivers/net/iseries_veth.c
+$KERNEL_SOURCE/drivers</NOTES>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Freeing all allocated memory units in the coherent-memory pool</TITLE>
+<ID>0029</ID>
+<SUMMARY>All allocated pool memory should be freed before destroying the pool.</SUMMARY>
+<DESCRIPTION>The purpose is to prevent possible errors in a driver, that are connected with releasing of the memory regions that are still being used with the help of `dma_pool_destroy(struct dma_pool* pool)` and `pci_pool_destroy(struct pci_pool* pool)` functions and to prevent memory leaks. 
+
+There are should not be memory regions allocated by `dma_pool_alloc()` or `pci_pool_alloc()` functions but haven't been released by `dma_pool_free()` or `pci_pool_free()`.</DESCRIPTION>
+<VERIFICATION>It's required to control all memory allocation function calls from coherent-memory pool and to verify (ERROR level) they'll be freed before the pool destroying.</VERIFICATION>
+<EXAMPLE>**Correct example:**
+
+    int some_kernel_ehci_module_func(/*non-important data type*/ ehci)
+    {
+        struct ehci_qtd  *qtd;
+        dma_addr_t  dma;
+        
+        ehci-&gt;qtd_pool = pci_pool_create (&quot;ehci_qtd&quot;, ehci-&gt;hcd.pdev,
+                        sizeof (struct ehci_qtd),
+                        32 /* byte alignment  */,
+                        4096 /* can't cross 4K */,
+                        flags);
+        if (!ehci-&gt;qtd_pool) 
+        {
+                //Some error handling!
+        }
+        	
+        //Some non-important code stuff
+        
+        qtd = pci_pool_alloc (ehci-&gt;qtd_pool, flags, &amp;dma);
+        //Simple trying to alloc some memory portion from our pci-pool
+        
+        if (qtd != 0) {
+            memset (qtd, 0, sizeof *qtd);
+            qtd-&gt;qtd_dma = dma;                //Working with allocated structure data
+            qtd-&gt;hw_next = EHCI_LIST_END;	   //With another one...
+            qtd-&gt;hw_alt_next = EHCI_LIST_END;  
+            INIT_LIST_HEAD (&amp;qtd-&gt;qtd_list);
+        }
+        	
+        //Here, we need to free our allocated memory portion, because pci-pool need to be destroyed
+        
+        pci_pool_free (ehci-&gt;qtd_pool, qtd, qtd-&gt;qtd_dma);
+        
+        //Now, if all is OK, we can destroy our pci-pool
+        
+        if (ehci-&gt;qtd_pool)
+            pci_pool_destroy (ehci-&gt;qtd_pool);
+        ehci-&gt;qtd_pool = 0;
+    }</EXAMPLE>
+<NOTES>Examples of kernel drivers for verification:
+
+* drivers/block/DAC960.c
+* drivers/ieee1394/ohci1394.c
+* drivers/infiniband/hw/mthca/mthca_av.c
+* drivers/usb/gadget/net2280.c</NOTES>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Synchronization of access to memory when working in DMA mode.</TITLE>
+<ID>0030</ID>
+<DESCRIPTION>The purpose is to exclude simultaneous access to memory from the device and CPU. This erroneous operation may result in a distortion of real transmitting data and may lead to driver functioning problems.
+To provide required exclusion of access to the buffer allocated in memory the following system functions are applied:
+pci_dma_sync_single_for_device(...) and pci_dma_sync_single_for_cpu();
+pci_dma_sync_single_for_device(...) - is used for temporary lock a process till the end of transmission/read operation initiated by the device
+pci_dma_sync_single_for_cpu(...) - is used for transfer a control over allocated memory to a device (i.e. device will be able to read/write data using DMA)
+
+EXCEPTION: if there are the only operation working in DMA mode (e.g. accessing data that were written by the device) it's possible to use pci_map_single()/pci_unmap_single() functions respectively and then access the buffer.
+
+Verification:
+If accessing the data of shared-buffer or modifying its contents INSIDE the loop pci_map_single()/pci_unmap_single() it's required to warn about a necessity of using synchronization procedures described earlier.
+If there is any process which works with the buffer contents OUTSIDE the loop then there shouldn't be a warning (see Exception).
+
+IMPORTANT: it's required to extend the rule for the similar functions set: pci_map_sg()/pci_unmap_sg()/pci_sync_sg_for_cpu()/pci_sync_sg_for_device(). There are no differences in rule description, it's required to change the symbol identifiers of functions only.</DESCRIPTION>
+<EXAMPLE>/*From official Linux Kernel Manual*/
+
+	my_card_setup_receive_buffer(struct my_card *cp, char *buffer, int len)
+	{
+		dma_addr_t mapping;
+
+		mapping = pci_map_single(cp-&gt;pdev, buffer, len, PCI_DMA_FROMDEVICE);
+
+		cp-&gt;rx_buf = buffer;
+		cp-&gt;rx_len = len;
+		cp-&gt;rx_dma = mapping;
+
+		give_rx_buf_to_card(cp);
+	}
+
+	...
+
+	my_card_interrupt_handler(int irq, void *devid, struct pt_regs *regs)
+	{
+		struct my_card *cp = devid;
+
+		...
+		if (read_card_status(cp) == RX_BUF_TRANSFERRED) {
+			struct my_card_header *hp;
+
+			/* Examine the header to see if we wish
+			 * to accept the data.  But synchronize
+			 * the DMA transfer with the CPU first
+			 * so that we see updated contents.
+			 */
+			pci_dma_sync_single_for_cpu(cp-&gt;pdev, cp-&gt;rx_dma,
+						    cp-&gt;rx_len,
+						    PCI_DMA_FROMDEVICE);
+
+			/* Now it is safe to examine the buffer. */
+			hp = (struct my_card_header *) cp-&gt;rx_buf;
+			if (header_is_ok(hp)) {
+				pci_unmap_single(cp-&gt;pdev, cp-&gt;rx_dma, cp-&gt;rx_len,
+						 PCI_DMA_FROMDEVICE);
+				pass_to_upper_layers(cp-&gt;rx_buf);
+				make_and_setup_new_rx_buf(cp);
+			} else {
+				/* Just sync the buffer and give it back
+				 * to the card.
+				 */
+				pci_dma_sync_single_for_device(cp-&gt;pdev,
+							       cp-&gt;rx_dma,
+							       cp-&gt;rx_len,
+							       PCI_DMA_FROMDEVICE);
+				give_rx_buf_to_card(cp);
+			}
+		}
+	}</EXAMPLE>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Usage of reserved major-versions when registering a symbol device.</TITLE>
+<ID>0031</ID>
+<DESCRIPTION>The purpose is to check that the major-value that transmitted to the registration function of block device corresponds to major-versions of real or virtual devices.
+Using reserved major-values can result both in impossibility of using driver (if dynamical redefinition is not provided) and in nonoptimal behavior of detection procedure implemented by the programmer (because algorithm branch in which the registration of a device with the reserved major-version value becomes nonactive as a result of permanent return of the error code by the registration function).
+
+Major-versions assigned to standard devices in the concrete kernel version are in the system documentation
+$KERNEL_SOURCE_CODE/Documentation/devices.txt
+
+Verification:
+It's required to make a dynamical parsing of the Documentation/devices.txt file (on the other hand  a list of reserved major-versions is rather stable thus it's possible to input data to the analyser manually).
+In the future it's required to check if the parameter passed to the register_chrdev()/register_chrdev_region() functions is coincide with the reserved value.</DESCRIPTION>
+<EXAMPLE>int some_kernel_module_func()
+{
+...
+/*This code doesn't provide dynamical allocation of the major-version thus if we choose reserved MAJOR/MINOR combination then driver functioning will be impossible.*/
+
+/*Example of the inadmissible combination:
+MAJOR=3 MINOR=0-255 - reserved for pseudo-tty*/
+
+dev_t device = MKDEV(MAJOR,MINOR);
+if(register_chrdev_region(device,COUNT,&quot;My Device&quot;) &lt; 0)
+error_handler();
+...
+}</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Retrying to acquire or release a mutex</TITLE>
+<ID>0032</ID>
+<SUMMARY>You should not acquire or release the same mutex twice in the same process. All locked mutexes should be unlocked.</SUMMARY>
+<DESCRIPTION>Mutex-type object provides exclusive access to a section of executable code. Thus retrying to acquire the current mutex will inevitably lead to a deadlock-situation.
+
+Note, that the regular semaphores that provide access for both single requesters, and multiple ones can be used as mutexes. The old kernels provided a single interface to work with both regular semaphores and with limited semaphores (mutexes). New kernels provide both the old and special type objects (`struct mutex`) with new interface functions (`mutex_lock`, `mutex_unlock`, ...) to work with.
+
+The only difference in the old interface is a specialized technique of initialization:
+
+* in the case of semaphores: `sema_init(struct semaphore*, int start_val);`
+* in mutexes case: `init_MUTEX(struct semaphore*));`
+
+Also the method of mutexes declaration with the help of specialized macros is widely used:
+`DECLARE_MUTEX(name)` and `DECLARE_MUTEX_LOCKED(name)`.
+
+Thus semaphore in the mutex mode can created by the following ways:
+
+* `init_MUTEX(struct semaphore*)`
+* `DECLARE_MUTEX(name)`
+* `DECLARE_MUTEX_LOCKED(name)`
+* `sema_init(struct semaphore*, 1 /*the semaphore implements the mutex functionality, because it allows the only requestor*/)`
+
+Acquirement of the semaphore as mutex is implemented with `void down(struct semaphore*)`.</DESCRIPTION>
+<VERIFICATION>1)To identify semaphore objects initialized by the one of the methods listed in the section
+2)To make a monitoring for calling of mutex-semaphore acquiring functions (`down(struct semaphore*)`) for the identified objects.
+
+NOTE: The usage of the `down_trylock(struct semaphore*)` function is not relevant for the rule, because the subsequent semaphore acquirement will not block, but return a nonzero value.  The usage of the 
+`down_interruptible(struct semaphore*)` is not relevant if the previous attempts to acquire have been failed (the nonzero values were returned), because in this case the repeated calls to down_interruptible is possible.</VERIFICATION>
+<LINKS>[bugfix example](http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg18392.html)</LINKS>
+<EXAMPLE>**Incorrect example (semaphore in the mutex mode):**
+
+    int some_kernel_module_func()
+    {
+        ...
+        struct semaphore sem;
+        init_MUTEX(&amp;sem);
+        ...
+        down(&amp;sem);
+        //some code that doesn't call up(&amp;sem);
+        down(&amp;sem);
+        ...
+    }
+
+**Incorrect example (2.6.23 -&gt; drivers/edac/edac_device.c):**
+
+    void edac_device_reset_delay_period(struct edac_device_ctl_info *edac_dev, unsigned long value)
+    {
+        mutex_lock(&amp;device_ctls_mutex); /*acquire the device_ctls_mutex*/
+
+        /* cancel the current workq request */
+        edac_device_workq_teardown(edac_dev); /* function acquires the lock device_ctls_mutex */
+        /* leads to a double lock */
+
+        /* restart the workq request, with new delay value */
+        edac_device_workq_setup(edac_dev, value);
+        ...
+
+The solution of the problem is to acquire the mutex later after the call to the function `edac_device_workq_teardown()`.
+
+Corrected version:
+
+    void edac_device_reset_delay_period(struct edac_device_ctl_info *edac_dev, unsigned long value)
+    {
+
+        /* cancel the current workq request, without the mutex lock */
+        edac_device_workq_teardown(edac_dev);
+
+        /* acquire the mutex before doing the workq setup */
+        mutex_lock(&amp;device_ctls_mutex);
+
+        /* restart the workq request, with new delay value */
+        edac_device_workq_setup(edac_dev, value);
+        ...
+    }</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Requirement to control output value of the semaphore acquiring function.</TITLE>
+<ID>0033</ID>
+<DESCRIPTION>It's required to demand developer to check output value by the functions:
+* int down_interruptible(struct semaphore*);
+* int down_trylock(struct semaphore*)
+
+Principle of functioning and control is following: if it's impossible to acquire semaphore (both when breaking execution in the case of down_interruptible(...) and when acquiring semaphore in the case of down_interruptible(...)) output value is not null (!=0).
+
+Code can call objects protected by semaphore only when output value is null so this equation should be controlled.
+
+Verification:
+It's required to check that output value is necessarily analyses by the functions:
+* int down_interruptible(struct semaphore*);
+* int down_trylock(struct semaphore*)
+
+It's not required to analyze function argument because it's controlled only as a fact of output value checking.</DESCRIPTION>
+<EXAMPLE>ssize_t some_driver_callback_write_func(struct file*, const char __user *, size_t, loff_t *)
+{
+...
+if(down_interruptible(&amp;sem))
+       return -ERESTARTSYS; //when turning this code system will reenter the procedure
+//Guaranteed secure code
+...
+}</EXAMPLE>
+</RULE_ERROR>
+<RULE_WARNING item="y">
+<TITLE>Usage of the most optimal scheme of internal event waiting with using of completion-procedure.</TITLE>
+<ID>0034</ID>
+<DESCRIPTION>The following procedures are often used for implementing procedure of external event waiting:
+struct semaphore sem;
+/* initialization of the mutex in 0 state */
+init_MUTEX_LOCKED(&amp;sem);
+...
+/* This function implements external object generation (e.g. thread) that control expected event */
+
+ExternalFuncCaller();
+
+/* This function provides expectation of event generation (up(&amp;sem)) by an external object */
+
+down(&amp;sem);
+
+The disadvantage of this code region is that the procedure of semaphore functioning is initially focused on maximum performance if the semaphore is often released (i.e. if there is no execution block) because interlocks are not a usual event in practice.
+In this example the semaphore &quot;ALWAYS&quot; will be locked ________ and thus source code will be nonoptimal.
+
+For such operations there is a special completion procedure that is a mutex that implements waiting functions optimally.
+
+Completion-object can be created by:
+* DECLARE_COMPLETION(name) macro
+* with the help of separate initialization
+struct completion comp;
+init_completion(&amp;comp);
+
+Waiting for the event is implemented by wait_for_completion(struct completion*) function
+
+External object generates an event with the help of of following functions:
+* void complete(struct completion*)
+* void complete_all(struct completetion*)
+
+EXPLANATION: The difference between two event generation functions is that complete_all(...) call runs not one but all the tasks that are in the wait_queue.
+
+Verification:
+To check following calls:
+   init_MUTEX_LOCKED(...) //direct mutex creation
+   sema_init(...,0) //locked semaphore creation
+This approach is often used only in completion-replaceable situations. Thus at this step the warning about a nonoptimal usage should be shown.
+
+The other way of verification is wider. Previous methods should be checked. And also there should be a check that one of the semaphore down-methods (down(...),down_trylock(...),down_interruptible(...)) is explicitly called after semaphore initialization (i.e. there shouldn't be direct up-method calls).
+
+NOTE: It's impossible to find an erroneous up(...) call of the external procedure (creation of the thread) because it is a callback procedure and it has no a explicit call.</DESCRIPTION>
+<EXAMPLE>int some_kernel_module_func()
+{
+DECLARE_COMPLETION(compl);
+...
+ExternalThreadSmartInitializer(&amp;compl);
+wait_for_completion(&amp;compl);
+}
+
+int external_kernel_level_thread(struct completion* compl)
+{
+...
+/* You should wait till execution of this is finished */
+
+/* generation of the event for waiting thread  */
+complete(compl);
+}
+{</EXAMPLE>
+</RULE_WARNING>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Archaic implementation of &quot;critical section&quot; locks</TITLE>
+<ID>0035</ID>
+<DESCRIPTION>The purpose is to recommend developers to avoid lock-method realized by specialized waiting cycle.
+This method doesn't exclude the waiting process from the processor's runqueue and thus system resources acquired by the unnecessary task switching and cycle execution, are used for nothing.
+
+Instead of such an operation following methods should be used because they implement modern implementation of waiting queues:
+* semaphores
+* mutexes
+* completion's</DESCRIPTION>
+<EXAMPLE>int some_kernel_module_func()
+{
+...
+/* TSL mechanism is atomic so it can be used as an implementation of the spin-lock */
+while(test_and_set_bit(nr, addr) != 0)
+wait_some_time();
+
+/* This code is protected from the multiple */
+
+/* Lock mechanism is being released */
+if(test_and_clear(nr, addr) == 0)
+         something_went_wrong();
+...
+}</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Architecture-unified mechanism for determining value of the &quot;order&quot; of the paged memory being allocated</TITLE>
+<ID>0036</ID>
+<DESCRIPTION>A widespread error when allocate memory by get_free_pages(..., order) is an implicit usage of the page size 4Kb (that is peculiar to x86 architecture with PSE=0).
+I.e. if it's required to allocate 16Kb of paged memory the value of order is set 2(4^2=16).
+This error is hardly detected on x86 architecture because OSs don't use PSE (4Mb pages) but it leads to a wrong driver functioning on any other architecture.
+
+The kernel interface is a comfortable mechanism to get the order of any architecture.
+This interface is implemented by function-macro get_order(size) that uses the value of the page size on the current architecture PAGE_SIZE.
+
+Verification:
+It's required to trace how the value that is set as a second parameter (order) of the get_free_pages function was got.
+This value should be got (directly or not) by the get_order(size) method call.
+
+NOTE: It's required to consider a way of getting the &quot;order&quot; manually with the help of define-value. On the one hand such approach isn't often used, on the other hand it's not an erroneous approach because it uses stable system properties.</DESCRIPTION>
+<EXAMPLE>#include &lt;asm/page.h&gt;
+
+int some_kernel_module_func()
+{
+...
+/* getting of the order, that overrides our requirement of the allocated memory size */
+int order = get_order(16 * 1024);
+
+/* Allocation of the required memory size */
+buf = get_free_pages(GFP_KERNEL,order);
+
+}</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Using delay when probing for IRQs</TITLE>
+<ID>0037</ID>
+<SUMMARY>You should wait for some time between `probe_irq_on()/probe_irq_off(...)` calls.</SUMMARY>
+<DESCRIPTION>There is a need for identification of the IRQ that is acquired by the controlled device. Special mechanism is required, because for example buses of PCI-compatible machines have a feature that makes IRQ line identification hard: line number depends on real place where the extension card is situated (e.g. it depends on the number of occupied slot). For that purpose The kernel provides probe IRQ mechanism which is implemented by `probe_irq_on()/probe_irq_off(...)` functions. They are used as follows:
+
+1) `probe_irq_on()` activates all non-occupied (handler = NULL) interruptions and the list of these interruptions is returned as a bitmap.
+
+2) Driver tells the device (using input-output ports) that it's required to activate an interrupt line.
+
+3) DELAY that is REQUIRED because it's necessary to wait for the reaction of the device for the request through input-output ports.
+
+3.1) If an activation of IRQ line is detected and it's handler is NULL then the IRQ line is deactivated on the OS level.
+
+4) `probe_irq_off(...)` function compares the list of the previously activated interruptions which should be the value returned by the last `probe_irq_on()` with the system list in which one of the interruption is deactivated (see 3.1). This function basically detects which IRQs have been deactivated, and thus which ones have received interrupts.
+
+5) Deactivated interruption is used by the controller device.
+
+Without a delay (p. 3) there is a possibility that it'll be required to make additional iterations (one or more) of the loop (that is usually used for detecting interrupt lines) because the device will not have enough time to process an interrupt query or the interrupt controller will not send information to the processor input on time.
+It's more convenient to implement the delay by `udelay(delay)` function.
+
+You should wait for some time between `probe_irq_on()/probe_irq_off(...)` calls. There are two ways to do it:
+1) To call exactly `udelay(...)` as the most common and often used function.
+2) To make an intellectual verification that the waiting procedure is used (e.g. putting to the waiting queue and transmitting the control to the planner).</DESCRIPTION>
+<VERIFICATION>The first way of waiting is more usual because the usage of the extended waiting functions is almost not used in the context.</VERIFICATION>
+<EXAMPLE>**Correct example:**
+
+    int count = 0;
+    do {
+        unsigned long mask;
+        mask = probe_irq_on( );
+        outb_p(0x10,short_base+2); /* interrupt queue to the device */
+        outb_p(0x00,short_base);      
+        outb_p(0xFF,short_base);      
+        outb_p(0x00,short_base+2); 
+        udelay(5); 
+        short_irq = probe_irq_off(mask);
+        if (short_irq = = 0) { 
+            printk(KERN_INFO &quot;short: no irq reported by probe\n&quot;);
+            short_irq = -1;
+        }
+    } while (short_irq &lt; 0 &amp;&amp; count++ &lt; 5);
+            if (short_irq &lt; 0)
+                printk(&quot;short: probe failed %i times, giving up\n&quot;, count);
+            /* an interrupt line used by the controlling device is detected  */</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_WARNING item="y">
+<TITLE>Memory barrier when using I/O registers</TITLE>
+<ID>0038</ID>
+<DESCRIPTION>Optimization activity of compiler and exchanges of executable instructions in the executable instruction pipeline of CPU can cause violations of the functioning of the remote device controlling algorithm (that uses a bus of the workstation). The purpose is to prevent these possible violations.
+Unlike of access to the operational memory (this access has no side-effect) the access to the control registers of the external device has side-effect because it determines the way of device functioning.
+Memory barriers are the special functional units (macros) of the kernel, that control a REAL consequence of operations with I/O registers/ports:
+void wmb() /* all operations of writing to the I/O ports are finished */
+void rmb() /* all operations of reading from the I/O ports are finished */
+void mb() /* all operations of I/O ports writing/ reading are finished */
+void read_barrier_depends() /* waiting to finish access to certain ports/registers*/
+By using these macros it’s possible to control consequence of queries if it’s required.
+But you should remember the usage of these macros blocks different optimization systems (both on the compiler level and on the executing level) and makes driver functioning slower in a whole.
+
+Verification:
+It's required to warn about the possibility of the device erroneous functioning in the case of consequent frequent access to the control registers in the absence of “memory barrier” macros.</DESCRIPTION>
+<EXAMPLE>int some_kernel_module_func()
+{
+
+writel(dev-&gt;registers.addr, io_destination_address);
+writel(dev-&gt;registers.size, io_size);
+writel(dev-&gt;registers.operation, DEV_READ);
+wmb(); /* the requirement to finish transmitting of all operations of writing to the control registers before the final operation */
+writel(dev-&gt;registers.control, DEV_GO);
+
+}</EXAMPLE>
+<NOTES>NOTE: It’s required to define quantitative boundary of consequent addressing to the I/O registers.
+
+NOTE: The rule type is not ERROR because sometimes when this method is used in a wrong manner the productivity of the system in a whole can be decreased.</NOTES>
+</RULE_WARNING>
+<RULE_ERROR item="y">
+<TITLE>Usage of spin lock and unlock functions</TITLE>
+<ID>0039</ID>
+<SUMMARY>It’s not allowed to acquire spin_lock twice. It’s not allowed to release not acquired spin_lock. At the end all spin_lock should be released. It’s not allowed to re-release a lock by spin_unlock/spin_unlock_irqrestore functions.</SUMMARY>
+<DESCRIPTION>Unlike other operating systems spin-locks in Linux are not recursive. So if a thread tries to acquire a lock it has already acquired then this thread begins a periodical check and waits till it releases the lock. This leads to a deadlocks.
+The situation is not often in its explicit form, but it is widely spread in an implicit form when some function (external function usually) tries to acquire a lock that has already been acquired by the module.
+
+It’s not allowed to acquire spin_lock twice. It’s not allowed to release not acquired spin_lock. At the end all spin_lock should be released. It’s not allowed to re-release a lock by spin_unlock/spin_unlock_irqrestore functions.</DESCRIPTION>
+<LINKS>[bugfix example](http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.25.y.git;a=commit;h=83c7c693ed3e61535ad6a097ad991a88aafc54b8)</LINKS>
+<EXAMPLE>**Incorrect example (2.6.24 -&gt; 2.6.25, drivers/char/specialix.c):**
+
+    @@ 2109
+    sx_out(bp, CD186x_CAR, port_No(port));
+    /* releasing a lock */
+    spin_unlock_irqrestore(&amp;bp-&gt;lock, flags); 
+    if (I_IXOFF(tty)) {
+        /* in some cases double call is possible */
+        spin_unlock_irqrestore(&amp;bp-&gt;lock, flags);
+        sx_wait_CCR(bp);
+        spin_lock_irqsave(&amp;bp-&gt;lock, flags);
+        sx_out(bp, CD186x_CCR, CCR_SSCH2);</EXAMPLE>
+<NOTES>It's required to accumulate information about the usage of the locks inside external functions:
+
+- statistic data
+for a number of low-level functions it's required to explicitly enumerate locks they are using
+- dynamically-generated data
+it's required to analyze source-code of the called functions to make a list of acquired locks</NOTES>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Initialization of USB request block</TITLE>
+<ID>0040</ID>
+<DESCRIPTION>All data which is sent to subsystem controlling USB peripherals (system bus controllers, such as OHCI/UHCI/EHCI) should be properly initialized. Uninitialized data or not properly initialized data can cause failures in both the device controlled by driver and the whole system.
+The communication with devices connected to USB interface is performed by USB Request Blocks (URB). Which has the following life circle:
+* usb_alloc_urb (...); - allocating memory for URB
+* initialization
+* usb_submit_urb (...); - sending data to Core USB
+* calling callback function of a driver or waiting for &quot;usb_complete_t&quot; notification about successful receive or failure.
+* usb_free_urb (...); - free URB
+
+This rule requires that each URB request before submitting it using usb_submit_urb should be properly initialized initialized either by one of initialization functions depending on URB type or by manually filling all required fields (see rule 0041).
+
+USB subsystem defines 4 types of URB:
+* Interrupt URB
+* Bulk URB
+* Control URB
+* Isochronous URB
+Each type has own predefined characteristics (e.g. reserved traffic, data integrity requirements and other QoS characteristics).
+Each type of URB should be initialized by the proper function exported by USB Core. Such function is absent only for Isochronous URB because of rare use.
+* Interrupt URB
+void usb_fill_int_urb (struct urb*, struct usb_device*, unsigned int pipe, \
+void *buf, int buffer_length, ...)
+
+* Bulk URB
+void usb_fill_bulk_urb (struct urb*, struct usb_device*, unsigned int pipe, \
+void *buf, int buffer_length, ...)
+
+* Control URB
+void usb_fill_control_urb (struct urb*, struct usb_device*, unsigned int pipe, \
+void *buf, int buffer_length, ...)
+
+* Isochronous URB
+There is no standard initialization function. Manual initialization  is required (see rule 0041).</DESCRIPTION>
+<SUBSYSTEM>USB</SUBSYSTEM>
+<EXAMPLE>void some_data_send_func ()
+{
+urb = usb_alloc_urb(0, GFP_KERNEL);
+if (!urb)
+{
+retval = -ENOMEM;
+goto error
+}
+/* INITIALIZATION */
+usb_fill_bulk_urb(urb, dev-&gt;udev,
+usb_sndbulkpipe(dev-&gt;udev, dev-&gt;bulk_out_endpointAddr),
+buf, count, skel_write_bulk_callback, dev);
+
+/* SENDING URB */
+retval = usb_submit_urb(urb, GFP_KERNEL);
+if (retval)
+{
+err(&quot;%s - failed submitting write urb, error %d&quot;, __FUNCTION__, retval);
+goto error;
+}
+}</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Manual initialization of Isochronous USB request blocks</TITLE>
+<ID>0041</ID>
+<DESCRIPTION>When using Isochronous USB request blocks it is required to fill all required fields. For general description see rule 0040.
+
+Mandatory fields:
+* dev
+* context
+* pipe
+* interval
+* transfer_flags
+* transfer_buffer
+* complete
+* number_of_packets
+* transfer_buffer_length
+* iso_frame_desc</DESCRIPTION>
+<SUBSYSTEM>USB</SUBSYSTEM>
+<EXAMPLE>urb-&gt;dev = dev;
+urb-&gt;context = uvd;
+urb-&gt;pipe = usb_rcvisocpipe(dev, uvd-&gt;video_endp-1); interval = 1; 
+urb-&gt;transfer_flags = URB_ISO_ASAP; transfer_buffer = cam-&gt;sts_buf[i]; 
+urb-&gt;complete = konicawc_isoc_irq; number_of_packets = FRAMES_PER_DESC; 
+urb-&gt;transfer_buffer_length = FRAMES_PER_DESC;
+for (j=0; j &lt; FRAMES_PER_DESC; j++)
+{
+urb-&gt;iso_frame_desc[j].offset = j;
+urb-&gt;iso_frame_desc[j].length = 1; }</EXAMPLE>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Using standard initialization functions of URB</TITLE>
+<ID>0042</ID>
+<DESCRIPTION>Where possible it is recommended to use standard initialization functions instead of manual initialization (for Bulk, Interrupt and Control types). The standard functions will fill all required fields.
+If developer uses manual initialization of URB and it is not of Isochronous type then it is recommended to use special functions (defined in rule 0040). The type of the URB can be determined by struct urb.transfer_flags field. If it does not contain URB_ISO_ASAP flag then it is not an Isochronous URB, therefore standard initialization is recommended.</DESCRIPTION>
+<SUBSYSTEM>USB</SUBSYSTEM>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Atomic memory allocation inside spinlocks</TITLE>
+<ID>0043</ID>
+<SUMMARY>You should use `GFP_ATOMIC` flag when calling memory allocation functions when spinlock is held.</SUMMARY>
+<DESCRIPTION>The purpose is to forbid sleeping memory allocations when spinlock is held.  Sleeping memory allocation is characterized by possible context switch to the other process if the memory can’t be allocated right now by the allocation system (e.g. SLAB). This erroneous behavior can result in:
+
+ - Common decrease of system productivity. The other system processes (including real-time processes) that use locked resource will depend on memory allocation.
+ - OS damage in embedded systems (without MMU and address pages) because of implicit deadlock when memory allocation is impossible.
+
+You should use `GFP_ATOMIC` flag when calling memory allocation functions such as `kmalloc`, `vmalloc`, `get_free_pages` etc.</DESCRIPTION>
+<LINKS>[bugfix example drivers/net/wireless/orinoco/wext.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=5b0691508aa99d309101a49b4b084dc16b3d7019)</LINKS>
+<EXAMPLE>drivers/net/wireless/orinoco/wext.c</EXAMPLE>
+<NOTES>Without MMU unloading of some pages to the swap for memory reuse is impossible. Let some kernel module (e.g. driver) acquired a lock and then calls sleeping memory allocation function and goes to the waiting state. It can be back to the active state (and release the lock) only if any other kernel module will turn a part of its pages back to the system. Embedded systems usually use a few kernel processes, moreover most of them are system ones (not modules/drivers). The situation when system process is waiting for unlocking and can’t release some of its pages is quite possible. This situation leads to a failure of the whole system or its part.</NOTES>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Locked memory allocation in callback functions is forbidden</TITLE>
+<ID>0044</ID>
+<DESCRIPTION>Most of callback functions are called by core-part of the OS kernel when multiple resource lock acquiring and also often in situations when introduction of additional accidental waiting factor (the uncertainty is the result of deferred memory allocation) is undesirable. Thus you should use locked memory allocation in such module kernel parts.
+
+
+Verification:
+There are two ways of verification:
+-  direct
+It’s required to pick out all existent methods of callback-function registration (their symbolic names) and to link every object of the function with the pointer that shows if it is used in a function.
+- indirect
+It’s required to track the execution of pointer transmission to any internal function of the verified module as a parameter of OS system function. In 95% of cases such calls are used for callback-handler registration.
+
+EXCEPTION:
+Callbacks of drivers of USB subsystem (usb_probe / usb_disconnect) can use memory allocation without GFP_ATOMIC flag.</DESCRIPTION>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Extended interface of zero memory allocation kzalloc() instead of kmalloc() + memset(,0,sizeof(object)) combination</TITLE>
+<ID>0045</ID>
+<DESCRIPTION>kzalloc() kernel function allocates memory of a required size (e.g. from internal slab- cache) and then resets it to zero. The result of this operation is similar to combination of kmalloc() (non-initialized memory allocation) + memset(,0,) (memory initialization by null-values), but it allows to avoid both increase of temporary costs of additional function call (it’s especially important for x86+ architectures because this operation requires a lot of resources in such systems) and  increase of driver source-code size.
+1. kzalloc() interface is recommended to use in all new kernel drivers/modules and (if possible) to alter old projects for using it.
+2. Memory regions that were allocated by kzalloc function are not required to be initialized.
+
+For the first part of the rule it's required to verify the usage of the following pattern:
+pB = kmalloc( sizeof(...), );
+/* Code that doesn't use and change the ponter pB to the buffer*/
+/* !!! Usually it is verified in such a way: if (pB == 0) { reaction for an erroneous behavior } !!! */
+memset( pB, 0, sizeof(...) );
+
+If the pattern is detected then it's recommended to use a function:
+pB = kzalloc( sizeof(...), ...);</DESCRIPTION>
+<LINKS>(example that is simple for verifying)
+drivers/char/ip2/ip2main.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg26711.html
+
+(example that is more complicated for verifying)
+drivers/char/consolemap.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg26708.html
+
+drivers/pci/hotplug/cpqphp_ctrl.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg24165.html
+
+drivers/usb/misc/ftdi-elan.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg24224.html
+
+drivers/message/fusion/mptctl.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg25048.html
+
+2.6.24 -&gt; 2.6.25
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=25c16fffa8ed82d3ef31980d76ff95d3c6430f00</LINKS>
+<EXAMPLE>2.6.24 -&gt; drivers/char/ip2/ip2main.c
+2.6.24 -&gt; drivers/char/consolemap.c
+2.6.24 -&gt; drivers/pci/hotplug/cpqphp_ctrl.c
+2.6.24 -&gt; drivers/usb/misc/ftdi-elan.c
+2.6.24 -&gt; drivers/message/fusion/mptctl.c
+
+drivers/net/ehea/ehea_main.c:
+
+@@ 2210
+
+cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
+if (!cb1) {
+   ehea_error(&quot;no mem for cb1&quot;);
+   goto out;
+}
+
+/* it's not required to use additional initialization functions*/ memset(cb1-&gt;vlan_filter, 0, sizeof(cb1-&gt;vlan_filter));</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Prevention of NULL-pointer dereferences</TITLE>
+<ID>0046</ID>
+<DESCRIPTION>Erroneous exclusion of the check-code has been got from sub-function of the pointer to null equivalence before its dereferencing is one of the widespread problems of kernel module writing.
+It's required to form the general &quot;depth&quot; concept of the model implemented by our tool to show up the problem: to provide detailed base of possible returned values from the concerned section of the kernel functions to the tool or to analyze called function code when doing static analysis.
+
+Verification:
+It' required to find situations when following structure are used:
+ptr = func(...); /* the function returns a pointer that can be null */
+... = *p; /* an implicit dereferencing is meant (refer to a structure members and so on) */
+
+When detecting such a situation it's required to use following structure:
+ptr = func(...);
+if (!ptr)
+{ exception handling }
+... = *p;</DESCRIPTION>
+<LINKS>- [bugfix example drivers/isdn/capi/kcapi.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=e8a285b7b10029c3da7e9bbaa1659e7e08178912)
+ - [bugfix example drivers/isdn/capi/capidrv.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b1b2e7cf4a9742f61d76fcb419b1fd13159876a5)
+ - [bugfix example drivers/net/wireless/libertas/cmd.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b031ac10264fa9b805d84b4a440407ac950390cf)
+ - [bugfix example drivers/net/pcmcia/nmclan_cs.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=c196d80f994ef4ffefd5a7c62e3f42bd75d538bc) (the case simple to find)
+ - [bugfix example drivers/net/s2io.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=8910b49fbb8d4517a20bb3de7dc239dcfa7d2b6f) (the case simple to find)
+ - [bugfix example drivers/auxdisplay/cfag12864b.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=fe58103a56f05613cb1f0ef228354d4d5f6c2b08) (an unusual case because there is a erroneous check for NULL-pointer(value chosen for check is wrong))
+ - [bugfix example drivers/net/ns83820.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=d14e37e12087e98b63907518dff83a90297605d6)
+ - [bugfix example drivers/media/video/se401.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=fd51c697dd6111ee4260d8c752ba4d09dc614c3f)
+ - [bugfix example net/ipv4/ip_fragment.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=12b101555f4a67db67a66966a516075bd477741f)</LINKS>
+<EXAMPLE>EXAMPLE OF IMPLEMENTED RECOMMENDATION: 
+
+2.6.24 -&gt; drivers/isdn/capi/kcapi.c::old_capi_manufacturer()
+2.6.24 -&gt; drivers/isdn/capi/capidrv.c::send_message()
+2.6.24 -&gt; drivers/net/wireless/libertas/cmd.c
+
+ADDITIONS  OF 06.03.2008:
+
+2.6.23 -&gt; drivers/net/pcmcia/nmclan_cs.c
+2.6.23 -&gt; drivers/net/s2io.c
+2.6.23 -&gt; drivers/auxdisplay/cfag12864b.c
+
+ADDITIONS OF 12.03.2008:
+
+2.6.22 -&gt; drivers/net/ns83820.c
+
+2.6.22 -&gt; drivers/media/video/se401.c
+
+ADDITIONS OF 23.04.2008:
+
+2.6.25 -&gt; drivers/usb/serial/usb-serial.c
+2.6.25 -&gt; drivers/media/radio/radio-si470x.c
+
+ADDITIONS OF 08.05.2008:
+2.6.25 -&gt; net/ipv4/ip_fragment.c</EXAMPLE>
+<NOTES>Two sub-rules:
+1. It's required to check for NULL before dereferencing returned value.
+2. It's forbidden to pass null-pointer to some kernel core API functions.
+
+In both cases it's resolved to compose a list of functions that are possessed of following properties:
+1. Functions that can return a null-pointer.
+2. Functions that can't get a null pointer as a parameter.</NOTES>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Usage of a value as an array element index if this value is possible to be negative</TITLE>
+<ID>0047</ID>
+<DESCRIPTION>It's required to control the range of values transmitted to the function when implementing callback functions of driver or interface subsystem functions. Using of the value that is possible to be negative to index array can breakup the system. It's required to check the value of the index variable.
+
+This situation is possible if there is no checking the value returned by the system function. It's required to find possible range of the returned value and to control the following variable usage as an index of the array element.
+
+Verification:
+void func(int num, ...) /* There is no constraint for the transmitted value range  */
+{
+    ... = ubi_devices[ubi_num]; /* Using this value to index an array */
+    
+    ...
+}
+
+It's required to demand checking of the transmitted value evidently before it's usage as index
+
+void func(int num, ...) /* There is no constraint for the transmitted value range  */
+{
+    if (num &gt;= 0)
+    {
+    ... = ubi_devices[ubi_num]; /* Using this value to index an array */
+    
+    ...
+}</DESCRIPTION>
+<EXAMPLE>EXAMPLE OF THE IMPLEMENTED RECOMMENDATION:
+
+2.6.24 -&gt; drivers/mtd/ubi/kapi.c::ubi_open_volume()</EXAMPLE>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Recommended declaration as static-functions of all module functions intended to provide special interface for external objects</TITLE>
+<ID>0048</ID>
+<DESCRIPTION>If the function has no explicit static specifier the compilation/assembling procedure makes it possible to import this function by the external modules (i.e. adds it to the list of export of .ko object component.
+It's recommended to avoid such a situation because:
+* names coincidence of functions exported from different modules can cause errors (the situation could be avoided because one of thу functions is intended only for internal usage)
+* object component size is increased because of the additional export section record
+* it's possible to bind and call function that was initially intended to be used internally by the external modules (drivers), and this can damage the system both accidentally and aforethought.
+
+Verification:
+EXAMPLE AND WAY TO FIND:
+
+Explicit procedures to find potential static-functions:
+* absence of the function prototype in the .h header files that are used by external modules
+* absence of the structure like EXPORT_SYMBOL (symbol_name) in the implementation of the kernel module or of it's header-file
+* presence of the attributes of the initialization or deactivation functions (e.g. __init/__exit)
+
+Implicit procedures:
+* function is used in the context of callback
+* function is used a lot(!) in the module implementation
+
+drivers/char/vr41xx_giu.c:
+
+static int __devinit giu_probe(struct platform_device *dev)
+{
+...
+retval = register_chrdev(major, &quot;GIU&quot;, &amp;gpio_fops);
+...
+}
+
+static const struct file_operations gpio_fops = {
+.owner = THIS_MODULE,
+.read = gpio_read,
+.write = gpio_write,
+.open = gpio_open,
+.release = gpio_release,
+};
+
+STATIC ssize_t gpio_read(struct file *file, char __user *buf, size_t len,
+loff_t *ppos)
+{
+...
+}</DESCRIPTION>
+<LINKS>LINK TO THE ORIGINAL LKML-message:
+
+(the case simple to find)
+drivers/usb/serial/sierra.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg19805.html
+
+(the case simple to find)
+drivers/char/hvc_console.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg17453.html
+
+(this case is more complex and has optional additional controls)
+drivers/mmc/core/core.c
+drivers/mmc/core/sd_ops.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg19632.html
+
+ADDITIONS 12.03.2008:
+
+drivers/video/hecubafb.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg12003.html
+
+drivers/video/display/display-sysfs.c (display_class)
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg11991.html
+
+drivers/isdn/capi/capiutil.c (cdebbuf_alloc)
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg11870.html
+
+drivers/char/hvc_console.c
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg11671.html
+
+drivers/macintosh/mac_hid.c [POWERPC]
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg12104.html
+
+drivers/misc/thinkpad_acpi (fan_mutex)
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg09818.html
+
+drivers/net/s2io.c (vlan_strip_flag)
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg10071.html
+
+drivers/net/qla3xxx.c 
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg10069.html
+
+ADDITIONS 08.05.2008:
+block/blk-settings.c:
+http://kerneltrap.org/mailarchive/git-commits-head/2008/2/19/911094
+block/blk-ioc.c:
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg41174.html</LINKS>
+<EXAMPLE>EXAMPLE OF IMPLEMENTED RECOMMENDATION: 
+
+2.6.23 -&gt; drivers/usb/serial/sierra.c
+2.6.23 -&gt; drivers/mmc/core/core.c
+2.6.23 -&gt; drivers/mmc/core/sd_ops.c
+2.6.23 -&gt; drivers/char/hvc_console.c [POWERPC]
+
+ADDITIONS 12.03.2008:
+
+2.6.22 -&gt; drivers/video/hecubafb.c
+
+2.6.22 -&gt; drivers/video/display/display-sysfs.c (display_class)
+
+2.6.22 -&gt; drivers/isdn/capi/capiutil.c (cdebbuf_alloc)
+
+2.6.22 -&gt; drivers/char/hvc_console.c
+
+2.6.22 -&gt; drivers/macintosh/mac_hid.c [POWERPC]
+
+2.6.22 -&gt; drivers/misc/thinkpad_acpi (fan_mutex)
+
+2.6.22 -&gt; drivers/net/s2io.c (vlan_strip_flag)
+
+2.6.22 -&gt; drivers/net/qla3xxx.c
+
+ADDITIONS 23.04.2008:
+2.6.25 -&gt; drivers/atm/idt77252.c
+- idt77252_send()
+- idt77252_dev_close()
+2.6.25 -&gt; drivers/atm/he.c
+- read_prom_byte()
+2.6.25 -&gt; drivers/watchdog/hpwdt.c
+- asminline_call()
+2.6.25 -&gt; drivers/fs/ocfs2/dlmglue.c
+- ocfs2_process_blocked_lock()
+2.6.25 -&gt; drivers/fs/ocfs2/heartbeat.c
+- ocfs2_node_map_init()
+2.6.25 -&gt; drivers/media/video/em28xx/em28xx-core.c
+- em28xx_write_reg_bits()
+2.6.25 -&gt; drivers/media/video/em28xx/em28xx-core.c
+- em28xx_vdev_init()
+
+ADDITIONS 08.05.2008:
+2.6.25 -&gt; block/blk-settings.c
+2.6.25 -&gt; block/blk-ioc.c</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Sleeping in atomic context under spinlock</TITLE>
+<ID>0049</ID>
+<SUMMARY>You should not call a function which might sleep when holding a spinlock.</SUMMARY>
+<DESCRIPTION>The process holding spinlock must not go to inactive (sleeping) state. For example, in case if some system resource is not available. Spin locks are active, i.e. do not switch process into the sleeping state in case if lock is not available, but try to acquire the lock in a loop.  Hence, if a process holding spinlock goes to a sleeping state, then the other processes trying to acquire the lock will waste system time. There are situation when this leads to a deadlock.</DESCRIPTION>
+<LINKS>[bugfix example drivers/usb/serial/usb-serial.c](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=3ddad8232c3802f7a602d1ea24938a8067114479)</LINKS>
+<EXAMPLE>(multiple cases)
+2.6.23 -&gt; drivers/usb/serial/usb-serial.c</EXAMPLE>
+<NOTES>For the purpose of determining whether a function might go to a sleeping state, kernel has a special `might_sleep` macro. If a function calls this macro then the function can not be called in an atomic context.</NOTES>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Using extended style of spinlock initialization</TITLE>
+<ID>0054</ID>
+<DESCRIPTION>One of the main problems of model Linux kernel is various deadlocks which occur more frequently in multicore architectures, where the probability of its occurrence is high. Hence the decision was made to introduce special debug mechanism into the kernel. It allows to monitor lock acquisitions and releases and detect deadlocks.
+The implementation of the mechanism extends spinlock_t structure with additional fields (of course, CONFIG_DEBUG_SPINLOCK should be set).  It outdates old way of initialization of the structure which was simply atomic assignment of the single lock variable. Now the structure become more complex:
+typedef struct 
+{
+raw_spinlock_t raw_lock;
+
+#if defined(CONFIG_PREEMPT) &amp;&amp; defined(CONFIG_SMP)
+unsigned int break_lock;
+#endif
+
+#ifdef CONFIG_DEBUG_SPINLOCK /* debug info */
+unsigned int magic, owner_cpu;
+void *owner;
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC /* debug info */
+struct lockdep_map dep_map;
+#endif
+} spinlock_t
+Consequently, initialization now performed by __SPIN_LOCK_UNLOCKED.
+Code snippet from drivers/atm/atmtcp.c:
+static struct atm_dev atmarpd_dev = 
+{
+.ops = &amp;atmarpd_dev_ops,
+.type = &quot;arpd&quot;,
+.number = 999,
+.lock = __SPIN_LOCK_UNLOCKED(atmarpd_dev.lock) /* New way of initialization */
+};
+You should use __SPIN_LOCK_UNLOCKED(lock) macro instead of SPIN_LOCK_UNLOCKED. Parameter is required for saving particular lock object information, e.g. module name  + structure name.
+Old way:
+variable_of_the_type_spinlock_t = SPIN_LOCK_UNLOCKED;
+New way:
+variable_of_the_type_spinlock_t = __SPIN_LOCK_UNLOCKED(variable_of_the_type_spinlock_t);</DESCRIPTION>
+<LINKS>http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg09137.html
+http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg08734.html</LINKS>
+<EXAMPLE>2.6.22 -&gt; drivers/atm/atmtcp.c
+2.6.22 -&gt; net/atm/clip.c
+2.6.22 -&gt; net/atm/lec.c
+2.6.22 -&gt; net/atm/mpc.c
+2.6.22 -&gt; net/atm/signaling.c
+2.6.22 -&gt; net/dccp/minisocks.c
+2.6.22 -&gt; net/ipv6/mip6.c
+2.6.22 -&gt; drivers/s390/char/vmlogrdr.c
+2.6.22 -&gt; drivers/s390/cio/cmf.c
+
+Code snippet from drivers/s390/char/vmlogrdr.c:
+
+/* old way of initialization */
+
+static struct vmlogrdr_priv_t sys_ser[] = 
+{
+.recording_name = &quot;EREP&quot;,
+.minor_num = 0,
+.buffer_free = 1,
+.priv_lock = SPIN_LOCK_UNLOCKED,
+.autorecording = 1,
+.autopurge = 1,
+}
+
+/* new extended way of initialization */
+
+static struct vmlogrdr_priv_t sys_ser[] = 
+{
+.recording_name = &quot;EREP&quot;,
+.minor_num = 0,
+.buffer_free = 1,
+.priv_lock = __SPIN_LOCK_UNLOCKED(sys_ser[0].priv_lock),
+.autorecording = 1,
+.autopurge = 1,
+}</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>Using dynamic memory function kfree for data in the stack</TITLE>
+<ID>0056</ID>
+<DESCRIPTION>Driver should not use kfree function for stack memory.
+The behaviour of free for stack data is undefined. Occasionally if stack content is similar to dynamic memory headers it may lead to fatal consequences.
+
+One of the major causes of the errors are incorrect usage of string manipulation functions from linux/lib/string.c.  For example strsep(...) cuts the part of a string separated by a given delimiter. In user space the function with the same name allocates dynamic memory with kmalloc and copies cut content into it. Kernel version of the function is different. It modifies the original string in the same memory and returns new pointer. It allows not to spend additional resources on memory allocation. Thus, if you give as a parameter pointer to stack memory then you should not release it with kfree.
+Possible consequence of misusing string manipulation functions is double free of dynamic memory, e.g. first free occurs for the pointer returned from library function (the same memory as given as a parameter), second for the original pointer.</DESCRIPTION>
+<LINKS>http://kerneltrap.org/mailarchive/git-commits-head/2008/3/25/1247394
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.25.y.git;a=commit;h=2875fb65f8e40401c4b781ebc5002df10485f635</LINKS>
+<EXAMPLE>2.6.25 -&gt; drivers/mtd/devices/block2mtd.c:
+static int
+block2mtd_setup2(const char *val)
+{
+char buf[80 + 12]; /* allocating 92 bytes on top of stack */
+char *str = buf;
+char *token[2];
+char *name;
+size_t erase_size = PAGE_SIZE;
+int i, ret;
+/* ... */
+for (i = 0; i &lt; 2; i++)
+/* The content of buf was changed by function strsep but location of memory is still the same (on stack) */
+token[i] = strsep(&amp;str, &quot;,&quot;);
+/* ... */
+name = token[0];
+/* ... */
+if (token[1])
+{
+ret = parse_num(&amp;erase_size, token[1]);
+if (ret)
+{ 
+/* Incorrect free of stack memory */
+kfree(name);
+parse_err(&quot;illegal erase size&quot;);
+}
+}
+/* ... */
+}
+
+2.6.24 -&gt; 2.6.25
+drivers/mtd/devices/block2mtd.c:
+
+@@ 382
+
+char buf[80 + 12];
+
+/* name points to an element of buf array*/
+
+@@ 408
+
+if (token[1]) {
+ret = parse_num(&amp;erase_size, token[1]);
+if (ret) {
+/* Incorrect free for stack memory */
+kfree(name);
+parse_err(&quot;illegal erase size&quot;);
+}
+}</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Memory leakage</TITLE>
+<ID>0057</ID>
+<DESCRIPTION>All allocated memory regions should be freed.
+Note, that if the pointer to the memory was passed to the other kernel subsystems then we may not be sure that memory should be freed without analyzing the code of that subsystems.</DESCRIPTION>
+<LINKS>http://marc.info/?l=git-commits-head&amp;m=120520082818287&amp;w=4
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=093a44e71aa29157fb1611b00507d67c954099d6</LINKS>
+<EXAMPLE>2.6.25 -&gt; /drivers/pci/hotplug/ibmphp_ebda.c:
+static int __init
+ebda_rsrc_controller (void)
+{
+/* ... */
+/* The memory for pointer is allocated on the stack*/
+struct slot *tmp_slot;
+/* ... */
+for (...)
+{
+tmp_slot = kzalloc(sizeof(*tmp_slot), GFP_KERNEL);
+if (!tmp_slot)
+{
+rc = -ENOMEM;
+goto error_no_slot;
+}
+/* Setting field of allocated structure */
+/* Example: */
+if ((hpc_ptr-&gt;slots[index].slot_cap &amp; EBDA_SLOT_133_MAX) == EBDA_SLOT_133_MAX)
+tmp_slot-&gt;supported_speed = 3;
+else if ((hpc_ptr-&gt;slots[index].slot_cap &amp; EBDA_SLOT_100_MAX) == EBDA_SLOT_100_MAX)
+tmp_slot-&gt;supported_speed = 2;
+/* Note that information goes to tmp_slot variable. The pointers to the memory addressed by tmp_slot are not passed anywhere outside */
+if (!bus_info_ptr1)
+{
+rc = -ENODEV;
+/* Forced goto exception code*/
+goto error; /* 1 */
+}
+/* ... */
+/* First case of passing tmp_slot */
+hp_slot_ptr-&gt;private = tmp_slot;
+hp_slot_ptr-&gt;release = release_slot;
+/* ... */
+rc = fillslotinfo(hp_slot_ptr);
+if (rc)
+goto error; /* 2 */
+rc = ibmphp_init_devno ((struct slot **) &amp;hp_slot_ptr-&gt;private);
+if (rc)
+goto error; /* 2 */
+/* ... */
+}
+error:
+/* At the time of *1* (see above) kfree gets null pointer which will be correctly processed */
+/* 3 */
+kfree (hp_slot_ptr-&gt;private);
+}
+
+Note important peculiarity of the code. We may come to point /* 3 */ from two different situations:
+- Situation 1. Goto from /*1*/. Field hp_slot_ptr-&gt;private does not contain correct pointer (it is null). For releasing memory correctly we should use pointer to tmp_slot directly as a parameter to kfree. At point /*3*/ this can not be done because of possible goto from /*2*/
+- Situation 2. Goto from /*2*/. The tmp_slot variable was used as a parameter to function from other OS layer, so should not free tmp_slot at point /*3*/. Because this memory will be freed by other OS module.
+
+Correct code:
+if (!bus_info_ptr1)
+{
+kfree (tmp_slot);
+rc = -ENODEV;
+/* Forced goto exception code*/
+goto error; /* 1 */
+}
+
+2.6.24 -&gt; 2.6.25 drivers/isdn/sc/ioctl.c:
+@@ 218
+
+spid = kmalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
+
+@@ 226
+
+if (copy_from_user(spid, data-&gt;dataptr, SCIOC_SPIDSIZE)) {
+kfree(rcvmsg);
+/* We should free allocated memory region before returning from the function*/
+kfree(spid);
+return -EFAULT;
+}</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Using packet processing NAPI only with platforms supporting it</TITLE>
+<ID>0059</ID>
+<DESCRIPTION>There is a problem of tiredness of network subsystem interrupts on super productive network hardware. Typical way of organizing of low-level driver-oriented (MII/PHY) part of network protocol stack is constructing a complex interrupt handler of network device. The skeleton of it is as follows:
+static irqreturn_t fs_enet_interrupt(int irq, void *dev_id)
+{
+/* Complex procedures of input data processing which takes much time */
+/* Sending data from the device to upper network layers */
+netif_receive_skb(skb);
+}
+In spite of simplicity of the solution it is easy to discover that under high load (especially when there are many network controllers and a single OS) interrupts will occur very often, thus causing a lot of context switches to RESOURCE-INTENSIVE interrupt handlers.
+NAPI (New API) is a solution similar to bottom half handlers. The idea is to construct simple and fast interrupt handlers which only register controlled device in OS queue. Suppose device A received a network packet and OS got hardware interrupt. The base interrupt handler pushes the task &quot;receiving data from device A&quot; to OS network queue. Then it disables interrupts for the device A. Even if the device receives new packets, context switches will not occur because device A is already in the network queue. When it's a turn of task of device A then device specific procedure processes ALL received packets and enables hardware interrupts. Hence OS reduces time eliminating multiple context switches.
+NAPI is available not in all hardware configurations, because it needs DMA ring or sufficient memory for storing series of packets and a fast way of disabling device interrupts.
+The information about NAPI support is available for driver in fs_platform_info structure passed through a parameter to probe callback function. The structure contains the information in the field ((fs_platform_info*) fpi-&gt;use_napi).
+If NAPI is not supported driver should use the standard way of interrupt handling and SHOULD NOT use NAPI procedures and functions.
+The information about NAPI support can be obtained ONLY by checking use_napi field of fs_platform_info structure.</DESCRIPTION>
+<LINKS>http://kerneltrap.org/mailarchive/git-commits-head/2008/4/14/1429514</LINKS>
+<EXAMPLE>2.6.25 -&gt; drivers/net/fs_enet/fs_enet-main.c
+It is an implementation of driver for Ethernet controller family manufactured by Motorola. Consider main steps in the driver. If one of supported devices was found on the system bus then probe function is called which initializes the device and registers it in OS.
+static int __devinit fs_enet_probe(struct device *dev)
+{
+struct net_device *ndev;
+/* Check that the device is supported*/
+/* Passing data to device initialization function*/
+/* dev-&gt;platform_data - pointer to the information structure of the type platform_info */
+ndev = fs_init_instance(dev, dev-&gt;platform_data);
+if (IS_ERR(ndev))
+return PTR_ERR(ndev);
+return 0;
+}
+Procedure fs_init_instance configures the device and saves the information structure in the network controller descriptor for further use.
+static struct net_device *fs_init_instance(struct device *dev,
+struct fs_platform_info *fpi)
+{
+/* Configuring the device */
+/* Construction the descriptor of network controller */
+fep-&gt;dev = dev;
+dev_set_drvdata(dev, ndev);
+/* Saving system information */
+fep-&gt;fpi = fpi;
+/* Registering handlers */
+ndev-&gt;open = fs_enet_open;
+/* ... */
+ndev-&gt;stop = fs_enet_close;
+/* Adding the device in OS list */
+err = register_netdev(ndev);
+}
+After we informed the OS that device and it's driver are ready, then asynchronous callbacks become possible. 
+The driver uses NAPI way of interrupt handlers. Consider incorrect implementation of callback function fs_enet_close(). 
+drivers/net/fs_enet/fs_enet-main.c (&lt; 2.6.25):
+static int fs_enet_close(struct net_device *dev)
+{
+struct fs_enet_private *fep = netdev_priv(dev);
+unsigned long flags;
+netif_stop_queue(dev);
+/* Deactivate carrier */
+netif_carrier_off(dev);
+/* Deactivate NAPI */
+/* NAPI SUPPORT CHECK IS ABSENT*/
+napi_disable(&amp;fep-&gt;napi);
+/* Stopping physical-level element */
+phy_stop(fep-&gt;phydev);
+/* Switching off controller components */
+return 0;
+}
+NAPI functions should not be used if NAPI is not supported.
+Correct code:
+static int fs_enet_close(struct net_device *dev)
+{
+struct fs_enet_private *fep = netdev_priv(dev);
+unsigned long flags;
+netif_stop_queue(dev);
+/* Deactivate carrier */
+netif_carrier_off(dev);
+/* Deactivate NAPI */
+/* Checking NAPI support */
+if (fep-&gt;fpi-&gt;use_napi)
+napi_disable(&amp;fep-&gt;napi);
+/* Stopping physical-level element */
+phy_stop(fep-&gt;phydev);
+/* Switching off controller components */
+return 0;
+}</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>An element of linked list should not be inserted in the linked list again</TITLE>
+<ID>0060</ID>
+<SUMMARY>You should not add an element with `list_add()` which is already present in the list.</SUMMARY>
+<DESCRIPTION>A linked list is one of the most widespread data structures in the kernel. They are based on the structure `list_head`
+&lt;pre name=&quot;code&quot; class=&quot;c&quot;&gt;
+struct list_head
+{
+   struct list_head *next, *prev;
+};
+&lt;/pre&gt;
+The basic operation to add a new element to the list is the `list_add()` function:
+&lt;pre name=&quot;code&quot; class=&quot;c&quot;&gt;
+     static inline void list_add(struct list_head *new,
+                                   struct list_head *prev,
+                                   struct list_head *next)
+     {
+        next→prev = new;
+        new→next = next;
+        new→prev = prev;
+        prev→next = new;
+     }
+     static inline void list_add(struct list_head *new,
+                                struct list_head *head)
+     {
+             list_add(new, head, head→next);
+     }
+&lt;/pre&gt;
+The `new` argument is a pointer to a structure to be added to a list. The `head` argument is a pointer to the current head of the list.
+Let us consider a situation when an element of a list is added to the list again. In this case the `list_add()` function modifies `next` and `prev` fields of the element and, thus, brakes the old links.
+If the list before operation looks like:
+&lt;pre&gt;
+                              →a↔b↔c↔d↔e←
+&lt;/pre&gt;
+and we add the element c after the element a, we will have the list:
+&lt;pre&gt;
+                           → a ↔ c ↔ b → c{↔ b} ← d ←
+&lt;/pre&gt;
+where {} means the new link of the element `c`.
+As a result an iteration of the list in the forward direction will lead to the infinite cycle.</DESCRIPTION>
+<LINKS>[bugfix example drivers/firmware/dmi_scan.c](http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg41536.html)</LINKS>
+<KERNEL_VERSION>2.6</KERNEL_VERSION>
+<ARCH>ALL</ARCH>
+<SUBSYSTEM>ALL</SUBSYSTEM>
+<EXAMPLE>2.6.25 → drivers/firmware/dmi_scan.c</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Unused dynamic memory</TITLE>
+<ID>0061</ID>
+<DESCRIPTION>Compiler can detect unused stack variables or function parameters and warn user about it. But there are similar situations with dynamic memory.
+Note, that if the pointer to the memory was passed to the other kernel subsystems then we may not be sure that memory is unused without analyzing the code of that subsystems.</DESCRIPTION>
+<LINKS>http://kerneltrap.org/mailarchive/git-commits-head/2008/4/10/1388394</LINKS>
+<EXAMPLE>2.6.25 -&gt; drivers/ata/sata_fsl.c:
+For example consider a function of ATA subsytem:
+static int sata_fsl_probe(struct of_device *ofdev,
+const struct of_device_id *match)
+{
+/* ... */
+/* Pointer to unused memory */
+struct resource *r;
+int irq;
+struct ata_host *host;
+struct ata_port_info pi = sata_fsl_port_info[0];
+const struct ata_port_info *ppi[] = { &amp;pi, NULL };
+dev_printk(KERN_INFO, &amp;ofdev-&gt;dev,
+&quot;Sata FSL Platform/CSB Driver init\n&quot;);
+/* Correct allocation of memory which are not used */
+r = kmalloc(sizeof(struct resource), GFP_KERNEL);
+/* There is no direct or indirect accesses to the memory pointed to by `r` */
+/* If memory is not freed see rule 0057*/
+/* If the memory is released then this rule is violated */
+}
+Compiler can not detect unused memory, because 'r' was assigned a value, so it is used in a code.</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Using incorrect constructions like sizeof(sizeof(OBJ))</TITLE>
+<ID>0063</ID>
+<DESCRIPTION>Constructions like sizeof(sizeof(OBJ)) are forbidden</DESCRIPTION>
+<LINKS>http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=3f6602ad56dc538a846367bd6a05ac7ac4d3e641</LINKS>
+<EXAMPLE>2.6.24 -&gt; 2.6.25
+drivers/net/r6040.c:
+
+@@ 273
+
+dma_addr_t mapping = desc_dma;
+
+while (size-- &gt; 0) {
+mapping += sizeof(sizeof(*desc)); /* error */
+mapping += sizeof(*desc); /* correct */
+desc-&gt;ndesc = cpu_to_le32(mapping);
+desc-&gt;vndescp = desc + 1;
+desc++;
+...
+}</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Incorrect size for resulting buffer of strlcat and strncat functions</TITLE>
+<ID>0064</ID>
+<DESCRIPTION>In case if you need to pass the full size of resulting buffer use `strlcat` instead of `strncat`. Function `strncat` as one of its parameter takes the number of characters which can be appended to the resulting buffer unlike `strlcat` which takes the maximal total size of the buffer.</DESCRIPTION>
+<LINKS>[bugfix example](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=af2afd247f0fae25d66f210fb800fe6a2958366e)</LINKS>
+<EXAMPLE>**Incorrect example drivers/video/aty/aty128fb.c (2.6.24 -&gt; 2.6.25):**
+
+    @@ 1885
+    
+    if (ent-&gt;driver_data &lt; ARRAY_SIZE(r128_family))
+        /* incorrect call, because the meaning of the last argument is lost*/
+        strncat(video_card, r128_family[ent-&gt;driver_data], sizeof(video_card));
+        /* correct */
+        strlcat(video_card, r128_family[ent-&gt;driver_data], sizeof(video_card));
+
+        printk(KERN_INFO &quot;aty128fb: %s [chip rev 0x%x] &quot;, video_card, chip_rev);</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Checking for format character % in device names</TITLE>
+<ID>0066</ID>
+<DESCRIPTION>It is often happen that symbolic names of devices registered in the OS are passed from the user space. It is required to check containment of character % in the name. If so, then the name should be passed to dev_alloc_name() which substitutes the character by device number.</DESCRIPTION>
+<LINKS>http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b37d428b24ad38034f56b614de05686ba151b614</LINKS>
+<EXAMPLE>2.6.24 -&gt; 2.6.25
+net/ipv4/ip_gre.c:
+
+@@ 266
+
+if (!dev)
+return NULL;
+
+/* CHECK REQUIRED BY THE RULE */
+if (strchr(name, '%')) {
+if (dev_alloc_name(dev, name) &lt; 0)
+goto failed_free;
+}
+
+dev-&gt;init = ipgre_tunnel_init;
+nt = netdev_priv(dev);
+nt-&gt;parms = *parms;
+
+if (register_netdevice(dev) &lt; 0)
+goto failed_free;</EXAMPLE>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Correct release of USB information structures</TITLE>
+<ID>0068</ID>
+<DESCRIPTION>Resources allocated by `usb_alloc_urb` should be correctly freed by `usb_free_urb`.</DESCRIPTION>
+<LINKS>[bugfix example 2.6.24 -&gt; 2.6.25](http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=cb7cd42930d4421780e78323f62243350ea14789)</LINKS>
+<SUBSYSTEM>USB</SUBSYSTEM>
+<EXAMPLE>**Correct example drivers/bluetooth/bpa10x.c:**
+
+    @@ 378
+    urb = usb_alloc_urb(0, GFP_ATOMIC);
+    if (!urb)
+        return -ENOMEM;
+    ...
+    default:
+        /* mandatory release of allocated region*/
+        usb_free_urb(urb);</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>NULL-noise situation avoidance</TITLE>
+<ID>0069</ID>
+<DESCRIPTION>2.6.24 -&gt; 2.6.25
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=blobdiff;f=drivers/net/3c515.c;h=6ab84b661d70b34549d954ff9f173e07be06bd41;hp=684bab7810156998f3fd366b27ac1b645d5169e7;hb=79ea13ce07c951bb4d95471e7300baa0f1be9e78;hpb=3e18826c73735eee5fca92584137824d9a387008
+
+To avoid NULL-noise situation means to avoid checking that the result of memory allocation procedures (that return pointer) is equal to 0 instead of NULL.
+
+Verification:
+drivers/net/3c515.c:
+
+@@ 1363
+
+/* wrong checking */
+if (pkt_len &lt; rx_copybreak  &amp;&amp; (skb = dev_alloc_skb(pkt_len + 4)) != 0)
+/* it's all right */
+if (pkt_len &lt; rx_copybreak  &amp;&amp; (skb = dev_alloc_skb(pkt_len + 4)) != NULL) {
+   skb_reserve(skb, 2);
+...
+}</DESCRIPTION>
+</RULE_RECOMMENDATION>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Using kobject_unregister() instead of kobject_put(</TITLE>
+<ID>0070</ID>
+<DESCRIPTION>2.6.24 -&gt; 2.6.25
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=c10997f6575f476ff38442fa18fd4a0d80345f9d
+
+Because of the  implementation of the new cleanup procedure it's not necessary to use kobject_unregister(). kobject_put() should be used.</DESCRIPTION>
+<EXAMPLE>drivers/base/bus.c:
+
+@@ 708
+pr_debug(&quot;bus: '%s': remove driver %s\n&quot;, drv-&gt;bus-&gt;name, drv-&gt;name); driver_detach(drv); module_remove_driver(drv);
+/* is used */
+kobject_unregister(&amp;drv-&gt;p-&gt;kobj);
+/* is recommended to use */
+kobject_put(&amp;drv-&gt;p-&gt;kobj);
+
+The problem is also in:
+drivers/base/sys.c 
+drivers/block/pktcdvd.c 
+drivers/cpufreq/cpufreq.c 
+drivers/cpuidle/sysfs.c 
+drivers/edac/edac_device_sysfs.c 
+drivers/edac/edac_mc_sysfs.c 
+drivers/edac/edac_pci_sysfs.c 
+drivers/firmware/edd.c 
+drivers/firmware/efivars.c 
+drivers/infiniband/core/sysfs.c 
+drivers/md/md.c 
+drivers/net/ibmveth.c 
+drivers/parisc/pdc_stable.c 
+drivers/pci/hotplug/pci_hotplug_core.c 
+drivers/pci/hotplug/rpadlpar_sysfs.c 
+drivers/uio/uio.c</EXAMPLE>
+</RULE_RECOMMENDATION>
+<RULE_ERROR item="y">
+<TITLE>RCU-API Checking</TITLE>
+<ID>0072</ID>
+<DESCRIPTION>The RCU algorithm was implemented for the Linux kernel to gain speed-ups for shared complex data types like lists. The main idea is to avoid synchronization operations whenever possible. Disregarding the internal implementations of the algorithm, we extracted a partial black box specification from the kernel documentation: If a list element is deleted from an RCU list by a call to list del rcu, this element may not be deallocated prior to a call to synchronize rcu or call rcu.</DESCRIPTION>
+<LINKS>http://www-sr.informatik.uni-tuebingen.de/~post/avinux/index.html</LINKS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Function free_irq should be called only once</TITLE>
+<ID>0073</ID>
+<DESCRIPTION>The kernel provides a function `void free_irq(unsigned int irq, void *dev_id)` with parameters:
+
+ - irq: Interrupt line to free
+ - dev_id: Device identity to free
+
+The function `free_irq` should be called only once for each interrupt line and device identity.</DESCRIPTION>
+<LINKS>[bugfix example](http://lists.openfabrics.org/pipermail/general/2009-June/060073.html)</LINKS>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_RECOMMENDATION item="y">
+<TITLE>Unnecessary call to synchronize_irq before free_irq</TITLE>
+<ID>0074</ID>
+<DESCRIPTION>free_irq() calls synchronize_irq() for you, so there is no need for drivers to manually do the same thing (again). Thus, calls where sync-irq immediately precedes free-irq can be simplified.</DESCRIPTION>
+<LINKS>http://kerneltrap.org/mailarchive/git-commits-head/2008/4/24/1584714</LINKS>
+</RULE_RECOMMENDATION>
+<RULE_WARNING item="y">
+<TITLE>Using gpio_{request,free} instead of &quot;autorequest&quot; in gpiolib</TITLE>
+<ID>0075</ID>
+<DESCRIPTION>The first thing a system should do with a GPIO is allocate it, using the gpio_request() call. 
+One of the next things to do with a GPIO, often in board setup code when
+setting up a platform_device using the GPIO, is mark its direction:
+	/* set as input or output, returning 0 or negative errno */
+	int gpio_direction_input(unsigned gpio);
+	int gpio_direction_output(unsigned gpio, int value);
+For compatibility with legacy interfaces to GPIOs, setting the direction of a GPIO implicitly requests that GPIO if it has not been requested already.  That compatibility is being removed from the optional gpiolib framework.
+You should always call gpio_request() before using other gpio functions.
+The old code using &quot;autorequest&quot; won't break yet, but instead only triggers a WARN() stack dump.</DESCRIPTION>
+<LINKS>http://kerneltrap.org/mailarchive/git-commits-head/2009/4/3/5372974
+Documentation/gpio.txt</LINKS>
+</RULE_WARNING>
+<RULE_ERROR item="y">
+<TITLE>Requirement of mutex acquisition before calling some functions</TITLE>
+<ID>0076</ID>
+<DESCRIPTION>Some functions has a precondition of the call: aquirement of a special mutex. Function should not be called without the required mutex.</DESCRIPTION>
+<LINKS>[bugzilla entry](http://bugzilla.kernel.org/show_bug.cgi?id=13227)</LINKS>
+<EXAMPLE>The function `drm_gem_object_free()` from `drivers/gpu/drm/drm_gem.c` requires `dev-&gt;struct_mutex` to be locked before a call.
+
+    drm_gem_object_free(struct kref *kref)
+    {
+        struct drm_gem_object *obj = (struct drm_gem_object *) kref;
+        struct drm_device *dev = obj-&gt;dev;
+        
+        BUG_ON(!mutex_is_locked(&amp;dev-&gt;struct_mutex));
+        ...
+
+`drm_gem_object_free` is mostly called through `drm_gem_object_unreference(include/drm/drmP.h)`.
+
+    static inline void drm_gem_object_unreference(struct drm_gem_object *obj)
+    {
+        if (obj == NULL)
+            return;        
+        kref_put(&amp;obj-&gt;refcount, drm_gem_object_free);
+    }
+
+**Incorrect examples**
+
+1. `i915_gem_set_tiling` (`drivers/gpu/drm/i915/i915_gem_tiling.c`)
+
+    int i915_gem_set_tiling(struct drm_device *dev, void *data, struct drm_file *file_priv)
+    {
+        struct drm_i915_gem_set_tiling *args = data;
+        drm_i915_private_t *dev_priv = dev-&gt;dev_private;
+        struct drm_gem_object *obj;
+        struct drm_i915_gem_object *obj_priv;
+        
+        obj = drm_gem_object_lookup(dev, file_priv, args-&gt;handle);
+        if (obj == NULL)
+            return -EINVAL;
+        obj_priv = obj-&gt;driver_private;
+        
+        if (!i915_tiling_ok(dev, args-&gt;stride, obj-&gt;size, args-&gt;tiling_mode)) {
+        drm_gem_object_unreference(obj); &lt;----- ISSUE #1: unreference before unlock
+            return -EINVAL;
+        }
+        
+        mutex_lock(&amp;dev-&gt;struct_mutex);
+         ...
+
+  line 317:
+
+        ret = i915_gem_object_unbind(obj);
+        if (ret != 0) {
+            WARN(ret != -ERESTARTSYS, &quot;failed to unbind object for tiling switch&quot;);
+            args-&gt;tiling_mode = obj_priv-&gt;tiling_mode;
+            mutex_unlock(&amp;dev-&gt;struct_mutex);
+            drm_gem_object_unreference(obj); &lt;----- ISSUE #2: unreference after unlock
+            
+            return ret;
+
+2. `i915_gem_pread_ioctl` and `i915_gem_pwrite_ioctl` (`drivers/gpu/drm/i915/i915_gem.c`)
+
+    int i915_gem_pread_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv)
+    {
+        struct drm_i915_gem_pread *args = data;
+        struct drm_gem_object *obj;
+        struct drm_i915_gem_object *obj_priv;
+        int ret;
+        
+        obj = drm_gem_object_lookup(dev, file_priv, args-&gt;handle);
+        if (obj == NULL)
+            return -EBADF;
+        obj_priv = obj-&gt;driver_private;
+        
+        /* Bounds check source.
+         *
+         * XXX: This could use review for overflow issues...
+         */
+        if (args-&gt;offset &gt; obj-&gt;size || args-&gt;size &gt; obj-&gt;size ||
+            args-&gt;offset + args-&gt;size &gt; obj-&gt;size) {
+            drm_gem_object_unreference(obj); &lt;----- ISSUE #3: unreference without lock
+            return -EINVAL;
+        }
+    
+        if (i915_gem_object_needs_bit17_swizzle(obj)) {
+            ret = i915_gem_shmem_pread_slow(dev, obj, args, file_priv);
+        } else {
+            ret = i915_gem_shmem_pread_fast(dev, obj, args, file_priv);
+            if (ret != 0)
+                ret = i915_gem_shmem_pread_slow(dev, obj, args, file_priv);
+        }
+        
+        drm_gem_object_unreference(obj); &lt;----- ISSUE #4: unreference without lock
+        
+        return ret;
+    }
+    
+The same is for `i915_gem_pwrite_ioctl()`.</EXAMPLE>
+<NOTES>There is an idea to utilize constructions like `BUG_ON(!mutex_is_locked(...))`  (`WARN_ON`,  `WARN_ON_ONCE,ZD_ASSERT` ...) to search for functions with the precondition on holding mutex.</NOTES>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Disable IO during memory allocation while holding usb device lock</TITLE>
+<ID>0077</ID>
+<SUMMARY>You should use `GFP_NOIO` instead of `GFP_KERNEL` for memory allocations between `usb_lock_device()` and `usb_unlock_device()`.</SUMMARY>
+<DESCRIPTION>Memory allocations with `GFP_KERNEL` can cause IO to a storage
+device which can fail resulting in a need to reset the device.
+Therefore `GFP_KERNEL` cannot be safely used between `usb_lock_device()`
+and `usb_unlock_device()`. Replace it by `GFP_NOIO`.</DESCRIPTION>
+<LINKS>[bugfix example](http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=186c74d336e2c1377df9e5dc88f7966b2dd6acf7)</LINKS>
+<EXAMPLE>2.6.32
+drivers/usb/core/devices.c
+drivers/usb/core/message.c</EXAMPLE>
+<STATUS>PUBLISHED</STATUS>
+</RULE_ERROR>
+<RULE_ERROR item="y">
+<TITLE>Dereference after kfree</TITLE>
+<ID>0078</ID>
+<DESCRIPTION>Memory released by kfree (kzfree, etc) should not be accessed.</DESCRIPTION>
+<LINKS>http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=44a529c6b32a9254cacc0d0c6423967883d8ebcd
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=fa00e106eb6f082654d822a0946c0c86297ede2c</LINKS>
+</RULE_ERROR>
+<DEFAULT item="n"
+line0="{*Name*}"
+line1="{*Name*}">
+<Name type="Text" ref="y"></Name>
+</DEFAULT>
+<RULE item="n"
+line0="{*ID*}: {*TITLE*}"
+line1="{*TITLE*}"
+icon="write">
+<TITLE type="Text" ref="y"></TITLE>
+<ID type="Text"></ID>
+<SUMMARY type="Text"></SUMMARY>
+<DESCRIPTION type="Text" lines="7"></DESCRIPTION>
+<VERIFICATION type="Text"></VERIFICATION>
+<LINKS type="Text"></LINKS>
+<KERNEL_VERSION type="Text"></KERNEL_VERSION>
+<ARCH type="Text"></ARCH>
+<SUBSYSTEM type="Text"></SUBSYSTEM>
+<EXAMPLE type="Text"></EXAMPLE>
+<NOTES type="Text"></NOTES>
+<STATUS type="Choice" format="UNPUBLISHED/PUBLISHED" init="UNPUBLISHED"></STATUS>
+</RULE>
+</ROOT>

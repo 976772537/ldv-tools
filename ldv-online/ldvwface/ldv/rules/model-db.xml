@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model-db>
+	<plain_options>
+		<off>-O.</off>	
+	</plain_options>
+
+	<aspect_options>
+		<off>-Wframe-larger-than=\d+</off>
+		<off>-fno-dwarf2-cfi-asm</off>
+		<off>-fconserve-stack</off>
+		<off>-O.</off>	
+		<on>-Wno-attributes</on>
+		<on>-g</on>
+	</aspect_options>
+
+	<model id="BZ_1">
+		<rule>0000</rule>
+		<status>private</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description>Empty model for testing</description>
+		<files>
+			<aspect>./files/model-empty-blast.aspect</aspect>
+			<common>./files/model-empty-blast.aspect.common</common>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="BZ_2">
+		<rule>0000</rule>
+		<status>private</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description>Empty model for testing</description>
+		<files>
+			<common>./files/model-empty-blast.c</common>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="FF_1">
+		<rule>0000</rule>
+		<status>private</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description>Always fails in check_final_state</description>
+		<files>
+			<aspect>./files/model-ff-blast.aspect</aspect>
+			<common>./files/model-ff-blast.aspect.common</common>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="FF_2">
+		<rule>0000</rule>
+		<status>private</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description>Always fails in check_final_state</description>
+		<files>
+			<common>./files/model-ff-blast.c</common>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="X_X">
+		<rule>0000</rule>
+		<status>private</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description>Always error for blast</description>
+		<files>
+			<aspect>./files/model-error-blast.aspect</aspect>
+			<common>./files/model-error-blast.aspect.common</common>
+		</files>
+		<hints></hints>
+	</model>
+	
+	<model id="07_1">
+		<rule>0007</rule>
+		<status>public</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0007-blast.c</common>
+			<filter>./files/model0007-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="08_1">
+		<rule>0008</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0008-blast.aspect</aspect>
+			<common>./files/model0008-blast.aspect.common</common>
+			<filter>./files/model0008-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="10_1">
+		<rule>0010</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0010-blast.aspect</aspect>
+			<common>./files/model0010-blast.aspect.common</common>
+			<filter>./files/model0010-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="18_1">
+		<rule>0018</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0018a-blast.aspect</aspect>
+			<common>./files/model0018a-blast.aspect.common</common>
+			<filter>./files/model0018a-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="26_1">
+		<rule>0026</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0026-blast.aspect</aspect>
+			<common>./files/model0026-blast.aspect.common</common>
+			<filter>./files/model0026-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="27_1">
+		<rule>0027</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0027-blast.aspect</aspect>
+			<common>./files/model0027-blast.aspect.common</common>
+			<filter>./files/model0027-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="29_1">
+		<rule>0029</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0029-blast.aspect</aspect>
+			<common>./files/model0029-blast.aspect.common</common>
+			<filter>./files/model0029-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="29_2">
+		<rule>0029</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0029-blast.c</common>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="32_1">
+		<rule>0032</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0032-blast.c</common>
+			<filter>./files/model0032-blast.sh</filter>
+			<config>./files/model0032-config.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="32_2">
+		<rule>0032</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0032a-blast.aspect</aspect>
+			<common>./files/model0032a-blast.aspect.common</common>
+			<filter>./files/model0032a-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="32_3">
+		<rule>0032</rule>
+		<status>private</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0032extm-blast.aspect</aspect>
+			<common>./files/model0032extm-blast.aspect.common</common>
+			<filter>./files/model0032extm-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="32_4">
+		<rule>0032</rule>
+		<status>private</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0032l2u2-blast.aspect</aspect>
+			<common>./files/model0032l2u2-blast.aspect.common</common>
+			<filter>./files/model0032l2u2-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="32_5">
+		<rule>0032</rule>
+		<status>private</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0032nd-blast.c</common>
+			<filter>./files/model0032nd-blast.sh</filter>
+			<config>./files/model0032-config.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="37_1">
+		<rule>0037</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0037-blast.aspect</aspect>
+			<common>./files/model0037-blast.aspect.common</common>
+			<filter>./files/model0037-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="39_1">
+		<rule>0039</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0039-blast.c</common>
+			<filter>./files/model0039-blast.sh</filter>
+			<config>./files/model0039-config.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="39_2">
+		<rule>0039</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0039-blast.aspect</aspect>
+			<common>./files/model0039-blast.aspect.common</common>
+			<filter>./files/model0039-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="40_1">
+		<rule>0040</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0040-blast.aspect</aspect>
+			<common>./files/model0040-blast.aspect.common</common>
+			<filter>./files/model0040-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="43_1">
+		<rule>0043</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0043-blast.aspect</aspect>
+			<common>./files/model0043-blast.aspect.common</common>
+			<filter>./files/model0043-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="49_1">
+		<rule>0049</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0049-blast.c</common>
+			<filter>./files/model0049-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="49_2">
+		<rule>0049</rule>
+		<status>private</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0049a-blast.aspect</aspect>
+			<common>./files/model0049a-blast.aspect.common</common>
+			<filter>./files/model0049a-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="54_1">
+		<rule>0054</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0054-blast.aspect</aspect>
+			<common>./files/model0054-blast.aspect.common</common>
+			<filter>./files/model0054-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="60_1">
+		<rule>0060</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0060-blast.c</common>
+			<filter>./files/model0060-blast.sh</filter>
+			<config>./files/model0060-config.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="60_2">
+		<rule>0060</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0060-blast.aspect</aspect>
+			<common>./files/model0060-blast.aspect.common</common>
+			<filter>./files/model0060-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="64_1">
+		<rule>0064</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0064-blast.aspect</aspect>
+			<common>./files/model0064-blast.aspect.common</common>
+			<filter>./files/model0064-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="68_1">
+		<rule>0068</rule>
+		<status>default</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0068-blast.c</common>
+			<filter>./files/model0068-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="73_1">
+		<rule>0073</rule>
+		<status>public</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0073a-blast.aspect</aspect>
+			<common>./files/model0073a-blast.aspect.common</common>
+			<filter>./files/model0073a-blast.sh</filter>
+			<config>./files/config-tracers.h</config>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="76_1">
+		<rule>0076</rule>
+		<status>private</status>
+		<kind>plain</kind>
+		<error>LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<common>./files/model0076.c</common>
+			<filter>./files/model0076-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+
+	<model id="77_1">
+		<rule>0077</rule>
+		<status>default</status>
+		<kind>aspect</kind>
+		<error>llvm_cbe_LDV_ERROR</error>
+		<engine>blast</engine>
+		<description></description>
+		<files>
+			<aspect>./files/model0077-blast.aspect</aspect>
+			<common>./files/model0077-blast.aspect.common</common>
+			<filter>./files/model0077-blast.sh</filter>
+		</files>
+		<hints></hints>
+	</model>
+</model-db>
+
+
