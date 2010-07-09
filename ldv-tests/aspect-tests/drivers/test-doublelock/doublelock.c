@@ -7,7 +7,7 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 
-static DEFINE_MUTEX(my_lock);
+static struct mutex *my_lock;
 
 static int misc_open(struct inode * inode, struct file * file);
 
@@ -17,8 +17,8 @@ static const struct file_operations misc_fops = {
 };
 
 static void alock(void) {
-	mutex_lock(&my_lock);
-	mutex_unlock(&my_lock);
+	mutex_lock(my_lock);
+	mutex_unlock(my_lock);
 }
 
 struct A {
@@ -29,14 +29,14 @@ static int misc_open(struct inode * inode, struct file * file)
 {
 	int a=5, b=10, c=3;
 	struct A x,y,z;
-	mutex_lock(&my_lock);
+	mutex_lock(my_lock);
 	if(a+b-c<=23) {
 		x.a = y.b - z.c + x.b;
 		if(x.a-y.c<=z.b) {
 			alock();
 		}
 	}
-	mutex_unlock(&my_lock);
+	mutex_unlock(my_lock);
 	return 0;
 }
 
