@@ -167,12 +167,18 @@ function view_user_history() {
 	<?php
 }
 
-function view_detailed_report($trace_id) {
-	$trace = WSGetDetailedReport($trace_id);
+function view_detailed_report($trace_id, $trace_type) {
+	if($trace_type == 'kernel') {
+		$trace = WSGetDetailedBuildError($trace_id);
+		$etheader = 'Build error trace for driver: '.$trace['drivername'].' and kernel: '.$trace['env'];
+	} else {
+		$trace = WSGetDetailedReport($trace_id);
+		$etheader = 'Error trace for driver: '.$trace['drivername'].'';
+	}
 	?>
 	<form>
 	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Error trace for driver: <?php print $trace['drivername']; ?></span>
+		<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $etheader; ?></span>
 	</p>
 	<?php print $trace['error_trace'];?>	
 	</form>
@@ -186,8 +192,8 @@ function view_task_status($task_id) {
 		return;
 	}
 	// jQuery UI framework
-	?>
-		
+	?>	
+	
 	<form>
 	<p>
 	<p>
@@ -203,53 +209,64 @@ function view_task_status($task_id) {
 			});
   		});
 	</script>
-
+	<p>
 	<table width="100%" border="1" style="border-collapse: collapse;">
+		<?php foreach($status['envs'] as $env) { ?>	
 		<tr>
-			<th>kernel</th>
-			<th>title</th>
-			<th>verdict</th>
+			<?php if($env['status']=='Build failed') { ?>
+				<th width="80%"  bgcolor="#CCCCFF"><span><?php print $env['name']; ?></span></th>
+				<th              bgcolor="red"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><strong>Build failed</strong></a></th>
+			<?php } else { ?>
+				<th COLSPAN=2   bgcolor="#CCCCFF"><span><?php print $env['name']; ?></span></th>
+			<?php } ?>
 		</tr>
-		<?php  
-		// calvulate - printed records
-		?>
-		<?php foreach($status['envs'] as $env) { $isfirst=true; ?>
-			<?php foreach($env['rules'] as $rule) { ?>
+		<?php if($env['status']!='Build failed') { ?>
+		<tr>
+			<th width="80%" bgcolor="#CCCCFF">title</th>
+			<th             bgcolor="#CCCCFF">verdict</th>
+		</tr>
+		<?php foreach($env['rules'] as $rule) { ?>
 			<?php if ($rule['status'] == 'queued') { ?>
 			<tr>
-				<td><?php print $env['name']; ?></td>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
 				<td><?php print $rule['status']; ?></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'running') { ?>
 			<tr>
-				<td><?php print $env['name']; ?></td>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
 				<td><?php print $rule['status']; ?></td>
 			</tr>	
+			<?php } else if($rule['status'] == 'failed') { ?>
+			<tr>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
+				<td bgcolor="yellow">unknown</td>
+			</tr>
 			<?php } else { ?>
-			<?php foreach($rule['results'] as $result) { ?>
-			<tr>	
-				<td><?php print $env['name']; ?></td>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
-				<?php if($result['status'] == 'unsafe') { ?> 
-				<td bgcolor="red">
-					<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
-				<?php } else if($result['status']=='safe') { ?>
-				<td bgcolor="#66CC33">
-					safe
-				<?php } else { ?>
-				<td bgcolor="yellow">
-					unknown
+				<?php $isfirst=true; ?>
+				<?php foreach($rule['results'] as $result) { ?>
+				<tr>	
+					<?php if($isfirst == true) { $isfirst=false; ?>
+					<td ROWSPAN="<?php print count($rule['results']); ?>"><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?><font></a></td>
+					<?php } ?>
+					<?php if($result['status'] == 'unsafe') { ?> 
+					<td bgcolor="red">
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
+					<?php } else if($result['status']=='safe') { ?>
+					<td bgcolor="#66CC33">
+						safe
+					<?php } else { ?>
+					<td bgcolor="yellow">
+						unknown
+					<?php } ?>
+					</td>
+				</tr>		
 				<?php } ?>
-				</td>
-			<tr>		
-			<?php } ?>
-			<?php } ?>
 			<?php } ?>
 		<?php } ?>
+		<?php } ?>
+		<?php } ?>
 	</table>
-
+	</p>
 <!--
 	<?php $i=1; ?>
 	<?php if($status['finished'] != 0) { ?>
@@ -341,7 +358,8 @@ else if ($action == "get_history" && !$exit)
 else if ($action == "detailed_report" && !$exit) 
 {
 	$trace_id = request_var('trace_id','');
-	view_detailed_report($trace_id);	
+	$trace_type = request_var('trace_type','');
+	view_detailed_report($trace_id,$trace_type);	
 }
 else if ($action == "get_status" && !$exit) 
 {

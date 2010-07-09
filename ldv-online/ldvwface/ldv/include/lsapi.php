@@ -506,6 +506,7 @@ function WSGetTaskReport($task_id) {
 			$j=0;
 			$last_env = $row['env'];
 			$task['envs'][$i]['name']=$row['env'];
+			$task['envs'][$i]['status']='ok';
 			$task['envs'][$i]['environment_id']=$row['environment_id'];
 			unset($last_rule);
 		}
@@ -548,6 +549,17 @@ function WSGetTaskReport($task_id) {
 					array_push($task['envs'][$env_key]['rules'][$rule_key]['results'],$ver_result);
 					break 2;
 				}
+			}
+		}
+	}
+	// Add build failed statuses - replace it to first select
+	$result=WSStatsQuery('SELECT stats.id AS trace_id, tasks.timestamp, launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, environments.version AS env FROM environments,drivers,tasks,launches,traces,stats WHERE environments.id=launches.environment_id AND drivers.id=launches.driver_id AND launches.task_id=tasks.id AND stats.id=traces.build_id AND launches.task_id='.$task_id.' AND launches.rule_model_id IS NULL AND launches.scenario_id IS NULL AND launches.trace_id=traces.id AND success=0 AND launches.status=\'finished\';');
+	while($row = mysql_fetch_array($result)) {
+		foreach($task['envs'] as $env_key => $env) {
+			if($env['environment_id'] == $row['environment_id']) {
+				$task['envs'][$env_key]['status']='Build failed';
+				$task['envs'][$env_key]['trace_id']=$row['trace_id'];
+				break;
 			}
 		}
 	}
@@ -650,6 +662,20 @@ function WSGetDetailedReport($trace_id) {
 	$trace['error_trace'] = fread($fh,$size);
 	fclose($fh);
 	return $trace;	
+}
+
+function WSGetDetailedBuildError($trace_id) {
+	$conn = WSStatsConnect();
+	// TODO: add user=user .....
+	$result = WSStatsQuery('SELECT stats.id, stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments WHERE stats.id='.$trace_id.' AND traces.build_id='.$trace_id.' AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
+	if($row = mysql_fetch_array($result)) {
+		$trace['trace_id']=$row['id'];
+		$trace['env']=$row['env'];
+		$trace['drivername']=$row['driver'];
+                $trace['error_trace'] = preg_replace('/\n/','<br>', $row['error_trace']);
+	}
+	WSStatsDisconnect($conn);
+	return $trace;
 }
 
 function WSGetHistory() {
