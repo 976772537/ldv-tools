@@ -1020,9 +1020,33 @@ sub visualize_error_trace($)
   print($file_report_out "\n<table class='ETVGeneralWindow'>\n<tr>\n<td class='ETVErrorTraceWindow'><div class='ETVErrorTrace'>");
   print_error_trace($tree_root);
   print($file_report_out "\n</div></td>\n<td class='ETVSrcWindow'>\n");
-  foreach my $src (keys(%srcs))
+  print($file_report_out 
+    "\n<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('#ETVSourceCodeTabs').tabs()"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>\n");   
+  print($file_report_out 
+	"\n<div id='ETVSourceCodeTabs'>\n<ul>");
+  my $i = 1;
+  foreach my $src (sort(keys(%srcs)))
   {
-	print($file_report_out "<pre><span style='color: red;'>$src</span>\n$srcs{$src}</pre>");
+     print($file_report_out "\n  <li><a href='#ETVTab-$i'><span>$src</span></a></li>");
+     $i++;
   }
+  print($file_report_out "\n</ul>");
+  $i = 1;
+  foreach my $src (sort(keys(%srcs)))
+  {
+     print($file_report_out "\n<div id='ETVTab-$i' class='ETVSrc'>$srcs{$src}</div>");
+     $i++;
+  }
+  print($file_report_out "\n</div>");
+	
+  #<pre><span style='color: red;'>$src</span>\n$srcs{$src}</pre>
   print($file_report_out "</td>\n</tr>\n</table>\n");
 }
