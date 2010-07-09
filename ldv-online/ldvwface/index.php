@@ -113,13 +113,20 @@ function action_upload_driver() {
                 return;
         }
         $file_size = $_FILES['file']['size'];
-        if($file_size > 1000999) {
+       	if($file_size > WS_MAX_DRIVER_SIZE) {
                 print '<b><font color="red">File size too long.</font></b><br>';
                 view_upload_driver_form();
                 return;
         }
-
 	$task['driverpath'] = $_FILES['file']['tmp_name'];
+	// Test MIME-content type
+	$content_type =  mime_content_type($task['driverpath']);
+	if($content_type != 'application/x-bzip2; charset=binary'
+		&& $content_type != 'application/x-gzip; charset=binary') {
+                print '<b><font color="red">Driver content type not supported.</font></b><br>';
+                view_upload_driver_form();
+                return;
+	}
 	$task['drivername'] = $_FILES['file']['name'];
 	$task['envs'] = WSGetSupportedEnvList();
 	$task['id'] = WSPutTask($task);

@@ -37,6 +37,8 @@ function WSInit($ldvs_server_config) {
 	}
         if(($file_array=file($ldvs_server_config))) {
                 for($i=0; $i<count($file_array); $i++) {
+			if(preg_match('/DriverMaxSizeForUpload=(.*)/', $file_array[$i], $lmatches)) 
+				define("WS_MAX_DRIVER_SIZE",$lmatches[1]);
 			if(preg_match('/WSTempDir=(.*)/', $file_array[$i], $lmatches)) 
 				define("WS_TMP_DIR",$lmatches[1]);
 			if(preg_match('/ErrorTraceVisualizer=(.*)/', $file_array[$i], $lmatches)) 
@@ -86,6 +88,7 @@ function WSInitPrint() {
 	WSPrintD("Set up WS_DEBUG_MODE=".WS_DEBUG_MODE);
 	WSPrintD("Set up WS_ETV=".WS_ETV);
 	WSPrintD("Set up WS_TMP_DIR=".WS_TMP_DIR);
+	WSPrintD("Set up WS_MAX_DRIVER_SIZE=".WS_MAX_DRIVER_SIZE);
 }
 
 function WSInitDefault() {
@@ -103,9 +106,10 @@ function WSInitDefault() {
 	define("WS_LDV_DEBUG","100");
 	define("WS_MODELS_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/model-db.xml");
 	define("WS_RULES_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/rules/DRVRULES_en.trl");
-	define("WS_DEBUG_MODE","toface");
+	define("WS_DEBUG_MODE","off");
 	define("WS_ETV","/opt/ldv/bin/error-trace-visualizer.pl");
 	define("WS_TMP_DIR","/home/iceberg/ldvtest/ldv-online/tmpdir");
+	define("WS_MAX_DRIVER_SIZE",1500000);
 }
 
 #
@@ -363,8 +367,19 @@ function WSRead($sock) {
 # $task['drivername'] = "lsapi.tar.bz2";
 # $task['envs'] = array($env1, $env2);
 #
-# WSPutTask($task);
+# WSPutTask($task); 
 function WSPutTask($task) {
+	// Wrapper for fix : "Premature end of file on server side message"
+	$result = __WSPutTask($task);
+	for($i=0; $i<3; $i++) {
+		if($result != null) return $result;
+		sleep(1);
+		$result = __WSPutTask($task);
+	}
+	return $result;
+}
+
+function __WSPutTask($task) {
 	$task['user']=WSGetUser();
 	$sock = WSConnect();
 	if(empty($sock)) return;

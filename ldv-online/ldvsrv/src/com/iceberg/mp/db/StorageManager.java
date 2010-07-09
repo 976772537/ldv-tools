@@ -74,7 +74,7 @@ public class StorageManager {
 		Logger.debug("Open JDBC driver...");
 		//2. открываем JDBC драйвер:
 		Class.forName(dbdriver);
-		connectionString = connectionPrefix+":"+dbType+":"+dbworkdir+dblockmode; 
+		connectionString = connectionPrefix+":"+dbType+":"+dbworkdir+dblockmode+";AUTO_RECONNECT=TRUE"; 
 		Logger.debug("Create new lead connection...");
 		Logger.trace("Connection URL:\""+connectionString+"\"");
 		// Create connection pool
@@ -99,7 +99,7 @@ public class StorageManager {
 		Logger.debug("Open JDBC driver...");
 		Class.forName(statsDbdriver);
 		//jdbc:mysql://repos.insttech.washington.edu:3306/johndoe
-		statsConnectionString = statsConnectionPrefix+":"+statsDbType+"://"+statsDbhost+":"+statsDbport+"/"+statsDbname; //?user="+statsDbuser+"&password="+statsDbpass;
+		statsConnectionString = statsConnectionPrefix+":"+statsDbType+"://"+statsDbhost+":"+statsDbport+"/"+statsDbname+"?autoReconnect=true"; //?user="+statsDbuser+"&password="+statsDbpass;
 		Logger.debug("Create new lead connection for stats DB...");
 		Logger.trace("Connection URL for stats DB:\""+statsConnectionString+"\"");
 		// create connection pool
