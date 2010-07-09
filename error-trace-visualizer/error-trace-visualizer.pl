@@ -84,6 +84,11 @@ sub process_error_trace();
 # retn: the tree root node.
 sub process_error_trace_blast();
 
+# Process a file containing all source code files and separate them.
+# args: no.
+# retn: nothing.
+sub process_source_code_files();
+
 # Read something placed into brackets.
 # args: some string.
 # retn: the content of brackets or undef if it can't be read.
@@ -119,6 +124,11 @@ sub read_locals($);
 # args: some string.
 # retn: the processed path to file and line number or undef if it can't be read.
 sub read_location($);
+
+# Make needed visualization of the error trace.
+# args: the tree root node.
+# retn: nothing.
+sub visualize_error_trace($);
 
 
 ################################################################################
@@ -187,6 +197,14 @@ my $regexp_element_kind = '^([^=\(:]+)';
 # The number of indentation spaces.
 my $space_indent = 3;
 
+# This tag must be placed at the beginning and at the end of source code file
+# name.
+my $src_tag = '-------';
+
+# Source code files referenced by the error trace. Keys are source code file 
+# names, values are their contents.
+my %srcs;
+
 
 ################################################################################
 # Main section.
@@ -198,12 +216,13 @@ get_debug_level($debug_name, $LDV_DEBUG, $LDV_ERROR_TRACE_VISUALIZER_DEBUG);
 print_debug_normal("Process the command-line options");
 get_opt();
 
-print_debug_normal("Process trace.");
+print_debug_normal("Process trace");
 my $tree_root = process_error_trace();
 
 if ($opt_report_out)
 {
-  print_error_trace($tree_root);	
+  process_source_code_files();
+  visualize_error_trace($tree_root);	
 }
 
 # TODO this must be fixed!!!!!!
@@ -382,9 +401,9 @@ sub print_error_trace($)
 {
   my $tree_root = shift;
   	
-  print_debug_debug("Print the '$opt_engine' static verifier error trace.");
+  print_debug_debug("Print the '$opt_engine' static verifier error trace");
   $engines{$opt_engine}{'print'}->($tree_root);  
-  print_debug_debug("'$opt_engine' static verifier error trace is printed successfully.");
+  print_debug_debug("'$opt_engine' static verifier error trace is printed successfully");
 }
 
 sub print_error_trace_blast($)
@@ -436,7 +455,7 @@ sub print_error_trace_node_blast($$)
   my $tree_node = shift;
   my $indent = shift;
   
-  print_debug_trace("Print the '$tree_node->{'kind'}' tree node.");
+  print_debug_trace("Print the '$tree_node->{'kind'}' tree node");
 
   # Process tree node values a bit.
   if (${$tree_node->{'values'}}[0])
@@ -675,9 +694,9 @@ sub print_show_hide_local($)
 
 sub process_error_trace()
 {
-  print_debug_debug("Process the '$opt_engine' static verifier error trace.");
+  print_debug_debug("Process the '$opt_engine' static verifier error trace");
   my $tree_root = $engines{$opt_engine}{'process'}->();  
-  print_debug_debug("'$opt_engine' static verifier error trace is processed successfully.");
+  print_debug_debug("'$opt_engine' static verifier error trace is processed successfully");
   
   return $tree_root;
 }
@@ -737,7 +756,7 @@ sub process_error_trace_blast()
       {
         if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
         {
-		  print_debug_trace("Process the '$element_kind' tree node.");
+		  print_debug_trace("Process the '$element_kind' tree node");
 		  	
 		  # Ignore skips at all.	
 		  if ($element_value)
@@ -768,7 +787,7 @@ sub process_error_trace_blast()
       {
         if (defined(my $element_value = $blast{'annotation'}{$element_kind}->($element_content)))
         {
-		  print_debug_trace("Process the '$element_kind' annotation.");
+		  print_debug_trace("Process the '$element_kind' annotation");
 		  
           # Ignore arificial locations at all.  
           if ($element_value) 
@@ -813,6 +832,33 @@ sub process_error_trace_blast()
   
   # Return the tree root node.
   return $parents[0];
+}
+
+sub process_source_code_files()
+{
+  # Do nothing if there is no source code files.
+  return 0 unless ($opt_src_files);
+  
+  # Otherwise separate files into the source code files hash.
+  my $file_name;
+  foreach my $line (<$file_src_files>)
+  {
+	chomp($line);
+	
+	if ($line =~ /^$src_tag(.*)$src_tag$/)
+	{
+	  $file_name = $1;
+	  $file_name =~ /\//;
+	  $file_name = $POSTMATCH;
+	  print_debug_debug("Process the '$file_name' source code file");
+	  next;	
+	}
+	
+	die("The source code file has incorrect format. No file name is specified") 
+	  unless ($file_name);
+	
+	$srcs{$file_name} .= "$line\n";
+  }
 }
 
 sub read_brackets($)
@@ -966,4 +1012,11 @@ sub read_location($)
   @location = ($src, $line_numb);
 
   return \@location;
+}
+
+sub visualize_error_trace($)
+{
+  my $tree_root = shift;
+  
+  print_error_trace($tree_root);
 }
