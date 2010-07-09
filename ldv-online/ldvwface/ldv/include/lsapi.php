@@ -37,6 +37,12 @@ function WSInit($ldvs_server_config) {
 	}
         if(($file_array=file($ldvs_server_config))) {
                 for($i=0; $i<count($file_array); $i++) {
+			if(preg_match('/WSTempDir=(.*)/', $file_array[$i], $lmatches)) 
+				define("WS_TMP_DIR",$lmatches[1]);
+			if(preg_match('/ErrorTraceVisualizer=(.*)/', $file_array[$i], $lmatches)) 
+				define("WS_ETV",$lmatches[1]);
+			if(preg_match('/LDVFaceDebugMode=(.*)/', $file_array[$i], $lmatches)) 
+				define("WS_DEBUG_MODE",$lmatches[1]);
 			if(preg_match('/LDVServerAddress=(.*)/', $file_array[$i], $lmatches)) 
 				define("WS_LDVS_SERVER_NAME",$lmatches[1]);
                        	if(preg_match('/WSPort=(.*)/', $file_array[$i], $lmatches))
@@ -77,6 +83,9 @@ function WSInitPrint() {
 	WSPrintD("Set up WS_SDB_PORT=".WS_SDB_PORT);
 	WSPrintD("Set up WS_RULES_DB_PATH=".WS_RULES_DB_PATH);
 	WSPrintD("Set up WS_MODELS_DB_PATH=".WS_MODELS_DB_PATH);
+	WSPrintD("Set up WS_DEBUG_MODE=".WS_DEBUG_MODE);
+	WSPrintD("Set up WS_ETV=".WS_ETV);
+	WSPrintD("Set up WS_TMP_DIR=".WS_TMP_DIR);
 }
 
 function WSInitDefault() {
@@ -94,6 +103,9 @@ function WSInitDefault() {
 	define("WS_LDV_DEBUG","100");
 	define("WS_MODELS_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/model-db.xml");
 	define("WS_RULES_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/rules/DRVRULES_en.trl");
+	define("WS_DEBUG_MODE","toface");
+	define("WS_ETV","/opt/ldv/bin/error-trace-visualizer.pl");
+	define("WS_TMP_DIR","/home/iceberg/ldvtest/ldv-online/tmpdir");
 }
 
 #
@@ -170,12 +182,12 @@ function WSPrintI($string) {
 }
 
 function WSPrintByLogLevel($string,$type) {
-	if(WSIsDebug())
+	if(WSIsDebug() == "toface")
 		print("<b>$type:</b> $string\n<br>");
 }
 
 function WSIsDebug() {
-	return true;
+	return WS_DEBUG_MODE;
 }
 
 #
@@ -440,7 +452,7 @@ function WSGetTaskReport($task_id) {
 			// remove wrong kernel environment
 			WSStatsQuery('DELETE FROM environments WHERE id='.$row['id'].';');
 	}
-	// TODO: Add workaround for task for linux-2.6.35-rc3 - wl...., when launch have status finished
+	// Workaround for task for linux-2.6.35-rc3 - wl...., when launch have status finished
 	//  and some other records in launches table with scenario_id or trace_id null
 	// 1. if records with null and failed exists then we replace status running with status 
 	// finished on ocrresponding records (rule + kernel compile failed)
@@ -456,7 +468,7 @@ function WSGetTaskReport($task_id) {
 
 
 
-	$result = WSStatsQuery('SELECT launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY scenario_id, trace_id, env, rule;');
+	$result = WSStatsQuery('SELECT tasks.timestamp, launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY scenario_id, trace_id, env, rule;');
 	if(mysql_num_rows($result) == 0) {
 		WSPrintE("Could not find task or wrong user.");
 		return;
@@ -469,6 +481,7 @@ function WSGetTaskReport($task_id) {
 	while($row = mysql_fetch_array($result))
   	{
 		$task['driver_id']=$row['driver_id'];
+		$task['timestamp']=$row['timestamp'];
 		// Fix for driver name that uploading to ldvs twice
                 $task['drivername'] = preg_replace('/_\d+$/','', $row['drivername']);
 		//	$task['drivername']=$row['drivername'];
@@ -539,31 +552,78 @@ function __WSGetDetailedReport($trace_id) {
 		$trace['error_trace']=$row['error_trace'];
 		$trace['verifier']=$row['verifier'];
 	}
+	
+	$result = WSStatsQuery('SELECT name, contents FROM sources WHERE trace_id='.$trace_id.';');
+	$trace['sources'] = array();
+	while($row = mysql_fetch_array($result)) {
+	//	print "s";
+		$source = array('name'=>  $row['name'], 'content' => $row['contents']);
+	//	$source = array('name'=>  $row['name']);
+		array_push($trace['sources'],$source);
+	}
 	WSStatsDisconnect($conn);
 	return $trace;
 }
 
+
+// TODO: add check for trace type (build error or unsafe)
 function WSGetDetailedReport($trace_id) {
 	$trace = __WSGetDetailedReport($trace_id);
 	$pwd = getcwd();
-	$tmpdir = $pwd.'/ldv/tmp';
-	// TODO:  test if this file already exists
-	$tmpfile = $tmpdir.'/1';
-	$tmpfile_report = $tmpdir.'/1.report';
-	// write report to file
-	// apache dir must be chmod a+x recursive 
-	$freport = fopen($tmpfile_report, 'w');
-	if(!$freport) {
-		WSPrintD('Can\'t open file for write source trace: '.$tmpfile_report);
-		WSPrintD('Check permissions.');
-		return;
+	$tmpdir = WS_TMP_DIR;
+	if(!is_dir($tmpdir)) {
+		WSPrintW('Temp dir not exists: '.$tmpdir.' - try to create it...');
+		if(!mkdir($tmpdir)) {
+			WSPrintE('Can\'t create temp dir: '.$tmpdir);
+			return;
+		}
 	}
-	// write our data
-	fwrite($freport, $trace['error_trace']);
-	fclose($freport);
-	$etv = $pwd.'/ldv/etv/bin/error-trace-visualizer.pl';
-	WSPrintD(exec('/usr/bin/perl '.$etv.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' -o '.$tmpfile));
-	WSPrintT('/usr/bin/perl '.$etv.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' -o '.$tmpfile);
+
+	$current_tmpdir=$tmpdir.'/'.$trace_id;
+	$tmpfile = $current_tmpdir.'/trace';
+	if(!is_dir($current_tmpdir)) {
+		// create dir
+		if(!mkdir($current_tmpdir)) {
+			WSPrintD('Can\'t create tmp directory for current trace: '.$current_tmpdir);
+			WSPrintD('Check permissions.');
+			return;
+		}
+		// write trace
+		$tmpfile_report = $current_tmpdir.'/report';
+		$freport = fopen($tmpfile_report, 'w');
+		if(!$freport) {
+			WSPrintD('Can\'t open file for write trace: '.$tmpfile_report);
+			WSPrintD('Check permissions.');
+			return;
+		}
+		fwrite($freport, $trace['error_trace']);
+		fclose($freport);
+
+		// write sources
+		$tmpfile_sources = $current_tmpdir.'/sources';
+		$freport = fopen($tmpfile_sources, 'w');
+		if(!$freport) {
+			WSPrintD('Can\'t open file for write source files: '.$tmpfile_sources);
+			WSPrintD('Check permissions.');
+			return;
+		}
+		// write our data
+		$first=true;
+		foreach($trace['sources'] as $source) {
+			if($first) {
+				$first=false;
+				fwrite($freport, '-------'.$source['name'].'-------'."\n");
+			} else {
+				fwrite($freport, "\n".'-------'.$source['name'].'-------'."\n");
+			}
+			fwrite($freport, $source['content']).'<br>';
+		}
+		fclose($freport);
+		// TODO: set up in parameters
+		//$etv = $pwd.'/ldv/etv/bin/error-trace-visualizer.pl';
+		WSPrintD(exec('/usr/bin/perl '.WS_ETV.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' --src-files '.$tmpfile_sources.' -o '.$tmpfile));
+		WSPrintT('/usr/bin/perl '.WS_ETV.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' --src-files '.$tmpfile_sources.' -o '.$tmpfile);
+	}
 	// read report :
 	$fh = fopen($tmpfile, "rb");
 	if(!$fh) {

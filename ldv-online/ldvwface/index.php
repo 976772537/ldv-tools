@@ -183,8 +183,9 @@ function view_task_status($task_id) {
 		
 	<form>
 	<p>
-	<span style="font-style: bold; color: #686868; font-size: 150%;">Verification results for driver: <?php print $status['drivername']; ?></span>
-	
+	<p>
+	<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $status['drivername'].' ('.$status['timestamp'].')'; ?></span>
+	</p>
 	<?php if($status['status'] != 'finished') { ?>
 	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>">
 	<?php } ?>
@@ -202,8 +203,24 @@ function view_task_status($task_id) {
 			<th>title</th>
 			<th>verdict</th>
 		</tr>
-		<?php foreach($status['envs'] as $env) { ?>
+		<?php  
+		// calvulate - printed records
+		?>
+		<?php foreach($status['envs'] as $env) { $isfirst=true; ?>
 			<?php foreach($env['rules'] as $rule) { ?>
+			<?php if ($rule['status'] == 'queued') { ?>
+			<tr>
+				<td><?php print $env['name']; ?></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
+				<td><?php print $rule['status']; ?></td>
+			</tr>	
+			<?php } else if($rule['status'] == 'running') { ?>
+			<tr>
+				<td><?php print $env['name']; ?></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
+				<td><?php print $rule['status']; ?></td>
+			</tr>	
+			<?php } else { ?>
 			<?php foreach($rule['results'] as $result) { ?>
 			<tr>	
 				<td><?php print $env['name']; ?></td>
@@ -220,6 +237,7 @@ function view_task_status($task_id) {
 				<?php } ?>
 				</td>
 			<tr>		
+			<?php } ?>
 			<?php } ?>
 			<?php } ?>
 		<?php } ?>
@@ -277,13 +295,13 @@ function view_task_status($task_id) {
 		<?php } ?>
 		<?php } ?>
 	</div> 
-	<?php }  ?>
+	<?php }  ?> -->
 	<?php if($status['status'] != 'finished') { ?>
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span>
 		<div id="progressbar"></div>
 	</p> 
-	<?php } ?> -->
+	<?php } ?> 
 	</form>
 	<?php
 }
