@@ -14,20 +14,34 @@
 .ETVBlock
 {
   color: gray;
-  font-size: 6pt;
+  font-size: 6pt;  
 }
 
 .ETVEntryPoint
 {
   color: red;
   font-weight: bold;
-  font-size: 8pt;
+  font-size: 8pt;  
 }
 
 .ETVEntryPointBody
 {
   color: red;
-  font-size: 8pt;
+  font-size: 8pt;  
+}
+
+.ETVErrorTrace
+{
+  height: 100%;
+  overflow: scroll;
+  width: 400px;
+  white-space: nowrap
+}
+
+.ETVErrorTraceWindow
+{
+  height: 100%;
+  vertical-align: top;
 }
 
 .ETVFunctionBody
@@ -39,7 +53,7 @@
 .ETVFunctionInitializationBody
 {
   color: green;
-  font-size: 8pt;
+  font-size: 8pt; 
 }
 
 .ETVFunctionCall
@@ -54,6 +68,7 @@
   color: red;
   font-style: italic;
   font-size: 8pt;
+  width: inherit;
 }
 
 .ETVFunctionCallWithoutBody
@@ -70,11 +85,19 @@
   font-weight: normal;
 }
 
+.ETVGeneralWindow
+{
+  border: 4px groove blue;
+  height: 800px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
 .ETVIdentation
 {
   font-weight: normal;
-  white-space: pre-wrap;
   font-size: 8pt;
+  white-space: pre;
 }
 
 .ETVReturn
@@ -93,6 +116,12 @@
 .ETVShowHide
 {
   font-weight: normal;
-  white-space: pre-wrap;
   font-size: 8pt;
+}
+
+.ETVSrcWindow
+{
+  height: 100%;
+  vertical-align: top;
+  width: 600px;
 }

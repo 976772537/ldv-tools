@@ -1017,6 +1017,12 @@ sub read_location($)
 sub visualize_error_trace($)
 {
   my $tree_root = shift;
-  
+  print($file_report_out "\n<table class='ETVGeneralWindow'>\n<tr>\n<td class='ETVErrorTraceWindow'><div class='ETVErrorTrace'>");
   print_error_trace($tree_root);
+  print($file_report_out "\n</div></td>\n<td class='ETVSrcWindow'>\n");
+  foreach my $src (keys(%srcs))
+  {
+	print($file_report_out "<pre><span style='color: red;'>$src</span>\n$srcs{$src}</pre>");
+  }
+  print($file_report_out "</td>\n</tr>\n</table>\n");
 }
