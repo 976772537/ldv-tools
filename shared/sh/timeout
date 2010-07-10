@@ -1,179 +1,160 @@
-#!/bin/bash
-#
-# The Bash shell script executes a command with a time-out and memory limit.
-# Prints termination reason to STDERR or to a file specified.
+#!/usr/bin/perl
+# Resource monitoring script for limiting black-boxed processes.
+# It runs an arbitrary process and watches for memory and time consumption.
+# The main feature is that it watches not only the process spawned, but also
+# its children--as long as it doesn't emerge a new process group, which it
+# should watch for on its own.
 
-# Extended by Pavel Shved <shved@ispras.ru>,
-# based on a script by Dmitry V Golovashkin <Dmitry.Golovashkin@sas.com>
+sub usage{ print STDERR <<usage_ends;
+Usage:
+	timeout [-t timelimit] [-m memlimit] command [argumens ...]
 
-# This script is in public domain.
+usage_ends
+	die;
+}
+# We use require_order because we don't want to process options of the command we run
+use Getopt::Long qw(:config require_order);
 
-scriptName="${0##*/}"
+my $timelimit = undef;
+my $memlimit = undef;
 
-declare -i DEFAULT_TIMEOUT=9
-declare -i DEFAULT_HARD_TIMEOUT=-1
-declare -i DEFAULT_INTERVAL=1
-declare -i DEFAULT_DELAY=1
+GetOptions(
+	'timelimit|t=i'=>\$timelimit,
+	'memlimit|m=i'=>\$memlimit,
+) or usage;
 
-declare -i DEFAULT_MEMLIMIT=0
+@ARGV or usage;
 
-# Timeout for CPU and SYS time
-declare -i timeout=DEFAULT_TIMEOUT
-# Timeout for "real" elapsed time
-declare -i real_timeout=DEFAULT_HARD_TIMEOUT
-# Interval between checks if the process is still alive.
-declare -i interval=DEFAULT_INTERVAL
-# Delay between posting the SIGTERM signal and destroying the process by SIGKILL.
-declare -i delay=DEFAULT_DELAY
+use strict;
 
-# Memory limite
-declare -i memlimit=DEFAULT_MEMLIMIT
+# Fork process and set its process group
+my $blackbox_pid = fork;
+defined $blackbox_pid or die "Couldn't fork: $!";
 
-# Report file
-declare report_file=/dev/stderr
-
-function printUsage() {
-    cat <<EOF
-
-Synopsis
-    $scriptName [-t timeout] [-i interval] [-d delay] command
-    Execute a command with a time-out.
-    Upon time-out expiration SIGTERM (15) is sent to the process. If SIGTERM
-    signal is blocked, then the subsequent SIGKILL (9) terminates it.
-
-    -t timeout
-        Number of seconds to wait for command to complete.  It only takes 
-        CPU+System time into account.
-        Default value: $DEFAULT_TIMEOUT seconds.
-
-    -x timeout
-        Number of seconds to wait for command to complete.  It counts 
-        "real" time elapsed.  -1 if not used.
-        Default value: $DEFAULT_HARD_TIMEOUT seconds.
-
-    -i interval
-        Interval between checks if the process is still alive.
-        Positive integer, default value: $DEFAULT_INTERVAL seconds.
-
-    -r report_file
-        Prints report to the file specified.  The output is "OK <seconds>" if
-        the script finished, "MEM <seconds>" if script is terminated due to 
-        insufficient memory, and "TIMEOUT <seconds> WHAT" if timeout is
-        reached (WHAT is "CPU" or "real").
-        <seconds> is the CPU+sys time the process was running.
-        Printed to STDERR by default.
-
-    -d delay
-        Delay between posting the SIGTERM signal and destroying the
-        process by SIGKILL. Default value: $DEFAULT_DELAY seconds.
-
-    -m memlimit (kB)
-        Memory limit in kilobytes.  Limits virtual memory.
-        Default value: $DEFAULT_MEMLIMIT kb.
-
-Time limits are enforced with 2*interval accuracy.  Memory is not limited
-with ulimit, so if during such a short time your program allocates the whole
-memory, you're unlucky then.
-
-As of today, Bash does not support floating point arithmetic (sleep does),
-therefore all delay/time values must be integers.
-EOF
+unless ($blackbox_pid){
+	# Set the process group of the blackbox process
+	setpgrp 0,0;
+	local $" = " ";
+	exec @ARGV or die "Couldn't exec @ARGV: $!"; 
 }
 
-# Options.
-while getopts ":t:i:d:m:x:r:" option; do
-    case "$option" in
-        t) timeout=$OPTARG ;;
-        x) real_timeout=$OPTARG ;;
-        i) interval=$OPTARG ;;
-        r) report_file=$OPTARG ;;
-        d) delay=$OPTARG ;;
-        m) memlimit=$OPTARG ;;
-        *) printUsage; exit 1 ;;
-    esac
-done
-shift $((OPTIND - 1))
+use Data::Dumper;
 
-# $# should be at least 1 (the command to execute), however it may be strictly
-# greater than 1 if the command itself has options.
-if (($# == 0 || interval <= 0)); then
-    printUsage
-    exit 1
-fi
+# Now we'll just keep polling status of the process until we notice that resources are exhausted or until the child finishes
+use Time::HiRes qw( ualarm );
 
-# We used to set memory limit with ulimit.  But then decided to limit on our own.
-#if (( $memlimit != DEFAULT_MEMLIMIT )); then
-#	ulimit -HSv $memlimit
-#fi
+# see sub update_time for explanations of this structure
+my $timeinfo = { total => 0, finished => 0, current => {} };
+# For this -- update_memory
+my $meminfo = 0;
 
-# Convert time to seconds
-function to_seconds ()
+my $status = 'wait';
+my $box_status = 0;
+while ($status eq 'wait'){
+	# Usually we would just do alarm-waitpid, but in Perl we should do weird evals.
+	# Refer to `perldoc alarm` if surprised.
+	eval {
+		local $SIG{'ALRM'} = sub {
+			# Note that this signal can only interrupt "wait" function (unless we're currently in some internals of Perl implementation of waitpid wrapper, but must of the time we spend inside the wait() call).
+			# According to signal(7), wait is a safe function, so we can call anything we want here.
+			print "handling...\n";
+			$timeinfo = update_time($blackbox_pid,$timeinfo);
+			$meminfo = update_memory($blackbox_pid,$meminfo);
+			print Dumper($timeinfo);
+			die "Assume waitpid return 0\n";
+		};
+		ualarm 100000;
+		my $arrived = waitpid $blackbox_pid,0;
+		ualarm 0;
+		die "Assume waitpid return $arrived\n";
+	};
+	my $arrived = -1;
+	if ($@ =~ /Assume waitpid return ([0-9]+)/){
+		$arrived = $1;
+	}else{
+		die "Fail: $@";
+	}
+	if ($arrived == $blackbox_pid){
+		# Child process terminated.
+		$box_status = $?>>8;
+		$status = 'exit'
+	}elsif ($arrived == -1){
+		# Something happened!
+		die "wait($blackbox_pid) failed: $!";
+	}else{
+		print "Checking...\n";
+		# Check if limits are exhausted (they should be updated by signal handler).
+		if (defined $timelimit && $timeinfo->{total} > $timelimit){
+			print "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
+			kill_process_group_safely($blackbox_pid);
+			exit 0;
+		}
+		if (defined $memlimit && $meminfo > $memlimit){
+			print "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
+			kill_process_group_safely($blackbox_pid);
+			exit 0;
+		}
+	}
+}
+
+exit $box_status;
+
+#-----------------------------------------------
+use POSIX;
+my $ticksize;
+BEGIN { $ticksize = POSIX::sysconf(&POSIX::_SC_CLK_TCK) or die "Couldn't get ticksize";}
+sub hires_proc_runtime
 {
-	date -u -d "1970-01-01 $@" +%s
+	my ($pid) = @_;
+	my $stat = `cat /proc/$pid/stat`;
+	# Since we invoke this function quite often, process may decease betweem ps invocation and attempt to access its /proc entry.  So, we return undef and handle it in the caller.
+	return undef unless $stat;
+	# Parse proc stats--14th is utime, and it's expressed in ticks.
+	my (undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,$utime_ticks,$stime_ticks) = split /\s+/,$stat;
+	return ($utime_ticks + $stime_ticks)/$ticksize;
+}
+sub update_time
+{
+	# Calculate the CPU+SYS time consumed by processes in the process group.  Updates special timeinfo structure fur future calculations
+	my ($pgrp, $timeinfo) = @_;
+	my %terminated = (%{$timeinfo->{current}});
+	my $result = {total => $timeinfo->{total}, finished => $timeinfo->{finished}, current => {} };
+	# Read ps output to get all processes within a group. Time output is not necessary, since we calculate it directly via /proc
+	my $PS_FH; open $PS_FH, "-|", qw(ps -A -o pgrp= -o pid=) or die "Bad open ps: $!";
+	while (<$PS_FH>){
+		/^\s*([0-9]+)\s*([0-9]+)/ or next;
+		my ($grp,$pid) = ($1,$2);
+		$grp == $pgrp or next;
+
+		# If hires_proc_runtime doesn't return a value (the $pid died before it tried), we keep the old value of time.  The error is not greater than ualarm interval.
+		$result->{current}->{$pid} = hires_proc_runtime($pid) || $timeinfo->{current}->{$pid};
+		# Show that this process is still running by removind it from set of processes that were running in this group, but have been terminated.
+		delete $terminated{$pid} if $terminated{$pid};
+	}
+	close $PS_FH or die "Bad close ps: $!";
+
+	local $_;
+	# Add the total time of terminated processes to finished time.
+	$result->{finished}+=$_ for values %terminated;
+
+	# Recalculate total time
+	$result->{total}=$result->{finished};
+	$result->{total}+=$_ for values %{$result->{current}};
+
+	return $result;
 }
 
+sub update_memory
+{
+	# Calculate the amount of memory consumed by the process group given 
+	my ($pgrp) = @_;
+	return 0;
+}
 
-"$@" &
-
-# We used to using `jobs -p 1`, but that causes race conditions.
-# So instead of it we use $!
-watch_pid=$!
-
-# kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
-#(
-	process_worked=$(to_seconds "$(ps -o time= $watch_pid)")
-	process_memory=
-	process_realtime=
-
-	while ((timeout > process_worked)); do
-		sleep $interval
-		# Check if process is still running and print a report (if $report_file is set), then exit
-		kill -0 $watch_pid 2>/dev/null || { echo OK $process_worked >$report_file ;  break; }
-		
-		# ATTENTION!  After this kill invocation process may terminate!  Wa have to carefully save older value.
-		old_pw_value=$process_worked
-		process_worked=$(to_seconds "$(ps -o time= $watch_pid)")
-		[ $process_worked -eq 0 ] && process_worked=$old_pw_value
-
-		# NOTE that it's irrelevant where to put process_worked assignment, since we can't guarantee the accuracy greater than $interval.
-
-		# Check real time and exit if it's failed
-		# Since ps sometimes reports time as MM:SS and sometimes - as HH:MM:SS, I have to hack this up
-		process_realtime=$(to_seconds "$(ps -o etime= $watch_pid | sed 's/\s\([0-9]\+\):\([^:]*\)$/00:\1:\2/')")
-		((real_timeout != -1)) && ((real_timeout < process_realtime)) && break
-
-		# Check memory status of the process.
-		# Ulimit is not sufficient, since we want to control output of it.
-		process_memory="$(ps -o vsz= $watch_pid )"
-		((memlimit != DEFAULT_MEMLIMIT)) && ((memlimit < process_memory)) && break
-	done
-
-	# Leave a message that programm is killed due to timeout
-	if ((real_timeout != DEFAULT_HARD_TIMEOUT)) && ((real_timeout <= process_realtime)) ; then
-		echo "${TIMEOUT_IDSTR}TIMEOUT $process_worked real" 1>$report_file
-	fi
-	# Real time limit
-	if ((timeout != DEFAULT_TIMEOUT)) && ((timeout  <= process_worked)) ; then
-		echo "${TIMEOUT_IDSTR}TIMEOUT $process_worked CPU" 1>$report_file
-	fi
-	# Memory limit
-	if ((memlimit != DEFAULT_MEMLIMIT)) && ((memlimit <= process_memory)) ; then
-		echo "${TIMEOUT_IDSTR}MEM $process_worked" 1>$report_file
-	fi
-
-	# Be nice, post SIGTERM first.
-	# The 'exit 0' below will be executed if any preceeding command fails.
-	(
-		kill -s SIGTERM $watch_pid && kill -0 $watch_pid || exit 0 
-		sleep $delay
-		kill -s SIGKILL $watch_pid
-	) 2>/dev/null
-
-	# Get exit code of the child process (wait returns immediately, since the process is already dead)
-	wait $watch_pid
-	cmd_excode=$?
-	exit $cmd_excode
-
-#) &
+sub kill_process_group_safely
+{
+	my ($pgrp) = @_;
+	kill 'SIGTERM', -$pgrp;
+}
 
 
