@@ -769,4 +769,19 @@ public class SQLRequests {
 		}
 	}
 
+	public static void noSleep(StorageManager manager) {
+		Connection conn;
+		try {
+			conn = manager.getStatsConnection();
+			Statement st = conn.createStatement();
+			st.executeQuery("SELECT 1;");
+			st.close();
+			conn.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
 }

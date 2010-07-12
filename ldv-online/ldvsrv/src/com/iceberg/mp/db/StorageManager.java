@@ -1,6 +1,7 @@
 package com.iceberg.mp.db;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
 
@@ -37,8 +38,9 @@ public class StorageManager {
 	private static final String connectionPrefix = "jdbc";
 	private static final String dbType = "h2";
 	private static final String dbdriver = "org.h2.Driver";
-	private static final String dblockmode = ";LOCK_MODE=3;AUTO_SERVER=TRUE";
-
+	//private static final String dblockmode = ";LOCK_MODE=3;AUTO_SERVER=TRUE";
+	private static final String dblockmode = ";LOCK_MODE=3";
+	
 	private String connectionString;
 	
 	private static final String statsConnectionPrefix = "jdbc";
@@ -134,7 +136,29 @@ public class StorageManager {
 	}
 	
 	public Connection getStatsConnection() throws SQLException {
-		return statsPoolingDataSource.getConnection();
+		return DriverManager.getConnection(statsConnectionString, statsDbuser, statsDbpass);
+		// пул почему-то виснет на 7-8 запросе
+		// TODO: скачать исходники и разобраться!
+		/*
+		 * 1. Start VServer in debug mode
+		 * 2. Start VClient in debug mode
+		 * 3. Upload files in next steps
+		 *  - hd[vr-core
+		 *  - hdpvr-video
+		 *  - radio-gemtek-pci
+		 *  - serial-safe
+		 *  - serial-unsafe
+		 *  - wl12xx
+		 *  - ali-ircc
+		 *  - usb-core-devices
+		 *  - usb-core-message
+		 * 4. On last driver we have deadlock in the
+		 *    connection pool request for connection 
+		 *    
+		 *    Any connections not closed by me?
+		 *    And pool wait while i am close connections?
+		 */
+		//return statsPoolingDataSource.getConnection();
 	}
 	
 	@Override

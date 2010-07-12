@@ -55,6 +55,9 @@ public class Scheduler extends Thread {
 			}
 			// стандартный тайм-аут
 			timeout();
+			// чтобы соединения не засыпали в MySQL периодически будем 
+			// их дрегать
+			SQLRequests.noSleep(sManager);
 		}
 	}	
 }
