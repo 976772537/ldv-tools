@@ -214,16 +214,16 @@ function view_task_status($task_id) {
 		<?php foreach($status['envs'] as $env) { ?>	
 		<tr>
 			<?php if($env['status']=='Build failed') { ?>
-				<th width="80%"  bgcolor="#CCCCFF"><span><?php print $env['name']; ?></span></th>
-				<th              bgcolor="red"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><strong>Build failed</strong></a></th>
+				<th width="80%"  bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
+				<th              bgcolor="red"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><font color="black"><strong>Build failed</strong></black></a></th>
 			<?php } else { ?>
-				<th COLSPAN=2   bgcolor="#CCCCFF"><span><?php print $env['name']; ?></span></th>
+				<th COLSPAN=2   bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
 			<?php } ?>
 		</tr>
 		<?php if($env['status']!='Build failed') { ?>
 		<tr>
-			<th width="80%" bgcolor="#CCCCFF">title</th>
-			<th             bgcolor="#CCCCFF">verdict</th>
+			<th width="80%" bgcolor="#CCCCFF"><font color="black">title</font></th>
+			<th             bgcolor="#CCCCFF"><font color="black">verdict</font></th>
 		</tr>
 		<?php foreach($env['rules'] as $rule) { ?>
 			<?php if ($rule['status'] == 'queued') { ?>
@@ -239,7 +239,7 @@ function view_task_status($task_id) {
 			<?php } else if($rule['status'] == 'failed') { ?>
 			<tr>
 				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
-				<td bgcolor="yellow">unknown</td>
+				<td bgcolor="yellow"><font color="black">unknown</font></td>
 			</tr>
 			<?php } else { ?>
 				<?php $isfirst=true; ?>
@@ -250,13 +250,13 @@ function view_task_status($task_id) {
 					<?php } ?>
 					<?php if($result['status'] == 'unsafe') { ?> 
 					<td bgcolor="red">
-						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><font color="black"><?php print $result['status']; ?></font></a>
 					<?php } else if($result['status']=='safe') { ?>
 					<td bgcolor="#66CC33">
-						safe
+						<font color="black">safe</font>
 					<?php } else { ?>
 					<td bgcolor="yellow">
-						unknown
+						<font color="black">unknown</font>
 					<?php } ?>
 					</td>
 				</tr>		
