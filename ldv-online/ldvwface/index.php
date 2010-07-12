@@ -214,49 +214,49 @@ function view_task_status($task_id) {
 		<?php foreach($status['envs'] as $env) { ?>	
 		<tr>
 			<?php if($env['status']=='Build failed') { ?>
-				<th width="80%"  bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
-				<th              bgcolor="red"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><font color="black"><strong>Build failed</strong></black></a></th>
+				<th width="80%"  bgcolor="#CCCCFF"><span><?php print $env['name']; ?></span></th>
+				<th              bgcolor="red"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><strong>Build failed</strong></a></th>
 			<?php } else { ?>
-				<th COLSPAN=2   bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
+				<th COLSPAN=2   bgcolor="#CCCCFF"><span><?php print $env['name']; ?></span></th>
 			<?php } ?>
 		</tr>
 		<?php if($env['status']!='Build failed') { ?>
 		<tr>
-			<th width="80%" bgcolor="#CCCCFF"><font color="black">title</font></th>
-			<th             bgcolor="#CCCCFF"><font color="black">verdict</font></th>
+			<th width="80%" bgcolor="#CCCCFF">title</th>
+			<th             bgcolor="#CCCCFF">verdict</th>
 		</tr>
 		<?php foreach($env['rules'] as $rule) { ?>
 			<?php if ($rule['status'] == 'queued') { ?>
 			<tr>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
 				<td><?php print $rule['status']; ?></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'running') { ?>
 			<tr>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
 				<td><?php print $rule['status']; ?></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'failed') { ?>
 			<tr>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
-				<td bgcolor="yellow"><font color="black">unknown</font></td>
+				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
+				<td bgcolor="yellow">unknown</td>
 			</tr>
 			<?php } else { ?>
 				<?php $isfirst=true; ?>
 				<?php foreach($rule['results'] as $result) { ?>
 				<tr>	
 					<?php if($isfirst == true) { $isfirst=false; ?>
-					<td ROWSPAN="<?php print count($rule['results']); ?>"><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?><font></a></td>
+					<td ROWSPAN="<?php print count($rule['results']); ?>"><a href="#" title="<?php print $rule['tooltip']; ?>"><?php print $rule['name']; ?></a></td>
 					<?php } ?>
 					<?php if($result['status'] == 'unsafe') { ?> 
 					<td bgcolor="red">
-						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><font color="black"><?php print $result['status']; ?></font></a>
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
 					<?php } else if($result['status']=='safe') { ?>
 					<td bgcolor="#66CC33">
-						<font color="black">safe</font>
+						safe
 					<?php } else { ?>
 					<td bgcolor="yellow">
-						<font color="black">unknown</font>
+						unknown
 					<?php } ?>
 					</td>
 				</tr>		

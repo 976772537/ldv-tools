@@ -285,7 +285,16 @@ sed -i -e 's/^<out>/\t\t<out>/g' $cmdfileout;
 sed -i -e 's/^<out check="true">/\t\t<out check="true">/g' $cmdfileout; 
 sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout; 
 sed -i -e 's/^<module>/\t\t<module>/g' $cmdfileout; 
-sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
+sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout;
+
+#
+# Find kernel modules (i.e. ld check=true)
+# 
+if [ $KERNEL_LEVEL -eq 0 -a ! -n "`grep 'ld check="true"' $cmdfileout`"  ]; then
+	echo "Driver have no kernel modules." >$statefile;
+	ldv_print "ERROR: Driver have no kernel modules.";
+	exit 1;
+fi;
 
 ldv_print "NORMAL: Command stream is successfully extracted.";
 exit;
