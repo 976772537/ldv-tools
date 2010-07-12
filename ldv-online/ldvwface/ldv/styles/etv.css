@@ -32,14 +32,15 @@
 
 .ETVErrorTrace
 {
-  height: 600px;
+  height: 100%;
   overflow: scroll;
   width: 400px;
-  white-space: nowrap;
+  white-space: nowrap
 }
 
 .ETVErrorTraceWindow
 {
+  height: 100%;
   vertical-align: top;
 }
 
@@ -87,6 +88,7 @@
 .ETVGeneralWindow
 {
   border: 4px groove blue;
+  height: 800px;
   font-size: 12px;
   font-family: monospace;
 }
@@ -117,16 +119,9 @@
   font-size: 8pt;
 }
 
-.ETVSrc
-{
-  height: 600px;
-  overflow: scroll;
-  width: 600px;
-  white-space: pre;
-}
-
 .ETVSrcWindow
-{  
+{
+  height: 100%;
   vertical-align: top;
   width: 600px;
 }
