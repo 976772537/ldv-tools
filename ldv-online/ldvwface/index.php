@@ -163,21 +163,6 @@ function view_user_history() {
 		</tr>	
 		<?php } ?>
 	</table>
-	<!--
-	<div class="tablediv">
-		<div class="rowdiv_head">
-			<div class="col10"><span class="table_headers">task</span></div>
-			<div class="col60"><span class="table_headers">driver</span></div>
-			<div class="col30"><span class="table_headers">date</span></div>
-		</div>
-		<?php foreach($history as $item) { ?>
-			<div class="rowdiv" align=left style="background-color: #EEEFFF;">
-				<div class="col10"><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><?php print $i++; ?></a></div>
-				<div class="col60"><?php print $item['driver']; ?></div>
-				<div class="col30"><?php print $item['timestamp']; ?></div>
-			</div>
-		<?php } ?>
-	</div>-->
 	</form>
 	<?php
 }
@@ -214,6 +199,15 @@ function view_task_status($task_id) {
 	<p>
 	<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $status['drivername'].' ('.$status['timestamp'].')'; ?></span>
 	</p>
+	<p>
+        You can see <b>verification verdict</b> for each environment. Verdict may be:
+        <ul>
+                <li><i>Safe</i> - there is no mistakes for the given environment.</li>
+                <li><i>Unsafe</i> - driver may contain an error. You may see the error trace by clicking on the "Unsafe" link for the corresponding environment</li>
+                <li><i>Build failed</i> - your driver is not compatible with the given kernel. In this case you may see the compile error trace by clicking on the "Build failed" link.</li>
+                <li><i>Unknown</i> - tools can not determine whether your driver <i>Safe</i> or <i>Unsafe</i>.</li>
+        </ul>
+	</p>
 	<?php if($status['status'] != 'finished') { ?>
 	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>">
 	<?php } ?>
@@ -231,9 +225,9 @@ function view_task_status($task_id) {
 			<?php if($env['status']=='Build failed') { ?>
 				<th width="80%"  bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
 				<?php if($status['status'] != 'finished') { ?>
-				<th              bgcolor="#FF4040"><font color="black"><strong>Build failed</strong></font></th>
+				<th              bgcolor="#FF6666"><font color="black"><strong>Build failed</strong></font></th>
 				<?php } else { ?>
-				<th              bgcolor="#FF4040"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><font color="black"><strong>Build failed</strong></font></a></th>
+				<th              bgcolor="#FF6666"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><font color="black"><strong>Build failed</strong></font></a></th>
 				<?php } ?>
 			<?php } else { ?>
 				<th COLSPAN=2   bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
@@ -247,17 +241,18 @@ function view_task_status($task_id) {
 		<?php foreach($env['rules'] as $rule) { ?>
 			<?php if ($rule['status'] == 'queued') { ?>
 			<tr>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
+<!-- <?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?> -->
+				<td><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
 				<td><?php print $rule['status']; ?></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'running') { ?>
 			<tr>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
+				<td><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
 				<td><?php print $rule['status']; ?></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'failed') { ?>
 			<tr>
-				<td><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
+				<td><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
 				<td bgcolor="yellow"><font color="black">unknown</font></td>
 			</tr>
 			<?php } else { ?>
@@ -265,10 +260,10 @@ function view_task_status($task_id) {
 				<?php foreach($rule['results'] as $result) { ?>
 				<tr>	
 					<?php if($isfirst == true) { $isfirst=false; ?>
-					<td ROWSPAN="<?php print count($rule['results']); ?>"><a href="#" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?><font></a></td>
+					<td ROWSPAN="<?php print count($rule['results']); ?>"><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?><font></a></td>
 					<?php } ?>
 					<?php if($result['status'] == 'unsafe') { ?> 
-					<td bgcolor="#FF4040">
+					<td bgcolor="#FF6666">
 						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><font color="black"><?php print $result['status']; ?></font></a>
 					<?php } else if($result['status']=='safe') { ?>
 					<td bgcolor="#66CC33">
@@ -286,59 +281,6 @@ function view_task_status($task_id) {
 		<?php } ?>
 	</table>
 	</p>
-<!--
-	<?php $i=1; ?>
-	<?php if($status['finished'] != 0) { ?>
-
-       <script>
-		$(document).ready(function(){
-       		 $(".rowdiv_minihead_collapsible").click(function() {
-                	$(this).parent().children().not(".rowdiv_minihead_collapsible").slideToggle("fast");
-       		 });
-        	$(".rowdiv_minihead_collapsible").parent().children().not(".rowdiv_minihead_collapsible").hide();
-		});
-        </script> 
-		
-	<div class="tablediv">
-		<div class="rowdiv_head">
-			<div class="col10"><span>launch</span></div>
-			<div class="col40"><span>environmnet</span></div>
-			<div class="col30"><span>rule</span></div>
-			<div class="col20"><span>status</span></div>
-		</div>
-		<?php $i=1; ?>
-		<?php foreach($status['envs'] as $env) { ?>
-		<?php foreach($env['rules'] as $rule) { ?>
-		<?php if(($rule['status'] == 'finished' || $rule['status'] == 'running') && count($rule['results'])!=0) { ?>
-		          <div class="rowdiv"><div class="rowdivactivator">	
-			<div class="rowdiv_minihead_collapsible">
-				<div class="col10" style="background-color: #EEEFFF;"><span><?php print $i++; ?></span></div>
-				<div class="col40" style="background-color: #EEEFFF;"><span><?php print $env['name']; ?></span></div>
-				<div class="col30" style="background-color: #EEEFFF;"><span><?php print $rule['name']; ?></span></div>
-				<div class="col20" style="background-color: #EEEFFF;"><span><?php print $rule['status']; ?></span></div>
-			</div>
-			<div>
-				<?php foreach($rule['results'] as $result) { ?>
-				<div>
-					<div class="col60">&nbsp;</div>
-					<div class="col40">
-					<?php if($result['status'] == 'unsafe') { ?> 
-						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><?php print $result['status']; ?></a>
-					<?php } else if($result['status']=='safe') { ?>
-						safe
-					<?php } else { ?>
-						unknown
-					<?php } ?>
-					</div>
-				</div>
-				<?php  } ?>
-			</div>
-		</div></div>
-		<?php } ?>
-		<?php } ?>
-		<?php } ?>
-	</div> 
-	<?php }  ?> -->
 	<?php if($status['status'] != 'finished') { ?>
 	<p>
 		<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span>
@@ -349,7 +291,44 @@ function view_task_status($task_id) {
 	<?php
 }
 
+function view_rule_by_number($rule_id) {
+	$rule = WSGetRuleByNumber($rule_id);
+    print '<form>';
+	print '<p><b>'.$rule['ID'].'</b></p>';
+    print '<p><b>'.$rule['TYPE'].'</b></p>';
+    print '<p><b>'.$rule['TITLE'].'</b></p>';
+    if ($rule['SUMMARY'] != '')
+    {
+        print '<p><b>Summary</b><br>';
+        print Markdown($rule['SUMMARY']).'</p>';
+    }
+
+    if ($rule['DESCRIPTION'] != '')
+    {
+        print '<p><b>Description</b><br>';
+        print Markdown($rule['DESCRIPTION']).'</p>';
+    }
+
+    if ($rule['LINKS'] != '') {
+        print '<p><b>Links:</b><br>';
+        print Markdown($rule['LINKS']).'</p>';
+    }
+
+   if ($rule['EXAMPLE'] != '') {
+        print '<p><b>Example</b><br>';
+        print Markdown($rule['EXAMPLE']).'</p>';
+   }
+
+   if ($rule['NOTES'] != '') {
+        print '<p><b>Notes</b><br>';
+        print Markdown($rule['NOTES']).'</p>';
+    }
+    print '</form>';
+}
+
 $action=request_var('action','');
+
+
 $exit=false;
 
 
@@ -384,6 +363,43 @@ else if ($action == "get_status" && !$exit)
 {
 	$task_id = request_var('task_id','');
 	view_task_status($task_id);
+}
+/*else if ($action == "show_rules" && !$exit)
+{
+        $rules_type=request_var('rules_type','');
+        if (!$rules_type) {
+                view_rules_by_type('ALL');
+        } else
+        if ($rules_type == 'RECOMMENDATION' || $rules_type == 'ERROR' || $rules_type == 'WARNING')
+        {
+                view_rules_by_type($rules_type);
+        } else
+        {
+                print "Unknown rule type.<br>";
+        }
+} */ else if ($action == "show_rule" && !$exit)
+{
+        $rule_id = request_var('rule_id','');
+        view_rule_by_number($rule_id);
+	?>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shCore.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushCSharp.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushPhp.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushJScript.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushJava.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushVb.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushSql.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushXml.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushDelphi.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushPython.js"></script>
+	<script class="javascript" src="ldv/incldue/syntaxhighlighter/Scripts/shBrushRuby.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushCss.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushCpp.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushScala.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushGroovy.js"></script>
+	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushBash.js"></script>
+	<script class="javascript"> dp.SyntaxHighlighter.HighlightAll('code'); </script>
+	<?php
 }
 else 
 {
