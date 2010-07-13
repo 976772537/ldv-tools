@@ -180,6 +180,12 @@ my $file_report_out;
 my $file_reqs_out;
 my $file_src_files;
 
+# From trace we obtain the full name (absolute pathes). From database we obtain
+# corresponding long names with deleted prefix. But we show just short names
+# consisting just of file name in titles and tab names.
+my %files_long_name;
+my %files_short_name;
+
 # The unique html tags identifier.
 my $html_id = 0;
 
@@ -476,6 +482,7 @@ sub print_error_trace_node_blast($$)
 	  if ($pre_annotation->{'kind'} eq 'Location')
 	  {
 		$src = $pre_annotation->{'values'}[0];
+		$src = $files_short_name{$src} || $src;
 	    $line = $pre_annotation->{'values'}[1];  
 	  }
 	}
@@ -797,6 +804,10 @@ sub process_error_trace_blast()
             {
               my ($src, $line) = @{$element_value};
               $dependencies{$src} = 1;
+              $files_long_name{$src} = 0;
+	          $src =~ /([^\/]*)$/;
+	          $files_short_name{$src} = $1;
+	          print_debug_debug("The full name '$src' was related with the short name '$1'");                
             }
             
 			$annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
@@ -850,6 +861,27 @@ sub process_source_code_files()
 	  $file_name = $1;
 	  $file_name =~ /\//;
 	  $file_name = $POSTMATCH;
+	  print_debug_trace("Try to relate files by their full and long names");
+	  foreach my $full_name (keys(%files_long_name))
+	  {
+		if ($full_name =~ /\Q$file_name\E$/)
+		{
+		  if ($files_long_name{$file_name})
+		  {
+			print_debug_warning("The full name '$full_name' corresponds to several long names '$files_long_name{$full_name}' and '$file_name'")
+		  }
+		  else
+		  {
+			$files_long_name{$full_name} = $file_name;
+			print_debug_debug("The full name '$full_name' was related with the long name '$file_name'");
+		  }
+		}  
+	  }
+	  print_debug_warning("The long name '$file_name' wasn't related with any full name")
+	    unless ($files_long_name{$file_name});
+	  $file_name =~ /([^\/]*)$/;
+	  $files_short_name{$file_name} = $1;
+	  print_debug_debug("The long name '$file_name' was related with the short name '$1'");  
 	  print_debug_debug("Process the '$file_name' source code file");
 	  next;	
 	}
@@ -1017,36 +1049,124 @@ sub read_location($)
 sub visualize_error_trace($)
 {
   my $tree_root = shift;
-  print($file_report_out "\n<table class='ETVGeneralWindow'>\n<tr>\n<td class='ETVErrorTraceWindow'><div class='ETVErrorTrace'>");
+
+  # Print simple tab plugin before its usage.
+  print($file_report_out
+      "\n<script type='text/javascript'>"
+    , "\n  \$(document).ready(function() {"
+    , "\n    \$('#ETVTabs div').hide();"
+    , "\n    \$('#ETVTabs div:first').show();"
+    , "\n    \$('#ETVTabs span:first').addClass('active');"
+    , "\n    \$('#ETVTabs span a').click(function() {"
+    , "\n      \$('#ETVTabs span').removeClass('active');"
+    , "\n      \$(this).parent().addClass('active');"
+    , "\n      var currentTab = \$(this).attr('href');"
+    , "\n      \$('#ETVTabs div').hide();"
+    , "\n      \$(currentTab).show();"
+    , "\n      return false;"
+    , "\n    });"
+    , "\n  });"
+    , "\n</script>");
+  
+  print($file_report_out 
+      "\n<table class='ETVGeneralWindow'>"
+    , "\n<tr>"
+    , "\n  <td class='ETVErrorTraceWindow'>"
+    , "\n    <div class='ETVErrorTrace'>");
   print_error_trace($tree_root);
-  print($file_report_out "\n</div></td>\n<td class='ETVSrcWindow'>\n");
   print($file_report_out 
-    "\n<script type='text/javascript'>"
-    , "\n\$(document).ready"
-    , "\n("
-    , "\n  function()"
-    , "\n  {"
-    , "\n    \$('#ETVSourceCodeTabs').tabs()"
-    , "\n  }"
-    , "\n);"
-    , "\n</script>\n");   
-  print($file_report_out 
-	"\n<div id='ETVSourceCodeTabs'>\n<ul>");
-  my $i = 1;
+      "\n    </div>"
+    , "\n  </td>"
+    , "\n  <td class='ETVSrcWindow'>"
+    , "\n    <div id='ETVTabs'>");
+  my $i = 1;  
   foreach my $src (sort(keys(%srcs)))
   {
-     print($file_report_out "\n  <li><a href='#ETVTab-$i'><span>$src</span></a></li>");
-     $i++;
+    print($file_report_out 
+      "\n      <span><a href='#ETVTab-$i'>$files_short_name{$src}</a></span>");     
+    $i++;
   }
-  print($file_report_out "\n</ul>");
   $i = 1;
   foreach my $src (sort(keys(%srcs)))
   {
-     print($file_report_out "\n<div id='ETVTab-$i' class='ETVSrc'>$srcs{$src}</div>");
-     $i++;
+    print($file_report_out 
+      "\n      <div id='ETVTab-$i'>"
+    , "\n        <pre class='ETVSrcFile'>$srcs{$src}</pre>"
+    , "\n      </div>");
+    $i++;
   }
-  print($file_report_out "\n</div>");
+  print($file_report_out 
+      "\n    </div>"
+    , "\n  </td>"
+    , "\n</tr>"
+    , "\n</table>\n");
+
+#<div id="tabs">
+#<ul>
+#<li><a href="#tab-1">Tab One</a></li>
+#<li><a href="#tab-2">Tab Two</a></li>
+#<li><a href="#tab-3">Tab Three</a></li>
+#<li><a href="#tab-4">Tab Four</a></li>
+#</ul>
+#<div id="tab-1">
+#<h3>Tab 1</h3>
+#<p>Some content</p>
+#</div>
+#<div id="tab-2">
+#<h3>Tab 2</h3>
+#<p>Some content</p>
+#</div>
+#<div id="tab-3">
+#<h3>Tab 3</h3>
+#<p>Some content</p>
+#</div>
+#<div id="tab-4">
+#<h3>Tab 4</h3>
+#<p>Some content</p>
+#</div>
+#</div>  
+  
+  #print($file_report_out "\n<table class='ETVGeneralWindow'>\n<tr>\n<td class='ETVErrorTraceWindow'><div class='ETVErrorTrace'>");
+  #print_error_trace($tree_root);
+  #print($file_report_out "\n</div></td>\n<td class='ETVSrcWindow'><div class='ETVSrc'>\n");
+  #print($file_report_out 
+    #"\n<script type='text/javascript'>"
+    #, "\n\$(document).ready"
+    #, "\n("
+    #, "\n  function()"
+    #, "\n  {"
+    #, "\n    \$('#ETVSourceCodeTabs').tabs()"
+    #, "\n  }"
+    #, "\n);"
+    #, "\n</script>\n");   
+  #print($file_report_out 
+	#"\n<div id='ETVSourceCodeTabs'>\n<ul class='tabs'>");
+  #my $i = 1;
+  #my @srcs_ordered;
+  #foreach my $src (keys(%srcs))
+  #{
+	#my @src_long_short = ($src, $files_short_name{$src});  
+    #push(@srcs_ordered, \@src_long_short);
+  #}
+  #print("!!!!!!!!!${$srcs_ordered[2]}[1]\n");
+##  sort({ print($a); ${$a}[1] gt ${$b}[1]; } @srcs_ordered);  
+  #print("!!!!!!!!!${$srcs_ordered[2]}[1]\n");
+##  exit;
+  #foreach my $src_pair (@srcs_ordered)
+  #{
+    #my @src = @{$src_pair}; 
+    #print($file_report_out "\n  <li><a href='#ETVTab-$i'><span>$src[1]</span></a></li>");
+    #$i++;
+  #}
+  #print($file_report_out "\n</ul><div class='tab_container'>");
+  #$i = 1;
+  #foreach my $src (sort(keys(%srcs)))
+  #{
+     #print($file_report_out "\n<div id='ETVTab-$i' class='ETVSrc' class='tab_content'><pre class='ETVSrcFile'>$srcs{$src}</pre></div>");
+     #$i++;
+  #}
+  #print($file_report_out "\n</div>\n</div>");
 	
-  #<pre><span style='color: red;'>$src</span>\n$srcs{$src}</pre>
-  print($file_report_out "</td>\n</tr>\n</table>\n");
+  ##<pre><span style='color: red;'>$src</span>\n$srcs{$src}</pre>
+  #print($file_report_out "</div></td>\n</tr>\n</table>\n");
 }
