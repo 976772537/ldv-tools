@@ -518,6 +518,7 @@ function WSGetTaskReport($task_id) {
 		// Add information from model_db and rules db
 		$rule_info = WSGetRuleInfoByLDVIdent($task['envs'][$i]['rules'][$j]['model_ident']);
 		$task['envs'][$i]['rules'][$j]['tooltip']=$rule_info['TITLE'];
+		$task['envs'][$i]['rules'][$j]['rule_id']=$rule_info['ID'];
 		$task['envs'][$i]['rules'][$j]['name']=$rule_info['NAME'];
 		if($row['status'] == 'finished') 
 			$finished++;
