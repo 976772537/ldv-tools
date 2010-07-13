@@ -1068,6 +1068,8 @@ sub visualize_error_trace($)
     , "\n  });"
     , "\n</script>");
   
+  # Create the table having two cells. The first cell is for the error trace and
+  # the second is for the tabed source code. 
   print($file_report_out 
       "\n<table class='ETVGeneralWindow'>"
     , "\n<tr>"
@@ -1100,73 +1102,4 @@ sub visualize_error_trace($)
     , "\n  </td>"
     , "\n</tr>"
     , "\n</table>\n");
-
-#<div id="tabs">
-#<ul>
-#<li><a href="#tab-1">Tab One</a></li>
-#<li><a href="#tab-2">Tab Two</a></li>
-#<li><a href="#tab-3">Tab Three</a></li>
-#<li><a href="#tab-4">Tab Four</a></li>
-#</ul>
-#<div id="tab-1">
-#<h3>Tab 1</h3>
-#<p>Some content</p>
-#</div>
-#<div id="tab-2">
-#<h3>Tab 2</h3>
-#<p>Some content</p>
-#</div>
-#<div id="tab-3">
-#<h3>Tab 3</h3>
-#<p>Some content</p>
-#</div>
-#<div id="tab-4">
-#<h3>Tab 4</h3>
-#<p>Some content</p>
-#</div>
-#</div>  
-  
-  #print($file_report_out "\n<table class='ETVGeneralWindow'>\n<tr>\n<td class='ETVErrorTraceWindow'><div class='ETVErrorTrace'>");
-  #print_error_trace($tree_root);
-  #print($file_report_out "\n</div></td>\n<td class='ETVSrcWindow'><div class='ETVSrc'>\n");
-  #print($file_report_out 
-    #"\n<script type='text/javascript'>"
-    #, "\n\$(document).ready"
-    #, "\n("
-    #, "\n  function()"
-    #, "\n  {"
-    #, "\n    \$('#ETVSourceCodeTabs').tabs()"
-    #, "\n  }"
-    #, "\n);"
-    #, "\n</script>\n");   
-  #print($file_report_out 
-	#"\n<div id='ETVSourceCodeTabs'>\n<ul class='tabs'>");
-  #my $i = 1;
-  #my @srcs_ordered;
-  #foreach my $src (keys(%srcs))
-  #{
-	#my @src_long_short = ($src, $files_short_name{$src});  
-    #push(@srcs_ordered, \@src_long_short);
-  #}
-  #print("!!!!!!!!!${$srcs_ordered[2]}[1]\n");
-##  sort({ print($a); ${$a}[1] gt ${$b}[1]; } @srcs_ordered);  
-  #print("!!!!!!!!!${$srcs_ordered[2]}[1]\n");
-##  exit;
-  #foreach my $src_pair (@srcs_ordered)
-  #{
-    #my @src = @{$src_pair}; 
-    #print($file_report_out "\n  <li><a href='#ETVTab-$i'><span>$src[1]</span></a></li>");
-    #$i++;
-  #}
-  #print($file_report_out "\n</ul><div class='tab_container'>");
-  #$i = 1;
-  #foreach my $src (sort(keys(%srcs)))
-  #{
-     #print($file_report_out "\n<div id='ETVTab-$i' class='ETVSrc' class='tab_content'><pre class='ETVSrcFile'>$srcs{$src}</pre></div>");
-     #$i++;
-  #}
-  #print($file_report_out "\n</div>\n</div>");
-	
-  ##<pre><span style='color: red;'>$src</span>\n$srcs{$src}</pre>
-  #print($file_report_out "</div></td>\n</tr>\n</table>\n");
 }
