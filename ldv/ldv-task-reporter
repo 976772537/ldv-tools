@@ -167,11 +167,13 @@ sub hxml_cmdstream {
 					my $work_dir_pattern = $state[2];
 					if($tfile =~ m/$work_dir_pattern\/+csd_deg_dscv\/+\d+\/+/ ) {
 						my $brelpath = $tfile;
-						$brelpath =~ s/$work_dir_pattern\/+csd_deg_dscv\/+(\d+\/+.*)/$1/ ;
+#						$brelpath =~ s/$work_dir_pattern\/+csd_deg_dscv\/+(\d+\/+.*)/$1/ ;
+						$brelpath =~ s/$work_dir_pattern\/+(csd_deg_dscv\/+)(\d+\/+.*)/$1$2/ ;
 						my $relpath = $brelpath;
 						$relpath =~ s/(.*)\/.*$/$1/;
 						my $rel_path_full="$report_out.source/$kernel/$relpath";
 						chomp($rel_path_full);
+
 						ldv_dprint("mkdir -p $rel_path_full");
 						if(system('mkdir','-p',$rel_path_full)) {
 							ldv_wprint("Can't create dir:\"$rel_path_full\"");
@@ -187,7 +189,7 @@ sub hxml_cmdstream {
 						$relpath = $tfile;
 						$relpath =~ s/$work_dir_pattern\/+ldv_tempdir\/+driver\/+(.*)/$1/;
 						$relpath =~ s/(.*)\/.*$/$1/;
-						my $rel_path_full="$report_out.source/$kernel/kernel/$relpath";
+						my $rel_path_full="$report_out.source/$kernel/$relpath";
 						chomp($rel_path_full);
 						if(system('mkdir','-p',$rel_path_full)) {
 							ldv_wprint("Can't create dir:\"$rel_path_full\".");
