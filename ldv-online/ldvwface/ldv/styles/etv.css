@@ -87,7 +87,7 @@
 .ETVGeneralWindow
 {
   border: 4px groove blue;
-  height: 800px;
+  height: 600px;
   font-size: 12px;
   font-family: monospace;
 }
@@ -215,7 +215,7 @@
   background: #CEE1EF;
   clear: both;
 /*  padding: 20px; */
-  height: 500px;
+  height: 550px;
   overflow: auto;  
 }
 
