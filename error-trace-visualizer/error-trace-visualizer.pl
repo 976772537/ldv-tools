@@ -915,7 +915,7 @@ sub process_source_code_files()
 	  my $isrelated = 0;
 	  foreach my $full_name (keys(%files_long_name))
 	  {
-		if ($full_name =~ /\Q$file_name\E$/)
+		if ($full_name =~ /\Q$file_name\E$/ or $file_name =~ /\Q$full_name\E$/)
 		{
 		  if ($files_long_name{$file_name})
 		  {
