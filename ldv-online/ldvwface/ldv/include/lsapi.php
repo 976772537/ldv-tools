@@ -483,7 +483,7 @@ function WSGetTaskReport($task_id) {
 
 
 
-	$result = WSStatsQuery('SELECT tasks.timestamp, launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY scenario_id, trace_id, env, rule;');
+	$result = WSStatsQuery('SELECT tasks.id AS task_id, tasks.timestamp, launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY scenario_id, trace_id, env, rule;');
 	if(mysql_num_rows($result) == 0) {
 		WSPrintE("Could not find task or wrong user.");
 		return;
@@ -496,6 +496,7 @@ function WSGetTaskReport($task_id) {
 	while($row = mysql_fetch_array($result))
   	{
 		$task['driver_id']=$row['driver_id'];
+		$task['task_id']=$row['task_id'];
 		$task['timestamp']=$row['timestamp'];
 		// Fix for driver name that uploading to ldvs twice
                 $task['drivername'] = preg_replace('/_\d+$/','', $row['drivername']);
@@ -519,6 +520,8 @@ function WSGetTaskReport($task_id) {
 		$rule_info = WSGetRuleInfoByLDVIdent($task['envs'][$i]['rules'][$j]['model_ident']);
 		$task['envs'][$i]['rules'][$j]['tooltip']=$rule_info['TITLE'];
 		$task['envs'][$i]['rules'][$j]['rule_id']=$rule_info['ID'];
+		$task['envs'][$i]['rules'][$j]['summary']=$rule_info['SUMMARY'];
+		$task['envs'][$i]['rules'][$j]['description']=$rule_info['DESCRIPTION'];
 		$task['envs'][$i]['rules'][$j]['name']=$rule_info['NAME'];
 		if($row['status'] == 'finished') 
 			$finished++;
@@ -564,6 +567,29 @@ function WSGetTaskReport($task_id) {
 			}
 		}
 	}
+	// Sort by groups safe/unsafe/unknown etc
+	foreach($task['envs'] as $env_key => $env) {
+		foreach($env['rules'] as $rule_key => $rule) {
+			// calculate SAFE/UNSAFE/UNKNOWN
+			$unsafes=array();
+			$safes=array();
+			$unknowns=array();
+			foreach($rule['results'] as $result_key => $result) {
+				if($result['status'] == 'safe')
+					array_push($safes,$result);		
+				else if ($result['status'] == 'unsafe')  
+					array_push($unsafes,$result);		
+				else if ($result['status'] == 'unknown')
+					array_push($unknowns,$result);
+			}
+			if(count($unsafes)>0) 
+				$task['envs'][$env_key]['rules'][$rule_key]['results'] = $unsafes;
+			else if(count($safes)>0)	
+				$task['envs'][$env_key]['rules'][$rule_key]['results'] = array($safes[0]);
+			else if(count($unknowns)>0)		
+				$task['envs'][$env_key]['rules'][$rule_key]['results'] = array($unknowns[0]);
+		}
+	}
 	WSStatsDisconnect($conn);
 	return $task;
 }
@@ -576,7 +602,8 @@ function __WSGetDetailedReport($trace_id) {
 		$trace['trace_id']=$row['id'];
 		$trace['env']=$row['env'];
 		$trace['rule']=$row['rule'];
-		$trace['drivername']=$row['driver'];
+		//$trace['drivername']=$row['driver'];
+                $trace['drivername'] = preg_replace('/_\d+$/','', $row['driver']);
 		$trace['error_trace']=$row['error_trace'];
 		$trace['verifier']=$row['verifier'];
 	}
@@ -597,7 +624,6 @@ function __WSGetDetailedReport($trace_id) {
 // TODO: add check for trace type (build error or unsafe)
 function WSGetDetailedReport($trace_id) {
 	$trace = __WSGetDetailedReport($trace_id);
-	$pwd = getcwd();
 	$tmpdir = WS_TMP_DIR;
 	if(!is_dir($tmpdir)) {
 		WSPrintW('Temp dir not exists: '.$tmpdir.' - try to create it...');
@@ -605,6 +631,11 @@ function WSGetDetailedReport($trace_id) {
 			WSPrintE('Can\'t create temp dir: '.$tmpdir);
 			return;
 		}
+		chmod($tmpdir, 0777);
+     //   chmod($task_dir, 0777);
+      //  chmod($task_dir.'/description', 0666);
+       // chmod($task_dir.'/driver', 0666);
+
 	}
 
 	$current_tmpdir=$tmpdir.'/'.$trace_id;
@@ -616,6 +647,7 @@ function WSGetDetailedReport($trace_id) {
 			WSPrintD('Check permissions.');
 			return;
 		}
+		chmod($current_tmpdir, 0777);
 		// write trace
 		$tmpfile_report = $current_tmpdir.'/report';
 		$freport = fopen($tmpfile_report, 'w');
@@ -626,6 +658,7 @@ function WSGetDetailedReport($trace_id) {
 		}
 		fwrite($freport, $trace['error_trace']);
 		fclose($freport);
+      		chmod($tmpfile_report, 0666);
 
 		// write sources
 		$tmpfile_sources = $current_tmpdir.'/sources';
@@ -647,10 +680,13 @@ function WSGetDetailedReport($trace_id) {
 			fwrite($freport, $source['content']).'<br>';
 		}
 		fclose($freport);
+      		chmod($tmpfile_sources, 0666);
 		// TODO: set up in parameters
 		//$etv = $pwd.'/ldv/etv/bin/error-trace-visualizer.pl';
 		WSPrintD(exec('/usr/bin/perl '.WS_ETV.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' --src-files '.$tmpfile_sources.' -o '.$tmpfile));
 		WSPrintT('/usr/bin/perl '.WS_ETV.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' --src-files '.$tmpfile_sources.' -o '.$tmpfile);
+		chmod($tmpfile, 0666);		
+
 	}
 	// read report :
 	$fh = fopen($tmpfile, "rb");
@@ -672,9 +708,21 @@ function WSGetDetailedBuildError($trace_id) {
 	if($row = mysql_fetch_array($result)) {
 		$trace['trace_id']=$row['id'];
 		$trace['env']=$row['env'];
-		$trace['drivername']=$row['driver'];
-                $trace['error_trace'] = preg_replace('/\n/','<br>', $row['error_trace']);
+	#	$trace['drivername']=$row['driver'];
+                $trace['drivername'] = preg_replace('/_\d+$/','', $row['driver']);
+        #        $trace['error_trace'] = preg_replace('/\n/','<br>', $row['error_trace']);
+                $trace['error_trace'] = $row['error_trace'];
 	}
+	$lines = preg_split('/\n/', $trace['error_trace']);
+	
+	$lines_count = count($lines);
+	$trace['error_trace'] = '<p style="border:1px solid black;line-height: normal; height:400px;font-size:10px;font-family:monospace;overflow:scroll;white-space:pre">';
+	for ($i = 0; $i <= $lines_count; $i++) { 
+		$trace['error_trace'] .= sprintf ("<span style=\"background-color:#E0E0E0\">%5d </span>", $i); 
+		$trace['error_trace'] .=  $lines[$i].'<BR>';
+	}
+	$trace['error_trace'] .= '</p>';
+
 	WSStatsDisconnect($conn);
 	return $trace;
 }

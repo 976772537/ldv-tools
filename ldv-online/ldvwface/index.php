@@ -62,8 +62,8 @@ function view_header() {
 		<div class="mini_menu">
 
 
-			<a href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;history</span></a>
-			<a href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;upload</span></a> 
+			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;history</span></a>
+			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;upload</span></a> 
 		</div>
 	<?php	
 }
@@ -121,8 +121,8 @@ function action_upload_driver() {
 	$task['driverpath'] = $_FILES['file']['tmp_name'];
 	// Test MIME-content type
 	$content_type =  mime_content_type($task['driverpath']);
-	if($content_type != 'application/x-bzip2; charset=binary'
-		&& $content_type != 'application/x-gzip; charset=binary') {
+	if( strpos($content_type,'application/x-bzip2') === false &&
+		strpos($content_type,'application/x-gzip; charset=binary') == false) {
                 print '<b><font color="red">Driver content type not supported.</font></b><br>';
                 view_upload_driver_form();
                 return;
@@ -151,15 +151,15 @@ function view_user_history() {
 	
 	<table width="100%" border="1" style="border-collapse: collapse;">
 		<tr>
-			<th width="10%" bgcolor="#CCCCFF"><font color="black">task</font></th>
-			<th width="50%" bgcolor="#CCCCFF"><font color="black">driver</font></th>
-			<th width="20%" bgcolor="#CCCCFF"><font color="black">date</font></th>
+			<th width="6%" bgcolor="#CCCCFF"><font color="black">Task</font></th>
+			<th align="left" width="54%" bgcolor="#CCCCFF"><font color="black">Driver</font></th>
+			<th width="20%" bgcolor="#CCCCFF"><font color="black">Timestamp</font></th>
 		</tr>
 		<?php foreach($history as $item) { ?>
-		<tr>
-			<td><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><font color="black"><?php print $i++; ?></font></a></td>
+		<tr style="background: #EFEFFF; cursor: hand;" onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" onClick="document.location='<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>'">
+			<td align="center"><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><font color="black"><?php print $i++; ?></font></a></td>
 			<td><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><font color="black"><?php print $item['driver']; ?></font></a></td>
-			<td><font color="black"><?php print $item['timestamp']; ?></font></td>
+			<td align="center" ><font color="black"><?php print $item['timestamp']; ?></font></td>
 		</tr>	
 		<?php } ?>
 	</table>
@@ -218,59 +218,122 @@ function view_task_status($task_id) {
 			});
   		});
 	</script>
+<script type="text/javascript">
+$(document).ready(function(){
+	$('.rowdiv_minihead_collapsible').each(function(i) {
+                if ($.cookie($(this).attr('id'))) { 
+	       		$(this).parent().children().not(".rowdiv_minihead_collapsible").show();
+                }else {
+	       		$(this).parent().children().not(".rowdiv_minihead_collapsible").hide();
+                }
+		$(this).click(function() {
+			if($(this).parent().children().not(".rowdiv_minihead_collapsible").css('display') == 'none') {
+	       			$(this).parent().children().not(".rowdiv_minihead_collapsible").show();
+				$.cookie($(this).attr('id'), 'opened', {expires: null, path: '/'});
+			} else {
+	       			$(this).parent().children().not(".rowdiv_minihead_collapsible").hide();
+				$.cookie($(this).attr('id'), null, {expires: null, path: '/'});
+			}
+		});
+	});
+});
+</script>
+
+
+
+
+	<?php $index=0 ?>
 	<p>
-	<table width="100%" border="1" style="border-collapse: collapse;">
+	<table id="results" name="results_table" width="100%" border="1" style="border-collapse: collapse;">
 		<?php foreach($status['envs'] as $env) { ?>	
 		<tr>
 			<?php if($env['status']=='Build failed') { ?>
-				<th width="80%"  bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
-				<?php if($status['status'] != 'finished') { ?>
-				<th              bgcolor="#FF6666"><font color="black"><strong>Build failed</strong></font></th>
-				<?php } else { ?>
-				<th              bgcolor="#FF6666"><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><font color="black"><strong>Build failed</strong></font></a></th>
-				<?php } ?>
+				<th COLSPAN=2 bgcolor="#FF6666"><strong><?php print $env['name']; ?>&nbsp;- build failed &nbsp;</strong><a link." href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><font color="black">(more details...)</font></a></th>
 			<?php } else { ?>
 				<th COLSPAN=2   bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
 			<?php } ?>
 		</tr>
 		<?php if($env['status']!='Build failed') { ?>
 		<tr>
-			<th width="80%" bgcolor="#CCCCFF"><font color="black">title</font></th>
-			<th             bgcolor="#CCCCFF"><font color="black">verdict</font></th>
+			<th width="80%" align="left" bgcolor="#CCCCFF"><font color="#444444">Title</font></th>
+			<th             bgcolor="#CCCCFF"><font color="#444444">Verdict</font></th>
 		</tr>
 		<?php foreach($env['rules'] as $rule) { ?>
 			<?php if ($rule['status'] == 'queued') { ?>
 			<tr>
-<!-- <?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?> -->
-				<td><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
-				<td><?php print $rule['status']; ?></td>
+					<td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+ 						<div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
+     						   <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
+ 						 </div>
+						 <div>
+							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
+							<strong>Description:</strong><br><?php print $rule['summary']; ?>
+							</div>
+						</div>
+					</td>
+
+
+			<td align="center" style="background: #EFEFFF;">Queued</td>
 			</tr>	
 			<?php } else if($rule['status'] == 'running') { ?>
 			<tr>
-				<td><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
-				<td><?php print $rule['status']; ?></td>
+                                        <td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+                                                <div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
+                                                   <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
+                                                 </div>
+                                                 <div>
+							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
+                                                        <strong>Description:</strong><br><?php print $rule['summary']; ?>
+                                                        </div>
+                                                </div>
+                                        </td>
+	
+
+			<!--	<td align="center"><?php print $rule['status']; ?><img src="ldv/images/load.gif"/></td>-->
+				<td align="center" title="Verification in progress..."><img src="ldv/images/load.gif"/></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'failed') { ?>
 			<tr>
-				<td><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?></font></a></td>
-				<td bgcolor="yellow"><font color="black">unknown</font></td>
+                                        <td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+                                                <div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
+                                                   <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
+                                                 </div>
+                                                 <div>
+							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
+                                                        <strong>Description:</strong><br><?php print $rule['summary']; ?>
+                                                        </div>
+                                                </div>
+                                        </td>
+				<td align="center" bgcolor="yellow"><font color="black">Unknown</font></td>
 			</tr>
 			<?php } else { ?>
 				<?php $isfirst=true; ?>
 				<?php foreach($rule['results'] as $result) { ?>
-				<tr>	
+				<tr>
 					<?php if($isfirst == true) { $isfirst=false; ?>
-					<td ROWSPAN="<?php print count($rule['results']); ?>"><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="black"><?php print $rule['name']; ?><font></a></td>
+					<td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+ 						<div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
+     						   <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
+ 						 </div>
+						 <div>
+							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
+							<strong>Description:</strong><br><?php print $rule['summary']; ?>
+							</div>
+						</div>
+					</td>
+
+
+<!--					<td ROWSPAN="<?php print count($rule['results']); ?>"><a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>" title="<?php print $rule['tooltip']; ?>"><font color="#444444"><?php print $rule['name']; ?><font></a></td>-->
 					<?php } ?>
 					<?php if($result['status'] == 'unsafe') { ?> 
-					<td bgcolor="#FF6666">
-						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><font color="black"><?php print $result['status']; ?></font></a>
+					<td bgcolor="#FF6666" align="center">
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><font color="black">Unsafe</font></a>
 					<?php } else if($result['status']=='safe') { ?>
-					<td bgcolor="#66CC33">
-						<font color="black">safe</font>
+					<td bgcolor="#66CC33" align="center">
+						<font color="black">Safe</font>
 					<?php } else { ?>
-					<td bgcolor="yellow">
-						<font color="black">unknown</font>
+					<td bgcolor="yellow" align="center">
+						<font color="black">Unknown</font>
 					<?php } ?>
 					</td>
 				</tr>		
