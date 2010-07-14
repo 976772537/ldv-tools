@@ -6,6 +6,7 @@ use Env qw(LDV_DEBUG LDV_ERROR_TRACE_VISUALIZER_DEBUG);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
+use HTML::Entities qw(encode_entities);
 use strict;
 
 # Add some local Perl packages.
@@ -28,10 +29,10 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 # retn: this string with formatted operators.
 sub add_mising_spaces($);
 
-# Check wether the given engine is supported.
-# args: no.
-# retn: nothing.
-sub check_engine();
+# Replace some characters from file path to make link from it.
+# args: a file path.
+# retn: link corresponding to the given file path.
+sub convert_file_to_link($);
 
 # Process command-line options. To see detailed description of these options 
 # run script with --help option.
@@ -174,6 +175,11 @@ my %engines = (my $engine_blast = 'blast' =>
 # The value is the entity class to be hide by default.
 my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializationBody' => 1, 'ETVBlock' => 1);
 
+# These variables contain a current line number and a current source code file 
+# if so or 0 and '' otherwise.
+my $entity_line = 0;
+my $entity_src = '';
+
 # File handlers.
 my $file_report_in;
 my $file_report_out;
@@ -273,6 +279,17 @@ sub add_mising_spaces($)
   $str =~ s/=([^ ])/= $1/g;
   
   return $str;
+}
+
+sub convert_file_to_link($)
+{
+  my $file_path = shift;
+  
+  # Exchange slashes and points with '_'.	
+  $file_path =~ s/\//_/g;
+  $file_path =~ s/\./_/g;
+  
+  return $file_path; 	
 }
 
 sub get_opt()
@@ -473,20 +490,23 @@ sub print_error_trace_node_blast($$)
   }
   
   # Get source and line if so.
+  my $src_full = '';
   my $src = '';
-  my $line = '';
+  my $line = 0;
   if ($tree_node->{'pre annotations'})
   {
 	foreach my $pre_annotation (@{$tree_node->{'pre annotations'}})
 	{
 	  if ($pre_annotation->{'kind'} eq 'Location')
 	  {
-		$src = $pre_annotation->{'values'}[0];
-		$src = $files_short_name{$src} || $src;
+		$src_full = $pre_annotation->{'values'}[0];
+		$src = $files_short_name{$src_full} || $src_full;
 	    $line = $pre_annotation->{'values'}[1];  
 	  }
 	}
   }
+  $entity_line = $line;
+  $entity_src = $src_full;
   
   # Get formal parameter names if so.
   my @names = ();
@@ -629,6 +649,29 @@ sub print_spaces($)
 {
   my $space_number = shift;
   
+  # Print the line number at the beginning of every line. Note that the line 
+  # number is generated just one time for each entity that has it. If entity
+  # occupies more than one line then following to the first line fields are 
+  # filled with spaces. Because of there is spaces indentation before each line
+  # this is done here.
+  print($file_report_out "<span class='ETVLineNumber'>");
+  if ($entity_line and $entity_src)
+  {
+	# Generate a link to the source code line if so.  
+	print($file_report_out "<a href='#". convert_file_to_link($files_long_name{$entity_src}) . ":$entity_line'>")
+	  if ($files_long_name{$entity_src});  
+    printf($file_report_out "%5d ", $entity_line);
+    print($file_report_out "</a>")
+	  if ($files_long_name{$entity_src});
+    $entity_line = 0;
+    $entity_src = '';
+  }
+  else
+  {
+    print($file_report_out "      ");
+  }
+  print($file_report_out "</span>");
+    
   # Print identation spaces.
   print($file_report_out "<span class='ETVIdentation'>");
   
@@ -859,9 +902,8 @@ sub process_source_code_files()
 	if ($line =~ /^$src_tag(.*)$src_tag$/)
 	{
 	  $file_name = $1;
-	  $file_name =~ /\//;
-	  $file_name = $POSTMATCH;
-	  print_debug_trace("Try to relate files by their full and long names");
+	  print_debug_trace("Try to relate file by its long name '$file_name' with some long name");
+	  my $isrelated = 0;
 	  foreach my $full_name (keys(%files_long_name))
 	  {
 		if ($full_name =~ /\Q$file_name\E$/)
@@ -873,23 +915,24 @@ sub process_source_code_files()
 		  else
 		  {
 			$files_long_name{$full_name} = $file_name;
+			$isrelated = 1;
 			print_debug_debug("The full name '$full_name' was related with the long name '$file_name'");
 		  }
 		}  
 	  }
 	  print_debug_warning("The long name '$file_name' wasn't related with any full name")
-	    unless ($files_long_name{$file_name});
+	    unless ($isrelated);
 	  $file_name =~ /([^\/]*)$/;
 	  $files_short_name{$file_name} = $1;
 	  print_debug_debug("The long name '$file_name' was related with the short name '$1'");  
 	  print_debug_debug("Process the '$file_name' source code file");
 	  next;	
 	}
-	
+
 	die("The source code file has incorrect format. No file name is specified") 
 	  unless ($file_name);
 	
-	$srcs{$file_name} .= "$line\n";
+	push(@{$srcs{$file_name}}, "$line");
   }
 }
 
@@ -1056,10 +1099,10 @@ sub visualize_error_trace($)
     , "\n  \$(document).ready(function() {"
     , "\n    \$('#ETVTabs div').hide();"
     , "\n    \$('#ETVTabs div:first').show();"
-    , "\n    \$('#ETVTabs span:first').addClass('active');"
+    , "\n    \$('#ETVTabs span:first').addClass('ETVActive');"
     , "\n    \$('#ETVTabs span a').click(function() {"
-    , "\n      \$('#ETVTabs span').removeClass('active');"
-    , "\n      \$(this).parent().addClass('active');"
+    , "\n      \$('#ETVTabs span').removeClass('ETVActive');"
+    , "\n      \$(this).parent().addClass('ETVActive');"
     , "\n      var currentTab = \$(this).attr('href');"
     , "\n      \$('#ETVTabs div').hide();"
     , "\n      \$(currentTab).show();"
@@ -1067,7 +1110,25 @@ sub visualize_error_trace($)
     , "\n    });"
     , "\n  });"
     , "\n</script>");
-  
+
+  # Print error trace with source code relation plugin.
+  print($file_report_out
+      "\n<script type='text/javascript'>"
+    , "\n  \$(document).ready(function() {"
+    , "\n    \$('.ETVLineNumber a').click(function() {"
+    , "\n      \$('#ETVTabs span').removeClass('ETVActive');"
+    , "\n      var currentTab = \$(this).attr('href');"
+    , "\n      var linePosition = currentTab.lastIndexOf(':');"
+    , "\n      currentTab = currentTab.substring(0, linePosition);"
+    , "\n      \$('#ETVTabs div').hide();"
+    , "\n      \$('#ETVTabs span a[href=' + currentTab + ']').parent().addClass('ETVActive');"
+    , "\n      \$(currentTab).show();"
+    , "\n      \$('a').removeClass('ETVMarked');"
+    , "\n      \$('a[name=' + \$(this).attr('href').substring(1) + ']').addClass('ETVMarked');"
+    , "\n    });"
+    , "\n  });"
+    , "\n</script>");  
+
   # Create the table having two cells. The first cell is for the error trace and
   # the second is for the tabed source code. 
   print($file_report_out 
@@ -1081,22 +1142,31 @@ sub visualize_error_trace($)
     , "\n  </td>"
     , "\n  <td class='ETVSrcWindow'>"
     , "\n    <div id='ETVTabs'>");
-  my $i = 1;  
   foreach my $src (sort(keys(%srcs)))
   {
     print($file_report_out 
-      "\n      <span><a href='#ETVTab-$i'>$files_short_name{$src}</a></span>");     
-    $i++;
+      "\n      <span><a href='#" . convert_file_to_link($src) . "'>$files_short_name{$src}</a></span>");
   }
-  $i = 1;
+  
   foreach my $src (sort(keys(%srcs)))
-  {
+  {    
     print($file_report_out 
-      "\n      <div id='ETVTab-$i'>"
-    , "\n        <pre class='ETVSrcFile'>$srcs{$src}</pre>"
+      "\n      <div id='" . convert_file_to_link($src) . "'>"
+    , "\n        <pre class='ETVSrcFile'>");
+    
+    my $line_numb = 1;
+    foreach my $line (@{$srcs{$src}})
+    {
+	  printf($file_report_out "<span class='ETVLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'>%5d </a></span>", $line_numb);
+	  print($file_report_out encode_entities($line), "\n");
+	  $line_numb++;
+	}
+    
+    print($file_report_out
+      "\n        </pre>"
     , "\n      </div>");
-    $i++;
   }
+  
   print($file_report_out 
       "\n    </div>"
     , "\n  </td>"
