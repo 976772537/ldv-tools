@@ -32,6 +32,7 @@
 
 .ETVErrorTrace
 {
+  background: #FFFFCC;
   height: 600px;
   overflow: scroll;
   width: 400px;
@@ -127,6 +128,33 @@
   font-size: 8pt;
 }
 
+.ETVSyntaxCKeywords
+{
+  color: #003399;
+  font-weight: bold;
+}
+
+.ETVSyntaxCPPKeywords
+{
+  color: #48AE7E;
+}
+
+.ETVSyntaxComment
+{
+  color: #FF3333;
+  font-style: italic;
+}
+
+.ETVSyntaxNumber
+{
+  color: #009933;
+}
+
+.ETVSyntaxString
+{
+  color: #009933;
+}
+
 /*
 .ETVSrc
 {
@@ -212,7 +240,7 @@
 
 #ETVTabs div 
 {
-  background: #CEE1EF;
+  background: #ECF9EB;
   clear: both;
 /*  padding: 20px; */
   height: 550px;

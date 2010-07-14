@@ -6,11 +6,12 @@ use Env qw(LDV_DEBUG LDV_ERROR_TRACE_VISUALIZER_DEBUG);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
-use HTML::Entities qw(encode_entities);
 use strict;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl", "$FindBin::RealBin/../shared/perl/error-trace-visualizer");
+
+use Text::Highlight;
 
 # Add some nonstandard local Perl packages.
 use LDV::Utils;
@@ -216,7 +217,15 @@ my $src_tag = '-------';
 # Source code files referenced by the error trace. Keys are source code file 
 # names, values are their contents.
 my %srcs;
-
+  
+# The colors to be used in highlighting.  
+my $syntax_colors = { 
+  comment => 'ETVSyntaxComment',
+  string  => 'ETVSyntaxString',
+  number  => 'ETVSyntaxNumber',
+  key1    => 'ETVSyntaxCKeywords',
+  key2    => 'ETVSyntaxCPPKeywords',
+};
 
 ################################################################################
 # Main section.
@@ -1154,11 +1163,16 @@ sub visualize_error_trace($)
       "\n      <div id='" . convert_file_to_link($src) . "'>"
     , "\n        <pre class='ETVSrcFile'>");
     
+    # Make syntax highlighting of the source code.
+    my $syntax_highlighter = new Text::Highlight('colors' => $syntax_colors, wrapper => "%s");
+    my $src_all = join("\n", @{$srcs{$src}}); 
+    my $src_all_highlighted = $syntax_highlighter->highlight('CPP', $src_all);
+    my @src_highlighted = split(/\n/, $src_all_highlighted);
     my $line_numb = 1;
-    foreach my $line (@{$srcs{$src}})
+    foreach my $line (@src_highlighted)
     {
 	  printf($file_report_out "<span class='ETVLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'>%5d </a></span>", $line_numb);
-	  print($file_report_out encode_entities($line), "\n");
+	  print($file_report_out "$line\n");
 	  $line_numb++;
 	}
     
