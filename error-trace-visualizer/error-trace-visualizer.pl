@@ -196,6 +196,17 @@ my %files_short_name;
 # The unique html tags identifier.
 my $html_id = 0;
 
+# LDV driver environment comments collected from source code. Keys are file 
+# names and line numbers, values are comments with the corresponding short alias 
+# names.
+my %ldv_driver_env_comments;
+# The LDV driver environment comments aliases and names.
+my %ldv_driver_env_comment_names = (
+    'entry point beginning' => 'LDV_COMMENT_BEGIN_MAIN' 
+  , 'entry point end' => 'LDV_COMMENT_END_MAIN'
+  , 'function call' => 'LDV_COMMENT_FUNCTION_CALL'
+  , 'variable initialization' => 'LDV_COMMENT_VAR_INIT');
+
 # LDV model comments collected from source code. Keys are file names and line 
 # numbers, values are comments with the corresponding short alias names.
 my %ldv_model_comments;
@@ -528,7 +539,17 @@ sub print_error_trace_node_blast($$)
   }
   $entity_line = $line;
   $entity_src = $src_full;
-  
+  # This title will be shown for all major entities.
+  my $title = "$src:$line";
+  if ($ldv_model_comments{$entity_src}{($line - 1)})
+  {
+    $title .= ": " . $ldv_model_comments{$entity_src}{($line - 1)};
+  }
+  elsif ($ldv_driver_env_comments{$entity_src}{($line - 1)})
+  {
+    $title .= ": " . $ldv_driver_env_comments{$entity_src}{($line - 1)};
+  }
+    
   # Get formal parameter names if so.
   my @names = ();
   if ($tree_node->{'post annotations'})
@@ -560,7 +581,7 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCall')
   {
-    print($file_report_out "\n<div class='ETVFunctionCall' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionCall' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
     # Add formal parameters names comments.
@@ -594,7 +615,7 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
-    print($file_report_out "\n<div class='ETVFunctionCallInitialization' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionCallInitialization' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id"); 
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
@@ -612,7 +633,7 @@ sub print_error_trace_node_blast($$)
   {
 	# Split expressions joined together into one block.
 	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
-	print($file_report_out "\n<div class='ETVBlock' title='$src:$line' id='ETV", ($html_id++), "'>");
+	print($file_report_out "\n<div class='ETVBlock' title='$title' id='ETV", ($html_id++), "'>");
 	my $isshow_hide = 1;
 	$isshow_hide = 0 unless (scalar(@exprs) > 1);
 	
@@ -636,13 +657,13 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
-    print($file_report_out "\n<div class='ETVReturn' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVReturn' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "return ", "<span class='ETVReturnValue'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
   }
   elsif ($tree_node->{'kind'} eq 'Pred')
   {
-    print($file_report_out "\n<div class='ETVAssert' title='$src:$line' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVAssert' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "assert(", "<span class='ETVAssertCondition'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
   }
@@ -917,6 +938,7 @@ sub process_source_code_files()
   # Otherwise separate files into the source code files hash.
   my $file_name;
   my $isrelated_with;
+  my $line_numb;
   while (<$file_src_files>)
   {
 	my $line = $_;
@@ -949,6 +971,7 @@ sub process_source_code_files()
 	  $files_short_name{$file_name} = $1;
 	  print_debug_debug("The long name '$file_name' was related with the short name '$1'");  
 	  print_debug_debug("Process the '$file_name' source code file");
+	  $line_numb = 1;
 	  next;	
 	}
 
@@ -958,11 +981,19 @@ sub process_source_code_files()
 	# Read LDV model comments.
 	foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
 	{
-	  $ldv_model_comments{$isrelated_with}{$INPUT_LINE_NUMBER} = "Model $ldv_model_comment_alias - '$1'"	
+	  $ldv_model_comments{$isrelated_with}{$line_numb} = "Model $ldv_model_comment_alias - \"$1\""	
 	    if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias} ([^\*\/]*)\*\/\s*$/);
 	}
 	
+	# Read LDV driver environment comments.
+	foreach my $ldv_driver_env_comment_alias (keys(%ldv_driver_env_comment_names))
+	{
+	  $ldv_driver_env_comments{$isrelated_with}{$line_numb} = "Driver environment $ldv_driver_env_comment_alias - \"$1\""	
+	    if ($line =~ /^\s*\/\*\s*$ldv_driver_env_comment_names{$ldv_driver_env_comment_alias} ([^\*\/]*)\*\/\s*$/);
+	}
+
 	push(@{$srcs{$file_name}}, "$line");
+	$line_numb++;
   }
 }
 
