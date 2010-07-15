@@ -196,15 +196,20 @@ sub hxml_cmdstream {
 						} else {
 							$relpath =~ s/.*$kernel//;
 						}
-						my $rel_path_full="$report_out.source/$kernel$relpath";
+						my $rel_path_full="$report_out.source/$kernel/$relpath";
 						ldv_dprint("relativ full path: $rel_path_full");
 						chomp($rel_path_full);
 						if(system('mkdir','-p',$rel_path_full)) {
 							ldv_wprint("Can't create dir:\"$rel_path_full\".");
 							return;
 						}
-						ldv_dprint("LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel");
-						my $path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel`;
+#						if(!$artificial_kernel) {
+							ldv_dprint("LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel");
+							my $path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel`;
+#						} else {
+#							ldv_dprint("Artificial kernel mode.");
+#							my $path_to_kernel=$artificial_kernel;
+#						}
 						chomp($path_to_kernel);
 						ldv_dprint("path to kernel: $tfile");
 						if(!(-d $path_to_kernel)) {
@@ -275,6 +280,10 @@ sub get_ldv_opts
 		{
 			$reports_dir = $opt;
 		}
+#		elsif($opt =~ s/--artificial-kernel=(.*)/$1/)
+#		{
+#			$artificial_kernel = $opt;
+#		}	
 		elsif($opt =~ s/--report-name=(.*)/$1/)
 		{
 			$report_name = $opt;
@@ -338,6 +347,7 @@ sub print_usage
 #######################################################
 sub ldv_print
 {
+	chomp($_[0]);
 	print "$psuffix: $_[0]\n";
 }
 

@@ -21,6 +21,8 @@ LDV_CORE_DIR=$LDV_HOME/ldv-core;
 LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 LDV_REPORTER=$LDV_DIR/ldv-task-reporter;
 
+ARTIFICIAL_LDV_WORK_DIRNAME=artificial_env;
+
 KERNEL_LEVEL=0;
 
 #
@@ -67,6 +69,13 @@ for arg in $@; do
 			        exit 1;
 			fi;
                	;;
+  		--cmdstream=*)
+                	rcmdstream=`echo $arg | sed 's/--cmdstream=//g'`
+			if [ ! -n "$rcmdstream" ]; then
+				ldv_print "ERROR: Parameter \"--cmdstream\" - is null. Setup it.";
+			        exit 1;
+			fi;
+		;;
  		--driver=*)
                 	rdriver=`echo $arg | sed 's/--driver=//g'`
 			if [ ! -n "$rdriver" ]; then
@@ -84,26 +93,39 @@ for arg in $@; do
         esac
 done
 
-if [ ! -n "$env" ]; then
-	ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
-        exit 1;
-fi;
-if [ ! -n "$rdriver" ]; then
-	ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
-        exit 1;
-fi;
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	driver=`echo "readlink -f $rdriver" | sh`;
+if [ -n "$rcmdstream" ]; then
+	cmdstream=`echo "readlink -f $rcmdstream" | sh`;
 	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+		ldv_print "ERROR: Failed to read abs-path for cmdstream file: \"$cmdstream\"."
 		exit 1;
 	fi;
-	if [ ! -f "$driver" ]; then
-	        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
+	if [ ! -f "$cmdstream" ]; then
+	        ldv_print "ERROR: Cmdstream file not exists: \"$cmdstream\".";
 	        exit 1;
 	fi;
 else
-	driver=$rdriver;
+	if [ ! -n "$rdriver" ]; then
+		ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
+       		exit 1;
+	fi;
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		driver=`echo "readlink -f $rdriver" | sh`;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+			exit 1;
+		fi;
+		if [ ! -f "$driver" ]; then
+		        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
+		        exit 1;
+		fi;
+	else
+		driver=$rdriver;
+	fi;
+fi;
+
+if [ ! -n "$env" ]; then
+	ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
+	exit 1;
 fi;
 
 if [ ! -n "$workdir" ]; then
@@ -117,13 +139,13 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
-
 LDV_STATE=$workdir/$LDV_STATE_FILENAME;
 touch $LDV_STATE;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Can't create ldv state file:\"$LDV_STATE\".";
 	exit 1;
 fi;
+
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ENV_ID=`echo $i | sed 's/@.*//'`;
 	RULES=`echo $i | sed 's/.*@//'`;
@@ -144,8 +166,9 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ldv_print "NORMAL: Calling LDV-core.";
 	LDV_CORE_REPORT=$WORK_DIR_LOCAL/$LDV_CORE_REPORT_FILENAME;
 	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
-	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
-	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;
+	if [ -n "$cmdstream" ]; then stream_option="--cmdstream=$cmdstream"; else stream_option="--driver=$driver"; fi;
+	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --driver=$driver --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
+	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: ldv-core failed.";
 		exit 1;

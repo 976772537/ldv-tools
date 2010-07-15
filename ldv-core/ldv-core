@@ -184,6 +184,13 @@ for arg in $@; do
 			        exit 1;
 			fi;
                 ;;
+                --cmdstream=*)
+                        rcmdstream=`echo $arg | sed 's/--cmdstream=//g'`
+                        if [ ! -n "$rcmdstream" ]; then
+                                ldv_print "ERROR: Parameter \"--cmdstream\" - is null. Setup it.";
+                                exit 1;
+                        fi;
+                ;;
                 --kernel-driver)
  			KERNEL_LEVEL=1;	
 		;;
@@ -201,35 +208,51 @@ for arg in $@; do
         esac
 done
 
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	driver=`readlink -f $rdriver`;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
-	        exit 1;
+if [ -n "$rcmdstream" ]; then
+	ldv_print "INFO: Artificial cmdstream mode.";
+        cmdstream=`echo "readlink -f $rcmdstream" | sh`;
+        if [ $? -ne 0 ]; then
+                ldv_print "ERROR: Failed to read abs-path for cmdstream file: \"$cmdstream\"."
+                exit 1;
+        fi;
+        if [ ! -f "$cmdstream" ]; then
+                ldv_print "ERROR: Cmdstream file not exists: \"$cmdstream\".";
+                exit 1;
+        fi;
+else
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		driver=`readlink -f $rdriver`;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+		        exit 1;
+		fi;
+		if [ ! -f "$driver" ]; then
+		        ldv_print "ERROR: Driver sources not exists: \"$driver\".";
+		        exit 1;
+		fi;
+	else 
+		driver=$rdriver;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Can't get abs path for driver in kernel.";
+			exit 1;
+		fi;
 	fi;
-	if [ ! -f "$driver" ]; then
-	        ldv_print "ERROR: Driver sources not exists: \"$driver\".";
-	        exit 1;
+	if [ ! -n $reportout ]; then
+		ldv_print "ERROR: Please setup out report file option: \"--report-out\".";
 	fi;
-else 
-	driver=$rdriver;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Can't get abs path for driver in kernel.";
-		exit 1;
+	if [ ! -n $driver ]; then
+		ldv_print "ERROR: Please setup driver in option: \"--driver\".";
 	fi;
 fi;
-if [ ! -n $reportout ]; then
-	ldv_print "ERROR: Please setup out report file option: \"--report-out\".";
-fi;
-if [ ! -n $rulemodels ]; then
-	ldv_print "ERROR: Please setup rules and models in option: \"--rulemodels\".";
-fi;
+
 if [ ! -n $env ]; then
 	ldv_print "ERROR: Please setup environment in option: \"--env\".";
 fi;
-if [ ! -n $driver ]; then
-	ldv_print "ERROR: Please setup driver in option: \"--driver\".";
+
+if [ ! -n $rulemodels ]; then
+	ldv_print "ERROR: Please setup rules and models in option: \"--rulemodels\".";
 fi;
+
 BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
 mkdir $BCE_TEMPDIR;
 if [ $? -ne 0 ]; then
@@ -251,57 +274,79 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
-DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "NORMAL: Prepare driver."
-	mkdir $DRIVER_DIR;
-	if [ $? -ne 0 ]; then
-	        ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
-	        exit 1;
-	fi;
-	#
-	# test format for driver file and unpack driver
-	#
-	case `file -b $driver --mime-type` in
-		application/x-bzip2)
-			tar xvjpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
-		application/x-gzip)
-			tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
-		*)
-			bce_ldv_report "FAILED" "Driver source type not supported.";
-			ldv_print "ERROR: Unknown driver source type.";
-			exit 0;;
-	esac
-	if [ $? -ne 0 ]; then
-		bce_ldv_report "FAILED" "Failed to unpack driver source.";
-	        ldv_print "ERROR: Failed to unpacked archive: \"$driver\".";
-	        exit 0;
-	fi;
-else
-	ldv_print "NORMAL: Copy in-kernel driver environment."
-	ldv_print "DEBUG: cp -r $env $DRIVER_DIR;"
-	cp -r $env $DRIVER_DIR;
-	env=$DRIVER_DIR;
-	DRIVER_DIR=$driver;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Can't copy drivers source code.";
-		exit 1;
+if [ ! -n "$cmdstream" ]; then
+	DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		ldv_print "NORMAL: Prepare driver."
+		mkdir $DRIVER_DIR;
+		if [ $? -ne 0 ]; then
+		        ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
+		        exit 1;
+		fi;
+		#
+		# test format for driver file and unpack driver
+		#
+		case `file -b $driver --mime-type` in
+			application/x-bzip2)
+				tar xvjpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
+			application/x-gzip)
+				tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
+			*)
+				bce_ldv_report "FAILED" "Driver source type not supported.";
+				ldv_print "ERROR: Unknown driver source type.";
+				exit 0;;
+		esac
+		if [ $? -ne 0 ]; then
+			bce_ldv_report "FAILED" "Failed to unpack driver source.";
+		        ldv_print "ERROR: Failed to unpacked archive: \"$driver\".";
+	       		exit 0;
+		fi;
+	else
+		ldv_print "NORMAL: Copy in-kernel driver environment."
+		ldv_print "DEBUG: cp -r $env $DRIVER_DIR;"
+		cp -r $env $DRIVER_DIR;
+		env=$DRIVER_DIR;
+		DRIVER_DIR=$driver;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Can't copy drivers source code.";
+			exit 1;
+		fi;
 	fi;
 fi;
 
 BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
 BCE_STATE=$BCE_TEMPDIR/"err.state";
-XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
+
+
+
 ldv_print "NORMAL: Calling Build Command Extractor";
-if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
-ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;"
-LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Cmd extractor failed.";
-	bce_ldv_report "FAILED" "Build command extractor failed.";
-        exit 0;
+if [ -n "$cmdstream" ]; then
+	XML_AFTER_BCE=$cmdstream;
+	stream_option="--cmdstream=$cmdstream";
+else
+	XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
+	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
+	stream_option="--driver=$DRIVER_DIR";
 fi;
 
+ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;"
+                  LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;
+
+#if [ -n "$cmdstream" ]; then
+#	XML_AFTER_BCE=$cmdstream;
+#	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --cmdstream=$cmdstream --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE;"
+#	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --cmdstream=$cmdstream --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE;
+#else 
+#	XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
+#	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
+#	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env             --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;"
+#	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;
+#fi;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Cmd extractor failed.";
+	bce_ldv_report "FAILED" "Build command extractor failed.";
+	exit 0;
+fi;
 #
 # FAST FIX : remove LD commands that contains <in> sections 
 #            without corresponding CC commands !!!
