@@ -204,8 +204,8 @@ my %ldv_driver_env_comments;
 my %ldv_driver_env_comment_names = (
     'entry point beginning' => 'LDV_COMMENT_BEGIN_MAIN' 
   , 'entry point end' => 'LDV_COMMENT_END_MAIN'
-  , 'function call' => 'LDV_COMMENT_FUNCTION_CALL'
-  , 'variable initialization' => 'LDV_COMMENT_VAR_INIT');
+  , my $ldv_driver_env_comment_func_call = 'function call' => 'LDV_COMMENT_FUNCTION_CALL'
+  , my $ldv_driver_env_comment_var_init = 'variable initialization' => 'LDV_COMMENT_VAR_INIT');
 
 # LDV model comments collected from source code. Keys are file names and line 
 # numbers, values are comments with the corresponding short alias names.
@@ -485,7 +485,11 @@ sub print_error_trace_blast($)
   print($file_report_out "<br>");
   print_show_hide_global('ETVIdentation', 'identation');
   print($file_report_out "<br>");
-  
+  print_show_hide_global('ETVDriverEnvInit', 'driver environment initialization');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVDriverEnvFunctionCall', 'driver environment function call');
+  print($file_report_out "<br>");
+    
   foreach my $entity_hide (keys(%entity_hide))
   {
     print($file_report_out 
@@ -541,13 +545,19 @@ sub print_error_trace_node_blast($$)
   $entity_src = $src_full;
   # This title will be shown for all major entities.
   my $title = "$src:$line";
+  # Process special model and driver environment comments.
+  my $class_extra = '';
   if ($ldv_model_comments{$entity_src}{($line - 1)})
   {
-    $title .= ": " . $ldv_model_comments{$entity_src}{($line - 1)};
+    $title .= ": Model " . $ldv_model_comments{$entity_src}{($line - 1)}{'alias'} . " - " . $ldv_model_comments{$entity_src}{($line - 1)}{'comment'};
   }
   elsif ($ldv_driver_env_comments{$entity_src}{($line - 1)})
   {
-    $title .= ": " . $ldv_driver_env_comments{$entity_src}{($line - 1)};
+    $title .= ": Driver environment " . $ldv_driver_env_comments{$entity_src}{($line - 1)}{'alias'} . " - " . $ldv_driver_env_comments{$entity_src}{($line - 1)}{'comment'};
+    $class_extra .= " ETVDriverEnvInit"
+      if ($ldv_driver_env_comments{$entity_src}{($line - 1)}{'alias'} eq $ldv_driver_env_comment_var_init);
+    $class_extra .= " ETVDriverEnvFunctionCall"
+      if ($ldv_driver_env_comments{$entity_src}{($line - 1)}{'alias'} eq $ldv_driver_env_comment_func_call);
   }
     
   # Get formal parameter names if so.
@@ -581,7 +591,7 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCall')
   {
-    print($file_report_out "\n<div class='ETVFunctionCall' title='$title' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionCall $class_extra' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
     # Add formal parameters names comments.
@@ -609,9 +619,9 @@ sub print_error_trace_node_blast($$)
     $val =~ s/(\/\*[^\*\/]*\*\/)/<span class='ETVFunctionFormalParamName'>$1<\/span>/g;
 
     print($file_report_out $val, ";</div>");
-    print($file_report_out "\n<div class='ETVFunctionBody' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionBody $class_extra' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "{");    
+    print($file_report_out "{<br>");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
@@ -633,7 +643,7 @@ sub print_error_trace_node_blast($$)
   {
 	# Split expressions joined together into one block.
 	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
-	print($file_report_out "\n<div class='ETVBlock' title='$title' id='ETV", ($html_id++), "'>");
+	print($file_report_out "\n<div class='ETVBlock $class_extra' title='$title' id='ETV", ($html_id++), "'>");
 	my $isshow_hide = 1;
 	$isshow_hide = 0 unless (scalar(@exprs) > 1);
 	
@@ -981,14 +991,16 @@ sub process_source_code_files()
 	# Read LDV model comments.
 	foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
 	{
-	  $ldv_model_comments{$isrelated_with}{$line_numb} = "Model $ldv_model_comment_alias - \"$1\""	
+	  $ldv_model_comments{$isrelated_with}{$line_numb} 
+	    = {'alias' => $ldv_model_comment_alias, 'comment' => $1}	
 	    if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias} ([^\*\/]*)\*\/\s*$/);
 	}
 	
 	# Read LDV driver environment comments.
 	foreach my $ldv_driver_env_comment_alias (keys(%ldv_driver_env_comment_names))
 	{
-	  $ldv_driver_env_comments{$isrelated_with}{$line_numb} = "Driver environment $ldv_driver_env_comment_alias - \"$1\""	
+	  $ldv_driver_env_comments{$isrelated_with}{$line_numb} 
+	    = {'alias' => $ldv_driver_env_comment_alias, 'comment' => $1}	
 	    if ($line =~ /^\s*\/\*\s*$ldv_driver_env_comment_names{$ldv_driver_env_comment_alias} ([^\*\/]*)\*\/\s*$/);
 	}
 

@@ -17,6 +17,16 @@
   font-size: 6pt;  
 }
 
+.ETVDriverEnvFunctionCall
+{
+  background-color: #F0D1FF;
+}
+
+.ETVDriverEnvInit
+{
+  background-color: #FFD6A1;
+}
+
 .ETVEntryPoint
 {
   color: red;
