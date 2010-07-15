@@ -196,6 +196,18 @@ my %files_short_name;
 # The unique html tags identifier.
 my $html_id = 0;
 
+# LDV model comments collected from source code. Keys are file names and line 
+# numbers, values are comments with the corresponding short alias names.
+my %ldv_model_comments;
+# The LDV model comments aliases and names.
+my %ldv_model_comment_names = (
+    'assert' => 'LDV_COMMENT_ASSERT' 
+  , 'state changing' => 'LDV_COMMENT_CHANGE_STATE'
+  , 'function call' => 'LDV_COMMENT_MODEL_FUNCTION_CALL'
+  , 'state' => 'LDV_COMMENT_MODEL_STATE'
+  , 'other' => 'LDV_COMMENT_OTHER'
+  , 'return' => 'LDV_COMMENT_RETURN');
+
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_engine;
 my $opt_help;
@@ -904,15 +916,17 @@ sub process_source_code_files()
   
   # Otherwise separate files into the source code files hash.
   my $file_name;
-  foreach my $line (<$file_src_files>)
+  my $isrelated_with;
+  while (<$file_src_files>)
   {
+	my $line = $_;
 	chomp($line);
 	
 	if ($line =~ /^$src_tag(.*)$src_tag$/)
-	{
+	{	
 	  $file_name = $1;
 	  print_debug_trace("Try to relate file by its long name '$file_name' with some long name");
-	  my $isrelated = 0;
+	  $isrelated_with = '';
 	  foreach my $full_name (keys(%files_long_name))
 	  {
 		if ($full_name =~ /\Q$file_name\E$/ or $file_name =~ /\Q$full_name\E$/)
@@ -924,13 +938,13 @@ sub process_source_code_files()
 		  else
 		  {
 			$files_long_name{$full_name} = $file_name;
-			$isrelated = 1;
+			$isrelated_with = $full_name;
 			print_debug_debug("The full name '$full_name' was related with the long name '$file_name'");
 		  }
 		}  
 	  }
 	  print_debug_warning("The long name '$file_name' wasn't related with any full name")
-	    unless ($isrelated);
+	    unless ($isrelated_with);
 	  $file_name =~ /([^\/]*)$/;
 	  $files_short_name{$file_name} = $1;
 	  print_debug_debug("The long name '$file_name' was related with the short name '$1'");  
@@ -940,6 +954,13 @@ sub process_source_code_files()
 
 	die("The source code file has incorrect format. No file name is specified") 
 	  unless ($file_name);
+	
+	# Read LDV model comments.
+	foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
+	{
+	  $ldv_model_comments{$isrelated_with}{$INPUT_LINE_NUMBER} = "Model $ldv_model_comment_alias - '$1'"	
+	    if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias} ([^\*\/]*)\*\/\s*$/);
+	}
 	
 	push(@{$srcs{$file_name}}, "$line");
   }
