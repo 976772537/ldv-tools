@@ -103,6 +103,7 @@ if [ -n "$rcmdstream" ]; then
 	        ldv_print "ERROR: Cmdstream file not exists: \"$cmdstream\".";
 	        exit 1;
 	fi;
+	KERNEL_LEVEL=1;
 else
 	if [ ! -n "$rdriver" ]; then
 		ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
