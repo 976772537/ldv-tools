@@ -17,6 +17,16 @@
   font-size: 6pt;  
 }
 
+.ETVDriverEnvFunctionCall
+{
+  background-color: #F0D1FF;
+}
+
+.ETVDriverEnvInit
+{
+  background-color: #FFD6A1;
+}
+
 .ETVEntryPoint
 {
   color: red;
@@ -106,7 +116,33 @@
   color: black;
   font-weight: normal;
   font-size: 8pt;
+  font-style: normal;
   white-space: pre;
+}
+
+.ETVModelAssert
+{
+  background-color: #DFE9FF;
+}
+
+.ETVModelChangeState
+{
+  background-color: #CEFFEC;  
+}
+
+.ETVModelFuncCall
+{
+  background-color: #D2E4BB;  
+}
+
+.ETVModelReturn
+{
+  background-color: #F8FFCE;  
+}
+
+.ETVModelOther
+{
+  background-color: #BCAEFD;  
 }
 
 .ETVReturn
