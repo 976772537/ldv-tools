@@ -146,10 +146,45 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
+k=1;
+ART_NAMES="";
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ENV_ID=`echo $i | sed 's/@.*//'`;
 	RULES=`echo $i | sed 's/.*@//'`;
 	ldv_print "NORMAL: Start process for environment \"$ENV_ID\".";
+
+	#
+	# Add artificial environment for kmanager
+	#
+	if [ -n "$cmdstream" ]; then
+		#
+		# Get an abs path for external kernel
+		#
+		if [ ! -n "$ENV_ID" ]; then
+			ldv_print "ERROR: Parameter \"ENV_ID\" - is null. Setup it.";
+			exit 1;
+		fi;
+		env=`readlink -f $ENV_ID`;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Failed to read abs-path for environment dir: \"$ENV_ID\"."
+			exit 1;
+		fi;
+		if [ ! -d "$env" ]; then
+			ldv_print "ERROR: Environment dir not exists: \"$env\".";
+			exit 1;
+		fi;
+		ENV_ID=$ARTIFICIAL_LDV_WORK_DIRNAME"_"$k;
+		ART_NAMES=$ART_NAMES" "$ENV_ID;
+		ldv_print "INFO: Create artificial env id: \"$ENV_ID\" for path to kernel: \"$env\".";
+		ldv_print "INFO: Add \"$ENV_ID\" to kmanager.";
+		ldv_print "TRACE: LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=add --src=$env --extractor=vanilla-gsoc --name=$ENV_ID";
+		LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=add --src=$env --extractor=vanilla-gsoc --name=$ENV_ID;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Can't add artificial kernel.";
+			exit 1;
+		fi;
+	fi;	
+
 	ldv_print "DEBUG: $LDV_KMANAGER --action=getpath --name=$ENV_ID;";
 	KERNEL_PATH=`$LDV_KMANAGER --action=getpath --name=$ENV_ID`;
 	if [ $? -ne 0 ]; then
@@ -174,6 +209,7 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 		exit 1;
 	fi;
 	echo "$ENV_ID:$WORK_DIR_LOCAL" >> $LDV_STATE;
+	let k=$k+1;
 done;
 
 #
@@ -190,6 +226,22 @@ LDV_ENVS_TARGET=$LDV_ENVS_TARGET $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FI
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: LDV reporter failed."
         exit 1;
+fi;
+
+#
+# Remove artififcial environment from kmanager
+#
+if [ -n "$cmdstream" ]; then
+        ldv_print "IFNO: Remove all artificial environments."
+	for i in $ART_NAMES; do 
+		ldv_print "INFO: Remove artificial environment \"$i\" from kmanager desc.";
+		ldv_print "TRACE: LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=remove --name=$i";	
+		LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=remove --name=$i;
+		if [ $? -ne 0 ]; then
+			ldv_print "WARNING: Can't remove artifficial environment \"$i\" from kmanager.";
+			continue;
+		fi;	
+	done;
 fi;
 
 exit;

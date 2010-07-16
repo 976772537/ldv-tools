@@ -119,8 +119,17 @@ case $action in
 		#
 		NEW_DESCRIPTION=$LDV_DESCRIPTIONS_DIR/$name;
 		if [ -f "$NEW_DESCRIPTION" ]; then
-			ldv_print "ERROR: Kernel description with name \"$name\" already exists. Try to select another name.";
-			exit 1;
+			if [ "$extractor" == "vanilla-gsoc" ]; then
+				ldv_print "WARNING: Old \"$name\" gsoc description already exists. I try to remove it..";
+				rm $NEW_DESCRIPTION;
+				if [ $? -ne 0 ]; then
+					ldv_print "ERROR: Can't remove old gcsock description \"$NEW_DESCRIPTION\".";
+					exit 1;
+				fi;
+			else
+				ldv_print "ERROR: Kernel description with name \"$name\" already exists. Try to select another name.";
+				exit 1;
+			fi;
 		fi;
 		if [ -d "$LDV_ENVS_DIR/$name" ]; then
 			ldv_print "ERROR: Kernel environment with name \"$name\" already exists. Try to select another name.";
@@ -172,12 +181,19 @@ case $action in
 			ldv_print "ERROR: Can't find find description: \"$DESCRIPTION_TO_REMOVE\".";
 			exit 1;
 		fi;
-		DSCR_DEST=`cat $DESCRIPTION_TO_REMOVE | grep ^dest | sed 's/^dest=//'`
-		if [ ! -d "$DSCR_DEST" ]; then
-			ldv_print "ERROR: Can't find find kernel dir: \"$DSCR_DEST\" for env name = \"$name\".";
-			exit 1;
-		fi;
-		rm -fr $DSCR_DEST;
+
+		#
+		# Only if kernel type not GSOC 
+		#
+		DSCR_TYPE=`cat $DESCRIPTION_TO_REMOVE | grep ^type | sed 's/^type=//'`;
+		if [ ! "$DSCR_TYPE" == "vanilla-gsoc" ]; then
+			DSCR_DEST=`cat $DESCRIPTION_TO_REMOVE | grep ^dest | sed 's/^dest=//'`;
+			if [ ! -d "$DSCR_DEST" ]; then
+				ldv_print "ERROR: Can't find find kernel dir: \"$DSCR_DEST\" for env name = \"$name\".";
+				exit 1;
+			fi;
+			rm -fr $DSCR_DEST;
+		fi; 
 		rm $DESCRIPTION_TO_REMOVE;
                 ldv_print "NORMAL: Kernel env \"$name\" - successfully removed.";
 	;;
