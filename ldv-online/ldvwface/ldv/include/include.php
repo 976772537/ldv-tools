@@ -14,9 +14,14 @@ print "<script type=\"text/javascript\" src=\"ldv/include/jquery/js/jquery-1.4.2
 print "<link rel='stylesheet' id='login-css'  href='ldv/include/jquery/css/start/jquery-ui-1.8.2.custom.css' type='text/css' media='all' />";
 print "<script type=\"text/javascript\" src=\"ldv/include/jquery/js/jquery-ui-1.8.2.custom.min.js\"></script>";
 
-// plugin for jQuery - work with collapsible/expansible tables
-print "<link rel='stylesheet' id='login-css'  href='ldv/include/jquery/css/jquery.treeTable.css' type='text/css' media='all' />";
-print "<script type=\"text/javascript\" src=\"ldv/include/jquery/js/jquery.treeTable.min.js\"></script>";
+// plugin for jQuery - work with cooikies
+print "<script type=\"text/javascript\" src=\"ldv/include/jquery/js/jquery.cookie.js\"></script>";
+
+// Add syntax highlighter for view rules
+print "<link type=\"text/css\" rel=\"stylesheet\" href=\"ldv/include/syntaxhighlighter/Styles/SyntaxHighlighter.css\">";
+
+// Markdown for rules
+include_once("markdown.php");
 
 // API for work with LDV server
 include_once("lsapi.php");

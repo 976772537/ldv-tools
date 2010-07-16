@@ -50,6 +50,13 @@ for arg in $@; do
 			fi;
 			cmdfileout=$rcmdfileout;
 		;;
+                --cmdstream=*)
+                        rcmdstream=`echo $arg | sed 's/--cmdstream=//g'`
+                        if [ ! -n "$rcmdstream" ]; then
+                                ldv_print "ERROR: Parameter \"--cmdstream\" - is null. Setup it.";
+                                exit 1;
+                        fi;
+                ;;
                 --basedir=*)
                 	basedir=`echo $arg | sed 's/--basedir=//g'`
 			if [ ! -n "$basedir" ]; then
@@ -98,22 +105,32 @@ for arg in $@; do
 done
 #---------------------------------------------------------------------------
 
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "NORMAL: Extern driver mode.";
+if [ -n "$rcmdstream" ]; then
+        cmdstream=`echo "readlink -f $rcmdstream" | sh`;
+        if [ $? -ne 0 ]; then
+                ldv_print "ERROR: Failed to read abs-path for cmdstream file: \"$cmdstream\"."
+                exit 1;
+        fi;
+        if [ ! -f "$cmdstream" ]; then
+                ldv_print "ERROR: Cmdstream file not exists: \"$cmdstream\".";
+                exit 1;
+        fi;
 else
-	ldv_print "NORMAL: In-kernel driver mode.";
-fi;
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		ldv_print "NORMAL: Extern driver mode.";
+	else
+		ldv_print "NORMAL: In-kernel driver mode.";
+	fi;
 
+	if [ ! -n "$driver" ]; then
+		ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
+	        print_usage_and_exit;
+	fi;
+fi;
 if [ ! -n $basedir ]; then
 	ldv_print "ERROR: Option \"$basedir\" is empty.";
 	print_usage_and_exit;	
 fi;
-
-if [ ! -n "$driver" ]; then
-	ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
-        print_usage_and_exit;
-fi;
-
 if [ ! -n "$statefile" ]; then
 	ldv_print "ERROR: Parameter \"--state\" - is null. Setup it.";
         print_usage_and_exit;
@@ -132,160 +149,173 @@ fi;
 
 DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
 
-echo "<?xml version=\"1.0\"?>" > $cmdfileout;
-echo "<cmdstream>" >> $cmdfileout;
-if [ $KERNEL_LEVEL -ne 1 ]; then
-	echo "<basedir>$driver</basedir>" >> $cmdfileout;
+if [ -n "$cmdstream" ]; then
+	cmdfileout=$cmdstream; 
 else
-	echo "<basedir>$env</basedir>" >> $cmdfileout;
-fi;
+	echo "<?xml version=\"1.0\"?>" > $cmdfileout;
+	echo "<cmdstream>" >> $cmdfileout;
+	if [ $KERNEL_LEVEL -ne 1 ]; then
+		echo "<basedir>$driver</basedir>" >> $cmdfileout;
+	else
+		echo "<basedir>$env</basedir>" >> $cmdfileout;
+	fi;
 
-KERNEL_COMPILE_LOG=$TEMP_DIR/$KERNEL_COMPILE_LOG_FILENAME;
-cd $env;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Failed change dir to: \"$env\".";
-	exit 1;
-fi;
+	KERNEL_COMPILE_LOG=$TEMP_DIR/$KERNEL_COMPILE_LOG_FILENAME;
+	cd $env;
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: Failed change dir to: \"$env\".";
+		exit 1;
+	fi;
 
-#
-# find correct Makefile in driver dir...
-#
-#
-# When kernel make driver:
-#    1     It find Kbuid on top level dir
-#    1.1   If Kbuild exists - it test for obj-m...
-#    1.2   If Kbuild contains obj-m then kernel start to build this driver and exit
-#    2     It find Makefile on top level dir
-#    2.1   If Makefile exists - it test for obj-m...
-#    2.2   If Makefile contains obj-m, then kernel start to build this driver and exit
-#    3     Kernel print error
-#
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "INFO: Try to find Kbuild with obj-m...";
-	FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
-	for l in $FIND_KBUILD_FILE_OPERATION; do
-		ldv_print "INFO: next Kbuild: \"$l\".";
-		if [ -n "`grep obj-m $l`" ]; then
-			CORRECT_MAKEFILE=`readlink -f $l`;
-			if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
-			ldv_print "INFO: Correct Kbuild file is: \"$l\".";
-			break;
-		fi;
-	done;
-	if [ ! -n "$CORRECT_MAKEFILE" ]; then
-		ldv_print "INFO: Kbuild not found.";
-		ldv_print "INFO: Try to find Makefile with obj-m...";
-		FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
-		for l in $FIND_MAKEFILE_FILE_OPERATION; do
-			ldv_print "INFO: next Makefile: \"$l\".";
+	#
+	# find correct Makefile in driver dir...
+	#
+	#
+	# When kernel make driver:
+	#    1     It find Kbuid on top level dir
+	#    1.1   If Kbuild exists - it test for obj-m...
+	#    1.2   If Kbuild contains obj-m then kernel start to build this driver and exit
+	#    2     It find Makefile on top level dir
+	#    2.1   If Makefile exists - it test for obj-m...
+	#    2.2   If Makefile contains obj-m, then kernel start to build this driver and exit
+	#    3     Kernel print error
+	#
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		ldv_print "INFO: Try to find Kbuild with obj-m...";
+		FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
+		for l in $FIND_KBUILD_FILE_OPERATION; do
+			ldv_print "INFO: next Kbuild: \"$l\".";
 			if [ -n "`grep obj-m $l`" ]; then
 				CORRECT_MAKEFILE=`readlink -f $l`;
-				if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
-	        	        ldv_print "INFO: Correct Makefile is: \"$l\".";
+				if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
+				ldv_print "INFO: Correct Kbuild file is: \"$l\".";
 				break;
 			fi;
 		done;
+		if [ ! -n "$CORRECT_MAKEFILE" ]; then
+			ldv_print "INFO: Kbuild not found.";
+			ldv_print "INFO: Try to find Makefile with obj-m...";
+			FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
+			for l in $FIND_MAKEFILE_FILE_OPERATION; do
+				ldv_print "INFO: next Makefile: \"$l\".";
+				if [ -n "`grep obj-m $l`" ]; then
+					CORRECT_MAKEFILE=`readlink -f $l`;
+					if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
+		        	        ldv_print "INFO: Correct Makefile is: \"$l\".";
+					break;
+				fi;
+			done;
+		fi;
+		if [ ! -n "$CORRECT_MAKEFILE" ]; then
+			ldv_print "ERROR: Can't find correct Makefile or Kbuild file.";
+			echo "Can't find correct Makefile or Kbuild file." > $statefile;
+			exit 1;
+		fi;
+		DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
+			exit 1;
+		fi;
 	fi;
-	if [ ! -n "$CORRECT_MAKEFILE" ]; then
-		ldv_print "ERROR: Can't find correct Makefile or Kbuild file.";
-		echo "Can't find correct Makefile or Kbuild file." > $statefile;
-		exit 1;
+
+	ldv_print "NORMAL: Make driver."
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $statefile 2>&1";
+		BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+	else
+		# TODO: replace this hack!
+		# prepare kernel for external driver
+		make allmodconfig 2>$statefile;
+		if [ $? -ne 0 ]; then 
+			shield_xml $statefile;
+			ldv_print "ERROR: Can't configure kernel.";
+		        if [ -f "$statefile" ]; then
+		                echo "Can't configure kernel." >>$statefile;
+		        else
+		                echo "Can't configure kernel." >$statefile;
+		        fi;
+			exit 1;
+		fi;
+		make init 2>$statefile;
+		if [ $? -ne 0 ]; then 
+			shield_xml $statefile;
+			ldv_print "ERROR: Can't init kernel.";
+		        if [ -f "$statefile" ]; then
+		                echo "Can't init kernel." >>$statefile;
+	       		else
+		                echo "Can't init kernel." >$statefile;
+		        fi;
+			exit 1;
+		fi;
+	
+		# test for root of kernel
+		abs_driver=`readlink -f $driver`;
+		if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
+		#if [ ! -n "`echo $env | grep $driver`" ]; then mdriver="M=$driver/"; fi;
+		ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";
+		BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;
 	fi;
-	DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
 	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
-		exit 1;
-	fi;
-fi;
-
-ldv_print "NORMAL: Make driver."
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $statefile 2>&1";
-	BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
-else
-	# TODO: replace this hack!
-	# prepare kernel for external driver
-	make allmodconfig 2>$statefile;
-	if [ $? -ne 0 ]; then 
 		shield_xml $statefile;
-		ldv_print "ERROR: Can't configure kernel.";
-	        if [ -f "$statefile" ]; then
-	                echo "Can't configure kernel." >>$statefile;
+		ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
+       		if [ -f "$statefile" ]; then
+       	        	echo "Compile error." >>$statefile;
 	        else
-	                echo "Can't configure kernel." >$statefile;
-	        fi;
-		exit 1;
-	fi;
-	make init 2>$statefile;
-	if [ $? -ne 0 ]; then 
-		shield_xml $statefile;
-		ldv_print "ERROR: Can't init kernel.";
-	        if [ -f "$statefile" ]; then
-	                echo "Can't init kernel." >>$statefile;
-	        else
-	                echo "Can't init kernel." >$statefile;
-	        fi;
+       		        echo "Compile error." >$statefile;
+       		fi;
 		exit 1;
 	fi;
 
-	# test for root of kernel
-	abs_driver=`readlink -f $driver`;
-	if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
-	#if [ ! -n "`echo $env | grep $driver`" ]; then mdriver="M=$driver/"; fi;
-	ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";
-	BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;
-fi;
-if [ $? -ne 0 ]; then
-	shield_xml $statefile;
-	ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
-        if [ -f "$statefile" ]; then
-                echo "Compile error." >>$statefile;
-        else
-                echo "Compile error." >$statefile;
-        fi;
-	exit 1;
-fi;
+	echo "</cmdstream>" >> $cmdfileout;
+#	cmdfileout_tmp=$cmdfileout"_tmp";
+#	touch $cmdfileout_tmp;
+#	if [ $? -ne 0 ] ; then 
+#		ldv_print "ERROR: Can't create temp cmdfile.";
+#		exit 1;
+#	fi;
 
-echo "</cmdstream>" >> $cmdfileout;
-cmdfileout_tmp=$cmdfileout"_tmp";
-touch $cmdfileout_tmp;
-if [ $? -ne 0 ] ; then 
-	ldv_print "ERROR: Can't create temp cmdfile.";
-	exit 1;
-fi;
+	#	
+	# create numbers
+	#
+	perl -e 'open(FIL,"'$cmdfileout'"); my @strings = <FIL>; close(FIL); open FIL, ">'$cmdfileout'"; my $counter=1; foreach $line (@strings) { if ($line =~ s/<(cc|ld) id="\d+">/<$1 id="$counter">/) { $counter++}; print (FIL $line); }; close FIL;';
+	if [ $? -ne 0 ]; then
+	        ldv_print "ERROR: Can't create normal id numbers in command stream out file.";
+       		exit 1;
+	fi;
 
-#
-# create numbers
-#
-perl -e 'open(FIL,"'$cmdfileout'"); my @strings = <FIL>; close(FIL); open FIL, ">'$cmdfileout'"; my $counter=1; foreach $line (@strings) { if ($line =~ s/<(cc|ld) id="\d+">/<$1 id="$counter">/) { $counter++}; print (FIL $line); }; close FIL;';
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Can't create normal id numbers in command stream out file.";
-        exit 1;
-fi;
+	#
+	# TODO: find autoconf.h
+	#
+	perl -e 'open(FIL,"'$cmdfileout'") || die;  my @strings = <FIL>; close(FIL); open FIL, ">'$cmdfileout'" || die; my $isitinclude=0; foreach $line (@strings) { if ($line =~ m/<opt>-include<\/opt>/) { $isitinclude=1; } elsif($isitinclude == 1) { $line =~ s/<opt>(.*)/<opt config="autoconf">$1/; $isitinclude=0; } print (FIL $line); }; close FIL;';
+	if [ $? -ne 0 ]; then
+	        ldv_print "ERROR: Can't allocate autoconf option.";
+	        exit 1;
+	fi;
 
-#
-# TODO: find autoconf.h
-#
-perl -e 'open(FIL,"'$cmdfileout'") || die;  my @strings = <FIL>; close(FIL); open FIL, ">'$cmdfileout'" || die; my $isitinclude=0; foreach $line (@strings) { if ($line =~ m/<opt>-include<\/opt>/) { $isitinclude=1; } elsif($isitinclude == 1) { $line =~ s/<opt>(.*)/<opt config="autoconf">$1/; $isitinclude=0; } print (FIL $line); }; close FIL;';
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Can't allocate autoconf option.";
-        exit 1;
-fi;
+	#
+	# fix format - add one tab before <cc> and <ld> tags and...
+	#
+	sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
+	sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
+	sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
+	sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout; 
+	sed -i -e 's/^<in>/\t\t<in>/g' $cmdfileout; 
+	sed -i -e 's/^<cwd>/\t\t<cwd>/g' $cmdfileout; 
+	sed -i -e 's/^<out>/\t\t<out>/g' $cmdfileout; 
+	sed -i -e 's/^<out check="true">/\t\t<out check="true">/g' $cmdfileout; 
+	sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout; 
+	sed -i -e 's/^<module>/\t\t<module>/g' $cmdfileout; 
+	sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout;
 
-#
-# fix format - add one tab before <cc> and <ld> tags and...
-#
-sed -i -e 's/^<cc/\t<cc/g' $cmdfileout; 
-sed -i -e 's/^<\/cc/\t<\/cc/g' $cmdfileout; 
-sed -i -e 's/^<ld/\t<ld/g' $cmdfileout; 
-sed -i -e 's/^<\/ld/\t<\/ld/g' $cmdfileout; 
-sed -i -e 's/^<in>/\t\t<in>/g' $cmdfileout; 
-sed -i -e 's/^<cwd>/\t\t<cwd>/g' $cmdfileout; 
-sed -i -e 's/^<out>/\t\t<out>/g' $cmdfileout; 
-sed -i -e 's/^<out check="true">/\t\t<out check="true">/g' $cmdfileout; 
-sed -i -e 's/^<opt>/\t\t<opt>/g' $cmdfileout; 
-sed -i -e 's/^<module>/\t\t<module>/g' $cmdfileout; 
-sed -i -e 's/^<basedir>/\t<basedir>/g' $cmdfileout; 
+	#
+	# Find kernel modules (i.e. ld check=true)
+	# 
+	if [ $KERNEL_LEVEL -eq 0 -a ! -n "`grep '<ld id=' $cmdfileout`" ]; then
+		echo "Driver have no kernel modules." >$statefile;
+		ldv_print "ERROR: Driver have no kernel modules.";
+		exit 1;
+	fi;
+fi;
 
 ldv_print "NORMAL: Command stream is successfully extracted.";
 exit;

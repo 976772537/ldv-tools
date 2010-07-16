@@ -163,15 +163,18 @@ sub hxml_cmdstream {
 				my @trace_files = <FILT>; 
 				close(FILT);
 				foreach $tfile (@trace_files) {
+					ldv_dprint("file: $tfile");
 					# if path relativ then we
 					my $work_dir_pattern = $state[2];
 					if($tfile =~ m/$work_dir_pattern\/+csd_deg_dscv\/+\d+\/+/ ) {
 						my $brelpath = $tfile;
-						$brelpath =~ s/$work_dir_pattern\/+csd_deg_dscv\/+(\d+\/+.*)/$1/ ;
+#						$brelpath =~ s/$work_dir_pattern\/+csd_deg_dscv\/+(\d+\/+.*)/$1/ ;
+						$brelpath =~ s/$work_dir_pattern\/+(csd_deg_dscv\/+)(\d+\/+.*)/$1$2/ ;
 						my $relpath = $brelpath;
 						$relpath =~ s/(.*)\/.*$/$1/;
 						my $rel_path_full="$report_out.source/$kernel/$relpath";
 						chomp($rel_path_full);
+
 						ldv_dprint("mkdir -p $rel_path_full");
 						if(system('mkdir','-p',$rel_path_full)) {
 							ldv_wprint("Can't create dir:\"$rel_path_full\"");
@@ -184,28 +187,48 @@ sub hxml_cmdstream {
 							return;
 						}		
 					} else {
+						ldv_dprint("work dir pattern: $work_dir_pattern");
 						$relpath = $tfile;
-						$relpath =~ s/$work_dir_pattern\/+ldv_tempdir\/+driver\/+(.*)/$1/;
-						$relpath =~ s/(.*)\/.*$/$1/;
-						my $rel_path_full="$report_out.source/$kernel/kernel/$relpath";
+						ldv_dprint("first tfile: $tfile");
+						if( $relpath =~ m/$work_dir_pattern\/+ldv_tempdir\/+driver\/+(.*)/ ) {
+							$relpath =~ s/$work_dir_pattern\/+ldv_tempdir\/+driver\/+(.*)/$1/;
+							$relpath =~ s/(.*)\/.*$/$1/;
+						} else {
+							$relpath =~ s/.*$kernel//;
+						}
+						my $rel_path_full="$report_out.source/$kernel/$relpath";
+						ldv_dprint("relativ full path: $rel_path_full");
 						chomp($rel_path_full);
 						if(system('mkdir','-p',$rel_path_full)) {
 							ldv_wprint("Can't create dir:\"$rel_path_full\".");
 							return;
 						}
-						ldv_dprint("LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel");
-						my $path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel`;
+#						if(!$artificial_kernel) {
+							ldv_dprint("LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel");
+							my $path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel`;
+#						} else {
+#							ldv_dprint("Artificial kernel mode.");
+#							my $path_to_kernel=$artificial_kernel;
+#						}
 						chomp($path_to_kernel);
+						ldv_dprint("path to kernel: $tfile");
 						if(!(-d $path_to_kernel)) {
 							ldv_wprint("Can't get path for kernel.");
 							return;
 						}
 						my $kernel_file;
-						if( $tfile =~ m/$work_dir_pattern\/+ldv_tempdir\/+driver\/+/ ) {
+						ldv_dprint("tfile: $tfile");
+						chomp($tfile);
+						if($tfile =~ m/$work_dir_pattern\/+ldv_tempdir\/+driver\/+/) {
 							$kernel_file="$tfile";
+						} elsif ( -f $tfile && $tfile =~ m/$kernel\/+/) {
+							$kernel_file = $tfile;
+							$kernel_file =~ s/.*\/+$kernel\/+(.*)/$path_to_kernel\/$1/;
+							ldv_dprint("Kernel file: $kernel_file");
 						} else {
 							$kernel_file="$path_to_kernel/$tfile";
 						}
+						ldv_dprint("kernel file: $kernel_file");
 						chomp($kernel_file);
 						if(!(-f $kernel_file)) {
 							ldv_wprint("Can't find kernel file.");
@@ -257,6 +280,10 @@ sub get_ldv_opts
 		{
 			$reports_dir = $opt;
 		}
+#		elsif($opt =~ s/--artificial-kernel=(.*)/$1/)
+#		{
+#			$artificial_kernel = $opt;
+#		}	
 		elsif($opt =~ s/--report-name=(.*)/$1/)
 		{
 			$report_name = $opt;
@@ -320,6 +347,7 @@ sub print_usage
 #######################################################
 sub ldv_print
 {
+	chomp($_[0]);
 	print "$psuffix: $_[0]\n";
 }
 

@@ -1,0 +1,33 @@
+#!/bin/bash
+
+
+LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+USAGE_STRING="LDV_DEBUG=loglevel linux-vanilla.extractor descriptor";
+LOG_PREFIX="vanilla-extractor: ";
+source $LDV_HOME/shared/sh/log.sh;
+
+
+XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+BCE_XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/build-cmd-extractor\\/bce_gcc";
+
+
+ldv_print "NORMAL: GSOC Linux Vanilla extractor.";
+
+#
+# extractor kernel-description
+#
+
+if [ ! -f "$1" ]; then
+	ldv_print "ERROR: can't find description file \"$1\".";
+	exit 1;
+fi;
+
+# read field from description;
+DSCR_SOURCE=`cat $1 | grep ^source |  sed 's/^source=//'`;
+# Fix dest path
+sed -i -e "s/^dest=.*//" $1;
+echo "dest=$DSCR_SOURCE" >> $1;
+DSCR_DEST=`cat $1 | grep ^dest |  sed 's/^dest=//'`;
+DSCR_OPTIONS=`cat $1 | grep ^options |  sed 's/^options=//'`;
+echo "kernel-make-dir=$DSCR_DEST" >> $1;
+echo "status=prepared" >> $1;

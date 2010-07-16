@@ -136,19 +136,19 @@ public class MainGenerator {
 			sb.append("\t/*###########################################################################*/\n");
 			sb.append("\n\n");
 			Logger.trace("Pre-main code:");
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
+			sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
 			sb.append("\nvoid check_final_state(void);\n");
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
+			sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
 			sb.append("\nvoid check_return_value(int res);\n");
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
+			sb.append("\n/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
 			sb.append("\nextern int IN_INTERRUPT;\n");
 
 		//	if(index == null)
 		//		sb.append("void ldv_main(void) {\n\n\n");
 		//	else
 			Logger.trace("Start appending main function: \"+void ldv_main"+index+"(void)\"...");
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_MAIN+" Main function for LDV verifier. */");
-			sb.append("void ldv_main"+index+"(void) {\n\n\n");
+			sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_MAIN+" Main function for LDV verifier. */");
+			sb.append("\nvoid ldv_main"+index+"(void) {\n\n\n");
 
 			
 			/* создадим счетчик */
@@ -321,11 +321,9 @@ public class MainGenerator {
 					//localCounter+=token.getReplacementParams().size();
 					/* добавляем вызовы функций */
 					String lparams = fg.generateFunctionCall();
-					sb.append("\n\t\tif ("+lparams.substring(0,lparams.length()-1)+") {");
 					sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
-					sb.append("\n\t\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
+					sb.append("\n\t\tif ("+lparams.substring(0,lparams.length()-1)+")");
 					sb.append("\n\t\t\treturn;");
-					sb.append("\n\t\t\t}");
 					/* получим директивы препроцессора, те что после функции */
 					List<Token> ppcAfterTokens = ppcParser.getPPCWithoutINCLUDEafter(token);
 					/* добавим их ... */
@@ -373,11 +371,7 @@ public class MainGenerator {
 							/* увеличим счетчик, на число параметров*/
 							localCounter+=tfd.getReplacementParams().size();
 							/* добавляем вызовы функций */
-
 							//String gdebug = tfd.getName();
-
-
-
 							String lparams = fg.generateFunctionCall();
 							/* добавляем к ним проверку, если это стандартная функция */
 							if (tfd.getTestString()!=null && !tfd.getRetType().contains("void")) {
@@ -386,7 +380,6 @@ public class MainGenerator {
 								//String debug = tfd.getTestString().replaceAll("\\$counter", Integer.toString(tmpcounter)).replaceAll("\\$fcall", lparams);
 								if(tfd.getLdvCommentContent()!=null) {				
 									sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" "+"Function from field \""+tfd.getLdvCommentContent()+"\" from driver structure with callbacks \""+token.getName()+"\". Standart function test for correct return result. */");
-									
 								} else {
 									sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
 								}
@@ -398,7 +391,6 @@ public class MainGenerator {
 								/* иначе просто вызываем */
 								if(tfd.getLdvCommentContent()!=null) {				
 									sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" "+"Function from field \""+tfd.getLdvCommentContent()+"\" from driver structure with callbacks \""+token.getName()+"\" */");
-									
 								} else {
 									sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
 								}
@@ -472,14 +464,14 @@ public class MainGenerator {
 			Logger.trace("Start appending end section...");
 			Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
 			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
-			sb.append("\n\tcheck_final_state();\n");
-			sb.append("\n/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");
-			sb.append("\treturn;\n}\n");
-			sb.append("/* "+ldvCommentTag+ldvTag_END+ldvTag_MAIN+" */\n");
+			sb.append("\n\t\tcheck_final_state();\n");
+			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");
+			sb.append("\n\t\treturn;\n}\n");
 			if (isgenerateIfdefAroundMains) {
 				Logger.trace("Append macros: \"#endif\" for our function.");
 				sb.append("#endif\n");
 			}
+			sb.append("/* "+ldvCommentTag+ldvTag_END+ldvTag_MAIN+" */\n");
 			fw.write(sb.toString());
 			fw.close();
 			return true;

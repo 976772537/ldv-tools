@@ -14,20 +14,44 @@
 .ETVBlock
 {
   color: gray;
-  font-size: 6pt;
+  font-size: 6pt;  
+}
+
+.ETVDriverEnvFunctionCall
+{
+  background-color: #F0D1FF;
+}
+
+.ETVDriverEnvInit
+{
+  background-color: #FFD6A1;
 }
 
 .ETVEntryPoint
 {
   color: red;
   font-weight: bold;
-  font-size: 8pt;
+  font-size: 8pt;  
 }
 
 .ETVEntryPointBody
 {
   color: red;
-  font-size: 8pt;
+  font-size: 8pt;  
+}
+
+.ETVErrorTrace
+{
+  background: #FFFFCC;
+  height: 600px;
+  overflow: scroll;
+  width: 400px;
+  white-space: nowrap;
+}
+
+.ETVErrorTraceWindow
+{
+  vertical-align: top;
 }
 
 .ETVFunctionBody
@@ -39,7 +63,7 @@
 .ETVFunctionInitializationBody
 {
   color: green;
-  font-size: 8pt;
+  font-size: 8pt; 
 }
 
 .ETVFunctionCall
@@ -54,6 +78,7 @@
   color: red;
   font-style: italic;
   font-size: 8pt;
+  width: inherit;
 }
 
 .ETVFunctionCallWithoutBody
@@ -70,11 +95,54 @@
   font-weight: normal;
 }
 
+.ETVGeneralWindow
+{
+  border: 4px groove blue;
+  height: 600px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
 .ETVIdentation
 {
   font-weight: normal;
-  white-space: pre-wrap;
   font-size: 8pt;
+  white-space: pre;
+}
+
+.ETVLineNumber
+{
+  background-color: gray;
+  color: black;
+  font-weight: normal;
+  font-size: 8pt;
+  font-style: normal;
+  white-space: pre;
+}
+
+.ETVModelAssert
+{
+  background-color: #DFE9FF;
+}
+
+.ETVModelChangeState
+{
+  background-color: #CEFFEC;  
+}
+
+.ETVModelFuncCall
+{
+  background-color: #D2E4BB;  
+}
+
+.ETVModelReturn
+{
+  background-color: #F8FFCE;  
+}
+
+.ETVModelOther
+{
+  background-color: #BCAEFD;  
 }
 
 .ETVReturn
@@ -93,6 +161,129 @@
 .ETVShowHide
 {
   font-weight: normal;
-  white-space: pre-wrap;
   font-size: 8pt;
+}
+
+.ETVSyntaxCKeywords
+{
+  color: #003399;
+  font-weight: bold;
+}
+
+.ETVSyntaxCPPKeywords
+{
+  color: #48AE7E;
+}
+
+.ETVSyntaxComment
+{
+  color: #FF3333;
+  font-style: italic;
+}
+
+.ETVSyntaxNumber
+{
+  color: #009933;
+}
+
+.ETVSyntaxString
+{
+  color: #009933;
+}
+
+/*
+.ETVSrc
+{
+  height: 600px;
+  width: 600px;
+}
+
+.ETVSrcFile
+{
+  height: 500px;
+  overflow: auto;
+  width: 600px;
+}
+*/
+
+.ETVSrcWindow
+{
+  vertical-align: top;
+}
+
+/* Here is the custom tabs css. */
+#ETVTabs 
+{
+  width: 600px;
+}
+
+.ETVTabsHeader
+{
+  height: 100px;
+  overflow: scroll;
+
+  white-space: nowrap;    
+}
+/*
+#ETVTabs 
+{
+  font-size: 90%;
+  margin: 20px 0;
+}
+
+#ETVTabs  
+{
+  background: #E3FEFA;
+  float: left;
+  padding-top: 4px;
+  width: 600px;
+}
+
+#ETVTabs li 
+{
+  margin-left: 8px;
+  list-style: none;
+}
+
+#ETVTabs li,
+#ETVTabs li a 
+{
+  float: left;
+}
+
+#ETVTabs span a 
+{
+  text-decoration: none;
+  padding: 18px;
+  color: #0073BF;
+  font-weight: bold;
+}
+*/
+#ETVTabs span
+{
+/*  font-size: 150%;*/
+}
+
+#ETVTabs span.ETVActive 
+{
+ background: red;
+}
+
+#ETVTabs span.ETVActive a 
+{
+  color: green;
+}
+
+#ETVTabs div 
+{
+  background: #ECF9EB;
+  clear: both;
+/*  padding: 20px; */
+  height: 550px;
+  overflow: auto;  
+}
+
+a.ETVMarked
+{
+  background: red;
 }

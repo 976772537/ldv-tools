@@ -9,7 +9,6 @@ public class TokenFunctionDecl extends Token {
 
 	private String name;
 	private String retType;
-	private String callback;
 	private List<String> replacementParams;
 
 	public TokenFunctionDecl(String name, String retType, List<String> replacementParams, int beginIndex, int endIndex, String content, String ldvCommentContent, List<Token> innerTokens) {
@@ -24,7 +23,6 @@ public class TokenFunctionDecl extends Token {
 	}
 	
 	public void setCallback(String callback) {
-		this.callback = callback;
 		this.ldvCommentContent = callback; 
 	}
 

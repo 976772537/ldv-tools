@@ -21,6 +21,8 @@ LDV_CORE_DIR=$LDV_HOME/ldv-core;
 LDV_CORE_EXEC=$LDV_CORE_DIR/ldv-core;
 LDV_REPORTER=$LDV_DIR/ldv-task-reporter;
 
+ARTIFICIAL_LDV_WORK_DIRNAME=artificial_env;
+
 KERNEL_LEVEL=0;
 
 #
@@ -67,6 +69,13 @@ for arg in $@; do
 			        exit 1;
 			fi;
                	;;
+  		--cmdstream=*)
+                	rcmdstream=`echo $arg | sed 's/--cmdstream=//g'`
+			if [ ! -n "$rcmdstream" ]; then
+				ldv_print "ERROR: Parameter \"--cmdstream\" - is null. Setup it.";
+			        exit 1;
+			fi;
+		;;
  		--driver=*)
                 	rdriver=`echo $arg | sed 's/--driver=//g'`
 			if [ ! -n "$rdriver" ]; then
@@ -84,26 +93,39 @@ for arg in $@; do
         esac
 done
 
-if [ ! -n "$env" ]; then
-	ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
-        exit 1;
-fi;
-if [ ! -n "$rdriver" ]; then
-	ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
-        exit 1;
-fi;
-if [ $KERNEL_LEVEL -eq 0 ]; then
-	driver=`echo "readlink -f $rdriver" | sh`;
+if [ -n "$rcmdstream" ]; then
+	cmdstream=`echo "readlink -f $rcmdstream" | sh`;
 	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+		ldv_print "ERROR: Failed to read abs-path for cmdstream file: \"$cmdstream\"."
 		exit 1;
 	fi;
-	if [ ! -f "$driver" ]; then
-	        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
+	if [ ! -f "$cmdstream" ]; then
+	        ldv_print "ERROR: Cmdstream file not exists: \"$cmdstream\".";
 	        exit 1;
 	fi;
 else
-	driver=$rdriver;
+	if [ ! -n "$rdriver" ]; then
+		ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
+       		exit 1;
+	fi;
+	if [ $KERNEL_LEVEL -eq 0 ]; then
+		driver=`echo "readlink -f $rdriver" | sh`;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
+			exit 1;
+		fi;
+		if [ ! -f "$driver" ]; then
+		        ldv_print "ERROR: Driver unpacked sources not exists: \"$driver\".";
+		        exit 1;
+		fi;
+	else
+		driver=$rdriver;
+	fi;
+fi;
+
+if [ ! -n "$env" ]; then
+	ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
+	exit 1;
 fi;
 
 if [ ! -n "$workdir" ]; then
@@ -117,17 +139,52 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 
-
 LDV_STATE=$workdir/$LDV_STATE_FILENAME;
 touch $LDV_STATE;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Can't create ldv state file:\"$LDV_STATE\".";
 	exit 1;
 fi;
+
+k=1;
+ART_NAMES="";
 for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ENV_ID=`echo $i | sed 's/@.*//'`;
 	RULES=`echo $i | sed 's/.*@//'`;
 	ldv_print "NORMAL: Start process for environment \"$ENV_ID\".";
+
+	#
+	# Add artificial environment for kmanager
+	#
+	if [ -n "$cmdstream" ]; then
+		#
+		# Get an abs path for external kernel
+		#
+		if [ ! -n "$ENV_ID" ]; then
+			ldv_print "ERROR: Parameter \"ENV_ID\" - is null. Setup it.";
+			exit 1;
+		fi;
+		env=`readlink -f $ENV_ID`;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Failed to read abs-path for environment dir: \"$ENV_ID\"."
+			exit 1;
+		fi;
+		if [ ! -d "$env" ]; then
+			ldv_print "ERROR: Environment dir not exists: \"$env\".";
+			exit 1;
+		fi;
+		ENV_ID=$ARTIFICIAL_LDV_WORK_DIRNAME"_"$k;
+		ART_NAMES=$ART_NAMES" "$ENV_ID;
+		ldv_print "INFO: Create artificial env id: \"$ENV_ID\" for path to kernel: \"$env\".";
+		ldv_print "INFO: Add \"$ENV_ID\" to kmanager.";
+		ldv_print "TRACE: LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=add --src=$env --extractor=vanilla-gsoc --name=$ENV_ID";
+		LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=add --src=$env --extractor=vanilla-gsoc --name=$ENV_ID;
+		if [ $? -ne 0 ]; then
+			ldv_print "ERROR: Can't add artificial kernel.";
+			exit 1;
+		fi;
+	fi;	
+
 	ldv_print "DEBUG: $LDV_KMANAGER --action=getpath --name=$ENV_ID;";
 	KERNEL_PATH=`$LDV_KMANAGER --action=getpath --name=$ENV_ID`;
 	if [ $? -ne 0 ]; then
@@ -144,13 +201,15 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	ldv_print "NORMAL: Calling LDV-core.";
 	LDV_CORE_REPORT=$WORK_DIR_LOCAL/$LDV_CORE_REPORT_FILENAME;
 	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
-	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
-	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH --driver=$driver --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;
+	if [ -n "$cmdstream" ]; then stream_option="--cmdstream=$cmdstream"; else stream_option="--driver=$driver"; fi;
+	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --driver=$driver --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
+	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: ldv-core failed.";
 		exit 1;
 	fi;
 	echo "$ENV_ID:$WORK_DIR_LOCAL" >> $LDV_STATE;
+	let k=$k+1;
 done;
 
 #
@@ -167,6 +226,22 @@ LDV_ENVS_TARGET=$LDV_ENVS_TARGET $LDV_REPORTER --report-name=$LDV_CORE_REPORT_FI
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: LDV reporter failed."
         exit 1;
+fi;
+
+#
+# Remove artififcial environment from kmanager
+#
+if [ -n "$cmdstream" ]; then
+        ldv_print "IFNO: Remove all artificial environments."
+	for i in $ART_NAMES; do 
+		ldv_print "INFO: Remove artificial environment \"$i\" from kmanager desc.";
+		ldv_print "TRACE: LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=remove --name=$i";	
+		LDV_DEBUG=$LDV_DEBUG $LDV_KMANAGER --action=remove --name=$i;
+		if [ $? -ne 0 ]; then
+			ldv_print "WARNING: Can't remove artifficial environment \"$i\" from kmanager.";
+			continue;
+		fi;	
+	done;
 fi;
 
 exit;

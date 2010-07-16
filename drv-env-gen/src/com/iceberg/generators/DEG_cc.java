@@ -21,6 +21,7 @@ public class DEG_cc {
 	private static List<String> inputFiles = new ArrayList<String>();
 	private static String outputFile;
 	private static String counter;
+	private static List<Boolean> generateArray = new ArrayList<Boolean>();
 	private static final String name = "ldv-cc";
 	
 	public static void main(String[] args) {
@@ -39,7 +40,7 @@ public class DEG_cc {
 			FileWriter outputWriter = new FileWriter(outputFile);
 			for(int i=0; i<inputFiles.size(); i++) {
 				Logger.debug("Start generator for: \""+inputFiles.get(i)+"\" file.");
-				if(MainGenerator.deg(inputFiles.get(i),counter))
+				if(generateArray.get(i) && MainGenerator.deg(inputFiles.get(i),counter))
 					outputWriter.append(inputFiles.get(i)+":-DLDV_MAIN"+counter);
 			}
 			outputWriter.close();
@@ -65,6 +66,12 @@ public class DEG_cc {
 				//return false;
 			}
 			inputFiles.add(args[i]);
+			i++;
+			Logger.debug(args[i]);
+			if(args[i].equals("--main"))
+				generateArray .add(true);
+			else if(args[i].equals("--nomain"))
+				generateArray.add(false);
 		}
 		
 		if(inputFiles.size()==0) {

@@ -283,7 +283,7 @@ public class SQLRequests {
 			// заливаем в drivers
 
 			//int driver_id = modifyAndGetIdUnsafe(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+"' AND origin ='external';");
-			int driver_id = modifyAndGetIdUnsafe2(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+"' AND origin ='external';");
+			int driver_id = modifyAndGetIdUnsafe2(ste, "INSERT IGNORE INTO drivers(name, origin) VALUES('"+msg.getDriver()+'_'+id+"','external')", "SELECT id FROM drivers WHERE name='"+msg.getDriver()+'_'+id+"' AND origin ='external';");
 			
 			
 			int toolset_id = modifyAndGetIdUnsafe(ste, "INSERT IGNORE INTO toolsets(version) VALUES('current')","SELECT id FROM toolsets WHERE version='current' AND verifier='model-specific';");
@@ -767,6 +767,21 @@ public class SQLRequests {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	public static void noSleep(StorageManager manager) {
+		Connection conn;
+		try {
+			conn = manager.getStatsConnection();
+			Statement st = conn.createStatement();
+			st.executeQuery("SELECT 1;");
+			st.close();
+			conn.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 	}
 
 }
