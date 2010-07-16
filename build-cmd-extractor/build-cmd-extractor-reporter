@@ -48,9 +48,9 @@ get_ldv_opts();
 # 0.1 Create state file name
 my $state_file="$state_dir/$state_filename";
 # 1. read state file;
-open(FIL,$state_file); 
-my @states = <FIL>; 
-close(FIL);
+#open(FIL,$state_file); 
+#my @states = <FIL>; 
+#close(FIL);
 
 my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
 			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream };
