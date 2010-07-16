@@ -120,6 +120,31 @@
   white-space: pre;
 }
 
+.ETVModelAssert
+{
+  background-color: #DFE9FF;
+}
+
+.ETVModelChangeState
+{
+  background-color: #CEFFEC;  
+}
+
+.ETVModelFuncCall
+{
+  background-color: #D2E4BB;  
+}
+
+.ETVModelReturn
+{
+  background-color: #F8FFCE;  
+}
+
+.ETVModelOther
+{
+  background-color: #BCAEFD;  
+}
+
 .ETVReturn
 {
   color: blue;

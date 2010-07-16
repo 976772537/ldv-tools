@@ -174,7 +174,7 @@ my %engines = (my $engine_blast = 'blast' =>
                   'process', \&process_error_trace_blast});
 
 # The value is the entity class to be hide by default.
-my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializationBody' => 1, 'ETVBlock' => 1);
+my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializationBody' => 1, 'ETVDriverEnvInit' => 1, 'ETVFuncCallIntellectual' => 1);
 
 # These variables contain a current line number and a current source code file 
 # if so or 0 and '' otherwise.
@@ -212,12 +212,16 @@ my %ldv_driver_env_comment_names = (
 my %ldv_model_comments;
 # The LDV model comments aliases and names.
 my %ldv_model_comment_names = (
-    'assert' => 'LDV_COMMENT_ASSERT' 
-  , 'state changing' => 'LDV_COMMENT_CHANGE_STATE'
-  , 'function call' => 'LDV_COMMENT_MODEL_FUNCTION_CALL'
+    my $ldv_model_comment_assert = 'assert' => 'LDV_COMMENT_ASSERT' 
+  , my $ldv_model_comment_change_state = 'state changing' => 'LDV_COMMENT_CHANGE_STATE'
+  , my $ldv_model_comment_func_def = 'function definition' => 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION'
+  , my $ldv_model_comment_func_call = 'function call' => 'LDV_COMMENT_MODEL_FUNCTION_CALL'
   , 'state' => 'LDV_COMMENT_MODEL_STATE'
-  , 'other' => 'LDV_COMMENT_OTHER'
-  , 'return' => 'LDV_COMMENT_RETURN');
+  , my $ldv_model_comment_other = 'other' => 'LDV_COMMENT_OTHER'
+  , my $ldv_model_comment_return = 'return' => 'LDV_COMMENT_RETURN');
+
+# The LDV model function definitions names are keys. Values are 1.
+my %ldv_model_func_def;
 
 # Command-line options. Use --help option to see detailed description of them.
 my $opt_engine;
@@ -489,7 +493,64 @@ sub print_error_trace_blast($)
   print($file_report_out "<br>");
   print_show_hide_global('ETVDriverEnvFunctionCall', 'driver environment function call');
   print($file_report_out "<br>");
-    
+  print_show_hide_global('ETVModelAssert', 'model assert');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVModelChangeState', 'model state changing');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVModelReturn', 'model return');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVModelFuncCall', 'model function call');
+  print($file_report_out "<br>");
+  print_show_hide_global('ETVModelOther', 'model other');
+  print($file_report_out "<br>");
+  print($file_report_out "<div>Intellectual section:</div");
+  # Collapse by default all function calls that don't contain model function 
+  # calls.
+  print($file_report_out 
+    "\n<script type='text/javascript'>"
+    , "\n\$(document).ready"
+    , "\n("
+    , "\n  function()"
+    , "\n  {"
+    , "\n    \$('a.#ETVFuncCallIntellectualShowHide').toggle"
+    , "\n    ("
+    , "\n      function()"
+    , "\n      {"
+    , "\n        \$('.ETVFunctionBody').each(function() {"  
+    , "\n          var isFuncBodyHasModelFuncCall = false;"
+    , "\n          \$(this).children('div').each(function() {"
+    , "\n            if (\$(this).hasClass('ETVModelFuncCall')) {"
+    , "\n              isFuncBodyHasModelFuncCall = true;"
+    , "\n            }"      
+    , "\n          });"    
+    , "\n          if (!isFuncBodyHasModelFuncCall) {"
+    , "\n            \$(this).hide();"
+    , "\n          }"
+    , "\n        });"
+    , "\n        \$(this).html('Show bodies of functions that do not contain model functions calls');"
+    , "\n      }"
+    , "\n      , function()"
+    , "\n      {"
+    , "\n        \$('.ETVFunctionBody').each(function() {"  
+    , "\n          var isFuncBodyHasModelFuncCall = false;"
+    , "\n          \$(this).children('div').each(function() {"
+    , "\n            if (\$(this).hasClass('ETVModelFuncCall')) {"
+    , "\n              isFuncBodyHasModelFuncCall = true;"
+    , "\n            }"      
+    , "\n          });"    
+    , "\n          if (!isFuncBodyHasModelFuncCall) {"
+    , "\n            \$(this).show();"
+    , "\n          }"
+    , "\n        });"
+    , "\n        \$(this).html('Hide bodies of functions that do not contain model functions calls');"
+    , "\n      }"
+    , "\n    );"
+    , "\n  }"
+    , "\n);"
+    , "\n</script>"
+    , "\n<a id='ETVFuncCallIntellectualShowHide' href='#'>Hide bodies of functions that do not contain model functions calls</a>\n");   
+  print($file_report_out "<br>");
+      
   foreach my $entity_hide (keys(%entity_hide))
   {
     print($file_report_out 
@@ -547,17 +608,29 @@ sub print_error_trace_node_blast($$)
   my $title = "$src:$line";
   # Process special model and driver environment comments.
   my $class_extra = '';
-  if ($ldv_model_comments{$entity_src}{($line - 1)})
+  if (my $model_comment = $ldv_model_comments{$entity_src}{($line - 1)})
   {
-    $title .= ": Model " . $ldv_model_comments{$entity_src}{($line - 1)}{'alias'} . " - " . $ldv_model_comments{$entity_src}{($line - 1)}{'comment'};
+	my %model_comment = %{$model_comment};  
+    $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
+    $class_extra .= " ETVModelAssert"
+      if ($model_comment{'alias'} eq $ldv_model_comment_assert);  
+    $class_extra .= " ETVModelChangeState"
+      if ($model_comment{'alias'} eq $ldv_model_comment_change_state);
+    $class_extra .= " ETVModelReturn"
+      if ($model_comment{'alias'} eq $ldv_model_comment_return);
+    $class_extra .= " ETVModelFuncCall"
+      if ($model_comment{'alias'} eq $ldv_model_comment_func_call);   
+    $class_extra .= " ETVModelOther"
+      if ($model_comment{'alias'} eq $ldv_model_comment_other);            
   }
-  elsif ($ldv_driver_env_comments{$entity_src}{($line - 1)})
+  elsif (my $driver_env_comment = $ldv_driver_env_comments{$entity_src}{($line - 1)})
   {
-    $title .= ": Driver environment " . $ldv_driver_env_comments{$entity_src}{($line - 1)}{'alias'} . " - " . $ldv_driver_env_comments{$entity_src}{($line - 1)}{'comment'};
+	my %driver_env_comment = %{$driver_env_comment};  
+    $title .= ": Driver environment " . $driver_env_comment{'alias'} . " - " . $driver_env_comment{'comment'};
     $class_extra .= " ETVDriverEnvInit"
-      if ($ldv_driver_env_comments{$entity_src}{($line - 1)}{'alias'} eq $ldv_driver_env_comment_var_init);
+      if ($driver_env_comment{'alias'} eq $ldv_driver_env_comment_var_init);
     $class_extra .= " ETVDriverEnvFunctionCall"
-      if ($ldv_driver_env_comments{$entity_src}{($line - 1)}{'alias'} eq $ldv_driver_env_comment_func_call);
+      if ($driver_env_comment{'alias'} eq $ldv_driver_env_comment_func_call);
   }
     
   # Get formal parameter names if so.
@@ -581,23 +654,53 @@ sub print_error_trace_node_blast($$)
   # Print tree node declaration.
   if ($tree_node->{'kind'} eq 'Root')
   {
-    print($file_report_out "\n<div class='ETVEntryPoint' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVEntryPoint $class_extra' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
     print($file_report_out "entry_point()", ";</div>");
-    print($file_report_out "\n<div class='ETVEntryPointBody' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVEntryPointBody $class_extra' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCall')
   {
+    my $val = ${$tree_node->{'values'}}[0];
+    # Get the function name.
+    my $func_name;
+    if ($val =~ /=\s*([^\(]+)/ or $val =~ /\s*([^\(]+)/)
+    {
+	  $func_name = $1;	
+	  print_debug_debug("Find the function name '$1' in '$val'");
+	  
+	  # Check wether function is a model function.
+	  if ($ldv_model_func_def{$func_name})
+	  {
+        print_debug_debug("Find the model function '$func_name'");
+		$class_extra .= " ETVModelFuncCall";
+		
+		# Try to get corresponding model comment.
+		if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$func_name}{'src'}}{$ldv_model_func_def{$func_name}{'line'}})
+        {
+	      my %model_comment = %{$model_comment};  
+		  $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
+	    }
+	    else
+	    {
+	      print_debug_warning("Can't find the model comment for the function '$func_name'");		  
+		}
+	  }
+	}
+	else
+	{
+	  print_debug_warning("Can't find the function name in '$val'");
+	}
+    
     print($file_report_out "\n<div class='ETVFunctionCall $class_extra' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
-    # Add formal parameters names comments.
-    my $val = ${$tree_node->{'values'}}[0];
-    my $pos = 0;
 
+    # Add formal parameters names comments.
+    my $pos = 0;
     while (@names)
     {
 	  my $name = shift(@names);
@@ -606,7 +709,8 @@ sub print_error_trace_node_blast($$)
 	  
 	  my $pos_cur;
 	  	
-	  if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = index($val, ')', $pos)) != -1)
+	  # The actual paramet is finished with ',' or ')' finishing function call.	
+	  if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = rindex($val, ')')) != -1)
 	  {
 		$val = substr($val, 0, $pos_cur) . $comment . substr($val, $pos_cur);
 		$pos = $pos_cur + $comment_length + 1;
@@ -625,17 +729,17 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
-    print($file_report_out "\n<div class='ETVFunctionCallInitialization' title='$title' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionCallInitialization $class_extra' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id"); 
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
-    print($file_report_out "\n<div class='ETVFunctionInitializationBody' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionInitializationBody $class_extra' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
   {
-    print($file_report_out "\n<div class='ETVFunctionCallWithoutBody' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVFunctionCallWithoutBody $class_extra' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
   }
@@ -655,7 +759,7 @@ sub print_error_trace_node_blast($$)
 	  
 	  if ($isshow_hide)
 	  {
-	    print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
+	    print($file_report_out "\n<span class='ETVBlockContinue $class_extra' id='ETV", ($html_id++), "'>");
 		$isshow_hide = 0;
 	  }
     }
@@ -667,15 +771,15 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
-    print($file_report_out "\n<div class='ETVReturn' title='$title' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVReturn $class_extra' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "return ", "<span class='ETVReturnValue'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
+    print($file_report_out "return ", "<span class='ETVReturnValue $class_extra'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
   }
   elsif ($tree_node->{'kind'} eq 'Pred')
   {
-    print($file_report_out "\n<div class='ETVAssert' title='$title' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='ETVAssert $class_extra' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "assert(", "<span class='ETVAssertCondition'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
+    print($file_report_out "assert(", "<span class='ETVAssertCondition $class_extra'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
   }
       
   # Print all tree node children with enlarged indentation.
@@ -991,9 +1095,55 @@ sub process_source_code_files()
 	# Read LDV model comments.
 	foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
 	{
-	  $ldv_model_comments{$isrelated_with}{$line_numb} 
-	    = {'alias' => $ldv_model_comment_alias, 'comment' => $1}	
-	    if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias} ([^\*\/]*)\*\/\s*$/);
+      if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias}\s*([^\*\/]*)\*\/\s*$/)
+	  {
+        my $comment = $1;
+        # Attributes hash. Keys are attribute names, values are corresponding
+        # attribute values.
+        my %attrs;
+        
+        # Read auxiliary comment attributes. They are in form:
+        # (attr1 = 'attr1 value', attr2 = 'attr2 value', ...)
+        if ($comment =~ /\(([^\)]*)\)\s*/)
+        {
+		  my $attr_all = $1;	
+		  $comment = $POSTMATCH;
+		  
+		  my @attrs = split(/,/, $attr_all);
+		  # Read attribute name and value for each attribute.
+		  foreach my $attr (@attrs)
+		  {
+			# Attributes must have the correct form.  
+			if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
+			{
+			  $attrs{$1} = $2;
+			  print_debug_debug("Read the model comment attibute $1='$2'");	
+			}
+			# If not so then warn and skip attribute.
+			else
+			{
+			  print_debug_warning("The model comment attribute '$attr' has incorrect form");
+			}
+		  }
+		}
+        
+        $ldv_model_comments{$isrelated_with}{$line_numb} 
+	      = {'alias' => $ldv_model_comment_alias, 'comment' => $comment, 'attrs' => \%attrs};
+	    
+	    # Remember placement of the ldv functions definitions.
+	    if ($ldv_model_comment_alias eq $ldv_model_comment_func_def)
+	    {
+		  # All model functions definitions must have a name attribute.
+		  if ($attrs{'name'})
+		  {
+			$ldv_model_func_def{$attrs{'name'}} = {'src' => $isrelated_with, 'line' => $line_numb};
+		  }
+		  else
+		  {
+			print_debug_warning("The model function definition hasn't the 'name' attribute");
+		  }
+		}
+	  }
 	}
 	
 	# Read LDV driver environment comments.
@@ -1001,7 +1151,7 @@ sub process_source_code_files()
 	{
 	  $ldv_driver_env_comments{$isrelated_with}{$line_numb} 
 	    = {'alias' => $ldv_driver_env_comment_alias, 'comment' => $1}	
-	    if ($line =~ /^\s*\/\*\s*$ldv_driver_env_comment_names{$ldv_driver_env_comment_alias} ([^\*\/]*)\*\/\s*$/);
+	    if ($line =~ /^\s*\/\*\s*$ldv_driver_env_comment_names{$ldv_driver_env_comment_alias}\s*([^\*\/]*)\*\/\s*$/);
 	}
 
 	push(@{$srcs{$file_name}}, "$line");
