@@ -24,6 +24,12 @@ public class Command {
 	protected int Id;
 	
 	private boolean check = false;
+	private String restrict;
+	
+	// TODO add restrict
+	public String getRestrict() {
+		return restrict;
+	}
 	
 	public boolean isItForCheck() {
 		return check;
@@ -46,6 +52,13 @@ public class Command {
 				Opt copt = new Opt(nodeList.item(i));
 				opts.add(copt);
 			} else if(nodeList.item(i).getNodeName().equals(CmdStream.tagIn)) {
+				NamedNodeMap nl = nodeList.item(i).getAttributes();
+				if (nl!=null) {
+					Node aout = nl.getNamedItem("restrict");
+					if(aout!=null && aout.getNodeName().equals("restrict") &&
+							aout.getTextContent().equals("main"))
+						restrict = aout.getTextContent();
+				}
 				in.add(nodeList.item(i).getTextContent());
 			} else if(nodeList.item(i).getNodeName().equals(CmdStream.tagOut)) {
 				NamedNodeMap nl = nodeList.item(i).getAttributes();
@@ -95,7 +108,10 @@ public class Command {
 	public void write(StringBuffer sb) {
 		sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagCwd+'>'+cwd+"</"+CmdStream.tagCwd+">\n");
 		for(int i=0; i<in.size(); i++)
-			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagIn+'>'+in.get(i)+"</"+CmdStream.tagIn+">\n");
+			if(restrict == null)
+				sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagIn+'>'+in.get(i)+"</"+CmdStream.tagIn+">\n");
+			else
+				sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagIn+" restrict=\""+restrict+"\">"+in.get(i)+"</"+CmdStream.tagIn+">\n");					
 		for(int i=0; i<opts.size(); i++)
 			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOpt+opts.get(i).getAttsString()+'>'+opts.get(i).getValue()+"</"+CmdStream.tagOpt+">\n");
 		for(int i=0; i<out.size(); i++) 

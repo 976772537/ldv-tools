@@ -22,6 +22,7 @@ my $output_option = "-o";
 my $workdir;
 
 # Xml nodes names.
+my $xml_cmd_attr_restrict = 'restrict';
 my $xml_cmd_basedir = 'basedir';
 my $xml_cmd_stream = 'cmdstream';
 my $xml_cmd_attr_id = 'id';
@@ -156,7 +157,13 @@ sub hxml_cmdstream_basedir {
 sub hxml_cmdstream_cc {
 	my @args = ($ldv_cc,@ldv_cc_add_options); 
 	foreach my $section ( $_[1]->children('in') ) {
-		push(@args, $section->text);
+		if($section->has_atts && $section->att($xml_cmd_attr_restrict) eq $xml_cmd_entry_point) {
+			ldv_tprint("Forbidden to generate main for \"".$section->text."\".");
+			push(@args, $section->text, "--nomain"); 
+		} else {
+			ldv_tprint("Generate main option on for \"".$section->text."\".");
+			push(@args, $section->text, "--main"); 
+		}	
 	}
 	push(@args,$output_option);
 	foreach my $section ( $_[1]->children('out') ) {
