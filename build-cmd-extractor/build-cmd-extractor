@@ -283,6 +283,7 @@ else
        		exit 1;
 	fi;
 
+fi;
 	#
 	# TODO: find autoconf.h
 	#
@@ -292,6 +293,7 @@ else
 	        exit 1;
 	fi;
 
+if [ !-n "$cmdstream" ]; then
 	#
 	# fix format - add one tab before <cc> and <ld> tags and...
 	#
