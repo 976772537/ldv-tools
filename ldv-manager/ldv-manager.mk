@@ -171,8 +171,7 @@ tags/%/fetched:
 	( flock 200; \
 		cd $(@D) && \
 		$(download_cmd) && \
-		git submodule init && \
-		git submodule -q update \
+		git submodule update --init --recursive \
 	) 200>$@.lock
 	touch $@
 

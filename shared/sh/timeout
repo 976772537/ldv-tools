@@ -7,7 +7,7 @@
 
 sub usage{ print STDERR <<usage_ends;
 Usage:
-	timeout [-t timelimit] [-m memlimit] command [argumens ...]
+	timeout [-t timelimit] [-m memlimit] [-x herz] command [argumens ...]
 
 usage_ends
 	die;
@@ -17,13 +17,18 @@ use Getopt::Long qw(:config require_order);
 
 my $timelimit = undef;
 my $memlimit = undef;
+# Requests per seccond
+my $frequency = 10;
 
 GetOptions(
 	'timelimit|t=i'=>\$timelimit,
 	'memlimit|m=i'=>\$memlimit,
+	'frequency|x=i'=>\$frequency,
 ) or usage;
 
 @ARGV or usage;
+
+my $uwait = int (1_000_000 / $frequency);
 
 use strict;
 
@@ -37,6 +42,14 @@ unless ($blackbox_pid){
 	local $" = " ";
 	exec @ARGV or die "Couldn't exec @ARGV: $!"; 
 }
+# Make sure we kill forked child on exit
+sub when_die{
+	kill_process_group_safely($blackbox_pid);
+	exit -1;
+};
+$SIG{'INT'} = \&when_die;
+$SIG{'TERM'} = \&when_die;
+$SIG{'QUIT'} = \&when_die;
 
 use Data::Dumper;
 
@@ -57,13 +70,11 @@ while ($status eq 'wait'){
 		local $SIG{'ALRM'} = sub {
 			# Note that this signal can only interrupt "wait" function (unless we're currently in some internals of Perl implementation of waitpid wrapper, but must of the time we spend inside the wait() call).
 			# According to signal(7), wait is a safe function, so we can call anything we want here.
-			print "handling...\n";
 			$timeinfo = update_time($blackbox_pid,$timeinfo);
 			$meminfo = update_memory($blackbox_pid,$meminfo);
-			print Dumper($timeinfo);
 			die "Assume waitpid return 0\n";
 		};
-		ualarm 100000;
+		ualarm $uwait;
 		my $arrived = waitpid $blackbox_pid,0;
 		ualarm 0;
 		die "Assume waitpid return $arrived\n";
@@ -82,15 +93,14 @@ while ($status eq 'wait'){
 		# Something happened!
 		die "wait($blackbox_pid) failed: $!";
 	}else{
-		print "Checking...\n";
 		# Check if limits are exhausted (they should be updated by signal handler).
 		if (defined $timelimit && $timeinfo->{total} > $timelimit){
-			print "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
+			print STDERR "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
 			kill_process_group_safely($blackbox_pid);
 			exit 0;
 		}
 		if (defined $memlimit && $meminfo > $memlimit){
-			print "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
+			print STDERR "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
 			kill_process_group_safely($blackbox_pid);
 			exit 0;
 		}
@@ -148,13 +158,29 @@ sub update_memory
 {
 	# Calculate the amount of memory consumed by the process group given 
 	my ($pgrp) = @_;
-	return 0;
+	my $result = 0;
+	# Read ps output to get all processes within a group.
+	my $PS_FH; open $PS_FH, "-|", qw(ps -A -o pgrp= -o pid= -o vsz=) or die "Bad open ps: $!";
+	while (<$PS_FH>){
+		/^\s*([0-9]+)\s*([0-9]+)\s*([0-9]+)/ or next;
+		my ($grp,$pid,$mem) = ($1,$2,$3);
+		$grp == $pgrp or next;
+		$result += $mem;
+	}
+	close $PS_FH or die "Bad close ps: $!";
+
+	return $result;
 }
 
 sub kill_process_group_safely
 {
 	my ($pgrp) = @_;
-	kill 'SIGTERM', -$pgrp;
+	# it's still unclear to me if there won't be a delay between catching signals in different processes when a signal is sent to a whole group.
+	kill SIGSTOP, -$pgrp or die;
+	kill SIGTERM, -$pgrp or die;
+	kill SIGCONT, -$pgrp or die;
+
+	kill SIGKILL, -$pgrp;
 }
 
 
