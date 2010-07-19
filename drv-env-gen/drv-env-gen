@@ -177,15 +177,10 @@ sub hxml_cmdstream_cc {
 	}
 	push(@args,"-c",$ldv_counter++);
 	foreach my $section ( $_[1]->children('opt') ) {
-		
 		push(@args,$section->text);
 	}
 	if($log_level>=30) {
-		my @debug_args =($ldv_cc,@ldv_cc_add_options);
-		foreach my $cmd (@args) {
-			push(@debug_args,$cmd);
-		}
-		ldv_dprint("RUN LDV_CC: @debug_args");
+		ldv_dprint("RUN LDV_CC: @args");
 	}
 	ldv_iprint("Starting ldv_cc interface...");
 	my $start_time = time();
