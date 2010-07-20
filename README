@@ -1,13 +1,82 @@
-1. To install the core ldv tools use:
+	Linux Driver Verification (LDV) <http://linuxtesting.org/project/ldv/>
+
+These are the notes for LDV.  Read them carefully,
+as they tell you what this is all about, explain how to install the
+LDV, and what to do if something goes wrong. 
+
+WHAT IS LDV?
+
+  Linux Driver Verification (LDV) program was announced in 2009 to meet 
+  increased demand for large-scale verification tools applicable to high 
+  profile software. The goals of the program are:
+
+       o improve quality of Linux device drivers
+       o develop an integrated platform for device drivers verification
+       o adopt latest research outcome to enhance quality of verification tools
+
+  The quality improvement involves garnering and systematizing problems that
+  occur in device drivers and actually finding their instances (bugs) in the 
+  source code. Based on analysis of error reports to LKML, a number of
+  frequently encountered problems was encapsulated into a rule database. The
+  rules are formalized, categotized, and supplied with machine-readable 
+  patterns that show how to verify them.
+
+  The integrated platform aims to mediate smoothly between driver's source 
+  packages, brand new, fresh kernels from kernel.org, rule database and 
+  general-purpose verification tools, given that all these are constantly
+  developed. This platform provides analysis of the drivers supplied in
+  automatically deployed and generated environments, which are based on 
+  vanilla kernel sources and rule database mentioned earlier.
+
+  The verification process is backed with open-source verification tools for C 
+  language. The modular architecture of the integrated platform, and a large 
+  amount of ready-to-check source code provides extensive basis for audit of 
+  quality of different verification tools. The tools are constantly improved 
+  (based on research, both adopted and carried on by our group) and evaluated 
+  to provide the most precise verification.
+
+REUIREMENTS:
+
+    Minimal requirmenets for console tools, verifiers, testing
+	o ant 1.8.0 or greater
+	o JDK or JAVA-OpenJDK 1.6.0
+	o ocaml 3.11.0-3.11.2
+	o GNU Make
+	o GCC (32-bit version)
+	o gcc-c++
+	o GNU M4
+	o GNU Autoconf
+	o GNU Automake
+	o GNU binutils
+	o GNU Multiple Precision Library (GMP)
+	o MPFR Library
+	o Flex или lex
+	o Yacc или bison
+	o patch
+	o perl
+
+     Additional rquirements (for ldv-online, visualization)
+	o apache 2.x
+	o php 5.x (and modules for apache and mysql)
+	o mysqld 
+
+INSTALLING the LDV:
+
+  1. To install the ldv console tools use:
      prefix=/path/to/your/installation/directory make install
-2. To install the ldv manager use:
-     prefix=/path/to/your/installation/directory make install-srv
-3. To install the statistics server use:
-     prefix=/path/to/your/installation/directory make install-stats-server
-4. To install tests use:
-     prefix=/path/to/your/installation/directory make install-test
-5. To install all use:
+  2. To install the only verifiers:
+     prefix=/path/to/your/installation/directory make install-verifiers
+  3. To install the statistics server use:
+     prefix=/path/to/your/installation/directory make install-visualization
+  4. To install tests use:
+     prefix=/path/to/your/installation/directory make install-testing
+  5. To install all use:
      prefix=/path/to/your/installation/directory make install-all
+  6. To install online web-service:
+     prefix=/path/to/your/installation/directory make install-online-server
+  7. To install online web-service node:
+     prefix=/path/to/your/installation/directory make install-online-node
 
 Note, that '3' and '5' most likely require root privelegies and additional
-setup. See 'stats-visualizer/README' for details. 
+setup. See 'stats-visualizer/README' for details.
+
