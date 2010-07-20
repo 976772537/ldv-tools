@@ -117,6 +117,7 @@ function WSInitDefault() {
 #
 function WSGetSupportedEnvList() {
 	$rules1 = array('32_1','77_1','08_1','29_1','37_1','43_1','60_1','68_1');
+//	$rules1 = array('32_1');
 //	$rules2 = array("32_1","77_1");
 	
 	$env1 = array('name' => "linux-2.6.32.12", 'rules' => $rules1);
@@ -125,6 +126,7 @@ function WSGetSupportedEnvList() {
 //	$env3 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules1);
 
 	$envs = array($env1, $env2);
+//	$envs = array($env1);
 	//$envs = array($env2);
 	return $envs;
 }
@@ -191,7 +193,8 @@ function WSPrintByLogLevel($string,$type) {
 }
 
 function WSIsDebug() {
-	return WS_DEBUG_MODE;
+	return false;
+//	return WS_DEBUG_MODE;
 }
 
 #
@@ -445,7 +448,7 @@ function WSGetTaskReport($task_id) {
 
 
 	// TODO: Fix ldv-uploader !
-	// NOW WE HAVE TWO WORKAROUNDS:
+	// NOW WE HAVE THREE WORKAROUNDS:
 	// First when in environmnets ldv-uploader add wrong environment version in case of failed 
 	// verification results (driver not compiled with kernel or have no ld commands):
 	// Run verification with 
@@ -479,11 +482,61 @@ function WSGetTaskReport($task_id) {
 	while($row = mysql_fetch_array($result)) {
 		WSStatsQuery('UPDATE launches SET status=\'finished\' WHERE task_id='.$row['task_id'].' AND environment_id='.$row['environment_id'].' AND toolset_id='.$row['toolset_id'].' AND driver_id='.$row['driver_id'].' AND rule_model_id IS NOT NULL AND scenario_id IS NULL AND trace_id IS NULL AND status=\'running\';');
 	}
+	// Workaround for linux-2.6.32.12 (rule 32_1) - bcm58xx-2.6-ldv.tar.bz2
+	// Dscv failed with 'no entry points' message - ii's normal
+	// After upload our launche have status 'running' and new launch with unknown model, like this:
+	//
+	//	Beofore: 
+	//	+----+-----------+------------+----------------+---------------+-------------+----------+---------+----------+
+	//	| id | driver_id | toolset_id | environment_id | rule_model_id | scenario_id | trace_id | task_id | status   |
+	//	+----+-----------+------------+----------------+---------------+-------------+----------+---------+----------+
+	//	|  1 |         1 |          1 |              1 |             1 |        NULL |     NULL |       1 | running  |
+	//	+----+-----------+------------+----------------+---------------+-------------+----------+---------+----------+
+	// 	+----+------+-------------+
+	//	| id | name | description |
+	//	+----+------+-------------+
+	//	|  1 | 32_1 | NULL        |
+	//	+----+------+-------------+
+	//
+	//	After: 
+	//	+----+-----------+------------+----------------+---------------+-------------+----------+---------+----------+
+	//	| id | driver_id | toolset_id | environment_id | rule_model_id | scenario_id | trace_id | task_id | status   |
+	//	+----+-----------+------------+----------------+---------------+-------------+----------+---------+----------+
+	//	|  1 |         1 |          1 |              1 |             1 |        NULL |     NULL |       1 | running  |
+	//	|  2 |         1 |          1 |              1 |             2 |           1 |        1 |       1 | finished |
+	//	+----+-----------+------------+----------------+---------------+-------------+----------+---------+----------+
+	//
+	// 	+----+------+-------------+
+	//	| id | name | description |
+	//	+----+------+-------------+
+	//	|  1 | 32_1 | NULL        |
+	//	|  2 |      | NULL        |
+	//	+----+------+-------------+
+	//
+	//	+----+----------+------------+---------+-------+--------+---------+-------------+----------+
+	//	| id | build_id | maingen_id | dscv_id | ri_id | rcv_id | result  | error_trace | verifier |
+	//	+----+----------+------------+---------+-------+--------+---------+-------------+----------+
+	//	|  1 |        1 |          2 |       3 |  NULL |   NULL | unknown | NULL        | NULL     |
+	//	+----+----------+------------+---------+-------+--------+---------+-------------+----------+
+	//
+	$result = WSStatsQuery('SELECT rule_models.name AS rule_name, rule_models.id AS rule_id,launches.* FROM launches,rule_models WHERE launches.task_id='.$task_id.' AND rule_models.id=launches.rule_model_id AND rule_models.name=\'\' AND status=\'finished\' AND scenario_id IS NOT NULL AND trace_id IS NOT NULL;');
+	while($row = mysql_fetch_array($result)) {
+		// 1. select corresonding row
+		$iresult = WSStatsQuery('SELECT id,rule_model_id FROM launches WHERE scenario_id IS NULL AND trace_id IS NULL AND status=\'running\' AND task_id='.$task_id.' AND driver_id='.$row['driver_id'].' AND toolset_id='.$row['toolset_id'].' AND environment_id='.$row['environment_id'].';');
+		if($irow = mysql_fetch_array($iresult)) {
+			// fix rule_model number in result launch
+			WSStatsQuery('UPDATE launches SET rule_model_id='.$irow['rule_model_id'].' WHERE id='.$row['id'].';');
+			WSStatsQuery('UPDATE launches SET status=\'finished\' WHERE id='.$irow['id'].';');
+		}
+		// remove wrong kernel environment
+		WSStatsQuery('DELETE FROM rule_models WHERE id='.$row['rule_id'].';');	
+	}
 
 
 
 
-	$result = WSStatsQuery('SELECT tasks.id AS task_id, tasks.timestamp, launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY scenario_id, trace_id, env, rule;');
+
+	$result = WSStatsQuery('SELECT launches.id AS lid, tasks.id AS task_id, tasks.timestamp, launches.id, drivers.name AS drivername, launches.driver_id, launches.environment_id, launches.rule_model_id, launches.scenario_id, launches.trace_id, environments.version AS env, rule_models.name AS rule, drivers.name AS driver, launches.status FROM launches, tasks, environments, rule_models, drivers WHERE tasks.id='.$task_id.' AND  launches.task_id=tasks.id AND environments.id=launches.environment_id AND drivers.id=launches.driver_id AND rule_models.id=launches.rule_model_id AND scenario_id IS NULL AND trace_id IS NULL ORDER BY lid, scenario_id, trace_id, env, rule;');
 	if(mysql_num_rows($result) == 0) {
 		WSPrintE("Could not find task or wrong user.");
 		return;
@@ -507,6 +560,7 @@ function WSGetTaskReport($task_id) {
 			$j=0;
 			$last_env = $row['env'];
 			$task['envs'][$i]['name']=$row['env'];
+			$task['envs'][$i]['launch_id']=$row['lid'];
 			$task['envs'][$i]['status']='ok';
 			$task['envs'][$i]['environment_id']=$row['environment_id'];
 			unset($last_rule);
@@ -562,7 +616,8 @@ function WSGetTaskReport($task_id) {
 		foreach($task['envs'] as $env_key => $env) {
 			if($env['environment_id'] == $row['environment_id']) {
 				$task['envs'][$env_key]['status']='Build failed';
-				$task['envs'][$env_key]['trace_id']=$row['trace_id'];
+				$task['envs'][$env_key]['launch_id']=$row['id'];
+				WSPrintD('KTRACE_ID: '.$task['envs'][$env_key]['trace_id']);
 				break;
 			}
 		}
@@ -701,12 +756,13 @@ function WSGetDetailedReport($trace_id) {
 	return $trace;	
 }
 
-function WSGetDetailedBuildError($trace_id) {
+function WSGetDetailedBuildError($launch_id) {
 	$conn = WSStatsConnect();
 	// TODO: add user=user .....
-	$result = WSStatsQuery('SELECT stats.id, stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments WHERE stats.id='.$trace_id.' AND traces.build_id='.$trace_id.' AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
+	$result = WSStatsQuery('SELECT stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments WHERE launches.id='.$launch_id.' AND stats.id=traces.build_id AND traces.id=launches.trace_id AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
+
 	if($row = mysql_fetch_array($result)) {
-		$trace['trace_id']=$row['id'];
+		$trace['trace_id']=$trace_id;
 		$trace['env']=$row['env'];
 	#	$trace['drivername']=$row['driver'];
                 $trace['drivername'] = preg_replace('/_\d+$/','', $row['driver']);

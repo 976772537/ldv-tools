@@ -3,15 +3,20 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer kernel-rules cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh
-SERVER_SUBDIRS = ldv-manager
-STATS_SERVER_SUBDIRS = stats-visualizer error-trace-visualizer
-TEST_SUBDIRS = ldv-tests
-DEBUG_MAKEFILE_SUBDIRS = build-cmd-extractor cmd-utils drv-env-gen kernel-rules ldv ldv-core
-SHARED_SUBDIRS=shared/perl shared/php shared/sh
+BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-online/ldvsrv
+
+
+LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh
+ERROR_TRACE_VISUALIZER_SUBDIRS = error-trace-visualizer shared/perl
+DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
+LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh
+STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer shared/php
+ONLINE_NODE_SUBDIRS = ldv-online/ldvsrv 
+ONLINE_SERVER_SUBDIRS = ldv-online/ldvsrv ldv-online/ldvwface
+TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
 
 SUBDIRS = $(BUILD_SUBDIRS)
-INSTALL_SUBDIRS = $(SUBDIRS)
+INSTALL_SUBDIRS = $(LDV_SUBDIRS)
 CLEAN_SUBDIRS = $(SUBDIRS)
 
 # Export prefix to sub-make invocations for subdirectories
@@ -28,35 +33,38 @@ endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
-all-all: $(call forall_subdirs,$(SUBDIRS) $(SERVER_SUBDIRS) $(STATS_SERVER_SUBDIRS) $(TEST_SUBDIRS),all)
+install: install-console-tools
 
-install: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS),install)
+install-all: $(call forall_subdirs,$(SUBDIRS),install)
 
-install-all: pre_tests $(call forall_subdirs,$(INSTALL_SUBDIRS) $(SERVER_SUBDIRS) $(STATS_SERVER_SUBDIRS) $(TEST_SUBDIRS),install)
+install-console-tools: pre_tests ocaml_is_installed ant_is_installed java_is_installed pax_is_installed $(call forall_subdirs,$(LDV_SUBDIRS),install)
 
-# Install only server stuff
-install-srv: $(call forall_subdirs,$(SHARED_SUBDIRS) $(SERVER_SUBDIRS),install)
+install-verifiers: pre_tests ocaml_is_installed $(call forall_subdirs,$(DSCV_SUBDIRS),install)
 
 # Install only statistics server
-install-stats-server: pre_tests $(call forall_subdirs,$(SHARED_SUBDIRS) $(STATS_SERVER_SUBDIRS),install)
+install-visualization: pre_tests $(call forall_subdirs,$(STATS_SUBDIRS),install)
+
+install-online-server: pre_tests java_is_installed ant_is_installed $(call forall_subdirs,$(ONLINE_SERVER_SUBDIRS),install)
+
+install-online-node: pre_tests java_is_installed ant_is_installed pax_is_installed $(call forall_subdirs,$(ONLINE_NODE_SUBDIRS),install)
 
 # Install only test stuff
-install-test: $(call forall_subdirs,$(SHARED_SUBDIRS) $(TEST_SUBDIRS),install)
-
-# Install only shared stuff
-install-shared: $(call forall_subdirs,$(SHARED_SUBDIRS),install)
+install-testing: pre_tests $(call forall_subdirs,$(TESTS_SUBDIRS),install)
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
-
-clean-all: $(call forall_subdirs,$(CLEAN_SUBDIRS) $(SERVER_SUBDIRS) $(TEST_SUBDIRS),clean)
 
 distclean: clean
 
 # Let's instantiate rules for subdirs:
 $(foreach subdir,$(SUBDIRS),$(eval $(call mksubdir,$(subdir))))
-$(foreach subdir,$(SERVER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
-$(foreach subdir,$(STATS_SERVER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
-$(foreach subdir,$(TEST_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(ERROR_TRACE_VISUALIZER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(DSCV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(LDV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(STATS_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(ONLINE_NODE_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(ONLINE_SERVER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(LDV_MANAGER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(TESTS_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 
 pre_tests:
 	@$(call test_var_prefix)
@@ -64,18 +72,55 @@ pre_tests:
 configure:
 	echo "configure - Ok";
 
+
+
+pax_is_installed:
+	@$(call is_installed,pax)
+
+perl_is_installed:
+	@$(call is_installed,perl)
+
+ruby_is_installed:
+	@$(call is_installed,ruby)
+
+ocaml_is_installed:
+	@$(call is_installed,ocaml)
+
+ant_is_installed:
+	@$(call is_installed,ant)
+
+java_is_installed:
+	@$(call is_installed,java)
+
 define test_var_prefix
 	if [ -n "$(prefix)" ]; then                                  \
 		true;                                                \
 	else                                                         \
 		echo " "; 					     \
-		echo "******************** ERROR *****************"; \
-		echo "* USAGE: prefix=/install/dir make          *"; \
+		echo "******************** error *****************"; \
+		echo "* usage: prefix=/install/dir make ...      *"; \
 		echo "********************************************"; \
 		echo " "; 					     \
 		false;                                               \
         fi
 endef
+
+define is_installed
+	echo " Test: $1 is installed..."; 			     \
+	if which $1; then 		                             \
+		echo " Ok - $1 installed.";                          \
+		true;                                                \
+	else                                                         \
+		echo " "; 					     \
+		echo "******************** ERROR *****************"; \
+		echo "* Can't find $1 in your path.              *"; \
+		echo "* It's really installed?                   *"; \
+		echo "********************************************"; \
+		echo " "; 					     \
+		false;                                               \
+        fi
+endef
+
 
 
 
