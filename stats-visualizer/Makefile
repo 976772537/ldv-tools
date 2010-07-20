@@ -27,8 +27,10 @@ DEFAULT_APPLICATION_ENV = production
 
 # Zend framework shared directory. It's relative to the prefix directory.
 ZEND_FRAMEWORK_DIR = shared/php/Zend
-# Zend framework link. It's relative to the statistics server virtual directory.
-ZEND_FRAMEWORK_LINK = $(STATS_DIR)/library/Zend
+# Zend framework library directory. It's relative to the statistics server virtual directory.
+ZEND_FRAMEWORK_LIBRARY_DIR = $(STATS_DIR)/library
+# Zend framework link. It's relative to the statistics server library directory.
+ZEND_FRAMEWORK_LINK = Zend
 
 # Some data files. They are relative to the statistics server directory.
 STATS_DATA = data
@@ -83,7 +85,8 @@ install:
 	  > $(LDV_STATS_VHOSTS_CONF_DIR)/$(WEB_SERVER_VHOSTS_CONF);
 	
 	cp -r $(VHOST_DIR)/$(STATS_DIR) $(LDV_STATS_VHOSTS_DIR) || exit 1;
-	ln -sfT "$(prefix)/$(ZEND_FRAMEWORK_DIR)" "$(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LINK)" || exit 1;
+	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) || exit 1; fi
+	ln -sfT "$(prefix)/$(ZEND_FRAMEWORK_DIR)" "$(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR)/$(ZEND_FRAMEWORK_LINK)" || exit 1;
 	@echo Create the needed files
 	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB) || exit 1; fi
 	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB)
