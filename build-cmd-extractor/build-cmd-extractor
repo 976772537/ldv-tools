@@ -293,7 +293,7 @@ fi;
 	        exit 1;
 	fi;
 
-if [ !-n "$cmdstream" ]; then
+if [ ! -n "$cmdstream" ]; then
 	#
 	# fix format - add one tab before <cc> and <ld> tags and...
 	#
