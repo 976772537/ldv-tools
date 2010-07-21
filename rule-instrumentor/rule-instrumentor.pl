@@ -3,7 +3,7 @@
 
 use Cwd qw(abs_path cwd);
 use English;
-use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
+use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_LLVM_GCC LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
 use File::Basename qw(basename fileparse);
 use File::Copy qw(copy mv);
 use FindBin;
@@ -183,7 +183,7 @@ my $ldv_aspectator;
 # Environment variable that says that options passed to gcc compiler aren't
 # quoted.
 my $ldv_no_quoted = 'LDV_NO_QUOTED';
-# Environment variable that will keep path to GCC executable.
+# Environment variable that keeps path to GCC executable.
 my $ldv_aspectator_gcc = 'LDV_LLVM_GCC';
 my $ldv_c_backend;
 my $ldv_gcc;
@@ -927,6 +927,10 @@ ENVIRONMENT VARIABLES
   LDV_KERNEL_RULES
     It's an optional environment variable that points to an user 
     models directory that will be used instead of the standard one.
+  
+  LDV_LLVM_GCC
+    It's an optional environment variable that points to an user 
+    compiler core that will be used instead of the standard one.    
     
   LDV_RULE_INSTRUMENTOR_DEBUG 
     Like LDV_DEBUG but it has more priority. It specifies a debug 
@@ -1096,7 +1100,8 @@ sub prepare_files_and_dirs()
   }
   print_debug_debug("The linker is '$ldv_linker'");
   
-  # Use environment variable for models instead of standard placement in LDV_HOME.
+  # Use environment variable for the models directory instead of the standard 
+  # one from the LDV_HOME.
   if ($LDV_KERNEL_RULES)
   {
     $ldv_model_dir = $LDV_KERNEL_RULES;
@@ -1106,6 +1111,15 @@ sub prepare_files_and_dirs()
   {
     $ldv_model_dir = "$LDV_HOME/kernel-rules";
     print_debug_debug("The models directory is '$ldv_model_dir'");
+  }
+
+  # Use environment variable for the compiler core instead of the the standard 
+  # one from the LDV_HOME.
+  if ($LDV_LLVM_GCC)
+  {
+	# Just make auxiliary name for the standard exported path to the compiler
+	# core. So the environment variable will be used.  
+	$ldv_aspectator_gcc .= '_AUX';
   }
 
   print_debug_trace("Check whether the models are installed properly");
