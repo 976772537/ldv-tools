@@ -420,7 +420,7 @@ view_header();
  *  Configuration file
  *
  */ 
-WSInit("server.conf");
+WSInit(PATH_TO_CONF);
 
 if ($action == "upload" && !$exit)
 {
