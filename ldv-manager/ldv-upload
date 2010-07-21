@@ -31,6 +31,14 @@ class Task
 			return task
 		end
 
+		unless (tag/"task_name").empty?
+			# Get task from database or add it there
+			task_name = (tag/"task_name").inner_html
+			task = Task.find_or_create_by_description(task_name)
+			raise "Couldn't find or create task for task_name=#{task_name}" unless task
+			return task
+		end
+
 		unless (tag/"username").empty? || (tag/"timestamp").empty?
 			# Create task for user/given timestamp
 			username = (tag/"username").inner_html
