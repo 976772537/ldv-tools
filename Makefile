@@ -12,7 +12,7 @@ DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
 LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh
 STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer shared/php
 ONLINE_NODE_SUBDIRS = ldv-online/ldvsrv 
-ONLINE_SERVER_SUBDIRS = ldv-online/ldvsrv ldv-online/ldvwface
+ONLINE_SERVER_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) ldv-online/ldvsrv ldv-online/ldvwface 
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
 
 SUBDIRS = $(BUILD_SUBDIRS)
