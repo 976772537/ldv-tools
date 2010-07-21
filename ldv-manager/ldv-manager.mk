@@ -128,16 +128,19 @@ define rule_for_tag_driver
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Driver=$(call get_driver_raw,$(1),$(delim))
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Tag=$(call get_tag_raw,$(1),$(delim))
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Result_report=
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Run_spec=$(if $(cmdstream_driver),--cmdstream=,--driver=)
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Ldv_env=$(if $(cmdstream_driver),$(envs)@$(ldv_rules),$(ldv_task))
 
 # We add dependency on the archive with file to allow consecutive launches
-$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked: $(call get_tag,$(1),$(delim)) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
+# If driver is from cmdstream, we do not prepare kernel
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked: $(if $(cmdstream_driver),,$(call get_tag,$(1),$(delim))) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
 	if [[ "$$(Tag)" != "$(Current)" ]] ; then \
 		export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
 	fi ;\
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
-	ldv task --driver=$$(Driver) --workdir=$$(@D) --env=$(ldv_task) $(Kernel_driver) $(Fail_status_set)
+	ldv task $$(Run_spec)$$(Driver) --workdir=$$(@D) --env=$$(Ldv_env) $(Kernel_driver) $(Fail_status_set)
 	#touch $$@
 
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked
