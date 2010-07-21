@@ -323,6 +323,7 @@ ldv_print "NORMAL: Calling Build Command Extractor";
 if [ -n "$cmdstream" ]; then
 	XML_AFTER_BCE=$cmdstream;
 	stream_option="--cmdstream=$cmdstream";
+	koption=--kernel-driver;
 else
 	XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
 	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
