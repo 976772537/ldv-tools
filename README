@@ -73,10 +73,15 @@ INSTALLING the LDV:
   5. To install all use:
      prefix=/path/to/your/installation/directory make install-all
   6. To install online web-service:
-     prefix=/path/to/your/installation/directory make install-online-server
+     prefix=/path/to/your/installation/directory \
+	TMP_DIR=/path/to/tmpfiles \
+     	WEB_DIR=/path/to/apahce/web/dir make install-online-server
   7. To install online web-service node:
-     prefix=/path/to/your/installation/directory make install-online-node
+     prefix=/path/to/your/installation/directory \ 
+ 	TMP_DIR=/path/to/tmpfiles \ 
+	make install-online-node
 
 Note, that '3' and '5' most likely require root privelegies and additional
-setup. See 'stats-visualizer/README' for details.
+setup. See 'stats-visualizer/README' for details. See 'ldv-online/README'
+ before installing '6' and '7'.
 

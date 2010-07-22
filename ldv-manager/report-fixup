@@ -25,6 +25,8 @@ sub handle_report
 	my $taskT = XML::Twig::Elt->new('task');
 	if ($ENV{'LDV_TASK_ID'}){
 		XML::Twig::Elt->new('task_id',{},$ENV{'LDV_TASK_ID'})->paste($taskT);
+	}elsif ($ENV{'LDV_TASK_NAME'}){
+		XML::Twig::Elt->new('task_name',{},$ENV{'LDV_TASK_NAME'})->paste($taskT);
 	}else{
 		my $date = `date`; chomp $date;
 		XML::Twig::Elt->new('timestamp',{},$date)->paste($taskT);
