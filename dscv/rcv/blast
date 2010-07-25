@@ -199,11 +199,14 @@ sub call_blast
 	# Special "noaliases" switch may be activated
 	$do_aliases &&= !$ENV{'BLAST_EXP_NOALIAS'};
 	if ($do_aliases){
+		vsay ('NORMAL',"Running BLAST with alias analysis (this may take longer).\n");
 		push @blast_options,
 			"-alias","bdd",	# Turn alias analysis on
 			"-cref",	#"Complete REFinement", performs alias iterations, implies alias analysis
 			"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
 		;
+	}else{
+		vsay ('NORMAL',"Running BLAST without alias analysis.\n");
 	}
 	# Filter also lattices if specified
 	unless ($ENV{'BLAST_EXP_NOLATTICE'}){
