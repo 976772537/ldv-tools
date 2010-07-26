@@ -40,10 +40,8 @@ class Task
 			task.username = (tag/"username").inner_html unless (tag/"task_name").empty?
 			task.timestamp = (tag/"timestamp").inner_html.to_datetime unless (tag/"timestamp").empty?
 			task.description = (tag/"description").inner_html unless (tag/"description").empty?
-			task.driver_spec = (tag/"driver").inner_html
-			task.driver_spec = nil if driver_spec.empty?
-			task.driver_spec_origin = (tag/"driver_origin").inner_html
-			task.driver_spec_origin = nil if driver_spec_origin.empty?
+			task.driver_spec = (tag/"driver").inner_html unless (tag/"driver").inner_html.empty?
+			task.driver_spec_origin = (tag/"driver_origin").inner_html unless (tag/"driver_origin").empty?
 			task.save
 			return task
 		end
