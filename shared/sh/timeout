@@ -180,7 +180,7 @@ sub kill_process_group_safely
 	kill SIGTERM, -$pgrp or die;
 	kill SIGCONT, -$pgrp or die;
 
-	kill SIGKILL, -$pgrp;
+	kill SIGKILL, -$pgrp or die;
 }
 
 

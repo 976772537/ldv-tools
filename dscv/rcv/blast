@@ -162,11 +162,9 @@ sub call_blast
 	# Options that will be passed to the blast tool
 	my @blast_options = ("pblast.opt",@{$args{files}});
 	# Set default options
-	# These are: -alias bdd -cref -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0 -nomusts -const
+	# These are: -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0
 	push @blast_options,
-		"-predH","7","-cref","-craig","2",	# Default heuristics on
-		"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
-		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
+		"-predH","7","-craig","2",	# Default heuristics on
 		"-ignoredupfn", # Ignore duplicated functions when constructing CFA
 		"-nosserr", # Ignore "combining structure and non-structure values" error.  LLVM emits such nasty code.
 	;
@@ -190,16 +188,27 @@ sub call_blast
 		push @blast_options,"-cldepth","0";
 	}
 	# Alias hint
-	if (defined $hintsT
-		&& (my $ali = $hintsT->first_child_text('alias')))
-	{
-		if ($ali eq 'none'){
-		}else{
-			die "Uninterpreted <alias> hint value: $ali";
-		}
-	}else{
+	my $do_aliases =
+		# Aliases may be hinted by the model
+		(defined $hintsT && ($hintsT->first_child_text('alias')))
+		# BUt by default we make them anyway
+		|| (!defined $hintsT)
+		# But for now we just alias everything
+		|| 1
+		;
+	# Special "noaliases" switch may be activated
+	$do_aliases &&= !$ENV{'BLAST_EXP_NOALIAS'};
+	if ($do_aliases){
 		push @blast_options,
-			"-alias","bdd"	# Turn alias analysis on
+			"-alias","bdd",	# Turn alias analysis on
+			"-cref",	#"Complete REFinement", performs alias iterations, implies alias analysis
+			"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
+		;
+	}
+	# Filter also lattices if specified
+	unless ($ENV{'BLAST_EXP_NOLATTICE'}){
+		push @blast_options,
+			"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
 		;
 	}
 

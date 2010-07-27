@@ -238,7 +238,10 @@ sub prepare_files_and_dirs()
   die("You don't setup connection to your testing database. See --help for details")
     unless ($LDVDBTEST and $LDVUSERTEST);
 
-  print_debug_debug("The database settings are following: '$LDVDBHOSTTEST', '$LDVDBTEST', '$LDVUSERTEST' (host, database and user)");
+  print_debug_debug("The database necessary settings are following: '$LDVDBTEST' and '$LDVUSERTEST' (database and user)");
+  print_debug_debug("The database optional settings are following:");
+  print_debug_debug("  * '$LDVDBHOSTTEST' (host)") if ($LDVDBHOSTTEST);
+  print_debug_debug("  * '$LDVDBPASSWDTEST' (password)") if ($LDVDBPASSWDTEST);
 
   print_debug_trace("Check presence of scripts");
   die ("There is no the launcher script '$tool_aux_dir/$script_launch'")

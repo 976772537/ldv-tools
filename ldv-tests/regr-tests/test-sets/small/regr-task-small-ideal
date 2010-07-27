@@ -2,7 +2,7 @@ driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/linkdl.ko;main=ldv_main0;verdict=safe
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/safe.ko;main=ldv_main0;verdict=unsafe
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/doublelock.ko;main=ldv_main0;verdict=unsafe
-driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/linkdl.ko;main=ldv_main0;verdict=unknown;RCV_status=fail;problems=Exception,Parsing errors
+driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/linkdl.ko;main=ldv_main0;verdict=unsafe
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/safe.ko;main=ldv_main0;verdict=safe
 driver=tests-bce--test-failedon32.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
 driver=tests-bce--test-nomakefile.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
@@ -10,11 +10,11 @@ driver=tests-envgen--test-exit.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.
 driver=tests-envgen--test-init.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-init/init.ko;main=ldv_main0;verdict=unsafe
 driver=tests-envgen--test-order.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-order/order.ko;main=ldv_main0;verdict=unsafe
 driver=tests-envgen--test-struct.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-struct/struct.ko;main=ldv_main0;verdict=unsafe
-driver=tests-model-08_1--test-doubleget.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-doubleget/doubleget.ko;main=ldv_main0;verdict=unknown;RCV_status=fail;problems=CVC3 Solver parse error,Exception
+driver=tests-model-08_1--test-doubleget.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-doubleget/doubleget.ko;main=ldv_main0;verdict=unsafe
 driver=tests-model-08_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-safe/safe.ko;main=ldv_main0;verdict=unsafe
 driver=tests-model-08_1--test-safe2.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-safe2/safe2.ko;main=ldv_main0;verdict=unsafe
 driver=tests-model-08_1--test-singleput.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-singleput/singleput.ko;main=ldv_main0;verdict=safe
-driver=tests-model-08_1--test-twomods.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-twomods/twomods.ko;main=ldv_main0;verdict=unknown;RCV_status=fail;problems=CVC3 Solver parse error,Exception
+driver=tests-model-08_1--test-twomods.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-twomods/twomods.ko;main=ldv_main0;verdict=unsafe
 driver=tests-model-29_1--test-doubledestroy.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=29_1;module=drivers/tests-model-29_1/test-doubledestroy/doubledestroy.ko;main=ldv_main0;verdict=unsafe
 driver=tests-model-29_1--test-doublefree.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=29_1;module=drivers/tests-model-29_1/test-doublefree/doublefree.ko;main=ldv_main0;verdict=unsafe
 driver=tests-model-29_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=29_1;module=drivers/tests-model-29_1/test-safe/safe.ko;main=ldv_main0;verdict=safe
