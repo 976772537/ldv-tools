@@ -63,32 +63,30 @@ public class SQLRequests {
 		return stmt;
 	}
 	
-	public static boolean initInnerDbTables(Connection conn) {
+	public static boolean initInnerDbTables(Connection conn, String opt) {
 		Statement stmt = getTransactionStmt(conn);
 		if(stmt==null) return false;
 		try {
-			stmt.execute(SQL_DROP_CLIENTS);
-			stmt.execute(SQL_DROP_TASKS);
-			stmt.execute(SQL_DROP_SPLITTED_TASKS);
+			if(opt!=null && opt.length()>0 && opt.equals("true")) {
+				stmt.execute(SQL_DROP_CLIENTS);
+				stmt.execute(SQL_DROP_TASKS);
+				stmt.execute(SQL_DROP_SPLITTED_TASKS);
 			
-			stmt.execute(SQL_CREATE_CLIENTS);
-			stmt.execute(SQL_CREATE_TASKS);
-			stmt.execute(SQL_CREATE_SPLITTED_TASKS);
-			conn.commit();
+				stmt.execute(SQL_CREATE_CLIENTS);
+				stmt.execute(SQL_CREATE_TASKS);
+				stmt.execute(SQL_CREATE_SPLITTED_TASKS);
+				conn.commit();
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 			try {
 				conn.rollback();
-				stmt.close();
 			} catch (SQLException e1) {
 				e1.printStackTrace();
 			}
 			return false;
-		}
-		try {
-			stmt.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
+		} finally {
+			closeStatement(stmt);
 		}
 		return true;
 	}		
@@ -112,10 +110,9 @@ public class SQLRequests {
 				rs.next();
 			}
 			id = rs.getInt("id");
-			rs.close();
+			closeResultSet(rs);
 			try {
 				conn.commit();
-				stmt.close();
 			} catch (SQLException e) {
 				conn.rollback();
 				id = -1;
@@ -123,11 +120,7 @@ public class SQLRequests {
 		} catch (SQLException e1) {
 			e1.printStackTrace();
 		} finally {
-			try {
-				stmt.close();
-			} catch (final SQLException e) {
-				e.printStackTrace();
-			}
+			closeStatement(stmt);
 			return id;
 		}
 	}
@@ -158,11 +151,7 @@ public class SQLRequests {
 		} catch (SQLException e1) {
 			e1.printStackTrace();
 		} finally {
-			try {
-				stmt.close();
-			} catch (final SQLException e) {
-				e.printStackTrace();
-			}
+			closeStatement(stmt);
 		}
 		return result;	
 	}
@@ -175,11 +164,7 @@ public class SQLRequests {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeConnection(conn);
 		}
 		return false;
 	}
@@ -197,16 +182,12 @@ public class SQLRequests {
 			sconn = config.getStorageManager().getStatsConnection();
 			st = sconn.createStatement();
 			st.executeUpdate("UPDATE launches SET status='queued' WHERE id="+id);
-			st.close();
 			result = true;
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				sconn.close();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
+			closeStatement(st);
+			closeConnection(sconn);
 		}	
 		return result;		
 	}
@@ -225,6 +206,7 @@ public class SQLRequests {
 		int lastKey = -1;
 		if (rs.next()) lastKey = rs.getInt(1);
 		rs.close();
+		closeResultSet(rs);
 		return lastKey;
 	}
 	
@@ -233,7 +215,7 @@ public class SQLRequests {
 		stmt.setBinaryStream (1, bs, length);
 		stmt.executeUpdate();
 		int lastKey = getLastKeyFromStatement(stmt);
-		stmt.close();
+		closeStatement(stmt);
 		return lastKey;
 	}
 	
@@ -247,20 +229,20 @@ public class SQLRequests {
 		ResultSet srs = st.executeQuery(selectString);
 		srs.next();
 		int id = srs.getInt(1); 
-		srs.close();		
+		closeResultSet(srs);
 		return id;
 	}
 	
 	public static int modifyAndGetIdUnsafe2(Statement st, String insertString, String selectString) throws SQLException {
 		ResultSet rs = st.executeQuery(selectString);
 		if(rs.getRow()==0 && !rs.next()) {
-			rs.close();
+			closeResultSet(rs);
 			st.executeUpdate(insertString);
 			rs = st.executeQuery(selectString);				
 			rs.next();
 		}
 		int id = rs.getInt("id");
-		rs.close();
+		closeResultSet(rs);
 		return id;
 	}
 	
@@ -315,7 +297,8 @@ public class SQLRequests {
 							" AND environment_id="+env_id+" AND rule_model_id="+rule_id+" AND task_id="+id+" AND status='queued' " +
 							" AND trace_id IS NULL AND scenario_id IS NULL;");
 					srs.next();
-					int launch_id = srs.getInt("id"); 
+					int launch_id = srs.getInt("id");
+					closeResultSet(srs);
 					srs.close();
 					//sconn.commit();
 					//conn.commit();
@@ -341,16 +324,9 @@ public class SQLRequests {
 		} catch (Throwable e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				if(stmt!=null)
-					stmt.close();
-				if(st!=null) 
-					st.close();
-				if(ste!=null)
-					ste.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeStatement(stmt);
+			closeStatement(st);
+			closeStatement(ste);
 		}
 		return id;
 	}
@@ -366,14 +342,8 @@ public class SQLRequests {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				if(conn!=null)
-					conn.close();
-				if(sconn!=null)
-					conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeConnection(conn);
+			closeConnection(sconn);
 		}
 		return false;
 	}
@@ -389,14 +359,8 @@ public class SQLRequests {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				if(conn!=null)
-					conn.close();
-				if(sconn!=null)
-					sconn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeConnection(conn);
+			closeConnection(sconn);
 		}
 		return null;
 	}
@@ -423,8 +387,7 @@ public class SQLRequests {
 			int parent_id = rs.getInt("parent_id");
 			String env = rs.getString("env");
 			String rule = rs.getString("rule");
-			rs.close();
-			
+			closeResultSet(rs);
 			rs = stmt.executeQuery("SELECT data,size FROM TASKS WHERE id="+parent_id);	
 			if(rs.getRow()==0 && !rs.next()) 
 				return null;
@@ -432,7 +395,7 @@ public class SQLRequests {
 			is = rs.getBinaryStream("data");	
 			byte[] data = new byte[size];
 			is.read(data);
-			rs.close();
+			closeResultSet(rs);
 			stmt.executeUpdate("UPDATE SPLITTED_TASKS SET status='"+MTask.Status.TS_VERIFICATION_IN_PROGRESS+"' WHERE id="+id);
 			try {
 				conn.commit();
@@ -449,9 +412,10 @@ public class SQLRequests {
 			if(rs.getRow()==0 && !rs.next()) 
 				return null;
 			String driver_name = rs.getString("name");
-			rs.close();
+			closeResultSet(rs);
 			st.executeUpdate("UPDATE launches SET status='running' WHERE id="+id);			
 			st.close();
+			closeStatement(stmt);
 			result = new MTask(id, parent_id, env,driver_name, rule, data, "OK");
 			try {
 				sconn.commit();
@@ -478,11 +442,7 @@ public class SQLRequests {
 			}
 			e.printStackTrace();
 		} finally {
-			try {
-				stmt.close();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
+			closeStatement(stmt);
 			try {
 				if(is!=null) is.close();
 			} catch (IOException e) {
@@ -504,11 +464,7 @@ public class SQLRequests {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeConnection(conn);
 		}
 		return null;
 	}
@@ -517,12 +473,11 @@ public class SQLRequests {
 		Statement stmt = getTransactionStmt(conn);
 		List<Integer> listWFV = new ArrayList<Integer>();
 		if(stmt==null) return null;
+		ResultSet rs = null;
 		try {
-			ResultSet rs = stmt.executeQuery("SELECT id FROM CLIENTS WHERE status='"+VClientProtocol.Status.VS_WAIT_FOR_TASK+"'");
-			while(rs.next()) {
+			rs = stmt.executeQuery("SELECT id FROM CLIENTS WHERE status='"+VClientProtocol.Status.VS_WAIT_FOR_TASK+"'");
+			while(rs.next())
 				listWFV.add(rs.getInt("id"));
-			}
-			rs.close();
 			conn.commit();
 		} catch (SQLException e1) {
 			try {
@@ -532,11 +487,8 @@ public class SQLRequests {
 			}
 			e1.printStackTrace();
 		} finally {
-			try {
-				stmt.close();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
+			closeResultSet(rs);
+			closeStatement(stmt);
 		}	
 		return listWFV;
 	}
@@ -549,11 +501,7 @@ public class SQLRequests {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeConnection(conn);
 		}
 		return null;
 	}
@@ -562,12 +510,12 @@ public class SQLRequests {
 		Statement stmt = getTransactionStmt(conn);
 		List<Integer> listWFV = new ArrayList<Integer>();
 		if(stmt==null) return null;
+		ResultSet rs = null;
 		try {
-			ResultSet rs = stmt.executeQuery("SELECT id FROM SPLITTED_TASKS WHERE client_id=0 AND status='"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"'");
+			rs = stmt.executeQuery("SELECT id FROM SPLITTED_TASKS WHERE client_id=0 AND status='"+MTask.Status.TS_WAIT_FOR_VERIFICATION+"'");
 			while(rs.next())
 				listWFV.add(rs.getInt("id"));
 			conn.commit();
-			rs.close();
 		} catch (SQLException e) {
 			try {
 				conn.rollback();
@@ -576,11 +524,8 @@ public class SQLRequests {
 			}
 			e.printStackTrace();
 		} finally {
-			try {
-				stmt.close();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
+			closeResultSet(rs);
+			closeStatement(stmt);
 		}	
 		return listWFV;
 	}
@@ -593,11 +538,7 @@ public class SQLRequests {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeConnection(conn);
 		}
 		return false;
 	}
@@ -609,7 +550,6 @@ public class SQLRequests {
 		try {
 			stmt.executeUpdate("UPDATE SPLITTED_TASKS SET status='"
 					+MTask.Status.TS_QUEUED+"', client_id="+client_id+" WHERE id="+splitted_task_id);
-			stmt.close();
 			conn.commit();
 			result = true;
 		} catch (SQLException e1) {
@@ -620,11 +560,8 @@ public class SQLRequests {
 			}
 			e1.printStackTrace();
 		} finally {
-			try {
-				stmt.close();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
+			closeStatement(stmt);
+			closeStatement(stmt);
 		}	
 		return result;
 	}
@@ -640,11 +577,7 @@ public class SQLRequests {
 		} catch (Throwable e) {
 			e.printStackTrace();		
 		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			closeConnection(conn);
 		}
 		return false;	
 	}
@@ -653,7 +586,7 @@ public class SQLRequests {
 		Statement st = null;
 		try {								
 			st = conn.createStatement();
-				st.executeUpdate("UPDATE SPLITTED_TASKS SET status='"
+			st.executeUpdate("UPDATE SPLITTED_TASKS SET status='"
 						+resultsMsg.getStatus()+"' WHERE id="+resultsMsg.getId());
 			// теперь порверим - все ли раздельные задачи для родительской задачи завершены?
 			// для этого найдем parent_id
@@ -661,15 +594,14 @@ public class SQLRequests {
 			if(rs.getRow()==0 && !rs.next()) 
 				return false;
 			int parent_id = rs.getInt("parent_id");
-			rs.close();
+			closeResultSet(rs);
 			// и запорсим все раздельные задачи
 			rs = st.executeQuery("SELECT id FROM SPLITTED_TASKS WHERE parent_id="+parent_id+"AND status!='"+MTask.Status.TS_VERIFICATION_FINISHED+"'");
 			if(rs.getRow()==0 && !rs.next()) {
-				rs.close();
+				closeResultSet(rs);
 				// если таких нет, то установим статус родительской задачи в FINISHED
 				st.executeUpdate("UPDATE TASKS SET status='"+MTask.Status.TS_VERIFICATION_FINISHED+"' WHERE id="+parent_id);
 			}
-			st.close();
 			conn.commit();			
 			return true;
 		} catch (SQLException e) {
@@ -677,11 +609,8 @@ public class SQLRequests {
 		} catch (Throwable e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}			
+			closeStatement(st);
+			closeConnection(conn);
 		}
 		return false;
 	}
@@ -717,40 +646,42 @@ public class SQLRequests {
 
 	
 	
-	public static void initStatsDbTables(Connection conn) {
+	public static void initStatsDbTables(Connection conn, String opt) {
 		Statement stmt = getTransactionStmt(conn);
 		try {
-			// drop block
-			stmt.execute(statsDropScript1);
-			stmt.execute(statsDropScript2);
-			stmt.execute(statsDropScript3);
-			stmt.execute(statsDropScript4);
-			stmt.execute(statsDropScript5);
-			stmt.execute(statsDropScript6);
-			stmt.execute(statsDropScript7);
-			stmt.execute(statsDropScript8);
-			stmt.execute(statsDropScript9);
-			stmt.execute(statsDropScript10);
+			if(opt!=null && opt.length()>0 && opt.equals("true")) {
+				// drop block
+				stmt.execute(statsDropScript1);
+				stmt.execute(statsDropScript2);
+				stmt.execute(statsDropScript3);
+				stmt.execute(statsDropScript4);
+				stmt.execute(statsDropScript5);
+				stmt.execute(statsDropScript6);
+				stmt.execute(statsDropScript7);
+				stmt.execute(statsDropScript8);
+				stmt.execute(statsDropScript9);
+				stmt.execute(statsDropScript10);
 			
-			// add drop block
-			stmt.execute(statsDropScript11);
-			stmt.execute(statsDropScript12);
+				// add drop block
+				stmt.execute(statsDropScript11);
+				stmt.execute(statsDropScript12);
+				
+				// create block IF EXISTS
+				stmt.execute(statsCreateScript1);
+				stmt.execute(statsCreateScript2);
+				stmt.execute(statsCreateScript3);
+				stmt.execute(statsCreateScript4);
+				stmt.execute(statsCreateScript5);
+				stmt.execute(statsCreateScript6);
+				stmt.execute(statsCreateScript7);
+				stmt.execute(statsCreateScript8);
+				stmt.execute(statsCreateScript9);
+				stmt.execute(statsCreateScript10);
+				stmt.execute(statsCreateScript11);
+				stmt.execute(statsCreateScript12);
 			
-			// create block IF EXISTS
-			stmt.execute(statsCreateScript1);
-			stmt.execute(statsCreateScript2);
-			stmt.execute(statsCreateScript3);
-			stmt.execute(statsCreateScript4);
-			stmt.execute(statsCreateScript5);
-			stmt.execute(statsCreateScript6);
-			stmt.execute(statsCreateScript7);
-			stmt.execute(statsCreateScript8);
-			stmt.execute(statsCreateScript9);
-			stmt.execute(statsCreateScript10);
-			stmt.execute(statsCreateScript11);
-			stmt.execute(statsCreateScript12);
-			
-			conn.commit();
+				conn.commit();
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 			try {
@@ -760,12 +691,8 @@ public class SQLRequests {
 				e1.printStackTrace();
 			}
 		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			closeStatement(stmt);
+			closeConnection(conn);
 		}
 	}
 
@@ -775,13 +702,75 @@ public class SQLRequests {
 			conn = manager.getStatsConnection();
 			Statement st = conn.createStatement();
 			st.executeQuery("SELECT 1;");
-			st.close();
-			conn.close();
+			closeStatement(st);
+			closeConnection(conn);
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 	}
 
+	/**
+	 * Close the given JDBC Connection and ignore any thrown exception.
+	 * This is useful for typical finally blocks in manual JDBC code.
+	 * @param con the JDBC Connection to close (may be <code>null</code>)
+	 */
+	public static void closeConnection(Connection con) {
+	    if (con != null) {
+	        try {
+	        	Logger.debug("Close connection.");
+	            con.close();
+	        }
+	        catch (SQLException ex) {
+	            Logger.debug("Could not close JDBC Connection");
+	        }
+	        catch (Throwable ex) {
+	            // We don't trust the JDBC driver: It might throw RuntimeException or Error.
+	            Logger.debug("Unexpected exception on closing JDBC Connection");
+	        }
+	    }
+	}
+	
+	/**
+	 * Close the given JDBC Statement and ignore any thrown exception.
+	 * This is useful for typical finally blocks in manual JDBC code.
+	 * @param stmt the JDBC Statement to close (may be <code>null</code>)
+	 */
+	public static void closeStatement(Statement stmt) {
+	    if (stmt != null) {
+	        try {
+	            stmt.close();
+	        }
+	        catch (SQLException ex) {
+	            Logger.debug("Could not close JDBC Statement");
+	        }
+	        catch (Throwable ex) {
+	            // We don't trust the JDBC driver: It might throw RuntimeException or Error.
+	            Logger.debug("Unexpected exception on closing JDBC Statement");
+	        }
+	    }
+	}
+
+	/**
+	 * Close the given JDBC ResultSet and ignore any thrown exception.
+	 * This is useful for typical finally blocks in manual JDBC code.
+	 * @param rs the JDBC ResultSet to close (may be <code>null</code>)
+	 */
+	public static void closeResultSet(ResultSet rs) {
+	    if (rs != null) {
+	        try {
+	            rs.close();
+	        }
+	        catch (SQLException ex) {
+	            Logger.debug("Could not close JDBC ResultSet");
+	        }
+	        catch (Throwable ex) {
+	            // We don't trust the JDBC driver: It might throw RuntimeException or Error.
+	            Logger.debug("Unexpected exception on closing JDBC ResultSet");
+	        }
+	    }
+	}
+
+	
+	
 }

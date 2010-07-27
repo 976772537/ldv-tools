@@ -38,8 +38,8 @@ public class StorageManager {
 	private static final String connectionPrefix = "jdbc";
 	private static final String dbType = "h2";
 	private static final String dbdriver = "org.h2.Driver";
-	//private static final String dblockmode = ";LOCK_MODE=3;AUTO_SERVER=TRUE";
-	private static final String dblockmode = ";LOCK_MODE=3";
+	private static final String dblockmode = ";LOCK_MODE=3;AUTO_SERVER=TRUE";
+	//private static final String dblockmode = ";LOCK_MODE=3";
 	
 	private String connectionString;
 	
@@ -48,6 +48,8 @@ public class StorageManager {
 	private static final String statsDbdriver = "com.mysql.jdbc.Driver";
 	
 	private String statsConnectionString;
+	private String statsIsClean;
+	private String h2IsClean;
 	
 	public StorageManager(Map<String, String> params) {
 		this.workdir = params.get("WorkDir");
@@ -59,7 +61,9 @@ public class StorageManager {
 		this.statsDbuser = params.get("StatsDBUser");
 		this.statsDbpass = params.get("StatsDBPass");
 		this.statsDbport = params.get("StatsDBPort");
-		
+
+		this.statsIsClean = params.get("CleanH2OnRestart");
+		this.h2IsClean = params.get("CleanStatsOnRestart");
 	}
 	
 	public void initInnerDB() throws IOException, SQLException, ClassNotFoundException {
@@ -85,7 +89,7 @@ public class StorageManager {
 		//3. инициализирем таблицы
 		Logger.debug("Initialize tables...");
 		Connection conn = poolingDataSource.getConnection();
-		SQLRequests.initInnerDbTables(conn);
+		SQLRequests.initInnerDbTables(conn,h2IsClean);
 		conn.close();
 		Logger.debug("Ok");		
 	}
@@ -110,7 +114,7 @@ public class StorageManager {
 		//3. инициализирем таблицы
 		Logger.debug("Initialize tables...");
 		Connection conn = statsPoolingDataSource.getConnection();
-		SQLRequests.initStatsDbTables(conn);
+		SQLRequests.initStatsDbTables(conn,statsIsClean);
 		conn.close();
 		Logger.debug("Ok");		
 	}
@@ -130,12 +134,16 @@ public class StorageManager {
 		initStatsDB();
 		Logger.debug("Stats DB successfully inialized.");
 	}
-		
+
+	private static int h2ConnNumber=0;
 	public synchronized Connection getConnection() throws SQLException {
+		Logger.debug("Get h2 connection from pool: "+ ++h2ConnNumber);
 		return poolingDataSource.getConnection();
 	}
 	
+	private static int stConnNumber=0;
 	public Connection getStatsConnection() throws SQLException {
+		Logger.debug("Get stats connection from pool: "+ ++stConnNumber);
 		return DriverManager.getConnection(statsConnectionString, statsDbuser, statsDbpass);
 		// пул почему-то виснет на 7-8 запросе
 		// TODO: скачать исходники и разобраться!
@@ -158,7 +166,7 @@ public class StorageManager {
 		 *    Any connections not closed by me?
 		 *    And pool wait while i am close connections?
 		 */
-		//return statsPoolingDataSource.getConnection();
+		 //return statsPoolingDataSource.getConnection();
 	}
 	
 	@Override
