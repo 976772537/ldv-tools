@@ -38,9 +38,11 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             	// пока в ней не появятся задачи
             	// теперь отсылаем задачу клиенту
             	Logger.debug("Wait for task...");
-            	MTask mtask = null;
-            	while((	mtask = SQLRequests.getTaskForClientW((VSMClient)msg,config))==null)
-            		Thread.sleep(sleeptime);
+            	// пытаемся принять задачу (там может быть и пустая задача
+            	// со служебным собщением о том что задача нет)
+            	MTask mtask = SQLRequests.getTaskForClientW((VSMClient)msg,config);
+            	//while((	mtask = SQLRequests.getTaskForClientW((VSMClient)msg,config))==null)
+            		//Thread.sleep(sleeptime);
             	Logger.debug("Ok - sending task to verification client");
             	oos.writeObject(mtask);
             	oos.flush();

@@ -32,7 +32,14 @@ public class VClient {
 			if(task == null) {
 				Logger.err("Can't get task...");
 				System.exit(1);
-			} else {
+			} else if (task.getMsg().equals("NO TASKS")) {
+				Logger.info("NO tasks...");
+				try {
+					Thread.sleep(5000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}	
+			} else if (task.getMsg().equals("OK")){
 				Logger.debug("Task from user: "+task.getId());
 				Logger.info("Start verification...");
 				boolean result = startVerification(config, task);
@@ -43,7 +50,10 @@ public class VClient {
 					System.exit(1);
 				}
 				Logger.info("Results successfully sending...");
-			}	
+			} else {
+				Logger.err("Unknown status...");
+				System.exit(1);				
+			}
 			//break;
 		}
 	}

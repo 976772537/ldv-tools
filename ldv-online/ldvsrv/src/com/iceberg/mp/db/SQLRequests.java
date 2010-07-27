@@ -418,7 +418,7 @@ public class SQLRequests {
 			ResultSet rs = stmt.executeQuery("SELECT id, env, rule, parent_id FROM SPLITTED_TASKS WHERE status='"
 					+MTask.Status.TS_QUEUED+"' AND client_id="+client_id+" ORDER BY parent_id LIMIT 1");
 			if(rs.getRow()==0 && !rs.next()) 
-				return null;
+				return new MTask("NO TASKS");
 			int id = rs.getInt("id");
 			int parent_id = rs.getInt("parent_id");
 			String env = rs.getString("env");
@@ -452,7 +452,7 @@ public class SQLRequests {
 			rs.close();
 			st.executeUpdate("UPDATE launches SET status='running' WHERE id="+id);			
 			st.close();
-			result = new MTask(id, parent_id, env,driver_name, rule, data);
+			result = new MTask(id, parent_id, env,driver_name, rule, data, "OK");
 			try {
 				sconn.commit();
 			} catch(SQLException e) {
