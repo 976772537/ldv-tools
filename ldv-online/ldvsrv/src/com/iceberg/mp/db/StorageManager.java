@@ -62,8 +62,8 @@ public class StorageManager {
 		this.statsDbpass = params.get("StatsDBPass");
 		this.statsDbport = params.get("StatsDBPort");
 
-		this.statsIsClean = params.get("CleanH2OnRestart");
-		this.h2IsClean = params.get("CleanStatsOnRestart");
+		this.statsIsClean = params.get("CleanStatsOnRestart");
+		this.h2IsClean = params.get("CleanH2OnRestart");
 	}
 	
 	public void initInnerDB() throws IOException, SQLException, ClassNotFoundException {
