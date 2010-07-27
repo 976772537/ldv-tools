@@ -129,6 +129,10 @@ create table tasks(
 
 	description text,
 
+-- Its primary use is to refer to particular tasks in URL of statistics server
+	name varchar(255),
+
+
 	primary key (id)
 ) ENGINE=InnoDB;
 

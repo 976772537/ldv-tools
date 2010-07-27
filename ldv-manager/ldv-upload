@@ -34,8 +34,15 @@ class Task
 		unless (tag/"task_name").empty?
 			# Get task from database or add it there
 			task_name = (tag/"task_name").inner_html
-			task = Task.find_or_create_by_description(task_name)
+			task = Task.find_or_create_by_name(task_name)
 			raise "Couldn't find or create task for task_name=#{task_name}" unless task
+			# Of course, we should re-create the other fields
+			task.username = (tag/"username").inner_html unless (tag/"task_name").empty?
+			task.timestamp = (tag/"timestamp").inner_html.to_datetime unless (tag/"timestamp").empty?
+			task.description = (tag/"description").inner_html unless (tag/"description").empty?
+			task.driver_spec = (tag/"driver").inner_html unless (tag/"driver").inner_html.empty?
+			task.driver_spec_origin = (tag/"driver_origin").inner_html unless (tag/"driver_origin").empty?
+			task.save
 			return task
 		end
 

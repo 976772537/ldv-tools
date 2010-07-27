@@ -118,3 +118,12 @@ Without the ldv_statuses option, ldv-manager fails if ldv fails abnormally.
 
 LDV_TASK_ID environment variable will make ldv-manager script prepare packages that refer to a specific task (instead of creating a task on theior own based on the machine parameters, such as user name and date, and on some input data).
 
+
+MISCELLANEOUS OPTIONS
+=====================
+
+Environment variables:
+
+	LDV_REMOVE_ON_SUCCESS
+		When set to a non-empty string, makes LDV remove wroking directory after creation of a pack.  Useful to save some disk space.
+

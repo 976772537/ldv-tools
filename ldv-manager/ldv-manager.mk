@@ -149,6 +149,7 @@ $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ld
 	@mkdir -p $$(RESULTS_DIR)
 	$(Script_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $(name) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml
 	$(Script_dir)package $(TMP_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).pax -s '|^$(TMP_DIR)\/*||'
+	$(if $(LDV_REMOVE_ON_SUCCESS),rm -rf $$(@D)/*,)
 	#touch $$@
 endef
 
