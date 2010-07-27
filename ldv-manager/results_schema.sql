@@ -108,7 +108,7 @@ create table sources(
 	id int(10) unsigned not null auto_increment,
 	trace_id int(10) unsigned not null,
 	name varchar(255) not null,
-	contents blob,
+	contents mediumblob,
 
 	primary key (id),
 	foreign key (trace_id) references traces(id)
