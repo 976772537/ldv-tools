@@ -60,21 +60,24 @@ function view_header() {
 			<span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;LDV Online 83.149.198.16</span>
 		</div> -->
 		<div class="mini_menu">
-
-
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;history</span></a>
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;upload</span></a> 
+			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;HISTORY</strong></span></a>
+			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;UPLOAD</strong></span></a>
 		</div>
 	<?php	
 }
 
 function view_upload_driver_form() {
+//	$last_error = error_get_last();
+/*	if($last_error['type']==2) {
+		print '<b><font color="red">File size can\'t be greater than '.WS_MAX_DRIVER_SIZE.' bytes.</font></b><br>';
+	}*/
 	?>
 	<form action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Start verification !</span>
-	</p>
+	<div style="margin: 10px 15px 10px 10px; text-align: center;">
+		<span style="font-style: bold; color: #686868; font-size: 150%;">START VERIFICATION</span>
+	</div>
 
+	<div style="margin: 10px 15px 10px 10px;">
         <h4>1.  Ensure that drivers satisfy the following requirements:</h4>
                 <ul>
                 <li> The driver is archived using gzip or bzip2 and has one of the following extensions: .tar.bz2, tar.gz, .tgz</li>
@@ -87,6 +90,7 @@ function view_upload_driver_form() {
         <h4>2. Upload driver. </h4>
         <h4>3. Wait for results.</h4>
         </ul>
+	</div>
 	        <p>
 	                <label><br />
 	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
@@ -100,6 +104,11 @@ function view_upload_driver_form() {
 }
 
 function action_upload_driver() {
+/*	if($_FILES['file']['error'] === true) {
+                print '<b><font color="red">Error during uploading file. File size can\'t be greater than '.WS_MAX_DRIVER_SIZE.'.</font></b><br>';
+                view_upload_driver_form();
+                return;
+	}*/
         $envs = array($_POST['envs']);
         if(count($envs) == 0) {
                 print '<b><font color="red">Empty environment field.</font></b><br>';
@@ -120,13 +129,14 @@ function action_upload_driver() {
         }
 	$task['driverpath'] = $_FILES['file']['tmp_name'];
 	// Test MIME-content type
-	$content_type =  mime_content_type($task['driverpath']);
+/*	$content_type =  mime_content_type($task['driverpath']);
+	WSPrintD("Content type: $content_type");
 	if( strpos($content_type,'application/x-bzip2') === false &&
-		strpos($content_type,'application/x-gzip; charset=binary') == false) {
+		strpos($content_type,'application/x-gzip') === false) {
                 print '<b><font color="red">Driver content type not supported.</font></b><br>';
                 view_upload_driver_form();
                 return;
-	}
+	}*/
 	$task['drivername'] = $_FILES['file']['name'];
 	$task['envs'] = WSGetSupportedEnvList();
 	$task['id'] = WSPutTask($task);
@@ -142,12 +152,12 @@ function view_user_history() {
 	$i=1;
 	?>
 	<form>
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification history:</span>
-	</p>
-	<p>
-		<span>You may see more detailed information about your verification task by clicking on the corresponding driver name.</span>
-	</p>
+	<div style="margin: 10px 15px 10px 10px; text-align: center;">
+		<span style="font-style: bold; color: #686868; font-size: 150%;">VERIFICATION HISTORY</span>
+	</div>
+	<div style="margin: 10px 15px 10px 10px;">
+		<span>You can see more detailed information about your verification task by clicking on the corresponding driver name.</span>
+	</div>
 	
 	<table width="100%" border="1" style="border-collapse: collapse;">
 		<tr>
@@ -155,37 +165,63 @@ function view_user_history() {
 			<th align="left" width="54%" bgcolor="#CCCCFF"><font color="black">Driver</font></th>
 			<th width="20%" bgcolor="#CCCCFF"><font color="black">Timestamp</font></th>
 		</tr>
+		<?php if(!empty($history)) { ?>
 		<?php foreach($history as $item) { ?>
 		<tr style="background: #EFEFFF; cursor: hand;" onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" onClick="document.location='<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>'">
-			<td align="center"><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><font color="black"><?php print $i++; ?></font></a></td>
-			<td><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><font color="black"><?php print $item['driver']; ?></font></a></td>
+			<td align="center"><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>"><font color="black"><?php print $i; ?></font></a></td>
+			<td><a href="<?php print myself(); ?>?action=get_status&task_id=<?php print $item['id'];?>&number=<?php print $i++;?>"><font color="black"><?php print $item['driver']; ?></font></a></td>
 			<td align="center" ><font color="black"><?php print $item['timestamp']; ?></font></td>
 		</tr>	
+		<?php } ?>
 		<?php } ?>
 	</table>
 	</form>
 	<?php
 }
 
-function view_detailed_report($trace_id, $trace_type) {
+function view_detailed_report($trace_id, $trace_type, $number) {
 	if($trace_type == 'kernel') {
 		$trace = WSGetDetailedBuildError($trace_id);
-		$etheader = 'Build error trace for driver: '.$trace['drivername'].' and kernel: '.$trace['env'];
 	} else {
-		$trace = WSGetDetailedReport($trace_id);
-		$etheader = 'Error trace for driver: '.$trace['drivername'].'';
+		$trace = WSGetDetailedReport($trace_id,myself().'?action=detailed_report&trace_id='.$trace_id.'&number='.$number);
 	}
 	?>
-	<form>
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $etheader; ?></span>
-	</p>
-	<?php print $trace['error_trace'];?>	
-	</form>
+		<?php if($trace_type == 'kernel') { ?>
+		<form>
+        	<div style="margin: 10px 15px 10px 10px; text-align: center;">
+			<span style="font-style: bold; color: #686868; font-size: 150%;">BUILD ERROR TRACE</span>
+	       	</div>
+        	<div style="margin: 10px 15px 10px 10px;">
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver - </strong><?php echo $trace['drivername']?></span><br>
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel - </strong><?php echo $trace['env']?></span>
+	       	</div>
+
+		<div style="margin: 10px 15px 10px 10px;">
+			<?php print $trace['error_trace'];?>	
+      		</div>
+		</form>
+		<?php } else { ?>
+		<br>
+	 	<div style="margin: 10px 15px 10px 10px; text-align: center;">
+			<span style="font-style: bold; color: #686868; font-size: 150%;">ERROR TRACE</span>
+	       	</div>
+        	<div style="margin: 10px 15px 10px 10px;">
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver - </strong><?php echo $trace['drivername']?></span><br>
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel - </strong><?php echo $trace['env']?></span>
+	       	</div>
+
+		<div style="margin: 10px 15px 10px 10px;">
+			<?php print $trace['error_trace'];?>	
+      		</div>
+		<? } ?>
 	<?php
 }
 
-function view_task_status($task_id) {
+function view_task_status($task_id,$number) {
+	if(empty($number)) {
+		$history = WSGetHistory();
+		$number = count($history);
+	}
 	$status = WSGetTaskReport($task_id);
 	if(empty($status)) {
 		print "Can't get status for your task.";
@@ -195,112 +231,135 @@ function view_task_status($task_id) {
 	?>	
 	
 	<form>
-	<p>
-	<p>
-	<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $status['drivername'].' ('.$status['timestamp'].')'; ?></span>
-	</p>
-	<p>
-        You can see <b>verification verdict</b> for each environment. Verdict may be:
+        <div style="margin: 10px 15px 10px 10px;">
+	<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $status['drivername']; ?></span><br>
+        </div>
+        <div style="margin: 10px 15px 10px 10px;">
+	<span style="font-style: bold; color: #686868; font-size: 120%;"><?php print $status['timestamp']; ?></span>
+        </div>
+        <div style="margin: 10px 15px 10px 10px;">
+        You can see <b>verification verdict</b> for each rule and linux kernel. Verdict may be:
         <ul>
-                <li><i>Safe</i> - there is no mistakes for the given environment.</li>
-                <li><i>Unsafe</i> - driver may contain an error. You may see the error trace by clicking on the "Unsafe" link for the corresponding environment</li>
-                <li><i>Build failed</i> - your driver is not compatible with the given kernel. In this case you may see the compile error trace by clicking on the "Build failed" link.</li>
-                <li><i>Unknown</i> - tools can not determine whether your driver <i>Safe</i> or <i>Unsafe</i>.</li>
+                <li><i><strong><font color="green">Safe</font></strong></i> - there is no mistakes for the given linux kernel and rule.</li>
+                <li><i><strong><font color="red">Unsafe</font></strong></i> - driver may contain an error. You can see the error trace by clicking on the "Unsafe" link for the corresponding linux kernel and rule.</li>
+                <li><i><strong><font color="red">Build failed</font></strong></i> - your driver is not compatible with the given linux kernel. In this case you may see the compile error trace by clicking on the "more details" link.</li>
+                <li><i><strong><font color="#CCCC00">Unknown</font></strong></i> - tools can not determine whether your driver <i>Safe</i> or <i>Unsafe</i>.</li>
+                <li><i><strong><font color="black">Queued</font></strong></i> - the driver waits for the turn to verification</i>.</li>
         </ul>
-	</p>
+	</div>
 	<?php if($status['status'] != 'finished') { ?>
-	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>">
+	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>&number=<?php print $number;?>">
 	<?php } ?>
+
+
+	<style>
+		.ui-progressbar-indicator{
+			line-height:	30px;
+			position:	absolute;
+			text-indent:	0px;
+			left:		45%;
+		}
+	</style>
+
+
 	<script>
   		$(document).ready(function(){
 			$("#progressbar").progressbar({
 				value: <?php print $status['progress']; ?> 
 			});
+
+			$('.rowdiv_minihead_collapsible').each(function(i) {
+		                if ($.cookie($(this).attr('id'))) { 
+			       		$(this).parent().children().not(".rowdiv_minihead_collapsible").show();
+		                }else {
+			       		$(this).parent().children().not(".rowdiv_minihead_collapsible").hide();
+		                }
+				$(this).click(function() {
+					if($(this).parent().children().not(".rowdiv_minihead_collapsible").css('display') == 'none') {
+			       			$(this).parent().children().not(".rowdiv_minihead_collapsible").show();
+						$.cookie($(this).attr('id'), 'opened', {expires: null, path: '/'});
+					} else {
+			       			$(this).parent().children().not(".rowdiv_minihead_collapsible").hide();
+						$.cookie($(this).attr('id'), null, {expires: null, path: '/'});
+					}
+				});
+			});
+
+
   		});
+
 	</script>
-<script type="text/javascript">
-$(document).ready(function(){
-	$('.rowdiv_minihead_collapsible').each(function(i) {
-                if ($.cookie($(this).attr('id'))) { 
-	       		$(this).parent().children().not(".rowdiv_minihead_collapsible").show();
-                }else {
-	       		$(this).parent().children().not(".rowdiv_minihead_collapsible").hide();
-                }
-		$(this).click(function() {
-			if($(this).parent().children().not(".rowdiv_minihead_collapsible").css('display') == 'none') {
-	       			$(this).parent().children().not(".rowdiv_minihead_collapsible").show();
-				$.cookie($(this).attr('id'), 'opened', {expires: null, path: '/'});
-			} else {
-	       			$(this).parent().children().not(".rowdiv_minihead_collapsible").hide();
-				$.cookie($(this).attr('id'), null, {expires: null, path: '/'});
-			}
-		});
-	});
-});
-</script>
-
-
-
 
 	<?php $index=0 ?>
 	<p>
+	<?php if($status['status'] != 'finished') { ?>
+        <div style="margin: 25px 15px 16px 10px;">
+	<!--	<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span> -->
+		<div class="ui-progressbar-indicator"><strong><span style="color: #114477"><?php print $status['progress'].'%'; ?></span></strong></div>
+		<div id="progressbar"></div>
+	</div>
+	<?php } ?> 
 	<table id="results" name="results_table" width="100%" border="1" style="border-collapse: collapse;">
 		<?php foreach($status['envs'] as $env) { ?>	
 		<tr>
 			<?php if($env['status']=='Build failed') { ?>
-				<th COLSPAN=2 bgcolor="#FF6666"><strong><?php print $env['name']; ?>&nbsp;- build failed &nbsp;</strong><a link." href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['trace_id']; ?>&trace_type=kernel"><font color="black">(more details...)</font></a></th>
+				<th COLSPAN=2 bgcolor="#FF6666"><strong><?php print $env['name']; ?>&nbsp;- build failed &nbsp;</strong><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['launch_id']; ?>&trace_type=kernel&number=<?php print $number;?>"><font color="black">(more details...)</font></a></th>
 			<?php } else { ?>
-				<th COLSPAN=2   bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
+				<th COLSPAN=2 bgcolor="#9999FF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
 			<?php } ?>
 		</tr>
 		<?php if($env['status']!='Build failed') { ?>
 		<tr>
-			<th width="80%" align="left" bgcolor="#CCCCFF"><font color="#444444">Title</font></th>
-			<th             bgcolor="#CCCCFF"><font color="#444444">Verdict</font></th>
+			<th width="80%" align="left" bgcolor="#CCCCFF"><font color="#444444">Rule</font></th>
+			<th width="20%" bgcolor="#CCCCFF"><font color="#444444">Verdict</font></th>
 		</tr>
 		<?php foreach($env['rules'] as $rule) { ?>
 			<?php if ($rule['status'] == 'queued') { ?>
-			<tr>
-					<td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+		<tr>
+					<td width="80%" style="cursor: hand;" class="rowdivactivator">
  						<div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
      						   <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
  						 </div>
 						 <div>
 							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
-							<strong>Description:</strong><br><?php print $rule['summary']; ?>
+							<?php print $rule['summary']; ?>
+							<a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>">More information...</a>
 							</div>
 						</div>
 					</td>
 
 
-			<td align="center" style="background: #EFEFFF;">Queued</td>
+			<td align="center" style="background: #EFEFFF;"><span title="The driver waits for the turn to verification.">Queued</span></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'running') { ?>
 			<tr>
-                                        <td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+                                        <td width="80%" style="cursor: hand;" class="rowdivactivator">
                                                 <div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
                                                    <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
                                                  </div>
                                                  <div>
 							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
-                                                        <strong>Description:</strong><br><?php print $rule['summary']; ?>
+                                                       <?php print $rule['summary']; ?>
+							<a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>">More information...</a>
                                                         </div>
                                                 </div>
                                         </td>
-	
 
-			<!--	<td align="center"><?php print $rule['status']; ?><img src="ldv/images/load.gif"/></td>-->
+
 				<td align="center" title="Verification in progress..."><img src="ldv/images/load.gif"/></td>
-			</tr>	
+			</tr>
+
+
 			<?php } else if($rule['status'] == 'failed') { ?>
 			<tr>
-                                        <td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+                                        <td width="80%" style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
                                                 <div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
                                                    <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
                                                  </div>
                                                  <div>
 							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
-                                                        <strong>Description:</strong><br><?php print $rule['summary']; ?>
+                                                       <?php print $rule['summary']; ?>
+							<a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>">More information...</a>
                                                         </div>
                                                 </div>
                                         </td>
@@ -311,13 +370,14 @@ $(document).ready(function(){
 				<?php foreach($rule['results'] as $result) { ?>
 				<tr>
 					<?php if($isfirst == true) { $isfirst=false; ?>
-					<td style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
+					<td width="80%" style="cursor: hand;" class="rowdivactivator" ROWSPAN="<?php print count($rule['results']); ?>">
  						<div onMouseOver="this.style.background='#FFFFFF'" onMouseOut="this.style.background='#EFEFFF'" style="background: #EFEFFF;" id="description_<?php print $status['task_id'].'_'.$index++;?>" class="rowdiv_minihead_collapsible">
      						   <a href="javascript:void(0);" title="<?php print $rule['tooltip']; ?>"><font face="Arial"><?php print $rule['name']; ?></font></a>
  						 </div>
 						 <div>
 							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
-							<strong>Description:</strong><br><?php print $rule['summary']; ?>
+							<?php print $rule['summary']; ?>
+							<a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>">More information...</a>
 							</div>
 						</div>
 					</td>
@@ -327,13 +387,13 @@ $(document).ready(function(){
 					<?php } ?>
 					<?php if($result['status'] == 'unsafe') { ?> 
 					<td bgcolor="#FF6666" align="center">
-						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>"><font color="black">Unsafe</font></a>
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>&number=<?php print $number;?>"><font title="Driver may contain an error." color="black">Unsafe</font></a>
 					<?php } else if($result['status']=='safe') { ?>
 					<td bgcolor="#66CC33" align="center">
-						<font color="black">Safe</font>
+						<font title="There is no mistakes for the given linux kernel and rule.." color="black">Safe</font>
 					<?php } else { ?>
 					<td bgcolor="yellow" align="center">
-						<font color="black">Unknown</font>
+						<font title="Tools can not determine whether your driver Safe or Unsafe." color="black" title="sss">Unknown</font>
 					<?php } ?>
 					</td>
 				</tr>		
@@ -344,12 +404,6 @@ $(document).ready(function(){
 		<?php } ?>
 	</table>
 	</p>
-	<?php if($status['status'] != 'finished') { ?>
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span>
-		<div id="progressbar"></div>
-	</p> 
-	<?php } ?> 
 	</form>
 	<?php
 }
@@ -402,7 +456,7 @@ view_header();
  *  Configuration file
  *
  */ 
-WSInit("server.conf");
+WSInit("/home/mutilin/ldv/main/ldv-online/conf/server.conf");
 
 if ($action == "upload" && !$exit)
 {
@@ -420,12 +474,16 @@ else if ($action == "detailed_report" && !$exit)
 {
 	$trace_id = request_var('trace_id','');
 	$trace_type = request_var('trace_type','');
-	view_detailed_report($trace_id,$trace_type);	
+	$number = request_var('number','');
+	view_detailed_report($trace_id,$trace_type,$number);	
 }
 else if ($action == "get_status" && !$exit) 
 {
 	$task_id = request_var('task_id','');
-	view_task_status($task_id);
+	$number = request_var('number','');
+	view_task_status($task_id,$number);
+} else if ($action == 'sandbox') {
+	print "Sandbox";
 }
 /*else if ($action == "show_rules" && !$exit)
 {
