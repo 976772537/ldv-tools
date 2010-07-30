@@ -874,28 +874,6 @@ sub print_show_hide_local($)
   my $entity_id = shift;
   
   print($file_report_out 
-    #"<script type='text/javascript'>"
-    #, "\n\$(document).ready"
-    #, "\n("
-    #, "\n  function()"
-    #, "\n  {"
-    #, "\n    \$('a.#${entity_id}ShowHide').toggle"
-    #, "\n    ("
-    #, "\n      function()"
-    #, "\n      {"
-    #, "\n        \$('#$entity_id').hide();"
-    #, "\n        \$(this).html('+');"
-    #, "\n      }"
-    #, "\n      , function()"
-    #, "\n      {"
-    #, "\n        \$('#$entity_id').show();"
-    #, "\n        \$(this).html('-');"
-    #, "\n      }"
-    #, "\n    );"
-    #, "\n  }"
-    #, "\n);"
-    #, "\n</script>"
-    #, 
     "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n"); 	
 }
 
