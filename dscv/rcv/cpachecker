@@ -1,6 +1,11 @@
 #!/usr/bin/perl
 
 # RCV Frontend for CPAchecker tool.
+# WARNING!! CPAchecker was excluded from the current revision of our tools due to its poor support.  Its support will be severely improved, but that is not the aim of this revision.
+# Stay tuned!
+
+print STDERR "CPAchecker is not supported in this version of LDV!\n";
+exit 1;
 
 #======================================================================
 # PROCESS OPTIONS AND SET UP INITIAL VARIABLES
