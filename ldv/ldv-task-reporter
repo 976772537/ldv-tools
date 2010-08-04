@@ -233,6 +233,9 @@ sub hxml_cmdstream {
 							$kernel_file = $tfile;
 							$kernel_file =~ s/.*\/+$kernel\/+(.*)/$path_to_kernel\/$1/;
 							ldv_dprint("Kernel file: $kernel_file");
+						# Small fix for GSoC: if $tfile is an absolute path, it shouldn't be appended to $path_to_kernel
+						} elsif ($tfile =~ m/^\//) {
+							$kernel_file="$tfile";
 						} else {
 							$kernel_file="$path_to_kernel/$tfile";
 						}
