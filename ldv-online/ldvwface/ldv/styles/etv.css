@@ -1,3 +1,197 @@
+/* General scheme style. */
+#ETVErrorTrace
+{
+  background: #FFFFEB;
+  font-size: 10px;
+  line-height: normal;
+  overflow: scroll;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+#ETVErrorTraceHeader
+{
+  background: #F9FFBC;
+  font-size: 14px;
+  height: 52px;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+#ETVErrorTraceHeaderHiddenMenu
+{
+  display: none;
+}
+
+#ETVErrorTraceWindow
+{
+  vertical-align: top;
+}
+
+#ETVGeneralWindow
+{
+  border: 4px groove blue;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.ETVSrc
+{
+  background: #F6FFF7;
+  font-size: 12px;
+  line-height: normal;
+  margin: 0px;
+  white-space: pre;
+}
+
+#ETVSrcWindow
+{
+  vertical-align: top;
+}
+
+#ETVTabs 
+{
+  background: #F3FFFA;
+}
+
+/* Show hide meny style. */
+#ETVShowHideMenuMain
+{
+  float: left;
+  height: 50px;
+  line-height: 50px;
+}
+
+.ETVShowHideMenuMainItem
+{
+  display: inline;
+  float: left;
+  border: 1px solid #000000;
+  padding: 0px 10px 0px 10px;
+  white-space: nowrap;
+}
+
+#ETVShowHideMenuOthers
+{
+  display: inline;
+  margin: 0;	
+  padding: 0;	
+}
+
+#ETVShowHideMenuOthers li 
+{
+  float: left;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#ETVShowHideMenuOthers li div
+{
+  display: block;
+  padding: 0px 10px 0px 10px;
+  margin: 0;
+  height: 50px;
+  line-height: 50px;
+  color: #0000FF;
+  border: 1px solid #000000;
+}
+
+#ETVShowHideMenuOthers li div:hover
+{
+  color: #0000CC;
+}
+
+#ETVShowHideMenuOthers li form
+{
+  background: #F9FFBC;
+  border: 1px solid #000000;
+  margin: 0;
+  padding: 5px 5px 5px 5px;
+  position: absolute;
+}
+
+#ETVShowHideMenuOthers li form input
+{
+  display: inline;
+  float: none;
+}
+
+#ETVShowHideMenuOthers li form input:hover
+{
+  background: #FCFFD5;
+}
+
+#ETVShowHideMenuOthers li.ETVactive div 
+{
+  background-color: #F3FF83;
+}
+
+/* Source code tabs style. */
+#ETVTabsHeader 
+{
+  height: 50px;
+  list-style:none outside none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+#ETVTabsHeader li
+{
+  border: 1px solid #000000;
+  float: left;
+  background: #C7FFE7;
+  height: 50px;
+  line-height: 50px;
+  margin: 0;
+  padding: 0;
+}
+
+#ETVTabsHeader li a
+{
+  color: #000000;
+  display: block;
+  font-size: 14px;
+  outline: none;
+  overflow: hidden;
+  padding-left: 5px;
+  padding-right: 5px;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#ETVTabsHeader li a:hover
+{
+  background: #AFFCDA;
+}
+
+#ETVTabsHeader li.ETVActive 
+{
+}
+
+#ETVTabsHeader li.ETVActive a 
+{
+  background: #3FFFAC;  
+  font-weight: bold;
+}
+
+#ETVTabs div 
+{
+  clear: both;
+  overflow: auto;  
+}
+
+#ETVTabs div span.ETVMarked
+{
+  background: #5CC99A;
+}
+
+/* Error trace style. */
 .ETVAssert
 {
   color: green;
@@ -40,20 +234,6 @@
   font-size: 8pt;  
 }
 
-.ETVErrorTrace
-{
-  background: #FFFFCC;
-  height: 600px;
-  overflow: scroll;
-  width: 400px;
-  white-space: nowrap;
-}
-
-.ETVErrorTraceWindow
-{
-  vertical-align: top;
-}
-
 .ETVFunctionBody
 {
   color: green;
@@ -94,15 +274,6 @@
   font-size: 8pt;
   font-weight: normal;
 }
-
-.ETVGeneralWindow
-{
-  border: 4px groove blue;
-  height: 600px;
-  font-size: 12px;
-  font-family: monospace;
-}
-
 .ETVIdentation
 {
   font-weight: normal;
@@ -112,10 +283,10 @@
 
 .ETVLineNumber
 {
-  background-color: gray;
+  background-color: #F3F3F3;
   color: black;
   font-weight: normal;
-  font-size: 8pt;
+  font-size: 10px;
   font-style: normal;
   white-space: pre;
 }
@@ -164,126 +335,43 @@
   font-size: 8pt;
 }
 
-.ETVSyntaxCKeywords
+/* Source code style. */
+.ETVSrcCKeywords
 {
   color: #003399;
   font-weight: bold;
 }
 
-.ETVSyntaxCPPKeywords
+.ETVSrcCPPKeywords
 {
-  color: #48AE7E;
+  color: #248E72;
+  font-weight: bold;
 }
 
-.ETVSyntaxComment
+.ETVSrcComment
 {
-  color: #FF3333;
+  color: #9E9E9E;
   font-style: italic;
 }
 
-.ETVSyntaxNumber
+.ETVSrcLineNumber
 {
-  color: #009933;
+  background-color: #F3F3F3;
+  color: black;
+  font-weight: normal;
+  font-size: 12px;
+  font-style: normal;
+  white-space: pre;
 }
 
-.ETVSyntaxString
+.ETVSrcNumber
 {
-  color: #009933;
-}
-
-/*
-.ETVSrc
-{
-  height: 600px;
-  width: 600px;
-}
-
-.ETVSrcFile
-{
-  height: 500px;
-  overflow: auto;
-  width: 600px;
-}
-*/
-
-.ETVSrcWindow
-{
-  vertical-align: top;
-}
-
-/* Here is the custom tabs css. */
-#ETVTabs 
-{
-  width: 600px;
-}
-
-.ETVTabsHeader
-{
-  height: 100px;
-  overflow: scroll;
-
-  white-space: nowrap;    
-}
-/*
-#ETVTabs 
-{
-  font-size: 90%;
-  margin: 20px 0;
-}
-
-#ETVTabs  
-{
-  background: #E3FEFA;
-  float: left;
-  padding-top: 4px;
-  width: 600px;
-}
-
-#ETVTabs li 
-{
-  margin-left: 8px;
-  list-style: none;
-}
-
-#ETVTabs li,
-#ETVTabs li a 
-{
-  float: left;
-}
-
-#ETVTabs span a 
-{
-  text-decoration: none;
-  padding: 18px;
-  color: #0073BF;
+  color: #298FBA;
   font-weight: bold;
 }
-*/
-#ETVTabs span
-{
-/*  font-size: 150%;*/
-}
 
-#ETVTabs span.ETVActive 
+.ETVSrcString
 {
- background: red;
-}
-
-#ETVTabs span.ETVActive a 
-{
-  color: green;
-}
-
-#ETVTabs div 
-{
-  background: #ECF9EB;
-  clear: both;
-/*  padding: 20px; */
-  height: 550px;
-  overflow: auto;  
-}
-
-a.ETVMarked
-{
-  background: red;
+  color: #0A610A;
+  font-weight: bold;
 }
