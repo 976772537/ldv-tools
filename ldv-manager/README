@@ -72,7 +72,7 @@ First, you should prepare DB schema.  Just execute results_schema.sql file to ER
 
 Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper access to database.  Then just run ldv-upload script on the files that are gotten from the ldv-manager:
 
-	ldv-mangaer/ldv-upload package_from_ldv_manager.
+	ldv-manager/ldv-upload package_from_ldv_manager.
 
 At the point of uploading, Known Problems are automatically calculated based on descriptions.  Problem-scripts (that get description as input and print problems, one per line, as output) reside in ldv-manager/problems/ directory.  If you added more scripts, or modified existing ones, you may call special script.  To recalculate all stats for all scripts in standard directory, run
 
