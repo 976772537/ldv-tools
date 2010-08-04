@@ -337,8 +337,8 @@ sub add_mising_spaces($)
   my $str = shift;
 
   # Add mising spaces around equality sign.
-  $str =~ s/([^ ])=/$1 =/g;  	
-  $str =~ s/=([^ ])/= $1/g;
+  $str =~ s/([_a-zA-Z\d])=/$1 =/g;  	
+  $str =~ s/=([_a-zA-Z\d])/= $1/g;
   
   return $str;
 }
