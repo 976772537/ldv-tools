@@ -1,6 +1,6 @@
 
 # Configuration
-backends=blast cpachecker
+backends=blast
 frontends=$(backends)
 
 # Compilation
