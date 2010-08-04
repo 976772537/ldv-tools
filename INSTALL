@@ -1,0 +1,100 @@
+	Linux Driver Verification (LDV)
+
+	INSTALLATION
+
+	http://linuxtesting.org/project/ldv/
+
+
+MINIMAL PREREQUISITES
+
+"Minimal prerequisites" are necessary for installing console tools:
+
+	o OCaml 3.10 or 3.11.0-3.11.2
+	o Perl 5.10
+	o Ruby 1.8
+	o JDK or OpenJDK 1.6.0
+	o ant 1.8.0 or greater
+	o GNU Make 3.81
+	o GCC (32-bit version) with C++ support
+	o GNU M4
+	o GNU Autoconf
+	o GNU Automake
+	o GNU binutils
+	o GNU Multiple Precision Library (GMP), development version
+	o MPFR Library, development version
+	o Flex or lex
+	o Yacc or Bison
+	o MySQL server and console client, with development headers and libaries
+	o Perl modules (install via `sudo cpan Module::Name` or via packange manager):
+		- DBI
+		- File::Cat
+		- File::Copy::Recursive
+		- Text::Highlight
+	  - XML::Twig
+		- XML::Writer
+	o CPIO archiver
+	o PAX archiver
+	o Ruby gem manager
+	o Ruby gems:
+		- gem hpricot
+		- gem activerecord
+		- gem mysql
+
+
+ADDITIONAL PREREQUISITES
+
+Additional prereqiosites are not necessary for console tools, but are required
+for LDV-online, statistics visualization, in addition to the prerequisites
+listed above:
+
+	o Apache 2.x
+	o PHP 5.3
+	o PHP modules:
+		- Apache
+		- MySQL
+		- DOM
+	o Markdown code formatter
+
+
+INSTALLING LDV
+
+First, install a prerequisites listed above, according to the path of LDV you
+need.
+
+Note, that '3' and '5' most likely require root privelegies and additional
+tuning. See 'stats-visualizer/README' for details. See 'ldv-online/README'
+before installing '6' and '7'.
+
+  1. To install the LDV console tools use:
+     prefix=/path/to/your/installation/directory make install
+
+  2. To install verifiers only:
+     prefix=/path/to/your/installation/directory make install-verifiers
+
+  3. To install the statistics server use:
+     prefix=/path/to/your/installation/directory make install-visualization
+
+  4. To install tests use:
+     prefix=/path/to/your/installation/directory make install-testing
+
+  5. To install everything use:
+     prefix=/path/to/your/installation/directory make install-all
+
+  6. To install online web-service:
+        prefix=/path/to/your/installation/directory \
+        TMP_DIR=/path/to/tmpfiles \
+        WEB_DIR=/path/to/apahce/web/dir make install-online-server
+
+  7. To install online web-service node:
+        prefix=/path/to/your/installation/directory \
+        TMP_DIR=/path/to/tmpfiles \
+        make install-online-node
+
+For some tools that use LDV to work, you need to add directory with binaries to
+your path:
+
+	export PATH=$PATH:/path/to/prefix/bin
+
+Here `/path/to/prefix` is what you've specified as prefix wile installing the
+above tools.
+

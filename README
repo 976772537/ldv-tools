@@ -1,8 +1,9 @@
-	Linux Driver Verification (LDV) <http://linuxtesting.org/project/ldv/>
+	Linux Driver Verification (LDV) 
 
-These are the notes for LDV.  Read them carefully,
-as they tell you what this is all about, explain how to install the
-LDV, and what to do if something goes wrong. 
+	README
+
+	http://linuxtesting.org/project/ldv/
+
 
 WHAT IS LDV?
 
@@ -35,53 +36,21 @@ WHAT IS LDV?
   (based on research, both adopted and carried on by our group) and evaluated 
   to provide the most precise verification.
 
-REUIREMENTS:
+GETTING LATEST SOURCES OF LDV
 
-    Minimal requirmenets for console tools, verifiers, testing
-	o ant 1.8.0 or greater
-	o JDK or JAVA-OpenJDK 1.6.0
-	o ocaml 3.11.0-3.11.2
-	o GNU Make
-	o GCC (32-bit version)
-	o gcc-c++
-	o GNU M4
-	o GNU Autoconf
-	o GNU Automake
-	o GNU binutils
-	o GNU Multiple Precision Library (GMP)
-	o MPFR Library
-	o Flex или lex
-	o Yacc или bison
-	o patch
-	o perl
+You can get latest stable and unstable sources of LDV tools at development
+homepage at http://forge.ispras.ru/projects/ldv
 
-     Additional rquirements (for ldv-online, visualization)
-	o apache 2.x
-	o php 5.x (and modules for apache and mysql)
-	o mysqld 
 
-INSTALLING the LDV:
+INSTALLING LDV
 
-  1. To install the ldv console tools use:
-     prefix=/path/to/your/installation/directory make install
-  2. To install the only verifiers:
-     prefix=/path/to/your/installation/directory make install-verifiers
-  3. To install the statistics server use:
-     prefix=/path/to/your/installation/directory make install-visualization
-  4. To install tests use:
-     prefix=/path/to/your/installation/directory make install-testing
-  5. To install all use:
-     prefix=/path/to/your/installation/directory make install-all
-  6. To install online web-service:
-     prefix=/path/to/your/installation/directory \
-	TMP_DIR=/path/to/tmpfiles \
-     	WEB_DIR=/path/to/apahce/web/dir make install-online-server
-  7. To install online web-service node:
-     prefix=/path/to/your/installation/directory \ 
- 	TMP_DIR=/path/to/tmpfiles \ 
-	make install-online-node
+Please, refer to INSTALL file for the list of prerequisites and installation
+instructions.
 
-Note, that '3' and '5' most likely require root privelegies and additional
-setup. See 'stats-visualizer/README' for details. See 'ldv-online/README'
- before installing '6' and '7'.
+
+CONTACT US
+
+Developer site where you can file bugs or contact us is at
+
+	http://forge.ispras.ru/projects/ldv
 
