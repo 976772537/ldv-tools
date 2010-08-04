@@ -1,0 +1,39 @@
+ 	HOW TO INSATLL LDV-ONLINE?
+
+1. Install and configure mysql server and client
+2. Start mysql server daemon: "sudo /etc/init.d/mysqld".";
+3. Connect to db server as root like this: "mysql -u root ...".";
+4. Create db for ldv-online: "CREATE DATABASE dbname".";
+5. Create user for stats db: "CREATE USER 'dbuser'@'dbhost' 
+   IDENTIFIED BY 'dbpass';".";
+6. Add priviledges: "GRANT ALL PRIVILEGES ON dbname.* TO 
+   'dbuser'@'dbhost' WITH GRANT OPTION;".";
+7. Update privileges: "FLUSH PRIVILEGES;".";
+8. Install apache2 web server with php5 module
+
+
+9. Install server part of ldv-online: 
+   - Create temp dir
+   - Install ldv-online: prefix=/path/to/your/installation/directory \
+        TMP_DIR=/path/to/tmpdir \
+        WEB_DIR=/path/to/apahce/web/dir make install-online-server 
+
+     (WEB_DIR in OpenSuSE by default: /srv/www/htdocs,
+	      in Fedora: /var/www/html)
+   - Write all parameters (dbname, dbhost, dbuser, dbpass) to 
+     $prefix/ldv-online/confi/server.conf;
+   - Configure your PATH: export PATH=$PATH:/$prefix/bin
+
+10. Instal client part of ldv-online:
+   - Create temp dir
+   - Create dir for backend temp files: TMP_DIR/run
+   - Copy 2.6.32.12 and 2.6.33.3 kernel sources to TMP_DIR/run
+   - Install ldv online client:
+          prefix=/path/to/your/installation/directory \ 
+        TMP_DIR=/path/to/tmpdir \
+        make install-online-node
+   - Write all parameters (dbname, dbhost, dbuser, dbpass) to 
+     $prefix/ldv-online/confi/client.conf;
+
+11. Database and port options for client and server must be equals.
+ 

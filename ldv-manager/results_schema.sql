@@ -108,7 +108,7 @@ create table sources(
 	id int(10) unsigned not null auto_increment,
 	trace_id int(10) unsigned not null,
 	name varchar(255) not null,
-	contents blob,
+	contents mediumblob,
 
 	primary key (id),
 	foreign key (trace_id) references traces(id)
@@ -128,6 +128,10 @@ create table tasks(
 	driver_spec_origin enum('kernel','external'),
 
 	description text,
+
+-- Its primary use is to refer to particular tasks in URL of statistics server
+	name varchar(255),
+
 
 	primary key (id)
 ) ENGINE=InnoDB;

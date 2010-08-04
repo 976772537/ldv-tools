@@ -1,4 +1,5 @@
 <?php
+print '<div id="ldv_layer">';
 require_once("ldv/include/include.php");
 
 function html($text)
@@ -30,13 +31,24 @@ function request_var($name, $default=NULL, $row=NULL)
                 $var = $default;
         return $var;
 }
-
+/*
 function myself() {
+    return $_SERVER['PHP_SELF'];
+}*/
+
+
+function short_myself() {
     return $_SERVER['PHP_SELF'];
 }
 
 function getservname() {
     return 'http://'.$_SERVER['SERVER_NAME'];
+}
+
+
+
+function myself() {
+	return getservname().short_myself();
 }
 
 function getlddv() {
@@ -48,7 +60,7 @@ function view_main_page() {
 }
 
 
-function view_header() {
+function view_header($action) {
 	?>
 		<style type="text/css">
 		BODY {
@@ -60,8 +72,12 @@ function view_header() {
 			<span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;LDV Online 83.149.198.16</span>
 		</div> -->
 		<div class="mini_menu">
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;HISTORY</strong></span></a>
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;UPLOAD</strong></span></a>
+			<?php if( $action != "upload") { ?>
+			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;Start Verification</strong></span></a>
+			<?php } ?> 
+			<?php if( $action != "get_history") { ?>
+			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;Verification History</strong></span></a>
+			<?php } ?>
 		</div>
 	<?php	
 }
@@ -72,9 +88,9 @@ function view_upload_driver_form() {
 		print '<b><font color="red">File size can\'t be greater than '.WS_MAX_DRIVER_SIZE.' bytes.</font></b><br>';
 	}*/
 	?>
-	<form action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
-	<div style="margin: 10px 15px 10px 10px; text-align: center;">
-		<span style="font-style: bold; color: #686868; font-size: 150%;">START VERIFICATION</span>
+	<form class='LDVOnlineForm' action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+		<span style="font-style: bold; color: black; font-size: 150%;">Start Verification</span>
 	</div>
 
 	<div style="margin: 10px 15px 10px 10px;">
@@ -96,7 +112,7 @@ function view_upload_driver_form() {
 	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
 	        </p>
 	        <p class="submit">
-	                <input type="submit" name="submit" id="wp-submit" class="button-primary" value="Start verification!" tabindex="100" />
+	                <input type="submit" name="submit" id="wp-submit" class="button-primary" value="Start Verification" tabindex="100" />
 	        </p>
 		    	<input type='hidden' name="action" value="upload_driver">
 	</form>
@@ -151,9 +167,9 @@ function view_user_history() {
 	$history = WSGetHistory();
 	$i=1;
 	?>
-	<form>
-	<div style="margin: 10px 15px 10px 10px; text-align: center;">
-		<span style="font-style: bold; color: #686868; font-size: 150%;">VERIFICATION HISTORY</span>
+	<form class='LDVOnlineForm'>
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+		<span style="font-style: bold; color: black; font-size: 150%;">Verification History</span>
 	</div>
 	<div style="margin: 10px 15px 10px 10px;">
 		<span>You can see more detailed information about your verification task by clicking on the corresponding driver name.</span>
@@ -180,20 +196,63 @@ function view_user_history() {
 }
 
 function view_detailed_report($trace_id, $trace_type, $number) {
-	if($trace_type == 'kernel') {
+	if ($trace_type == 'kernel') {
 		$trace = WSGetDetailedBuildError($trace_id);
 	} else {
 		$trace = WSGetDetailedReport($trace_id,myself().'?action=detailed_report&trace_id='.$trace_id.'&number='.$number);
 	}
-	?>
+	// remove drupal sidebars:
+//
+//	ldv=$("#ldv_layer").detach();
+//	ldv.insertBefore("#footer");
+
+//
+//		$("#ldv_layer").insertBefore("#footer");
+  //                      $('.columns').remove();
+
+  /*      <script type="text/javascript">
+                $(document).ready(function() {
+			$('body').hide();
+			$('#ldv_layer').insertBefore(".columns");
+                        $('.columns').remove();
+                        $('.footer').remove();
+			$('body').show();
+                });
+        </script>*/
+?>
+		<style type="text/css">
+		        #sidebar-left {
+		                display: none;
+		        }
+			.footer {
+				display: none;
+			}
+/*			.centerpadding {	
+				padding-left: 0px;
+			}*/
+			.main-content .node {
+				margin: 0px 0px 0px 0px;
+			}
+			.main-content .node .content {
+				padding: 0px 0px 0px 0px;
+
+			}
+		        .centercolumn {
+		                margin-left: 0px;
+		                width: 980px;
+		        }
+	</style>
+
+
+
 		<?php if($trace_type == 'kernel') { ?>
-		<form>
-        	<div style="margin: 10px 15px 10px 10px; text-align: center;">
-			<span style="font-style: bold; color: #686868; font-size: 150%;">BUILD ERROR TRACE</span>
+		<form class='LDVOnlineForm'>
+        	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+			<span style="font-style: bold; color: black; font-size: 150%;">Build Error Trace</span>
 	       	</div>
         	<div style="margin: 10px 15px 10px 10px;">
-			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver - </strong><?php echo $trace['drivername']?></span><br>
-			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel - </strong><?php echo $trace['env']?></span>
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $trace['drivername']?></span><br>
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel: </strong><?php echo $trace['env']?></span>
 	       	</div>
 
 		<div style="margin: 10px 15px 10px 10px;">
@@ -201,20 +260,32 @@ function view_detailed_report($trace_id, $trace_type, $number) {
       		</div>
 		</form>
 		<?php } else { ?>
-		<br>
-	 	<div style="margin: 10px 15px 10px 10px; text-align: center;">
-			<span style="font-style: bold; color: #686868; font-size: 150%;">ERROR TRACE</span>
-	       	</div>
-        	<div style="margin: 10px 15px 10px 10px;">
-			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver - </strong><?php echo $trace['drivername']?></span><br>
-			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel - </strong><?php echo $trace['env']?></span>
-	       	</div>
+		<form class='LDVOnlineForm'>
+		<div id="err_trace">
+			<br>
+		 	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+				<span style="font-style: bold; color: black; font-size: 150%;">Error Trace</span>
+		       	</div>
+	        	<div style="margin: 10px 15px 10px 10px;">
+				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $trace['drivername']?></span><br>
+				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel: </strong><?php echo $trace['env']?></span><br>
+				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Rule: </strong><?php $rule_info = WSGetRuleInfoByLDVIdent($trace['rule']); echo $rule_info['NAME'];?></span>
+		       	</div>
+	
+			<div style="margin: 10px 15px 10px 10px;">
+				<?php print $trace['error_trace'];?>	
+	      		</div>
+		</div>
+		</form>
+		<?php } ?>
 
-		<div style="margin: 10px 15px 10px 10px;">
-			<?php print $trace['error_trace'];?>	
-      		</div>
-		<? } ?>
+
 	<?php
+
+		//	p.insertBefore('.footer');
+                  //      $('.columns').remove();
+                       // $('.columns').remove();
+
 }
 
 function view_task_status($task_id,$number) {
@@ -230,14 +301,16 @@ function view_task_status($task_id,$number) {
 	// jQuery UI framework
 	?>	
 	
-	<form>
-        <div style="margin: 10px 15px 10px 10px;">
-	<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $status['drivername']; ?></span><br>
+	<form class='LDVOnlineForm'>
+
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+        	<span style="font-style: bold; color: black; font-size: 150%;">Verification Status</span>
         </div>
         <div style="margin: 10px 15px 10px 10px;">
-	<span style="font-style: bold; color: #686868; font-size: 120%;"><?php print $status['timestamp']; ?></span>
-        </div>
-        <div style="margin: 10px 15px 10px 10px;">
+        	<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $status['drivername']?></span><br>
+                <span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Timestamp: </strong><?php echo $status['timestamp']?></span>
+	</div>
+        <div style="margin: 20px 40px 25px 10px;">
         You can see <b>verification verdict</b> for each rule and linux kernel. Verdict may be:
         <ul>
                 <li><i><strong><font color="green">Safe</font></strong></i> - there is no mistakes for the given linux kernel and rule.</li>
@@ -410,7 +483,7 @@ function view_task_status($task_id,$number) {
 
 function view_rule_by_number($rule_id) {
 	$rule = WSGetRuleByNumber($rule_id);
-    print '<form>';
+    print '<form class=\'LDVOnlineForm\'>';
 	print '<p><b>'.$rule['ID'].'</b></p>';
     print '<p><b>'.$rule['TYPE'].'</b></p>';
     print '<p><b>'.$rule['TITLE'].'</b></p>';
@@ -450,7 +523,7 @@ $exit=false;
 
 
 
-view_header();
+view_header($action);
 /**
  * 
  *  Configuration file
@@ -526,5 +599,7 @@ else
 {
 	view_main_page();
 }
+
+print '</div>';
 
 ?>

@@ -42,17 +42,28 @@ public class MTask implements Serializable {
 	}
 
 
-	public MTask(int id, int parent_id, String env, String driver, String rule, byte[] data) {
+	public MTask(int id, int parent_id, String env, String driver, String rule, byte[] data, String string) {
 		this.id = id;
 		this.env = env;
 		this.rule = rule;
 		this.data = data;
 		this.driver = driver;
 		this.parent_id = parent_id;
+		this.msgStatus = string;
 	}
 
 	public String getDriver() {
 		return driver;
+	}
+
+	private String msgStatus;
+	
+	public MTask(String status) {
+		this.msgStatus = status;
+	}
+	
+	public Object getMsg() {
+		return msgStatus;
 	}
 	
 }

@@ -1,12 +1,9 @@
 [submodule "dscv/rcv/backends/blast"]
 	path = dscv/rcv/backends/blast
-	url = git://itgdev.igroup.ispras.ru/blast.git
+	url = git://forge.ispras.ru/blast.git
 [submodule "rule-instrumentor/aspectator"]
 	path = rule-instrumentor/aspectator
-	url = git://itgdev.igroup.ispras.ru/aspectator.git
+	url = git://forge.ispras.ru/aspectator.git
 [submodule "kernel-rules"]
 	path = kernel-rules
-	url = git://itgdev.igroup.ispras.ru/kernel-rules.git
-[submodule "dscv/rcv/backends/cpachecker"]
-	path = dscv/rcv/backends/cpachecker
-	url = git://itgdev.igroup.ispras.ru/cpachecker.git
+	url = git://forge.ispras.ru/kernel-rules.git

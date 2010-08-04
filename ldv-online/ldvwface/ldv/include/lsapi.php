@@ -168,6 +168,11 @@ function WSPrintD($string) {
 	WSPrintByLogLevel($string,WS_LL_DEBUG);
 }
 
+function WSPrintW($string) {
+	WSPrintByLogLevel($string,WS_LL_DEBUG);
+}
+
+
 function WSPrintE($string) {
 	WSPrintByLogLevel($string,WS_LL_ERROR);
 }
@@ -783,7 +788,7 @@ function WSGetDetailedBuildError($launch_id) {
 	if(WSIsAdmin())
 		$result = WSStatsQuery('SELECT stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments WHERE launches.id='.$launch_id.' AND stats.id=traces.build_id AND traces.id=launches.trace_id AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
 	else
-		$result = WSStatsQuery('SELECT stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments,tasks WHERE launches.id='.$launch_id.' AND tasks.id=launches.task_id AND tasks.username=\''.WSGetUSer().'\' AND stats.id=traces.build_id AND traces.id=launches.trace_id AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
+		$result = WSStatsQuery('SELECT stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments,tasks WHERE launches.id='.$launch_id.' AND tasks.id=launches.task_id AND tasks.username=\''.WSGetUser().'\' AND stats.id=traces.build_id AND traces.id=launches.trace_id AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
 
 	if($row = mysql_fetch_array($result)) {
 		$trace['trace_id']=$trace_id;
@@ -812,9 +817,9 @@ function WSGetDetailedBuildError($launch_id) {
 function WSGetHistory() {
 	$conn = WSStatsConnect();
 	if(WSIsAdmin())
-	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
+	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.id=launches.task_id AND drivers.id=launches.driver_id ORDER BY tasks.id;');
 	else
-	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.username=\''.WSGetUser().'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
+	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.username=\''.WSGetUser().'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id ORDER BY tasks.id;');
 	$i=0;
 	while($row = mysql_fetch_array($result))
   	{
