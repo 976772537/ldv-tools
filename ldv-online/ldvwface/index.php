@@ -64,8 +64,8 @@ function view_header($action) {
 	?>
 		<style type="text/css">
 		BODY {
-			margin: 0; /* Убираем отступы */
-			padding: 0; /* Убираем поля */
+			margin: 0;
+			padding: 0;
 		} 
 		</style>
 		<!--<div style="width: 100%; height: 20px; background: #666666;">
