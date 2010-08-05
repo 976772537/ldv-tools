@@ -30,7 +30,7 @@ MINIMAL PREREQUISITES
 		- File::Cat
 		- File::Copy::Recursive
 		- Text::Highlight
-	  - XML::Twig
+		- XML::Twig
 		- XML::Writer
 	o CPIO archiver
 	o PAX archiver
