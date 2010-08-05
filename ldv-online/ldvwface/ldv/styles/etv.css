@@ -2,7 +2,7 @@
 #ETVErrorTrace
 {
   background: #FFFFEB;
-  font-size: 10px;
+  font-size: 12px;
   line-height: normal;
   overflow: scroll;
   margin: 0;
@@ -194,90 +194,121 @@
 /* Error trace style. */
 .ETVAssert
 {
-  color: green;
-  font-size: 8pt;
+  color: #5E0000;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal;
 }
 
 .ETVAssertCondition
 {
-  color: green;
+  color: #5E0000;
+  font-size: 12px;
+  font-style: normal;
   font-weight: bold;
-  font-size: 8pt;
 }
 
 .ETVBlock
 {
-  color: gray;
-  font-size: 6pt;  
+  color: #733200;  
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal;
+}
+
+.ETVDriverEnvFunctionBody
+{
+  color: #801B14;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: normal;
 }
 
 .ETVDriverEnvFunctionCall
 {
-  background-color: #F0D1FF;
+  color: #801B14;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
 }
 
 .ETVDriverEnvInit
 {
-  background-color: #FFD6A1;
+  color: #C09359;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
 }
 
 .ETVEntryPoint
 {
-  color: red;
-  font-weight: bold;
-  font-size: 8pt;  
+  color: #815600;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
 }
 
 .ETVEntryPointBody
 {
-  color: red;
-  font-size: 8pt;  
+  color: #815600;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
 }
 
 .ETVFunctionBody
 {
-  color: green;
-  font-size: 8pt;
-}
-
-.ETVFunctionInitializationBody
-{
-  color: green;
-  font-size: 8pt; 
+  color: #5A0024;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
 }
 
 .ETVFunctionCall
 {
-  color: red;
+  color: #5A0024;
+  font-size: 12px;
+  font-style: normal;
   font-weight: bold;
-  font-size: 8pt;
 }
 
 .ETVFunctionCallInitialization
 {
-  color: red;
+  color: #797A53;
+  font-size: 10px;
   font-style: italic;
-  font-size: 8pt;
-  width: inherit;
+  font-weight: normal;
 }
 
 .ETVFunctionCallWithoutBody
 {
+  color: #8E5B58;
+  font-size: 10px;
   font-style: italic;
-  font-size: 8pt;
+  font-weight: normal;
 }
 
 .ETVFunctionFormalParamName
 {
-  color: green;
+  color: #A1884F;
+  font-size: 10px;
   font-style: italic;
-  font-size: 8pt;
   font-weight: normal;
 }
+
+.ETVFunctionInitializationBody
+{
+  color: #797A53;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
 .ETVIdentation
 {
+  font-size: 12px;
+  font-style: normal;
   font-weight: normal;
-  font-size: 8pt;
   white-space: pre;
 }
 
@@ -293,40 +324,82 @@
 
 .ETVModelAssert
 {
-  background-color: #DFE9FF;
+  color: #B30095;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
 }
 
 .ETVModelChangeState
 {
-  background-color: #CEFFEC;  
+  color: #7E009E;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.ETVModelFuncBody
+{
+  color: #3F005A;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: normal;
 }
 
 .ETVModelFuncCall
 {
-  background-color: #D2E4BB;  
+  color: #3F005A; 
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold; 
+}
+
+.ETVModelFuncFuncCall
+{
+  color: #3F005A; 
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal; 
+}
+
+.ETVModelFuncFuncBody
+{
+  color: #3F005A; 
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal; 
 }
 
 .ETVModelReturn
 {
-  background-color: #F8FFCE;  
+  color: #69308E;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
 }
 
 .ETVModelOther
 {
-  background-color: #BCAEFD;  
+  color: #5E4B6B;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: normal;
 }
 
 .ETVReturn
 {
-  color: blue;
-  font-size: 8pt;
+  color: #9A5C0B;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal;
 }
 
 .ETVReturnValue
 {
-  color: blue;
+  color: #9A5C0B;
+  font-size: 12px;
+  font-style: normal;
   font-weight: bold;
-  font-size: 8pt;
 }
 
 .ETVShowHide
