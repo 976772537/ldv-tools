@@ -64,8 +64,8 @@ function view_header($action) {
 	?>
 		<style type="text/css">
 		BODY {
-			margin: 0;
-			padding: 0;
+			margin: 0; /* Убираем отступы */
+			padding: 0; /* Убираем поля */
 		} 
 		</style>
 		<!--<div style="width: 100%; height: 20px; background: #666666;">
@@ -262,9 +262,8 @@ function view_detailed_report($trace_id, $trace_type, $number) {
 		<?php } else { ?>
 		<form class='LDVOnlineForm'>
 		<div id="err_trace">
-			<br>
 		 	<div style="margin: 10px 15px 10px 10px; text-align: left;">
-				<span style="font-style: bold; color: black; font-size: 150%;">Error Trace</span>
+				<span style="font-style: bold; color: black; font-size: 150%;">Rule violation</span>
 		       	</div>
 	        	<div style="margin: 10px 15px 10px 10px;">
 				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $trace['drivername']?></span><br>
@@ -304,7 +303,7 @@ function view_task_status($task_id,$number) {
 	<form class='LDVOnlineForm'>
 
 	<div style="margin: 10px 15px 10px 10px; text-align: left;">
-        	<span style="font-style: bold; color: black; font-size: 150%;">Verification Status</span>
+        	<span style="font-style: bold; color: black; font-size: 150%;">Verification Report</span>
         </div>
         <div style="margin: 10px 15px 10px 10px;">
         	<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $status['drivername']?></span><br>

@@ -1472,16 +1472,31 @@ sub visualize_error_trace($)
     , "\n  });"
     , "\n</script>");
 
+  # Print short ETV help. 
+  print($file_report_out 
+      "\n  <div class='ETVHelp'>"
+    , "\n    <p>Here is the <i>explanation</i> of the rule violation arisen in your driver for the corresponding kernel.</p>"
+    , "\n    <p>Note that there may be <i>no</i> error indeed. Please <i>see</i> on error trace and source code to <i>understand</i> whether there is an error in your driver.</p>"
+    , "\n    <p>The <b>Error trace</b> column contains the <i>path</i> on which rule is violated. You can choose some <i>entity classes</i> to be <i>shown</i> or <i>hiden</i> by clicking on the corresponding <i>checkboxes</i> or in the advanced <i>Others</i> menu. Also you can <i>show</i> or <i>hide</i> each <i>particular entity</i> by clicking on the corresponding <i>-</i> or <i>+</i>. In <i>hovering</i> on some <i>entities</i> you can see their <i>descriptions</i> and <i>meaning</i>. Also the <i>error trace</i> is binded with the <i>source code</i>. <i>Line numbers</i> are shown as <i>links</i> on the left. You can <i>click</i> on them to open the <i>corresponding line</i> in <i>source code</i>. <i>Line numbers</i> and <i>file names</i> are shown in <i>entity descriptions</i>.</p>"
+    , "\n    <p>The <b>Source code</b> column contains <i>content</i> of <i>files related</i> with the <i>error trace</i>. There are your <i>driver</i> (<i>note</i> that there are some <i>our modifications</i> at the end), <i>kernel headers</i> and <i>rule</i> source code. <i>Tabs</i> show the currently opened file and other available files. In <i>hovering</i> you can see <i>file names</i> in <i>titles</i>. On <i>clicking</i> the corresponding <i>file content</i> will be shown.</p>"
+    , "\n  </div>");
+
   # Create the table having two cells. The first cell is for the error trace and
   # the second is for the tabed source code. 
   print($file_report_out 
       "\n<table id='ETVGeneralWindow'>"
     , "\n<tr>"
-    , "\n  <td id='ETVErrorTraceWindow'>");
+    , "\n  <td id='ETVErrorTraceWindow'>"
+    , "\n    <div class='ETVTableColumnHeader'>"
+    , "\n      Error trace"
+    , "\n    </div>");
   print_error_trace($tree_root);
   print($file_report_out
       "\n  </td>"
     , "\n  <td id='ETVSrcWindow'>"
+    , "\n    <div class='ETVTableColumnHeader'>"
+    , "\n      Source code"
+    , "\n    </div>"
     , "\n    <div id='ETVTabs'>"
     , "\n      <ul id='ETVTabsHeader'>");
   foreach my $src (sort(keys(%srcs)))

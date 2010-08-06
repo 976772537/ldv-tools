@@ -14,7 +14,7 @@
 {
   background: #F9FFBC;
   font-size: 14px;
-  height: 52px;
+  height: 32px;
   margin: 0;
   padding: 0;
   width: 100%;
@@ -32,7 +32,7 @@
 
 #ETVGeneralWindow
 {
-  border: 4px groove blue;
+  border: 4px groove #0000CB;
   font-size: 12px;
   font-family: monospace;
 }
@@ -51,6 +51,16 @@
   vertical-align: top;
 }
 
+.ETVTableColumnHeader
+{
+  color: #0000CB;
+  font-family: verdana, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 5px 0px 7px 0px;
+  text-align: center;
+}
+
 #ETVTabs 
 {
   background: #F3FFFA;
@@ -60,8 +70,8 @@
 #ETVShowHideMenuMain
 {
   float: left;
-  height: 50px;
-  line-height: 50px;
+  height: 30px;
+  line-height: 30px;
 }
 
 .ETVShowHideMenuMainItem
@@ -93,8 +103,8 @@
   display: block;
   padding: 0px 10px 0px 10px;
   margin: 0;
-  height: 50px;
-  line-height: 50px;
+  height: 30px;
+  line-height: 30px;
   color: #0000FF;
   border: 1px solid #000000;
 }
@@ -132,7 +142,7 @@
 /* Source code tabs style. */
 #ETVTabsHeader 
 {
-  height: 50px;
+  height: 30px;
   list-style:none outside none;
   list-style: none;
   margin: 0;
@@ -144,9 +154,9 @@
 {
   border: 1px solid #000000;
   float: left;
-  background: #C7FFE7;
-  height: 50px;
-  line-height: 50px;
+  background: #DAEEE5;
+  height: 30px;
+  line-height: 30px;
   margin: 0;
   padding: 0;
 }
@@ -167,16 +177,17 @@
 
 #ETVTabsHeader li a:hover
 {
-  background: #AFFCDA;
+  background: #C7FFE7;
 }
 
 #ETVTabsHeader li.ETVActive 
 {
+  border-bottom-style: none;
 }
 
 #ETVTabsHeader li.ETVActive a 
 {
-  background: #3FFFAC;  
+  background: #F6FFF7;  
   font-weight: bold;
 }
 
@@ -317,7 +328,7 @@
   background-color: #F3F3F3;
   color: black;
   font-weight: normal;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   white-space: pre;
 }
