@@ -176,7 +176,6 @@ function view_rules() {
 		<span>This page contains the list of verified rules. You can see more detailed information on them by clicking on the corresponding rule name.</span>
 	<br><br>
 	<?php
-	# TODO: syncronize it with the lsapi list.
 	$models = WSGetSupportedModels();
     $models_info = array();
     foreach ($models as $model)
