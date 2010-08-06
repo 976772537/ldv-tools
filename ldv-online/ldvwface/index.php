@@ -78,6 +78,9 @@ function view_header($action) {
 			<?php if( $action != "get_history") { ?>
 			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;Verification History</strong></span></a>
 			<?php } ?>
+			<?php if( $action != "rules") { ?>
+			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=rules"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;Rules</strong></span></a>
+			<?php } ?>
 		</div>
 	<?php	
 }
@@ -161,6 +164,35 @@ function action_upload_driver() {
 	} else {
                 print '<b><font color="red">Error upload task</font></b><br>';
 	}
+}
+
+function view_rules() {
+	?>
+	<form class='LDVOnlineForm'>
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+		<span style="font-style: bold; color: black; font-size: 150%;">Rules</span>
+	</div>
+	<div style="margin: 10px 15px 10px 10px;">
+		<span>This page contains the list of verified rules. You can see more detailed information on them by clicking on the corresponding rule name.</span>
+	<br><br>
+	<?php
+	# TODO: syncronize it with the lsapi list.
+	$models = WSGetSupportedModels();
+    $models_info = array();
+    foreach ($models as $model)
+    {
+	  $models_info[$model] = WSGetRuleInfoByLDVIdent($model);
+	}
+	foreach ($models_info as $model_info)
+	{
+	?>
+  	  <a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $model_info['ID']; ?>"><?php echo $model_info['NAME']; echo '<br>' ?></a>
+	<?php
+	}
+	?>
+	</div>
+	</form>
+	<?php
 }
 
 function view_user_history() {
@@ -541,6 +573,10 @@ else if ($action == "upload_driver" && !$exit)
 else if ($action == "get_history" && !$exit)
 {
 	view_user_history();
+}
+else if ($action == "rules" && !$exit)
+{
+	view_rules();
 }
 else if ($action == "detailed_report" && !$exit) 
 {
