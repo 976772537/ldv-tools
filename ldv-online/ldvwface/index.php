@@ -64,23 +64,32 @@ function view_header($action) {
 	?>
 		<style type="text/css">
 		BODY {
-			margin: 0; /* Убираем отступы */
-			padding: 0; /* Убираем поля */
+			margin: 0;
+			padding: 0;
 		} 
 		</style>
 		<!--<div style="width: 100%; height: 20px; background: #666666;">
 			<span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;LDV Online 83.149.198.16</span>
 		</div> -->
+		<?php
+			$upload_style = $history_style = $rules_style = 'LDVMenuItem';
+			if ($action == "upload")
+			{
+				$upload_style = 'LDVMenuItemActive';
+			}
+			if ($action == "get_history")
+			{
+				$history_style = 'LDVMenuItemActive';
+			}
+			if ($action == "rules")
+			{
+				$rules_style = 'LDVMenuItemActive';
+			}
+		?>
 		<div class="mini_menu">
-			<?php if( $action != "upload") { ?>
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;Start Verification</strong></span></a>
-			<?php } ?> 
-			<?php if( $action != "get_history") { ?>
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;Verification History</strong></span></a>
-			<?php } ?>
-			<?php if( $action != "rules") { ?>
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=rules"><span style="font-style: bold; color: #6666FF; font-size: 120%;" onMouseOver="this.style.color='#6633FF'" onMouseOut="this.style.color='#6666FF'" ><strong>&nbsp;&nbsp;Rules</strong></span></a>
-			<?php } ?>
+			<a href="<?php print myself(); ?>?action=upload"><span class="<?php print $upload_style; ?>">Start Verification</span></a>&nbsp;&nbsp;
+			<a href="<?php print myself(); ?>?action=get_history"><span class="<?php print $history_style; ?>">Verification History</span></a>&nbsp;&nbsp;
+			<a href="<?php print myself(); ?>?action=rules"><span class="<?php print $rules_style; ?>">Rules</span></a>
 		</div>
 	<?php	
 }
