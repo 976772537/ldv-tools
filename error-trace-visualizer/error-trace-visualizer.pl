@@ -173,9 +173,6 @@ my %engines = (my $engine_blast = 'blast' =>
                  {'print', \&print_error_trace_blast, 
                   'process', \&process_error_trace_blast});
 
-# The value is the entity class to be hide by default.
-my %entity_hide = ('ETVFunctionCallInitialization' => 1, 'ETVFunctionInitializationBody' => 1, 'ETVDriverEnvInit' => 1, 'ETVFuncCallIntellectual' => 1);
-
 # These variables contain a current line number and a current source code file 
 # if so or 0 and '' otherwise.
 my $entity_line = 0;
@@ -234,6 +231,35 @@ my $opt_src_files;
 # Some usefull reqular expressions.
 my $regexp_element_kind = '^([^=\(:]+)';
 
+# Global show/hide classes and their defaults.
+my %show_hide_global = (
+    1 => {'class', my $entity_class_entry_point = 'ETVEntryPoint', 'name', 'Entry point', 'main', 0, 'show', 1}
+  , 2 => {'class', my $entity_class_entry_point_body = 'ETVEntryPointBody', 'name', 'Entry point body', 'main', 0, 'show', 1}
+  , 3 => {'class', my $entity_class_func_call = 'ETVFunctionCall', 'name', 'Function calls', 'main', 0, 'show', 1}
+  , 4 => {'class', my $entity_class_func_call_init = 'ETVFunctionCallInitialization', 'name', 'Initialization function calls', 'main', 0, 'show', 0}
+  , 5 => {'class', my $entity_class_func_call_without_body = 'ETVFunctionCallWithoutBody', 'name', 'Function without body calls', 'main', 0, 'show', 1}
+  , 6 => {'class', my $entity_class_func_body = 'ETVFunctionBody', 'name', 'Function bodies', 'main', 1, 'show', 1}
+  , 7 => {'class', my $entity_class_func_body_init = 'ETVFunctionInitializationBody', 'name', 'Initialization function bodies', 'main', 0, 'show', 0}
+  , 8 => {'class', my $entity_class_block = 'ETVBlock', 'name', 'Blocks', 'main', 1, 'show', 1}
+  , 9 => {'class', my $entity_class_return = 'ETVReturn', 'name', 'Returns', 'main', 0, 'show', 1}
+  , 10 => {'class', my $entity_class_return_val = 'ETVReturnValue', 'name', 'Return values', 'main', 0, 'show', 1}
+  , 11 => {'class', my $entity_class_assert = 'ETVAssert', 'name', 'Asserts', 'main', 0, 'show', 1}
+  , 12 => {'class', my $entity_class_assert_cond = 'ETVAssertCondition', 'name', 'Assert conditions', 'main', 0, 'show', 1}
+  , 13 => {'class', my $entity_class_ident = 'ETVIdentation', 'name', 'Identation', 'main', 0, 'show', 1}
+  , 14 => {'class', my $entity_class_driver_env_init = 'ETVDriverEnvInit', 'name', 'Driver environment initialization', 'main', 0, 'show', 0}
+  , 15 => {'class', my $entity_class_driver_env_func_call = 'ETVDriverEnvFunctionCall', 'name', 'Driver environment function calls', 'main', 0, 'show', 1}
+  , 16 => {'class', my $entity_class_driver_env_func_body = 'ETVDriverEnvFunctionBody', 'name', 'Driver environment function bodies', 'main', 0, 'show', 1}
+  , 17 => {'class', my $entity_class_model_assert = 'ETVModelAssert', 'name', 'Model asserts', 'main', 0, 'show', 1}
+  , 18 => {'class', my $entity_class_model_change_state = 'ETVModelChangeState', 'name', 'Model state changes', 'main', 0, 'show', 1}
+  , 19 => {'class', my $entity_class_model_return = 'ETVModelReturn', 'name', 'Model returns', 'main', 0, 'show', 1}
+  , 20 => {'class', my $entity_class_model_func_call = 'ETVModelFuncCall', 'name', 'Model function calls', 'main', 0, 'show', 1}
+  , 21 => {'class', my $entity_class_model_func_body = 'ETVModelFuncBody', 'name', 'Model function bodies', 'main', 0, 'show', 0}
+  , 22 => {'class', my $entity_class_model_func_func_call = 'ETVModelFuncFuncCall', 'name', 'Model function function calls', 'main', 0, 'show', 1}
+  , 23 => {'class', my $entity_class_model_func_func_body = 'ETVModelFuncFuncBody', 'name', 'Model function function bodies', 'main', 0, 'show', 1}
+  , 24 => {'class', my $entity_class_model_other = 'ETVModelOther', 'name', 'Model others', 'main', 0, 'show', 1}
+  , 25 => {'class', my $entity_class_intellectual_func_body = 'ETVIntellectualFuncBody', 'name', my $entity_class_intellectual_func_body_name = 'Function bodies without model function calls', 'main', 0, 'show', 0}
+  );
+
 # The number of indentation spaces.
 my $space_indent = 3;
 
@@ -247,11 +273,11 @@ my %srcs;
   
 # The colors to be used in highlighting.  
 my $syntax_colors = { 
-  comment => 'ETVSyntaxComment',
-  string  => 'ETVSyntaxString',
-  number  => 'ETVSyntaxNumber',
-  key1    => 'ETVSyntaxCKeywords',
-  key2    => 'ETVSyntaxCPPKeywords',
+  comment => 'ETVSrcComment',
+  string  => 'ETVSrcString',
+  number  => 'ETVSrcNumber',
+  key1    => 'ETVSrcCKeywords',
+  key2    => 'ETVSrcCPPKeywords',
 };
 
 ################################################################################
@@ -311,8 +337,8 @@ sub add_mising_spaces($)
   my $str = shift;
 
   # Add mising spaces around equality sign.
-  $str =~ s/([^ ])=/$1 =/g;  	
-  $str =~ s/=([^ ])/= $1/g;
+  $str =~ s/([_a-zA-Z\d])=/$1 =/g;  	
+  $str =~ s/=([_a-zA-Z\d])/= $1/g;
   
   return $str;
 }
@@ -469,105 +495,144 @@ sub print_error_trace_blast($)
 {
   my $tree_root = shift;
   	
-  # Print entities global show/hide links.	
-  print_show_hide_global('ETVEntryPoint', 'entry point');
-  print_show_hide_global('ETVEntryPointBody', 'entry point body');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVFunctionCall', 'function calls');
-  print_show_hide_global('ETVFunctionCallInitialization', 'initialization function calls');
-  print_show_hide_global('ETVFunctionCallWithoutBody', 'function without body calls');
-  print_show_hide_global('ETVFunctionBody', 'function bodies');
-  print_show_hide_global('ETVFunctionInitializationBody', 'initialization function bodies');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVBlock', 'blocks');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVReturn', 'returns');
-  print_show_hide_global('ETVReturnValue', 'return values');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVAssert', 'asserts');
-  print_show_hide_global('ETVAssertCondition', 'assert conditions');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVIdentation', 'identation');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVDriverEnvInit', 'driver environment initialization');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVDriverEnvFunctionCall', 'driver environment function call');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVModelAssert', 'model assert');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVModelChangeState', 'model state changing');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVModelReturn', 'model return');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVModelFuncCall', 'model function call');
-  print($file_report_out "<br>");
-  print_show_hide_global('ETVModelOther', 'model other');
-  print($file_report_out "<br>");
-  print($file_report_out "<div>Intellectual section:</div");
-  # Collapse by default all function calls that don't contain model function 
-  # calls.
+  # Print show/hide menu plugin.
   print($file_report_out 
     "\n<script type='text/javascript'>"
-    , "\n\$(document).ready"
-    , "\n("
-    , "\n  function()"
-    , "\n  {"
-    , "\n    \$('a.#ETVFuncCallIntellectualShowHide').toggle"
-    , "\n    ("
-    , "\n      function()"
-    , "\n      {"
-    , "\n        \$('.ETVFunctionBody').each(function() {"  
-    , "\n          var isFuncBodyHasModelFuncCall = false;"
-    , "\n          \$(this).children('div').each(function() {"
-    , "\n            if (\$(this).hasClass('ETVModelFuncCall')) {"
-    , "\n              isFuncBodyHasModelFuncCall = true;"
-    , "\n            }"      
-    , "\n          });"    
-    , "\n          if (!isFuncBodyHasModelFuncCall) {"
-    , "\n            \$(this).hide();"
-    , "\n          }"
-    , "\n        });"
-    , "\n        \$(this).html('Show bodies of functions that do not contain model functions calls');"
-    , "\n      }"
-    , "\n      , function()"
-    , "\n      {"
-    , "\n        \$('.ETVFunctionBody').each(function() {"  
-    , "\n          var isFuncBodyHasModelFuncCall = false;"
-    , "\n          \$(this).children('div').each(function() {"
-    , "\n            if (\$(this).hasClass('ETVModelFuncCall')) {"
-    , "\n              isFuncBodyHasModelFuncCall = true;"
-    , "\n            }"      
-    , "\n          });"    
-    , "\n          if (!isFuncBodyHasModelFuncCall) {"
-    , "\n            \$(this).show();"
-    , "\n          }"
-    , "\n        });"
-    , "\n        \$(this).html('Hide bodies of functions that do not contain model functions calls');"
-    , "\n      }"
-    , "\n    );"
-    , "\n  }"
-    , "\n);"
-    , "\n</script>"
-    , "\n<a id='ETVFuncCallIntellectualShowHide' href='#'>Hide bodies of functions that do not contain model functions calls</a>\n");   
-  print($file_report_out "<br>");
-      
-  foreach my $entity_hide (keys(%entity_hide))
+    , "\n\$(document).ready(function() {"
+    , "\n  \$('#ETVShowHideMenuOthers li').hover(function() {"
+	, "\n    \$(this).addClass('ETVactive');" 
+	, "\n    \$(this).find('form').show();" 
+    , "\n  }, function() {"
+	, "\n    \$(this).removeClass('ETVactive');" 
+	, "\n    \$(this).find('form').hide();"
+    , "\n  });"
+    , "\n});"
+    , "\n</script>");
+  
+  foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
   {
     print($file_report_out 
       "\n<script type='text/javascript'>"
-      , "\n\$(document).ready"
-      , "\n("
-      , "\n  function()"
-      , "\n  {"
-      , "\n    \$('a.#${entity_hide}ShowHide').click()"
-      , "\n  }"
-      , "\n);"
-      , "\n</script>"); 	  
+      , "\n\$(document).ready(function() {"
+      , "\n  \$('#${show_hide_global{$order}{'class'}}Menu').change(function() {"
+	  , "\n    \$('a.#${show_hide_global{$order}{'class'}}ShowHide').click();"
+      , "\n  });"
+      , "\n});"
+      , "\n</script>");	 
+  }  
+  	
+  # Print entities global show/hide menu.
+  print($file_report_out 
+    "\n<div id='ETVErrorTraceHeader'>");
+  # First of all print the main entities to be show/hide.
+  print($file_report_out 
+      "\n  <div id='ETVShowHideMenuMain'>"
+    , "\n    <form>");
+  foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
+  {
+	print($file_report_out
+	  "\n      <div class='ETVShowHideMenuMainItem'><input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}</div>")  
+	  if ($show_hide_global{$order}{'main'});
+  }  
+  print($file_report_out 
+      "\n    </form>"
+    , "\n  </div>");    
+  # Others are available through the advanced menu.
+  print($file_report_out 
+      "\n  <ul id='ETVShowHideMenuOthers'>"
+    , "\n    <li><div>Others...</div>"
+    , "\n      <form style='display: none;'>");
+  foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
+  {
+	print($file_report_out
+	  "\n        <input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}<br>")  
+	  if (!$show_hide_global{$order}{'main'});
+  }  
+  print($file_report_out 
+      "\n      </form>"
+    , "\n    </li>"
+    , "\n  </ul>");
+  print($file_report_out 
+    "\n</div>");
+
+  # Print global show/hide script.  	
+  print($file_report_out 
+    "\n<div id='ETVErrorTraceHeaderHiddenMenu'>");
+  foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
+  {
+	print_show_hide_global($show_hide_global{$order}{'class'}, $show_hide_global{$order}{'name'})
+	 if ($show_hide_global{$order}{'class'} ne $entity_class_intellectual_func_body);
+  }        	
+
+  # Print intellectual global show/hide that allows to collapse all function 
+  # bodies that don't contain model function calls.
+  print($file_report_out 
+    "\n<script type='text/javascript'>"
+    , "\n\$(document).ready(function() {"
+    , "\n \$('a.#${entity_class_intellectual_func_body}ShowHide').toggle(function() {"
+    , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"  
+    , "\n      var isFuncBodyHasModelFuncCall = false;"
+    , "\n      \$(this).children('div').each(function() {"
+    , "\n        if (\$(this).hasClass('$entity_class_model_func_call')) {"
+    , "\n          isFuncBodyHasModelFuncCall = true;"
+    , "\n        }"      
+    , "\n      });"    
+    , "\n      if (!isFuncBodyHasModelFuncCall) {"
+    , "\n        if (\$(this).css('display') != 'none') {"
+    , "\n          \$('#' + \$(this).attr('id') + 'ShowHide').click();"
+    , "\n        }" 
+    , "\n      }"
+    , "\n    });"
+    , "\n    \$(this).html('Show $entity_class_intellectual_func_body_name');"
+    , "\n  }, function() {"
+    , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"  
+    , "\n      var isFuncBodyHasModelFuncCall = false;"
+    , "\n      \$(this).children('div').each(function() {"
+    , "\n        if (\$(this).hasClass('$entity_class_model_func_call')) {"
+    , "\n          isFuncBodyHasModelFuncCall = true;"
+    , "\n        }"      
+    , "\n      });"    
+    , "\n      if (!isFuncBodyHasModelFuncCall) {"
+    , "\n        if (\$(this).css('display') == 'none') {"
+    , "\n          \$('#' + \$(this).attr('id') + 'ShowHide').click();"
+    , "\n        }"  
+    , "\n      }"
+    , "\n    });"
+    , "\n    \$(this).html('Hide $entity_class_intellectual_func_body_name');"
+    , "\n  });"
+    , "\n});"
+    , "\n</script>"
+    , "\n<a id='${entity_class_intellectual_func_body}ShowHide' href='#'>Hide $entity_class_intellectual_func_body_name</a>");   
+  print($file_report_out 
+    "\n</div>");
+  
+  # Make defaults for global show/hide.  
+  # At the beginning reset all show/hide checkbox since they are stored for the
+  # session.
+  print($file_report_out 
+    "\n<script type='text/javascript'>"
+    , "\n\$(document).ready(function() {"
+    , "\n  \$('#ETVErrorTraceHeader input:checkbox').attr('checked', true);"
+    , "\n});"
+    , "\n</script>");
+
+  foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
+  {
+    print($file_report_out 
+      "\n<script type='text/javascript'>"
+      , "\n\$(document).ready(function() {"
+      , "\n  \$('#${show_hide_global{$order}{'class'}}Menu').change().attr('checked', false);"
+      , "\n});"
+      , "\n</script>") 	  	  
+      if (!$show_hide_global{$order}{'show'});
   }
   
-  # Print tree recursively.	
-  print($file_report_out "<br>\n");
+  # Print error trace tree recursively.	
+  print($file_report_out  
+    "\n    <div id='ETVErrorTrace'>");
   print_error_trace_node_blast($tree_root, 0);
+  print($file_report_out  
+    "\n    </div>");
 }
 
 sub print_error_trace_node_blast($$)
@@ -607,29 +672,29 @@ sub print_error_trace_node_blast($$)
   # This title will be shown for all major entities.
   my $title = "$src:$line";
   # Process special model and driver environment comments.
-  my $class_extra = '';
+  my $class = '';
   if (my $model_comment = $ldv_model_comments{$entity_src}{($line - 1)})
   {
 	my %model_comment = %{$model_comment};  
     $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
-    $class_extra .= " ETVModelAssert"
+    $class = $entity_class_model_assert
       if ($model_comment{'alias'} eq $ldv_model_comment_assert);  
-    $class_extra .= " ETVModelChangeState"
+    $class = $entity_class_model_change_state
       if ($model_comment{'alias'} eq $ldv_model_comment_change_state);
-    $class_extra .= " ETVModelReturn"
+    $class = $entity_class_model_return
       if ($model_comment{'alias'} eq $ldv_model_comment_return);
-    $class_extra .= " ETVModelFuncCall"
+    $class = $entity_class_model_func_func_call
       if ($model_comment{'alias'} eq $ldv_model_comment_func_call);   
-    $class_extra .= " ETVModelOther"
+    $class = $entity_class_model_other
       if ($model_comment{'alias'} eq $ldv_model_comment_other);            
   }
   elsif (my $driver_env_comment = $ldv_driver_env_comments{$entity_src}{($line - 1)})
   {
 	my %driver_env_comment = %{$driver_env_comment};  
     $title .= ": Driver environment " . $driver_env_comment{'alias'} . " - " . $driver_env_comment{'comment'};
-    $class_extra .= " ETVDriverEnvInit"
+    $class = $entity_class_driver_env_init
       if ($driver_env_comment{'alias'} eq $ldv_driver_env_comment_var_init);
-    $class_extra .= " ETVDriverEnvFunctionCall"
+    $class = $entity_class_driver_env_func_call
       if ($driver_env_comment{'alias'} eq $ldv_driver_env_comment_func_call);
   }
     
@@ -654,11 +719,11 @@ sub print_error_trace_node_blast($$)
   # Print tree node declaration.
   if ($tree_node->{'kind'} eq 'Root')
   {
-    print($file_report_out "\n<div class='ETVEntryPoint $class_extra' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='$entity_class_entry_point' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
     print($file_report_out "entry_point()", ";</div>");
-    print($file_report_out "\n<div class='ETVEntryPointBody $class_extra' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='$entity_class_entry_point_body' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
   }
@@ -676,7 +741,7 @@ sub print_error_trace_node_blast($$)
 	  if ($ldv_model_func_def{$func_name})
 	  {
         print_debug_debug("Find the model function '$func_name'");
-		$class_extra .= " ETVModelFuncCall";
+		$class = $entity_class_model_func_call;
 		
 		# Try to get corresponding model comment.
 		if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$func_name}{'src'}}{$ldv_model_func_def{$func_name}{'line'}})
@@ -695,7 +760,9 @@ sub print_error_trace_node_blast($$)
 	  print_debug_warning("Can't find the function name in '$val'");
 	}
     
-    print($file_report_out "\n<div class='ETVFunctionCall $class_extra' title='$title' id='ETV", ($html_id++), "'>");
+    $class = $entity_class_func_call unless ($class);
+    
+    print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
 
@@ -721,25 +788,46 @@ sub print_error_trace_node_blast($$)
 	}
 
     $val =~ s/(\/\*[^\*\/]*\*\/)/<span class='ETVFunctionFormalParamName'>$1<\/span>/g;
-
+    
     print($file_report_out $val, ";</div>");
-    print($file_report_out "\n<div class='ETVFunctionBody $class_extra' id='ETV", ($html_id++), "'>");
+    
+    my $class_body = $entity_class_func_body;
+    
+    if ($class eq $entity_class_model_func_call)
+    {
+	  $class_body = $entity_class_model_func_body;
+	}
+	elsif ($class eq $entity_class_model_func_func_call)
+	{
+      $class_body = $entity_class_model_func_func_body;
+	}
+	elsif ($class eq $entity_class_driver_env_init)
+	{
+      $class_body = $entity_class_driver_env_init;
+	}
+	elsif ($class eq $entity_class_driver_env_func_call)
+	{
+	  $class_body = $entity_class_driver_env_func_body;
+	}
+    
+    print($file_report_out "\n<div class='$class_body' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{<br>");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
-    print($file_report_out "\n<div class='ETVFunctionCallInitialization $class_extra' title='$title' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='$entity_class_func_call_init' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id"); 
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
-    print($file_report_out "\n<div class='ETVFunctionInitializationBody $class_extra' id='ETV", ($html_id++), "'>");
+    print($file_report_out "\n<div class='$entity_class_func_body_init' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out "{");    
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
   {
-    print($file_report_out "\n<div class='ETVFunctionCallWithoutBody $class_extra' title='$title' id='ETV", ($html_id++), "'>");
+	$class = $entity_class_func_call_without_body unless ($class);  
+    print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
   }
@@ -747,7 +835,8 @@ sub print_error_trace_node_blast($$)
   {
 	# Split expressions joined together into one block.
 	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
-	print($file_report_out "\n<div class='ETVBlock $class_extra' title='$title' id='ETV", ($html_id++), "'>");
+	$class = $entity_class_block unless ($class);
+	print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
 	my $isshow_hide = 1;
 	$isshow_hide = 0 unless (scalar(@exprs) > 1);
 	
@@ -759,7 +848,7 @@ sub print_error_trace_node_blast($$)
 	  
 	  if ($isshow_hide)
 	  {
-	    print($file_report_out "\n<span class='ETVBlockContinue $class_extra' id='ETV", ($html_id++), "'>");
+	    print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
 		$isshow_hide = 0;
 	  }
     }
@@ -771,15 +860,18 @@ sub print_error_trace_node_blast($$)
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
-    print($file_report_out "\n<div class='ETVReturn $class_extra' title='$title' id='ETV", ($html_id++), "'>");
+	$class = $entity_class_return unless ($class);  
+    print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "return ", "<span class='ETVReturnValue $class_extra'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
+    print($file_report_out "return ", "<span class='$entity_class_return_val'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
   }
   elsif ($tree_node->{'kind'} eq 'Pred')
   {
-    print($file_report_out "\n<div class='ETVAssert $class_extra' title='$title' id='ETV", ($html_id++), "'>");
+	$class = $entity_class_assert 
+	  unless ($class eq $entity_class_model_assert);  
+    print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "assert(", "<span class='ETVAssertCondition $class_extra'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
+    print($file_report_out "assert(", "<span class='$entity_class_assert_cond'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
   }
       
   # Print all tree node children with enlarged indentation.
@@ -813,12 +905,21 @@ sub print_spaces($)
   print($file_report_out "<span class='ETVLineNumber'>");
   if ($entity_line and $entity_src)
   {
-	# Generate a link to the source code line if so.  
-	print($file_report_out "<a href='#". convert_file_to_link($files_long_name{$entity_src}) . ":$entity_line'>")
-	  if ($files_long_name{$entity_src});  
-    printf($file_report_out "%5d ", $entity_line);
-    print($file_report_out "</a>")
-	  if ($files_long_name{$entity_src});
+	# Generate a link to the source code line if so.
+    my $entity_line_str = sprintf("%5d ", $entity_line);
+	
+	if ($files_long_name{$entity_src})
+	{
+  	  my $file_link = convert_file_to_link($files_long_name{$entity_src});
+	
+	  $entity_line_str =~ s/(\d+)/<a href='#$file_link:$entity_line'>$1<\/a>/;	
+	  print($file_report_out $entity_line_str)
+    }
+    else
+    {
+	  print($file_report_out $entity_line_str);
+	}
+	
     $entity_line = 0;
     $entity_src = '';
   }
@@ -829,7 +930,7 @@ sub print_spaces($)
   print($file_report_out "</span>");
     
   # Print identation spaces.
-  print($file_report_out "<span class='ETVIdentation'>");
+  print($file_report_out "<span class='$entity_class_ident'>");
   
   for (my $i = 1; $i <= $space_number; $i++)
   {
@@ -846,27 +947,27 @@ sub print_show_hide_global($$)
   
   print($file_report_out 
     "\n<script type='text/javascript'>"
-    , "\n\$(document).ready"
-    , "\n("
-    , "\n  function()"
-    , "\n  {"
-    , "\n    \$('a.#${entity_class}ShowHide').toggle"
-    , "\n    ("
-    , "\n      function()"
-    , "\n      {"
-    , "\n        \$('.$entity_class').hide();"
-    , "\n        \$(this).html('Show $entity_class_human_readable');"
+    , "\n\$(document).ready(function() {"
+    , "\n  \$('a.#${entity_class}ShowHide').toggle(function() {"
+    , "\n    \$('.$entity_class').each(function() {"
+    , "\n      if (\$(this).css('display') != 'none') {"
+    , "\n        \$(this).hide();"
+    , "\n        \$('#' + \$(this).attr('id') + 'ShowHide').click();"
     , "\n      }"
-    , "\n      , function()"
-    , "\n      {"
-    , "\n        \$('.$entity_class').show();"
-    , "\n        \$(this).html('Hide $entity_class_human_readable');"
+    , "\n    });"
+    , "\n    \$(this).html('Show $entity_class_human_readable');"
+    , "\n  }, function() {"
+    , "\n    \$('.$entity_class').each(function() {"
+    , "\n      if (\$(this).css('display') == 'none') {"
+	, "\n      	 \$(this).show();"
+    , "\n        \$('#' + \$(this).attr('id') + 'ShowHide').click();"
     , "\n      }"
-    , "\n    );"
-    , "\n  }"
-    , "\n);"
+    , "\n    });"
+    , "\n    \$(this).html('Hide $entity_class_human_readable');"
+    , "\n  });"
+    , "\n});"
     , "\n</script>"
-    , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>\n"); 
+    , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>"); 
 }
 
 sub print_show_hide_local($)
@@ -874,28 +975,7 @@ sub print_show_hide_local($)
   my $entity_id = shift;
   
   print($file_report_out 
-    "<script type='text/javascript'>"
-    , "\n\$(document).ready"
-    , "\n("
-    , "\n  function()"
-    , "\n  {"
-    , "\n    \$('a.#${entity_id}ShowHide').toggle"
-    , "\n    ("
-    , "\n      function()"
-    , "\n      {"
-    , "\n        \$('#$entity_id').hide();"
-    , "\n        \$(this).html('+');"
-    , "\n      }"
-    , "\n      , function()"
-    , "\n      {"
-    , "\n        \$('#$entity_id').show();"
-    , "\n        \$(this).html('-');"
-    , "\n      }"
-    , "\n    );"
-    , "\n  }"
-    , "\n);"
-    , "\n</script>"
-    , "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n"); 	
+    "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n"); 	
 }
 
 sub process_error_trace()
@@ -1315,20 +1395,35 @@ sub read_location($)
 sub visualize_error_trace($)
 {
   my $tree_root = shift;
-
+  
+  # Print javascript global variables at the beginning.
+  print($file_report_out
+      "\n<script type='text/javascript'>"
+    , "\n  var tabNoActiveWidth;"
+    , "\n</script>");
+      
   # Print simple tab plugin before its usage.
   print($file_report_out
       "\n<script type='text/javascript'>"
     , "\n  \$(document).ready(function() {"
+    , "\n    var tabsNumb = \$('#ETVTabsHeader li').length;"
+    , "\n    var tabsHeaderWidth = \$('#ETVTabsHeader li:first').parent().width();"
     , "\n    \$('#ETVTabs div').hide();"
     , "\n    \$('#ETVTabs div:first').show();"
-    , "\n    \$('#ETVTabs span:first').addClass('ETVActive');"
-    , "\n    \$('#ETVTabs span a').click(function() {"
-    , "\n      \$('#ETVTabs span').removeClass('ETVActive');"
-    , "\n      \$(this).parent().addClass('ETVActive');"
-    , "\n      var currentTab = \$(this).attr('href');"
+    , "\n    \$('#ETVTabsHeader li:first').addClass('ETVActive');"
+    , "\n    var tabActiveWidth = \$('#ETVTabsHeader li.ETVActive').width();"
+    , "\n    tabNoActiveWidth = (tabsHeaderWidth - tabActiveWidth - 2) / (tabsNumb - 1);"
+    , "\n    tabNoActiveWidth = Math.floor(tabNoActiveWidth) - 2;"
+    , "\n    \$('#ETVTabsHeader li').not('.ETVActive').width(tabNoActiveWidth);"
+    , "\n    \$('#ETVTabsHeader li a').click(function() {"
+    , "\n      \$('#ETVTabsHeader li').removeClass('ETVActive');"
+    , "\n      \$(this).parent().removeAttr('style').addClass('ETVActive');"
+    , "\n      \$('#ETVTabsHeader li').not('.ETVActive').width(tabNoActiveWidth);"
+    , "\n      var currentLink = \$(this).attr('href');"
+    , "\n      var linkPosition = currentLink.lastIndexOf('#');"
+    , "\n      currentTabShort = currentLink.substring(linkPosition);"
     , "\n      \$('#ETVTabs div').hide();"
-    , "\n      \$(currentTab).show();"
+    , "\n      \$(currentTabShort).show();"
     , "\n      return false;"
     , "\n    });"
     , "\n  });"
@@ -1339,43 +1434,83 @@ sub visualize_error_trace($)
       "\n<script type='text/javascript'>"
     , "\n  \$(document).ready(function() {"
     , "\n    \$('.ETVLineNumber a').click(function() {"
-    , "\n      \$('#ETVTabs span').removeClass('ETVActive');"
-    , "\n      var currentTab = \$(this).attr('href');"
-    , "\n      var linePosition = currentTab.lastIndexOf(':');"
-    , "\n      currentTab = currentTab.substring(0, linePosition);"
+    , "\n      \$('#ETVTabs ul li').removeClass('ETVActive');"
+    , "\n      var currentLink = \$(this).attr('href');"
+    , "\n      var linkPosition = currentLink.lastIndexOf('#');"
+    , "\n      var linePosition = currentLink.lastIndexOf(':');"
+    , "\n      currentTab = currentLink.substring(0, linePosition);"
+    , "\n      currentTabShort = currentLink.substring(linkPosition, linePosition);"
+    , "\n      currentLineShort = currentLink.substring(linkPosition);"
     , "\n      \$('#ETVTabs div').hide();"
-    , "\n      \$('#ETVTabs span a[href=' + currentTab + ']').parent().addClass('ETVActive');"
-    , "\n      \$(currentTab).show();"
-    , "\n      \$('a').removeClass('ETVMarked');"
-    , "\n      \$('a[name=' + \$(this).attr('href').substring(1) + ']').addClass('ETVMarked');"
+    , "\n      \$('#ETVTabsHeader li a[href=' + currentTabShort + ']').parent().removeAttr('style').addClass('ETVActive');"
+    , "\n      \$('#ETVTabsHeader li').not('.ETVActive').width(tabNoActiveWidth);"
+    , "\n      \$(currentTabShort).show();"
+    , "\n      \$('#ETVTabs div span').removeClass('ETVMarked');"
+    , "\n      var srcStr = \$('a[name=' + currentLineShort.substring(1) + ']').parent();"
+    , "\n      srcStr.addClass('ETVMarked');"
+    , "\n      srcStr.parent().scrollTop(0).scrollTop(srcStr.position().top - srcStr.parent().position().top - 50);"
+    , "\n      return false;"
     , "\n    });"
     , "\n  });"
-    , "\n</script>");  
+    , "\n</script>");
+
+  # Print local show/hide plugin.
+  print($file_report_out 
+      "\n<script type='text/javascript'>"
+    , "\n\$(document).ready(function() {"
+    , "\n    \$('a.ETVShowHide').toggle(function() {"
+    , "\n        var entityId = \$(this).attr('id');"
+    , "\n        entityId = entityId.substring(0, entityId.lastIndexOf('ShowHide'));"
+    , "\n        \$('#' + entityId).hide();"
+    , "\n        \$(this).html('+');"
+    , "\n      } , function() {"
+    , "\n        var entityId = \$(this).attr('id');"
+    , "\n        entityId = entityId.substring(0, entityId.lastIndexOf('ShowHide'));"
+    , "\n        \$('#' + entityId).show();"
+    , "\n        \$(this).html('-');"
+    , "\n    });"
+    , "\n  });"
+    , "\n</script>");
+
+  # Print short ETV help. 
+  print($file_report_out 
+      "\n  <div class='ETVHelp'>"
+    , "\n    <p>Here is the <i>explanation</i> of the rule violation arisen in your driver for the corresponding kernel.</p>"
+    , "\n    <p>Note that there may be <i>no</i> error indeed. Please <i>see</i> on error trace and source code to <i>understand</i> whether there is an error in your driver.</p>"
+    , "\n    <p>The <b>Error trace</b> column contains the <i>path</i> on which rule is violated. You can choose some <i>entity classes</i> to be <i>shown</i> or <i>hiden</i> by clicking on the corresponding <i>checkboxes</i> or in the advanced <i>Others</i> menu. Also you can <i>show</i> or <i>hide</i> each <i>particular entity</i> by clicking on the corresponding <i>-</i> or <i>+</i>. In <i>hovering</i> on some <i>entities</i> you can see their <i>descriptions</i> and <i>meaning</i>. Also the <i>error trace</i> is binded with the <i>source code</i>. <i>Line numbers</i> are shown as <i>links</i> on the left. You can <i>click</i> on them to open the <i>corresponding line</i> in <i>source code</i>. <i>Line numbers</i> and <i>file names</i> are shown in <i>entity descriptions</i>.</p>"
+    , "\n    <p>The <b>Source code</b> column contains <i>content</i> of <i>files related</i> with the <i>error trace</i>. There are your <i>driver</i> (<i>note</i> that there are some <i>our modifications</i> at the end), <i>kernel headers</i> and <i>rule</i> source code. <i>Tabs</i> show the currently opened file and other available files. In <i>hovering</i> you can see <i>file names</i> in <i>titles</i>. On <i>clicking</i> the corresponding <i>file content</i> will be shown.</p>"
+    , "\n  </div>");
 
   # Create the table having two cells. The first cell is for the error trace and
   # the second is for the tabed source code. 
   print($file_report_out 
-      "\n<table class='ETVGeneralWindow'>"
+      "\n<table id='ETVGeneralWindow'>"
     , "\n<tr>"
-    , "\n  <td class='ETVErrorTraceWindow'>"
-    , "\n    <div class='ETVErrorTrace'>");
+    , "\n  <td id='ETVErrorTraceWindow'>"
+    , "\n    <div class='ETVTableColumnHeader'>"
+    , "\n      Error trace"
+    , "\n    </div>");
   print_error_trace($tree_root);
-  print($file_report_out 
-      "\n    </div>"
-    , "\n  </td>"
-    , "\n  <td class='ETVSrcWindow'>"
-    , "\n    <div id='ETVTabs'>");
+  print($file_report_out
+      "\n  </td>"
+    , "\n  <td id='ETVSrcWindow'>"
+    , "\n    <div class='ETVTableColumnHeader'>"
+    , "\n      Source code"
+    , "\n    </div>"
+    , "\n    <div id='ETVTabs'>"
+    , "\n      <ul id='ETVTabsHeader'>");
   foreach my $src (sort(keys(%srcs)))
   {
     print($file_report_out 
-      "\n      <span><a href='#" . convert_file_to_link($src) . "'>$files_short_name{$src}</a></span>");
+      "\n        <li><a title='$files_short_name{$src}' href='#" . convert_file_to_link($src) . "'>$files_short_name{$src}</a></li>");
   }
-  
+  print($file_report_out 
+      "\n      </ul>");
+        
   foreach my $src (sort(keys(%srcs)))
   {    
     print($file_report_out 
-      "\n      <div id='" . convert_file_to_link($src) . "'>"
-    , "\n        <pre class='ETVSrcFile'>");
+      "\n      <div id='" . convert_file_to_link($src) . "' class='ETVSrc'>");
     
     # Make syntax highlighting of the source code.
     my $syntax_highlighter = new Text::Highlight('colors' => $syntax_colors, wrapper => "%s");
@@ -1385,14 +1520,14 @@ sub visualize_error_trace($)
     my $line_numb = 1;
     foreach my $line (@src_highlighted)
     {
-	  printf($file_report_out "<span class='ETVLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'>%5d </a></span>", $line_numb);
-	  print($file_report_out "$line\n");
+	  printf($file_report_out "<span class='ETVSrcLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'></a>%5d </span>", $line_numb);
+	  print($file_report_out "$line");
 	  $line_numb++;
+	  print($file_report_out "\n") if ($line_numb <= scalar(@src_highlighted));
 	}
     
     print($file_report_out
-      "\n        </pre>"
-    , "\n      </div>");
+      "\n      </div>");
   }
   
   print($file_report_out 

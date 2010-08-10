@@ -1,4 +1,5 @@
 <?php
+print '<div id="ldv_layer">';
 require_once("ldv/include/include.php");
 
 function html($text)
@@ -30,13 +31,24 @@ function request_var($name, $default=NULL, $row=NULL)
                 $var = $default;
         return $var;
 }
-
+/*
 function myself() {
+    return $_SERVER['PHP_SELF'];
+}*/
+
+
+function short_myself() {
     return $_SERVER['PHP_SELF'];
 }
 
 function getservname() {
     return 'http://'.$_SERVER['SERVER_NAME'];
+}
+
+
+
+function myself() {
+	return getservname().short_myself();
 }
 
 function getlddv() {
@@ -48,7 +60,7 @@ function view_main_page() {
 }
 
 
-function view_header() {
+function view_header($action) {
 	?>
 		<style type="text/css">
 		BODY {
@@ -59,11 +71,25 @@ function view_header() {
 		<!--<div style="width: 100%; height: 20px; background: #666666;">
 			<span style="font-style: bold; color: #E8E8E8; font-size: 80%;">&nbsp;&nbsp;LDV Online 83.149.198.16</span>
 		</div> -->
+		<?php
+			$upload_style = $history_style = $rules_style = 'LDVMenuItem';
+			if ($action == "upload")
+			{
+				$upload_style = 'LDVMenuItemActive';
+			}
+			if ($action == "get_history")
+			{
+				$history_style = 'LDVMenuItemActive';
+			}
+			if ($action == "rules")
+			{
+				$rules_style = 'LDVMenuItemActive';
+			}
+		?>
 		<div class="mini_menu">
-
-
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=get_history"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;history</span></a>
-			<a style="text-decoration: none;" href="<?php print myself(); ?>?action=upload"><span style="font-style: bold; color: #9999FF; font-size: 130%;">&nbsp;&nbsp;upload</span></a> 
+			<a href="<?php print myself(); ?>?action=upload"><span class="<?php print $upload_style; ?>">Start Verification</span></a>&nbsp;&nbsp;
+			<a href="<?php print myself(); ?>?action=get_history"><span class="<?php print $history_style; ?>">Verification History</span></a>&nbsp;&nbsp;
+			<a href="<?php print myself(); ?>?action=rules"><span class="<?php print $rules_style; ?>">Rules</span></a>
 		</div>
 	<?php	
 }
@@ -74,11 +100,12 @@ function view_upload_driver_form() {
 		print '<b><font color="red">File size can\'t be greater than '.WS_MAX_DRIVER_SIZE.' bytes.</font></b><br>';
 	}*/
 	?>
-	<form action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Start verification !</span>
-	</p>
+	<form class='LDVOnlineForm' action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+		<span style="font-style: bold; color: black; font-size: 150%;">Start Verification</span>
+	</div>
 
+	<div style="margin: 10px 15px 10px 10px;">
         <h4>1.  Ensure that drivers satisfy the following requirements:</h4>
                 <ul>
                 <li> The driver is archived using gzip or bzip2 and has one of the following extensions: .tar.bz2, tar.gz, .tgz</li>
@@ -91,12 +118,13 @@ function view_upload_driver_form() {
         <h4>2. Upload driver. </h4>
         <h4>3. Wait for results.</h4>
         </ul>
+	</div>
 	        <p>
 	                <label><br />
 	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
 	        </p>
 	        <p class="submit">
-	                <input type="submit" name="submit" id="wp-submit" class="button-primary" value="Start verification!" tabindex="100" />
+	                <input type="submit" name="submit" id="wp-submit" class="button-primary" value="Start Verification" tabindex="100" />
 	        </p>
 		    	<input type='hidden' name="action" value="upload_driver">
 	</form>
@@ -147,17 +175,45 @@ function action_upload_driver() {
 	}
 }
 
+function view_rules() {
+	?>
+	<form class='LDVOnlineForm'>
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+		<span style="font-style: bold; color: black; font-size: 150%;">Rules</span>
+	</div>
+	<div style="margin: 10px 15px 10px 10px;">
+		<span>This page contains the list of verified rules. You can see more detailed information on them by clicking on the corresponding rule name.</span>
+	<br><br>
+	<?php
+	$models = WSGetSupportedModels();
+    $models_info = array();
+    foreach ($models as $model)
+    {
+	  $models_info[$model] = WSGetRuleInfoByLDVIdent($model);
+	}
+	foreach ($models_info as $model_info)
+	{
+	?>
+  	  <a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $model_info['ID']; ?>"><?php echo $model_info['NAME']; echo '<br>' ?></a>
+	<?php
+	}
+	?>
+	</div>
+	</form>
+	<?php
+}
+
 function view_user_history() {
 	$history = WSGetHistory();
 	$i=1;
 	?>
-	<form>
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;">Verification history:</span>
-	</p>
-	<p>
-		<span>You may see more detailed information about your verification task by clicking on the corresponding driver name.</span>
-	</p>
+	<form class='LDVOnlineForm'>
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+		<span style="font-style: bold; color: black; font-size: 150%;">Verification History</span>
+	</div>
+	<div style="margin: 10px 15px 10px 10px;">
+		<span>You can see more detailed information about your verification task by clicking on the corresponding driver name.</span>
+	</div>
 	
 	<table width="100%" border="1" style="border-collapse: collapse;">
 		<tr>
@@ -180,21 +236,95 @@ function view_user_history() {
 }
 
 function view_detailed_report($trace_id, $trace_type, $number) {
-	if($trace_type == 'kernel') {
+	if ($trace_type == 'kernel') {
 		$trace = WSGetDetailedBuildError($trace_id);
-		$etheader = 'Task: '.$number.', build error trace for driver: '.$trace['drivername'].' and kernel: '.$trace['env'];
 	} else {
-		$trace = WSGetDetailedReport($trace_id);
-		$etheader = 'Task: '.$number.', error trace for driver: '.$trace['drivername'].'';
+		$trace = WSGetDetailedReport($trace_id,myself().'?action=detailed_report&trace_id='.$trace_id.'&number='.$number);
 	}
-	?>
-	<form>
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print $etheader; ?></span>
-	</p>
-	<?php print $trace['error_trace'];?>	
-	</form>
+	// remove drupal sidebars:
+//
+//	ldv=$("#ldv_layer").detach();
+//	ldv.insertBefore("#footer");
+
+//
+//		$("#ldv_layer").insertBefore("#footer");
+  //                      $('.columns').remove();
+
+  /*      <script type="text/javascript">
+                $(document).ready(function() {
+			$('body').hide();
+			$('#ldv_layer').insertBefore(".columns");
+                        $('.columns').remove();
+                        $('.footer').remove();
+			$('body').show();
+                });
+        </script>*/
+?>
+		<style type="text/css">
+		        #sidebar-left {
+		                display: none;
+		        }
+			.footer {
+				display: none;
+			}
+/*			.centerpadding {	
+				padding-left: 0px;
+			}*/
+			.main-content .node {
+				margin: 0px 0px 0px 0px;
+			}
+			.main-content .node .content {
+				padding: 0px 0px 0px 0px;
+
+			}
+		        .centercolumn {
+		                margin-left: 0px;
+		                width: 980px;
+		        }
+	</style>
+
+
+
+		<?php if($trace_type == 'kernel') { ?>
+		<form class='LDVOnlineForm'>
+        	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+			<span style="font-style: bold; color: black; font-size: 150%;">Build Error Trace</span>
+	       	</div>
+        	<div style="margin: 10px 15px 10px 10px;">
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $trace['drivername']?></span><br>
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel: </strong><?php echo $trace['env']?></span>
+	       	</div>
+
+		<div style="margin: 10px 15px 10px 10px;">
+			<?php print $trace['error_trace'];?>	
+      		</div>
+		</form>
+		<?php } else { ?>
+		<form class='LDVOnlineForm'>
+		<div id="err_trace">
+		 	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+				<span style="font-style: bold; color: black; font-size: 150%;">Rule violation</span>
+		       	</div>
+	        	<div style="margin: 10px 15px 10px 10px;">
+				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $trace['drivername']?></span><br>
+				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel: </strong><?php echo $trace['env']?></span><br>
+				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Rule: </strong><?php $rule_info = WSGetRuleInfoByLDVIdent($trace['rule']); echo $rule_info['NAME'];?></span>
+		       	</div>
+	
+			<div style="margin: 10px 15px 10px 10px;">
+				<?php print $trace['error_trace'];?>	
+	      		</div>
+		</div>
+		</form>
+		<?php } ?>
+
+
 	<?php
+
+		//	p.insertBefore('.footer');
+                  //      $('.columns').remove();
+                       // $('.columns').remove();
+
 }
 
 function view_task_status($task_id,$number) {
@@ -210,24 +340,39 @@ function view_task_status($task_id,$number) {
 	// jQuery UI framework
 	?>	
 	
-	<form>
-	<p>
-	<p>
-	<span style="font-style: bold; color: #686868; font-size: 150%;"><?php print 'Task '.$number.', driver: '.$status['drivername'].' ('.$status['timestamp'].')'; ?></span>
-	</p>
-	<p>
+	<form class='LDVOnlineForm'>
+
+	<div style="margin: 10px 15px 10px 10px; text-align: left;">
+        	<span style="font-style: bold; color: black; font-size: 150%;">Verification Report</span>
+        </div>
+        <div style="margin: 10px 15px 10px 10px;">
+        	<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $status['drivername']?></span><br>
+                <span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Timestamp: </strong><?php echo $status['timestamp']?></span>
+	</div>
+        <div style="margin: 20px 40px 25px 10px;">
         You can see <b>verification verdict</b> for each rule and linux kernel. Verdict may be:
         <ul>
-                <li><i>Safe</i> - there is no mistakes for the given linux kernel and rule.</li>
-                <li><i>Unsafe</i> - driver may contain an error. You may see the error trace by clicking on the "Unsafe" link for the corresponding linux kernel and rule.</li>
-                <li><i>Build failed</i> - your driver is not compatible with the given linux kernel. In this case you may see the compile error trace by clicking on the "more details" link.</li>
-                <li><i>Unknown</i> - tools can not determine whether your driver <i>Safe</i> or <i>Unsafe</i>.</li>
-                <li><i>Queued</i> - the driver waits for the turn to verification</i>.</li>
+                <li><i><strong><font color="green">Safe</font></strong></i> - there is no mistakes for the given linux kernel and rule.</li>
+                <li><i><strong><font color="red">Unsafe</font></strong></i> - driver may contain an error. You can see the error trace by clicking on the "Unsafe" link for the corresponding linux kernel and rule.</li>
+                <li><i><strong><font color="red">Build failed</font></strong></i> - your driver is not compatible with the given linux kernel. In this case you may see the compile error trace by clicking on the "more details" link.</li>
+                <li><i><strong><font color="#CCCC00">Unknown</font></strong></i> - tools can not determine whether your driver <i>Safe</i> or <i>Unsafe</i>.</li>
+                <li><i><strong><font color="black">Queued</font></strong></i> - the driver waits for the turn to verification</i>.</li>
         </ul>
-	</p>
+	</div>
 	<?php if($status['status'] != 'finished') { ?>
 	<META HTTP-EQUIV="refresh" CONTENT="10; URL=<?php print myself(); ?>?action=get_status&task_id=<?php print $task_id; ?>&number=<?php print $number;?>">
 	<?php } ?>
+
+
+	<style>
+		.ui-progressbar-indicator{
+			line-height:	30px;
+			position:	absolute;
+			text-indent:	0px;
+			left:		45%;
+		}
+	</style>
+
 
 	<script>
   		$(document).ready(function(){
@@ -257,15 +402,14 @@ function view_task_status($task_id,$number) {
 
 	</script>
 
-
-
 	<?php $index=0 ?>
 	<p>
 	<?php if($status['status'] != 'finished') { ?>
-	<p>
-		<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span>
+        <div style="margin: 25px 15px 16px 10px;">
+	<!--	<span style="font-style: bold; color: #686868; font-size: 110%;"><?php print $status['progress']; ?>%</span> -->
+		<div class="ui-progressbar-indicator"><strong><span style="color: #114477"><?php print $status['progress'].'%'; ?></span></strong></div>
 		<div id="progressbar"></div>
-	</p> 
+	</div>
 	<?php } ?> 
 	<table id="results" name="results_table" width="100%" border="1" style="border-collapse: collapse;">
 		<?php foreach($status['envs'] as $env) { ?>	
@@ -273,7 +417,7 @@ function view_task_status($task_id,$number) {
 			<?php if($env['status']=='Build failed') { ?>
 				<th COLSPAN=2 bgcolor="#FF6666"><strong><?php print $env['name']; ?>&nbsp;- build failed &nbsp;</strong><a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $env['launch_id']; ?>&trace_type=kernel&number=<?php print $number;?>"><font color="black">(more details...)</font></a></th>
 			<?php } else { ?>
-				<th COLSPAN=2   bgcolor="#CCCCFF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
+				<th COLSPAN=2 bgcolor="#9999FF"><span><font color="black"><?php print $env['name']; ?></font></span></th>
 			<?php } ?>
 		</tr>
 		<?php if($env['status']!='Build failed') { ?>
@@ -291,14 +435,13 @@ function view_task_status($task_id,$number) {
 						 <div>
 							<div style="margin-left:10px; margin-top: 5px; margin-bottom: 7px;">
 							<?php print $rule['summary']; ?>
-							<a href="#0"><strong>more information...</strong></a>
 							<a href="<?php print myself(); ?>?action=show_rule&rule_id=<?php print $rule['rule_id']; ?>">More information...</a>
 							</div>
 						</div>
 					</td>
 
 
-			<td align="center" style="background: #EFEFFF;">Queued</td>
+			<td align="center" style="background: #EFEFFF;"><span title="The driver waits for the turn to verification.">Queued</span></td>
 			</tr>	
 			<?php } else if($rule['status'] == 'running') { ?>
 			<tr>
@@ -356,13 +499,13 @@ function view_task_status($task_id,$number) {
 					<?php } ?>
 					<?php if($result['status'] == 'unsafe') { ?> 
 					<td bgcolor="#FF6666" align="center">
-						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>&number=<?php print $number;?>"><font color="black">Unsafe</font></a>
+						<a href="<?php print myself(); ?>?action=detailed_report&trace_id=<?php print $result['trace_id']; ?>&number=<?php print $number;?>"><font title="Driver may contain an error." color="black">Unsafe</font></a>
 					<?php } else if($result['status']=='safe') { ?>
 					<td bgcolor="#66CC33" align="center">
-						<font color="black">Safe</font>
+						<font title="There is no mistakes for the given linux kernel and rule.." color="black">Safe</font>
 					<?php } else { ?>
 					<td bgcolor="yellow" align="center">
-						<font color="black">Unknown</font>
+						<font title="Tools can not determine whether your driver Safe or Unsafe." color="black" title="sss">Unknown</font>
 					<?php } ?>
 					</td>
 				</tr>		
@@ -379,7 +522,7 @@ function view_task_status($task_id,$number) {
 
 function view_rule_by_number($rule_id) {
 	$rule = WSGetRuleByNumber($rule_id);
-    print '<form>';
+    print '<form class=\'LDVOnlineForm\'>';
 	print '<p><b>'.$rule['ID'].'</b></p>';
     print '<p><b>'.$rule['TYPE'].'</b></p>';
     print '<p><b>'.$rule['TITLE'].'</b></p>';
@@ -419,13 +562,13 @@ $exit=false;
 
 
 
-view_header();
+view_header($action);
 /**
  * 
  *  Configuration file
  *
  */ 
-WSInit(PATH_TO_CONF);
+WSInit("/home/mutilin/ldv/main/ldv-online/conf/server.conf");
 
 if ($action == "upload" && !$exit)
 {
@@ -438,6 +581,10 @@ else if ($action == "upload_driver" && !$exit)
 else if ($action == "get_history" && !$exit)
 {
 	view_user_history();
+}
+else if ($action == "rules" && !$exit)
+{
+	view_rules();
 }
 else if ($action == "detailed_report" && !$exit) 
 {
@@ -495,5 +642,7 @@ else
 {
 	view_main_page();
 }
+
+print '</div>';
 
 ?>

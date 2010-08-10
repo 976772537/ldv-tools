@@ -1,5 +1,34 @@
+.mini_menu a
+{
+  outline: none;
+  text-decoration: none;
+}
+
+.mini_menu a:hover
+{
+  color: #722BFF; 
+  outline: none;
+  text-decoration: none;
+}
+
+.LDVMenuItem
+{
+  color: #6666FF; 
+  font-size: 120%; 
+  font-style: normal;
+  font-weight: bold;
+}
+
+.LDVMenuItemActive
+{
+  color: #621AF2; 
+  font-size: 120%; 
+  font-style: normal;
+  font-weight: bold;
+}
+
 	.table_headers {
-		font-style: bold;
+		font-weight: bold;
 		 color: #686868;
 	}	
 

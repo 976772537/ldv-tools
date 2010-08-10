@@ -1,7 +1,7 @@
-form {
-	margin-left:150px;
-	margin-right: 150px;
-	margin-top: 20px;
+.LDVOnlineForm {
+	margin-left:0px;
+	margin-right: 0px;
+	margin-top: 10px;
 	padding:16px 16px 40px 16px;
 	font-weight:normal;
 	-moz-border-radius:11px;
@@ -17,9 +17,9 @@ form {
 }
 
 .mini_menu {
-	margin-left:150px;
-	margin-right: 150px;
-	margin-top: 20px;
+	margin-left: 0px;
+	margin-right: 0px;
+	margin-top: 10px;
 	padding:16px 16px 15px 16px;
 	font-weight:normal;
 	-moz-border-radius:11px;

@@ -1,9 +1,11 @@
 <?php
+//int "<script type=\"text/javascript\" src=\"ldv/js/ldv.js\"></script>";
 // ldv-online theme from old version
 print "<link rel='stylesheet' id='login-css'  href='ldv/styles/ldv.css' type='text/css' media='all' />";
 
 // CSS for Error trace visualizer
 print "<link rel='stylesheet' id='login-css'  href='ldv/styles/etv.css' type='text/css' media='all' />";
+print "<link rel='stylesheet' id='login-css'  href='ldv/styles/etv-linuxtesting.css' type='text/css' media='all' />";
 
 // ldvs form theme (mod from wordpress)
 print "<link rel='stylesheet' id='login-css'  href='ldv/styles/form.css' type='text/css' media='all' />";

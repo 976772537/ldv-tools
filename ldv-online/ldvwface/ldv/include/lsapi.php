@@ -168,6 +168,11 @@ function WSPrintD($string) {
 	WSPrintByLogLevel($string,WS_LL_DEBUG);
 }
 
+function WSPrintW($string) {
+	WSPrintByLogLevel($string,WS_LL_DEBUG);
+}
+
+
 function WSPrintE($string) {
 	WSPrintByLogLevel($string,WS_LL_ERROR);
 }
@@ -194,6 +199,7 @@ function WSPrintByLogLevel($string,$type) {
 }
 
 function WSIsDebug() {
+//	return false;
 	return WS_DEBUG_MODE;
 }
 
@@ -685,7 +691,7 @@ function __WSGetDetailedReport($trace_id) {
 
 
 // TODO: add check for trace type (build error or unsafe)
-function WSGetDetailedReport($trace_id) {
+function WSGetDetailedReport($trace_id, $dbaseurl) {
 	$trace = __WSGetDetailedReport($trace_id);
 	if($trace == null ) return null;
 	$tmpdir = WS_TMP_DIR;
@@ -741,7 +747,7 @@ function WSGetDetailedReport($trace_id) {
 			} else {
 				fwrite($freport, "\n".'-------'.$source['name'].'-------'."\n");
 			}
-			fwrite($freport, $source['content']).'<br>';
+			fwrite($freport, $source['content']);
 		}
 		fclose($freport);
       		chmod($tmpfile_sources, 0666);
@@ -749,8 +755,19 @@ function WSGetDetailedReport($trace_id) {
 		//$etv = $pwd.'/ldv/etv/bin/error-trace-visualizer.pl';
 		WSPrintD(exec('/usr/bin/perl '.WS_ETV.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' --src-files '.$tmpfile_sources.' -o '.$tmpfile));
 		WSPrintT('/usr/bin/perl '.WS_ETV.' --engine '.$trace['verifier'].' --report '.$tmpfile_report.' --src-files '.$tmpfile_sources.' -o '.$tmpfile);
-		chmod($tmpfile, 0666);		
-
+		chmod($tmpfile, 0666);
+		// fix trace for linuxtesting
+		// read report file
+		$f = fopen($tmpfile, "r");
+		$text = fread($f,filesize($tmpfile));
+		fclose($f);	
+		
+		$text = preg_replace('/<a\s+href=\'#(.*)\'>/','<a href=\''.$dbaseurl.'#$1\'>', $text);
+		$text = preg_replace('/<a\s+href=\'#(.*)\'>/','<a href=\''.$dbaseurl.'#$1\'>', $text);
+	
+		$f = fopen($tmpfile, "w");
+		fwrite($f,$text);
+		fclose($f);
 	}
 	// read report :
 	$fh = fopen($tmpfile, "rb");
@@ -771,7 +788,7 @@ function WSGetDetailedBuildError($launch_id) {
 	if(WSIsAdmin())
 		$result = WSStatsQuery('SELECT stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments WHERE launches.id='.$launch_id.' AND stats.id=traces.build_id AND traces.id=launches.trace_id AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
 	else
-		$result = WSStatsQuery('SELECT stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments,tasks WHERE launches.id='.$launch_id.' AND tasks.id=launches.task_id AND tasks.username=\''.WSGetUSer().'\' AND stats.id=traces.build_id AND traces.id=launches.trace_id AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
+		$result = WSStatsQuery('SELECT stats.description AS error_trace, drivers.name AS driver, environments.version AS env FROM stats,traces,launches,drivers,environments,tasks WHERE launches.id='.$launch_id.' AND tasks.id=launches.task_id AND tasks.username=\''.WSGetUser().'\' AND stats.id=traces.build_id AND traces.id=launches.trace_id AND traces.result=\'unknown\' AND traces.maingen_id IS NULL AND traces.dscv_id IS NULL AND traces.ri_id IS NULL AND traces.rcv_id IS NULL AND launches.trace_id=traces.id AND drivers.id=launches.driver_id AND environments.id=launches.environment_id;');
 
 	if($row = mysql_fetch_array($result)) {
 		$trace['trace_id']=$trace_id;
@@ -800,9 +817,9 @@ function WSGetDetailedBuildError($launch_id) {
 function WSGetHistory() {
 	$conn = WSStatsConnect();
 	if(WSIsAdmin())
-	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
+	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.id=launches.task_id AND drivers.id=launches.driver_id ORDER BY tasks.id;');
 	else
-	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.username=\''.WSGetUser().'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id;');
+	$result = WSStatsQuery('select distinct tasks.id AS id,drivers.name AS driver, tasks.timestamp from tasks,launches,drivers WHERE tasks.username=\''.WSGetUser().'\' AND tasks.id=launches.task_id AND drivers.id=launches.driver_id ORDER BY tasks.id;');
 	$i=0;
 	while($row = mysql_fetch_array($result))
   	{

@@ -78,7 +78,7 @@ public class VClient {
 
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
 			config.getLDVInstalledDir()+"/bin; LANG=C LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getParentId()+
-			" LDV_GIT_REPO=git://itgdev.igroup.ispras.ru/ldv-tools.git ldv_statuses=1 ldv-manager tag=current \"envs="+
+			" LDV_GIT_REPO=git://itgdev.igroup.ispras.ru/ldv-tools.git BLAST_EXP_NOALIAS=y BLAST_OPTIONS=-enable-recursion ldv_statuses=1 ldv-manager tag=current \"envs="+
 			task.getEnv()+".tar.bz2\" \"drivers="+task.getDriver()+"\" \"rule_models="+
 			task.getRule()+"\" 2>&1";
 			runCommand(config.getWorkDir() +"/start", startString);	
