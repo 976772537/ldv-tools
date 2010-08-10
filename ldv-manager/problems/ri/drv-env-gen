@@ -1,0 +1,10 @@
+#!/usr/bin/perl
+# Problem finder for drv-env-gen
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/error: implicit declaration of function kmalloc/ and print "drv-env-gen: kmalloc";
+}
+
