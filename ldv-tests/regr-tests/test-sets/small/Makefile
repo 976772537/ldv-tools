@@ -21,7 +21,7 @@ TMP_DIR_KERN = __install_kernels
 
 # Compilation
 all: 
-	./pack-drivers.sh ${TMP_DIR_DRV} || exit 1
+	../general/pack-drivers.sh ${TMP_DIR_DRV} || exit 1
 	./prepare-kernels.sh ${TMP_DIR_KERN} || exit 1 
 
 # Installation
