@@ -1,0 +1,7 @@
+<br /><br /><center>View script for controller <b>Stats</b> and script/action name <b>index</b></center>
+<dl>
+    <?php echo 'User: \'' . $this->entries['user name'] . '\'. Profile: \'' . $this->entries['profile name'] . '\''; ?>
+    <?php foreach ($this->entries as $entry): ?>
+    <dt><?php /*echo $this->escape($entry->id)*/ ?></dt>
+    <?php endforeach ?>
+</dl>

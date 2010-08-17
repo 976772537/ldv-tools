@@ -21,9 +21,10 @@ WEB_SERVER_CONF_DIR = conf.d
 WEB_SERVER_CONF = ldv-stats.conf
 WEB_SERVER_CONF_PORT = LDV_STATS_PORT
 
-# Default values of statistics server port and application environment.
+# Default values of statistics server port, application environment and profile database overwriting options.
 DEFAULT_PORT = 8999
 DEFAULT_APPLICATION_ENV = production
+DEFAULT_OVERWRITE_PROFILE_DB = no
 
 # Zend framework shared directory. It's relative to the prefix directory.
 ZEND_FRAMEWORK_DIR = shared/php/Zend
@@ -89,12 +90,13 @@ install:
 	ln -sfT "$(prefix)/$(ZEND_FRAMEWORK_DIR)" "$(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR)/$(ZEND_FRAMEWORK_LINK)" || exit 1;
 	@echo Create the needed files
 	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB) || exit 1; fi
-	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB)
+	if [ ! -n "$(LDV_STATS_OVERWRITE_PROFILE_DB)" ]; then echo 'The default LDV_STATS_OVERWRITE_PROFILE_DB "$(DEFAULT_OVERWRITE_PROFILE_DB)" is used' && export LDV_STATS_OVERWRITE_PROFILE_DB=$(DEFAULT_OVERWRITE_PROFILE_DB); else echo 'LDV_STATS_OVERWRITE_PROFILE_DB is $(LDV_STATS_OVERWRITE_PROFILE_DB)'; export LDV_STATS_OVERWRITE_PROFILE_DB=$(LDV_STATS_OVERWRITE_PROFILE_DB); fi; \
+	if [ ! -f "$(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB)" -o $$LDV_STATS_OVERWRITE_PROFILE_DB = "yes" ]; then touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB) || exit 1; else echo 'The previosly created profiles database $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB) will be used'; fi;
 	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE) || exit 1; fi
-	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL)
-	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED)
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL) || exit 1;
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED) || exit 1;
 	if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG) || exit 1; fi
-	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_SCRIPTS)
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_SCRIPTS) || exit 1;
 	@echo Give the correct access to the needed files to the statistics server
 	if [ ! -n "$(LDV_STATS_USER)" -o ! -n "$(LDV_STATS_GROUP)" ]; then echo 'Specify the LDV_STATS_USER and LDV_STATS_GROUP variable values if you want to grant the correct access to the statistics server!'; \
 	  else echo 'LDV_STATS_USER is $(LDV_STATS_USER)'; echo 'LDV_STATS_GROUP is $(LDV_STATS_GROUP)'; \

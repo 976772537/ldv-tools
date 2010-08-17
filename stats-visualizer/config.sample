@@ -31,3 +31,6 @@
 # 'staging' or 'testing' or 'development' ('production' is default).
 #LDV_STATS_APPLICATION_ENV = production
 
+# The database containing profiles may be overwritten by specifing 'yes' for
+# the given option ('no' by default).
+#LDV_STATS_OVERWRITE_PROFILE_DB = no

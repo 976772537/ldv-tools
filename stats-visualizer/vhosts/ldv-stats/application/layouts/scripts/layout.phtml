@@ -1,4 +1,4 @@
-<?php echo $this->doctype() ?>
+<?php echo $this->doctype(), "\n" ?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -12,9 +12,9 @@
     </div>
     <div id="header-navigation" style="float: right">
         <a href="<?php echo $this->url(
-            array('controller'=>'guestbook'),
+            array('controller'=>'index'),
             'default',
-            true) ?>">Guestbook</a>
+            true) ?>">Choose profile</a>
     </div>
 </div>
  
