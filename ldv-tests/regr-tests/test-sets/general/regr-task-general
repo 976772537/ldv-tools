@@ -20,3 +20,14 @@ driver=test-drivers-net-tehuti.tar.bz2;origin=external;kernel=linux-2.6.32.15.ta
 driver=test-drivers-net-typhoon.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=39_1
 driver=test-drivers-net-wan-sbni.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=39_1
 driver=test-x0032-isapnp.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
+driver=test-0008-drivers-mtd-blkdevs.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=08_1
+driver=test-0032-drivers-hid-hidraw.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
+driver=test-0032-drivers-input-misc-ati_remote2.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
+driver=test-0032-drivers-media-video-cafe_ccic.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
+driver=test-0049-drivers-char-isicom.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=49_1
+driver=test-0049-drivers-net-znet.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=49_1
+driver=test-0060-drivers-firware-dmi_scan.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=60_1
+driver=test-0064-drivers-media-usbvideo-konicawc.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=64_1
+driver=test-0064-drivers-media-usbvideo-quickcam_messenger.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=64_1
+driver=test-0032-hdpvr-core-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
+driver=test-0032-hdpvr-video-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
