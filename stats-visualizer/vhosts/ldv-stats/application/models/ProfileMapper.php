@@ -33,9 +33,9 @@ class Application_Model_ProfileMapper
 
   public function getProfiles()
   {
-    print_r($this->getDbTable('Application_Model_DbTable_Profiles'));
-    exit;
-    $resultSet = $this->getDbTable('Application_Model_DbTable_Profiles')->_db->select()->order('user')->order('name');
+    $table = $this->getDbTable('Application_Model_DbTable_Profiles');
+ 
+    $resultSet = $table->fetchAll($table->select()->order('user')->order('name'));
     $entries = array();
     foreach ($resultSet as $row) {
       $entry = new Application_Model_Profile();;
@@ -50,7 +50,9 @@ class Application_Model_ProfileMapper
   
   public function getProfileCurrent()
   {
-    $resultSet = $this->getDbTable()->fetchAll($this->getDbTable()->select()->where('current = ?', 'true'));
+    $table = $this->getDbTable('Application_Model_DbTable_Profiles');
+    
+    $resultSet = $table->fetchAll($table->select()->where('current = ?', 'true'));
     foreach ($resultSet as $row) {
       $entry = new Application_Model_Profile();;
       $entry->setId($row->id);
@@ -62,25 +64,35 @@ class Application_Model_ProfileMapper
   
   public function setProfileCurrent($profileCurrent)
   {
+    $table = $this->getDbTable('Application_Model_DbTable_Profiles');
+    
     // Reset "all" current profiles..
     $data = array('current' => 'false');
-    $this->getDbTable()->update($data);
+    $table->update($data);
 
     // Make the specified by id profile current.
     $data = array('current' => 'true');
     $where = array('id = ?' => $profileCurrent->getId());
-    $this->getDbTable()->update($data, $where);
+    $table->update($data, $where);
   }
    
   public function getProfileCurrentInfo()
   {
-    print_r($this->getDbTable('Application_Model_DbTable_Profiles'));
-    exit;
-    $resultSet = $this->getDbTable()->fetchAll($this->getDbTable()
-      ->select()
-      ->joinLeft('profiles', 'profiles_pages.profile.id=profiles.id')
-      ->joinLeft('pages', 'profiles_pages.page_id=pages.id'));
-    print_r($resultSet);
+    $table = $this->getDbTable('Application_Model_DbTable_ProfilesPages');
+
+    $resultSet = $table->fetchAll($table
+      ->select()->setIntegrityCheck(false)
+      ->from(array('PRPA' => 'profiles_pages'), 
+          array('Profile name' => 'PR.name', 
+                'Profile user' => 'PR.user', 
+                'Page name' => 'PA.name'))
+      ->joinLeft(array('PR' => 'profiles'), 'PRPA.profile_id=PR.id')
+      ->joinLeft(array('PA' => 'pages'), 'PRPA.page_id=PA.id')
+      ->where('current = ?', 'true'));
+
+    foreach($resultSet as $row) {
+      echo $row['Profile name'], $row['Profile user'], $row['Page name'], "<br>";
+    }
   }
 }
 

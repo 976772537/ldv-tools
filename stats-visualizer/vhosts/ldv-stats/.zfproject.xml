@@ -31,6 +31,8 @@
         <modelFile modelName="ProfileMapper"/>
         <dbTableDirectory>
           <dbTableFile dbTableName="Profiles"/>
+          <dbTableFile dbTableName="ProfilesPages"/>
+          <dbTableFile dbTableName="Pages"/>
         </dbTableDirectory>
       </modelsDirectory>
       <modulesDirectory enabled="false"/>
