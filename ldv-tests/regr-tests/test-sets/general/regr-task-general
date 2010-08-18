@@ -27,7 +27,13 @@ driver=test-0032-drivers-media-video-cafe_ccic.tar.bz2;origin=external;kernel=li
 driver=test-0049-drivers-char-isicom.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=49_1
 driver=test-0049-drivers-net-znet.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=49_1
 driver=test-0060-drivers-firware-dmi_scan.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=60_1
+driver=test-0060-drivers-firware-dmi_scan-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=60_1
 driver=test-0064-drivers-media-usbvideo-konicawc.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=64_1
 driver=test-0064-drivers-media-usbvideo-quickcam_messenger.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=64_1
 driver=test-0032-hdpvr-core-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
 driver=test-0032-hdpvr-video-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
+driver=test-0068-drivers-bluetooth-bpa10x.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=68_1
+driver=test-0068-drivers-bluetooth-bpa10x-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=68_1
+driver=test-0032-edac_device.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1
+driver=test-0043-drivers-net-wireless-orinoco-wext.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=43_1
+driver=test-0043-drivers-net-wireless-orinoco-wext-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=43_1

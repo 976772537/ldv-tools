@@ -1,3 +1,4 @@
 
-obj-m := console.o usb-serial.o
+obj-m := serial.o
+serial-objs := console.o usb-serial.o
 

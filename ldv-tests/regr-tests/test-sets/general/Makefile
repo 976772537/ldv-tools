@@ -30,6 +30,6 @@ install: all
 	if [ ! -d $(prefix)/$(GENERAL_TEST_DIR) ]; then mkdir -p $(prefix)/$(GENERAL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR_DRV}/*.tar.bz2 $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 	cp $(TEST_TASK) $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
-#	cp regr-test-general-* $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
+	cp regr-test-general-* $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 
 
