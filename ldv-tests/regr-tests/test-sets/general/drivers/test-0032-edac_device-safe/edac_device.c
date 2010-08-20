@@ -734,3 +734,20 @@ void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 			block ? block->name : "N/A", msg);
 }
 EXPORT_SYMBOL_GPL(edac_device_handle_ue);
+
+//just to make it as module
+unsigned long value;
+
+static int __init my_init(void)
+{
+	struct edac_device_ctl_info edac_dev;
+	edac_device_reset_delay_period(&edac_dev,value);
+	return 0;
+}
+
+static void __exit my_exit(void)
+{
+}
+
+module_init(my_init);
+module_exit(my_exit);
