@@ -260,7 +260,7 @@ masters = MasterStats.new
 						# Send description to the checker
 						cin.write( tool_stat.description )
 						cin.close
-						cout.each {|line| tool_stat.problems << Problem.find_or_create_by_name(line.chomp) }
+						cout.each {|line| p = Problem.find_or_create_by_name(line.chomp); tool_stat.problems << p unless tool_stat.problems.include? p  }
 						cerr.each {|errln| $stderr.puts errln}
 					end
 				end
