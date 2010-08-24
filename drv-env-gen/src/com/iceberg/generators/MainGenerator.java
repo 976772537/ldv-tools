@@ -323,7 +323,7 @@ public class MainGenerator {
 					String lparams = fg.generateFunctionCall();
 					sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
 					sb.append("\n\t\tif ("+lparams.substring(0,lparams.length()-1)+")");
-					sb.append("\n\t\t\treturn;");
+					sb.append("\n\t\t\tgoto ldv_final;");
 					/* получим директивы препроцессора, те что после функции */
 					List<Token> ppcAfterTokens = ppcParser.getPPCWithoutINCLUDEafter(token);
 					/* добавим их ... */
@@ -464,7 +464,7 @@ public class MainGenerator {
 			Logger.trace("Start appending end section...");
 			Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
 			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
-			sb.append("\n\t\tcheck_final_state();\n");
+			sb.append("\n\t\tldv_final: check_final_state();\n");
 			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");
 			sb.append("\n\t\treturn;\n}\n");
 			if (isgenerateIfdefAroundMains) {

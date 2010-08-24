@@ -65,21 +65,21 @@ public class PatternSort {
 	static {
 		String[] resulta = new String[6];
 		resulta[0] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\treturn;";
+				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;";
 		resulta[1] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\treturn;";
+				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;";
 		resulta[2] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\treturn;";
+				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;";
 		resulta[3] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter < 0) \n\t\t\treturn;";
+				"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;";
 		resulta[4] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter < 0) \n\t\t\treturn;";
+				"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;";
 		resulta[5] = null;
 		resultMap.put("__MAIN__", resulta);
 
 		resulta = new String[9];
 		resulta[0] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-			"\t\tif(rtmp$counter) \n\t\t\treturn;";
+			"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;";
 		resulta[1] = null;
 		resulta[2] = null;
 		resulta[3] = null;
@@ -92,18 +92,18 @@ public class PatternSort {
 
 		resulta = new String[5];
 		resulta[0] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-		"\t\tif(rtmp$counter) \n\t\t\treturn;";
+		"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;";
 		resulta[1] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-		"\t\tif(rtmp$counter < 0) \n\t\t\treturn;";
+		"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;";
 		resulta[2] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-		"\t\tif(rtmp$counter < 0) \n\t\t\treturn;";
+		"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;";
 		resulta[3] = null;
 		resulta[4] = null;
 		resultMap.put("file_operations", resulta);
 
 		resulta = new String[7];
 		resulta[0] = "\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-		"\t\tif(rtmp$counter) \n\t\t\treturn;";
+		"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;";
 		resulta[1] = null;
 		resulta[2] = null;
 		resulta[3] = null;
