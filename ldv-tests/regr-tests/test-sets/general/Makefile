@@ -32,5 +32,6 @@ install: all
 	cp $(TEST_TASK) $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 	cp regr-test-general-* $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 	cp ../big/linux-2.6.32.15.tar.bz2 $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
+	cp ../big/linux-2.6.31.6.tar.bz2 $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 
 
