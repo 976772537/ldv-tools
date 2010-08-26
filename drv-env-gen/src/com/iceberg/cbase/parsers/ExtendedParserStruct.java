@@ -130,7 +130,7 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		}		
 	}
 	
-	private static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s[_a-zA-Z][_a-zA-Z0-9]*");
+	private final static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s[_a-zA-Z][_a-zA-Z0-9]*");
 	
 	public static List<NameAndType> getFunctionNames(String buffer, int patternCallQueue)
 	{

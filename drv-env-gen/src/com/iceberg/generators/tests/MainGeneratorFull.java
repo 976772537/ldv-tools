@@ -1,9 +1,10 @@
-package com.iceberg.generators;
+package com.iceberg.generators.tests;
 
 import java.util.Iterator;
 import java.util.List;
 
 import com.iceberg.Logger;
+import com.iceberg.generators.MainGenerator;
 
 public class MainGeneratorFull {
 	public static void main(String[] args) {

@@ -5,6 +5,7 @@ import java.util.List;
 public class TokenFunctionDecl extends ContainerToken<Token> {
 
 	private static int startVar = 0;
+	
 	private String test;
 
 	private String name;

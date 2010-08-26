@@ -7,15 +7,14 @@ import java.util.List;
 import java.util.Map;
 
 import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
-import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
 /* статический класс с сохраненными и откомпиленными регекспами */
 public class PatternSort {
 
-	public static Map<String,String[]> regexprMap = new HashMap<String,String[]>();
-	public static Map<String,String[]> resultMap = new HashMap<String,String[]>();
-	public static Map<String,String[]> initMap = new HashMap<String,String[]>();
+	public final static Map<String,String[]> regexprMap = new HashMap<String,String[]>();
+	public final static Map<String,String[]> resultMap = new HashMap<String,String[]>();
+	public final static Map<String,String[]> initMap = new HashMap<String,String[]>();
 
 	/* статический инициализатор будет заполнять уже имеющиеся и работающие шаблоны -
 	 * откомпиленные регекспы */

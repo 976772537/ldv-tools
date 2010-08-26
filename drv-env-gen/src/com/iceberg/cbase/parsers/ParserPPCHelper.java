@@ -16,11 +16,11 @@ public class ParserPPCHelper extends Parser<TokenPpcDirective> {
 	 * фильтрацию методом disableFilter();
 	 *
 	 * */
-	private static boolean filterPpcEndBlocks = false;
+	private boolean filterPpcEndBlocks = false;
 
 	private List<TokenPpcDirective> tokens;
 
-	private static enum parserStates {
+	private enum parserStates {
 		BLOCK_NULL,		// мы не находимся в блоке и не в начале и не в конце буффера
 		BLOCK_BEGIN_BUFFER,	// мы находимся в начале буффера - если следующий # - то это директива
 		BLOCK_TRY_PREP,		// проскочил \n - возможно следующее - директива препроцессора
@@ -32,7 +32,7 @@ public class ParserPPCHelper extends Parser<TokenPpcDirective> {
 
 	private parserStates state = parserStates.BLOCK_BEGIN_BUFFER;
 
-	public static void disableFilter() {
+	public void disableFilter() {
 		filterPpcEndBlocks = false;
 	}
 
@@ -165,7 +165,7 @@ public class ParserPPCHelper extends Parser<TokenPpcDirective> {
 		return ltokens;
 	}
 
-	public static void filteredAdd(TokenPpcDirective ltoken, List<TokenPpcDirective> ltokens) {
+	public void filteredAdd(TokenPpcDirective ltoken, List<TokenPpcDirective> ltokens) {
 		if(!filterPpcEndBlocks) {
 			ltokens.add(ltoken);
 			return;

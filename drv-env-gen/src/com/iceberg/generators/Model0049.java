@@ -89,7 +89,7 @@ public class Model0049 {
 		}
 
 
-		Logger.info("EXCEPTION_COUNTER:" + ExtendedParserFunction.parseExceptionCounter);
+		Logger.info("EXCEPTION_COUNTER:" + ExtendedParserFunction.getParseExceptionCounter());
 		List<String> callgToken = new ArrayList<String>(100000);
 		List<Token> tlist = new ArrayList<Token>(tokens.size());
 		tlist.addAll(tokens);

@@ -1,4 +1,4 @@
-package com.iceberg.generators;
+package com.iceberg.generators.tests;
 
 import java.io.File;
 import java.util.Iterator;

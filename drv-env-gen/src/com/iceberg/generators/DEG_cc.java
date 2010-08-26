@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.iceberg.Logger;
+import com.iceberg.generators.SequenceParams.Length;
 
 /*
  * формат объектника таков, что можно узнать
@@ -24,6 +25,27 @@ public class DEG_cc {
 	private static List<Boolean> generateArray = new ArrayList<Boolean>();
 	private static final String name = "ldv-cc";
 	
+	private static EnvParams[] getAllParamVariations() {
+		List<EnvParams> list = new ArrayList<EnvParams>();
+		//TODO list.add(new PlainParams(false, false));
+		list.add(new PlainParams(true, false));
+		list.add(new PlainParams(true, true));
+		list.add(new SequenceParams(true,false,Length.one));
+		list.add(new SequenceParams(true,false,Length.infinite));
+		list.add(new SequenceParams(true,false,3));
+		list.add(new SequenceParams(false,false,Length.one));
+		list.add(new SequenceParams(false,false,Length.infinite));
+		list.add(new SequenceParams(false,false,3));
+		//TODO
+		//list.add(new SequenceParams(true,true,Length.one));
+		//list.add(new SequenceParams(true,true,Length.infinite));
+		//list.add(new SequenceParams(true,true,3));
+		//list.add(new SequenceParams(false,true,Length.one));
+		//list.add(new SequenceParams(false,true,Length.infinite));
+		//list.add(new SequenceParams(false,true,3));
+		return list.toArray(new EnvParams[0]);
+	}
+	
 	public static void main(String[] args) {
 		if(!getOpts(args))
 			System.exit(1);
@@ -40,8 +62,17 @@ public class DEG_cc {
 			FileWriter outputWriter = new FileWriter(outputFile);
 			for(int i=0; i<inputFiles.size(); i++) {
 				Logger.debug("Start generator for: \""+inputFiles.get(i)+"\" file.");
-				if(generateArray.get(i) && MainGenerator.deg(inputFiles.get(i),counter))
-					outputWriter.append(inputFiles.get(i)+":-DLDV_MAIN"+counter);
+				
+				if(generateArray.get(i)) {
+					EnvParams plist[] = getAllParamVariations();
+					DegResult res = MainGenerator.deg(inputFiles.get(i),counter, plist);
+					if(res.isSuccess()) {
+						for(String id : res.getMains()) {
+							outputWriter.append(inputFiles.get(i) 
+									+ ":-DLDV_MAIN" + id + "\n");							
+						}
+					}
+				}
 			}
 			outputWriter.close();
 		} catch (IOException e) {
@@ -69,7 +100,7 @@ public class DEG_cc {
 			i++;
 			Logger.debug(args[i]);
 			if(args[i].equals("--main"))
-				generateArray .add(true);
+				generateArray.add(true);
 			else if(args[i].equals("--nomain"))
 				generateArray.add(false);
 		}
