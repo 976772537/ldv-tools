@@ -101,6 +101,7 @@ for my $test(@tests){
 		$ENV{'WORK_DIR'} = "$dd/wd";
 		print "running test $test\n";
 
+		$ENV{'RULE_INSTRUMENTOR'} = 'fake-rule-instrumentor.pl';
 		my @run_dscv = ("dscv","--cmdfile=$td/commands.xml","--rule-models=good","--report-out=$report","--rcv-verifier=mock");
 		print "WORK_DIR=$ENV{'WORK_DIR'} @run_dscv\n";
 

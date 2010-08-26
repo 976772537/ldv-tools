@@ -104,7 +104,11 @@ sub verify_blast
 	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
 
+	# Since arguments alter depending on main, we should save them to temporary.
+	my %args_template = (%args);
+
 	for my $main (@{$args{mains}}){
+		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		my $result = call_blast(%args, main=>$main); 
 	
 		# Print verdict to console and to report 
