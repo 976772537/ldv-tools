@@ -100,7 +100,7 @@ sub verify
 	while (<$FH>){
 		my $l = $_;
 		$l =~ /$main/ and do {print "Found main: $main!\n"; $read_state = MAIN_READ; next;};
-		if ($read_state = MAIN_READ){
+		if ($read_state == MAIN_READ){
 			$l =~ /^}/ and return (undef,1);
 			$l =~ /\bUNSAFE\b/ and return ('UNSAFE',1);
 			$l =~ /\bSAFE\b/ and return ('SAFE',1);
