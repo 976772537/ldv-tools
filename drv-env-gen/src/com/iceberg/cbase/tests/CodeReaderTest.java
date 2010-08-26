@@ -1,4 +1,4 @@
-package com.iceberg.cbase;
+package com.iceberg.cbase.tests;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -7,7 +7,7 @@ import com.iceberg.Logger;
 import com.iceberg.cbase.readers.ReaderCCommentsDel;
 import com.iceberg.cbase.readers.ReaderWrapper;
 
-public class CodeReader {
+public class CodeReaderTest {
 	public static void main(String[] args) {
 		long start = System.currentTimeMillis();
 		FileReader reader = null;

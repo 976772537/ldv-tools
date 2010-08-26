@@ -1,4 +1,4 @@
-package com.iceberg.cbase;
+package com.iceberg.cbase.tests;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -14,7 +14,7 @@ import com.iceberg.cbase.readers.ReaderCCommentsDel;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.Token;
 
-public class TokenFunctionReader {
+public class TokenFunctionReaderTest {
 	public static void main(String[] args) {
 		long start = System.currentTimeMillis();
 		

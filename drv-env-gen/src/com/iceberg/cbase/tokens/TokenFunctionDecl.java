@@ -2,7 +2,7 @@ package com.iceberg.cbase.tokens;
 
 import java.util.List;
 
-public class TokenFunctionDecl extends Token {
+public class TokenFunctionDecl extends ContainerToken<Token> {
 
 	private static int startVar = 0;
 	private String test;

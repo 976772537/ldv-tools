@@ -9,7 +9,6 @@ import java.util.ArrayList;
 
 import com.iceberg.FSOperationsBase;
 import com.iceberg.Logger;
-import com.iceberg.cbase.parsers.ExtendedParser;
 import com.iceberg.cbase.parsers.ExtendedParserFunction;
 import com.iceberg.cbase.readers.ReaderCCommentsDel;
 import com.iceberg.cbase.readers.ReaderInterface;
@@ -33,7 +32,7 @@ public class Model0049 {
 		/* получим список всех с-шников директории */
 		List<String> cfilenames = FSOperationsBase.getDirContentRecursiveC(dirname);
 		/* в цикле будем заполнять список токенов */
-		List<Token> tokens = new ArrayList<Token>();
+		List<TokenFunctionDecl> tokens = new ArrayList<TokenFunctionDecl>();
 		Iterator<String> cfilenamesIterator = cfilenames.iterator();
 		int ipercent=0;
 		while(cfilenamesIterator.hasNext()) {
@@ -45,9 +44,9 @@ public class Model0049 {
 				/* добавим ридер удаления комментариев */
 				ReaderInterface wreader = new ReaderCCommentsDel(reader);
 				/* создадим экземпляр парсера функций c call-вызовами */
-				ExtendedParser ep = new ExtendedParserFunction(wreader);
+				ExtendedParserFunction ep = new ExtendedParserFunction(wreader);
 				/* скажем парсеру, чтобы он выдирал functionCalls */
-				((ExtendedParserFunction)ep).parseFunctionCallsOn();
+				ep.parseFunctionCallsOn();
 				/* распарсим функции и добавим их в список */
 				tokens.addAll(ep.parse());
 				ipercent++;
@@ -65,18 +64,19 @@ public class Model0049 {
 		/* пройдемся по списку описаний функций
 		 * */
 		ipercent = 1;
-		Iterator<Token> outFIterator = tokens.iterator();
+		Iterator<TokenFunctionDecl> outFIterator = tokens.iterator();
 		while(outFIterator.hasNext()) {
-			Token tf = outFIterator.next();
+			TokenFunctionDecl tf = outFIterator.next();
 			List<Token> lftokens = tf.getTokens();
 			if (lftokens != null) {
 				Logger.info("ASSIGN: " + 100*(double)(ipercent++)/(double)(tokens.size())+"%");
 	outcon:		for(int i=0; i<lftokens.size(); i++) {
-					Iterator<Token> innerFIterator = tokens.iterator();
+					Iterator<TokenFunctionDecl> innerFIterator = tokens.iterator();
 					while(innerFIterator.hasNext()) {
-						TokenFunctionDecl tfd = (TokenFunctionDecl)innerFIterator.next();
+						TokenFunctionDecl tfd = innerFIterator.next();
 						/* если нашли функцию, то заменим ссылку и брейк*/
 						if(tfd.getName().equals(lftokens.get(i).getContent())) {
+							//replace Token by corresponding TokenFunctionDecl 
 							lftokens.set(i, tfd);
 							continue outcon;
 						}
@@ -91,7 +91,9 @@ public class Model0049 {
 
 		Logger.info("EXCEPTION_COUNTER:" + ExtendedParserFunction.parseExceptionCounter);
 		List<String> callgToken = new ArrayList<String>(100000);
-		callgToken = printGraph(tokens, new ArrayList<Token>(), funname, callgToken);
+		List<Token> tlist = new ArrayList<Token>(tokens.size());
+		tlist.addAll(tokens);
+		callgToken = printGraph(tlist, new ArrayList<Token>(), funname, callgToken);
 		/* теперь выведем весь список на консоль */
 		for(int i=0; i<callgToken.size(); i++)
 			Logger.norm(callgToken.get(i));
@@ -146,6 +148,7 @@ public class Model0049 {
 		}
 	}
 
+	//TODO: apply Java 5 generics
 	/* функция распечатки токенов с рекурсией :
 	 * ltfd - список для нового прохода
 	 * tfd - стэк, для хранения текущего пути (для того, чтобы можно было обнаружить рекурсию)

@@ -10,12 +10,10 @@ public class Token implements ReaderInterface {
 	private int endIndex = 0;
 	private String content=null;
 	protected String ldvCommentContent=null;
-	protected List<Token> tokens;
 
-	public Token(int beginIndex, int endIndex, String content, String ldvCommentContent, List<Token> tokens) {
+	public Token(int beginIndex, int endIndex, String content, String ldvCommentContent) {
 		super();
 		this.ldvCommentContent = ldvCommentContent;
-		this.tokens = tokens;
 		this.beginIndex = beginIndex;
 		this.endIndex = endIndex;
 		this.content = content;
@@ -23,15 +21,6 @@ public class Token implements ReaderInterface {
 	
 	public String getLdvCommentContent() {
 		return ldvCommentContent;
-	}
-
-	public List<Token> getTokens() {
-		return tokens;
-	}
-
-	public boolean hasInnerTokens() {
-		if(tokens!=null && tokens.size()>0) return true;
-		return false;
 	}
 
 	public int getBeginIndex() {

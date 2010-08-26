@@ -6,8 +6,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Iterator;
 
+import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
 import com.iceberg.cbase.readers.ReaderInterface;
-import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
 /**
@@ -24,7 +24,7 @@ import com.iceberg.cbase.tokens.TokenFunctionDecl;
  * функции parse
  *
  */
-public class ParserFunctionDecl extends Parser {
+public class ParserFunctionDecl extends Parser<TokenFunctionDecl> {
 	/**
 	 * 		 паттерн для поиска фукнций,
 	 *  Можно добавлять исключения ключевых слов (for)|(if)
@@ -57,8 +57,8 @@ public class ParserFunctionDecl extends Parser {
 
 	/* ищем все определения функции */
 	@Override
-	public List<Token> parse() {
-		List<Token> tlist = new ArrayList<Token>();
+	public List<TokenFunctionDecl> parse() {
+		List<TokenFunctionDecl> tlist = new ArrayList<TokenFunctionDecl>();
 		String buffer = null;
 		buffer = inputReader.readAll();
 		Matcher m = null;
@@ -93,10 +93,10 @@ public class ParserFunctionDecl extends Parser {
 						+ "\n\t3) нулевой сивол - ; или }"
 						+ "\n\t4) последний символ {\n";
 				String tokenClearContent = tokenContent.substring(	1, tokenContent.length() - 2).trim();
-				String[] sNameAndRetType = parseNameAndType(tokenClearContent);
+				NameAndType sNameAndRetType = parseNameAndType(tokenClearContent);
 				List<String> replacementParams = createReplacementParams(tokenClearContent);
-				TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType[0],
-						sNameAndRetType[1],replacementParams,m.start(),m.end(),tokenClearContent ,null,null);
+				TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
+						sNameAndRetType.getType(),replacementParams,m.start(),m.end(),tokenClearContent ,null,null);
 				tlist.add(token);
 			}
 		return tlist;
@@ -114,7 +114,7 @@ public class ParserFunctionDecl extends Parser {
 	}
 
 	/* выделяет имя и тип возвращаемого значения функции из декларации */
-	private static String[] parseNameAndType(String functionName) {
+	private static NameAndType parseNameAndType(String functionName) {
 		byte[] fbname = functionName.getBytes();
 		int level = 1;
 		int beginName;
@@ -126,8 +126,7 @@ public class ParserFunctionDecl extends Parser {
 		/* идем по имени функции до первого порбела */
 		int endName = beginName;
 		while(fbname[endName]!='\n' && fbname[endName]!=' ' && endName>=0) endName--;
-		String[] result = {functionName.substring(++endName, ++beginName),functionName.substring(0, endName).trim()};
-		return result;
+		return new NameAndType(functionName.substring(++endName, ++beginName),functionName.substring(0, endName).trim());
 	}
 
 	/* разделяет параметры на строки */

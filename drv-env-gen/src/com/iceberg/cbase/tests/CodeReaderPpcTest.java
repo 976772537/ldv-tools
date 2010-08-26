@@ -1,4 +1,4 @@
-package com.iceberg.cbase;
+package com.iceberg.cbase.tests;
 
 import java.io.FileReader;
 
@@ -11,7 +11,7 @@ import com.iceberg.cbase.readers.ReaderCCommentsDel;
 import com.iceberg.cbase.readers.ReaderWrapper;
 import com.iceberg.cbase.tokens.Token;
 
-public class CodeReaderPpc {
+public class CodeReaderPpcTest {
 	public static void main(String[] args) {
 		FileReader reader = null;
 		try {

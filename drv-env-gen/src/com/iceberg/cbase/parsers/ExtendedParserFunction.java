@@ -8,12 +8,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.iceberg.Logger;
+import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
 import com.iceberg.cbase.parsers.options.OptionFunctionName;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
-public class ExtendedParserFunction extends ExtendedParser {
+public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 
 	/**
 	 *	паттерны для поиска входных параметров функци
@@ -38,7 +39,7 @@ public class ExtendedParserFunction extends ExtendedParser {
 	}
 
 	@Override
-	protected Token parseContent(String content, int start, int end) {
+	protected TokenFunctionDecl parseContent(String content, int start, int end) {
 		/* хаки, которые потом нужно включить по-возможности в regexpr */
 		/* не должен матчииться:"PageDirty(page) && PageSwapCache(page)) {"  - */
 		/* по количеству закрывающих скобок */
@@ -69,10 +70,10 @@ public class ExtendedParserFunction extends ExtendedParser {
 			start++;
 		}
 
-		String[] sNameAndRetType = parseNameAndType(tokenClearContent);
+		NameAndType sNameAndRetType = parseNameAndType(tokenClearContent);
 		if (sNameAndRetType == null)
 			return null;
-		List<String> replacementParams = createReplacementParams(tokenClearContent,sNameAndRetType[0]);
+		List<String> replacementParams = createReplacementParams(tokenClearContent,sNameAndRetType.getName());
 		/* найдем реальный конец контента фукнции */
 		int level = 1;
 		char[] buffer = inputReader.readAll().toCharArray();
@@ -134,8 +135,8 @@ public class ExtendedParserFunction extends ExtendedParser {
 		List<Token> functionInnerCalls = null;
 		if(this.parseFunctionCalls)
 			functionInnerCalls = parseInnerCalls(this.getReader().readAll().substring(start,end));
-		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType[0],
-				sNameAndRetType[1],replacementParams,start,end,tokenClearContent,null,functionInnerCalls);
+		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
+				sNameAndRetType.getType(),replacementParams,start,end,tokenClearContent,null,functionInnerCalls);
 		return token;
 	}
 
@@ -174,7 +175,7 @@ oWhile:		while(matcher.find()) {
 				for(int i=0; i<ckeywordsMap.size(); i++)
 					if(ckeywordsMap.get(i).equals(callsString)) continue oWhile;
 				/* здесь создаем токен и отправляем в списиок */
-				Token token = new Token(matcher.start(), matcher.end(), callsString, null, null);
+				Token token = new Token(matcher.start(), matcher.end(), callsString, null);
 				boolean isExitsts = false;
 
 		/*		if (buffer.contains("m_extract_one_cell") && token.getContent().contains("atomic_inc")) {
@@ -214,8 +215,12 @@ oWhile:		while(matcher.find()) {
 		return replacementParams;
 	}
 
-	/* выделяет имя и тип возвращаемого значения функции из декларации */
-	private static String[] parseNameAndType(String functionName) {
+	/**
+	 *  выделяет имя и тип возвращаемого значения функции из декларации 
+	 *  name - function name
+	 *  type - return type   
+	 */
+	private static NameAndType parseNameAndType(String functionName) {
 		byte[] fbname = functionName.getBytes();
 		int level = 1;
 		int beginName;
@@ -245,8 +250,7 @@ oWhile:		while(matcher.find()) {
 		if(rettype!=null && rettype.length()>0) {
 			rettype = rettype.replaceAll("__init", "");
 		}
-		String[] result = {functionName.substring(++endName, ++beginName),rettype};
-		return result;
+		return new NameAndType(functionName.substring(++endName, ++beginName),rettype);
 	}
 
 	/* разделяет параметры на строки */

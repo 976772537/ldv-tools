@@ -5,8 +5,8 @@ import java.util.List;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.Token;
 
-public abstract class Parser implements ParserInterface {
-	protected Parser inputParser = null;
+public abstract class Parser<T extends Token> implements ParserInterface<T> {
+	protected Parser<T> inputParser = null;
 	protected ReaderInterface inputReader = null;
 	protected String inputBuffer = null;
 	
@@ -14,7 +14,7 @@ public abstract class Parser implements ParserInterface {
 	 * из персера вызывается метод parse и достаются токены
 	 * @param parser
 	 */
-	public Parser(Parser parser) {
+	public Parser(Parser<T> parser) {
 		this.inputParser = parser;	
 	}
 	
@@ -47,6 +47,6 @@ public abstract class Parser implements ParserInterface {
 	 *   
 	 * @return
 	 */
-	public abstract List<Token> parse();
+	public abstract List<T> parse();
 	
 }

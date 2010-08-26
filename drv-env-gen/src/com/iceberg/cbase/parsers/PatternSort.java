@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
 import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
@@ -115,30 +116,33 @@ public class PatternSort {
 
 
 
-	/*
-	 * на входе - ident - список из 2-ых стрингов, второй из которых - и есть идентификатор
-	 * функции в структуре
-	 *
-	 * intokens -  это список токенов функций
-	 * */
-	public static List<Token> sortByPattern(String structType, List<String[]> inident, List<Token> intokens) {
+	/**
+	 * 
+	 * @param structType structure type name
+	 * @param ident list of struct initializers
+	 * getName() - function name, right hand side of initializer
+	 * getType() - field name in the structure, left side .field  
+	 * @param intokens - function declaration tokens 
+	 * @return
+	 */
+	public static List<TokenFunctionDecl> sortByPattern(String structType, List<NameAndType> inident, List<TokenFunctionDecl> intokens) {
 		/* рассортируем сначала structType в соответствии с порядком
 		 * и почистим от ненужного мусора
 		 * ident */
 
 		String tmpEqual;
-		List<String[]> ident = new ArrayList<String[]>();
+		List<NameAndType> ident = new ArrayList<NameAndType>();
 		for(int i=0; i<intokens.size(); i++) {
 			/* получим имя */
-			tmpEqual = ((TokenFunctionDecl)intokens.get(i)).getName();
+			tmpEqual = intokens.get(i).getName();
 			/* найдем его в списке идентификаторов
-			 * и переместим в новый спсиок */
+			 * и переместим в новый список */
 			for(int j=0; j<inident.size(); j++) {
-				if(inident.get(j)[0].equals(tmpEqual)) {
+				if(inident.get(j).getName().equals(tmpEqual)) {
 					/*
 					 * добавлем только если такого еще нет
 					 * */
-					if(!contain(ident, inident.get(j)[0]))
+					if(!contain(ident, inident.get(j).getName()))
 						ident.add(inident.get(j));
 					inident.remove(j);
 					i--;
@@ -155,12 +159,12 @@ public class PatternSort {
 			tests  = resultMap.get("__MAIN__");
 		}
 		/* сортируем по выбранной схеме */
-		List<Token> tokens = new ArrayList<Token>();
+		List<TokenFunctionDecl> tokens = new ArrayList<TokenFunctionDecl>();
 		for(int i=0; i<scheme.length; i++) {
 			for(int j=0; j<intokens.size() && j<ident.size(); j++) {
 				// вариант с contains требует, чтобы сначала матчился наибольший паттерн
 				//if(ident.get(j)[1].contains(scheme[i])) {
-				if(ident.get(j)[1].equals(scheme[i])) {
+				if(ident.get(j).getType().equals(scheme[i])) {
 					/* добавляем проверку */
 					((TokenFunctionDecl)intokens.get(j)).setTestString(tests[i]);
 					tokens.add(intokens.get(j));
@@ -181,11 +185,10 @@ public class PatternSort {
 	}
 
 
-
-	private static boolean contain(List<String[]> ident, String string) {
-		Iterator<String[]> strIter = ident.iterator();
+	private static boolean contain(List<NameAndType> ident, String string) {
+		Iterator<NameAndType> strIter = ident.iterator();
 		while(strIter.hasNext()) {
-			if(strIter.next()[0].equals(string))
+			if(strIter.next().getName().equals(string))
 				return true;
 		}
 		return false;

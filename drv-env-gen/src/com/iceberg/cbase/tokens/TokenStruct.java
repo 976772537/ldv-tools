@@ -2,7 +2,7 @@ package com.iceberg.cbase.tokens;
 
 import java.util.List;
 
-public class TokenStruct extends Token {
+public class TokenStruct extends ContainerToken<TokenFunctionDecl> {
 	/* список функций, которые содержаться в структурах */
 	
 	
@@ -18,7 +18,7 @@ public class TokenStruct extends Token {
 	}
 	
 	public TokenStruct(String name, String type, int beginIndex, int endIndex, String content, 
-			String ldvCommentContent, List<Token> functionDeclList) {
+			String ldvCommentContent, List<TokenFunctionDecl> functionDeclList) {
 		super(beginIndex, endIndex, content, ldvCommentContent, functionDeclList);
 		this.name = name;
 		this.type = type;
