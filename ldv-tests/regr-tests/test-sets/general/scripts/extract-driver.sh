@@ -47,7 +47,7 @@ then
 		echo "EXTRA_CFLAGS += -Idrivers/media/dvb/frontends" >>  $FINALPATH/Makefile;
 
 	fi
-	if `echo $DRVPATH | grep -q -e 'mon_main.c'`; then
+	if `echo $DRVPATH | grep -q -e 'mon_main.c'` || `echo $DRVPATH | grep -q -e 'isp116x-hcd.c'` ; then
 		echo "apply USB CORE driver hack";
 		cp $KERNELSRC/drivers/usb/core/*.h $FINALPATH
 		sed 's/\.\.\/core\/hcd\.h/hcd\.h/g' $KERNELSRC/$DRVPATH > $FINALPATH/`basename $DRVPATH`
@@ -69,5 +69,13 @@ then
 	if `echo $DRVPATH | grep -q -e 'nicstar.c'`; then
 		echo "apply NICSTAR driver hack";
 		cp $KERNELSRC/drivers/atm/nicstarmac.c $FINALPATH;
+	fi
+	if `echo $DRVPATH | grep -q -e 'znet.c'`; then
+		echo "apply ZNET driver hack";
+		echo "EXTRA_CFLAGS += -Idrivers/net/" >>  $FINALPATH/Makefile;
+	fi
+	if `echo $DRVPATH | grep -q -e 'drm'`; then
+		echo "apply DRV driver hack";
+		echo "EXTRA_CFLAGS += -Iinclude/drm" >>  $FINALPATH/Makefile;
 	fi
 fi
