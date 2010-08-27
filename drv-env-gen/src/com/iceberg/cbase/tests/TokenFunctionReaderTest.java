@@ -26,7 +26,7 @@ public class TokenFunctionReaderTest {
 			/* добавим ридер удаления комментариев */
 			ReaderInterface wreader = new ReaderCCommentsDel(reader);
 			
-			List<ParserInterface> lparser = new ArrayList<ParserInterface>();
+			List<ParserInterface<?>> lparser = new ArrayList<ParserInterface<?>>();
 			
 			/* добавим необходимые парсеры */
 			lparser.add(new ExtendedParserFunction(wreader));
@@ -38,9 +38,9 @@ public class TokenFunctionReaderTest {
 			List<Token> ltoken = new ArrayList<Token>();
 			
 			/* запустим парсеры последовательно */
-			Iterator<ParserInterface> parserIterator = lparser.iterator();
+			Iterator<ParserInterface<?>> parserIterator = lparser.iterator();
 			while(parserIterator.hasNext()) {
-				ParserInterface currentParser = parserIterator.next();
+				ParserInterface<?> currentParser = parserIterator.next();
 				ltoken.addAll(currentParser.parse());
 			}
 		

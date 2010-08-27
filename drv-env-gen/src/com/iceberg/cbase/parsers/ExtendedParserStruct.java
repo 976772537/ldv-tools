@@ -8,7 +8,6 @@ import java.util.regex.Pattern;
 
 import com.iceberg.cbase.parsers.options.OptionStructType;
 import com.iceberg.cbase.readers.ReaderInterface;
-import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 import com.iceberg.cbase.tokens.TokenStruct;
 
@@ -35,15 +34,22 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 	public static final char KEY_N10 = '0';
 
 	/* если 1 - то используем механизм поиска шаблонов */
-	private int patternCallQueue = 1;
+	private boolean sortFunctionCalls = true;
 
-	public void offPatternCallQueue() {
-		this.patternCallQueue = 0;
+	public void setSortFunctionCalls(boolean b) {
+		this.sortFunctionCalls = b;
+	}
+	
+	private PatternSorter patternSorter;
+	
+	public PatternSorter getPatternSorter() {
+		return patternSorter;
 	}
 
 	public ExtendedParserStruct(ReaderInterface reader) {
 		super(reader);
 		addOption(new OptionStructType());
+		patternSorter = new PatternSorter();
 	}
 
 	/**
@@ -67,8 +73,7 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		 *  часть функций из старого парсера ! - убрать
 		 *  */
 		/* найдем все предполагаемые имена функций в структуре */
-		List<NameAndType> fnames = getFunctionNames(innerContent,this.patternCallQueue);
-		TokenStruct token = null;
+		List<NameAndType> fnames = getFunctionNames(innerContent);
 		if(fnames.size()>0) {
 			/* создадим парсер функций */
 			ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(getReader());
@@ -79,32 +84,20 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 				innerParserFunctions.addConfigOption("name", fnamesIterator.next().getName());
 			/* и запустим парсер */
 			List<TokenFunctionDecl> functions = innerParserFunctions.parse();
-			/* отсортируем по шаблону */
-			List<TokenFunctionDecl> sortedFunctions;
-			List<NameAndType> fnamesPattern = new ArrayList<NameAndType>(fnames);
-			if( this.patternCallQueue == 1)
-				sortedFunctions = PatternSort.sortByPattern(sNameAndType.getType(), fnames, functions);
-			else
-				sortedFunctions = functions;
-			/* установим ldvCommentContent */
-			for(Token itoken: sortedFunctions) {
-				if(itoken instanceof TokenFunctionDecl) {
-					TokenFunctionDecl tfd = (TokenFunctionDecl)itoken;
-					// ищем для него соответствующий тип
-					for(int i=0; i<fnamesPattern.size(); i++) {
-						if(fnamesPattern.get(i).getName().equals(tfd.getName())) {
-							tfd.setCallback(fnamesPattern.get(i).getType());
-							break;
-						}
-					}
-				}
-			}
-			
+						
 			/* и создадим токен - структуру */
-			token = new TokenStruct(sNameAndType.getName(), sNameAndType.getType(),
-					start, nend, tokenClearContent, null, sortedFunctions);
+			TokenStruct token = new TokenStruct(sNameAndType.getName(), sNameAndType.getType(),
+					start, nend, tokenClearContent, null, functions);
+			
+			if(this.sortFunctionCalls) {
+				/* отсортируем по шаблону */
+				token.sortFunctions(patternSorter, fnames);
+			} 
+			/* установим ldvCommentContent */
+			token.setComments(fnames);			
+			return token;
 		}
-		return token;
+		return null;
 	}
 
 	public static NameAndType parseNameAndType(String clearContent) {
@@ -132,7 +125,7 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 	
 	private final static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s[_a-zA-Z][_a-zA-Z0-9]*");
 	
-	public static List<NameAndType> getFunctionNames(String buffer, int patternCallQueue)
+	public static List<NameAndType> getFunctionNames(String buffer)
 	{
 		List<NameAndType> functions = new ArrayList<NameAndType>();
 		Matcher lmatcher = fstruct.matcher(buffer);

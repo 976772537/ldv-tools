@@ -27,22 +27,23 @@ public class DEG_cc {
 	
 	private static EnvParams[] getAllParamVariations() {
 		List<EnvParams> list = new ArrayList<EnvParams>();
-		//TODO list.add(new PlainParams(false, false));
+		list.add(new PlainParams(false, false));
 		list.add(new PlainParams(true, false));
 		list.add(new PlainParams(true, true));
+		
 		list.add(new SequenceParams(true,false,Length.one));
 		list.add(new SequenceParams(true,false,Length.infinite));
 		list.add(new SequenceParams(true,false,3));
 		list.add(new SequenceParams(false,false,Length.one));
 		list.add(new SequenceParams(false,false,Length.infinite));
 		list.add(new SequenceParams(false,false,3));
-		//TODO
-		//list.add(new SequenceParams(true,true,Length.one));
-		//list.add(new SequenceParams(true,true,Length.infinite));
-		//list.add(new SequenceParams(true,true,3));
-		//list.add(new SequenceParams(false,true,Length.one));
-		//list.add(new SequenceParams(false,true,Length.infinite));
-		//list.add(new SequenceParams(false,true,3));
+		
+		list.add(new SequenceParams(true,true,Length.one));
+		list.add(new SequenceParams(true,true,Length.infinite));
+		list.add(new SequenceParams(true,true,3));
+		list.add(new SequenceParams(false,true,Length.one));
+		list.add(new SequenceParams(false,true,Length.infinite));
+		list.add(new SequenceParams(false,true,3));
 		return list.toArray(new EnvParams[0]);
 	}
 	

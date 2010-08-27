@@ -9,20 +9,18 @@ public class SequenceParams extends EnvParams {
 	int n;
 	
 	public SequenceParams(boolean check, boolean stateful, Length length) {
-		super(check);
+		super(true, check);
 		assert length!=Length.n;
 		this.stateful = stateful;
 		this.length = length;
 		this.n = -1;
-		assert !stateful : "Not supported yet";  
 	}
 
 	public SequenceParams(boolean check, boolean stateful, int n) {
-		super(check);
+		super(true, check);
 		this.stateful = stateful;
 		this.length = Length.n;
 		this.n = n;
-		assert !stateful : "Not supported yet";  
 	}
 	
 	public boolean isStatefull() {

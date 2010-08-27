@@ -2,6 +2,7 @@ package com.iceberg.cbase.parsers;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -145,16 +146,9 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 	private final static Pattern fcallsPatterns = Pattern.compile("[\\w\\$]+\\s*\\([\\:\\*\\&\\w\\,\\.\\?\\%\\$\\^\\s\\=\\_\\\"\\\\\\#\\-(\\s*\\-\\s*>\\s*)\\(\\)]*\\)");
 	//private static Pattern fcallsRulePatterns = Pattern.compile("[_a-zA-Z$][_a-zA-Z0-9$]*");
 
-	private static final List<String> ckeywordsMap = new ArrayList<String>();
-	static {
-		ckeywordsMap.add("while");
-		ckeywordsMap.add("do");
-		ckeywordsMap.add("if");
-		ckeywordsMap.add("else");
-		ckeywordsMap.add("for");
-		ckeywordsMap.add("return");
-	}
-
+	private static final List<String> keywordsList = 
+		Arrays.asList("while","do","if","else","for","return");	
+	
 	private static int parseExceptionCounter = 0;
 
 	public static int getParseExceptionCounter() {
@@ -176,8 +170,8 @@ oWhile:		while(matcher.find()) {
 				/* оставим только имя */
 				callsString = callsString.substring(0,callsString.indexOf('(')).trim();
 				/* проверим имя - это действительно имя функции, а не ключевое слово */
-				for(int i=0; i<ckeywordsMap.size(); i++)
-					if(ckeywordsMap.get(i).equals(callsString)) continue oWhile;
+				for(int i=0; i<keywordsList.size(); i++)
+					if(keywordsList.get(i).equals(callsString)) continue oWhile;
 				/* здесь создаем токен и отправляем в списиок */
 				Token token = new Token(matcher.start(), matcher.end(), callsString, null);
 				boolean isExitsts = false;
