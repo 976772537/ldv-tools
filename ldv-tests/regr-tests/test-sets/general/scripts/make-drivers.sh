@@ -9,6 +9,11 @@ Example:
 usage_ends
 exit 1;
 }
+
+source_dir=`dirname $0`
+echo "source_dir=$source_dir"
+
+
 BUILTDIR=$1
 test -d $BUILTDIR || (echo "dir to built does not exists $BUILTDIR" && usage)
 KERNELSRC=$2
@@ -18,4 +23,5 @@ for i in `find $BUILTDIR -name "test-*"`
 do
 	DRVDIR=$i;
 	make -C $KERNELSRC M=`pwd`/$i modules || exit 1
+	$source_dir/clean.sh $i
 done

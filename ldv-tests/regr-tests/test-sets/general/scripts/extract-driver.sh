@@ -30,10 +30,40 @@ then
 	FINALPATH="$RESPATH/$PREFIX-$DRVRES";
 	mkdir -p $FINALPATH;
 	cp $KERNELSRC/$DRVPATH $FINALPATH;
+	
+	DRVOBJ=`basename $DRVPATH | sed 's/\.c/\.o/g'`;
+	echo "obj-m := $DRVOBJ" > $FINALPATH/Makefile;
+	
 	if `ls $DRVDIR/*.h > /dev/null 2>&1`;
 	then
 		cp $DRVDIR/*.h $FINALPATH;
 	fi
-	DRVOBJ=`basename $DRVPATH | sed 's/\.c/\.o/g'`;
-	echo "obj-m := $DRVOBJ" > $FINALPATH/Makefile;
+	if `echo $DRVPATH | grep -q -e 'dvb-usb'` || `echo $DRVPATH | grep -q -e 'dvb-ttusb'` || `echo $DRVPATH | grep -q -e 'au0828'` ||  `echo $DRVPATH | grep -q -e 'drivers/media/video'`; then
+		echo "apply DVB USB driver hack";
+		#cp $KERNELSRC/drivers/media/dvb/dvb-core/*.h $KERNELSRC/drivers/media/dvb/frontends/*.h $KERNELSRC/drivers/media/common/tuners/*.h $FINALPATH
+		echo "EXTRA_CFLAGS += -Idrivers/media/video" >>  $FINALPATH/Makefile;
+		echo "EXTRA_CFLAGS += -Idrivers/media/common/tuners" >>  $FINALPATH/Makefile;
+		echo "EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core" >>  $FINALPATH/Makefile;
+		echo "EXTRA_CFLAGS += -Idrivers/media/dvb/frontends" >>  $FINALPATH/Makefile;
+
+	fi
+	if `echo $DRVPATH | grep -q -e 'mon_main.c'`; then
+		echo "apply USB CORE driver hack";
+		cp $KERNELSRC/drivers/usb/core/*.h $FINALPATH
+		sed 's/\.\.\/core\/hcd\.h/hcd\.h/g' $KERNELSRC/$DRVPATH > $FINALPATH/`basename $DRVPATH`
+	fi
+	if `echo $DRVPATH | grep -q -e 'tty_io.c'`; then
+		echo "apply TTY driver hack";
+		sed 's/postcore_initcall/\/\/postcore_initcall/g' $KERNELSRC/$DRVPATH > $FINALPATH/`basename $DRVPATH`
+	fi
+	if `echo $DRVPATH | grep -q -e 'isapnp'`; then
+		echo "apply ISAPNP driver hack";
+		cp $KERNELSRC/drivers/pnp/*.h $FINALPATH
+		sed 's/\.\.\/base\.h/base\.h/g' $KERNELSRC/$DRVPATH > $FINALPATH/`basename $DRVPATH`
+	fi
+	if `echo $DRVPATH | grep -q -e 'fusion'`; then
+		echo "apply FUSION driver hack";
+		mkdir $FINALPATH/lsi;
+		cp $KERNELSRC/drivers/message/fusion/lsi/*.h $FINALPATH/lsi;
+	fi
 fi
