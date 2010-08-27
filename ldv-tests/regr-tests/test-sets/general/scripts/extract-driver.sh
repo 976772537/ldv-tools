@@ -66,4 +66,8 @@ then
 		mkdir $FINALPATH/lsi;
 		cp $KERNELSRC/drivers/message/fusion/lsi/*.h $FINALPATH/lsi;
 	fi
+	if `echo $DRVPATH | grep -q -e 'nicstar.c'`; then
+		echo "apply NICSTAR driver hack";
+		cp $KERNELSRC/drivers/atm/nicstarmac.c $FINALPATH;
+	fi
 fi
