@@ -29,10 +29,15 @@ do
 	then
 		DRVPATH=`echo $line | sed 's/\(.*\)==.*/\1/g'`;
 		echo drv=$DRVPATH;
-		VERDICT2=`echo $line | sed 's/.*==\(.*\)--.*/\1/g'`;
-		VERDICT=`echo $VERDICT2`;
-		echo verd=$VERDICT
-		$source_dir/extract-driver.sh $RESPATH $INPUTPREFIX $KERNELSRC $DRVPATH $VERDICT
+		if `test -n "$DRVPATH"`; then
+			VERDICT2=`echo $line | sed 's/.*==\(.*\)--.*/\1/g'`;
+			VERDICT=`echo $VERDICT2`;
+			echo verd=$VERDICT
+			if `test -z "$VERDICT"`; then
+				VERDICT="empty";
+			fi
+			$source_dir/extract-driver.sh $RESPATH $INPUTPREFIX $KERNELSRC $DRVPATH $VERDICT
+		fi
 	fi
 done < $KBFILE
 

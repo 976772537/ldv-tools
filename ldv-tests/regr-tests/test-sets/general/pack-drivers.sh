@@ -5,6 +5,7 @@ Usage:
         pack-drivers.sh /dir/to/save/to
 
 Packs test drivers into the directory specified.  Creates it if necessary.
+Searches for drivers in predefined directory './drivers/' with predefined prefix 'test-'.
 usage_ends
 exit 1;
 }

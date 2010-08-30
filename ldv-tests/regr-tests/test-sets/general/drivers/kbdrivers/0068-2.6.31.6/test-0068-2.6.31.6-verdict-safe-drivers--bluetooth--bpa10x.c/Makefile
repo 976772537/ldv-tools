@@ -1,0 +1,1 @@
+obj-m := bpa10x.o
