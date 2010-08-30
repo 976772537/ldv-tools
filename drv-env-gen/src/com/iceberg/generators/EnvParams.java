@@ -51,30 +51,36 @@ public abstract class EnvParams {
 	
 	public static EnvParams[] loadParameters(String fileName) {
 		Properties props = new Properties(); 
-		loadFile(props, fileName, null);
-		
+		if(!loadFile(props, fileName, null)) {
+			Logger.warn("Properties file not loaded " + fileName);
+			return null;
+		}
 		List<EnvParams> res = new LinkedList<EnvParams>();
 		
 		String val = props.getProperty(CONFIG_LIST);
-		if(val!=null) {
-			String[] plist = val.split(",");
-			for(String cf : plist) {
-				String key = cf.trim();
-				String type = props.getProperty(key + "." + "type");
-				if(type!=null && !type.isEmpty()) {
-					String t = type.trim();
-					if(t.equals("PlainParams")) {
-						PlainParams p = new PlainParams(props, key);
-						Logger.debug("Adding plain parameters " + p);
-					} else if(t.equals("SequenceParams")) {
-						SequenceParams p = new SequenceParams(props, key);
-						Logger.debug("Adding sequence parameters " + p);
-					} else {
-						Logger.warn("Unknown type of parameters " + type);
-					}
+		if(val==null || val.trim().isEmpty()) {
+			Logger.warn("Configurations list is empty " + val);
+			return null;
+		}
+		String[] plist = val.split(",");
+		for(String cf : plist) {
+			String key = cf.trim();
+			String type = props.getProperty(key + "." + "type");
+			if(type!=null && !type.isEmpty()) {
+				String t = type.trim();
+				if(t.equals("PlainParams")) {
+					PlainParams p = new PlainParams(props, key);
+					res.add(p);
+					Logger.debug("Adding plain parameters " + p);
+				} else if(t.equals("SequenceParams")) {
+					SequenceParams p = new SequenceParams(props, key);
+					res.add(p);
+					Logger.debug("Adding sequence parameters " + p);
 				} else {
-					Logger.warn("Empty type of parameters " + type);					
+					Logger.warn("Unknown type of parameters " + type);
 				}
+			} else {
+				Logger.warn("Empty type of parameters " + type);					
 			}
 		}
 		
@@ -88,21 +94,31 @@ public abstract class EnvParams {
 		try {
 	    	File f = new File(fileName);
 	    	if (f.exists()) {
+	    		Logger.trace("Open file " + fileName);
 	    		is = new FileInputStream(f);
 	    	} else {
 	    		// try to load as a resource (from jar)
+	    		Logger.trace("Try to load as resource");
 	    		Class<?> clazz = (codeBase != null) ? codeBase : EnvParams.class;
 	    		is = clazz.getResourceAsStream(fileName);
 	    	}
 
 	    	if (is != null) {
+	    		Logger.trace("Load properties");
 	    		prop.load(is);
 	    		is.close();
 	    		return true;
 	    	}
 		} catch (IOException iex) {
+			iex.printStackTrace();
+    		Logger.warn(iex.getMessage());
 			return false;
 		}
 		return false;
+	}
+	
+	@Override
+	public String toString() {
+		return getStringId();
 	}
 }

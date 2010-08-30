@@ -2,10 +2,10 @@ package com.iceberg.cbase.parsers;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.iceberg.Logger;
 import com.iceberg.cbase.parsers.options.OptionStructType;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
@@ -74,16 +74,18 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		 *  */
 		/* найдем все предполагаемые имена функций в структуре */
 		List<NameAndType> fnames = getFunctionNames(innerContent);
+		Logger.trace("TokenStruct.parseContent " + sNameAndType + " functions " + fnames);
 		if(fnames.size()>0) {
 			/* создадим парсер функций */
 			ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(getReader());
 			/* и добавим в него поиск только по указанным именам функций */
-			Iterator<NameAndType> fnamesIterator = fnames.iterator();
-			/* TODO: сделать метод добавления множества параметров */
-			while(fnamesIterator.hasNext())
-				innerParserFunctions.addConfigOption("name", fnamesIterator.next().getName());
+			for(NameAndType fnamesIterator : fnames) {
+				/* TODO: сделать метод добавления множества параметров */
+				innerParserFunctions.addConfigOption("name", fnamesIterator.getName());
+			}
 			/* и запустим парсер */
 			List<TokenFunctionDecl> functions = innerParserFunctions.parse();
+			Logger.trace("TokenStruct.parsed funcs " + functions);
 						
 			/* и создадим токен - структуру */
 			TokenStruct token = new TokenStruct(sNameAndType.getName(), sNameAndType.getType(),
@@ -94,7 +96,9 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 				token.sortFunctions(patternSorter, fnames);
 			} 
 			/* установим ldvCommentContent */
-			token.setComments(fnames);			
+			token.setComments(fnames);
+			
+			Logger.trace("TokenStruct.parsed funcs after sort" + functions);
 			return token;
 		}
 		return null;
@@ -121,6 +125,10 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		public String getType() {
 			return type;
 		}		
+		@Override
+		public String toString() {
+			return "NameAndType [name=" + name + ", type=" + type + "]";
+		}
 	}
 	
 	private final static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s[_a-zA-Z][_a-zA-Z0-9]*");

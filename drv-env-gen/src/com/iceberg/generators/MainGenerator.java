@@ -126,7 +126,8 @@ public class MainGenerator {
 			fw.write(ccontent);
 			List<String> mains = new LinkedList<String>();
 			for(EnvParams p : plist) {
-				ep.setSortFunctionCalls(p.isSorted());
+				//this does not work because parsing is done
+				//ep.setSortFunctionCalls(p.isSorted());
 				String id = index + "_" + p.getStringId();
 				int generatorCounter = 0;
 				FuncGenerator fg = FuncGeneratorFactory.create(GenerateOptions.DRIVER_FUN_STRUCT_FUNCTIONS);				
@@ -341,7 +342,7 @@ public class MainGenerator {
 		ctx.fw.write("\n\tswitch(nondet_int()) {\n");		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
-				if(token.isSorted() && sp.isStatefull()) {
+				if(sp.isSorted() && token.isSorted() && sp.isStatefull()) {
 					for(Item<TokenFunctionDecl> item : token.getSortedTokens()) {
 						TokenFunctionDecl tfd = item.getData();						
 						ctx.fw.write("\n\tcase " + tmpcounter + ": {\n");
@@ -378,9 +379,17 @@ public class MainGenerator {
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
 				ctx.fw.write("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
-				for(TokenFunctionDecl tfd : token.getTokens()) {
-					localCounter = generateFunctionCall(ctx, token, localCounter, tmpcounter, tfd);
-					tmpcounter++;
+				if(ctx.p.isSorted() && token.isSorted()) {
+					for(Item<TokenFunctionDecl> item : token.getSortedTokens()) {
+						TokenFunctionDecl tfd = item.getData();						
+						localCounter = generateFunctionCall(ctx, token, localCounter, tmpcounter, tfd);
+						tmpcounter++;
+					}					
+				} else {
+					for(TokenFunctionDecl tfd : token.getTokens()) {
+						localCounter = generateFunctionCall(ctx, token, localCounter, tmpcounter, tfd);
+						tmpcounter++;
+					}					
 				}
 				ctx.fw.write("\n");
 			}

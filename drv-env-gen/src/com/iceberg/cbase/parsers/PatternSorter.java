@@ -150,7 +150,6 @@ public class PatternSorter {
 		/* рассортируем сначала structType в соответствии с порядком
 		 * и почистим от ненужного мусора
 		 * ident */
-
 		List<NameAndType> filteredInitializers = new ArrayList<NameAndType>();
 		for(int i=0; i<decls.size(); i++) {
 			/* получим имя */

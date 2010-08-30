@@ -28,7 +28,7 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 	private final static Pattern beginPatternLow=Pattern.compile("^\\s*(const\\s+)?(((unsigned)||(struct))\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\s*\\*]*\\s*\\(\\s*[\\s*\\*]*\\s*");
 	private final static Pattern endPatternLow=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?\\)(.*\\s*)+");
 
-	boolean parseFunctionCalls = false;
+	boolean parseInnerFunctionCalls = false;
 
 	public ExtendedParserFunction(ReaderInterface reader) {
 		super(reader);
@@ -36,7 +36,7 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 	}
 
 	public 	void parseFunctionCallsOn() {
-		this.parseFunctionCalls = true;
+		this.parseInnerFunctionCalls = true;
 	}
 
 	@Override
@@ -134,7 +134,7 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 
 		/* если установлена опция "парсить" вызовы функций, то парсим */
 		List<Token> functionInnerCalls = null;
-		if(this.parseFunctionCalls)
+		if(this.parseInnerFunctionCalls)
 			functionInnerCalls = parseInnerCalls(this.getReader().readAll().substring(start,end));
 		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
 				sNameAndRetType.getType(),replacementParams,start,end,tokenClearContent,null,functionInnerCalls);

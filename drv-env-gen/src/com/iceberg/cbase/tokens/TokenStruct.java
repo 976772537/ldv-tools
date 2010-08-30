@@ -53,15 +53,16 @@ public class TokenStruct extends ContainerToken<TokenFunctionDecl> {
 		assert sorted==false : "please do not sort twice";
 		
 		List<NameAndType> fnamesPattern = new ArrayList<NameAndType>(fnames);
-		//List<TokenFunctionDecl> sortedFunctions = 
-		sortedItems = patternSorter.sortByPattern(type, fnamesPattern, tokens);
+		List<TokenFunctionDecl> decls = new ArrayList<TokenFunctionDecl>(tokens);
 		
-		List<TokenFunctionDecl> newTokens = new ArrayList<TokenFunctionDecl>(tokens.size());
+		sortedItems = patternSorter.sortByPattern(type, fnamesPattern, decls);
+		
 		//support old style of using sorted results through tokens field
-		for(Item<TokenFunctionDecl> t : sortedItems) {
-			newTokens.add(t.getData());
-		}
-		tokens = newTokens;		
+		//List<TokenFunctionDecl> newTokens = new ArrayList<TokenFunctionDecl>(tokens.size());
+		//for(Item<TokenFunctionDecl> t : sortedItems) {
+		//	newTokens.add(t.getData());
+		//}
+		//tokens = newTokens;		
 		sorted = true;
 	}
 	

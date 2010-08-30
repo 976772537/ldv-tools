@@ -150,7 +150,7 @@ public class DEG_cc {
 		properties = args[i]; 
 		paramsList = EnvParams.loadParameters(properties);
 		
-		if(paramsList.length==0) {
+		if(paramsList==null || paramsList.length==0) {
 			Logger.err("Properties file should define at least one environment model");
 			return false;
 		}		

@@ -59,15 +59,15 @@ static off_t misc_llseek(struct file *file, loff_t offs, int i) {
 	return 0;
 }
 
+static int misc_release(struct inode *node, struct file *file) {
+	return 0;
+}
+
 static ssize_t misc_read(struct file *file, char __user *buf, size_t len, loff_t *offs) {
 	return 0;
 }
 
 ssize_t misc_write(struct file *file, const char __user *buf, size_t len, loff_t *offs) {
-	return 0;
-}
-
-static int misc_release(struct inode *node, struct file *file) {
 	return 0;
 }
 

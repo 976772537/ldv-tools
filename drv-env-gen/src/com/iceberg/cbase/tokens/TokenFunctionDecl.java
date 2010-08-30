@@ -50,4 +50,11 @@ public class TokenFunctionDecl extends ContainerToken<Token> {
 	public void setTestString(String string) {
 		this.test = string;
 	}
+	
+	@Override
+	public String toString() {
+		return "TokenFunctionDecl [name=" + name + ", replacementParams="
+				+ replacementParams + ", retType=" + retType + ", test=" + test
+				+ "]";
+	}
 }

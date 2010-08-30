@@ -15,7 +15,7 @@ my @ldv_ld_add_options = ("-ea","-jar","$deg_home/ldv_ld.jar");
 my $output_option = "-o";
 
 my $props_file;
-my $default_props_file = "$deg_home/defaultenvparams.properties";
+my $default_props_file = "$deg_home/default.properties";
 
 # major options
 #
@@ -335,7 +335,7 @@ sub get_ldv_opts
 	};
 	
 	$props_file = $ENV{'ENVGEN_PROPERTIES'};
-	if(!$workdir) {
+	if(!$props_file) {
 	        ldv_dprint("ENVGEN_PROPERTIES variable not set. Using default properties $default_props_file\n");
 		$props_file = $default_props_file;
 	} 
