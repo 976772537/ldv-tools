@@ -18,13 +18,19 @@ import com.iceberg.generators.SequenceParams.Length;
  */
 public class DEG_cc {
 	
-	//private static final String usageString = "USAGE: java -ea -jar ldv_cc.jar input_files -o output_file options";
+	private static final String usageString = 
+		"USAGE: java -ea -jar ldv_cc.jar (input_file (--main|--nomain]))*"
+		+ "-o output_file -c unique_id -props properties_file gcc_options";
+	
 	private static List<String> inputFiles = new ArrayList<String>();
 	private static String outputFile;
 	private static String counter;
+	private static String properties;
+	private static EnvParams paramsList[]; 
 	private static List<Boolean> generateArray = new ArrayList<Boolean>();
 	private static final String name = "ldv-cc";
 	
+	@SuppressWarnings("unused")
 	private static EnvParams[] getAllParamVariations() {
 		List<EnvParams> list = new ArrayList<EnvParams>();
 		list.add(new PlainParams(false, false));
@@ -48,8 +54,10 @@ public class DEG_cc {
 	}
 	
 	public static void main(String[] args) {
-		if(!getOpts(args))
+		if(!getOpts(args)) {
+			System.err.println(usageString);
 			System.exit(1);
+		}
 		try {
 			for(int i=(outputFile.length()-1); i>=0; i--) {
 				if(outputFile.charAt(i)=='/') {
@@ -65,8 +73,7 @@ public class DEG_cc {
 				Logger.debug("Start generator for: \""+inputFiles.get(i)+"\" file.");
 				
 				if(generateArray.get(i)) {
-					EnvParams plist[] = getAllParamVariations();
-					DegResult res = MainGenerator.deg(inputFiles.get(i),counter, plist);
+					DegResult res = MainGenerator.deg(inputFiles.get(i),counter, paramsList);
 					if(res.isSuccess()) {
 						for(String id : res.getMains()) {
 							outputWriter.append(inputFiles.get(i) 
@@ -77,6 +84,7 @@ public class DEG_cc {
 			}
 			outputWriter.close();
 		} catch (IOException e) {
+			e.printStackTrace();
 			System.exit(1);
 		}
 	}
@@ -86,7 +94,7 @@ public class DEG_cc {
 		Logger.setName(name);
 		
 		if(args.length==0) {
-			Logger.err("empty options");
+			Logger.err("Empty options");
 			return false;
 		}
 		
@@ -100,10 +108,15 @@ public class DEG_cc {
 			inputFiles.add(args[i]);
 			i++;
 			Logger.debug(args[i]);
-			if(args[i].equals("--main"))
-				generateArray.add(true);
-			else if(args[i].equals("--nomain"))
-				generateArray.add(false);
+			if(args[i].equals("--main")) {
+				generateArray.add(true);				
+			} else if(args[i].equals("--nomain")){ 
+				generateArray.add(false);	
+			} else {
+				assert false;
+				Logger.err("One of --main or --nomain should be specified");
+				return false;				
+			}
 		}
 		
 		if(inputFiles.size()==0) {
@@ -124,10 +137,24 @@ public class DEG_cc {
 		outputFile = args[i++];
 		
 		if(!args[i++].equals("-c")) {
-			Logger.err("After input files must be \"-c number\".");
+			Logger.err("After output file must be \"-c uniqueid\".");
 			return false;
 		}
-		counter = args[i];
+		counter = args[i++];
+		
+		if(!args[i++].equals("-props")) {
+			Logger.err("After uniqueid must be \"-props path_to_properties\".");
+			return false;
+		}
+		
+		properties = args[i]; 
+		paramsList = EnvParams.loadParameters(properties);
+		
+		if(paramsList.length==0) {
+			Logger.err("Properties file should define at least one environment model");
+			return false;
+		}		
+		
 		return true;
 	}
 }	

@@ -10,13 +10,19 @@ my $ldv_cc = "java";
 my @ldv_cc_add_options = ("-ea","-jar","$deg_home/ldv_cc.jar");
 my $ldv_ld = "java";
 my @ldv_ld_add_options = ("-ea","-jar","$deg_home/ldv_ld.jar");
-# output ooption
+# output option
 # -o
 my $output_option = "-o";
+
+my $props_file;
+my $default_props_file = "$deg_home/defaultenvparams.properties";
+
 # major options
 #
-# interface for (cc||ld):
-# ldv_(cc||ld) input_file input_file ... -o output_file options
+# interface for cc:
+# ldv_cc input_file1 (--main|--nomain) input_file2 (--main|--nomain)... -o output_file -c uniqueid -props properties_file other_options
+# interface for dd:
+# ldv_ld input_file input_file ... -o output_file options
 #
 #
 my $workdir;
@@ -176,6 +182,7 @@ sub hxml_cmdstream_cc {
 		push(@args, $outdir);
 	}
 	push(@args,"-c",$ldv_counter++);
+	push(@args,"-props",$props_file);
 	foreach my $section ( $_[1]->children('opt') ) {
 		push(@args,$section->text);
 	}
@@ -326,6 +333,18 @@ sub get_ldv_opts
 		print_usage();
 	        exit 1;
 	};
+	
+	$props_file = $ENV{'ENVGEN_PROPERTIES'};
+	if(!$workdir) {
+	        ldv_dprint("ENVGEN_PROPERTIES variable not set. Using default properties $default_props_file\n");
+		$props_file = $default_props_file;
+	} 
+	
+	if(! -f $props_file) {
+		ldv_eprint("Can not find envgen properties file: \"$props_file\".");
+		print_usage();
+		exit 1;
+	}
 
 	# get all options
 	foreach $opt(@ARGV)
