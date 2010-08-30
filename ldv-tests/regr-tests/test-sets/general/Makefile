@@ -18,6 +18,7 @@ mandir = ${prefix}/man
 # Compilation
 all:
 	./pack-drivers.sh ${TMP_DIR_DRV} || exit 1
+	./rename-drivers.sh ./online-drivers/ ${TMP_DIR_DRV}
 
 test:
 
@@ -29,8 +30,7 @@ clean:
 install: all
 	if [ ! -d $(prefix)/$(GENERAL_TEST_DIR) ]; then mkdir -p $(prefix)/$(GENERAL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR_DRV}/*.tar.bz2 $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
-	cp $(TEST_TASK) $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
-	cp regr-task-kbdrivers $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
+	cat regr-task-errors regr-task-kbdrivers regr-task-online-drivers | sort > $(prefix)/$(GENERAL_TEST_DIR)/$(TEST_TASK) || exit 1;
 	cp regr-test-general-* $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 	cp ../big/linux-2.6.32.15.tar.bz2 $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 	cp ../big/linux-2.6.31.6.tar.bz2 $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
