@@ -22,6 +22,17 @@ require File.join(manhome,"results_model.rb")
 # All models were loaded in results_model.rb.  Now we just add a couple of methods that regard loading them from report
 
 class Task
+	# Get date and time of a task from a special "timestamp" tag.  It should be set in report-fixup correspondingly!
+	def self.process_timestamp_tag(timestamp_tag)
+		# List of tags to read
+		tags = %w{sec min hour mday mon year wday yday isdst}
+		# Read tags into tag->value hash
+		d = {}
+		tags.each {|tn| d[tn] = (timestamp_tag/tn).inner_html.to_i}
+		# Return date
+		DateTime.civil(d['year'], d['mon'], d['mday'], d['hour'], d['min'], d['sec'])
+	end
+
 	def self.from_xml(tag)
 		unless (tag/"task_id").empty?
 			# Get task from database
@@ -38,7 +49,7 @@ class Task
 			raise "Couldn't find or create task for task_name=#{task_name}" unless task
 			# Of course, we should re-create the other fields
 			task.username = (tag/"username").inner_html unless (tag/"task_name").empty?
-			task.timestamp = (tag/"timestamp").inner_html.to_datetime unless (tag/"timestamp").empty?
+			task.timestamp = Task.process_timestamp_tag(tag/"timestamp") unless (tag/"timestamp").empty?
 			task.description = (tag/"description").inner_html unless (tag/"description").empty?
 			task.driver_spec = (tag/"driver").inner_html unless (tag/"driver").inner_html.empty?
 			task.driver_spec_origin = (tag/"driver_origin").inner_html unless (tag/"driver_origin").empty?
@@ -49,7 +60,7 @@ class Task
 		unless (tag/"username").empty? || (tag/"timestamp").empty?
 			# Create task for user/given timestamp
 			username = (tag/"username").inner_html
-			timestamp = (tag/"timestamp").inner_html.to_datetime
+			timestamp = Task.process_timestamp_tag(tag/"timestamp")
 			description = (tag/"description").inner_html
 			driver_spec = (tag/"driver").inner_html
 			driver_spec = nil if driver_spec.empty?
