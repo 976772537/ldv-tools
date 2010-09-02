@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
+import com.iceberg.generators.MainGenerator;
 
 /* статический класс с сохраненными и откомпиленными регекспами */
 public class PatternSorter {
@@ -48,23 +49,23 @@ public class PatternSorter {
 		mainPtrs.add(new FuncInfo(
 				"open",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		mainPtrs.add(new FuncInfo(
 				"probe",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		mainPtrs.add(new FuncInfo(
 				"connect",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		mainPtrs.add(new FuncInfo(
 				"read",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		mainPtrs.add(new FuncInfo(
 				"write",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		mainPtrs.add(new FuncInfo(
 				"close",
 				null));
@@ -75,7 +76,7 @@ public class PatternSorter {
 		usbPtrs.add(new FuncInfo(
 				"probe",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		usbPtrs.add(new FuncInfo(
 				"suspend", null));
 		usbPtrs.add(new FuncInfo(
@@ -98,15 +99,15 @@ public class PatternSorter {
 		filePtrs.add(new FuncInfo(
 				"open",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		filePtrs.add(new FuncInfo(
 				"read",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		filePtrs.add(new FuncInfo(
 				"write",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		filePtrs.add(new FuncInfo(
 				"llseek", null));
 		filePtrs.add(new FuncInfo(
@@ -117,7 +118,7 @@ public class PatternSorter {
 		scsiPtrs.add(new FuncInfo(
 				"probe",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
+				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
 		scsiPtrs.add(new FuncInfo(
 				"suspend", null));
 		scsiPtrs.add(new FuncInfo(

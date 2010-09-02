@@ -59,6 +59,13 @@ public class MainGenerator {
 	private static final String ldvTag_VARIABLE_DECLARATION_PART = "_VARIABLE_DECLARATION_PART";
 	private static final String ldvTag_FUNCTION_CALL_SECTION = "_FUNCTION_CALL_SECTION";
 
+	public static String getModuleExitLabel() {
+		return "ldv_module_exit";
+	}
+
+	public static String getCheckFinalLabel() {
+		return "ldv_final";
+	}
 
 	public static void main(String[] args) {
 
@@ -71,7 +78,6 @@ public class MainGenerator {
 		long endf = System.currentTimeMillis();
 		Logger.info("generate time: " + (endf-startf) + "ms");
 	}
-
 
 	public static void generate(String filename) {
 		generateByIndex(filename, null, null, false, new PlainParams(true,true));
@@ -133,19 +139,15 @@ public class MainGenerator {
 				
 				GeneratorContext ctx = new GeneratorContext(p,isgenerateIfdefAroundMains, id, fg, ppcParser, ep, fw, macroTokens, structTokens);
 				
-				generateMainHeader(ctx);
-								
-				generateVarDeclSection(ctx);			
-				generateVarInitSection(ctx);
-				
-				generateFunctionCallSectHeader(fw);			
-				generateModuleInitCall(ctx);
-				generateFunctionCallSection(ctx);
-				
-				generateModuleExitCall(ctx);
-				
-				generateFunctionCallSectFooter(fw);
-				
+				generateMainHeader(ctx);								
+					generateVarDeclSection(ctx);			
+					generateVarInitSection(ctx);
+					
+					generateFunctionCallSectHeader(fw);			
+						generateModuleInitCall(ctx);
+						generateDriverCallbacksSection(ctx);				
+						generateModuleExitCall(ctx);				
+					generateFunctionCallSectFooter(fw);				
 				generateMainFooter(ctx);
 				
 				mains.add(id);
@@ -158,17 +160,16 @@ public class MainGenerator {
 		return new DegResult(false);
 	}
 
-
 	public static class GeneratorContext {
-		EnvParams p;		
-		boolean isgenerateIfdefAroundMains; 
-		String id;
-		FuncGenerator fg;
-		ParserPPCHelper ppcParser; 
-		ExtendedParserStruct ep;
-		FileWriter fw; 
-		List<TokenFunctionDeclSimple> macroTokens;	
-		List<TokenStruct> structTokens; 
+		final EnvParams p;		
+		final boolean isgenerateIfdefAroundMains; 
+		final String id;
+		final FuncGenerator fg;
+		final ParserPPCHelper ppcParser; 
+		final ExtendedParserStruct ep;
+		final FileWriter fw; 
+		final List<TokenFunctionDeclSimple> macroTokens;	
+		final List<TokenStruct> structTokens; 
 		
 		public GeneratorContext(EnvParams p,
 				boolean isgenerateIfdefAroundMains, String id,
@@ -189,25 +190,6 @@ public class MainGenerator {
 		}
 	}
 	
-	private static void generateFunctionCallSectFooter(FileWriter fw) throws IOException {
-		StringBuffer sb = new StringBuffer();
-		Logger.trace("Start appending end section...");
-		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
-		sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
-		sb.append("\n\t\tldv_final: check_final_state();\n");
-		sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");		
-		fw.write(sb.toString());
-	}
-
-	private static void generateFunctionCallSectHeader(FileWriter fw) throws IOException {
-		StringBuffer sb = new StringBuffer();
-		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_FUNCTION_CALL_SECTION+" */");
-		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");
-		sb.append("\n/*============================= FUNCTION CALL SECTION       =============================*/");
-		fw.write(sb.toString());
-	}
-
-
 	private static void generateMainFooter(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
 		sb.append("\n\t\treturn;\n}\n");
@@ -218,7 +200,6 @@ public class MainGenerator {
 		sb.append("/* "+ldvCommentTag+ldvTag_END+ldvTag_MAIN+" */\n");
 		ctx.fw.write(sb.toString());
 	}
-
 
 	private static void generateMainHeader(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
@@ -253,6 +234,50 @@ public class MainGenerator {
 		ctx.fw.write(sb.toString());
 	}
 
+	private static void generateFunctionCallSectHeader(FileWriter fw) throws IOException {
+		StringBuffer sb = new StringBuffer();
+		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_FUNCTION_CALL_SECTION+" */");
+		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");
+		sb.append("\n/*============================= FUNCTION CALL SECTION       =============================*/");
+		fw.write(sb.toString());
+	}
+
+	private static void generateFunctionCallSectFooter(FileWriter fw) throws IOException {
+		StringBuffer sb = new StringBuffer();
+		Logger.trace("Start appending end section...");
+		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
+		sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
+		sb.append("\n\t\t" + getCheckFinalLabel() + ": check_final_state();\n");
+		sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");		
+		fw.write(sb.toString());
+	}
+
+	private static void generateModuleInitCall(GeneratorContext ctx) throws IOException {
+		StringBuffer sb = new StringBuffer();
+		
+		Logger.trace("Append part before standart functions.");
+		for(TokenFunctionDeclSimple token : ctx.macroTokens) {
+			/* первое, что мы сделаем, так это найдем init функции */
+				if(token.getType() != 
+					TokenFunctionDeclSimple.SimpleType.ST_MODULE_INIT) 
+					continue;
+				sb.append("\n\t/** INIT: init_type: " + token.getType() + " **/");
+				sb.append("\n\t\t/* content: " + token.getContent() + "*/");
+				ctx.fg.set(token);
+				appendPpcBefore(sb,ctx.ppcParser,token);
+				/* добавляем вызовы функций */
+				String lparams = ctx.fg.generateFunctionCall();
+				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
+				sb.append("\n\t\tif ("+lparams.substring(0,lparams.length()-1)+")");
+				sb.append("\n\t\t\tgoto " + getCheckFinalLabel() +";");
+				appendPpcAfter(sb,ctx.ppcParser,token);
+				/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
+				ctx.fw.write(sb.toString());
+				sb = new StringBuffer();
+				sb.append("\n");
+		}
+		ctx.fw.write(sb.toString());
+	}
 
 	private static void generateModuleExitCall(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
@@ -268,9 +293,9 @@ public class MainGenerator {
 			appendPpcBefore(sb,ctx.ppcParser,token);
 			/* увеличим счетчик, на число параметров*/
 			/* добавляем вызовы функций */
-			String lparams = ctx.fg.generateFunctionCall();
+			String exitCall = ctx.fg.generateFunctionCall();
 			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver release function before driver will be uploaded from kernel. This function declared as \"MODULE_EXIT(function name)\". */");
-			sb.append("\n\t\t" + lparams);
+			sb.append("\n\t\t" + getModuleExitLabel() + ": " + exitCall);
 			appendPpcAfter(sb,ctx.ppcParser,token);
 			/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 			ctx.fw.write(sb.toString());
@@ -280,8 +305,89 @@ public class MainGenerator {
 		ctx.fw.write(sb.toString());
 	}
 
+	private static void generateVarInitSection(GeneratorContext ctx) throws IOException {
+		StringBuffer sb = new StringBuffer();
+		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_INITIALIZING_PART+" */");
+		Logger.trace("Start appending \"VARIABLE INITIALIZING PART\"...");
+		sb.append("\n/*============================= VARIABLE INITIALIZING PART  =============================*/");
+		sb.append("IN_INTERRUPT = 1;\n");
+		
+		for(TokenStruct token : ctx.structTokens) {
+			if(token.hasInnerTokens()) {
+					Logger.trace("Start appending inittialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
+					sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+					for(TokenFunctionDecl tfd : token.getTokens()) {
+						sb.append("\n\t\t/* content: " + tfd.getContent() + "*/");
+						ctx.fg.set(tfd);
+						appendPpcBefore(sb,ctx.ppcParser,tfd);
+						/* добавляем инициализацию */
+						List<String> lparams = ctx.fg.generateVarInit();
+						Iterator<String> paramIterator = lparams.iterator();
+						while(paramIterator.hasNext()) {
+							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_INIT+" Variable initialization for function \""+tfd.getName()+"\" */");
+							sb.append("\n\t\t" + paramIterator.next());
+						}
+						appendPpcAfter(sb,ctx.ppcParser,tfd);
+						/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
+						ctx.fw.write(sb.toString());
+						sb = new StringBuffer();
+					}
+					sb.append("\n");
+					Logger.trace("Ok. Var initialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
+			}
+		}
+		sb.append("\n\n\n");
+		Logger.trace("Appending for \"VARIABLE INITIALIZING\" successfully finished");
+		sb.append("\n/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_INITIALIZING_PART+" */");
+		ctx.fw.write(sb.toString());
+	}
 
-	private static void generateFunctionCallSection(GeneratorContext ctx) throws IOException {
+	private static void generateVarDeclSection(GeneratorContext ctx) throws IOException {
+		
+		StringBuffer sb = new StringBuffer();
+		Logger.trace("Start appending \"VARIABLE DECLARATION PART\"...");
+		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_DECLARATION_PART+" */");
+		sb.append("\n/*============================= VARIABLE DECLARATION PART   =============================*/");
+		
+		for(TokenStruct token : ctx.structTokens) {
+			if(token.hasInnerTokens()) {
+					Logger.trace("Start appending declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
+					sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getType() + " **/");
+					for(TokenFunctionDecl tfd : token.getTokens()) {
+						sb.append("\n\t\t/* content: " + tfd.getContent() + "*/");
+						ctx.fg.set(tfd);
+
+						appendPpcBefore(sb, ctx.ppcParser, tfd);
+						/* добавляем описания параметров */
+						List<String> lparams = ctx.fg.generateVarDeclare();
+						Iterator<String> paramIterator = lparams.iterator();
+						while(paramIterator.hasNext()) {
+							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for function \""+tfd.getName()+"\" */");
+							sb.append("\n\t\t" + paramIterator.next());
+						}
+						/* проверим - функция имеет проверки - т.е. стандартная ?
+						 * если да, то объявим перемнную для результата */
+						if(tfd.getTestString()!=null && !tfd.getRetType().contains("void")) {
+							
+							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for test return result from function call \""+tfd.getName()+"\" */");
+							sb.append("\n\t\t" + ctx.fg.generateRetDecl());
+						}
+						appendPpcAfter(sb,ctx.ppcParser,tfd);
+						/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
+						ctx.fw.write(sb.toString());
+						sb = new StringBuffer();
+					}
+					sb.append("\n");
+					Logger.trace("Ok. Var declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
+			}
+		}
+		sb.append("\n\n\n");
+		Logger.trace("Appending for \"VARIABLE DECLARATION PART\" successfully finished");
+		sb.append("\n/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_DECLARATION_PART+" */");
+		ctx.fw.write(sb.toString());
+	}
+
+	private static void generateDriverCallbacksSection(GeneratorContext ctx) throws IOException {
 		Logger.trace("Append standart functions calls.");
 		if(ctx.p instanceof PlainParams) {
 			//generate single sequence of calls
@@ -356,7 +462,6 @@ public class MainGenerator {
 		ctx.fw.write("\n\t}\n");
 	}
 
-
 	private static void generatePlainBody(GeneratorContext ctx) throws IOException {		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
@@ -375,7 +480,6 @@ public class MainGenerator {
 			}
 		}
 	}
-
 
 	private static void generateFunctionCall(GeneratorContext ctx,
 			TokenStruct token, TokenFunctionDecl tfd) throws IOException {
@@ -408,118 +512,6 @@ public class MainGenerator {
 		ctx.fw.write(sb.toString());
 	}
 
-
-	private static void generateModuleInitCall(GeneratorContext ctx) throws IOException {
-		StringBuffer sb = new StringBuffer();
-		
-		Logger.trace("Append part before standart functions.");
-		for(TokenFunctionDeclSimple token : ctx.macroTokens) {
-			/* первое, что мы сделаем, так это найдем init функции */
-				if(token.getType() != 
-					TokenFunctionDeclSimple.SimpleType.ST_MODULE_INIT) 
-					continue;
-				sb.append("\n\t/** INIT: init_type: " + token.getType() + " **/");
-				sb.append("\n\t\t/* content: " + token.getContent() + "*/");
-				ctx.fg.set(token);
-				appendPpcBefore(sb,ctx.ppcParser,token);
-				/* добавляем вызовы функций */
-				String lparams = ctx.fg.generateFunctionCall();
-				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
-				sb.append("\n\t\tif ("+lparams.substring(0,lparams.length()-1)+")");
-				sb.append("\n\t\t\tgoto ldv_final;");
-				appendPpcAfter(sb,ctx.ppcParser,token);
-				/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
-				ctx.fw.write(sb.toString());
-				sb = new StringBuffer();
-				sb.append("\n");
-		}
-		ctx.fw.write(sb.toString());
-	}
-
-
-	private static void generateVarInitSection(GeneratorContext ctx) throws IOException {
-		StringBuffer sb = new StringBuffer();
-		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_INITIALIZING_PART+" */");
-		Logger.trace("Start appending \"VARIABLE INITIALIZING PART\"...");
-		sb.append("\n/*============================= VARIABLE INITIALIZING PART  =============================*/");
-		sb.append("IN_INTERRUPT = 1;\n");
-		
-		for(TokenStruct token : ctx.structTokens) {
-			if(token.hasInnerTokens()) {
-					Logger.trace("Start appending inittialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
-					sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
-					for(TokenFunctionDecl tfd : token.getTokens()) {
-						sb.append("\n\t\t/* content: " + tfd.getContent() + "*/");
-						ctx.fg.set(tfd);
-						appendPpcBefore(sb,ctx.ppcParser,tfd);
-						/* добавляем инициализацию */
-						List<String> lparams = ctx.fg.generateVarInit();
-						Iterator<String> paramIterator = lparams.iterator();
-						while(paramIterator.hasNext()) {
-							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_INIT+" Variable initialization for function \""+tfd.getName()+"\" */");
-							sb.append("\n\t\t" + paramIterator.next());
-						}
-						appendPpcAfter(sb,ctx.ppcParser,tfd);
-						/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
-						ctx.fw.write(sb.toString());
-						sb = new StringBuffer();
-					}
-					sb.append("\n");
-					Logger.trace("Ok. Var initialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
-			}
-		}
-		sb.append("\n\n\n");
-		Logger.trace("Appending for \"VARIABLE INITIALIZING\" successfully finished");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_INITIALIZING_PART+" */");
-		ctx.fw.write(sb.toString());
-	}
-
-
-	private static void generateVarDeclSection(GeneratorContext ctx) throws IOException {
-		
-		StringBuffer sb = new StringBuffer();
-		Logger.trace("Start appending \"VARIABLE DECLARATION PART\"...");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_DECLARATION_PART+" */");
-		sb.append("\n/*============================= VARIABLE DECLARATION PART   =============================*/");
-		
-		for(TokenStruct token : ctx.structTokens) {
-			if(token.hasInnerTokens()) {
-					Logger.trace("Start appending declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
-					sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getType() + " **/");
-					for(TokenFunctionDecl tfd : token.getTokens()) {
-						sb.append("\n\t\t/* content: " + tfd.getContent() + "*/");
-						ctx.fg.set(tfd);
-
-						appendPpcBefore(sb, ctx.ppcParser, tfd);
-						/* добавляем описания параметров */
-						List<String> lparams = ctx.fg.generateVarDeclare();
-						Iterator<String> paramIterator = lparams.iterator();
-						while(paramIterator.hasNext()) {
-							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for function \""+tfd.getName()+"\" */");
-							sb.append("\n\t\t" + paramIterator.next());
-						}
-						/* проверим - функция имеет проверки - т.е. стандартная ?
-						 * если да, то объявим перемнную для результата */
-						if(tfd.getTestString()!=null && !tfd.getRetType().contains("void")) {
-							
-							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for test return result from function call \""+tfd.getName()+"\" */");
-							sb.append("\n\t\t" + ctx.fg.generateRetDecl());
-						}
-						appendPpcAfter(sb,ctx.ppcParser,tfd);
-						/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
-						ctx.fw.write(sb.toString());
-						sb = new StringBuffer();
-					}
-					sb.append("\n");
-					Logger.trace("Ok. Var declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
-			}
-		}
-		sb.append("\n\n\n");
-		Logger.trace("Appending for \"VARIABLE DECLARATION PART\" successfully finished");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_DECLARATION_PART+" */");
-		ctx.fw.write(sb.toString());
-	}
-
 	/**
 	 * Close preprocessor directives 
 	 * @param sb
@@ -541,7 +533,6 @@ public class MainGenerator {
 			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_PREP+" */");
 		}
 	}
-
 
 	/**
 	 * Open preprocessor directives 

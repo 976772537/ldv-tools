@@ -47,31 +47,49 @@ static struct file_operations misc_fops = {
 	
 };
 
+int misc_nondet_int(void);
+
+int open_failed = 0;
+
 static int misc_open(struct inode * inode, struct file * file)
 {
-	unsigned long flags;
 	spin_lock(&my_lock);
-	spin_lock_irqsave(&my_lock, flags);
-	return 0;
+	if(misc_nondet_int()) {
+		open_failed = 1;
+		return 1;
+	} else {
+		spin_unlock(&my_lock);
+		return 0;
+	}
 }
 
 static off_t misc_llseek(struct file *file, loff_t offs, int i) {
+	spin_lock(&my_lock);
+	spin_unlock(&my_lock);
 	return 0;
 }
 
 static int misc_release(struct inode *node, struct file *file) {
+	spin_lock(&my_lock);
+	spin_unlock(&my_lock);
 	return 0;
 }
 
 static ssize_t misc_read(struct file *file, char __user *buf, size_t len, loff_t *offs) {
+	spin_lock(&my_lock);
+	spin_unlock(&my_lock);
 	return 0;
 }
 
 ssize_t misc_write(struct file *file, const char __user *buf, size_t len, loff_t *offs) {
+	spin_lock(&my_lock);
+	spin_unlock(&my_lock);
 	return 0;
 }
 
 static int misc_lock(struct file *file, int i, struct file_lock *lock) {
+	spin_lock(&my_lock);
+	spin_unlock(&my_lock);
 	return 0;
 }
 
@@ -82,11 +100,13 @@ static int __init my_init(void)
 
 static void __exit my_exit(void)
 {
+	if(open_failed) 
+		spin_unlock(&my_lock);
 }
 
 module_init(my_init);
 module_exit(my_exit);
 
 MODULE_LICENSE("Apache 2.0");
-MODULE_AUTHOR("LDV Project, Vedim Mutilin <mutilin@ispras.ru>");
+MODULE_AUTHOR("LDV Project, Vadim Mutilin <mutilin@ispras.ru>");
 
