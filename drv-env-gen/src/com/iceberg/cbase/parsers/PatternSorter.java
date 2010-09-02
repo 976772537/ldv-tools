@@ -47,24 +47,24 @@ public class PatternSorter {
 		List<FuncInfo> mainPtrs = new ArrayList<FuncInfo>();
 		mainPtrs.add(new FuncInfo(
 				"open",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
 		mainPtrs.add(new FuncInfo(
 				"probe",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
 		mainPtrs.add(new FuncInfo(
 				"connect",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
 		mainPtrs.add(new FuncInfo(
 				"read",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
 		mainPtrs.add(new FuncInfo(
 				"write",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
 		mainPtrs.add(new FuncInfo(
 				"close",
 				null));
@@ -74,8 +74,8 @@ public class PatternSorter {
 		List<FuncInfo> usbPtrs = new ArrayList<FuncInfo>();
 		usbPtrs.add(new FuncInfo(
 				"probe",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
 		usbPtrs.add(new FuncInfo(
 				"suspend", null));
 		usbPtrs.add(new FuncInfo(
@@ -97,16 +97,16 @@ public class PatternSorter {
 		List<FuncInfo> filePtrs = new ArrayList<FuncInfo>();
 		filePtrs.add(new FuncInfo(
 				"open",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
 		filePtrs.add(new FuncInfo(
 				"read",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
 		filePtrs.add(new FuncInfo(
 				"write",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter < 0) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar < 0) \n\t\t\tgoto ldv_final;"));
 		filePtrs.add(new FuncInfo(
 				"llseek", null));
 		filePtrs.add(new FuncInfo(
@@ -116,8 +116,8 @@ public class PatternSorter {
 		List<FuncInfo> scsiPtrs = new ArrayList<FuncInfo>();
 		scsiPtrs.add(new FuncInfo(
 				"probe",
-				"\n\t\trtmp$counter = $fcall; \n\t\tcheck_return_value(rtmp$counter);\n" +
-				"\t\tif(rtmp$counter) \n\t\t\tgoto ldv_final;"));
+				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\t\tif($retvar) \n\t\t\tgoto ldv_final;"));
 		scsiPtrs.add(new FuncInfo(
 				"suspend", null));
 		scsiPtrs.add(new FuncInfo(
