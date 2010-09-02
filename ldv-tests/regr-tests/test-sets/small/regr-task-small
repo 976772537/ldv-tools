@@ -12,6 +12,9 @@ driver=tests-envgen--test-order.tar.bz2;origin=external;kernel=mykernel-1-2.6.32
 driver=tests-envgen--test-fops-sorter.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-sorter/fops-sorter.ko;main=ldv_main0;verdict=safe
 driver=tests-envgen--test-fops-check-exit.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-check-exit/fops-check-exit.ko;main=ldv_main0;verdict=safe
 driver=tests-envgen--test-fops-check-order.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-check-order/fops-check-order.ko;main=ldv_main0;verdict=safe
+driver=tests-envgen--test-fops-check-stateful.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-check-stateful/fops-check-stateful.ko;main=ldv_main0;verdict=safe
+driver=tests-envgen--test-fops-stateful.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-stateful/fops-stateful.ko;main=ldv_main0;verdict=safe
+driver=tests-envgen--test-fops-seq-two.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-seq-two/fops-seq-two.ko;main=ldv_main0;verdict=safe
 driver=tests-envgen--test-struct.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-struct/struct.ko;main=ldv_main0;verdict=unsafe
 driver=tests-envgen--test-twomains-mutex.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-envgen/test-twomains-mutex/twomains.ko;main=ldv_main0;verdict=safe
 driver=tests-envgen--test-twomains-mutex.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-envgen/test-twomains-mutex/twomains.ko;main=ldv_main1;verdict=unsafe

@@ -47,25 +47,25 @@ static struct file_operations misc_fops = {
 	
 };
 
-int misc_nondet_int(void);
+int open_called = 0;
 
-static int misc_open(struct inode * inode, struct file * file)
-{
-	spin_lock(&my_lock);
-	if(misc_nondet_int()) {
+static int misc_release(struct inode *node, struct file *file) {
+	//release should be after open
+	//verdict should be safe
+	if(open_called) {
+		//safe
+		spin_lock(&my_lock);
 		spin_unlock(&my_lock);
-		return 1;
+		open_called = 0;
 	} else {
-		return 0;
+		//unsafe
+		spin_lock(&my_lock);
+		spin_lock(&my_lock);
 	}
-}
-
-static off_t misc_llseek(struct file *file, loff_t offs, int i) {
 	return 0;
 }
 
-static int misc_release(struct inode *node, struct file *file) {
-	spin_unlock(&my_lock);
+static off_t misc_llseek(struct file *file, loff_t offs, int i) {
 	return 0;
 }
 
@@ -77,12 +77,20 @@ ssize_t misc_write(struct file *file, const char __user *buf, size_t len, loff_t
 	return 0;
 }
 
+static int misc_open(struct inode * inode, struct file * file)
+{
+	open_called = 1;
+	return 0;
+}
+
 static int misc_lock(struct file *file, int i, struct file_lock *lock) {
 	return 0;
 }
 
 static int __init my_init(void)
 {
+	//init global var
+	open_called = 0;
 	return 0;
 }
 
