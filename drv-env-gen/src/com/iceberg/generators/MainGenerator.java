@@ -393,7 +393,14 @@ public class MainGenerator {
 			//generate single sequence of calls
 			generatePlainBody(ctx);
 		} else if(ctx.p instanceof SequenceParams) {
-			SequenceParams sp = (SequenceParams)ctx.p; 
+			SequenceParams sp = (SequenceParams)ctx.p;
+			if(sp.isStatefull()) {
+				for(TokenStruct token : ctx.structTokens) {
+					if(token.hasInnerTokens() && token.isSorted() && sp.isStatefull()) {
+						ctx.fw.write(token.getDeclStr("\t")+"\n");				
+					}
+				}
+			}
 			switch(sp.getLength()) {
 				case one:
 					generateSequenceOne(ctx, sp);					
@@ -425,11 +432,6 @@ public class MainGenerator {
 
 	private static void generateSequenceOne(GeneratorContext ctx, SequenceParams sp) throws IOException {
 		int caseCounter = 0;
-		for(TokenStruct token : ctx.structTokens) {
-			if(token.hasInnerTokens() && token.isSorted() && sp.isStatefull()) {
-				ctx.fw.write(token.getDeclStr("\t")+"\n");				
-			}
-		}
 		ctx.fw.write("\n\tswitch(nondet_int()) {\n");		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
