@@ -58,11 +58,7 @@ public abstract class ExtendedParser<T extends Token> implements ParserInterface
 		while(matcher.find()) {
 			String imeo = matcher.group();
 			T token = null;
-			try {
-				token = parseContent(imeo, matcher.start(),matcher.end());
-			} catch(Exception e) {
-				e.printStackTrace();
-			}
+			token = parseContent(imeo, matcher.start(),matcher.end());
 			if(token!=null) {
 				ltoken.add(token);
 			}

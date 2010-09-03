@@ -9,6 +9,6 @@ public interface FuncGenerator {
 	public List<String> generateVarDeclare();
 	public List<String> generateVarInit();
 	public String generateFunctionCall();
-	public Object generateCheckedFunctionCall();
 	public String generateRetDecl();
+	public String generateCheckedFunctionCall(String checkLabel);
 }

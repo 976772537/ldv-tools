@@ -7,6 +7,7 @@ import java.io.FileWriter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Iterator;
+import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -78,25 +79,25 @@ public class MainGenerator {
 		long endf = System.currentTimeMillis();
 		Logger.info("generate time: " + (endf-startf) + "ms");
 	}
-
+	
 	public static void generate(String filename) {
-		generateByIndex(filename, null, null, false, new PlainParams(true,true));
+		generateByIndex(null, filename, null, null, false, new PlainParams(true,true));
 	}
 	
 	public static void generate(String source, String destination, EnvParams p) {
-		generateByIndex(source, null, destination, false, p);
+		generateByIndex(null, source, null, destination, false, p);
 	}
 	
-	public static DegResult deg(String filename, String counter, EnvParams... plist) {
+	public static DegResult deg(Properties properties, String filename, String indexId, EnvParams... plist) {
 		File file = new File(filename);
 		if(!file.exists()) {
 			Logger.warn("File \""+filename+"\" - not exists."); 
 			return new DegResult(false);
 		}
-		return generateByIndex(filename, counter, filename, true, plist);
+		return generateByIndex(properties, filename, indexId, filename, true, plist);
 	}
 
-	public static DegResult generateByIndex(String filename, String index, String destFilename, boolean isgenerateIfdefAroundMains, EnvParams... plist) {
+	public static DegResult generateByIndex(Properties properties, String filename, String index, String destFilename, boolean isgenerateIfdefAroundMains, EnvParams... plist) {
 		Matcher matcher = pattern.matcher(filename);
 		if(!matcher.find()) {
 			Logger.err("could not match C-extension");
@@ -114,7 +115,7 @@ public class MainGenerator {
 			/* сделаем парсер директив препроцессора */
 			ParserPPCHelper ppcParser = new ParserPPCHelper((ReaderWrapper)wreader);
 			/* создадим экземпляр парсера структур */
-			ExtendedParserStruct ep = new ExtendedParserStruct(wreader);
+			ExtendedParserStruct ep = new ExtendedParserStruct(properties, wreader);
 			/* создадим экземпляр парсера функций из макросов module_init и module_exit */
 			ExtendedParserSimple epSimple = new ExtendedParserSimple(wreader);
 			/* распарсим структуры */
@@ -154,6 +155,8 @@ public class MainGenerator {
 			}
 			fw.close();
 			return new DegResult(mains);
+		} catch (IllegalArgumentException e) {
+			throw e;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -499,7 +502,7 @@ public class MainGenerator {
 			} else {
 				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
 			}
-			sb.append(ctx.fg.generateCheckedFunctionCall());
+			sb.append(ctx.fg.generateCheckedFunctionCall(MainGenerator.getModuleExitLabel()));
 		} else {
 			/* иначе просто вызываем */
 			if(tfd.getLdvCommentContent()!=null) {				

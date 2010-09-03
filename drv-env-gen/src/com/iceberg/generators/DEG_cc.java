@@ -1,10 +1,13 @@
 package com.iceberg.generators;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import com.iceberg.Logger;
 import com.iceberg.generators.SequenceParams.Length;
@@ -24,8 +27,9 @@ public class DEG_cc {
 	
 	private static List<String> inputFiles = new ArrayList<String>();
 	private static String outputFile;
-	private static String counter;
-	private static String properties;
+	private static String unique_id;
+	private static String propsFileName;
+	private static Properties properties;
 	private static EnvParams paramsList[]; 
 	private static List<Boolean> generateArray = new ArrayList<Boolean>();
 	private static final String name = "ldv-cc";
@@ -73,7 +77,7 @@ public class DEG_cc {
 				Logger.debug("Start generator for: \""+inputFiles.get(i)+"\" file.");
 				
 				if(generateArray.get(i)) {
-					DegResult res = MainGenerator.deg(inputFiles.get(i),counter, paramsList);
+					DegResult res = MainGenerator.deg(properties, inputFiles.get(i), unique_id, paramsList);
 					if(res.isSuccess()) {
 						for(String id : res.getMains()) {
 							outputWriter.append(inputFiles.get(i) 
@@ -83,7 +87,7 @@ public class DEG_cc {
 				}
 			}
 			outputWriter.close();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(1);
 		}
@@ -140,14 +144,21 @@ public class DEG_cc {
 			Logger.err("After output file must be \"-c uniqueid\".");
 			return false;
 		}
-		counter = args[i++];
+		unique_id = args[i++];
 		
 		if(!args[i++].equals("-props")) {
 			Logger.err("After uniqueid must be \"-props path_to_properties\".");
 			return false;
 		}
 		
-		properties = args[i]; 
+		propsFileName = args[i]; 
+		
+		properties = new Properties(); 
+		if(!loadFile(properties, propsFileName, null)) {
+			Logger.warn("Properties file not loaded " + propsFileName);
+			return false;
+		}
+		
 		paramsList = EnvParams.loadParameters(properties);
 		
 		if(paramsList==null || paramsList.length==0) {
@@ -157,4 +168,33 @@ public class DEG_cc {
 		
 		return true;
 	}
+	
+	private static boolean loadFile(Properties prop, String fileName, Class<?> codeBase) {
+		InputStream is = null;
+		
+		try {
+	    	File f = new File(fileName);
+	    	if (f.exists()) {
+	    		Logger.trace("Open file " + fileName);
+	    		is = new FileInputStream(f);
+	    	} else {
+	    		// try to load as a resource (from jar)
+	    		Logger.trace("Try to load as resource");
+	    		Class<?> clazz = (codeBase != null) ? codeBase : EnvParams.class;
+	    		is = clazz.getResourceAsStream(fileName);
+	    	}
+
+	    	if (is != null) {
+	    		Logger.trace("Load properties");
+	    		prop.load(is);
+	    		is.close();
+	    		return true;
+	    	}
+		} catch (IOException iex) {
+			iex.printStackTrace();
+    		Logger.warn(iex.getMessage());
+			return false;
+		}
+		return false;
+	}		
 }	

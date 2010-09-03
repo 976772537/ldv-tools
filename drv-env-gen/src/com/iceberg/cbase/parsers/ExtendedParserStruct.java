@@ -2,6 +2,7 @@ package com.iceberg.cbase.parsers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,12 +47,20 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		return patternSorter;
 	}
 
-	public ExtendedParserStruct(ReaderInterface reader) {
+	public ExtendedParserStruct(Properties properties, ReaderInterface reader) {
 		super(reader);
 		addOption(new OptionStructType());
-		patternSorter = new PatternSorter();
+		if(properties!=null) {
+			patternSorter = new PatternSorter(properties);
+		} else {
+			patternSorter = new PatternSorter();			
+		}
 	}
 
+	public ExtendedParserStruct(ReaderInterface reader) {
+		this(null, reader);
+	}
+	
 	/**
 	 * Parses 
 	 */

@@ -1,9 +1,5 @@
 package com.iceberg.generators;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -49,12 +45,7 @@ public abstract class EnvParams {
 	
 	final static String CONFIG_LIST = "include";
 	
-	public static EnvParams[] loadParameters(String fileName) {
-		Properties props = new Properties(); 
-		if(!loadFile(props, fileName, null)) {
-			Logger.warn("Properties file not loaded " + fileName);
-			return null;
-		}
+	public static EnvParams[] loadParameters(Properties props) {
 		List<EnvParams> res = new LinkedList<EnvParams>();
 		
 		String val = props.getProperty(CONFIG_LIST);
@@ -86,35 +77,6 @@ public abstract class EnvParams {
 		
 		return res.toArray(new EnvParams[0]);
 		
-	}
-	
-	private static boolean loadFile(Properties prop, String fileName, Class<?> codeBase) {
-		InputStream is = null;
-		
-		try {
-	    	File f = new File(fileName);
-	    	if (f.exists()) {
-	    		Logger.trace("Open file " + fileName);
-	    		is = new FileInputStream(f);
-	    	} else {
-	    		// try to load as a resource (from jar)
-	    		Logger.trace("Try to load as resource");
-	    		Class<?> clazz = (codeBase != null) ? codeBase : EnvParams.class;
-	    		is = clazz.getResourceAsStream(fileName);
-	    	}
-
-	    	if (is != null) {
-	    		Logger.trace("Load properties");
-	    		prop.load(is);
-	    		is.close();
-	    		return true;
-	    	}
-		} catch (IOException iex) {
-			iex.printStackTrace();
-    		Logger.warn(iex.getMessage());
-			return false;
-		}
-		return false;
 	}
 	
 	@Override

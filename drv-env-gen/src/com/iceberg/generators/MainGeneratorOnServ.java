@@ -18,7 +18,7 @@ public class MainGeneratorOnServ {
 			FileWriter fw = new FileWriter(args[0]);
 			for(int i=1; i<args.length; i++) {
 				Logger.info("generate for "+args[i]);
-				DegResult res = MainGenerator.generateByIndex(args[i], String.valueOf(i), 
+				DegResult res = MainGenerator.generateByIndex(null, args[i], String.valueOf(i), 
 						null, false, new PlainParams(true, true));
 				if(res.isSuccess()) {
 					Logger.info(" generate ldv_main"+i);

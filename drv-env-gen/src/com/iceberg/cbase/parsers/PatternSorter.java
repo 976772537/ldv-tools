@@ -4,10 +4,11 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
+import com.iceberg.Logger;
 import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
-import com.iceberg.generators.MainGenerator;
 
 /* статический класс с сохраненными и откомпиленными регекспами */
 public class PatternSorter {
@@ -40,32 +41,83 @@ public class PatternSorter {
 	private final Map<String,List<FuncInfo>> patterns = new HashMap<String, List<FuncInfo>>();
 	
 	/* шаблон, который используется по-умолчанию */
-	private final String DEFAULT_STRUCT = "__MAIN__";
+	private final String DEFAULT_STRUCT = "default";
+
+	final static String STRUCT_LIST = "struct_patterns";
+	final static String PREFIX = "pattern";
 	
-	/* инициализатор будет заполнять уже имеющиеся и работающие шаблоны -
-	 * откомпиленные регекспы */
-	private void initPatterns() {
+	private String getCheckKey(String key, int index) {
+		return PREFIX + "." + key + "." + index + "." + "check";	
+	}
+
+	private String getNameKey(String key, int index) {
+		return PREFIX + "." + key + "." + index + "." + "name";	
+	}
+
+	/**
+	 * variables to be replaced in the patterns
+	 * $retvar
+	 * $fcall
+	 * $check_label
+	 * @param properties 
+	 */
+	private void initPatterns(Properties props) throws IllegalArgumentException {
+		String val = props.getProperty(STRUCT_LIST);
+		if(val==null || val.trim().isEmpty()) {
+			Logger.warn("Struct patterns list is empty " + val);
+			throw new IllegalArgumentException("Struct patterns list is empty " + val);
+		}
+		String[] plist = val.split(",");		
+		for(String ptr : plist) {			
+			String key = ptr.trim();
+			if(!key.isEmpty()) {
+				int index = 0;			
+				List<FuncInfo> ptrs = new ArrayList<FuncInfo>();
+				
+				String funcName = props.getProperty(getNameKey(key,index));			
+				while(funcName!=null && !funcName.trim().isEmpty()) {
+					funcName = funcName.trim();
+					String funcCheck = props.getProperty(getCheckKey(key,index));
+					if(funcCheck!=null) {
+						funcName = funcName.trim();
+						if(funcName.isEmpty()) {
+							funcName = null;
+						}
+					}
+					ptrs.add(new FuncInfo(funcName, funcCheck));
+					index++;
+					funcName = props.getProperty(getNameKey(key,index));			
+				}
+				Logger.debug("Loaded pattern " + key + " with " + ptrs.size() + " functions");
+				patterns.put(key, ptrs);
+			} else {
+				Logger.warn("Skip pattern " + ptr);
+			}
+		}
+	}
+	
+	private void initDefaultPatterns() {
 		List<FuncInfo> mainPtrs = new ArrayList<FuncInfo>();
 		mainPtrs.add(new FuncInfo(
 				"open",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"probe",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"connect",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"read",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"write",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"close",
 				null));
@@ -76,7 +128,7 @@ public class PatternSorter {
 		usbPtrs.add(new FuncInfo(
 				"probe",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		usbPtrs.add(new FuncInfo(
 				"suspend", null));
 		usbPtrs.add(new FuncInfo(
@@ -99,15 +151,15 @@ public class PatternSorter {
 		filePtrs.add(new FuncInfo(
 				"open",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		filePtrs.add(new FuncInfo(
 				"read",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		filePtrs.add(new FuncInfo(
 				"write",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar < 0) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		filePtrs.add(new FuncInfo(
 				"llseek", null));
 		filePtrs.add(new FuncInfo(
@@ -118,7 +170,7 @@ public class PatternSorter {
 		scsiPtrs.add(new FuncInfo(
 				"probe",
 				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
-				"\t\tif($retvar) \n\t\t\tgoto " + MainGenerator.getModuleExitLabel() + ";"));
+				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		scsiPtrs.add(new FuncInfo(
 				"suspend", null));
 		scsiPtrs.add(new FuncInfo(
@@ -134,8 +186,12 @@ public class PatternSorter {
 		patterns.put("scsi_driver", scsiPtrs);
 	}
 	
+	public PatternSorter(Properties properties) throws IllegalArgumentException {
+		initPatterns(properties);
+	}
+
 	public PatternSorter() {
-		initPatterns();
+		initDefaultPatterns();
 	}
 
 	/**
