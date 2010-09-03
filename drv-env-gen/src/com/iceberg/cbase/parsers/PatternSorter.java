@@ -14,28 +14,33 @@ import com.iceberg.cbase.tokens.TokenFunctionDecl;
 public class PatternSorter {
 
 	public static class FuncInfo {
-		String regexpr;
-		String checkExpr;
+		String name;
+		String check;
 		
 		/**
 		 * @return the pattern to find a field in the structure
 		 */
-		public String getRegexpr() {
-			return regexpr;
+		public String getName() {
+			return name;
 		}
 		
 		/**
 		 * @return expression which checks the result of the function 
 		 */
 		public String getCheckExpr() {
-			return checkExpr;
+			return check;
 		}
 		
 		public FuncInfo(String regexpr, String result) {
 			super();
-			this.regexpr = regexpr;
-			this.checkExpr = result;
+			this.name = regexpr;
+			this.check = result;
 		}
+
+		@Override
+		public String toString() {
+			return "FuncInfo [name=" + name + ", check=" + check + "]";
+		}		
 	}
 	
 	private final Map<String,List<FuncInfo>> patterns = new HashMap<String, List<FuncInfo>>();
@@ -79,12 +84,14 @@ public class PatternSorter {
 					funcName = funcName.trim();
 					String funcCheck = props.getProperty(getCheckKey(key,index));
 					if(funcCheck!=null) {
-						funcName = funcName.trim();
-						if(funcName.isEmpty()) {
-							funcName = null;
+						funcCheck = funcCheck.trim();
+						if(funcCheck.isEmpty()) {
+							funcCheck = null;
 						}
 					}
-					ptrs.add(new FuncInfo(funcName, funcCheck));
+					FuncInfo f = new FuncInfo(funcName, funcCheck);
+					Logger.trace("Adding " + f);
+					ptrs.add(f);
 					index++;
 					funcName = props.getProperty(getNameKey(key,index));			
 				}
@@ -245,7 +252,7 @@ public class PatternSorter {
 			for(int j=0; j<decls.size() && j<filteredInitializers.size(); j++) {
 				// вариант с contains требует, чтобы сначала матчился наибольший паттерн
 				//if(ident.get(j)[1].contains(scheme[i])) {
-				if(filteredInitializers.get(j).getType().equals(f.getRegexpr())) {
+				if(filteredInitializers.get(j).getType().equals(f.getName())) {
 					/* добавляем проверку */
 					decls.get(j).setTestString(f.getCheckExpr());
 					items.add(new OrderedItem<TokenFunctionDecl>(decls.get(j), false, itemsIndex));
