@@ -40,8 +40,8 @@ public class PatternSorter {
 	
 	private final Map<String,List<FuncInfo>> patterns = new HashMap<String, List<FuncInfo>>();
 	
-	/* шаблон, который используется по-умолчанию */
-	private final String DEFAULT_STRUCT = "default";
+	/* struct name which is used as default key*/
+	private final String DEFAULT_STRUCT = "default_main";
 
 	final static String STRUCT_LIST = "struct_patterns";
 	final static String PREFIX = "pattern";
@@ -93,6 +93,9 @@ public class PatternSorter {
 			} else {
 				Logger.warn("Skip pattern " + ptr);
 			}
+		}
+		if(patterns.get(DEFAULT_STRUCT)==null) {
+			throw new IllegalArgumentException("Default patterns " + DEFAULT_STRUCT + "should be always defined");
 		}
 	}
 	
@@ -231,6 +234,7 @@ public class PatternSorter {
 		List<FuncInfo> pttr = patterns.get(structType);
 		if(pttr==null) {
 			pttr = patterns.get(DEFAULT_STRUCT);
+			assert pttr!=null : "Default patterns " + DEFAULT_STRUCT + "should be always defined";
 		}
 		/* сортируем по выбранной схеме */
 		List<Item<TokenFunctionDecl>> items = new ArrayList<Item<TokenFunctionDecl>>(decls.size());
