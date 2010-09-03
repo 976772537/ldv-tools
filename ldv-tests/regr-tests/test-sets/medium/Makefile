@@ -29,5 +29,5 @@ install:
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
 	if [ ! -d $(prefix)/$(MEDIUM_TEST_DIR) ]; then mkdir -p $(prefix)/$(MEDIUM_TEST_DIR) || exit 1; fi
 	cp $(prefix)/$(GENERAL_TEST_DIR)/*.tar.bz2 $(prefix)/$(MEDIUM_TEST_DIR) || exit 1;
-	cat $(TEST_TASK) $(prefix)/$(GENERAL_TEST_DIR)/regr-task-general | sort > $(prefix)/$(MEDIUM_TEST_DIR)/$(TEST_TASK) || exit 1;
+	cat $(TEST_TASK) $(prefix)/$(GENERAL_TEST_DIR)/regr-task-general > $(prefix)/$(MEDIUM_TEST_DIR)/$(TEST_TASK) || exit 1;
 
