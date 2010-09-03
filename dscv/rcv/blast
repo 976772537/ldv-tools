@@ -115,15 +115,6 @@ sub verify_blast
 		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
 		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
 
-		my $bv = $result->{'BLAST-detailed'};
-		if ($bv =~ /\bsafe\b/) {
-			$bv='SAFE';
-		}elsif($bv =~ /\bunsafe\b/){
-			$bv='UNSAFE';
-		}else{
-			$bv='UNKNOWN';
-		}
-
 		my $br = $result->{'BLAST'};
 		if ($br =~ /\byes\b/i) {
 			$br='OK';
@@ -132,6 +123,16 @@ sub verify_blast
 		}else{
 			$br='FAILED';
 		}
+
+		my $bv = $result->{'BLAST-detailed'};
+		if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
+			$bv='SAFE';
+		}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
+			$bv='UNSAFE';
+		}else{
+			$bv='UNKNOWN';
+		}
+
 
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
