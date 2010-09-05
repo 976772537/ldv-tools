@@ -567,8 +567,10 @@ view_header($action);
  * 
  *  Configuration file
  *
- */ 
-WSInit("/home/mutilin/ldv/main/ldv-online/conf/server.conf");
+ */
+CONFIG_PLACE
+//WSInit('/mnt/second/ldvoi/ldv-online/conf/server.conf');
+//WSInit("/home/mutilin/ldv/main/ldv-online/conf/server.conf");
 
 if ($action == "upload" && !$exit)
 {

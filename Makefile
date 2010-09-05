@@ -3,7 +3,7 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-online/ldvsrv
+BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online
 
 
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh
@@ -11,8 +11,7 @@ ERROR_TRACE_VISUALIZER_SUBDIRS = error-trace-visualizer shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
 LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh
 STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer shared/php
-ONLINE_NODE_SUBDIRS = ldv-online/ldvsrv 
-ONLINE_SERVER_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) ldv-online/ldvsrv ldv-online/ldvwface 
+ONLINE_SUBDIRS = ldv-online 
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
 
 SUBDIRS = $(BUILD_SUBDIRS)
@@ -43,10 +42,6 @@ install-verifiers: pre_tests ocaml_is_installed $(call forall_subdirs,$(DSCV_SUB
 
 # Install only statistics server
 install-visualization: pre_tests $(call forall_subdirs,$(STATS_SUBDIRS),install)
-
-install-online-server: pre_tests java_is_installed ant_is_installed $(call forall_subdirs,$(ONLINE_SERVER_SUBDIRS),install)
-
-install-online-node: pre_tests java_is_installed ant_is_installed pax_is_installed $(call forall_subdirs,$(ONLINE_NODE_SUBDIRS),install)
 
 # Install only test stuff
 install-testing: pre_tests $(call forall_subdirs,$(TESTS_SUBDIRS),install)

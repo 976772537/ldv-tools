@@ -12,6 +12,8 @@ public class ClientConfig extends Config {
 	private String statsDbhost;
 	private String statsDbname;
 	private String statsDbport;
+
+	private String LDVManagerStartStaticVariables;
 	
 	public ClientConfig(Map<String,String> params,ServerThreadEnum type) {
 		super(params,type);
@@ -23,8 +25,14 @@ public class ClientConfig extends Config {
 		this.statsDbuser = params.get("StatsDBUser");
 		this.statsDbpass = params.get("StatsDBPass");
 		this.statsDbport = params.get("StatsDBPort");
+		// other options
+		this.LDVManagerStartStaticVariables = params.get("LDVManagerStartStaticVariables");
 	}
 	
+	public String getLDVManagerStartStaticVariables() {
+		return LDVManagerStartStaticVariables;
+	}
+
 	public String getLDVInstalledDir() {
 		return LDVInstalledDir;
 	}

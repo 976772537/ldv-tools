@@ -138,11 +138,12 @@ public class StorageManager {
 	private static int h2ConnNumber=0;
 	public synchronized Connection getConnection() throws SQLException {
 		Logger.debug("Get h2 connection from pool: "+ ++h2ConnNumber);
-		return poolingDataSource.getConnection();
+		return DriverManager.getConnection(connectionString, dbuser, dbpass);
+		// return poolingDataSource.getConnection();
 	}
 	
 	private static int stConnNumber=0;
-	public Connection getStatsConnection() throws SQLException {
+	public synchronized Connection getStatsConnection() throws SQLException {
 		Logger.debug("Get stats connection from pool: "+ ++stConnNumber);
 		return DriverManager.getConnection(statsConnectionString, statsDbuser, statsDbpass);
 		// пул почему-то виснет на 7-8 запросе
