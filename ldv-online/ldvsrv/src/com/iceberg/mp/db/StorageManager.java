@@ -30,6 +30,7 @@ public class StorageManager {
 	
 	private String dbuser="ldvsuser";
 	private String dbpass="ldvs1604";
+	private String dbhost="localhost";
 	
 	private String statsDbuser;
 	private String statsDbpass;
@@ -42,7 +43,7 @@ public class StorageManager {
 
 	
 	private static final String connectionPrefix = "jdbc";
-	private static final String dbType = "h2";
+	private static final String dbType = "h2:tcp://";
 	private static final String dbdriver = "org.h2.Driver";
 	private String dboptions = ";LOCK_MODE=3;AUTO_SERVER=TRUE;AUTO_RECONNECT=TRUE";
 	
@@ -87,7 +88,7 @@ public class StorageManager {
 	}
 	
 	public void initInnerDB() throws IOException, SQLException, ClassNotFoundException {
-		connectionString = connectionPrefix+":"+dbType+":"+dbworkdir+dboptions;
+		connectionString = connectionPrefix+":"+dbType+dbhost+dbworkdir+dboptions;
 		initDB(dbdriver, connectionString, dbuser, dbpass, innerDBScript, statsIsClean);
 		if(InnerDBConnectionPool) {
 			poolingDataSource = createDBConnectionsPool(connectionString, dbuser, dbpass);

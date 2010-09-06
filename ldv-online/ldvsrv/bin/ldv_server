@@ -3,10 +3,37 @@
 LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDVS_DIST=$LDV_HOME/ldv-online/dist;
 LDVS_CONF=$LDV_HOME/ldv-online/conf;
+LDVS_LOGS=$LDV_HOME/ldv-online/logs;
 LDVS_SERVER=$LDVS_DIST/ldvs.jar;
+LDVS_H2_SERVER=$LDVS_DIST/LDVdb.jar;
 LDVS_CONFIG=`readlink -f $LDVS_CONF/server.conf`;
 
-java -Xmx128M -Xms64M -jar $LDVS_SERVER $LDVS_CONFIG
+
+if [ ! -n "`ps aux | grep LDVdb.jar | grep -v grep`" ]; then
+	echo "Starting H2 server..."
+	nohup java -jar $LDVS_H2_SERVER > $LDVS_LOGS/h2s.log 2>&1 & sleep 1;
+fi;
+
+if [ ! -n "`ps aux | grep LDVdb.jar | grep -v grep`" ]; then
+	echo "ERROR: Can't start H2 server. See \"$LDVS_LOGS/h2s.log\" for more details.";
+	exit 1;
+fi;
+echo "H2 server started."
+
+echo "Starting LDV server..."
+if [ ! -n "`ps aux | grep ldvs.jar | grep -v grep`" ]; then	
+	nohup java -Xmx128M -Xms64M -jar $LDVS_SERVER $LDVS_CONFIG > $LDVS_LOGS/server.log 2>&1 & sleep 1;
+else
+	echo "LDV server already started."
+	exit 0;
+fi;
+
+if [ ! -n "`ps aux | grep ldvs.jar | grep -v grep`" ]; then
+	echo "ERROR: Can't start LDV server. See \"$LDVS_LOGS/server.log\" for more details.";
+	exit 1;
+fi;
+echo "LDV server started.";
+
 
 
 

@@ -3,6 +3,8 @@ LDV_INSTALL_TYPE=server
 LDV_ONLINE_HOME=$LDV_HOME/ldv-online
 LDV_MANAGER_HOME=$LDV_HOME/ldv-manager
 LDV_MANAGER_MIGRATES_DIR=$LDV_MANAGER_HOME/migrates
+LDV_ONLINE_SCRIPTS_DIR=$LDV_ONLINE_HOME/scripts
+LDV_ONLINE_MIGRATES_DIR=$LDV_ONLINE_SCRIPTS_DIR/migrates
 LDV_ONLINE_CONF_DIR=$LDV_ONLINE_HOME/conf
 LDV_ONLINE_SAMPLE_CONF=$LDV_ONLINE_CONF_DIR/$LDV_INSTALL_TYPE.conf.sample
 LDV_ONLINE_CONF=$LDV_ONLINE_CONF_DIR/$LDV_INSTALL_TYPE.conf
@@ -172,11 +174,12 @@ else
 
 
 	sed -i -e "s|^StatsDBScript=.*$|StatsDBScript=$LDV_MANAGER_HOME/results_schema.sql|g" $LDV_ONLINE_CONF;
-	sed -i -e "s|^InnerDBScript=.*$|InnerDBScript=$LDV_ONLINE_HOME/scripts/inner_schema.sql|g" $LDV_ONLINE_CONF;
+	sed -i -e "s|^InnerDBScript=.*$|InnerDBScript=$LDV_ONLINE_SCRIPTS_DIR/inner_schema.sql|g" $LDV_ONLINE_CONF;
 
 	sed -i -e "s|^StatsDBMigratesDir=.*$|StatsDBMigratesDir=$LDV_MANAGER_MIGRATES_DIR|g" $LDV_ONLINE_CONF;
+	sed -i -e "s|^InnerDBMigratesDir=.*$|InnerDBMigratesDir=$LDV_ONLINE_MIGRATES_DIR|g" $LDV_ONLINE_CONF;
 
-	# get last update number in migrates dirs
+	# get last update number in migrates dirs for statsdb
 	if [ -d "$LDV_MANAGER_MIGRATES_DIR" ]; then
 	        let number=0;
 	        for i in `ls $LDV_MANAGER_MIGRATES_DIR`; do
@@ -188,6 +191,20 @@ else
 	        # write current version of script to config file
 		sed -i -e "s|^StatsDBUpdateVersion=.*$|StatsDBUpdateVersion=$number|g" $LDV_ONLINE_CONF;
 	fi; 
+
+	# get last update number in migrates dirs for innerdb
+	if [ -d "$LDV_ONLINE_MIGRATES_DIR" ]; then
+	        let number=0;
+	        for i in `ls $LDV_ONLINE_MIGRATES_DIR`; do
+	                let curumber=`echo $i | sed 's/^0*//g'`;
+	                if [ "$number" -lt "$curumber" ]; then
+	                        number=$curumber;
+	                fi; 
+	        done;
+	        # write current version of script to config file
+		sed -i -e "s|^InnerDBUpdateVersion=.*$|InnerDBUpdateVersion=$number|g" $LDV_ONLINE_CONF;
+	fi; 
+
 
 
 	# install www docs

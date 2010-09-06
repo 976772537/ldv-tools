@@ -26,10 +26,16 @@ if [ -f $LDV_ONLINE_CONF ]; then
                         LDV_MANAGER_MIGRATES_DIR=`echo "$LINE" | sed 's/StatsDBMigratesDir=//g'`;
 		elif [ -n "`echo $LINE | grep StatsDBUpdateVersion=`" ]; then
                         let number=`echo "$LINE" | sed 's/StatsDBUpdateVersion=//g'`;
+		elif [ -n "`echo $LINE | grep InnerDBMigratesDir=`" ]; then
+                        LDV_ONLINE_MIGRATES_DIR=`echo "$LINE" | sed 's/InnerDBMigratesDir=//g'`;
+		elif [ -n "`echo $LINE | grep InnerDBUpdateVersion=`" ]; then
+                        let inumber=`echo "$LINE" | sed 's/InnerDBUpdateVersion=//g'`;
                 fi; 
         done < $LDV_ONLINE_CONF;
 	echo "StatsDBUpdateVersion=\"$number\"";
 	echo "StatsDBMigratesDir=\"$LDV_MANAGER_MIGRATES_DIR\"";
+	echo "InnerDBUpdateVersion=\"$inumber\"";
+	echo "InnerDBMigratesDir=\"$LDV_ONLINE_MIGRATES_DIR\"";
 	echo "StatsDBUser=\"$StatsDBUser\"";
 	echo "StatsDBUser=\"$StatsDBUser\"";
 	echo "StatsDBPass=\"$StatsDBPass\"";
@@ -64,6 +70,30 @@ if [ -f $LDV_ONLINE_CONF ]; then
 	                let gnumber=$gnumber+1;
 	        done;
 	fi;
+
+	if [ -d "$LDV_ONLINE_MIGRATES_DIR" ]; then
+	        let gnumber=$inumber+1;
+	        for i in `ls $LDV_ONLINE_MIGRATES_DIR`; do
+	                if [ -d "$LDV_ONLINE_MIGRATES_DIR/$gnumber" ]; then
+	                        echo "Start migration: version $inumber from: \"$LDV_ONLINE_MIGRATES_DIR/$gnumber\"";
+				for i in `find $LDV_ONLINE_MIGRATES_DIR/$gnumber -maxdepth 1 -type f -name *.sql`; do
+					echo "Apply updates from SQL-script: \"$i\".";
+					# create a new tool for connect to H2 database
+					if [ $? -ne 0 ]; then
+						echo "ERROR: Can't apply updates from SQL-script \"$i\"";
+						exit 1;
+					fi;
+				done;
+				#set new version to config file...
+				sed -i -e "s|^InnerStatsDBUpdateVersion=.*$|InnerDBUpdateVersion=$gnumber|g" $LDV_ONLINE_CONF;
+	                        echo "Ok."
+	                else
+	                        break;
+	                fi  
+	                let gnumber=$gnumber+1;
+	        done;
+	fi;
+
 
 else
 	echo "ERROR: Can't find \"$LDV_ONLINE_CONF\" file.";

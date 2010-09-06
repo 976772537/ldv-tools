@@ -78,14 +78,18 @@ StatsDBConnectionPool=off
 
 # connection options
 StatsDBConnectOptions=?autoReconnect=true
-InnerDBConnectOptions=;LOCK_MODE=3;AUTO_SERVER=TRUE;AUTO_RECONNECT=TRUE
+#InnerDBConnectOptions=;LOCK_MODE=3;AUTO_SERVER=TRUE;AUTO_RECONNECT=TRUE
+InnerDBConnectOptions=;LOCK_MODE=2;AUTO_RECONNECT=TRUE
 
 # migrate options:
 #
 # installed scripts
 # 
 StatsDBMigratesDir=/migrates
+InnerDBMigratesDir=/migrates
+
 StatsDBUpdateVersion=0
+InnerDBUpdateVersion=0
 
 
 
