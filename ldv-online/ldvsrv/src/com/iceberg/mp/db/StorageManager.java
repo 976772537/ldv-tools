@@ -17,7 +17,13 @@ import org.apache.commons.dbcp.PoolingDataSource;
 import org.apache.commons.pool.impl.GenericObjectPool;
 
 public class StorageManager {
-
+	
+	private boolean InnerDBConnectionPool = false;
+	private boolean StatsDBConnectionPool = false;
+	
+	private String statsDBScript;
+	private String innerDBScript;
+	
 	private String workdir;
 	private String dbworkdir;
 	private String bins;
@@ -38,14 +44,14 @@ public class StorageManager {
 	private static final String connectionPrefix = "jdbc";
 	private static final String dbType = "h2";
 	private static final String dbdriver = "org.h2.Driver";
-	private static final String dblockmode = ";LOCK_MODE=3;AUTO_SERVER=TRUE";
-	//private static final String dblockmode = ";LOCK_MODE=3";
+	private String dboptions = ";LOCK_MODE=3;AUTO_SERVER=TRUE;AUTO_RECONNECT=TRUE";
 	
 	private String connectionString;
 	
 	private static final String statsConnectionPrefix = "jdbc";
 	private static final String statsDbType = "mysql";
 	private static final String statsDbdriver = "com.mysql.jdbc.Driver";
+	private String statsDboptions = "?autoReconnect=true";
 	
 	private String statsConnectionString;
 	private String statsIsClean;
@@ -64,59 +70,49 @@ public class StorageManager {
 
 		this.statsIsClean = params.get("CleanStatsOnRestart");
 		this.h2IsClean = params.get("CleanH2OnRestart");
+		
+		this.statsDBScript = params.get("StatsDBScript");
+		this.innerDBScript = params.get("InnerDBScript");
+		
+		if(params.get("InnerDBConnectionPool").equals("on")) {
+			this.InnerDBConnectionPool = true;	
+		}
+		
+		if(params.get("StatsDBConnectionPool").equals("on")) {
+			this.StatsDBConnectionPool = true;	
+		}
+
+		this.statsDboptions = params.get("StatsDBConnectOptions");
+		this.dboptions = params.get("InnerDBConnectOptions");
 	}
 	
 	public void initInnerDB() throws IOException, SQLException, ClassNotFoundException {
-		//1. создаем директории, если их нет
-		File fileWorkdir = new File(bins);
-		if(!fileWorkdir.exists()) {
-			Logger.debug("Create storage dirs...");
-			if(!fileWorkdir.mkdirs()) {
-				Logger.err("Can't create work dirs.");
-				throw new IOException();
-			}
-			Logger.info("Ok.");
+		connectionString = connectionPrefix+":"+dbType+":"+dbworkdir+dboptions;
+		initDB(dbdriver, connectionString, dbuser, dbpass, innerDBScript, statsIsClean);
+		if(InnerDBConnectionPool) {
+			poolingDataSource = createDBConnectionsPool(connectionString, dbuser, dbpass);
 		}
-		Logger.debug("Open JDBC driver...");
-		//2. открываем JDBC драйвер:
-		Class.forName(dbdriver);
-		connectionString = connectionPrefix+":"+dbType+":"+dbworkdir+dblockmode+";AUTO_RECONNECT=TRUE"; 
-		Logger.debug("Create new lead connection...");
-		Logger.trace("Connection URL:\""+connectionString+"\"");
-		// Create connection pool
-		poolingDataSource = createDBConnectionsPool(connectionString, dbuser, dbpass);
-		Logger.debug("Ok");
-		//3. инициализирем таблицы
-		Logger.debug("Initialize tables...");
-		Connection conn = poolingDataSource.getConnection();
-		SQLRequests.initInnerDbTables(conn,h2IsClean);
-		conn.close();
-		Logger.debug("Ok");		
 	}
 	
 	public void initStatsDB() throws IOException, SQLException, ClassNotFoundException {
-		Logger.trace("Before you connect to Stats db: ");
-		Logger.info("  1. Connect to db server as root like this: \"mysql -u root ...\".");
-		Logger.info("  2. Create db for stats: \"CREATE DATABASE dbname;\".");
-		Logger.info("  3. Create user for stats db: \"CREATE USER 'dbuser'@'localhost' IDENTIFIED BY 'dbpass';\".");
-		Logger.info("  4. Add priviledges: \"GRANT ALL PRIVILEGES ON dbname.* TO 'dbuser'@'localhost' WITH GRANT OPTION;\".");
-		Logger.info("  5. Update privileges: \"FLUSH PRIVILEGES;\".");
-		Logger.info("  6. Write all parameters (dbname, dbhost, dbuser, dbpass) to server.conf file.");
-		Logger.debug("Open JDBC driver...");
-		Class.forName(statsDbdriver);
-		//jdbc:mysql://repos.insttech.washington.edu:3306/johndoe
-		statsConnectionString = statsConnectionPrefix+":"+statsDbType+"://"+statsDbhost+":"+statsDbport+"/"+statsDbname+"?autoReconnect=true"; //?user="+statsDbuser+"&password="+statsDbpass;
-		Logger.debug("Create new lead connection for stats DB...");
-		Logger.trace("Connection URL for stats DB:\""+statsConnectionString+"\"");
-		// create connection pool
-		statsPoolingDataSource = createDBConnectionsPool(statsConnectionString, statsDbuser, statsDbpass);
+		statsConnectionString = statsConnectionPrefix+":"+statsDbType+"://"+statsDbhost+":"+statsDbport+"/"+statsDbname+statsDboptions;
+		initDB(statsDbdriver, statsConnectionString, statsDbuser, statsDbpass, statsDBScript, statsIsClean);
+		if(StatsDBConnectionPool) {
+			statsPoolingDataSource = createDBConnectionsPool(statsConnectionString, statsDbuser, statsDbpass);
+		}	
+	}
+
+	public void initDB(String DBdriver, String connectionStr, String DBuser, String DBpass, String DBscript, String ISclean) throws IOException, SQLException, ClassNotFoundException {
+		Logger.debug("Open JDBC driver: \"" + dbdriver + "\"...");
+		Class.forName(DBdriver);
 		Logger.debug("Ok");
-		//3. инициализирем таблицы
-		Logger.debug("Initialize tables...");
-		Connection conn = statsPoolingDataSource.getConnection();
-		SQLRequests.initStatsDbTables(conn,statsIsClean);
-		conn.close();
-		Logger.debug("Ok");		
+		Logger.trace("Connection URL:\""+connectionStr+"\"");
+		//statsPoolingDataSource = createDBConnectionsPool(connectionStr, DBuser, DBpass);
+		Connection conn = DriverManager.getConnection(connectionStr, DBuser, DBpass);
+		//Connection conn = statsPoolingDataSource.getConnection();
+		Logger.trace("Initialize tables from DB script: \""+DBscript+"\"...");
+		SQLRequests.initDBTables(conn,ISclean,DBscript);
+		Logger.trace("Database successfully initialized.");
 	}
 	
 	public static PoolingDataSource createDBConnectionsPool(String connectionString, String username, String password) {
@@ -127,25 +123,38 @@ public class StorageManager {
 	}
 	
 	public void init() throws IOException, SQLException, ClassNotFoundException {
+		File fileWorkdir = new File(bins);
+		if(!fileWorkdir.exists()) {
+			Logger.debug("Create storage dirs...");
+			if(!fileWorkdir.mkdirs()) {
+				Logger.err("Can't create work dirs.");
+				throw new IOException();
+			}
+			Logger.info("Ok.");
+		}
+		
 		Logger.debug("Initialize inner DB...");
 		initInnerDB();
-		Logger.debug("Inner DB successfully inialized.");
 		Logger.debug("Initialize stats DB...");
 		initStatsDB();
-		Logger.debug("Stats DB successfully inialized.");
 	}
 
 	private static int h2ConnNumber=0;
 	public synchronized Connection getConnection() throws SQLException {
-		Logger.debug("Get h2 connection from pool: "+ ++h2ConnNumber);
-		return DriverManager.getConnection(connectionString, dbuser, dbpass);
-		// return poolingDataSource.getConnection();
+		Logger.debug("Get h2 connection number: "+ ++h2ConnNumber);
+		if(InnerDBConnectionPool) 
+			return poolingDataSource.getConnection();
+		else
+			return DriverManager.getConnection(connectionString, dbuser, dbpass);
 	}
 	
 	private static int stConnNumber=0;
 	public synchronized Connection getStatsConnection() throws SQLException {
-		Logger.debug("Get stats connection from pool: "+ ++stConnNumber);
-		return DriverManager.getConnection(statsConnectionString, statsDbuser, statsDbpass);
+		Logger.debug("Get stats connection number: "+ ++stConnNumber);
+		if(StatsDBConnectionPool)
+			return statsPoolingDataSource.getConnection();
+		else
+			return DriverManager.getConnection(statsConnectionString, statsDbuser, statsDbpass);
 		// пул почему-то виснет на 7-8 запросе
 		// TODO: скачать исходники и разобраться!
 		/*
@@ -167,7 +176,6 @@ public class StorageManager {
 		 *    Any connections not closed by me?
 		 *    And pool wait while i am close connections?
 		 */
-		 //return statsPoolingDataSource.getConnection();
 	}
 	
 	@Override

@@ -67,3 +67,25 @@ env=linux-2.6.34.1:32_1,77_1,08_1,29_1,37_1,43_1,60_1,68_1,39_1
 
 # www docs dir (for installation update mode)
 wwwdocs=/srv/www/htdocs
+
+# script for creating exernal db
+StatsDBScript=/script/result_schema.sql
+InnerDBScript=/script/inner_schema.sql
+
+# connection pool options
+InnerDBConnectionPool=off
+StatsDBConnectionPool=off
+
+# connection options
+StatsDBConnectOptions=?autoReconnect=true
+InnerDBConnectOptions=;LOCK_MODE=3;AUTO_SERVER=TRUE;AUTO_RECONNECT=TRUE
+
+# migrate options:
+#
+# installed scripts
+# 
+StatsDBMigratesDir=/migrates
+StatsDBUpdateVersion=0
+
+
+

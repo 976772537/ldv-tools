@@ -24,8 +24,6 @@ public class Config {
 					String paramName = tmp.substring(0, divIndex);
 					String paramValue = tmp.substring(divIndex+1, tmp.length());
 					System.out.println("OPTIONS: " + paramName + ", " +  paramValue);
-					//	String[] param = tmp.split("=");
-					//paramMap.put(param[0],param[1]);
 					paramMap.put(paramName,paramValue);
 				}
 			}
