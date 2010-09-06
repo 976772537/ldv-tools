@@ -10,5 +10,5 @@ public interface FuncGenerator {
 	public List<String> generateVarInit();
 	public String generateFunctionCall();
 	public String generateRetDecl();
-	public String generateCheckedFunctionCall(String checkLabel);
+	public String generateCheckedFunctionCall(String checkLabel, String indent);
 }

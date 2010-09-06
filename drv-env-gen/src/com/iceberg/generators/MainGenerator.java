@@ -144,11 +144,12 @@ public class MainGenerator {
 					generateVarDeclSection(ctx);			
 					generateVarInitSection(ctx);
 					
-					generateFunctionCallSectHeader(fw);			
+					generateFunctionCallSectHeader(ctx);			
 						generateModuleInitCall(ctx);
-						generateDriverCallbacksSection(ctx);				
+						generateDriverCallbacksSection(ctx);
+						ctx.fw.write("\n" + ctx.getIndent() + getModuleExitLabel() + ": \n"); 
 						generateModuleExitCall(ctx);				
-					generateFunctionCallSectFooter(fw);				
+					generateFunctionCallSectFooter(ctx);				
 				generateMainFooter(ctx);
 				
 				mains.add(id);
@@ -173,6 +174,8 @@ public class MainGenerator {
 		final FileWriter fw; 
 		final List<TokenFunctionDeclSimple> macroTokens;	
 		final List<TokenStruct> structTokens; 
+		private String indent = "";
+		private static final String SHIFT = "\t";
 		
 		public GeneratorContext(EnvParams p,
 				boolean isgenerateIfdefAroundMains, String id,
@@ -191,16 +194,31 @@ public class MainGenerator {
 			this.macroTokens = macroTokens;
 			this.structTokens = structTokens;
 		}
+
+		public String getIndent() {
+			return indent;
+		}
+
+		public void incIndent() {
+			indent += SHIFT;
+		}
+
+		public void decIndent() {
+			assert indent.length()>=SHIFT.length();
+			indent = indent.substring(0, indent.length()-SHIFT.length());
+		}
 	}
 	
 	private static void generateMainFooter(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
-		sb.append("\n\t\treturn;\n}\n");
+		sb.append("\n" + ctx.getIndent() + "return;\n");
+		ctx.decIndent();
+		sb.append("\n" + ctx.getIndent() + "}\n");
 		if (ctx.isgenerateIfdefAroundMains) {
 			Logger.trace("Append macros: \"#endif\" for our function.");
 			sb.append("#endif\n");
 		}
-		sb.append("/* "+ldvCommentTag+ldvTag_END+ldvTag_MAIN+" */\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_MAIN+" */\n");
 		ctx.fw.write(sb.toString());
 	}
 
@@ -211,48 +229,49 @@ public class MainGenerator {
 			Logger.debug("Option isgenerateIfdefAroundMains - on.");
 			assert(ctx.id != null);
 			Logger.trace("Append ifdef-macro: \"#ifdef LDV_MAIN"+ctx.id+"\".");
-			sb.append("/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_MAIN+" */\n");
+			sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_MAIN+" */\n");
 			sb.append("#ifdef LDV_MAIN"+ctx.id+"\n");
 		}
-		sb.append("\t/*###########################################################################*/\n");
-		sb.append("\t/*############## Driver Environment Generator 0.1 output ####################*/\n");
-		sb.append("\t/*###########################################################################*/\n");
+		sb.append("\n" + ctx.getIndent() + "/*###########################################################################*/\n");
+		sb.append("\n" + ctx.getIndent() + "/*############## Driver Environment Generator 0.2 output ####################*/\n");
+		sb.append("\n" + ctx.getIndent() + "/*###########################################################################*/\n");
 		sb.append("\n\n");
 		Logger.trace("Pre-main code:");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
-		sb.append("\nvoid check_final_state(void);\n");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
-		sb.append("\nvoid check_return_value(int res);\n");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
-		sb.append("\nint nondet_int(void);\n");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
-		sb.append("\nextern int IN_INTERRUPT;\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
+		sb.append("\n" + ctx.getIndent() + "void check_final_state(void);\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
+		sb.append("\n" + ctx.getIndent() + "void check_return_value(int res);\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
+		sb.append("\n" + ctx.getIndent() + "int nondet_int(void);\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
+		sb.append("\n" + ctx.getIndent() + "extern int IN_INTERRUPT;\n");
 
 	//	if(index == null)
 	//		sb.append("void ldv_main(void) {\n\n\n");
 	//	else
 		Logger.trace("Start appending main function: \"+void ldv_main"+ctx.id+"(void)\"...");
 		sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_MAIN+" Main function for LDV verifier. */");
-		sb.append("\nvoid ldv_main"+ctx.id+"(void) {\n\n\n");
+		sb.append("\n" + ctx.getIndent() + "void ldv_main"+ctx.id+"(void) {\n\n\n");
+		ctx.incIndent();
 		ctx.fw.write(sb.toString());
 	}
 
-	private static void generateFunctionCallSectHeader(FileWriter fw) throws IOException {
+	private static void generateFunctionCallSectHeader(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
-		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_FUNCTION_CALL_SECTION+" */");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_FUNCTION_CALL_SECTION+" */");
 		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");
-		sb.append("\n/*============================= FUNCTION CALL SECTION       =============================*/");
-		fw.write(sb.toString());
+		sb.append("\n" + ctx.getIndent() + "/*============================= FUNCTION CALL SECTION       =============================*/");
+		ctx.fw.write(sb.toString());
 	}
 
-	private static void generateFunctionCallSectFooter(FileWriter fw) throws IOException {
+	private static void generateFunctionCallSectFooter(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
 		Logger.trace("Start appending end section...");
 		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
-		sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
-		sb.append("\n\t\t" + getCheckFinalLabel() + ": check_final_state();\n");
-		sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");		
-		fw.write(sb.toString());
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
+		sb.append("\n" + ctx.getIndent() + getCheckFinalLabel() + ": check_final_state();\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");		
+		ctx.fw.write(sb.toString());
 	}
 
 	private static void generateModuleInitCall(GeneratorContext ctx) throws IOException {
@@ -264,16 +283,18 @@ public class MainGenerator {
 				if(token.getType() != 
 					TokenFunctionDeclSimple.SimpleType.ST_MODULE_INIT) 
 					continue;
-				sb.append("\n\t/** INIT: init_type: " + token.getType() + " **/");
-				sb.append("\n\t\t/* content: " + token.getContent() + "*/");
+				sb.append("\n" + ctx.getIndent() + "/** INIT: init_type: " + token.getType() + " **/");
+				sb.append("\n" + ctx.getIndent() + "/* content: " + token.getContent() + "*/");
 				ctx.fg.set(token);
-				appendPpcBefore(sb,ctx.ppcParser,token);
+				appendPpcBefore(sb,ctx,token);
 				/* добавляем вызовы функций */
 				String lparams = ctx.fg.generateFunctionCall();
-				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
-				sb.append("\n\t\tif ("+lparams.substring(0,lparams.length()-1)+")");
-				sb.append("\n\t\t\tgoto " + getCheckFinalLabel() +";");
-				appendPpcAfter(sb,ctx.ppcParser,token);
+				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
+				sb.append("\n" + ctx.getIndent() + "if ("+lparams.substring(0,lparams.length()-1)+")");
+				ctx.incIndent();
+				sb.append("\n" + ctx.getIndent() + "goto " + getCheckFinalLabel() +";");
+				ctx.decIndent();
+				appendPpcAfter(sb,ctx,token);
 				/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 				ctx.fw.write(sb.toString());
 				sb = new StringBuffer();
@@ -290,16 +311,16 @@ public class MainGenerator {
 			if(token.getType() != 
 				TokenFunctionDeclSimple.SimpleType.ST_MODULE_EXIT ) 
 				continue;
-			sb.append("\n\t/** INIT: init_type: " + token.getType() + " **/");
-			sb.append("\n\t\t/* content: " + token.getContent() + "*/");
+			sb.append("\n" + ctx.getIndent() + "/** INIT: init_type: " + token.getType() + " **/");
+			sb.append("\n" + ctx.getIndent() + "/* content: " + token.getContent() + "*/");
 			ctx.fg.set(token);
-			appendPpcBefore(sb,ctx.ppcParser,token);
+			appendPpcBefore(sb,ctx,token);
 			/* увеличим счетчик, на число параметров*/
 			/* добавляем вызовы функций */
 			String exitCall = ctx.fg.generateFunctionCall();
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver release function before driver will be uploaded from kernel. This function declared as \"MODULE_EXIT(function name)\". */");
-			sb.append("\n\t\t" + getModuleExitLabel() + ": " + exitCall);
-			appendPpcAfter(sb,ctx.ppcParser,token);
+			sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver release function before driver will be uploaded from kernel. This function declared as \"MODULE_EXIT(function name)\". */");
+			sb.append("\n" + ctx.getIndent() + exitCall);
+			appendPpcAfter(sb,ctx,token);
 			/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 			ctx.fw.write(sb.toString());
 			sb = new StringBuffer();
@@ -310,27 +331,27 @@ public class MainGenerator {
 
 	private static void generateVarInitSection(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
-		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_INITIALIZING_PART+" */");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_INITIALIZING_PART+" */");
 		Logger.trace("Start appending \"VARIABLE INITIALIZING PART\"...");
-		sb.append("\n/*============================= VARIABLE INITIALIZING PART  =============================*/");
-		sb.append("IN_INTERRUPT = 1;\n");
+		sb.append("\n" + ctx.getIndent() + "/*============================= VARIABLE INITIALIZING PART  =============================*/");
+		sb.append("\n" + ctx.getIndent() + "IN_INTERRUPT = 1;\n");
 		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
 					Logger.trace("Start appending inittialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
-					sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+					sb.append("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
 					for(TokenFunctionDecl tfd : token.getTokens()) {
-						sb.append("\n\t\t/* content: " + tfd.getContent() + "*/");
+						sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
 						ctx.fg.set(tfd);
-						appendPpcBefore(sb,ctx.ppcParser,tfd);
+						appendPpcBefore(sb,ctx,tfd);
 						/* добавляем инициализацию */
 						List<String> lparams = ctx.fg.generateVarInit();
 						Iterator<String> paramIterator = lparams.iterator();
 						while(paramIterator.hasNext()) {
-							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_INIT+" Variable initialization for function \""+tfd.getName()+"\" */");
-							sb.append("\n\t\t" + paramIterator.next());
+							sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_INIT+" Variable initialization for function \""+tfd.getName()+"\" */");
+							sb.append("\n" + ctx.getIndent() + paramIterator.next());
 						}
-						appendPpcAfter(sb,ctx.ppcParser,tfd);
+						appendPpcAfter(sb,ctx,tfd);
 						/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 						ctx.fw.write(sb.toString());
 						sb = new StringBuffer();
@@ -341,7 +362,7 @@ public class MainGenerator {
 		}
 		sb.append("\n\n\n");
 		Logger.trace("Appending for \"VARIABLE INITIALIZING\" successfully finished");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_INITIALIZING_PART+" */");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_INITIALIZING_PART+" */");
 		ctx.fw.write(sb.toString());
 	}
 
@@ -349,33 +370,33 @@ public class MainGenerator {
 		
 		StringBuffer sb = new StringBuffer();
 		Logger.trace("Start appending \"VARIABLE DECLARATION PART\"...");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_DECLARATION_PART+" */");
-		sb.append("\n/*============================= VARIABLE DECLARATION PART   =============================*/");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_DECLARATION_PART+" */");
+		sb.append("\n" + ctx.getIndent() + "/*============================= VARIABLE DECLARATION PART   =============================*/");
 		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
 					Logger.trace("Start appending declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
-					sb.append("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getType() + " **/");
+					sb.append("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getType() + " **/");
 					for(TokenFunctionDecl tfd : token.getTokens()) {
-						sb.append("\n\t\t/* content: " + tfd.getContent() + "*/");
+						sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
 						ctx.fg.set(tfd);
 
-						appendPpcBefore(sb, ctx.ppcParser, tfd);
+						appendPpcBefore(sb, ctx, tfd);
 						/* добавляем описания параметров */
 						List<String> lparams = ctx.fg.generateVarDeclare();
 						Iterator<String> paramIterator = lparams.iterator();
 						while(paramIterator.hasNext()) {
-							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for function \""+tfd.getName()+"\" */");
-							sb.append("\n\t\t" + paramIterator.next());
+							sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for function \""+tfd.getName()+"\" */");
+							sb.append("\n" + ctx.getIndent() + paramIterator.next());
 						}
 						/* проверим - функция имеет проверки - т.е. стандартная ?
 						 * если да, то объявим перемнную для результата */
 						if(tfd.getTestString()!=null && !tfd.getRetType().contains("void")) {
 							
-							sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for test return result from function call \""+tfd.getName()+"\" */");
-							sb.append("\n\t\t" + ctx.fg.generateRetDecl());
+							sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for test return result from function call \""+tfd.getName()+"\" */");
+							sb.append("\n" + ctx.getIndent() + ctx.fg.generateRetDecl());
 						}
-						appendPpcAfter(sb,ctx.ppcParser,tfd);
+						appendPpcAfter(sb,ctx,tfd);
 						/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 						ctx.fw.write(sb.toString());
 						sb = new StringBuffer();
@@ -386,7 +407,7 @@ public class MainGenerator {
 		}
 		sb.append("\n\n\n");
 		Logger.trace("Appending for \"VARIABLE DECLARATION PART\" successfully finished");
-		sb.append("\n/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_DECLARATION_PART+" */");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_VARIABLE_DECLARATION_PART+" */");
 		ctx.fw.write(sb.toString());
 	}
 
@@ -400,7 +421,7 @@ public class MainGenerator {
 			if(sp.isStatefull()) {
 				for(TokenStruct token : ctx.structTokens) {
 					if(token.hasInnerTokens() && token.isSorted() && sp.isStatefull()) {
-						ctx.fw.write(token.getDeclStr("\t")+"\n");				
+						ctx.fw.write(token.getDeclStr(ctx.getIndent())+"\n");				
 					}
 				}
 			}
@@ -421,56 +442,68 @@ public class MainGenerator {
 	}
 
 	private static void generateSequenceInf(GeneratorContext ctx, SequenceParams sp) throws IOException {
-		ctx.fw.write("\n\twhile(nondet_int()) {\n");
+		ctx.fw.write("\n" + ctx.getIndent() + "while(nondet_int()) {\n");
+		ctx.incIndent();
 		generateSequenceOne(ctx, sp);
-		ctx.fw.write("\n\t}\n");
+		ctx.decIndent();
+		ctx.fw.write("\n" + ctx.getIndent() + "}\n");
 	}
 
 	private static void generateSequenceN(GeneratorContext ctx, SequenceParams sp) throws IOException {
-		ctx.fw.write("\n\tint i;\n");
-		ctx.fw.write("\n\tfor(i=0; i<" + sp.getN() + "; i++) {\n");
+		ctx.fw.write("\n" + ctx.getIndent() + "int i;\n");
+		ctx.fw.write("\n" + ctx.getIndent() + "for(i=0; i<" + sp.getN() + "; i++) {\n");
+		ctx.incIndent();
 		generateSequenceOne(ctx, sp);
-		ctx.fw.write("\n\t}\n");
+		ctx.decIndent();
+		ctx.fw.write("\n" + ctx.getIndent() + "}\n");
 	}
 
 	private static void generateSequenceOne(GeneratorContext ctx, SequenceParams sp) throws IOException {
 		int caseCounter = 0;
-		ctx.fw.write("\n\tswitch(nondet_int()) {\n");		
+		ctx.fw.write("\n" + ctx.getIndent() + "switch(nondet_int()) {\n");		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
+				ctx.incIndent();
 				if(sp.isSorted() && token.isSorted() && sp.isStatefull()) {
 					for(Item<TokenFunctionDecl> item : token.getSortedTokens()) {
 						TokenFunctionDecl tfd = item.getData();						
-						ctx.fw.write("\n\tcase " + caseCounter + ": {\n");
-						ctx.fw.write("\n\t\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
-						ctx.fw.write("\n\t" + item.getPreconditionStrBegin(token.getId()) + "\n");
+						ctx.fw.write("\n" + ctx.getIndent() + "case " + caseCounter + ": {\n");
+						ctx.incIndent();
+						ctx.fw.write("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+						ctx.fw.write("\n" + ctx.getIndent() + item.getPreconditionStrBegin(token.getId()) + "\n");
 						generateFunctionCall(ctx, token, tfd);
-						ctx.fw.write("\n\t\t" + item.getUpdateStr(token.getId()) + "\n");						
-						ctx.fw.write("\n\t" + item.getPreconditionStrEnd(token.getId()) + "\n");
-						ctx.fw.write("\n\t}\n");
-						ctx.fw.write("\n\tbreak;");
+						ctx.fw.write("\n" + ctx.getIndent() + item.getUpdateStr(token.getId()) + "\n");						
+						ctx.fw.write("\n" + ctx.getIndent() + item.getPreconditionStrEnd(token.getId()) + "\n");
+						ctx.decIndent();
+						ctx.fw.write("\n" + ctx.getIndent() + "}\n");
+						ctx.fw.write("\n" + ctx.getIndent() + "break;");
 						caseCounter++;						
 					}
 				} else {
 					for(TokenFunctionDecl tfd : token.getTokens()) {
-						ctx.fw.write("\n\tcase " + caseCounter + ": {\n");
-						ctx.fw.write("\n\t\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+						ctx.fw.write("\n" + ctx.getIndent() + "case " + caseCounter + ": {\n");
+						ctx.incIndent();
+						ctx.fw.write("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
 						generateFunctionCall(ctx, token, tfd);
-						ctx.fw.write("\n\t}\n");
-						ctx.fw.write("\n\tbreak;");
+						ctx.decIndent();
+						ctx.fw.write("\n" + ctx.getIndent() + "}\n");
+						ctx.fw.write("\n" + ctx.getIndent() + "break;");
 						caseCounter++;
 					}
 				}
+				ctx.decIndent();
 			}
 		}
-		ctx.fw.write("\n\t\t default: break;\n");
-		ctx.fw.write("\n\t}\n");
+		ctx.incIndent();
+		ctx.fw.write("\n" + ctx.getIndent() + "default: break;\n");
+		ctx.decIndent();
+		ctx.fw.write("\n" + ctx.getIndent() + "}\n");
 	}
 
 	private static void generatePlainBody(GeneratorContext ctx) throws IOException {		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
-				ctx.fw.write("\n\t/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+				ctx.fw.write("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
 				if(ctx.p.isSorted() && token.isSorted()) {
 					for(Item<TokenFunctionDecl> item : token.getSortedTokens()) {
 						TokenFunctionDecl tfd = item.getData();						
@@ -489,33 +522,34 @@ public class MainGenerator {
 	private static void generateFunctionCall(GeneratorContext ctx,
 			TokenStruct token, TokenFunctionDecl tfd) throws IOException {
 		StringBuffer sb = new StringBuffer();				
-		sb.append("\n\t\t/* content: " + tfd.getContent() + "*/");
+		sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
 		ctx.fg.set(tfd);
-		appendPpcBefore(sb,ctx.ppcParser,tfd);
+		appendPpcBefore(sb,ctx,tfd);
 		/* увеличим счетчик, на число параметров*/
 		/* добавляем вызовы функций */
 		//String gdebug = tfd.getName();
 		/* добавляем к ним проверку, если это стандартная функция */
 		if (ctx.p.isCheck() && tfd.getTestString()!=null && !tfd.getRetType().contains("void")) {
 			if(tfd.getLdvCommentContent()!=null) {				
-				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" "+"Function from field \""+tfd.getLdvCommentContent()+"\" from driver structure with callbacks \""+token.getName()+"\". Standart function test for correct return result. */");
+				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" "+"Function from field \""+tfd.getLdvCommentContent()+"\" from driver structure with callbacks \""+token.getName()+"\". Standart function test for correct return result. */");
 			} else {
-				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
+				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
 			}
-			sb.append(ctx.fg.generateCheckedFunctionCall(MainGenerator.getModuleExitLabel()));
+			sb.append(ctx.fg.generateCheckedFunctionCall(MainGenerator.getModuleExitLabel(), ctx.getIndent()));
 		} else {
 			/* иначе просто вызываем */
 			if(tfd.getLdvCommentContent()!=null) {				
-				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" "+"Function from field \""+tfd.getLdvCommentContent()+"\" from driver structure with callbacks \""+token.getName()+"\" */");
+				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" "+"Function from field \""+tfd.getLdvCommentContent()+"\" from driver structure with callbacks \""+token.getName()+"\" */");
 			} else {
-				sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
+				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
 			}
-			sb.append("\n\t\t" + ctx.fg.generateFunctionCall());
+			sb.append("\n" + ctx.getIndent() + ctx.fg.generateFunctionCall());
 		}
-		appendPpcAfter(sb,ctx.ppcParser,tfd);
+		appendPpcAfter(sb,ctx,tfd);
 		/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 		ctx.fw.write(sb.toString());
 	}
+
 
 	/**
 	 * Close preprocessor directives 
@@ -523,19 +557,19 @@ public class MainGenerator {
 	 * @param ppcParser
 	 * @param tfd
 	 */
-	private static void appendPpcAfter(StringBuffer sb,
-			ParserPPCHelper ppcParser, TokenFunctionDecl tfd) {
+	private static void appendPpcAfter(StringBuffer sb, 
+			GeneratorContext ctx, TokenFunctionDecl tfd) {
 		/* получим директиквы препроцессора, те что до функции */
-		List<TokenPpcDirective> ppcAfterTokens = ppcParser.getPPCWithoutINCLUDEafter(tfd);
+		List<TokenPpcDirective> ppcAfterTokens = ctx.ppcParser.getPPCWithoutINCLUDEafter(tfd);
 		/* добавим их ... */
 		Logger.trace("ppcAfterTokens.size()=" + ppcAfterTokens.size());
 		if(ppcAfterTokens.size()!=0) {
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_PREP+" */");
+			sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_PREP+" */");
 			for(TokenPpcDirective ppc : ppcAfterTokens) {
-				sb.append("\n\t\t" + ppc.getContent());
+				sb.append("\n" + ctx.getIndent() + ppc.getContent());
 				Logger.trace("ppc.getContent().length=" + ppc.getContent().length());
 			}
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_PREP+" */");
+			sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_PREP+" */");
 		}
 	}
 
@@ -546,16 +580,16 @@ public class MainGenerator {
 	 * @param tfd
 	 */
 	private static void appendPpcBefore(StringBuffer sb,
-			ParserPPCHelper ppcParser, TokenFunctionDecl tfd) {
+			GeneratorContext ctx, TokenFunctionDecl tfd) {
 		/* получим директивы препроцессора, те что после функции */
-		List<TokenPpcDirective> ppcBeforeTokens = ppcParser.getPPCWithoutINCLUDEbefore(tfd);
+		List<TokenPpcDirective> ppcBeforeTokens = ctx.ppcParser.getPPCWithoutINCLUDEbefore(tfd);
 		/* добавим их ... */		
 		if(ppcBeforeTokens.size()!=0) {
-			sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_PREP+" */");
+			sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_PREP+" */");
 			for(TokenPpcDirective ppc : ppcBeforeTokens) {
-				sb.append("\n\t\t" + ppc.getContent());
+				sb.append("\n" + ctx.getIndent() + ppc.getContent());
 			}
 		}
-		sb.append("\n\t\t/* "+ldvCommentTag+ldvTag_END+ldvTag_PREP+" */");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_PREP+" */");
 	}
 }

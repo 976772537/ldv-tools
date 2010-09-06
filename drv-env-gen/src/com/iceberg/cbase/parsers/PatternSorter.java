@@ -64,6 +64,7 @@ public class PatternSorter {
 	 * $retvar
 	 * $fcall
 	 * $check_label
+	 * $indent
 	 * @param properties 
 	 */
 	private void initPatterns(Properties props) throws IllegalArgumentException {
