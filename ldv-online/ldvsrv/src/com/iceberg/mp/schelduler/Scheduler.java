@@ -10,8 +10,11 @@ import com.iceberg.mp.db.StorageManager;
 public class Scheduler extends Thread {
 	
 	private StorageManager sManager;
-	private int timeout_for_one = 2000;
+	private int timeout_for_one = 3000;
 	private int trycount = 5;
+
+	private int tryMemMonitor = 0;
+	private int tryOtherCounter =  0;
 
 	public Scheduler(Map<String, String> params, StorageManager storageManager) {
 		this.sManager = storageManager;
@@ -57,7 +60,16 @@ public class Scheduler extends Thread {
 			timeout();
 			// чтобы соединения не засыпали в MySQL периодически будем 
 			// их дрегать
-			SQLRequests.noSleep(sManager);
+			if(tryMemMonitor++ > 4) {
+		                Logger.info("MEM: Free   memory in JVM: "+Runtime.getRuntime().freeMemory()+" bytes.");
+              			Logger.info("MEM: Total Memory for JVM: "       +Runtime.getRuntime().totalMemory()+" bytes.");
+				tryMemMonitor = 0;
+			}
+
+			if(tryOtherCounter  > 100) {
+				SQLRequests.noSleep(sManager);
+				tryOtherCounter = 0;
+			}
 		}
 	}	
 }

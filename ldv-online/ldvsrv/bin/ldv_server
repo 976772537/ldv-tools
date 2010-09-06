@@ -6,7 +6,7 @@ LDVS_CONF=$LDV_HOME/ldv-online/conf;
 LDVS_SERVER=$LDVS_DIST/ldvs.jar;
 LDVS_CONFIG=`readlink -f $LDVS_CONF/server.conf`;
 
-java -jar $LDVS_SERVER $LDVS_CONFIG
+java -Xmx128M -Xms64M -jar $LDVS_SERVER $LDVS_CONFIG
 
 
 
