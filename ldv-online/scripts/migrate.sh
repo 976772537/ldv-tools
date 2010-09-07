@@ -110,6 +110,7 @@ if [ -f $LDV_ONLINE_CONF ]; then
 		exit 1;
 	fi;
 
+
 	#
 	# Update H2 database
 	#
