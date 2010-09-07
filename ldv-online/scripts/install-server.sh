@@ -119,7 +119,6 @@ else
 		echo "Temp dir does't exists."; 
 		echo "Try to create it...";
 		mkdir -p $tempdir/run && mkdir -p $tempdir/logs;
-		sudo chmod a+w -R $tempdir
 		if [ $? -ne 0 ]; then
 			echo "Can't create temp dir \"$tempdir\".";
 			exit 1;
@@ -129,6 +128,12 @@ else
 	tempdir=`readlink -f $tempdir`;
 	if [ $? -ne 0 ]; then
 		echo "ERROR: Can't read abs path for temp dir: \"$tempdir\".";
+		exit 1;
+	fi;
+
+	chmod a+w -R $tempdir;
+	if [ $? -ne 0 ]; then
+		echo "ERROR: Can't change permissions for \"$tempdir\"";
 		exit 1;
 	fi;
 

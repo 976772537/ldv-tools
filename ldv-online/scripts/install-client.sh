@@ -87,6 +87,13 @@ else
 		echo "ERROR: Can't read abs path for temp dir: \"$tempdir\".";
 		exit 1;
 	fi;
+	# change access for temp dir
+	chmod a+w -R $tempdir;
+	if [ $? -ne 0 ]; then
+		echo "ERROR: Can't change permissions for: \"$tempdir\".";
+		exit 1;
+	fi;
+
 	# and now copy configureation
 	cp $LDV_ONLINE_SAMPLE_CONF $LDV_ONLINE_CONF;
 	if [ $? -ne 0 ]; then
