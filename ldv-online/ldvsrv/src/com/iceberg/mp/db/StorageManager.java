@@ -28,8 +28,8 @@ public class StorageManager {
 	private String dbworkdir;
 	private String bins;
 	
-	private String dbuser="ldvsuser";
-	private String dbpass="ldvs1604";
+	private String dbuser="ldvsuser1";
+	private String dbpass="ldvs16041";
 	private String dbhost="localhost";
 	
 	private String statsDbuser;
@@ -68,6 +68,10 @@ public class StorageManager {
 		this.statsDbuser = params.get("StatsDBUser");
 		this.statsDbpass = params.get("StatsDBPass");
 		this.statsDbport = params.get("StatsDBPort");
+		
+		this.dbhost = params.get("InnerDBHost");
+		this.dbuser = params.get("InnerDBUser");
+		this.dbpass = params.get("InnerDBPass");
 
 		this.statsIsClean = params.get("CleanStatsOnRestart");
 		this.h2IsClean = params.get("CleanH2OnRestart");
@@ -88,7 +92,8 @@ public class StorageManager {
 	}
 	
 	public void initInnerDB() throws IOException, SQLException, ClassNotFoundException {
-		connectionString = connectionPrefix+":"+dbType+dbhost+dbworkdir+dboptions;
+		connectionString = connectionPrefix+":"+dbType+dbhost+"/"+dbworkdir+dboptions;
+		//connectionString = "jdbc:h2:"+dbworkdir+dboptions;
 		initDB(dbdriver, connectionString, dbuser, dbpass, innerDBScript, statsIsClean);
 		if(InnerDBConnectionPool) {
 			poolingDataSource = createDBConnectionsPool(connectionString, dbuser, dbpass);
@@ -109,6 +114,7 @@ public class StorageManager {
 		Logger.debug("Ok");
 		Logger.trace("Connection URL:\""+connectionStr+"\"");
 		//statsPoolingDataSource = createDBConnectionsPool(connectionStr, DBuser, DBpass);
+		//Connection conn = DriverManager.getConnection(connectionStr, DBuser, DBpass);
 		Connection conn = DriverManager.getConnection(connectionStr, DBuser, DBpass);
 		//Connection conn = statsPoolingDataSource.getConnection();
 		Logger.trace("Initialize tables from DB script: \""+DBscript+"\"...");

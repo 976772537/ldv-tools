@@ -6,18 +6,26 @@ import java.util.Map;
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.db.SQLRequests;
 import com.iceberg.mp.db.StorageManager;
+import com.iceberg.mp.vs.client.VClient;
 
 public class Scheduler extends Thread {
 	
 	private StorageManager sManager;
 	private int timeout_for_one = 3000;
 	private int trycount = 5;
-
+	
 	private int tryMemMonitor = 0;
 	private int tryOtherCounter =  0;
 
+	private long backupInterval = 1000000000;
+	private long oldTime = System.currentTimeMillis();
+	
+	private Map<String, String> params = null;
+	
 	public Scheduler(Map<String, String> params, StorageManager storageManager) {
 		this.sManager = storageManager;
+		this.backupInterval = Long.valueOf(params.get("BackupInterval"))*60*1000;
+		this.params = params;
 	}
 
 	public void timeout() {
@@ -69,6 +77,17 @@ public class Scheduler extends Thread {
 			if(tryOtherCounter  > 100) {
 				SQLRequests.noSleep(sManager);
 				tryOtherCounter = 0;
+			}
+			//
+			Logger.trace("Old time: " + oldTime);
+			Logger.trace("Backup interval: " + backupInterval);
+			Logger.trace("System.currentTimeMillis()-oldTime: " + (System.currentTimeMillis()-oldTime));
+			if((System.currentTimeMillis()-oldTime)>backupInterval) {
+				Logger.info("Time to backup");
+				String backupCommand = "cd "+ params.get("WorkDir")+"; "+ params.get("LDVInstalledDir")+"/ldv-online/scripts/db_backup.sh";
+				VClient.runCommand(params.get("WorkDir") +"/start_backup", backupCommand);	
+				// delete it			
+				oldTime = System.currentTimeMillis();
 			}
 		}
 	}	

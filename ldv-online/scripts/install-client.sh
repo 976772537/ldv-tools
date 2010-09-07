@@ -125,7 +125,10 @@ else
 			fi;
 		fi;
 	done < $LDV_ONLINE_CONF;
-	echo "Before you can start ldv-online client."
+	echo "Before you can start ldv-online client.";
+	echo "------------ to start cleint use: -------------";
+	echo "$LDV_HOME/bin/ldv_client";
+	echo "Log file: $LDV_ONLINE_HOME/logs/client.log";
 fi
 
 

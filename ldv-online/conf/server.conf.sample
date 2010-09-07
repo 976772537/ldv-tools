@@ -91,5 +91,22 @@ InnerDBMigratesDir=/migrates
 StatsDBUpdateVersion=0
 InnerDBUpdateVersion=0
 
+#
+# H2 database options
+#
+InnerDBUser=ldvsuser
+InnerDBPass=ldvs1604
+InnerDBHost=localhost
+
+#
+# Directory for backups
+#
+BackupDir=backupdir
+
+#
+# Backup interval in minutes
+#
+BackupInterval=2
 
 
+LDVInstalledDir=/mnt/second/ldvoi

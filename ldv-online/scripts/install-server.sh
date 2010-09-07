@@ -9,6 +9,7 @@ LDV_ONLINE_CONF_DIR=$LDV_ONLINE_HOME/conf
 LDV_ONLINE_SAMPLE_CONF=$LDV_ONLINE_CONF_DIR/$LDV_INSTALL_TYPE.conf.sample
 LDV_ONLINE_CONF=$LDV_ONLINE_CONF_DIR/$LDV_INSTALL_TYPE.conf
 LDV_ONLINE_WWWDOCS_HOME=$LDV_ONLINE_HOME/ldvwface
+LDV_ONLINE_BACKUP_DIR=$LDV_ONLINE_HOME/backups
 USAGE_STRING="install-server.sh ...";
 
 #
@@ -118,6 +119,7 @@ else
 		echo "Temp dir does't exists."; 
 		echo "Try to create it...";
 		mkdir -p $tempdir/run && mkdir -p $tempdir/logs;
+		sudo chmod a+w -R $tempdir
 		if [ $? -ne 0 ]; then
 			echo "Can't create temp dir \"$tempdir\".";
 			exit 1;
@@ -179,9 +181,20 @@ else
 	sed -i -e "s|^StatsDBMigratesDir=.*$|StatsDBMigratesDir=$LDV_MANAGER_MIGRATES_DIR|g" $LDV_ONLINE_CONF;
 	sed -i -e "s|^InnerDBMigratesDir=.*$|InnerDBMigratesDir=$LDV_ONLINE_MIGRATES_DIR|g" $LDV_ONLINE_CONF;
 
+	sed -i -e "s|^BackupDir=.*$|BackupDir=$LDV_ONLINE_BACKUP_DIR|g" $LDV_ONLINE_CONF;
+	sed -i -e "s|^LDVInstalledDir=.*$|LDVInstalledDir=$LDV_HOME|g" $LDV_ONLINE_CONF;
+
+	if [ ! -d "$LDV_ONLINE_BACKUP_DIR" ]; then
+		mkdir -p $LDV_ONLINE_BACKUP_DIR;
+		if [ $? -ne 0 ]; then
+			echo "WARNING: Can't create dir for backups: \"$LDV_ONLINE_BACKUP_DIR\". You can try to create it after installation.";
+		fi;
+	fi;
+	sudo chmod a+w -R $LDV_ONLINE_BACKUP_DIR;
+
 	# get last update number in migrates dirs for statsdb
 	if [ -d "$LDV_MANAGER_MIGRATES_DIR" ]; then
-	        let number=0;
+	        
 	        for i in `ls $LDV_MANAGER_MIGRATES_DIR`; do
 	                let curumber=`echo $i | sed 's/^0*//g'`;
 	                if [ "$number" -lt "$curumber" ]; then
@@ -218,6 +231,9 @@ else
 	# insert config init function to ldv_online_service script
 	sed -i -e "s|^CONFIG_PLACE$|WSInit('$LDV_ONLINE_CONF');|g" $wwwdocs/ldv_online_service.php;
 	echo "Server installation successfully finished.";
+	echo "-------- to start server use: ---------";
+	echo "$LDV_HOME/bin/ldv_server";
+	echo "Log file: $LDV_ONLINE_HOME/logs/server.log";
 fi
 
 
