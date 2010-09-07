@@ -115,6 +115,11 @@ public class VClient {
 			/* For this action ldv-manager must have 
 			/* variable for external kernel prepare dir!
 			 */
+			Logger.debug("Clean node dirs...");
+			String removeCommand =  "cd "+ config.getWorkDir() +"/run; rm -fr ./work ./finished 2>&1";
+			runCommand(config.getWorkDir() +"/clean_after_ldv_manager", removeCommand);
+			Logger.debug("Clean node dirs successfully finfished.");
+			
 			return true;
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
