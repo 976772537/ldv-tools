@@ -1748,14 +1748,29 @@ sub process_cmds()
           my $in_file = $in->text;
           die("The specified input file '$in_file' doesn't exist.") 
             unless ($in_file and -f $in_file);
-          open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
-            or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
-          cat($in_file, $file_with_common_model)
-            or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
-          cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
-            or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
-          close($file_with_common_model) 
-            or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
+
+          # Get target file cache key
+          my $target_file = "$in_file$common_c_suffix";
+          my $cache_file_key = $target_file;
+          $cache_file_key =~ s/^$opt_basedir//;
+
+          if (copy_from_cache($target_file,$opt_model_id,$cache_file_key)){
+            # Cache hit
+            print_debug_info("Got file '$in_file$common_c_suffix' from CACHE");
+          }else{
+            # Cache miss
+            open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
+              or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
+            cat($in_file, $file_with_common_model)
+              or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
+            cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
+              or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
+            close($file_with_common_model)
+              or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
+
+            # Save the information obtained to cache (even if it's a failure!)
+            save_to_cache($target_file,$opt_model_id,$cache_file_key);
+          }
           $in->set_text("$in_file$common_c_suffix");
           print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
           
