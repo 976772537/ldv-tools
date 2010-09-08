@@ -4,7 +4,7 @@
 use Cwd qw(abs_path cwd);
 use English;
 use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_LLVM_GCC LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
-use File::Basename qw(basename fileparse);
+use File::Basename qw(basename fileparse dirname);
 use File::Copy qw(copy mv);
 use FindBin;
 use Getopt::Long qw(GetOptions);
@@ -110,6 +110,20 @@ sub process_cmds();
 # args: no.
 # retn: nothing.
 sub process_report();
+
+# Copy file from cache to destination if it exists there.  Checks if cache is on, and does nothing if it's not.
+# args: destination, file "keys" list
+# retn: if a file was found in cache
+sub copy_from_cache($@);
+
+# Save file to cache; replace existing file if it already exists.  Checks if cache is on, and does nothing if it's not.
+# args: source, file "keys" list
+# retn: void
+sub save_to_cache($@);
+
+# TODO
+sub target_from_cache($@);
+sub target_to_cache($@);
 
 
 ################################################################################
@@ -244,6 +258,7 @@ my $opt_help;
 my $opt_model_id;
 my $opt_report_in;
 my $opt_report_out;
+my $opt_cache_dir;
 
 # This flag says whether usual or report mode is set up.
 my $report_mode = 0;
@@ -313,6 +328,11 @@ my $xml_report_trace = 'trace';
 my $xml_report_verdict = 'verdict';
 my $xml_report_verdict_stub = 'UNKNOWN';
 my $xml_report_verifier = 'verifier';
+
+
+# Cache funcitonality
+my $do_cache = '';	#false
+my $ri_cache_dir = undef;
 
 
 ################################################################################
@@ -809,7 +829,9 @@ sub get_opt()
     'help|h' => \$opt_help,
     'report=s' => \$opt_report_in,
     'report-out=s' => \$opt_report_out,
-    'rule-model|m=s' => \$opt_model_id))
+    'rule-model|m=s' => \$opt_model_id,
+    'cache=s' => \$opt_cache_dir,
+  ))
   {
     warn("Incorrect options may completely change the meaning! Please run " .
       "script with --help option to see how you may use this tool");
@@ -1142,6 +1164,17 @@ sub prepare_files_and_dirs()
   # Change the models directory name.
   $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
   print_debug_debug("The models directory is '$ldv_model_dir'");
+
+  # Initialize cache directory
+  $do_cache = defined $opt_cache_dir;
+  if ($do_cache){
+	$ri_cache_dir = $opt_cache_dir;
+	if (!-d $ri_cache_dir){
+	  mkpath($ri_cache_dir)
+		or die(sprintf ("Couldn't recursively create directory '%s': $ERRNO",$ri_cache_dir));
+	}
+	print_debug_debug("The cache directory is '$ri_cache_dir'");
+  }
   
   print_debug_debug("Files and directories are checked and prepared successfully");
 }
@@ -2323,4 +2356,137 @@ sub process_report()
   $xml_writer->end();
 
   print_debug_debug("The instrument prints report for all commands successfully");
+}
+
+# Cache infrastructure
+sub cache_fname
+{
+  my (@key) = @_;
+  my $key = join "/", @key;
+  return "$ri_cache_dir/$key";
+}
+sub copy_from_cache($@)
+{
+  my ($target, @key) = @_;
+  print_debug_trace("Find in cache '$target' with keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Assuming cache miss...");
+	return 1;
+  }
+
+  # If the file exists, copy it (or symlink)
+  if (-e $cache_fname){
+	print_debug_trace("Cache hit!");
+
+	my $target_dir = dirname($target);
+	if (!-d $target_dir){
+	  print_debug_trace("Creating directory for '$target'...");
+	  mkpath($target_dir)
+		or die(sprintf "Couldn't recursively create directory '%s': $ERRNO",$target_dir);
+	}
+
+	# Removing target file if it exists
+	if (-e $target){
+	  print_debug_warning("Removing cache target '$target' to replace it with cached value...");
+	  unlink($target)
+		or die(sprintf "Couldn't remove file '%s': %s",$target,$ERRNO);
+	}
+	symlink($cache_fname,$target)
+	  or die("Can't create symlink from '$cache_fname' to '$target'");
+	return 1;
+  }
+
+  print_debug_trace("Cache miss!");
+  return '';
+}
+sub string_from_cache(@)
+{
+  my (@key) = @_;
+  print_debug_trace("Find in cache string by keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Assuming cache miss...");
+	return undef;
+  }
+
+  # If the file exists, read its contents and return
+  # TODO: rewrite this?
+  if (-e $cache_fname){
+	print_debug_trace("Cache hit!");
+	return `cat '$cache_fname'`;
+  }
+
+  print_debug_trace("Cache miss!");
+  return undef;
+}
+
+sub save_to_cache($@)
+{
+  my ($source, @key) = @_;
+  print_debug_trace("Save to cache '$source' with keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Not saving it...");
+	return;
+  }
+
+  # If the file doen't exist in cache, copy it
+  unless (-e $cache_fname){
+	print_debug_trace("Overwriting cached '$cache_fname'...");
+
+	my $target_dir = dirname("$cache_fname");
+	if (!-d $target_dir){
+	  mkpath($target_dir)
+		or die(sprintf "Couldn't recursively create directory '%s': $ERRNO",dirname($cache_fname));
+	}
+
+	copy($source,$cache_fname) or
+	  die("Can't copy from '$source' to '$cache_fname'");
+  }
+}
+sub string_to_cache($@)
+{
+  my ($str, @key) = @_;
+  print_debug_trace("Save to cache '$str' with keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Not saving it...");
+	return;
+  }
+
+  # If the file doen't exist in cache, copy it
+  unless (-e $cache_fname){
+	print_debug_trace("Overwriting cached '$cache_fname'...");
+	my $target_dir = dirname("$cache_fname");
+	unless (-d $target_dir){
+	  mkpath($target_dir)
+		or die(sprintf "Couldn't recursively create directory '%s': $ERRNO",dirname($cache_fname));
+	}
+	`echo \Q$str\E >$cache_fname`;
+	# TODO: error checking
+  }
+}
+
+sub target_from_cache
+{
+  my ($target,@addkeys) = @_;
+  my $cache_file_key = $target;
+  $cache_file_key =~ s/^$opt_basedir//;
+  return copy_from_cache($target,$cache_file_key,@addkeys);
+}
+sub target_to_cache
+{
+  my ($target,@addkeys) = @_;
+  my $cache_file_key = $target;
+  $cache_file_key =~ s/^$opt_basedir//;
+  return save_to_cache($target,$cache_file_key,@addkeys);
 }
