@@ -408,6 +408,10 @@ function WSRead($sock) {
 #
 # WSPutTask($task); 
 function WSPutTask($task) {
+        if(filesize($task['driverpath'])==0) {
+                WSPrintE('Driver size is null.');
+		return;
+        }   
 	// Wrapper for fix : "Premature end of file on server side message"
 	$result = __WSPutTask($task);
 	for($i=0; $i<3; $i++) {
