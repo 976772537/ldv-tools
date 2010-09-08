@@ -1,4 +1,3 @@
-
 # Top level hierarchy
 exec_prefix = ${prefix}
 # Pathname of directory to install the binary
