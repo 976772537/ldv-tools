@@ -109,7 +109,7 @@ public class StorageManager {
 	}
 
 	public void initDB(String DBdriver, String connectionStr, String DBuser, String DBpass, String DBscript, String ISclean) throws IOException, SQLException, ClassNotFoundException {
-		Logger.debug("Open JDBC driver: \"" + dbdriver + "\"...");
+		Logger.debug("Open JDBC driver: \"" + DBdriver + "\"...");
 		Class.forName(DBdriver);
 		Logger.debug("Ok");
 		Logger.trace("Connection URL:\""+connectionStr+"\"");
