@@ -33,16 +33,18 @@ if [ -f $LDV_ONLINE_CONF ]; then
 			exit 1;
 		fi;
 	fi;
+
 	# update www docs
+	cp $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php $LDV_ONLINE_CONF_DIR/ldv_online_service.php;
+	sed -i -e "s|^CONFIG_PLACE$|WSInit('$LDV_ONLINE_CONF');|g" $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php;
 	cp -r $LDV_ONLINE_WWWDOCS_HOME/* $wwwdocs/;
 	if [ $? -ne 0 ]; then
 		echo "Can't copy www docs from \"$LDV_ONLINE_WWWDOCS_HOME/*\" to \"$wwwdocs\".";
-		echo "Remove configuration.";
-		rm $LDV_ONLINE_CONF;
+		mv $LDV_ONLINE_CONF_DIR/ldv_online_service.php $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php
 		exit 1;
 	fi;
+	mv $LDV_ONLINE_CONF_DIR/ldv_online_service.php $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php
 	# insert config init function to ldv_online_service script
-	sed -i -e "s|^CONFIG_PLACE$|WSInit('$LDV_ONLINE_CONF');|g" $wwwdocs/ldv_online_service.php;
 else
 	echo "First installation mode.";
 	# read and test all needed options
@@ -195,7 +197,7 @@ else
 			echo "WARNING: Can't create dir for backups: \"$LDV_ONLINE_BACKUP_DIR\". You can try to create it after installation.";
 		fi;
 	fi;
-	sudo chmod a+w -R $LDV_ONLINE_BACKUP_DIR;
+	chmod a+w -R $LDV_ONLINE_BACKUP_DIR;
 
 	# get last update number in migrates dirs for statsdb
 	if [ -d "$LDV_MANAGER_MIGRATES_DIR" ]; then
@@ -226,15 +228,18 @@ else
 
 
 	# install www docs
+	cp $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php $LDV_ONLINE_CONF_DIR/ldv_online_service.php;
+	sed -i -e "s|^CONFIG_PLACE$|WSInit('$LDV_ONLINE_CONF');|g" $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php;
 	cp -r $LDV_ONLINE_WWWDOCS_HOME/* $wwwdocs/;
 	if [ $? -ne 0 ]; then
 		echo "Can't copy www docs from \"$LDV_ONLINE_WWWDOCS_HOME/*\" to \"$wwwdocs\".";
 		echo "Remove configuration.";
+		mv $LDV_ONLINE_CONF_DIR/ldv_online_service.php $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php
 		rm $LDV_ONLINE_CONF;
 		exit 1;
 	fi;
+	mv $LDV_ONLINE_CONF_DIR/ldv_online_service.php $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php
 	# insert config init function to ldv_online_service script
-	sed -i -e "s|^CONFIG_PLACE$|WSInit('$LDV_ONLINE_CONF');|g" $wwwdocs/ldv_online_service.php;
 	echo "Server installation successfully finished.";
 	echo "-------- to start server use: ---------";
 	echo "$LDV_HOME/bin/ldv_server";
