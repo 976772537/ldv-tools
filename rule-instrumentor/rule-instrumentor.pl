@@ -2433,6 +2433,7 @@ sub cache_fname
 }
 sub copy_from_cache($@)
 {
+  return '' unless $do_cache;
   my ($target, @key) = @_;
   print_debug_trace("Find in cache '$target' with keys '@key'...");
   my $cache_fname = cache_fname(@key);
@@ -2470,6 +2471,7 @@ sub copy_from_cache($@)
 }
 sub string_from_cache(@)
 {
+  die "Caching is off but string is extracted!" unless $do_cache;
   my (@key) = @_;
   print_debug_trace("Find in cache string by keys '@key'...");
   my $cache_fname = cache_fname(@key);
@@ -2493,6 +2495,7 @@ sub string_from_cache(@)
 
 sub save_to_cache($@)
 {
+  return unless $do_cache;
   my ($source, @key) = @_;
   print_debug_trace("Save to cache '$source' with keys '@key'...");
   my $cache_fname = cache_fname(@key);
@@ -2519,6 +2522,7 @@ sub save_to_cache($@)
 }
 sub string_to_cache($@)
 {
+  return unless $do_cache;
   my ($str, @key) = @_;
   print_debug_trace("Save to cache '$str' with keys '@key'...");
   my $cache_fname = cache_fname(@key);
