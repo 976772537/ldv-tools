@@ -105,7 +105,7 @@ else
 	sed -i -e "s|^LDVInstalledDir=.*$|LDVInstalledDir=$LDV_HOME|g" $LDV_ONLINE_CONF
 	sed -i -e "s|^WorkDir=.*$|WorkDir=$workdir|g" $LDV_ONLINE_CONF;
 	sed -i -e "s|^WSTempDir=.*$|WSTempDir=$workdir|g" $LDV_ONLINE_CONF;
-	sed -i -e "s|^LDVServerAddress=localhost=.*$|LDVServerAddress=$server|g" $LDV_ONLINE_CONF;	
+	sed -i -e "s|^LDVServerAddress=.*$|LDVServerAddress=$server|g" $LDV_ONLINE_CONF;	
 	# database options
 	#if [ ! -n "$dbuser" ]; then dbuser=statsuserd; fi;
 	#if [ ! -n "$dbpass" ]; then dbpass=statspass; fi;
