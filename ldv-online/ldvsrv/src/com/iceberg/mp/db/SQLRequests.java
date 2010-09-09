@@ -12,6 +12,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.iceberg.mp.Logger;
 import com.iceberg.mp.schelduler.Env;
@@ -58,22 +60,27 @@ public class SQLRequests {
 		return sbuffer.toString().split(";");
 	}
 	
-	
+	private static Pattern pattern = Pattern.compile(".*create.*if.*not.*exists.*",Pattern.CASE_INSENSITIVE);
+	public static boolean isItCreateRequest(String request) {
+		Matcher matcher = pattern.matcher(request);
+		if (matcher.matches())
+			return true;
+		return false;
+	}
 	
 	public static boolean initDBTables(Connection conn, String opt, String script) {
 		Statement stmt = getTransactionStmt(conn);
 		if(stmt==null) return false;
 		try {
-			if(opt!=null && opt.length()>0 && opt.equals("true")) {
-				
-				String[] commands = readSQLScript(script);
-				for(int i=0; i<commands.length; i++) {
+			String[] commands = readSQLScript(script);
+			for(int i=0; i<commands.length; i++) {
+				if(opt!=null && opt.length()>0 && opt.equals("true") || isItCreateRequest(commands[i])) {
 					Logger.debug("execute:\"" + commands[i] + "\"");
 					stmt.addBatch(commands[i]);
-				}
-				stmt.executeBatch();
-				conn.commit();
+				} 
 			}
+			stmt.executeBatch();
+			conn.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
 			try {
