@@ -212,6 +212,14 @@ Specify custom rule instrumentor.  Unless specified, the program is deduced from
 =cut
 $config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'LDV_HOME'}/bin/rule-instrumentor.pl" || 'rule-instrumentor.pl';
 
+=item B<RI_CACHE>
+
+Cache directory for Rule Instrumentor.  When compiling large projects with many repeatedly checked files (if they're re-used among several verification tasks), we might want to cache these files after they're preprocessed with rule instrumentor.  If you specify folder in this variable, it will be used as cache.
+
+=cut
+$config->{ri_cache} = $ENV{'RI_CACHE'};
+
+
 =item B<VERIFIER_OVERRIDE>
 
 Overrides the verifier returned by the Rule Instrumentor.  C<--verifier> option takes precedence.
@@ -487,8 +495,9 @@ for my $property (@properties){
 		"--basedir=$ri_basedir_for_rule",
 		"--rule-model=$property",
 		"--cmdfile=$config->{cmdfile}",
-		"--cmdfile-out=$outfile"
+		"--cmdfile-out=$outfile",
 	);
+	push @rule_instr_args, "--cache=$ENV{'RI_CACHE'}" if $ENV{'RI_CACHE'};
 	vsay (10,"Calling rule_instrumenter for rule model $property...\n");
 	vsay (20,@rule_instr_args,"\n");
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
