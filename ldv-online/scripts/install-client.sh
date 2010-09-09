@@ -13,15 +13,16 @@ USAGE_STRING="install-server.sh ...";
 #
 if [ -f $LDV_ONLINE_CONF ]; then
 	echo "Configuration files already exists. Update mode.";
+	echo "LDV node installation successfully finished.";
 else
 	echo "First installation mode.";
 	# read and test all needed options
 	for arg in $@; do
 	        case $arg in
-			--tempdir=*)
-	                       	tempdir=`echo $arg | sed 's/--tempdir=//g'`;
-	                       	if [ ! -n "$tempdir" ]; then
-	                       	        echo "ERROR: Parameter \"--tempdir\" - is null. Setup it.";
+			--workdir=*)
+	                       	workdir=`echo $arg | sed 's/--workdir=//g'`;
+	                       	if [ ! -n "$workdir" ]; then
+	                       	        echo "ERROR: Parameter \"--workdir\" - is null. Please, setup it.";
 	                       	        exit 1;
 	                       	fi;
 	               	;;
@@ -47,8 +48,8 @@ else
         	        ;;  
 	        esac
 	done;
-	if [ ! -n "$tempdir" ]; then
-		echo "Temp dir is null. Please, set up --tempdir parameter.";
+	if [ ! -n "$workdir" ]; then
+		echo "Temp dir is null. Please, set up --workdir parameter.";
 		exit 1;
 	fi;
 	if [ ! -n "$dbuser" ]; then
@@ -72,25 +73,25 @@ else
 		exit 1;
 	fi;
 
-	if [ ! -d "$tempdir" ]; then
+	if [ ! -d "$workdir" ]; then
 		echo "Temp dir does't exists."; 
 		echo "Try to create it...";
-		mkdir -p $tempdir/run && mkdir -p $tempdir/logs;
+		mkdir -p $workdir/run && mkdir -p $workdir/logs;
 		if [ $? -ne 0 ]; then
-			echo "Can't create temp dir \"$tempdir\".";
+			echo "Can't create temp dir \"$workdir\".";
 			exit 1;
 		fi;
 		echo "Temp dir successfully created.";
 	fi; 
-	tempdir=`readlink -f $tempdir`;
+	workdir=`readlink -f $workdir`;
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Can't read abs path for temp dir: \"$tempdir\".";
+		echo "ERROR: Can't read abs path for temp dir: \"$workdir\".";
 		exit 1;
 	fi;
 	# change access for temp dir
-	chmod a+w -R $tempdir;
+	chmod a+w -R $workdir;
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Can't change permissions for: \"$tempdir\".";
+		echo "ERROR: Can't change permissions for: \"$workdir\".";
 		exit 1;
 	fi;
 
@@ -102,8 +103,8 @@ else
 	fi;
 	# and setup new parameters
 	sed -i -e "s|^LDVInstalledDir=.*$|LDVInstalledDir=$LDV_HOME|g" $LDV_ONLINE_CONF
-	sed -i -e "s|^WorkDir=.*$|WorkDir=$tempdir|g" $LDV_ONLINE_CONF;
-	sed -i -e "s|^WSTempDir=.*$|WSTempDir=$tempdir|g" $LDV_ONLINE_CONF;
+	sed -i -e "s|^WorkDir=.*$|WorkDir=$workdir|g" $LDV_ONLINE_CONF;
+	sed -i -e "s|^WSTempDir=.*$|WSTempDir=$workdir|g" $LDV_ONLINE_CONF;
 	sed -i -e "s|^LDVServerAddress=localhost=.*$|LDVServerAddress=$server|g" $LDV_ONLINE_CONF;	
 	# database options
 	#if [ ! -n "$dbuser" ]; then dbuser=statsuserd; fi;
@@ -118,7 +119,7 @@ else
 	#	wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.32.21.tar.bz2
 	KERNL_ORG_URL="http://www.kernel.org/pub/linux/kernel/v2.6/";
 	KERNL_ORG_END_URL=".tar.bz2";
-	cd $tempdir/run
+	cd $workdir/run
 	while read LINE; do
 		if [ -n "`echo $LINE | grep env=`" ]; then
 			KERNEL_URL=$KERNL_ORG_URL`echo "$LINE" | grep '^env=' |sed 's/env=//g' | sed 's/:.*//g'`$KERNL_ORG_END_URL;
@@ -132,10 +133,10 @@ else
 			fi;
 		fi;
 	done < $LDV_ONLINE_CONF;
-	echo "Before you can start ldv-online client.";
+	echo "LDV node installation successfully finished.";
 	echo "------------ to start cleint use: -------------";
 	echo "$LDV_HOME/bin/ldv_client";
-	echo "Log file: $LDV_ONLINE_HOME/logs/client.log";
+	echo "Then you can see log file: $LDV_ONLINE_HOME/logs/client.log";
 fi
 
 

@@ -25,7 +25,7 @@ if [ -f $LDV_ONLINE_CONF ]; then
                 fi; 
         done < $LDV_ONLINE_CONF;
 	if [ ! -n "$wwwdocs" ]; then
-		echo "ERROR: Can't read wwwdocs param from \"$LDV_ONLINE_CONF\" file. Fix config file and try again."
+		echo "ERROR: Can't read wwwdocs param from \"$LDV_ONLINE_CONF\" file."
 	fi;
 	if [ ! -w "$wwwdocs" ]; then
 		if [ ! -d "$wwwdocs/ldv" -o ! -w "$wwwdocs/ldv" -o ! -f "$wwwdocs/ldv_online_service.php" -o ! -w "$wwwdocs/ldv_online_service.php" ]; then
@@ -45,6 +45,7 @@ if [ -f $LDV_ONLINE_CONF ]; then
 	fi;
 	mv $LDV_ONLINE_CONF_DIR/ldv_online_service.php $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php
 	# insert config init function to ldv_online_service script
+	echo "Server installation successfully finished.";
 else
 	echo "First installation mode.";
 	# read and test all needed options
@@ -57,10 +58,10 @@ else
 	                       	        exit 1;
 	                       	fi;
 			;;
-			--tempdir=*)
-	                       	tempdir=`echo $arg | sed 's/--tempdir=//g'`;
-	                       	if [ ! -n "$tempdir" ]; then
-	                       	        echo "ERROR: Parameter \"--tempdir\" - is null. Setup it.";
+			--workdir=*)
+	                       	workdir=`echo $arg | sed 's/--workdir=//g'`;
+	                       	if [ ! -n "$workdir" ]; then
+	                       	        echo "ERROR: Parameter \"--workdir\" - is null. Setup it.";
 	                       	        exit 1;
 	                       	fi;
 	               	;;
@@ -83,8 +84,8 @@ else
         	        ;;  
 	        esac
 	done;
-	if [ ! -n "$tempdir" ]; then
-		echo "Temp dir is null. Please, set up --tempdir parameter.";
+	if [ ! -n "$workdir" ]; then
+		echo "Temp dir is null. Please, set up --workdir parameter.";
 		exit 1;
 	fi;
 	if [ ! -n "$wwwdocs" ]; then
@@ -117,25 +118,25 @@ else
 	fi;
 
 
-	if [ ! -d "$tempdir" ]; then
+	if [ ! -d "$workdir" ]; then
 		echo "Temp dir does't exists."; 
 		echo "Try to create it...";
-		mkdir -p $tempdir/run && mkdir -p $tempdir/logs;
+		mkdir -p $workdir/run && mkdir -p $workdir/logs;
 		if [ $? -ne 0 ]; then
-			echo "Can't create temp dir \"$tempdir\".";
+			echo "Can't create temp dir \"$workdir\".";
 			exit 1;
 		fi;
 		echo "Temp dir successfully created.";
 	fi; 
-	tempdir=`readlink -f $tempdir`;
+	workdir=`readlink -f $workdir`;
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Can't read abs path for temp dir: \"$tempdir\".";
+		echo "ERROR: Can't read abs path for temp dir: \"$workdir\".";
 		exit 1;
 	fi;
 
-	chmod a+w -R $tempdir;
+	chmod a+w -R $workdir;
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Can't change permissions for \"$tempdir\"";
+		echo "ERROR: Can't change permissions for \"$workdir\"";
 		exit 1;
 	fi;
 
@@ -163,11 +164,11 @@ else
 		exit 1;
 	fi;
 	# and setup new parameters
-	sed -i -e "s|^WorkDir=.*$|WorkDir=$tempdir|g" $LDV_ONLINE_CONF;
+	sed -i -e "s|^WorkDir=.*$|WorkDir=$workdir|g" $LDV_ONLINE_CONF;
 	sed -i -e "s|^ModelsDBPath=.*$|ModelsDBPath=$LDV_HOME/kernel-rules/model-db.xml|g" $LDV_ONLINE_CONF;
 	sed -i -e "s|^RulesDBPath=.*$|RulesDBPath=$LDV_HOME/kernel-rules/rules/DRVRULES_en.trl|g" $LDV_ONLINE_CONF;
 	sed -i -e "s|^ErrorTraceVisualizer=.*$|ErrorTraceVisualizer=$LDV_HOME/bin/error-trace-visualizer.pl|g" $LDV_ONLINE_CONF;
-	sed -i -e "s|^WSTempDir=.*$|WSTempDir=$tempdir|g" $LDV_ONLINE_CONF;
+	sed -i -e "s|^WSTempDir=.*$|WSTempDir=$workdir|g" $LDV_ONLINE_CONF;
 	sed -i -e "s|^wwwdocs=.*$|wwwdocs=$wwwdocs|g" $LDV_ONLINE_CONF;
 	
 	# database options
@@ -233,9 +234,9 @@ else
 	cp -r $LDV_ONLINE_WWWDOCS_HOME/* $wwwdocs/;
 	if [ $? -ne 0 ]; then
 		echo "Can't copy www docs from \"$LDV_ONLINE_WWWDOCS_HOME/*\" to \"$wwwdocs\".";
-		echo "Remove configuration.";
 		mv $LDV_ONLINE_CONF_DIR/ldv_online_service.php $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php
 		rm $LDV_ONLINE_CONF;
+		echo "Configuration was removed.";
 		exit 1;
 	fi;
 	mv $LDV_ONLINE_CONF_DIR/ldv_online_service.php $LDV_ONLINE_WWWDOCS_HOME/ldv_online_service.php
@@ -243,7 +244,7 @@ else
 	echo "Server installation successfully finished.";
 	echo "-------- to start server use: ---------";
 	echo "$LDV_HOME/bin/ldv_server";
-	echo "Log file: $LDV_ONLINE_HOME/logs/server.log";
+	echo "Then you can see log file: $LDV_ONLINE_HOME/logs/server.log";
 fi
 
 
