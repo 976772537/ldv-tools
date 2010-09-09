@@ -8,7 +8,7 @@ import com.iceberg.cbase.readers.ReaderWrapper;
 import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenPpcDirective;
 
-public class ParserPPCHelper extends Parser {
+public class ParserPPCHelper extends Parser<TokenPpcDirective> {
 
 	/*
 	 * Если эта переменная установлена в true, то законченные блоки директив препроцессора
@@ -16,11 +16,11 @@ public class ParserPPCHelper extends Parser {
 	 * фильтрацию методом disableFilter();
 	 *
 	 * */
-	private static boolean filterPpcEndBlocks = false;
+	private boolean filterPpcEndBlocks = false;
 
-	private List<Token> tokens;
+	private List<TokenPpcDirective> tokens;
 
-	private static enum parserStates {
+	private enum parserStates {
 		BLOCK_NULL,		// мы не находимся в блоке и не в начале и не в конце буффера
 		BLOCK_BEGIN_BUFFER,	// мы находимся в начале буффера - если следующий # - то это директива
 		BLOCK_TRY_PREP,		// проскочил \n - возможно следующее - директива препроцессора
@@ -32,7 +32,7 @@ public class ParserPPCHelper extends Parser {
 
 	private parserStates state = parserStates.BLOCK_BEGIN_BUFFER;
 
-	public static void disableFilter() {
+	public void disableFilter() {
 		filterPpcEndBlocks = false;
 	}
 
@@ -80,9 +80,9 @@ public class ParserPPCHelper extends Parser {
 	}
 
 	@Override
-	public List<Token> parse() {
+	public List<TokenPpcDirective> parse() {
 		if(tokens!=null) return tokens;
-		tokens = new ArrayList<Token>();
+		tokens = new ArrayList<TokenPpcDirective>();
 		char[] buffer = null;
 		buffer =  inputReader.readAll().toCharArray();
 		for(int i=0; i<buffer.length; i++) {
@@ -101,7 +101,7 @@ public class ParserPPCHelper extends Parser {
 			if(state == parserStates.BLOCK_NULL_AFTER_PREP) {
 				String content = sbuffer.toString();
 				TokenPpcDirective.PPCType ppctype = getType(content);
-				Token token = new TokenPpcDirective(startIndex,i-1,content,null,ppctype);
+				TokenPpcDirective token = new TokenPpcDirective(startIndex,i-1,content,null,ppctype);
 				tokens.add(token);
 			}
 			/*if(tokens.size() == 66 ) {
@@ -133,12 +133,12 @@ public class ParserPPCHelper extends Parser {
 
 	/* функции для обрамления участков кода директивами препроцессора */
 	/* список директив до токена */
-	public List<Token> getPPCWithoutINCLUDEbefore(Token token) {
+	public List<TokenPpcDirective> getPPCWithoutINCLUDEbefore(Token token) {
 		this.parse();
-		List<Token> ltokens = new ArrayList<Token>();
-		Iterator<Token> tokenIterator = tokens.iterator();
+		List<TokenPpcDirective> ltokens = new ArrayList<TokenPpcDirective>();
+		Iterator<TokenPpcDirective> tokenIterator = tokens.iterator();
 		while(tokenIterator.hasNext()) {
-			TokenPpcDirective ltoken = (TokenPpcDirective)tokenIterator.next();
+			TokenPpcDirective ltoken = tokenIterator.next();
 			if(ltoken.getEndIndex()>token.getBeginIndex())
 				break;
 			if(ltoken.getPPCType()!=TokenPpcDirective.PPCType.PPC_LOCAL_INCLUDE &&
@@ -150,12 +150,12 @@ public class ParserPPCHelper extends Parser {
 	}
 
 	/* список директив после токена */
-	public List<Token> getPPCWithoutINCLUDEafter(Token token) {
+	public List<TokenPpcDirective> getPPCWithoutINCLUDEafter(Token token) {
 		this.parse();
-		List<Token> ltokens = new ArrayList<Token>();
-		Iterator<Token> tokenIterator = tokens.iterator();
+		List<TokenPpcDirective> ltokens = new ArrayList<TokenPpcDirective>();
+		Iterator<TokenPpcDirective> tokenIterator = tokens.iterator();
 		while(tokenIterator.hasNext()) {
-			TokenPpcDirective ltoken = (TokenPpcDirective)tokenIterator.next();
+			TokenPpcDirective ltoken = tokenIterator.next();
 			if(ltoken.getBeginIndex()>token.getEndIndex() &&
 					ltoken.getPPCType() != TokenPpcDirective.PPCType.PPC_LOCAL_INCLUDE &&
 					ltoken.getPPCType() != TokenPpcDirective.PPCType.PPC_GLOBAL_INCLUDE) {
@@ -165,7 +165,7 @@ public class ParserPPCHelper extends Parser {
 		return ltokens;
 	}
 
-	public static void filteredAdd(TokenPpcDirective ltoken, List<Token> ltokens) {
+	public void filteredAdd(TokenPpcDirective ltoken, List<TokenPpcDirective> ltokens) {
 		if(!filterPpcEndBlocks) {
 			ltokens.add(ltoken);
 			return;

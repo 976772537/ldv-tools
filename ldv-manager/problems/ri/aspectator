@@ -1,0 +1,11 @@
+#!/usr/bin/perl
+# Problem finder for aspectator
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/error: invalid storage class for function try_module_get/ and print "<a href =\"http://forge.ispras.ru/issues/380\">bug380:</a> try_module_get";
+	/internal compiler error: Segmentation fault/ and print "segfault";
+}
+

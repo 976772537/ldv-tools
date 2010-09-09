@@ -1,6 +1,6 @@
 INSTALL_DIR = __install
 
-TEST_DIRS = small medium big
+TEST_DIRS = general small medium big
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified.

@@ -14,7 +14,7 @@ public class TokenPpcDirective extends Token {
 	private PPCType ppctype;
 	
 	public TokenPpcDirective(int beginIndex, int endIndex, String content, String ldvCommentContent, PPCType ppctype) {
-		super(beginIndex, endIndex, content, ldvCommentContent, null);
+		super(beginIndex, endIndex, content, ldvCommentContent);
 		this.ppctype = ppctype;
 	}	
 	

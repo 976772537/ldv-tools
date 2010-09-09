@@ -20,7 +20,7 @@ import com.iceberg.cbase.tokens.Token;
  * @author iceberg
  *
  */
-public abstract class ExtendedParser implements ParserInterface {
+public abstract class ExtendedParser<T extends Token> implements ParserInterface<T> {
 
 	protected ReaderInterface inputReader = null;
 
@@ -47,8 +47,8 @@ public abstract class ExtendedParser implements ParserInterface {
 		this.options.sendConfigOption(optionName, value);
 	}
 
-	public List<Token> parse() {
-		List<Token> ltoken = new ArrayList<Token>();
+	public List<T> parse() {
+		List<T> ltoken = new ArrayList<T>();
 		/* подготавливаем и компилим паттерны */
 		Pattern pattern = Pattern.compile(options.getPattern());
 		String buffer = inputReader.readAll();
@@ -57,12 +57,8 @@ public abstract class ExtendedParser implements ParserInterface {
 		/* матчим контент */
 		while(matcher.find()) {
 			String imeo = matcher.group();
-			Token token = null;
-			try {
-				token = parseContent(imeo, matcher.start(),matcher.end());
-			} catch(Exception e) {
-				e.printStackTrace();
-			}
+			T token = null;
+			token = parseContent(imeo, matcher.start(),matcher.end());
 			if(token!=null) {
 				ltoken.add(token);
 			}
@@ -70,5 +66,5 @@ public abstract class ExtendedParser implements ParserInterface {
 		return ltoken;
 	}
 
-	protected abstract Token parseContent(String content, int start, int end);
+	protected abstract T parseContent(String content, int start, int end);
 }

@@ -1,0 +1,2 @@
+obj-m := wext.o
+

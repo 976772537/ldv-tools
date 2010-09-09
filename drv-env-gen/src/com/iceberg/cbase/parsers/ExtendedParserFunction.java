@@ -2,31 +2,33 @@ package com.iceberg.cbase.parsers;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.iceberg.Logger;
+import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
 import com.iceberg.cbase.parsers.options.OptionFunctionName;
 import com.iceberg.cbase.readers.ReaderInterface;
 import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
-public class ExtendedParserFunction extends ExtendedParser {
+public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 
 	/**
 	 *	паттерны для поиска входных параметров функци
 	 *
 	 */
-    //private static Pattern beginPatternHigh=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[&a-zA-Z_][a-zA-Z0-9_]*\\s?[\\\\*\\s]*)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
-	private static Pattern beginPatternHigh=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[&a-zA-Z_][a-zA-Z0-9_]*\\s?[\\\\*\\s]*[\\\\*&a-zA-Z_]*\\\\s\\\\*[a-zA-Z0-9_])|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
-	private static Pattern beginPatternHighInvert=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[&a-zA-Z_][a-zA-Z0-9_]*\\s?[\\\\*\\s]*)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
-    private static Pattern endPatternHigh=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?[\\s\\*]*$");
-	private static Pattern beginPatternLow=Pattern.compile("^\\s*(const\\s+)?(((unsigned)||(struct))\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\s*\\*]*\\s*\\(\\s*[\\s*\\*]*\\s*");
-	private static Pattern endPatternLow=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?\\)(.*\\s*)+");
+    //private final static Pattern beginPatternHigh=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[&a-zA-Z_][a-zA-Z0-9_]*\\s?[\\\\*\\s]*)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
+	private final static Pattern beginPatternHigh=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[&a-zA-Z_][a-zA-Z0-9_]*\\s?[\\\\*\\s]*[\\\\*&a-zA-Z_]*\\\\s\\\\*[a-zA-Z0-9_])|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
+	private final static Pattern beginPatternHighInvert=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[&a-zA-Z_][a-zA-Z0-9_]*\\s?[\\\\*\\s]*)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
+    private final static Pattern endPatternHigh=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?[\\s\\*]*$");
+	private final static Pattern beginPatternLow=Pattern.compile("^\\s*(const\\s+)?(((unsigned)||(struct))\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\s*\\*]*\\s*\\(\\s*[\\s*\\*]*\\s*");
+	private final static Pattern endPatternLow=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?\\)(.*\\s*)+");
 
-	boolean parseFunctionCalls = false;
+	boolean parseInnerFunctionCalls = false;
 
 	public ExtendedParserFunction(ReaderInterface reader) {
 		super(reader);
@@ -34,11 +36,11 @@ public class ExtendedParserFunction extends ExtendedParser {
 	}
 
 	public 	void parseFunctionCallsOn() {
-		this.parseFunctionCalls = true;
+		this.parseInnerFunctionCalls = true;
 	}
 
 	@Override
-	protected Token parseContent(String content, int start, int end) {
+	protected TokenFunctionDecl parseContent(String content, int start, int end) {
 		/* хаки, которые потом нужно включить по-возможности в regexpr */
 		/* не должен матчииться:"PageDirty(page) && PageSwapCache(page)) {"  - */
 		/* по количеству закрывающих скобок */
@@ -69,10 +71,10 @@ public class ExtendedParserFunction extends ExtendedParser {
 			start++;
 		}
 
-		String[] sNameAndRetType = parseNameAndType(tokenClearContent);
+		NameAndType sNameAndRetType = parseNameAndType(tokenClearContent);
 		if (sNameAndRetType == null)
 			return null;
-		List<String> replacementParams = createReplacementParams(tokenClearContent,sNameAndRetType[0]);
+		List<String> replacementParams = createReplacementParams(tokenClearContent,sNameAndRetType.getName());
 		/* найдем реальный конец контента фукнции */
 		int level = 1;
 		char[] buffer = inputReader.readAll().toCharArray();
@@ -132,29 +134,26 @@ public class ExtendedParserFunction extends ExtendedParser {
 
 		/* если установлена опция "парсить" вызовы функций, то парсим */
 		List<Token> functionInnerCalls = null;
-		if(this.parseFunctionCalls)
+		if(this.parseInnerFunctionCalls)
 			functionInnerCalls = parseInnerCalls(this.getReader().readAll().substring(start,end));
-		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType[0],
-				sNameAndRetType[1],replacementParams,start,end,tokenClearContent,null,functionInnerCalls);
+		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
+				sNameAndRetType.getType(),replacementParams,start,end,tokenClearContent,null,functionInnerCalls);
 		return token;
 	}
 
 	/* паттерн нужен, чтобы следующей за ним функции распарсить по нему
 	 * вызовы функций */
-	private static Pattern fcallsPatterns = Pattern.compile("[\\w\\$]+\\s*\\([\\:\\*\\&\\w\\,\\.\\?\\%\\$\\^\\s\\=\\_\\\"\\\\\\#\\-(\\s*\\-\\s*>\\s*)\\(\\)]*\\)");
+	private final static Pattern fcallsPatterns = Pattern.compile("[\\w\\$]+\\s*\\([\\:\\*\\&\\w\\,\\.\\?\\%\\$\\^\\s\\=\\_\\\"\\\\\\#\\-(\\s*\\-\\s*>\\s*)\\(\\)]*\\)");
 	//private static Pattern fcallsRulePatterns = Pattern.compile("[_a-zA-Z$][_a-zA-Z0-9$]*");
 
-	private static final List<String> ckeywordsMap = new ArrayList<String>();
-	static {
-		ckeywordsMap.add("while");
-		ckeywordsMap.add("do");
-		ckeywordsMap.add("if");
-		ckeywordsMap.add("else");
-		ckeywordsMap.add("for");
-		ckeywordsMap.add("return");
-	}
+	private static final List<String> keywordsList = 
+		Arrays.asList("while","do","if","else","for","return");	
+	
+	private static int parseExceptionCounter = 0;
 
-	public static int parseExceptionCounter = 0;
+	public static int getParseExceptionCounter() {
+		return parseExceptionCounter;
+	}
 
 	/* на вход подается - тело функции, вместе с заголовком "abracadabre() { if.. print.. }" */
 	private static List<Token> parseInnerCalls(String buffer) {
@@ -171,10 +170,10 @@ oWhile:		while(matcher.find()) {
 				/* оставим только имя */
 				callsString = callsString.substring(0,callsString.indexOf('(')).trim();
 				/* проверим имя - это действительно имя функции, а не ключевое слово */
-				for(int i=0; i<ckeywordsMap.size(); i++)
-					if(ckeywordsMap.get(i).equals(callsString)) continue oWhile;
+				for(int i=0; i<keywordsList.size(); i++)
+					if(keywordsList.get(i).equals(callsString)) continue oWhile;
 				/* здесь создаем токен и отправляем в списиок */
-				Token token = new Token(matcher.start(), matcher.end(), callsString, null, null);
+				Token token = new Token(matcher.start(), matcher.end(), callsString, null);
 				boolean isExitsts = false;
 
 		/*		if (buffer.contains("m_extract_one_cell") && token.getContent().contains("atomic_inc")) {
@@ -214,8 +213,12 @@ oWhile:		while(matcher.find()) {
 		return replacementParams;
 	}
 
-	/* выделяет имя и тип возвращаемого значения функции из декларации */
-	private static String[] parseNameAndType(String functionName) {
+	/**
+	 *  выделяет имя и тип возвращаемого значения функции из декларации 
+	 *  name - function name
+	 *  type - return type   
+	 */
+	private static NameAndType parseNameAndType(String functionName) {
 		byte[] fbname = functionName.getBytes();
 		int level = 1;
 		int beginName;
@@ -245,8 +248,7 @@ oWhile:		while(matcher.find()) {
 		if(rettype!=null && rettype.length()>0) {
 			rettype = rettype.replaceAll("__init", "");
 		}
-		String[] result = {functionName.substring(++endName, ++beginName),rettype};
-		return result;
+		return new NameAndType(functionName.substring(++endName, ++beginName),rettype);
 	}
 
 	/* разделяет параметры на строки */

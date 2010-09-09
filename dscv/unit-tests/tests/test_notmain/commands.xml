@@ -1,5 +1,6 @@
 <cmdstream>
   <basedir>@BASE@</basedir>
+	<test fail="1"/>
   <cc id="1">
     <cwd>@CWD@</cwd>
     <out>@BASE@/empty.o</out>

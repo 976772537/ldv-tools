@@ -6,8 +6,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Iterator;
 
+import com.iceberg.cbase.parsers.ExtendedParserStruct.NameAndType;
 import com.iceberg.cbase.readers.ReaderInterface;
-import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 
 /**
@@ -24,25 +24,25 @@ import com.iceberg.cbase.tokens.TokenFunctionDecl;
  * функции parse
  *
  */
-public class ParserFunctionDecl extends Parser {
+public class ParserFunctionDecl extends Parser<TokenFunctionDecl> {
 	/**
 	 * 		 паттерн для поиска фукнций,
 	 *  Можно добавлять исключения ключевых слов (for)|(if)
 	 *
 	 *   */
-	private static Pattern pattern = Pattern
+	private final static Pattern pattern = Pattern
 		.compile("(;|})[\n\t\\s]*.*[\n\t\\s]+((?!(for)|(if))([_a-zA-Z][_a-z0-9A-Z]*))\\(.*\\)[\\s\n]*\\{");
-	private static String prePattern = "(;|})[\n\t\\s]*.*[\n\t\\s]+(";
-	private static String afterPattern = ")\\(.*\\)[\\s\n]*\\{";
+	private final static String prePattern = "(;|})[\n\t\\s]*.*[\n\t\\s]+(";
+	private final static String afterPattern = ")\\(.*\\)[\\s\n]*\\{";
 
 	/**
 	 *	паттерны для поиска входных параметров функции
 	 */
-	private static Pattern beginPatternHigh=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
-	private static Pattern beginPatternHighInvert=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
-	private static Pattern endPatternHigh=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?[\\s\\*]*$");
-	private static Pattern beginPatternLow=Pattern.compile("^\\s*(const\\s+)?(((unsigned)||(struct))\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\s*\\*]*\\s*\\(\\s*[\\s*\\*]*\\s*");
-	private static Pattern endPatternLow=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?\\)(.*\\s*)+");
+	private final static Pattern beginPatternHigh=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
+	private final static Pattern beginPatternHighInvert=Pattern.compile("(^\\s*\\\\*\\s*(const\\s+)*(enum|union)\\s+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?unsigned\\s+(int|char|double|long)?[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?struct\\s+([a-zA-Z_][a-zA-Z0-9_]*\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)|(^\\s*\\\\*\\s*(const\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+[a-zA-Z_][a-zA-Z0-9_]*[\\\\*\\s]+)");
+	private final static Pattern endPatternHigh=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?[\\s\\*]*$");
+	private final static Pattern beginPatternLow=Pattern.compile("^\\s*(const\\s+)?(((unsigned)||(struct))\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\s*\\*]*\\s*\\(\\s*[\\s*\\*]*\\s*");
+	private final static Pattern endPatternLow=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?\\)(.*\\s*)+");
 
 	private List<String> patterns = null;
 
@@ -57,8 +57,8 @@ public class ParserFunctionDecl extends Parser {
 
 	/* ищем все определения функции */
 	@Override
-	public List<Token> parse() {
-		List<Token> tlist = new ArrayList<Token>();
+	public List<TokenFunctionDecl> parse() {
+		List<TokenFunctionDecl> tlist = new ArrayList<TokenFunctionDecl>();
 		String buffer = null;
 		buffer = inputReader.readAll();
 		Matcher m = null;
@@ -93,10 +93,10 @@ public class ParserFunctionDecl extends Parser {
 						+ "\n\t3) нулевой сивол - ; или }"
 						+ "\n\t4) последний символ {\n";
 				String tokenClearContent = tokenContent.substring(	1, tokenContent.length() - 2).trim();
-				String[] sNameAndRetType = parseNameAndType(tokenClearContent);
+				NameAndType sNameAndRetType = parseNameAndType(tokenClearContent);
 				List<String> replacementParams = createReplacementParams(tokenClearContent);
-				TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType[0],
-						sNameAndRetType[1],replacementParams,m.start(),m.end(),tokenClearContent ,null,null);
+				TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
+						sNameAndRetType.getType(),replacementParams,m.start(),m.end(),tokenClearContent ,null,null);
 				tlist.add(token);
 			}
 		return tlist;
@@ -114,7 +114,7 @@ public class ParserFunctionDecl extends Parser {
 	}
 
 	/* выделяет имя и тип возвращаемого значения функции из декларации */
-	private static String[] parseNameAndType(String functionName) {
+	private static NameAndType parseNameAndType(String functionName) {
 		byte[] fbname = functionName.getBytes();
 		int level = 1;
 		int beginName;
@@ -126,8 +126,7 @@ public class ParserFunctionDecl extends Parser {
 		/* идем по имени функции до первого порбела */
 		int endName = beginName;
 		while(fbname[endName]!='\n' && fbname[endName]!=' ' && endName>=0) endName--;
-		String[] result = {functionName.substring(++endName, ++beginName),functionName.substring(0, endName).trim()};
-		return result;
+		return new NameAndType(functionName.substring(++endName, ++beginName),functionName.substring(0, endName).trim());
 	}
 
 	/* разделяет параметры на строки */

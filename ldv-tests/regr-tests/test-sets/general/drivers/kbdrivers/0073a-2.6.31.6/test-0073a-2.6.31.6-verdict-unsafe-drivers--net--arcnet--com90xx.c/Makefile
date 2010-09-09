@@ -1,0 +1,1 @@
+obj-m := com90xx.o

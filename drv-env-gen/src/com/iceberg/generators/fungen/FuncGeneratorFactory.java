@@ -5,7 +5,7 @@ import java.util.HashMap;
 
 public class FuncGeneratorFactory {
 	
-	protected static Map<GenerateOptions, Class<?>> map = defaultMap();
+	protected final static Map<GenerateOptions, Class<?>> map = defaultMap();
 	
 	public static FuncGenerator create(GenerateOptions gopts) {
 		Class<?> klass = map.get(gopts);

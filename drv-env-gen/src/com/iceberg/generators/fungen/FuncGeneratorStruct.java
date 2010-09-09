@@ -10,12 +10,11 @@ import com.iceberg.cbase.tokens.TokenFunctionDecl;
 public class FuncGeneratorStruct implements FuncGenerator {
 
 	private TokenFunctionDecl token;
-	private int startFVar;
-
+	
 	@Override
 	public List<String> generateVarInit() {
 		List<String> replacementParams = token.getReplacementParams();
-		int startVar = this.startFVar;
+		int paramCnt = 0;
 		List<String> initParamsList = new ArrayList<String>();
 		Iterator<String> replacementParamsIterator =  replacementParams.iterator();
 		while(replacementParamsIterator.hasNext()) {
@@ -31,7 +30,7 @@ public class FuncGeneratorStruct implements FuncGenerator {
 							replacementParam.substring(indexOfPointer+1, replaceIndex).trim().length()==0)) {
 						if(replacementParam.charAt(indexOfPointer-1)!='(') {
 							String pointerType = replacementParam.substring(0,indexOfPointer+1);
-							initializedParam ="var"+startVar+" = ("+pointerType+")kmalloc(1,GFP_KERNEL);";
+							initializedParam = getVarName(paramCnt) +" = ("+pointerType+")kmalloc(1,GFP_KERNEL);";
 						}
 					} //else
 				} catch(Exception e) {
@@ -39,7 +38,7 @@ public class FuncGeneratorStruct implements FuncGenerator {
 					Logger.debug("rparam :" + replacementParam);
 				}
 			}
-			startVar++;
+			paramCnt++;
 			if(initializedParam != null)
 				initParamsList.add(initializedParam);
 		}
@@ -47,15 +46,14 @@ public class FuncGeneratorStruct implements FuncGenerator {
 	}
 
 	@Override
-	public void set(TokenFunctionDecl token, int startVar) {
-		this.startFVar = startVar;
+	public void set(TokenFunctionDecl token) {
 		this.token = token;
 	}
 
 	@Override
 	public List<String> generateVarDeclare() {
 		List<String> replacementParams = token.getReplacementParams();
-		int startVar = this.startFVar;
+		int paramCnt = 0;
 		List<String> paramsList = new ArrayList<String>();
 		Iterator<String> replacementParamsIterator =  replacementParams.iterator();
 		while(replacementParamsIterator.hasNext()) {
@@ -63,35 +61,64 @@ public class FuncGeneratorStruct implements FuncGenerator {
 			if(!replacementParam.equals("...")) {
 				if(!replacementParam.equals("void")) {
 					if(replacementParam.contains("const"))
-						paramsList.add(replacementParam.replaceAll("\\$var", "var"+startVar)+"=0;");
+						paramsList.add(replacementParam.replaceAll("\\$var", getVarName(paramCnt))+"=0;");
 					else
-						paramsList.add(replacementParam.replaceAll("\\$var", "var"+startVar)+";");
+						paramsList.add(replacementParam.replaceAll("\\$var", getVarName(paramCnt))+";");
 				}
 			}
-			startVar++;
+			paramCnt++;
 		}
 		return paramsList;
 	}
 
 	@Override
 	public String generateFunctionCall() {
+		return genFuncCallExpr() + ";";
+	}
+
+	@Override
+	public String generateCheckedFunctionCall(String check_label, String indent) {
+		assert token.getTestString()!=null && !token.getRetType().contains("void");
+		String funcCallStr = genFuncCallExpr();
+		funcCallStr = token.getTestString().
+				replaceAll("\\$retvar", getRetName()).
+				replaceAll("\\$fcall", funcCallStr).
+				replaceAll("\\$check_label", check_label).
+				replaceAll("\\$indent", indent);
+		return funcCallStr;
+	}
+
+	@Override
+	public String generateRetDecl() {
+		assert token.getTestString()!=null && !token.getRetType().contains("void");
+		return token.getRetType() + " " + getRetName() + ";";
+	}
+	
+	private String genFuncCallExpr() {
 		List<String> replacementParams = token.getReplacementParams();
-		int startVar = this.startFVar;
+		int paramCnt = 0;
 		Iterator<String> replacementParamsIterator =  replacementParams.iterator();
 		StringBuffer ifunCall = new StringBuffer(token.getName()+'(');
 		while(replacementParamsIterator.hasNext()) {
 			String replacementParam = replacementParamsIterator.next().trim();
 			if(!replacementParam.equals("...")) {
 				if(!replacementParam.equals("void")) {
-					ifunCall.append(" var"+startVar);
+					ifunCall.append(" " + getVarName(paramCnt));
 					if(replacementParamsIterator.hasNext())
 						ifunCall.append(',');
 				}
 			}
-			startVar++;
+			paramCnt++;
 		}
-		ifunCall.append(");");
+		ifunCall.append(")");
 		return ifunCall.toString();
 	}
 
+	private String getVarName(int paramCnt) {
+		return "var_"+ token.getId() + "_p" + paramCnt;
+	}
+
+	private String getRetName() {
+		return "res_" + token.getId();
+	}
 }

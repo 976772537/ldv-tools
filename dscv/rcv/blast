@@ -104,21 +104,16 @@ sub verify_blast
 	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
 
+	# Since arguments alter depending on main, we should save them to temporary.
+	my %args_template = (%args);
+
 	for my $main (@{$args{mains}}){
+		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		my $result = call_blast(%args, main=>$main); 
 	
 		# Print verdict to console and to report 
 		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
 		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
-
-		my $bv = $result->{'BLAST-detailed'};
-		if ($bv =~ /\bsafe\b/) {
-			$bv='SAFE';
-		}elsif($bv =~ /\bunsafe\b/){
-			$bv='UNSAFE';
-		}else{
-			$bv='UNKNOWN';
-		}
 
 		my $br = $result->{'BLAST'};
 		if ($br =~ /\byes\b/i) {
@@ -128,6 +123,16 @@ sub verify_blast
 		}else{
 			$br='FAILED';
 		}
+
+		my $bv = $result->{'BLAST-detailed'};
+		if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
+			$bv='SAFE';
+		}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
+			$bv='UNSAFE';
+		}else{
+			$bv='UNKNOWN';
+		}
+
 
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);

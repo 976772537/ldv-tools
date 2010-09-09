@@ -116,8 +116,8 @@ BEGIN { $ticksize = POSIX::sysconf(&POSIX::_SC_CLK_TCK) or die "Couldn't get tic
 sub hires_proc_runtime
 {
 	my ($pid) = @_;
-	my $stat = `cat /proc/$pid/stat`;
-	# Since we invoke this function quite often, process may decease betweem ps invocation and attempt to access its /proc entry.  So, we return undef and handle it in the caller.
+	my $stat = `cat /proc/$pid/stat 2>/dev/null`;
+	# Since we invoke this function quite often, process may decease betweem ps invocation and attempt to access its /proc entry.  So, we return undef and handle it in the caller.  That's also the reason of error redirection to void.
 	return undef unless $stat;
 	# Parse proc stats--14th is utime, and it's expressed in ticks.
 	my (undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,$utime_ticks,$stime_ticks) = split /\s+/,$stat;

@@ -1,0 +1,2 @@
+use process-kb.sh tp generate external driver folders from kb files of experimenter_new
+use make-drivers.sh to test compilation

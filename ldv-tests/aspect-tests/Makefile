@@ -13,7 +13,7 @@ mandir = ${prefix}/man
 
 ASPECT_TEST_DIR = ldv-tests/aspect-tests/
 TMP_DIR_DRV = __install_drivers
-PACK_SCRIPT = ../regr-tests/test-sets/small/pack-drivers.sh
+PACK_SCRIPT = ../regr-tests/test-sets/general/pack-drivers.sh
 # Compilation
 all: 
 	${PACK_SCRIPT} ${TMP_DIR_DRV} || exit 1

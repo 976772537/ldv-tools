@@ -2,17 +2,17 @@ package com.iceberg.cbase.parsers;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Iterator;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.iceberg.Logger;
 import com.iceberg.cbase.parsers.options.OptionStructType;
 import com.iceberg.cbase.readers.ReaderInterface;
-import com.iceberg.cbase.tokens.Token;
 import com.iceberg.cbase.tokens.TokenFunctionDecl;
 import com.iceberg.cbase.tokens.TokenStruct;
 
-public class ExtendedParserStruct extends ExtendedParser {
+public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 
 	public static final char KEY_TAB = 9;
 	public static final char KEY_NEW_LINE = 10;
@@ -35,22 +35,40 @@ public class ExtendedParserStruct extends ExtendedParser {
 	public static final char KEY_N10 = '0';
 
 	/* если 1 - то используем механизм поиска шаблонов */
-	private int patternCallQueue = 1;
+	private boolean sortFunctionCalls = true;
 
-	public void offPatternCallQueue() {
-		this.patternCallQueue = 0;
+	public void setSortFunctionCalls(boolean b) {
+		this.sortFunctionCalls = b;
+	}
+	
+	private PatternSorter patternSorter;
+	
+	public PatternSorter getPatternSorter() {
+		return patternSorter;
+	}
+
+	public ExtendedParserStruct(Properties properties, ReaderInterface reader) {
+		super(reader);
+		addOption(new OptionStructType());
+		if(properties!=null) {
+			patternSorter = new PatternSorter(properties);
+		} else {
+			patternSorter = new PatternSorter();			
+		}
 	}
 
 	public ExtendedParserStruct(ReaderInterface reader) {
-		super(reader);
-		addOption(new OptionStructType());
+		this(null, reader);
 	}
-
+	
+	/**
+	 * Parses 
+	 */
 	@Override
-	protected Token parseContent(String content, int start, int end) {
+	protected TokenStruct parseContent(String content, int start, int end) {
 		String buffer = getReader().readAll();
 		String tokenClearContent = content.trim();
-		String[] sNameAndType = parseNameAndType(tokenClearContent);
+		NameAndType sNameAndType = parseNameAndType(tokenClearContent);
 		// посчитаем действительный конец структуры
 		int level = 1;
 		int nend;
@@ -64,60 +82,69 @@ public class ExtendedParserStruct extends ExtendedParser {
 		 *  часть функций из старого парсера ! - убрать
 		 *  */
 		/* найдем все предполагаемые имена функций в структуре */
-		List<String[]> fnames = getFunctionNames(innerContent,this.patternCallQueue);
-		TokenStruct token = null;
+		List<NameAndType> fnames = getFunctionNames(innerContent);
+		Logger.trace("TokenStruct.parseContent " + sNameAndType + " functions " + fnames);
 		if(fnames.size()>0) {
 			/* создадим парсер функций */
 			ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(getReader());
 			/* и добавим в него поиск только по указанным именам функций */
-			Iterator<String[]> fnamesIterator = fnames.iterator();
-			/* TODO: сделать метод добавления множества параметров */
-			while(fnamesIterator.hasNext())
-				innerParserFunctions.addConfigOption("name", fnamesIterator.next()[0]);
-			/* и запустим парсер */
-			List<Token> functions = innerParserFunctions.parse();
-			/* отсортируем по шаблону */
-			List<Token> sortedFunctions;
-			List<String[]> fnamesPattern = new ArrayList<String[]>(fnames);
-			if( this.patternCallQueue == 1)
-				sortedFunctions = PatternSort.sortByPattern(sNameAndType[1], fnames, functions);
-			else
-				sortedFunctions = functions;
-			/* установим ldvCommentContent */
-			for(Token itoken: sortedFunctions) {
-				if(itoken instanceof TokenFunctionDecl) {
-					TokenFunctionDecl tfd = (TokenFunctionDecl)itoken;
-					// ищем для него соответствующий тип
-					for(int i=0; i<fnamesPattern.size(); i++) {
-						if(fnamesPattern.get(i)[0].equals(tfd.getName())) {
-							tfd.setCallback(fnamesPattern.get(i)[1]);
-							break;
-						}
-					}
-				}
+			for(NameAndType fnamesIterator : fnames) {
+				/* TODO: сделать метод добавления множества параметров */
+				innerParserFunctions.addConfigOption("name", fnamesIterator.getName());
 			}
-			
+			/* и запустим парсер */
+			List<TokenFunctionDecl> functions = innerParserFunctions.parse();
+			Logger.trace("TokenStruct.parsed funcs " + functions);
+						
 			/* и создадим токен - структуру */
-			token = new TokenStruct(sNameAndType[0],sNameAndType[1],start,nend,tokenClearContent,null,sortedFunctions);
+			TokenStruct token = new TokenStruct(sNameAndType.getName(), sNameAndType.getType(),
+					start, nend, tokenClearContent, null, functions);
+			
+			if(this.sortFunctionCalls) {
+				/* отсортируем по шаблону */
+				token.sortFunctions(patternSorter, fnames);
+			} 
+			/* установим ldvCommentContent */
+			token.setComments(fnames);
+			
+			Logger.trace("TokenStruct.parsed funcs after sort" + functions);
+			return token;
 		}
-		return token;
+		return null;
 	}
 
-	public static String[] parseNameAndType(String clearContent) {
-		String[] sNameAndType = new String[2];
+	public static NameAndType parseNameAndType(String clearContent) {
 		String typeName = clearContent.substring(clearContent.indexOf("struct")+6).trim();
 		typeName = typeName.substring(0,typeName.indexOf(' ')).trim();
 		String structName = clearContent.substring(clearContent.indexOf(typeName)+typeName.length(),clearContent.indexOf('=')).trim();
-		sNameAndType[0] = structName;
-		sNameAndType[1] = typeName;
-		return sNameAndType;
+		return new NameAndType(structName,typeName); 
 	}
 
-
-	private static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s[_a-zA-Z][_a-zA-Z0-9]*");
-	public static List<String[]> getFunctionNames(String buffer, int patternCallQueue)
+	public static class NameAndType {
+		String name;
+		String type;
+		public NameAndType(String name, String type) {
+			super();
+			this.name = name;
+			this.type = type;
+		}
+		public String getName() {
+			return name;
+		}
+		public String getType() {
+			return type;
+		}		
+		@Override
+		public String toString() {
+			return "NameAndType [name=" + name + ", type=" + type + "]";
+		}
+	}
+	
+	private final static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s[_a-zA-Z][_a-zA-Z0-9]*");
+	
+	public static List<NameAndType> getFunctionNames(String buffer)
 	{
-		List<String[]> functions = new ArrayList<String[]>();
+		List<NameAndType> functions = new ArrayList<NameAndType>();
 		Matcher lmatcher = fstruct.matcher(buffer);
 		String lfinded;
 		String lname;
@@ -128,8 +155,7 @@ public class ExtendedParserStruct extends ExtendedParser {
 			lindex = lfinded.indexOf('=');
 			ltype = lfinded.substring(1,lindex).trim();
 			lname = lfinded.substring(lindex+1,lfinded.length()).trim();
-			String[] tmpString2 = {lname,ltype};
-			functions.add(tmpString2);
+			functions.add(new NameAndType(lname,ltype));
 		}
 		return functions;
 	}
