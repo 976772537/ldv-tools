@@ -1234,31 +1234,59 @@ sub process_cmd_cc()
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
     
     print_debug_trace("Go to the build directory to execute cc command");
-    chdir($cmd{'cwd'})
-      or die("Can't change directory to '$cmd{'cwd'}'");
 
-    print_debug_info("Execute the command '@args'");
-    my ($status, $desc) = exec_status_and_desc(@args);
-    return ($status, $desc) if ($status);
-    
-    # Unset special environments variables.
-    delete($ENV{$ldv_quiet});
-    delete($ENV{$ldv_no_quoted});
-    delete($ENV{$ldv_aspectator_gcc});
-    
-    print_debug_trace("Go to the initial directory");
-    chdir($tool_working_dir)
-      or die("Can't change directory to '$tool_working_dir'");
+	my ($status, $desc);
+	# Get target file cache key
+	my $cache_target = "$cmd{'out'}$llvm_bitcode_usual_suffix";
+	my $cache_file_key = $cache_target;
+	$cache_file_key =~ s/^$opt_basedir//;
 
-    die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
-      unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-    print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+    if (copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
+      # Cache hit
+      print_debug_info("Got file from CACHE instead of executing '@args'");
+      $status = string_from_cache($opt_model_id,"$cache_file_key-status");
+      chomp $status;    #remove excessive newline
+      $desc = [split("\n", string_from_cache($opt_model_id,"$cache_file_key-desc"))];
+      # Return on failure
+      return ($status, $desc) if ($status);
+    }else{
+      # Cache miss
+      chdir($cmd{'cwd'})
+        or die("Can't change directory to '$cmd{'cwd'}'");
 
-    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-    # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
-    print_debug_trace("Copy the usual bitcode file");
-    mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
-      or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+      print_debug_info("Execute the command '@args'");
+      ($status, $desc) = exec_status_and_desc(@args);
+
+      # Save the information obtained to cache (even if it's a failure!)
+      string_to_cache($status,$opt_model_id,"$cache_file_key-status");
+      string_to_cache(join("\n",@$desc),$opt_model_id,"$cache_file_key-desc");
+
+      # Return on failure
+      return ($status, $desc) if ($status);
+
+      # Unset special environments variables.
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_no_quoted});
+      delete($ENV{$ldv_aspectator_gcc});
+      
+      print_debug_trace("Go to the initial directory");
+      chdir($tool_working_dir)
+        or die("Can't change directory to '$tool_working_dir'");
+
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
+        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+
+	  # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
+	  # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
+	  print_debug_trace("Copy the usual bitcode file");
+      # An error in the following line could appear if the "key" .o file was cached, but this file was not (due to different options?)
+      # If it happens, just drop the cache
+      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
+        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+      save_to_cache($cache_target,$opt_model_id,$cache_file_key);
+    }
+
     $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
     print_debug_debug("The usual bitcode file is '$cmd{'out'}$llvm_bitcode_usual_suffix'");
 
@@ -1280,32 +1308,55 @@ sub process_cmd_cc()
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
-    @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
-    print_debug_trace("Go to the build directory to execute cc command");    
-    chdir($cmd{'cwd'})
-      or die("Can't change directory to '$cmd{'cwd'}'");
+	# Get arguments for aspectator
+	@args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
+	# Try to fetch result (and we think that the file that ends with $llvm_bitcode_usual_suffix is THE ONLY result of this part
+	$cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
+	$cache_file_key = $cache_target;
+	$cache_file_key =~ s/^$opt_basedir//;
+    if (copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
+      # Cache hit
+      print_debug_info("Got file from CACHE instead of executing '@args'");
+      $status = string_from_cache($opt_model_id,"$cache_file_key-status");
+      chomp $status;    #remove excessive newline
+      $desc = [split("\n", string_from_cache($opt_model_id,"$cache_file_key-desc"))];
+      # Return on failure
+      return ($status, $desc) if ($status);
+    }else{
+      # Cache miss
+      print_debug_trace("Go to the build directory to execute cc command");    
+      chdir($cmd{'cwd'})
+        or die("Can't change directory to '$cmd{'cwd'}'");
+        
+      print_debug_info("Execute the command '@args'");
+      ($status, $desc) = exec_status_and_desc(@args);
+      return ($status, $desc) if ($status);
+
+      # Save the information obtained to cache (even if it's a failure!)
+      string_to_cache($status,$opt_model_id,"$cache_file_key-status");
+      string_to_cache(join("\n",@$desc),$opt_model_id,"$cache_file_key-desc");
+
+      # Unset special environments variables.
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_no_quoted});
+      delete($ENV{$ldv_aspectator_gcc});
       
-    print_debug_info("Execute the command '@args'");
-    ($status, $desc) = exec_status_and_desc(@args);
-    return ($status, $desc) if ($status);
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
+        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
 
-    # Unset special environments variables.
-    delete($ENV{$ldv_quiet});
-    delete($ENV{$ldv_no_quoted});
-    delete($ENV{$ldv_aspectator_gcc});
-    
-    die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
-      unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-    print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
+      # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
+      print_debug_trace("Copy the general bitcode file");
+      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
+        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
+      print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'");
 
-    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-    # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
-    print_debug_trace("Copy the general bitcode file");
-    mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
-      or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
-    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
-    print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'");
+      # Save the result to cache
+      save_to_cache($cache_target,$opt_model_id,$cache_file_key);
+    }
 
     unless (LDV::Utils::check_verbosity('DEBUG'))
     {
@@ -2454,7 +2505,7 @@ sub save_to_cache($@)
 
   # If the file doen't exist in cache, copy it
   unless (-e $cache_fname){
-	print_debug_trace("Overwriting cached '$cache_fname'...");
+	print_debug_trace("Writing to cache '$cache_fname'...");
 
 	my $target_dir = dirname("$cache_fname");
 	if (!-d $target_dir){
@@ -2480,28 +2531,31 @@ sub string_to_cache($@)
 
   # If the file doen't exist in cache, copy it
   unless (-e $cache_fname){
-	print_debug_trace("Overwriting cached '$cache_fname'...");
+	print_debug_trace("Writing to cache '$cache_fname'...");
 	my $target_dir = dirname("$cache_fname");
 	unless (-d $target_dir){
 	  mkpath($target_dir)
 		or die(sprintf "Couldn't recursively create directory '%s': $ERRNO",dirname($cache_fname));
 	}
-	`echo \Q$str\E >$cache_fname`;
-	# TODO: error checking
+	open(my $cache_fh, '>', $cache_fname)
+	  or die("Couldn't open file '$cache_fname' for write: $ERRNO");
+    print $cache_fh $str;
+	close($cache_fh) 
+	  or die("Couldn't close file '$cache_fname': $ERRNO\n");
   }
 }
 
-sub target_from_cache
+sub target_from_cache($@)
 {
   my ($target,@addkeys) = @_;
   my $cache_file_key = $target;
   $cache_file_key =~ s/^$opt_basedir//;
-  return copy_from_cache($target,$cache_file_key,@addkeys);
+  return copy_from_cache($target,$opt_model_id,$cache_file_key,@addkeys);
 }
-sub target_to_cache
+sub target_to_cache($@)
 {
   my ($target,@addkeys) = @_;
   my $cache_file_key = $target;
   $cache_file_key =~ s/^$opt_basedir//;
-  return save_to_cache($target,$cache_file_key,@addkeys);
+  return save_to_cache($target,$opt_model_id,$cache_file_key,@addkeys);
 }
