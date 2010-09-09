@@ -34,33 +34,37 @@ public class VServerProtocol extends VProtocol implements ServerProtocolInterfac
             VSM msg = (VSM)ois.readObject();
             if(msg.getText().equals(sGetTask)) {
             	Logger.info("Start \"get task request\"");
-            	// ждем задачи - проверяем свою очередь            	
-            	// пока в ней не появятся задачи
-            	// теперь отсылаем задачу клиенту
             	Logger.debug("Wait for task...");
-            	// пытаемся принять задачу (там может быть и пустая задача
-            	// со служебным собщением о том что задача нет)
+            	//try to get task (It may be empty task with 
+            	// service message - "no tasks")
             	MTask mtask = SQLRequests.getTaskForClientW((VSMClient)msg,config);
+            	/* Print info about client... */
+            	VSMClient vsmClient = (VSMClient)msg;
+            	Logger.debug("Number of client processors: "+vsmClient.getClientInfo().getAvailableProcessors()+".");
+            	Logger.debug("Free memory for client JVM: "+vsmClient.getClientInfo().getFreeMemoryJVM()+" bytes.");
+            	Logger.debug("Max of client JVM memory: "+vsmClient.getClientInfo().getMaxMemoryJVM()+" bytes.");
+            	Logger.debug("Total JVM memory on client: "+vsmClient.getClientInfo().getTotalMemoryJVM()+" bytes.");
+            	
             	//while((	mtask = SQLRequests.getTaskForClientW((VSMClient)msg,config))==null)
             		//Thread.sleep(sleeptime);
             	Logger.debug("Ok - sending task to verification client");
             	oos.writeObject(mtask);
             	oos.flush();
             	Logger.debug("Wait for response - \"get task ok\"");
-            	// ожидаем ответа от клиента, что он успешно принял задачу
+            	/* Wait for client response successfull status - get task ok. */
             	msg = (VSM)ois.readObject();
             	if(((VSMClient)msg).getName().equals(sGetTaskOk)) {
             		Logger.info("Request \"get task \" - ok");
-            	} else { // а вот в этом случае мы не выходим ....
+            	} else { // in this case return status to task - wait_for_verification ....
             		Logger.info("Request \"get task \" - failed");
             		SQLRequests.setSplittedTaskStatusW_WAIT_FOR_VERIFIFCATION(config,mtask);
             	}
             	mtask = null;
-            	// и выходим
+            	// and now exit
             } else if(msg.getText().equals(sSendResults)) {
             	Logger.info("Start \"send results request\"");
             	Logger.debug("Get client descriptor.");
-            	// сдесь загружаем результат в базу
+            	/* Upload results in database... */
             	VSMClientSendResults resultsMsg = (VSMClientSendResults)msg;
             	//SQLRequests.uploadResults(msg);
             	if(SQLRequests.setSplittedTaskResultW(config,resultsMsg)) {
