@@ -121,10 +121,6 @@ sub copy_from_cache($@);
 # retn: void
 sub save_to_cache($@);
 
-# TODO
-sub target_from_cache($@);
-sub target_to_cache($@);
-
 
 ################################################################################
 # Global variables.
@@ -1404,7 +1400,9 @@ sub process_cmd_ld()
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
         or die("Can't change directory to '$cmd{'cwd'}'");
-        
+
+      # NOTE that caching linker's output is not worth it.  Linking is usually done once per driver, and its result is not reused. 
+
       print_debug_info("Execute the command '@args'");
       my ($status, $desc) = exec_status_and_desc(@args);
       return ($status, $desc) if ($status);
@@ -2549,6 +2547,7 @@ sub string_to_cache($@)
   }
 }
 
+# Shorthand functions that weren't used
 sub target_from_cache($@)
 {
   my ($target,@addkeys) = @_;
