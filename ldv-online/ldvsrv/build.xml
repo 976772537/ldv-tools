@@ -40,6 +40,12 @@
 				<attribute name="Main-class" value="com.iceberg.mp.vs.client.VClient"/>
 			</manifest>
 		</jar>
+		<jar jarfile="${dist}/LDVdb.jar" basedir="${build}">
+			<manifest>
+				<attribute name="Main-class" value="com.iceberg.mp.LDVdb"/>
+				<attribute name="Class-Path" value="../lib/h2-1.2.136.jar"/>
+			</manifest>
+		</jar>
 	</target>
 
 	<target name="clean">

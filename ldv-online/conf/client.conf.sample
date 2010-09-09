@@ -10,7 +10,7 @@ VSPort=1111
 
 WorkDir=/mnt/second/tmp
 
-LDVInstalledDir=/mnt/second/ldvi/main/
+LDVInstalledDir=/mnt/second/ldvoi
 
 LogLevel=100
 
@@ -22,3 +22,15 @@ StatsDBPass=statspass
 StatsDBName=statsdb
 StatsDBHost=10.10.2.82
 StatsDBPort=3306
+
+#
+# Current selected environments
+#
+env=linux-2.6.32.12:32_1,77_1,08_1,29_1,37_1,43_1,60_1,68_1,39_1
+env=linux-2.6.33.3:32_1,77_1,08_1,29_1,37_1,43_1,60_1,68_1,39_1
+env=linux-2.6.34.1:32_1,77_1,08_1,29_1,37_1,43_1,60_1,68_1,39_1
+
+#
+# ldv-manager start variables
+#
+LDVManagerStartStaticVariables=LANG=C LDV_GIT_REPO=git://itgdev.igroup.ispras.ru/ldv-tools.git BLAST_EXP_NOALIAS=y BLAST_OPTIONS=-enable-recursion ldv_statuses=1

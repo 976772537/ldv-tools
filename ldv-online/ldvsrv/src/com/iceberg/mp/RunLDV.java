@@ -27,7 +27,7 @@ public class RunLDV {
 		// настроим логгер
 		Logger.getLogLevelFromMap(params);
 		// выведем информацию о памяти
-		Logger.info("Free memory in system: "+Runtime.getRuntime().freeMemory());
+		Logger.info("Free memory in JVM: "+Runtime.getRuntime().freeMemory());
 		Logger.info("Memory for JVM: "+Runtime.getRuntime().totalMemory()+"");
 		
 		// создаем менеджер коннектов

@@ -20,8 +20,11 @@ public class Config {
 			fin = new BufferedReader(new FileReader(filename));
 			while ((tmp = fin.readLine()) != null) {
 				if(tmp.length()>0 && tmp.charAt(0)!='#')  {
-					String[] param = tmp.split("=");
-					paramMap.put(param[0],param[1]);
+					int divIndex = tmp.indexOf('=');
+					String paramName = tmp.substring(0, divIndex);
+					String paramValue = tmp.substring(divIndex+1, tmp.length());
+					System.out.println("OPTIONS: " + paramName + ", " +  paramValue);
+					paramMap.put(paramName,paramValue);
 				}
 			}
 		} catch (FileNotFoundException e) {

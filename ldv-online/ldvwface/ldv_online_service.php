@@ -150,7 +150,7 @@ function action_upload_driver() {
                 return;
         }
         $file_size = $_FILES['file']['size'];
-       	if($file_size > WS_MAX_DRIVER_SIZE) {
+	if($file_size > WS_MAX_DRIVER_SIZE || $file_size <=0 ) {
                 print '<b><font color="red">File size too long.</font></b><br>';
                 view_upload_driver_form();
                 return;
@@ -567,8 +567,10 @@ view_header($action);
  * 
  *  Configuration file
  *
- */ 
-WSInit("/home/mutilin/ldv/main/ldv-online/conf/server.conf");
+ */
+CONFIG_PLACE
+//WSInit('/mnt/second/ldvoi/ldv-online/conf/server.conf');
+//WSInit("/home/mutilin/ldv/main/ldv-online/conf/server.conf");
 
 if ($action == "upload" && !$exit)
 {

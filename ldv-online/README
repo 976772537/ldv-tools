@@ -13,27 +13,26 @@
 
 
 9. Install server part of ldv-online: 
-   - Create temp dir
-   - Install ldv-online: prefix=/path/to/your/installation/directory \
-        TMP_DIR=/path/to/tmpdir \
-        WEB_DIR=/path/to/apahce/web/dir make install-online-server 
-
-     (WEB_DIR in OpenSuSE by default: /srv/www/htdocs,
-	      in Fedora: /var/www/html)
-   - Write all parameters (dbname, dbhost, dbuser, dbpass) to 
-     $prefix/ldv-online/confi/server.conf;
-   - Configure your PATH: export PATH=$PATH:/$prefix/bin
+   - In git repsitory: prefix=/path/to/your/installation/directory make \
+	install-all 
+   - Run: sudo $prefix/ldv-online/scripts/install-server.sh \
+	--workdir=directory_for_ldv_server_data \
+	--dbuser=database_user \
+	--dbpass=database_password \
+	--dbhost=database_host \
+	--dbname=database_name \
+	--wwwdocs=apache_directory_for_html_documents
 
 10. Instal client part of ldv-online:
-   - Create temp dir
-   - Create dir for backend temp files: TMP_DIR/run
-   - Copy 2.6.32.12 and 2.6.33.3 kernel sources to TMP_DIR/run
-   - Install ldv online client:
-          prefix=/path/to/your/installation/directory \ 
-        TMP_DIR=/path/to/tmpdir \
-        make install-online-node
-   - Write all parameters (dbname, dbhost, dbuser, dbpass) to 
-     $prefix/ldv-online/confi/client.conf;
+   - In git repsitory: prefix=/path/to/your/installation/directory make \
+	install-all 
+   - Run: sudo $prefix/ldv-online/scripts/install-client.sh \
+	--workdir=directory_for_ldv_client_data \
+	--dbuser=database_user \
+	--dbpass=database_password \
+	--dbhost=database_host \
+	--dbname=database_name \
+	--server=host_where_installed_ldv_server
 
 11. Database and port options for client and server must be equals.
  
