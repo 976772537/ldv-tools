@@ -55,8 +55,8 @@ WSTempDir=/mnt/second/tmp/
 #
 DriverMaxSizeForUpload=1500000
 
-CleanH2OnRestart=true
-CleanStatsOnRestart=true
+CleanH2OnRestart=false
+CleanStatsOnRestart=false
 
 #
 # Current selected environments
@@ -106,7 +106,7 @@ BackupDir=backupdir
 #
 # Backup interval in minutes
 #
-BackupInterval=2
+BackupInterval=5040
 
 
 LDVInstalledDir=/mnt/second/ldvoi
