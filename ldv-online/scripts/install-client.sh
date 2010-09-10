@@ -119,7 +119,7 @@ else
 	#	wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.32.21.tar.bz2
 	KERNL_ORG_URL="http://www.kernel.org/pub/linux/kernel/v2.6/";
 	KERNL_ORG_END_URL=".tar.bz2";
-	cd $workdir/run
+	mkdir $workdir/run && cd $workdir/run
 	while read LINE; do
 		if [ -n "`echo $LINE | grep env=`" ]; then
 			KERNEL_URL=$KERNL_ORG_URL`echo "$LINE" | grep '^env=' |sed 's/env=//g' | sed 's/:.*//g'`$KERNL_ORG_END_URL;
