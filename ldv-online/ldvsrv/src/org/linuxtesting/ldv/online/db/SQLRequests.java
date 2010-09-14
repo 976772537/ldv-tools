@@ -187,7 +187,7 @@ public class SQLRequests {
 		try {
 			sconn = config.getStorageManager().getStatsConnection();
 			st = sconn.createStatement();
-			st.executeUpdate("UPDATE launches SET status='queued' WHERE id="+id);
+			st.executeUpdate("UPDATE launches SET status='"+status+"' WHERE id="+id);
 			result = true;
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -577,6 +577,9 @@ public class SQLRequests {
 		try {
 			conn = config.getStorageManager().getConnection();
 			conn.setAutoCommit(false);
+			if (resultsMsg.getStatus().equals(MTask.Status.TS_VERIFICATION_FAILED+"")) {
+				setStatsStatusForTask(config, "failed", resultsMsg.getId());
+			}
 			return setSplittedTaskResult(conn, resultsMsg);
 		} catch (SQLException e) {
 			e.printStackTrace();

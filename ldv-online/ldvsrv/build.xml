@@ -7,11 +7,11 @@
 	<property name="build" location="build"/>
 	<property name="dist" location="dist"/>
 	<property name="lib" location="lib"/>
-	<property name="lib.h2" value="h2-1.2.136.jar"/>
+	<property name="h2" value="h2-1.2.136.jar"/>
 
     	<path id="classpath">
 		<!-- H2 database and JDBC driver for H2 -->
-		<fileset dir="${lib}" includes="{lib.h2}"/>
+		<fileset dir="${lib}" includes="${h2}"/>
 		<!-- MySQL JDBC driver -->
 		<fileset dir="${lib}" includes="mysql-connector-java-5.1.12-bin.jar"/>
 		<!-- Apache connections pool -->	
@@ -33,7 +33,7 @@
 		<jar jarfile="${dist}/ldvs.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Main-class" value="org.linuxtesting.ldv.online.RunLDV"/>
-				<attribute name="Class-Path" value="../lib/commons-collections-3.2.1.jar ../lib/commons-dbcp-1.4.jar ../lib/commons-pool-1.5.4.jar ../lib/${lib.h2} ../lib/mysql-connector-java-5.1.12-bin.jar"/>
+				<attribute name="Class-Path" value="../lib/commons-collections-3.2.1.jar ../lib/commons-dbcp-1.4.jar ../lib/commons-pool-1.5.4.jar ../lib/${h2} ../lib/mysql-connector-java-5.1.12-bin.jar"/>
 			</manifest>
 		</jar>
 		<jar jarfile="${dist}/vsClient.jar" basedir="${build}">
@@ -44,7 +44,7 @@
 		<jar jarfile="${dist}/LDVdb.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Main-class" value="org.linuxtesting.ldv.online.LDVdb"/>
-				<attribute name="Class-Path" value="../lib/${lib.h2}"/>
+				<attribute name="Class-Path" value="../lib/${h2}"/>
 			</manifest>
 		</jar>
 	</target>

@@ -57,19 +57,6 @@ public class VClient {
 			//break;
 		}
 	}
-
-	
-	public static String getOneDiff(String[] allTasksNewList, String[] allTasksList) {
-		for(int i=0; i<allTasksNewList.length; i++) {
-			for(int j=0; j<allTasksList.length; j++) {
-				if(allTasksNewList[i] == allTasksList[j]) {
-					break;
-				}
-				return allTasksNewList[i];
-			}
-		}
-		return null;
-	}
 	
 	// возвращает строку на репорт
 	public static boolean startVerification(ClientConfig config, MTask task) {
@@ -79,48 +66,17 @@ public class VClient {
 		Logger.info("  3. Install LDV tools.");
 		Logger.info("  4. Set-up variable WorkDir in client config.");
 		Logger.info("  5. Set-up variable LDVInstalledDir.");
-		File tworkdir = new File(config.getWorkDir()+"/run");
-		tworkdir.mkdirs();
-		// 1. Create list with bad tasks if it not exists... 
-		/*File badlistFile = new File(config.getWorkDir()+"/badlist");
-		if(!badlistFile.exists()) {
-			FileWriter fw = null;
-			try {
-				badlistFile.createNewFile();
-				// regenerate badlist if tasks exists from previous ldv work //
-				File ldvManagerWorkdir =  new File(config.getWorkDir()+"/run/work");
-				if(ldvManagerWorkdir.exists()) {
-					String[] badTasksList = FSOperationBase.getDirs(ldvManagerWorkdir.getCanonicalPath());
-					if(badTasksList!=null && badTasksList.length>0) {
-						fw = new FileWriter(badlistFile);
-						for(int i=0; i<badTasksList.length; i++) {
-							fw.write(badTasksList[i]);
-						}
-						fw.flush();
-					}
-				} 
-			} catch (IOException e) {
-				Logger.err("Can't create file with list of bad tasks.");
-				e.printStackTrace();
-			} finally {
-				if(fw!=null)
-					try {
-						fw.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-			}
-		}*/
+		File tworkdir_work = new File(config.getWorkDir()+"/run/errors/work");
+		File tworkdir_finished = new File(config.getWorkDir()+"/run/errors/finished");
+		tworkdir_work.mkdirs();
+		tworkdir_finished.mkdirs();
+		/* TODO: move all from dirs finished and work to errors.., */
 		FileOutputStream fis = null;
 		try {
 			fis = new FileOutputStream(config.getWorkDir()+"/run/"+task.getDriver());
 			fis.write(task.getData());
 			fis.flush();
 			fis.close();
-	
-			/* get list of all tasks */
-			//String[] allTasksList = FSOperationBase.getDirs(config.getWorkDir()+"/run/work");
 	
 			/* write shell script */
 			String startString = "cd "+ config.getWorkDir() +"/run; export PATH=$PATH:" +
@@ -136,22 +92,24 @@ public class VClient {
 			driverFile.delete();
 			//  and now upload all paxes
 			// 1. Search paxes:
+			//FSOperationBase.removeDirectoryRecursive(new File(config.getWorkDir()+"/run/finished"));
+
+			
 			Logger.debug("Search pax files...");
-			List<String> paxList = FSOperationBase.getDirContentRecursivePax(config.getWorkDir() +"/run/finished");
+			List<String> paxList = FSOperationBase.getDirContentRecursivePax(config.getWorkDir() +"/run/finished");	
 			if(paxList == null || paxList.size()==0) {
 				Logger.debug("Can't find pax files - verification failed.");
+				String[] dcontent = FSOperationBase.getDirs(config.getWorkDir()+"/run/work/");
 				
-				/* get directory with our task */
-				//String[] allTasksNewList = FSOperationBase.getDirs(config.getWorkDir()+"/run/work");
-				//String ourTask = getOneDiff(allTasksNewList, allTasksList);
-				//assert(ourTask!=null) : " Bad task must be exists in work dir of ldv-manager!";
-				/* add our task to badlist */
-				//FileWriter fw = new FileWriter(badlistFile);
-				//fw.append(ourTask);
-				//fw.flush();
-				//fw.close();
-				/* clean work and finished directories */
-				//cleanWorkAndFinishedDirs(config);
+				for(int i=0; i<dcontent.length; i++) {
+					File currentBadWorkFileSrc = new File(config.getWorkDir()+"/run/work/"+dcontent[i]);
+					File currentBadWorkFileDest = new File(config.getWorkDir()+"/run/errors/work/"+dcontent[i]+"_"+task.getId());
+					Logger.debug("Rename \""+currentBadWorkFileSrc.getAbsolutePath()+"\" to "+
+							currentBadWorkFileDest.getAbsolutePath()+"\".");
+					currentBadWorkFileSrc.renameTo(currentBadWorkFileDest);
+				}
+				FSOperationBase.removeDirectoryRecursive(new File(config.getWorkDir()+"/run/work"));
+				FSOperationBase.removeDirectoryRecursive(new File(config.getWorkDir()+"/run/finished"));
 				return false;
 			} 
 			Logger.debug("Number of pax files: "+paxList.size());
@@ -165,20 +123,14 @@ public class VClient {
 				" LDVDBPASSWD="+config.getStatsDBPass()+" LDVDBHOST="+config.getStatsDBHost()+
 				" ldv_statuses=1 ldv-upload "+paxFileString+" 2>&1";
 				runCommand(config.getWorkDir() +"/start", startString);	
-				// delete it
+				// remove it
 				Logger.debug("Delete pax file: "+paxFileString);
 				(new File(paxFileString)).delete();
 			}
 			Logger.debug("All pax files uploaded.");
-			/** TODO: clean ./run directory
-			/* For this action ldv-manager must have 
-			/* variable for external kernel prepare dir!
-			 */
 			Logger.debug("Clean node dirs...");
-			//cleanWorkAndFinishedDirs(config);
-			/* Old clean mechanis */
-			String removeCommand =  "cd "+ config.getWorkDir() +"/run; rm -fr ./work ./finished 2>&1";
-			runCommand(config.getWorkDir() +"/clean_after_ldv_manager", removeCommand);
+			FSOperationBase.removeDirectoryRecursive(new File(config.getWorkDir()+"/run/work"));
+			FSOperationBase.removeDirectoryRecursive(new File(config.getWorkDir()+"/run/finished"));
 			Logger.debug("Clean node dirs successfully finfished.");
 			
 			return true;
@@ -196,22 +148,6 @@ public class VClient {
 		return false;
 	}
 	
-	/*private static void cleanWorkAndFinishedDirs(ClientConfig config) {
-		// read badlist fil if it exists 
-		File badListFile = new File(config.getWorkDir()+"/badlist");
-		if(badListFile.exists()) {
-			//read list with bad tasks 
-		} else {
-			File lmWorkDir = new File(config.getWorkDir()+"/run/work");
-			File lmFininshedDir = new File(config.getWorkDir()+"/run/finished");
-			if(lmWorkDir.exists())
-				FSOperationBase.removeDirectoryRecursive(lmWorkDir);
-			if(lmFininshedDir.exists())
-				FSOperationBase.removeDirectoryRecursive(lmFininshedDir);
-		}
-	}*/
-
-
 	public static boolean runCommand(String tempfile, String command) {
 		boolean result = false;
 		Logger.trace("RUN command:" + command);
