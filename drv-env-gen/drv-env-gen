@@ -98,6 +98,9 @@ my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream_c
 
 my $twig= new XML::Twig(TwigHandlers => $twig_handlers);
 
+# create hash with driver length and number of lines
+my %stats_hash = (); 
+
 $twig->parsefile($cmdfile);
 
 $twig->set_pretty_print('indented');
@@ -162,7 +165,23 @@ sub hxml_cmdstream_basedir {
 
 sub hxml_cmdstream_cc {
 	my @args = ($ldv_cc,@ldv_cc_add_options); 
+	my $summary_lines=0;
+	my $summary_size=0;
+
 	foreach my $section ( $_[1]->children('in') ) {
+
+		# Calculate file size and number of code lines.
+		# 1. calculate file size
+		my $cc_in_filename = $section->text;
+		my $stat_size = -s $cc_in_filename;
+		$summary_size += $stat_size;
+		# 2.  calculate number of strings
+		my $stat_lines = `wc -l $cc_in_filename | sed 's/ .*//'`;
+		chomp($stat_lines);
+		$summary_lines += $stat_lines;
+
+
+
 		if($section->has_atts && $section->att($xml_cmd_attr_restrict) eq $xml_cmd_entry_point) {
 			ldv_tprint("Forbidden to generate main for \"".$section->text."\".");
 			push(@args, $section->text, "--nomain"); 
@@ -171,9 +190,17 @@ sub hxml_cmdstream_cc {
 			push(@args, $section->text, "--main"); 
 		}	
 	}
+
 	push(@args,$output_option);
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
+		# put stats info in hash
+		$stats_hash{$outdir} = [$summary_size,$summary_lines];
+		print "HASH TEST: $outdir,";
+		print $stats_hash{$outdir}[0];
+		print ",";
+		print $stats_hash{$outdir}[1];
+		print "\n";
 		# 1. replace outdir from basedir in xml with our driverdir
   		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
 			ldv_eprint("Can't find basedir pattern in cc outdirs.");
@@ -197,7 +224,15 @@ sub hxml_cmdstream_cc {
 	}
 	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver."\n"); 
+
+	#
+	# id:time of work:::kernel driver name:summary length:summary lines 
+	#
+	ldv_tprint("Statistica: lines: $summary_lines, size: $summary_size");
+	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver.":$summary_lines:$summary_size\n"); 
+
+
+#	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver."\n"); 
 	ldv_iprint("End of ldv_cc - Ok.");
 
 	foreach my $section ( $_[1]->children('out') ) {
@@ -226,8 +261,17 @@ sub hxml_cmdstream_cc {
 # handler for twig
 sub hxml_cmdstream_ld {
 	my @args = ($ldv_ld,@ldv_ld_add_options); 
+	my $summary_lines=0;
+	my $summary_size=0;
 	foreach my $section ( $_[1]->children('in') ) {
 		my $indir=$section->text;
+
+		#
+		# Calculate length and number of lines
+		#
+		$summary_size += $stats_hash{$indir}[0];
+		$summary_lines += $stats_hash{$indir}[1];
+
 		# 1. replace outdir from basedir in xml with our driverdir
   		if(!($indir =~ s/$xmlbasedir/$my_driverdir/)) {
 			ldv_eprint("Can't find basedir pattern in ld indirs.");
@@ -276,7 +320,7 @@ sub hxml_cmdstream_ld {
 	}
 	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver."\n"); 
+	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver.":$summary_lines:$summary_size\n"); 
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;

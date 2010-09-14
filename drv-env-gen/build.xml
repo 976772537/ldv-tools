@@ -29,13 +29,13 @@
 		<jar jarfile="${dist}/ldv_cc.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
-				<attribute name="Main-class" value="com.iceberg.generators.DEG_cc"/>
+				<attribute name="Main-class" value="org.linuxtesting.ldv.envgen.generators.DEG_cc"/>
 			</manifest>
 		</jar>
 		<jar jarfile="${dist}/ldv_ld.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
-				<attribute name="Main-class" value="com.iceberg.generators.DEG_ld"/>
+				<attribute name="Main-class" value="org.linuxtesting.ldv.envgen.generators.DEG_ld"/>
 			</manifest>
 		</jar>
 	</target>
