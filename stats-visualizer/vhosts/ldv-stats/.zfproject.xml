@@ -44,6 +44,8 @@
           <dbTableFile dbTableName="ToolsInfo"/>
           <dbTableFile dbTableName="ToolInfo"/>
           <dbTableFile dbTableName="ToolsToolInfo"/>
+          <dbTableFile dbTableName="LaunchFiltersInfo"/>
+          <dbTableFile dbTableName="FiltersInfo"/>
         </dbTableDirectory>
       </modelsDirectory>
       <modulesDirectory enabled="false"/>

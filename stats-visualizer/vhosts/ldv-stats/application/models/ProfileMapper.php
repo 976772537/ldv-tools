@@ -101,6 +101,7 @@ class Application_Model_ProfileMapper
         ->select()->setIntegrityCheck(false)
         ->from(array('PALA' => 'pages_launch_info'),
             array('Launch info name' => 'LA.name',
+                  'Id' => 'La.id',
                   'Presence' => 'AU.presence'))
         ->joinLeft(array('LA' => 'launch_info'), 'PALA.launch_info_id=LA.id')
         ->joinLeft(array('AU' => 'aux_info'), 'LA.aux_info_id=AU.id')
@@ -109,6 +110,23 @@ class Application_Model_ProfileMapper
         
       foreach($pagesLaunchInfoResultSet as $pagesLaunchInfoRow) {
         echo "*", $pagesLaunchInfoRow['Launch info name'], " ", $pagesLaunchInfoRow['Presence'], "<br>";
+        
+        // Get information on filters.
+        $launchFiltersInfo = $this->getDbTable('Application_Model_DbTable_LaunchFiltersInfo');
+        $launchFiltersInfoResultSet = $launchFiltersInfo->fetchAll($launchFiltersInfo
+          ->select()->setIntegrityCheck(false)
+          ->from(array('LAFI' => 'launch_filters_info'),
+            array('Name' => 'FI.name',
+                  'Value' => 'FI.value',
+                  'Presence' => 'AU.presence'))
+          ->joinLeft(array('FI' => 'filters_info'), 'LAFI.filter_info_id=FI.id')
+          ->joinLeft(array('AU' => 'aux_info'), 'FI.aux_info_id=AU.id')
+          ->where('launch_info_id = ?', $pagesLaunchInfoRow['Id'])
+          ->order('AU.order'));
+        
+        foreach($launchFiltersInfoResultSet as $launchFiltersInfoRow) {
+          echo "**", $launchFiltersInfoRow['Name'], " ", $launchFiltersInfoRow['Value'], " ", $launchFiltersInfoRow['Presence'], "<br>";
+        }
       }   
        
       // Get information on verification.
