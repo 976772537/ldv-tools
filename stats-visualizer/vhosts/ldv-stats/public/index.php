@@ -17,6 +17,13 @@ set_include_path(implode(PATH_SEPARATOR, array(
 /** Zend_Application */
 require_once 'Zend/Application.php';
 
+###    date_default_timezone_set('UTC');
+### $logger = new Zend_Log();
+###$writer = new Zend_Log_Writer_Firebug();
+###$logger->addWriter($writer);
+###   $logger->log('Это тестовая отладочная информация!', Zend_Log::INFO);
+
+
 // Create application, bootstrap, and run
 $application = new Zend_Application(
     APPLICATION_ENV,

@@ -33,6 +33,17 @@
           <dbTableFile dbTableName="Profiles"/>
           <dbTableFile dbTableName="ProfilesPages"/>
           <dbTableFile dbTableName="Pages"/>
+          <dbTableFile dbTableName="PagesLaunchInfo"/>
+          <dbTableFile dbTableName="LaunchInfo"/>
+          <dbTableFile dbTableName="AuxInfo"/>
+          <dbTableFile dbTableName="PagesVerificationInfo"/>
+          <dbTableFile dbTableName="VerificationInfo"/>
+          <dbTableFile dbTableName="ResultInfo"/>
+          <dbTableFile dbTableName="VerificationResultInfo"/>
+          <dbTableFile dbTableName="PagesToolsInfo"/>
+          <dbTableFile dbTableName="ToolsInfo"/>
+          <dbTableFile dbTableName="ToolInfo"/>
+          <dbTableFile dbTableName="ToolsToolInfo"/>
         </dbTableDirectory>
       </modelsDirectory>
       <modulesDirectory enabled="false"/>
