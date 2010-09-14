@@ -4,7 +4,7 @@
 use Cwd qw(abs_path cwd);
 use English;
 use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_LLVM_GCC LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
-use File::Basename qw(basename fileparse);
+use File::Basename qw(basename fileparse dirname);
 use File::Copy qw(copy mv);
 use FindBin;
 use Getopt::Long qw(GetOptions);
@@ -110,6 +110,16 @@ sub process_cmds();
 # args: no.
 # retn: nothing.
 sub process_report();
+
+# Copy file from cache to destination if it exists there.  Checks if cache is on, and does nothing if it's not.
+# args: destination, file "keys" list
+# retn: if a file was found in cache
+sub copy_from_cache($@);
+
+# Save file to cache; replace existing file if it already exists.  Checks if cache is on, and does nothing if it's not.
+# args: source, file "keys" list
+# retn: void
+sub save_to_cache($@);
 
 
 ################################################################################
@@ -244,6 +254,7 @@ my $opt_help;
 my $opt_model_id;
 my $opt_report_in;
 my $opt_report_out;
+my $opt_cache_dir;
 
 # This flag says whether usual or report mode is set up.
 my $report_mode = 0;
@@ -313,6 +324,11 @@ my $xml_report_trace = 'trace';
 my $xml_report_verdict = 'verdict';
 my $xml_report_verdict_stub = 'UNKNOWN';
 my $xml_report_verifier = 'verifier';
+
+
+# Cache funcitonality
+my $do_cache = '';	#false
+my $ri_cache_dir = undef;
 
 
 ################################################################################
@@ -809,7 +825,9 @@ sub get_opt()
     'help|h' => \$opt_help,
     'report=s' => \$opt_report_in,
     'report-out=s' => \$opt_report_out,
-    'rule-model|m=s' => \$opt_model_id))
+    'rule-model|m=s' => \$opt_model_id,
+    'cache=s' => \$opt_cache_dir,
+  ))
   {
     warn("Incorrect options may completely change the meaning! Please run " .
       "script with --help option to see how you may use this tool");
@@ -1142,6 +1160,17 @@ sub prepare_files_and_dirs()
   # Change the models directory name.
   $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
   print_debug_debug("The models directory is '$ldv_model_dir'");
+
+  # Initialize cache directory
+  $do_cache = defined $opt_cache_dir;
+  if ($do_cache){
+	$ri_cache_dir = $opt_cache_dir;
+	if (!-d $ri_cache_dir){
+	  mkpath($ri_cache_dir)
+		or die(sprintf ("Couldn't recursively create directory '%s': $ERRNO",$ri_cache_dir));
+	}
+	print_debug_debug("The cache directory is '$ri_cache_dir'");
+  }
   
   print_debug_debug("Files and directories are checked and prepared successfully");
 }
@@ -1201,31 +1230,59 @@ sub process_cmd_cc()
     my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
     
     print_debug_trace("Go to the build directory to execute cc command");
-    chdir($cmd{'cwd'})
-      or die("Can't change directory to '$cmd{'cwd'}'");
 
-    print_debug_info("Execute the command '@args'");
-    my ($status, $desc) = exec_status_and_desc(@args);
-    return ($status, $desc) if ($status);
-    
-    # Unset special environments variables.
-    delete($ENV{$ldv_quiet});
-    delete($ENV{$ldv_no_quoted});
-    delete($ENV{$ldv_aspectator_gcc});
-    
-    print_debug_trace("Go to the initial directory");
-    chdir($tool_working_dir)
-      or die("Can't change directory to '$tool_working_dir'");
+	my ($status, $desc);
+	# Get target file cache key
+	my $cache_target = "$cmd{'out'}$llvm_bitcode_usual_suffix";
+	my $cache_file_key = $cache_target;
+	$cache_file_key =~ s/^$opt_basedir//;
 
-    die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
-      unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-    print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+    if (copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
+      # Cache hit
+      print_debug_info("Got file from CACHE instead of executing '@args'");
+      $status = string_from_cache($opt_model_id,"$cache_file_key-status");
+      chomp $status;    #remove excessive newline
+      $desc = [split("\n", string_from_cache($opt_model_id,"$cache_file_key-desc"))];
+      # Return on failure
+      return ($status, $desc) if ($status);
+    }else{
+      # Cache miss
+      chdir($cmd{'cwd'})
+        or die("Can't change directory to '$cmd{'cwd'}'");
 
-    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-    # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
-    print_debug_trace("Copy the usual bitcode file");
-    mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
-      or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+      print_debug_info("Execute the command '@args'");
+      ($status, $desc) = exec_status_and_desc(@args);
+
+      # Save the information obtained to cache (even if it's a failure!)
+      string_to_cache($status,$opt_model_id,"$cache_file_key-status");
+      string_to_cache(join("\n",@$desc),$opt_model_id,"$cache_file_key-desc");
+
+      # Return on failure
+      return ($status, $desc) if ($status);
+
+      # Unset special environments variables.
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_no_quoted});
+      delete($ENV{$ldv_aspectator_gcc});
+      
+      print_debug_trace("Go to the initial directory");
+      chdir($tool_working_dir)
+        or die("Can't change directory to '$tool_working_dir'");
+
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
+        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+
+	  # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
+	  # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
+	  print_debug_trace("Copy the usual bitcode file");
+      # An error in the following line could appear if the "key" .o file was cached, but this file was not (due to different options?)
+      # If it happens, just drop the cache
+      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
+        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+      save_to_cache($cache_target,$opt_model_id,$cache_file_key);
+    }
+
     $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
     print_debug_debug("The usual bitcode file is '$cmd{'out'}$llvm_bitcode_usual_suffix'");
 
@@ -1247,32 +1304,55 @@ sub process_cmd_cc()
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
-    @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
-    print_debug_trace("Go to the build directory to execute cc command");    
-    chdir($cmd{'cwd'})
-      or die("Can't change directory to '$cmd{'cwd'}'");
+	# Get arguments for aspectator
+	@args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
+	# Try to fetch result (and we think that the file that ends with $llvm_bitcode_usual_suffix is THE ONLY result of this part
+	$cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
+	$cache_file_key = $cache_target;
+	$cache_file_key =~ s/^$opt_basedir//;
+    if (copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
+      # Cache hit
+      print_debug_info("Got file from CACHE instead of executing '@args'");
+      $status = string_from_cache($opt_model_id,"$cache_file_key-status");
+      chomp $status;    #remove excessive newline
+      $desc = [split("\n", string_from_cache($opt_model_id,"$cache_file_key-desc"))];
+      # Return on failure
+      return ($status, $desc) if ($status);
+    }else{
+      # Cache miss
+      print_debug_trace("Go to the build directory to execute cc command");    
+      chdir($cmd{'cwd'})
+        or die("Can't change directory to '$cmd{'cwd'}'");
+        
+      print_debug_info("Execute the command '@args'");
+      ($status, $desc) = exec_status_and_desc(@args);
+      return ($status, $desc) if ($status);
+
+      # Save the information obtained to cache (even if it's a failure!)
+      string_to_cache($status,$opt_model_id,"$cache_file_key-status");
+      string_to_cache(join("\n",@$desc),$opt_model_id,"$cache_file_key-desc");
+
+      # Unset special environments variables.
+      delete($ENV{$ldv_quiet});
+      delete($ENV{$ldv_no_quoted});
+      delete($ENV{$ldv_aspectator_gcc});
       
-    print_debug_info("Execute the command '@args'");
-    ($status, $desc) = exec_status_and_desc(@args);
-    return ($status, $desc) if ($status);
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
+        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
+      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
 
-    # Unset special environments variables.
-    delete($ENV{$ldv_quiet});
-    delete($ENV{$ldv_no_quoted});
-    delete($ENV{$ldv_aspectator_gcc});
-    
-    die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'") 
-      unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-    print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
+      # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
+      print_debug_trace("Copy the general bitcode file");
+      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
+        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
+      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
+      print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'");
 
-    # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-    # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
-    print_debug_trace("Copy the general bitcode file");
-    mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix") 
-      or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
-    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
-    print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'");
+      # Save the result to cache
+      save_to_cache($cache_target,$opt_model_id,$cache_file_key);
+    }
 
     unless (LDV::Utils::check_verbosity('DEBUG'))
     {
@@ -1320,7 +1400,9 @@ sub process_cmd_ld()
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
         or die("Can't change directory to '$cmd{'cwd'}'");
-        
+
+      # NOTE that caching linker's output is not worth it.  Linking is usually done once per driver, and its result is not reused. 
+
       print_debug_info("Execute the command '@args'");
       my ($status, $desc) = exec_status_and_desc(@args);
       return ($status, $desc) if ($status);
@@ -1715,14 +1797,29 @@ sub process_cmds()
           my $in_file = $in->text;
           die("The specified input file '$in_file' doesn't exist.") 
             unless ($in_file and -f $in_file);
-          open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
-            or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
-          cat($in_file, $file_with_common_model)
-            or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
-          cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
-            or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
-          close($file_with_common_model) 
-            or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
+
+          # Get target file cache key
+          my $target_file = "$in_file$common_c_suffix";
+          my $cache_file_key = $target_file;
+          $cache_file_key =~ s/^$opt_basedir//;
+
+          if (copy_from_cache($target_file,$opt_model_id,$cache_file_key)){
+            # Cache hit
+            print_debug_info("Got file '$in_file$common_c_suffix' from CACHE");
+          }else{
+            # Cache miss
+            open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
+              or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
+            cat($in_file, $file_with_common_model)
+              or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
+            cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
+              or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
+            close($file_with_common_model)
+              or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
+
+            # Save the information obtained to cache (even if it's a failure!)
+            save_to_cache($target_file,$opt_model_id,$cache_file_key);
+          }
           $in->set_text("$in_file$common_c_suffix");
           print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
           
@@ -2323,4 +2420,145 @@ sub process_report()
   $xml_writer->end();
 
   print_debug_debug("The instrument prints report for all commands successfully");
+}
+
+# Cache infrastructure
+sub cache_fname
+{
+  my (@key) = @_;
+  my $key = join "/", @key;
+  return "$ri_cache_dir/$key";
+}
+sub copy_from_cache($@)
+{
+  return '' unless $do_cache;
+  my ($target, @key) = @_;
+  print_debug_trace("Find in cache '$target' with keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Assuming cache miss...");
+	return 1;
+  }
+
+  # If the file exists, copy it (or symlink)
+  if (-e $cache_fname){
+	print_debug_trace("Cache hit!");
+
+	my $target_dir = dirname($target);
+	if (!-d $target_dir){
+	  print_debug_trace("Creating directory for '$target'...");
+	  mkpath($target_dir)
+		or die(sprintf "Couldn't recursively create directory '%s': $ERRNO",$target_dir);
+	}
+
+	# Removing target file if it exists
+	if (-e $target){
+	  print_debug_warning("Removing cache target '$target' to replace it with cached value...");
+	  unlink($target)
+		or die(sprintf "Couldn't remove file '%s': %s",$target,$ERRNO);
+	}
+	symlink($cache_fname,$target)
+	  or die("Can't create symlink from '$cache_fname' to '$target'");
+	return 1;
+  }
+
+  print_debug_trace("Cache miss!");
+  return '';
+}
+sub string_from_cache(@)
+{
+  die "Caching is off but string is extracted!" unless $do_cache;
+  my (@key) = @_;
+  print_debug_trace("Find in cache string by keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Assuming cache miss...");
+	return undef;
+  }
+
+  # If the file exists, read its contents and return
+  # TODO: rewrite this?
+  if (-e $cache_fname){
+	print_debug_trace("Cache hit!");
+	return `cat '$cache_fname'`;
+  }
+
+  print_debug_trace("Cache miss!");
+  return undef;
+}
+
+sub save_to_cache($@)
+{
+  return unless $do_cache;
+  my ($source, @key) = @_;
+  print_debug_trace("Save to cache '$source' with keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Not saving it...");
+	return;
+  }
+
+  # If the file doen't exist in cache, copy it
+  unless (-e $cache_fname){
+	print_debug_trace("Writing to cache '$cache_fname'...");
+
+	my $target_dir = dirname("$cache_fname");
+	if (!-d $target_dir){
+	  mkpath($target_dir)
+		or die(sprintf "Couldn't recursively create directory '%s': $ERRNO",dirname($cache_fname));
+	}
+
+	copy($source,$cache_fname) or
+	  die("Can't copy from '$source' to '$cache_fname'");
+  }
+}
+sub string_to_cache($@)
+{
+  return unless $do_cache;
+  my ($str, @key) = @_;
+  print_debug_trace("Save to cache '$str' with keys '@key'...");
+  my $cache_fname = cache_fname(@key);
+
+  # If file exists, but isn't a file (a directory, for example), return true (such an error shouldn't prevent all from working)
+  if (-e $cache_fname && (!-f $cache_fname || !-r $cache_fname)){
+	print_debug_warning("Requested cached $cache_fname, but it's not a file (or is not readable)!  Not saving it...");
+	return;
+  }
+
+  # If the file doen't exist in cache, copy it
+  unless (-e $cache_fname){
+	print_debug_trace("Writing to cache '$cache_fname'...");
+	my $target_dir = dirname("$cache_fname");
+	unless (-d $target_dir){
+	  mkpath($target_dir)
+		or die(sprintf "Couldn't recursively create directory '%s': $ERRNO",dirname($cache_fname));
+	}
+	open(my $cache_fh, '>', $cache_fname)
+	  or die("Couldn't open file '$cache_fname' for write: $ERRNO");
+    print $cache_fh $str;
+	close($cache_fh) 
+	  or die("Couldn't close file '$cache_fname': $ERRNO\n");
+  }
+}
+
+# Shorthand functions that weren't used
+sub target_from_cache($@)
+{
+  my ($target,@addkeys) = @_;
+  my $cache_file_key = $target;
+  $cache_file_key =~ s/^$opt_basedir//;
+  return copy_from_cache($target,$opt_model_id,$cache_file_key,@addkeys);
+}
+sub target_to_cache($@)
+{
+  my ($target,@addkeys) = @_;
+  my $cache_file_key = $target;
+  $cache_file_key =~ s/^$opt_basedir//;
+  return save_to_cache($target,$opt_model_id,$cache_file_key,@addkeys);
 }
