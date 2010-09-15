@@ -109,7 +109,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
       foreach($pagesLaunchInfoResultSet as $pagesLaunchInfoRow) {
         $profileCurrentPageLaunchInfo = $profileCurrentPage->setLaunchInfoOrder($pagesLaunchInfoRow['Order']);
         $profileCurrentPageLaunchInfo->setOptions(array(
-          'launchInfoName' => $pagesLaunchInfoRow['Name']));
+          'launchInfoName' => $pagesLaunchInfoRow['Name'],
+          'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
         $this->_logger->log("The launch information: $pagesLaunchInfoRow[Name]", Zend_Log::DEBUG); 
 
         // Get information on filters.
@@ -130,7 +131,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
           $profileCurrentPageLaunchInfoFilter = $profileCurrentPageLaunchInfo->setFilterOrder($launchFiltersInfoRow['Order']);
           $profileCurrentPageLaunchInfoFilter->setOptions(array(
             'filterName' => $launchFiltersInfoRow['Name'],
-            'filterValue' => $launchFiltersInfoRow['Value']));          
+            'filterValue' => $launchFiltersInfoRow['Value'],
+            'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));          
           $this->_logger->log("The filter: $launchFiltersInfoRow[Name] (name), $launchFiltersInfoRow[Value] (value)", Zend_Log::DEBUG); 
         }
       }   
@@ -152,7 +154,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
       foreach($pagesVerificationInfoResultSet as $pagesVerificationInfoRow) {
         $profileCurrentPageVerificationInfo = $profileCurrentPage->setVerificationInfoOrder($pagesVerificationInfoRow['Order']);
         $profileCurrentPageVerificationInfo->setOptions(array(
-          'verificationInfoName' => $pagesVerificationInfoRow['Name']));
+          'verificationInfoName' => $pagesVerificationInfoRow['Name'],
+          'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
         $this->_logger->log("The verification information: $pagesVerificationInfoRow[Name]", Zend_Log::DEBUG); 
 
         // Get information on verification result.
@@ -172,7 +175,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
           foreach($verificationResultInfoResultSet as $verificationResultInfoRow) {
             $profileCurrentPageVerificationInfoResult = $profileCurrentPageVerificationInfo->setResultOrder($verificationResultInfoRow['Order']);
             $profileCurrentPageVerificationInfoResult->setOptions(array(
-              'resultName' => $verificationResultInfoRow['Name']));   
+              'resultName' => $verificationResultInfoRow['Name'],
+              'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));   
             $this->_logger->log("The verification result information: $verificationResultInfoRow[Name]", Zend_Log::DEBUG); 
           }
         }
@@ -195,7 +199,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
       foreach($pagesToolsInfoResultSet as $pagesToolsInfoRow) {
         $profileCurrentPageToolsInfo = $profileCurrentPage->setToolsInfoOrder($pagesToolsInfoRow['Order']);
         $profileCurrentPageToolsInfo->setOptions(array(
-          'toolsInfoName' => $pagesToolsInfoRow['Name']));
+          'toolsInfoName' => $pagesToolsInfoRow['Name'],
+          'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
         $this->_logger->log("The tools information: $pagesToolsInfoRow[Name]", Zend_Log::DEBUG); 
 
         // Get information on every tool.
@@ -214,7 +219,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         foreach($toolsToolInfoResultSet as $toolsToolInfoRow) {
           $profileCurrentPageToolsInfoTool = $profileCurrentPageToolsInfo->setToolOrder($toolsToolInfoRow['Order']);
           $profileCurrentPageToolsInfoTool->setOptions(array(
-            'toolName' => $toolsToolInfoRow['Name'])); 
+            'toolName' => $toolsToolInfoRow['Name'],
+            'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence']))); 
           $this->_logger->log("The tools tool information: $toolsToolInfoRow[Name]", Zend_Log::DEBUG); 
         }        
       }

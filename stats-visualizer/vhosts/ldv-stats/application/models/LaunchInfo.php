@@ -4,6 +4,7 @@ class Application_Model_LaunchInfo extends Application_Model_General
 {
   protected $_launchInfoName;
   protected $_filters;
+  protected $_auxInfo;
 
   public function setFilterOrder($order)
   {

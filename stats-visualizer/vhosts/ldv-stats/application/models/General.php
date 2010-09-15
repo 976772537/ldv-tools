@@ -2,6 +2,8 @@
 
 class Application_Model_General
 {
+  protected $_auxInfo;
+  
   public function __construct(array $options = null)
   {
     if (is_array($options)) {
@@ -42,4 +44,20 @@ class Application_Model_General
     }
     return $this;
   }
+  
+  public function setAuxInfo(array $options)
+  {
+    $this->_auxInfo = new Application_Model_AuxInfo($options);
+    return $this;
+  }
+ 
+  public function getAuxInfoPresence()
+  {
+    return $this->_auxInfo->auxInfoPresence;
+  }  
+  
+  public function getAuxInfoRequireUniqueKey()
+  {
+    return $this->_auxInfo->auxInfoRequireUniqueKey;
+  }  
 }
