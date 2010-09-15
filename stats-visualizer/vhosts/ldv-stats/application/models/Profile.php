@@ -1,79 +1,120 @@
 <?php
 
-class Application_Model_Profile
+class Application_Model_Profile extends Application_Model_General
 {  
-  protected $_id;
-  protected $_userName;
+  protected $_profileId;
   protected $_profileName;
- 
-  public function __construct(array $options = null)
-  {
-    if (is_array($options)) {
-      $this->setOptions($options);
-    }
-  }
- 
-  public function __set($name, $value)
-  {
-    $method = 'set' . $name;
-    if (('mapper' == $name) || !method_exists($this, $method)) {
-      throw new Exception('Invalid guestbook property');
-    }
-    $this->$method($value);
-  }
- 
-  public function __get($name)
-  {
-    $method = 'get' . $name;
-    if (('mapper' == $name) || !method_exists($this, $method)) {
-      throw new Exception('Invalid guestbook property');
-    }
-    return $this->$method();
-  }
- 
-  public function setOptions(array $options)
-  {
-    $methods = get_class_methods($this);
-    foreach ($options as $key => $value) {
-      $method = 'set' . ucfirst($key);
-      if (in_array($method, $methods)) {
-        $this->$method($value);
-      }
-    }
-    return $this;
-  }
+  protected $_profileUser;
+  protected $_profileIsCurrent;
+  protected $_dbHost;
+  protected $_dbName;
+  protected $_dbUser;
+  protected $_dbPassword;
+  protected $_pages;
 
-  public function setId($id)
+  public function setProfileId($id)
   {
-    $this->_id = (int) $id;
+    $this->_profileId = (int) $id;
     return $this;
   }
  
-  public function getId()
+  public function getProfileId()
   {
-    return $this->_id;
+    return $this->_profileId;
   }
   
-  public function setUserName($userName)
+  public function setProfileUser($user)
   {
-    $this->_userName = (string) $userName;
+    $this->_profileUser = (string) $user;
     return $this;
   }
  
-  public function getUserName()
+  public function getProfileUser()
   {
-    return $this->_userName;
+    return $this->_profileUser;
   }
   
-  public function setProfileName($profileName)
+  public function setProfileName($name)
   {
-    $this->_profileName = (string) $profileName;
+    $this->_profileName = (string) $name;
     return $this;
   }
  
   public function getProfileName()
   {
     return $this->_profileName;
+  }  
+  
+  public function setProfileIsCurrent($isCurrent)
+  {
+    $this->_profileIsCurrent = $isCurrent;
+    return $this;
+  }
+ 
+  public function getProfileIsCurrent()
+  {
+    return $this->_profileIsCurrent;
+  }
+  
+  public function setDbHost($host)
+  {
+    $this->_dbHost = (string) $host;
+    return $this;
+  }
+ 
+  public function getDbHost()
+  {
+    return $this->_dbHost;
+  }
+  
+  public function setDbName($name)
+  {
+    $this->_dbName = (string) $name;
+    return $this;
+  }
+ 
+  public function getDbName()
+  {
+    return $this->_dbName;
+  }
+  
+  public function setDbUser($user)
+  {
+    $this->_dbUser = (string) $user;
+    return $this;
+  }
+ 
+  public function getDbUser()
+  {
+    return $this->_dbUser;
+  }
+  
+  public function setDbPassword($password)
+  {
+    $this->_dbPassword = (string) $password;
+    return $this;
+  }
+ 
+  public function getDbPassword()
+  {
+    return $this->_dbPassword;
+  }
+  
+  public function setPageName($name)
+  {
+    $page = new Application_Model_Page();
+    $this->_pages[$name] = $page;
+    return $page;
+  }
+ 
+  public function getPages()
+  {
+    return $this->_pages;
+  }
+   
+  public function getPage($name)
+  {
+    return $this->_pages[$name];
   }
 }
 

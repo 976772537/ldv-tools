@@ -46,7 +46,19 @@
           <dbTableFile dbTableName="ToolsToolInfo"/>
           <dbTableFile dbTableName="LaunchFiltersInfo"/>
           <dbTableFile dbTableName="FiltersInfo"/>
+          <dbTableFile dbTableName="Databases"/>
+          <dbTableFile dbTableName="ProfilesDatabases"/>
         </dbTableDirectory>
+        <modelFile modelName="Page"/>
+        <modelFile modelName="LaunchInfo"/>
+        <modelFile modelName="FilterInfo"/>
+        <modelFile modelName="VerificationInfo"/>
+        <modelFile modelName="ResultInfo"/>
+        <modelFile modelName="ToolsInfo"/>
+        <modelFile modelName="ToolInfo"/>
+        <modelFile modelName="AuxInfo"/>
+        <modelFile modelName="General"/>
+        <modelFile modelName="GeneralMapper"/>
       </modelsDirectory>
       <modulesDirectory enabled="false"/>
       <viewsDirectory>

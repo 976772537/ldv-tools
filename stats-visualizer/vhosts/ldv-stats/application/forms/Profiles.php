@@ -9,14 +9,14 @@ class Application_Form_Profiles extends Zend_Form
     $profiles = $profileMapper->getProfiles();
     $values = array();
     foreach ($profiles as $profile) {
-      $values[$profile->id] = "$profile->userName - $profile->profileName"; 
+      $values[$profile->profileId] = "$profile->profileUser - $profile->profileName"; 
     }
     
     $this->setMethod('post');
  
     // Select user name.
     $this->addElement('select', 'profile', array(
-      'label' => 'Plese select the profile (i.e. the pair \'user name\', \'profile name\'):',
+      'label' => 'Plese select the profile (i.e. the pair \'profile user\', \'profile name\'):',
       'multiOptions' => $values,
       'required' => true
     ));

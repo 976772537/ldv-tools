@@ -14,7 +14,7 @@ class IndexController extends Zend_Controller_Action
     if ($this->getRequest()->isPost()) {
       if ($form->isValid($request->getPost())) {
         $profileCurrent = $form->getValues();
-        $profileModel = new Application_Model_Profile(array('id' => $profileCurrent['profile']));
+        $profileModel = new Application_Model_Profile(array('profileId' => $profileCurrent['profile']));
         $profileMapper = new Application_Model_ProfileMapper();
         $profileMapper->setProfileCurrent($profileModel);
         
