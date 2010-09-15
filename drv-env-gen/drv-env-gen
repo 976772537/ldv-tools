@@ -2,6 +2,7 @@
 
 use XML::Twig;
 use FindBin;
+use Time::HiRes qw(gettimeofday);
 
 my $deg_home = "$FindBin::Bin";
 
@@ -164,6 +165,8 @@ sub hxml_cmdstream_basedir {
 }
 
 sub hxml_cmdstream_cc {
+	my $start_time = gettimeofday;	
+
 	my @args = ($ldv_cc,@ldv_cc_add_options); 
 	my $summary_lines=0;
 	my $summary_size=0;
@@ -217,23 +220,11 @@ sub hxml_cmdstream_cc {
 		ldv_dprint("RUN LDV_CC: @args");
 	}
 	ldv_iprint("Starting ldv_cc interface...");
-	my $start_time = time();
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_cc failed !");
 		exit 1;
 	}
-	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-
-	#
-	# id:time of work:::kernel driver name:summary length:summary lines 
-	#
-	ldv_tprint("Statistica: lines: $summary_lines, size: $summary_size");
-	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver.":$summary_lines:$summary_size\n"); 
-
-
-#	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver."\n"); 
-	ldv_iprint("End of ldv_cc - Ok.");
 
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
@@ -256,10 +247,19 @@ sub hxml_cmdstream_cc {
 			}
 		}
 	}
+	#
+	# id:time of work:::kernel driver name:summary length:summary lines 
+	#
+	my $worktime=int((gettimeofday-$start_time)*1000);
+	ldv_tprint("Statistica: lines: $summary_lines, size: $summary_size, worktime: $worktime");
+	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver.":$summary_lines:$summary_size\n"); 
+	ldv_iprint("End of ldv_cc - Ok.");
 }
 
 # handler for twig
 sub hxml_cmdstream_ld {
+	my $start_time = gettimeofday;	
+
 	my @args = ($ldv_ld,@ldv_ld_add_options); 
 	my $summary_lines=0;
 	my $summary_size=0;
@@ -313,14 +313,11 @@ sub hxml_cmdstream_ld {
 		ldv_dprint("RUN LDV_LD: @debug_args");
 	}
 	ldv_iprint("Starting ldv_ld interface...");
-	my $start_time = time();
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_ld failed !");
 		exit 1;
 	}
-	my $worktime=(time()-$start_time)*1000;
 	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver.":$summary_lines:$summary_size\n"); 
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
@@ -343,6 +340,8 @@ sub hxml_cmdstream_ld {
 			}
 		}
 	}
+	my $worktime=int((gettimeofday - $start_time)*1000);
+	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver.":$summary_lines:$summary_size\n"); 
 }
 
 

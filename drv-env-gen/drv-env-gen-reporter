@@ -146,8 +146,7 @@ sub hxml_cmdstream {
 sub get_state() {
 	foreach my $state (@states) {
 		if($state =~ m/^(\d+):(.*):(.*):(.*):(.*):(.*):(.*)$/ && $1 == $_[0]) {
-			#  
-			# id:time of work:::kernel driver name:summary lines:summary size  
+		# id:time of work:::kernel driver name:summary lines:summary size  
 			return ($2,$3,$4,$5,$6,$7);
 		}
 	}

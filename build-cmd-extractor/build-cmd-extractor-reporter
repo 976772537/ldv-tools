@@ -40,17 +40,19 @@ my $log_level=10;
 
 my $report_out = "";
 my $report_in = "";
-my $state_dir = "";
-my $state_filename="ckc.log";
+my $state_filename="$state_file.data";
 
+$state_file ="";
 # 0. get options.
 get_ldv_opts();
+my $state_filename="$state_file.data";
 # 0.1 Create state file name
-my $state_file="$state_dir/$state_filename";
 # 1. read state file;
-#open(FIL,$state_file); 
-#my @states = <FIL>; 
-#close(FIL);
+open(FIL,$state_filename); 
+my @states = <FIL>; 
+close(FIL);
+
+@astate=get_state();
 
 my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
 			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream };
@@ -59,7 +61,7 @@ $twig_inreport->parsefile($report_in);
 
 my $instrument = XML::Twig::Elt->new($xml_build);
 XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-XML::Twig::Elt->new($xml_instrument_time,"")->paste($instrument);
+XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
 XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 $outreport_root = $twig_inreport->root;
 $instrument->paste('last_child',$outreport_root);
@@ -83,15 +85,12 @@ sub hxml_cmdstream {
 }	
 
 sub get_state() {
-#
-# TODO: get states
-#
-#	foreach my $state (@states) {
-#		if($state =~ m/^(\d+):(.*)$/ && $1 == $_[0]) {
-#			return $2;
-#		}
-#	}
-	return 0;
+        foreach my $state (@states) {
+                if($state =~ m/^(\d+)$/) {
+	                # time of work  
+                        return ($1);
+                }   
+        }   
 }
 
 ######################################################
@@ -104,9 +103,9 @@ sub get_ldv_opts
 	# get all options
 	foreach $opt(@ARGV)
 	{
-		if($opt =~ s/--state-dir=(.*)/$1/)
+		if($opt =~ s/--state-file=(.*)/$1/)
 		{
-			$state_dir = $opt;
+			$state_file = $opt;
 		}
 		elsif($opt =~ s/--report-in=(.*)/$1/)
 		{
@@ -123,12 +122,12 @@ sub get_ldv_opts
 		}
 	}
 	# test all options
-	if(!$state_dir) {
-		ldv_eprint("You must setup dir with state: \"--state-dir\".");
+	if(!$state_file) {
+		ldv_eprint("You must setup file with state: \"--state-dir\".");
 		print_usage();
 		exit 1;
-	} elsif(! -d $state_dir) {
-		ldv_eprint("Can not find dir with state: \"$state_dir\".");
+	} elsif(! -f $state_file) {
+		ldv_eprint("Can not find file with state: \"$state_file\".");
 		print_usage();
 		exit 1;
 	}
