@@ -32,6 +32,7 @@ my $xml_instrument_status = 'status';
 my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
 
+sub get_state;
 #####################################################
 # log options
 #####################################################
@@ -40,7 +41,6 @@ my $log_level=10;
 
 my $report_out = "";
 my $report_in = "";
-my $state_filename="$state_file.data";
 
 $state_file ="";
 # 0. get options.
@@ -52,7 +52,7 @@ open(FIL,$state_filename);
 my @states = <FIL>; 
 close(FIL);
 
-@astate=get_state();
+my @astate = get_state();
 
 my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
 			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream };
@@ -123,13 +123,11 @@ sub get_ldv_opts
 	}
 	# test all options
 	if(!$state_file) {
-		ldv_eprint("You must setup file with state: \"--state-dir\".");
+		ldv_eprint("You must setup file with error state: \"--state-file\".");
 		print_usage();
 		exit 1;
-	} elsif(! -f $state_file) {
-		ldv_eprint("Can not find file with state: \"$state_file\".");
-		print_usage();
-		exit 1;
+	} elsif(! -f "$state_file.data" ) {
+		ldv_wprint("Can not find file with state: \"$state_file.data\".");
 	}
 	if(!$report_in) {
 		ldv_eprint("You must setup input report file in option: \"--report-in\".");
