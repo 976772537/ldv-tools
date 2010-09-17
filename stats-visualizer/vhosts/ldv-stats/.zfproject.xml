@@ -48,6 +48,7 @@
           <dbTableFile dbTableName="FiltersInfo"/>
           <dbTableFile dbTableName="Databases"/>
           <dbTableFile dbTableName="ProfilesDatabases"/>
+          <dbTableFile dbTableName="Launches"/>
         </dbTableDirectory>
         <modelFile modelName="Page"/>
         <modelFile modelName="LaunchInfo"/>

@@ -10,10 +10,15 @@ class Application_Model_GeneralMapper
     $this->_logger = Zend_Registry::get('logger');
   }
  
-  public function getDbTable($tableName)
+  public function getDbTable($tableName, $adapter = null)
   {
     if (is_string($tableName)) {
-      $dbTable = new $tableName();
+      if ($adapter) {
+        $dbTable = new $tableName(array('db' => $adapter));
+      }
+      else {
+        $dbTable = new $tableName();
+      }
     }
 
     if (!$dbTable instanceof Zend_Db_Table_Abstract) {
