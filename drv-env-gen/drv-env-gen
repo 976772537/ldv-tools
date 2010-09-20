@@ -11,6 +11,8 @@ my $ldv_cc = "java";
 my @ldv_cc_add_options = ("-ea","-jar","$deg_home/ldv_cc.jar");
 my $ldv_ld = "java";
 my @ldv_ld_add_options = ("-ea","-jar","$deg_home/ldv_ld.jar");
+
+my $state_script = "$deg_home/../shared/sh/timeout";
 # output option
 # -o
 my $output_option = "-o";
@@ -78,6 +80,7 @@ ldv_dprint("Ok");
 # 2. create directories
 my $basedir="$workdir/$tempdir";
 my $my_driverdir="$basedir/$driver_dirname";
+my $stats_file="$basedir/stats.xml";
 
 chomp($basedir);
 if(! mkdir $basedir) {
@@ -166,8 +169,14 @@ sub hxml_cmdstream_basedir {
 
 sub hxml_cmdstream_cc {
 	my $start_time = gettimeofday;	
+	my $lid = $_[1]->att($xml_cmd_attr_id);
+	my @args = ($state_script,
+		"--pattern=.*,ALL",
+		"--output=$stats_file",
+		"--reference=$lid",
+		$ldv_cc,
+		@ldv_cc_add_options); 
 
-	my @args = ($ldv_cc,@ldv_cc_add_options); 
 	my $summary_lines=0;
 	my $summary_size=0;
 
@@ -224,7 +233,6 @@ sub hxml_cmdstream_cc {
 		ldv_eprint("ldv_cc failed !");
 		exit 1;
 	}
-	my $lid = $_[1]->att($xml_cmd_attr_id);
 
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
@@ -259,6 +267,15 @@ sub hxml_cmdstream_cc {
 # handler for twig
 sub hxml_cmdstream_ld {
 	my $start_time = gettimeofday;	
+	my $lid = $_[1]->att($xml_cmd_attr_id);
+
+	my @args = ($state_script,
+		"--pattern=.*,ALL",
+		"--output=$stats_file",
+		"--reference=$lid",
+		$ldv_ld,
+		@ldv_ld_add_options); 
+
 
 	my @args = ($ldv_ld,@ldv_ld_add_options); 
 	my $summary_lines=0;
@@ -317,7 +334,6 @@ sub hxml_cmdstream_ld {
 		ldv_eprint("ldv_ld failed !");
 		exit 1;
 	}
-	my $lid = $_[1]->att($xml_cmd_attr_id);
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;

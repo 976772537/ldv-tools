@@ -55,6 +55,13 @@ open(FIL,$state_file);
 my @states = <FIL>; 
 close(FIL);
 
+# 1. read stats file;
+open(FIL,$stats_file); 
+my @stats = <FIL>; 
+close(FIL);
+
+
+
 # 2. open output command stream if it needs
 # 3. open input report
 my $twig_inreport = new XML::Twig();
@@ -136,7 +143,20 @@ sub hxml_cmdstream {
 		};
 		my $instrument = XML::Twig::Elt->new($xml_instrument);
 		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
+		my $i=0;
+		foreach(@stats) {
+	                /^\s*<time\s+ref="$id"\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+			$i++;
+			my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$2);
+			$time_elt->set_att('name'=>$1);
+			$time_elt->paste($instrument);
+		}
+		if($i==0) {
+			my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
+			$time_elt->set_att('name'=>"ALL");
+			$time_elt->paste($instrument);
+		}
+		#XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
 		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 		XML::Twig::Elt->new($xml_stats_loc,$astate[4])->paste($instrument);
 		$instrument->paste('last_child',$command);
@@ -170,6 +190,10 @@ sub get_ldv_opts
 		{
 			$state_file = $opt;
 		}
+		elsif($opt =~ s/--stats-file=(.*)/$1/)
+		{
+			$stats_file = $opt;
+		}
 		elsif($opt =~ s/--report-in=(.*)/$1/)
 		{
 			$report_in = $opt;
@@ -200,6 +224,15 @@ sub get_ldv_opts
 		exit 1;
 	} elsif(! -f $state_file) {
 		ldv_eprint("Can not find file with state: \"$state_file\".");
+		print_usage();
+		exit 1;
+	}
+	if(!$stats_file) {
+		ldv_eprint("You must setup file with time stats: \"--stats-file\".");
+		print_usage();
+		exit 1;
+	} elsif(! -f $stats_file) {
+		ldv_eprint("Can not find file with time stats: \"$stats_file\".");
 		print_usage();
 		exit 1;
 	}

@@ -41,6 +41,7 @@ my $log_level=10;
 
 my $report_out = "";
 my $report_in = "";
+my $stats_file = "";
 
 $state_file ="";
 # 0. get options.
@@ -51,7 +52,6 @@ my $state_filename="$state_file.data";
 open(FIL,$state_filename); 
 my @states = <FIL>; 
 close(FIL);
-
 my @astate = get_state();
 
 my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
@@ -61,7 +61,36 @@ $twig_inreport->parsefile($report_in);
 
 my $instrument = XML::Twig::Elt->new($xml_build);
 XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
+#pen(FIL,$stats_file);
+#hile(<FIL>) {
+#	/^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+#	my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$2);
+#	$time_elt->set_att('name'=>$1);
+#	$time_elt->paste($instrument);
+#}
+#close(FIL);
+
+if ( -f "$stats_file" ) {
+	my %timestats;
+        open(STATS_FILE, '<', "$stats_file") or die "Can't open file with time statistics: \"$stats_file\", $!";
+        while(<STATS_FILE>) {
+	        /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+        	$timestats{$1} += $2;
+        }
+        close STATS_FILE;
+        foreach(keys %timestats) {
+                my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$timestats{$_});
+                $time_elt->set_att( name =>$_);
+                $time_elt->paste($instrument);
+        }
+} else {
+        my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
+        $time_elt->set_att( name =>"ALL");
+        $time_elt->paste($instrument);
+};
+
+
+#XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
 XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 $outreport_root = $twig_inreport->root;
 $instrument->paste('last_child',$outreport_root);
@@ -107,6 +136,10 @@ sub get_ldv_opts
 		{
 			$state_file = $opt;
 		}
+		elsif($opt =~ s/--stats-file=(.*)/$1/)
+		{
+			$stats_file = $opt;
+		}
 		elsif($opt =~ s/--report-in=(.*)/$1/)
 		{
 			$report_in = $opt;
@@ -128,6 +161,13 @@ sub get_ldv_opts
 		exit 1;
 	} elsif(! -f "$state_file.data" ) {
 		ldv_wprint("Can not find file with state: \"$state_file.data\".");
+	}
+	if(!$stats_file) {
+		ldv_eprint("You must setup input file with statistica in \"--stats-file\" option.");
+		exit 1;
+	} elsif(! -f $stats_file ) {
+		ldv_eprint("Can not find stats file: \"$stats_file\".");
+		exit 1;
 	}
 	if(!$report_in) {
 		ldv_eprint("You must setup input report file in option: \"--report-in\".");

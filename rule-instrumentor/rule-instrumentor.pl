@@ -190,6 +190,7 @@ my $LDV_HOME;
 my $ldv_rule_instrumentor;
 my $ldv_aspectator_bin_dir;
 my $ldv_aspectator;
+my $timeout_script;
 # Environment variable that says that options passed to gcc compiler aren't
 # quoted.
 my $ldv_no_quoted = 'LDV_NO_QUOTED';
@@ -265,6 +266,8 @@ my $tool_aux_dir = 'rule-instrumentor';
 # The name of file where commands execution status will be logged. It's relative
 # to the tool auxiliary working directory.
 my $tool_cmds_log = 'cmds-log';
+# The name of file for stats information about rule-instrumentor
+my $tool_stats_xml = 'stats.xml';
 # The name of directory where configuration files will be placed. It's 
 # relative to the tool auxiliary working directory.
 my $tool_config_dir = 'config';
@@ -1009,7 +1012,7 @@ sub prepare_files_and_dirs()
   }
   print_debug_debug("The tool auxiliary working directory: '$tool_aux_dir'");
 
-  print_debug_trace("Try to open a commands log file");    
+  print_debug_trace("Try to open a commands log file: ".$tool_aux_dir."/".$tool_cmds_log."\n");    
   if ($report_mode)
   {
     open($file_cmds_log, '<', "$tool_aux_dir/$tool_cmds_log")
@@ -1070,6 +1073,18 @@ sub prepare_files_and_dirs()
     warn("Directory '$ldv_rule_instrumentor' (rule instrumentor directory) doesn't exist");
     help();
   }
+
+  # Directory contains all binaries needed by aspectator.
+  $ldv_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/bin";
+
+  $timeout_script = "$LDV_HOME/shared/sh/timeout";
+  unless(-f $timeout_script)
+  {
+    warn("File '$timeout_script' doesn't exist");
+    help();
+  }
+  print_debug_debug("The timeout script is '$timeout_script'");
+
   print_debug_debug("The instrument auxiliary tools directory is '$ldv_rule_instrumentor'");
   
   # Directory contains all binaries needed by aspectator.
@@ -1220,14 +1235,20 @@ sub process_cmd_cc()
     # On each cc command we run aspectator on corresponding file with 
     # corresponding model aspect and options. Also add -I option with 
     # models directory needed to find appropriate headers for usual aspect.
-    print_debug_debug("Process the cc command using usual aspect");
+    print_debug_debug("Process the cc '".$cmd{'id'}."' command using usual aspect");
     # Specify needed and specic environment variables for the aspectator.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
     $ENV{$ldv_no_quoted} = 1;
     # Just for the trace debug level aspectator will say about something except 
     # errors. 
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
-    my @args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
+
+    my @args = (
+	$timeout_script,
+        "--pattern=.*,ALL",
+	"--reference=".$cmd{'id'},
+        "--output=$tool_aux_dir/stats.xml",
+	$ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
     
     print_debug_trace("Go to the build directory to execute cc command");
 
@@ -1306,7 +1327,12 @@ sub process_cmd_cc()
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
 
 	# Get arguments for aspectator
-	@args = ($ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
+	@args = ($timeout_script,
+	        "--pattern=.*,ALL",
+		"--reference=".$cmd{'id'},
+	        "--output=$tool_aux_dir/$tool_stats_xml",
+		$ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
+
 	# Try to fetch result (and we think that the file that ends with $llvm_bitcode_usual_suffix is THE ONLY result of this part
 	$cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
 	$cache_file_key = $cache_target;
@@ -1375,8 +1401,12 @@ sub process_cmd_cc()
   
     # Status is ok, description is empty.
     return (0, \@desc);
-  }
-  
+  } 
+  # else {
+  #  	open STATS_FIL, ">>", "$tool_aux_dir/stats.xml" or die "Can't open stats file \"$tool_aux_dir/stats.xml\": $!\n";
+  #	print STATS_FIL "<time ref=\"".$cmd{'id'}."\" name=\"ALL\">0</time>\n" and close STATS_FIL;
+  # }
+ 
   # At the moment just the aspect mode is presented here.
 }
 
@@ -1395,7 +1425,12 @@ sub process_cmd_ld()
       # be generally (i.e. with usual and common aspects) instrumented. We 
       # choose the first one here. Other files must be usually instrumented.
       my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
-      my @args = ($ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      my @args = (
+	$timeout_script,
+        "--pattern=.*,ALL",
+	"--reference=".$cmd{'id'},
+        "--output=$tool_aux_dir/$tool_stats_xml",
+	$ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
 
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
@@ -1420,7 +1455,12 @@ sub process_cmd_ld()
       my $c_out = "$cmd{'out'}$llvm_bitcode_linked_suffix$llvm_c_backend_suffix";
 
       # Linked file is converted to c by means of llvm c backend.
-      @args = ($ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
+      @args = (
+	$timeout_script,
+        "--pattern=.*,ALL",
+	"--reference=".$cmd{'id'},
+        "--output=$tool_aux_dir/$tool_stats_xml",
+	$ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
       print_debug_info("Execute the command '@args'");
       ($status, $desc) = exec_status_and_desc(@args);
       return ($status, $desc) if ($status);
@@ -2152,16 +2192,29 @@ sub process_report()
     
     print_debug_trace("Remove the non-ASCII symbols from description since they aren't parsed correctly");
     $cmd_desc =~ s/[^[:ascii:]]//g;
+
+
     
     $cmds_log{$cmd_id} = {
       'cmd name' => $cmd_name, 
       'cmd status' => $cmd_status,
-      'cmd time' => $cmd_time,
       'cmd entry points' => \@cmd_entry_points,
       'cmd description' => $cmd_desc, 
       'cmd check' => $cmd_check
     };
       
+    # Read file with time statistics
+    if ( -f "$tool_aux_dir/$tool_stats_xml" ) { 
+	open(STATS_FILE, '<', "$tool_aux_dir/$tool_stats_xml") or die "Can't open file with time statistics: \"$tool_aux_dir/stats.xml\", $!";
+	while(<STATS_FILE>) {
+		/^\s*<time\s+ref="$cmd_id"\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+		$cmds_log{$cmd_id}->{'cmd time'}->{$1} += $2;
+	}
+	close STATS_FILE;
+    } else {
+	$cmds_log{$cmd_id}->{'cmd time'}->{'ALL'} = 0;
+    };
+
     push(@cmds_id, $cmd_id);
   }
   print_debug_debug("The command log is processed successfully");
@@ -2271,7 +2324,10 @@ sub process_report()
         $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
       }
 
-      $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
+      foreach( keys %{$cmds_log{$cmd_id}->{'cmd time'}}) {
+        $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}->{'cmd time'}->{$_}, name => "$_");
+      }
+
       $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
             
       # Close the rule instrumentor tag.
@@ -2342,8 +2398,12 @@ sub process_report()
             }
             $cmd_status_tag->paste('last_child', $rule_instrumentor_tag);   
             print_debug_trace("Print the command execution time");
-            my $time_tag = new XML::Twig::Elt($xml_report_time, $cmds_log{$cmd_id}{'cmd time'});
-            $time_tag->paste('last_child', $rule_instrumentor_tag);
+
+	    foreach( keys %{$cmds_log{$cmd_id}->{'cmd time'}}) {
+	        my $time_tag = new XML::Twig::Elt($xml_report_time, $cmds_log{$cmd_id}->{'cmd time'}->{$_});
+		$time_tag->set_att( name => "$_");
+          	$time_tag->paste('last_child', $rule_instrumentor_tag);
+	    }
             print_debug_trace("Print the command description");
             my $desc_tag = new XML::Twig::Elt($xml_report_desc, $cmds_log{$cmd_id}{'cmd description'});
             $desc_tag->paste('last_child', $rule_instrumentor_tag);
@@ -2379,7 +2439,10 @@ sub process_report()
             {
               $xml_writer->dataElement($xml_report_status => $xml_report_status_fail);  
             }
-            $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}{'cmd time'});
+
+	    foreach( keys %{$cmds_log{$cmd_id}->{'cmd time'}}) {
+	        $xml_writer->dataElement($xml_report_time => $cmds_log{$cmd_id}->{'cmd time'}->{$_}, name => "$_");
+	    }
             $xml_writer->dataElement($xml_report_desc => $cmds_log{$cmd_id}{'cmd description'});
             # Close the rule instrumentor tag.
             $xml_writer->endTag();

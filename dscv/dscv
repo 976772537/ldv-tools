@@ -231,6 +231,9 @@ $config->{verifier_override_env} = $ENV{'VERIFIER_OVERRIDE'};
 =back
 
 =cut
+$config->{verifier_override_env} = $ENV{'VERIFIER_OVERRIDE'};
+
+$config->{timestats} = $ENV{'TIMESTATS'} || "$ENV{'LDV_HOME'}/shared/sh/timeout" || 'timeout';
 
 sub usage
 {
@@ -491,7 +494,14 @@ for my $property (@properties){
 		$ri_basedir_for_rule = './'
 	}
 
-	my @rule_instr_args = ($config->{rule_ins},
+	vsay ('NORMAL',"CMDFILE    : ".$config->{cmdfile}."\n");
+	vsay ('NORMAL',"CMDFILE-OUT: ".$outfile."\n");
+	vsay ('NORMAL',"BASEDIR: ".$ri_basedir_for_rule."\n");
+	my @rule_instr_args = (
+        #	$config->{timestats},
+	#      	"--pattern=.*,ALL",
+	#      	"--output=".$config->{work_dir}."/rule-instrumentor/$property/stats.xml",
+		$config->{rule_ins},
 		"--basedir=$ri_basedir_for_rule",
 		"--rule-model=$property",
 		"--cmdfile=$config->{cmdfile}",
@@ -536,9 +546,13 @@ for my $property (@properties){
 			my $tmp_FH; open $tmp_FH,">",$cmdfile or die "Couldn't create temporary file for RCV's command!";
 			$streamT->print($tmp_FH,'indented');
 			close $tmp_FH;
-
 			# Run RCV
-			my @rcv_args = ("$rcv_frontends_dir/$verifier",
+			my @rcv_args = (
+				$config->{timestats},
+				"--pattern=.*,ALL",
+				"--output=$dir/stats.xml",
+				"--reference=$id",
+				"$rcv_frontends_dir/$verifier",
 				"--cmdfile=$cmdfile",
 				"--workdir=$dir",
 				"--sanity-dir=$dscv_base_dir",
@@ -620,14 +634,35 @@ for my $property (@properties){
 sub add_dscv_info
 {
 	my ($rep_entityT,$status_str,$descr,$name) = @_;
+
+	my %timestats;
+	my $rcv_tag = $rep_entityT->first_child('rcv');
+	if ($rcv_tag) {
+		foreach my $rcv_time ($rcv_tag->children('time')) {
+			$timestats{$rcv_time->att('name')} = $rcv_time->text;
+		}
+	} 
+	my $ri_tag = $rep_entityT->first_child('rule-instrumentor');
+	if ($ri_tag) {
+		foreach my $ri_time ($ri_tag->children('time')) {
+			$timestats{$ri_time->att('name')} += $ri_time->text;
+		}
+	} 
+
+
 	$name ||= 'dscv';
 	$descr ||= '';
 
+	# calculate dscv time as ALL=rcv ALL time + ri ALL time for this tag
 	my $dscvT = XML::Twig::Elt->new($name);
 	XML::Twig::Elt->new('status',{},$status_str)->paste(last_child=>$dscvT);
-	XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0')->paste(last_child=>$dscvT);
+	#XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0')->paste(last_child=>$dscvT);
+        foreach(keys %timestats) {
+                my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+                $time_elt->set_att( name =>$_);
+                $time_elt->paste(last_child=>$dscvT);
+        } 
 	XML::Twig::Elt->new('desc',{},$descr)->paste(last_child=>$dscvT);
-
 	$dscvT->paste(last_child=>$rep_entityT);
 }
 

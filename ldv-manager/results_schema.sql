@@ -136,6 +136,20 @@ create table tasks(
 	primary key (id)
 ) ENGINE=InnoDB;
 
+-- ----------------------------
+-- STATISTICS
+-- ----------------------------
+
+create table processes(
+	id int(10) unsigned not null,
+	name varchar(100) not null,
+
+	time int(10) unsigned not null default 0, 
+
+	primary key(id, name),
+	UNIQUE (id, name),
+	foreign key (id) references traces(id)
+) ENGINE=InnoDB;
 
 -- ----------------------------
 -- LAUNCHES JOIN
