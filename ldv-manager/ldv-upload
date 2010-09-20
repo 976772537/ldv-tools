@@ -84,6 +84,18 @@ class Trace
 	end
 end
 
+class Processe
+	def self.from_xml(entry,do_nulls)
+		ps = Processe.new
+		if entry.respond_to?('none?') && entry.none?
+			return nil if do_nulls
+		end
+		ps.name = entry.attributes['name'];		
+		ps.time = entry.inner_html.to_i || 0;		
+		ps
+	end
+end
+
 class Stats
 	def self.from_xml(entry,do_nulls)
 		st = Stats.new
@@ -258,6 +270,12 @@ masters = MasterStats.new
 	Trace.tools.each do |dbname,tag|
 		stats = Stats.from_xml(ld/tag,do_nulls)
 		trace.send("#{dbname}=",stats)
+		#	(ld/tag/"time").each do |entry|
+			#trace.processe.create(:name => entry.attributes['name'],:time => entry.inner_html.to_i);
+		#	processe = Processe.from_xml(entry,do_nulls)
+			#processe.trace_id = trace.id
+		#	stats.send("#{}=",processe)
+		#end
 	end
 
 	# Run scripts that check for problems
@@ -307,6 +325,12 @@ masters = MasterStats.new
 
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+	Trace.tools.each do |dbname,tag|
+		(ld/tag/"time").each do |entry|
+			trace.processe.create(:name => entry.attributes['name'] +" "+tag,:time => entry.inner_html.to_i);
+		end
+	end
+
 end
 
 # Report build errors

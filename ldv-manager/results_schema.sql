@@ -16,6 +16,7 @@ drop table if exists toolsets;
 drop table if exists rule_models;
 drop table if exists drivers ;
 drop table if exists environments ;
+drop table if exists processes ;
 
 -- Environments table holds kernels
 create table environments (
@@ -141,14 +142,14 @@ create table tasks(
 -- ----------------------------
 
 create table processes(
-	id int(10) unsigned not null,
+	trace_id int(10) unsigned not null,
 	name varchar(100) not null,
 
 	time int(10) unsigned not null default 0, 
 
-	primary key(id, name),
-	UNIQUE (id, name),
-	foreign key (id) references traces(id)
+	primary key(trace_id, name),
+	UNIQUE (trace_id, name),
+	foreign key (trace_id) references traces(id)
 ) ENGINE=InnoDB;
 
 -- ----------------------------
