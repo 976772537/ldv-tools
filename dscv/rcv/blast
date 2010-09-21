@@ -101,7 +101,6 @@ sub verify_blast
 {
 	my %args = @_;
 	$args{report} or die;
-	print "BLAST_REPORT: ".$args{report}."\n";
 	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
 

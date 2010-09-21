@@ -42,6 +42,7 @@ my $log_level=10;
 my $report_out = "";
 my $report_in = "";
 my $stats_file = "";
+my $cmdfile = "";
 
 $state_file ="";
 # 0. get options.
@@ -54,21 +55,18 @@ my @states = <FIL>;
 close(FIL);
 my @astate = get_state();
 
-my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
-			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream };
+
+my %cc_times;
+my @instruments = ('drv-env-gen','rcv','dscv','rule-instrumentor');
+
+
+my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream_cc,
+			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream_ld };
 my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
 $twig_inreport->parsefile($report_in);
 
 my $instrument = XML::Twig::Elt->new($xml_build);
 XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-#pen(FIL,$stats_file);
-#hile(<FIL>) {
-#	/^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
-#	my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$2);
-#	$time_elt->set_att('name'=>$1);
-#	$time_elt->paste($instrument);
-#}
-#close(FIL);
 
 if ( -f "$stats_file" ) {
 	my %timestats;
@@ -90,11 +88,9 @@ if ( -f "$stats_file" ) {
 };
 
 
-#XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
 XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 $outreport_root = $twig_inreport->root;
 $instrument->paste('last_child',$outreport_root);
-
 
 $twig_inreport->set_xml_version('1.0');
 $twig_inreport->set_pretty_print('indented');
@@ -105,12 +101,64 @@ $twig_inreport->print_to_file($report_out);
 # twig  handlers
 #####################################################
 
-sub hxml_cmdstream {
-#	my $instrument = XML::Twig::Elt->new($xml_instrument);
-#	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-#	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
-#	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-#	$instrument->paste('last_child',$_[1]);
+sub hxml_cmdstream_cc {
+        my (undef, $entry) = @_; 
+	my $model = $entry->att('model');
+        foreach (@instruments) {
+                my $instrumment_pattern = $entry->first_child($_) or next;
+                local $_; 
+                foreach ($instrumment_pattern->children('time')) {
+                        $cc_times->{$model}->{$instrumment_pattern->name}->{$_->att('name')}->{'time'} += $_->text;
+                }   
+        } 
+}
+
+sub hxml_cmdstream_ld {
+        my (undef, $entry) = @_;
+	my $model = $entry->att('model');
+        foreach my $instrument(keys %{$cc_times->{$model}}) {
+                my $instrument_tag = $entry->first_child($instrument) or next;
+                foreach my $pattern(keys %{$cc_times->{$model}->{$instrument}}) {
+                        # find tim with attribute equals pattern
+                        my $before = 0;
+                        foreach ($instrument_tag->children('time')) {
+                                $_->att('name') eq $pattern or next;
+                                $before = 1 and $_->set_text($_->text+$cc_times->{$model}->{$instrument}->{$pattern}->{'time'});  
+                        }   
+                        $before == 0 or next;
+                        my $newtime = XML::Twig::Elt->new('time',$cc_times->{$model}->{$instrument}->{$pattern}->{'time'});
+                        $newtime->set_atts('name', $pattern);
+                        $newtime->paste('last_child',$instrument_tag);
+                }   
+        } 
+	$cc_times->{$model} = undef;
+#        my (undef, $entry) = @_; 
+#	print "BEFORE\n";
+#        foreach my $instrument(keys %{$cc_times}) {
+#		print "INSTRUMENT: ".$instrument."\n";
+#		foreach my $pattern (keys %{$cc_times->{$instrument}}) {
+#			print "         ".$pattern."\n";
+#		}
+#	}
+#	print "AFTER\n";
+#       foreach my $instrument(keys %{$cc_times}) {
+#               my $instrument_tag = $entry->first_child($instrument);
+#		$instrument_tag or next;
+#               foreach my $pattern(keys %{$cc_times->{$instrument}}) {
+#                       # find tim with attribute equals pattern
+#                        my $before = 0;
+#                        foreach ($instrument_tag->children('time')) {
+#                                $_->att('name') eq $pattern or next;
+#                                $before = 1;
+#				$_->set_text($_->text+$cc_times->{$instrument}->{$pattern}->{'time'});
+#                        }
+#                        $before == 0 or next;
+#                        my $newtime = XML::Twig::Elt->new('time',$cc_times->{$instrument}->{$pattern}->{'time'});
+#                        $newtime->set_atts('name', $pattern);
+#                        $newtime->paste('last_child',$instrument_tag);
+#                }
+#        }
+#	$cc_times = undef;
 }	
 
 sub get_state() {
@@ -140,6 +188,10 @@ sub get_ldv_opts
 		{
 			$stats_file = $opt;
 		}
+		elsif($opt =~ s/--cmdfile=(.*)/$1/)
+		{
+			$cmdfile = $opt;
+		}
 		elsif($opt =~ s/--report-in=(.*)/$1/)
 		{
 			$report_in = $opt;
@@ -167,6 +219,13 @@ sub get_ldv_opts
 		exit 1;
 	} elsif(! -f $stats_file ) {
 		ldv_eprint("Can not find stats file: \"$stats_file\".");
+		exit 1;
+	}
+	if(!$cmdfile) {
+		ldv_eprint("You must setup command stream file in \"--cmdfile\" option.");
+		exit 1;
+	} elsif(! -f $cmdfile ) {
+		ldv_eprint("Can not find command stream file: \"$cmdfile\".");
 		exit 1;
 	}
 	if(!$report_in) {

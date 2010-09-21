@@ -63,8 +63,13 @@ foreach my $file (@reports) {
 	$ctwig->parsefile($file);
 	my $croot=$ctwig->root;
 	my @childrens = $croot->children();
+	my @sections; 
 	foreach my $section (@childrens) {
-		$section->move($twig_inroot);
+		@sections = ($section,@sections);
+#		$sections->move($twig_inroot)l
+	}
+	foreach (@sections) {
+		$_->move($twig_inroot);
 	}
 };
 

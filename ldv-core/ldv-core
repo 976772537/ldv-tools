@@ -83,8 +83,8 @@ bce_create_report() {
 		echo "</reports>" >> $BCE_REPORT;
 	else
 		ldv_print "NORMAL: Calling Build Commmand Extractor Reporter.";
-		ldv_print "DEBUG: $BCE_REPORTER --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;";
-		$BCE_REPORTER --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;
+		ldv_print "DEBUG: $BCE_REPORTER --cmdfile=$XML_AFTER_BCE --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;";
+		$BCE_REPORTER --cmdfile=$XML_AFTER_BCE --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;
 		if [ $? -ne 0 ]; then
 		        ldv_print "ERROR: BCE reporter failed.";
 		        exit 1;
