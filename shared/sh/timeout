@@ -245,9 +245,9 @@ sub __print_uinfo
 		%{$strpat->{$key}->{pids}} or next;
 		defined $output or next;
 		print(FIL "<time ".$reftext." name=\"".$strpat->{$key}->{name}."\">".1000*$strpat->{$key}->{ptime}."</time>\n");
-		foreach (keys %{$strpat->{$key}->{pids}}) {
-			print FIL "<time ".$reftext." name=\"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\">".1000*$strpat->{$key}->{pids}->{$_}->{ptime}."</time>\n";
-		}
+		#foreach (keys %{$strpat->{$key}->{pids}}) {
+		#	print FIL "<time ".$reftext." name=\"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\">".1000*$strpat->{$key}->{pids}->{$_}->{ptime}."</time>\n";
+		#}
 	}
 	defined $output and close FIL;
 }

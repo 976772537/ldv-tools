@@ -1245,7 +1245,7 @@ sub process_cmd_cc()
 
     my @args = (
 	$timeout_script,
-        "--pattern=.*,ALL",
+        "--pattern=.*,ALL;.*cc1.*,CC1;.*c-backend.*,C-BACKEND;.*linker.*,LINKER",
 	"--reference=".$cmd{'id'},
         "--output=$tool_aux_dir/stats.xml",
 	$ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
@@ -1328,7 +1328,7 @@ sub process_cmd_cc()
 
 	# Get arguments for aspectator
 	@args = ($timeout_script,
-	        "--pattern=.*,ALL",
+        	"--pattern=.*,ALL;.*cc1.*,CC1;.*c-backend.*,C-BACKEND;.*linker.*,LINKER",
 		"--reference=".$cmd{'id'},
 	        "--output=$tool_aux_dir/$tool_stats_xml",
 		$ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
@@ -1427,7 +1427,7 @@ sub process_cmd_ld()
       my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
       my @args = (
 	$timeout_script,
-        "--pattern=.*,ALL",
+       	"--pattern=.*,ALL;.*cc1.*,CC1;.*c-backend.*,C-BACKEND;.*linker.*,LINKER",
 	"--reference=".$cmd{'id'},
         "--output=$tool_aux_dir/$tool_stats_xml",
 	$ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
@@ -1457,7 +1457,7 @@ sub process_cmd_ld()
       # Linked file is converted to c by means of llvm c backend.
       @args = (
 	$timeout_script,
-        "--pattern=.*,ALL",
+       	"--pattern=.*,ALL;.*cc1.*,CC1;.*c-backend.*,C-BACKEND;.*linker.*,LINKER",
 	"--reference=".$cmd{'id'},
         "--output=$tool_aux_dir/$tool_stats_xml",
 	$ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);

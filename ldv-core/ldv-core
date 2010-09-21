@@ -339,8 +339,8 @@ if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Can't touch stats file:\"$BCE_STATS_LOG\".";
 	exit 1;
 fi;
-ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;"
-                  LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;
+ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1 -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;"
+                  LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1 -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;
 
 #if [ -n "$cmdstream" ]; then
 #	XML_AFTER_BCE=$cmdstream;

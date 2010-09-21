@@ -104,7 +104,10 @@ class Stats
 		end
 		st.success = (entry/"status").inner_html == 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
-		st.time = (entry/"time").inner_html.to_i || 0
+		(entry/"time").each do |tag|
+			if tag.attributes['name'] == 'ALL' then st.time=tag.inner_html.to_i else st.time=0 end
+		end
+		#st.time = (entry/"time").inner_html.to_i || 0
 		st.description = (entry/"desc").inner_html
 		st
 	end
@@ -270,12 +273,6 @@ masters = MasterStats.new
 	Trace.tools.each do |dbname,tag|
 		stats = Stats.from_xml(ld/tag,do_nulls)
 		trace.send("#{dbname}=",stats)
-		#	(ld/tag/"time").each do |entry|
-			#trace.processe.create(:name => entry.attributes['name'],:time => entry.inner_html.to_i);
-		#	processe = Processe.from_xml(entry,do_nulls)
-			#processe.trace_id = trace.id
-		#	stats.send("#{}=",processe)
-		#end
 	end
 
 	# Run scripts that check for problems

@@ -256,7 +256,7 @@ sub call_blast
 	@blast_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
 		memlimit => $memlimit,
-		pattern => ".*,ALL",
+		pattern => ".*,ALL;.*pblast\.opt.*,PBLAST.OPT;.*cvc3.*,CVC3;.*smtlibServer.*,SMTSERVER",
 		output => "$workdir/stats_rcv.xml",
 		id_str => "DSCV_TIMEOUT ",
 		},@blast_options

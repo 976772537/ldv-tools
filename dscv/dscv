@@ -548,10 +548,10 @@ for my $property (@properties){
 			close $tmp_FH;
 			# Run RCV
 			my @rcv_args = (
-				$config->{timestats},
-				"--pattern=.*,ALL",
-				"--output=$dir/stats.xml",
-				"--reference=$id",
+			#	$config->{timestats},
+			#	"--pattern=.*,ALL",
+			#	"--output=$dir/stats.xml",
+			#	"--reference=$id",
 				"$rcv_frontends_dir/$verifier",
 				"--cmdfile=$cmdfile",
 				"--workdir=$dir",
@@ -658,6 +658,7 @@ sub add_dscv_info
 	XML::Twig::Elt->new('status',{},$status_str)->paste(last_child=>$dscvT);
 	#XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0')->paste(last_child=>$dscvT);
         foreach(keys %timestats) {
+		/ALL/ or next;
                 my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
                 $time_elt->set_att( name =>$_);
                 $time_elt->paste(last_child=>$dscvT);
