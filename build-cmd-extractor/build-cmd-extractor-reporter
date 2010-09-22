@@ -123,7 +123,8 @@ sub hxml_cmdstream_ld {
                         my $before = 0;
                         foreach ($instrument_tag->children('time')) {
                                 $_->att('name') eq $pattern or next;
-                                $before = 1 and $_->set_text($_->text+$cc_times->{$model}->{$instrument}->{$pattern}->{'time'});  
+                                $before = 1;
+				$_->set_text($_->text+$cc_times->{$model}->{$instrument}->{$pattern}->{'time'});  
                         }   
                         $before == 0 or next;
                         my $newtime = XML::Twig::Elt->new('time',$cc_times->{$model}->{$instrument}->{$pattern}->{'time'});
