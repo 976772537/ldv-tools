@@ -132,33 +132,6 @@ sub hxml_cmdstream_ld {
                 }   
         } 
 	$cc_times->{$model} = undef;
-#        my (undef, $entry) = @_; 
-#	print "BEFORE\n";
-#        foreach my $instrument(keys %{$cc_times}) {
-#		print "INSTRUMENT: ".$instrument."\n";
-#		foreach my $pattern (keys %{$cc_times->{$instrument}}) {
-#			print "         ".$pattern."\n";
-#		}
-#	}
-#	print "AFTER\n";
-#       foreach my $instrument(keys %{$cc_times}) {
-#               my $instrument_tag = $entry->first_child($instrument);
-#		$instrument_tag or next;
-#               foreach my $pattern(keys %{$cc_times->{$instrument}}) {
-#                       # find tim with attribute equals pattern
-#                        my $before = 0;
-#                        foreach ($instrument_tag->children('time')) {
-#                                $_->att('name') eq $pattern or next;
-#                                $before = 1;
-#				$_->set_text($_->text+$cc_times->{$instrument}->{$pattern}->{'time'});
-#                        }
-#                        $before == 0 or next;
-#                        my $newtime = XML::Twig::Elt->new('time',$cc_times->{$instrument}->{$pattern}->{'time'});
-#                        $newtime->set_atts('name', $pattern);
-#                        $newtime->paste('last_child',$instrument_tag);
-#                }
-#        }
-#	$cc_times = undef;
 }	
 
 sub get_state() {

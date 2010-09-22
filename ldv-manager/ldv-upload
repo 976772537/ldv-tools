@@ -90,7 +90,7 @@ class Processe
 		if entry.respond_to?('none?') && entry.none?
 			return nil if do_nulls
 		end
-		ps.name = entry.attributes['name'];		
+		ps.pattern = entry.attributes['name'];		
 		ps.time = entry.inner_html.to_i || 0;		
 		ps
 	end
@@ -324,7 +324,7 @@ masters = MasterStats.new
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 	Trace.tools.each do |dbname,tag|
 		(ld/tag/"time").each do |entry|
-			trace.processe.create(:name => entry.attributes['name'] +" "+tag,:time => entry.inner_html.to_i);
+			trace.processe.create(:name => tag, :pattern => entry.attributes['name'], :time => entry.inner_html.to_i);
 		end
 	end
 

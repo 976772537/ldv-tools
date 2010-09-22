@@ -143,12 +143,13 @@ create table tasks(
 
 create table processes(
 	trace_id int(10) unsigned not null,
-	name varchar(100) not null,
+	name varchar(50) not null,
+	pattern varchar(50) not null,
 
 	time int(10) unsigned not null default 0, 
 
-	primary key(trace_id, name),
-	UNIQUE (trace_id, name),
+	primary key(trace_id, name, pattern),
+	UNIQUE (trace_id, name, pattern),
 	foreign key (trace_id) references traces(id)
 ) ENGINE=InnoDB;
 
