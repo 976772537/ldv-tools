@@ -255,13 +255,13 @@ sub __print_uinfo
 sub print_uinfo
 {
 	my ($strpat) = @_;
-	foreach my $key( keys %{$strpat}) {
-		%{$strpat->{$key}->{pids}} or next;
-		print "NAME: \"".$strpat->{$key}->{name}."\" matched with pattern \"".$key."\", full time for pattern: ".1000*$strpat->{$key}->{ptime}." milliseconds\n";
-		foreach (keys %{$strpat->{$key}->{pids}}) {
-			print "\tpid: $_, time: ".1000*$strpat->{$key}->{pids}->{$_}->{ptime}." milliseconds, user command: \"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\"\n";
-		}
-	}
+	#foreach my $key( keys %{$strpat}) {
+	#	%{$strpat->{$key}->{pids}} or next;
+	#	print "NAME: \"".$strpat->{$key}->{name}."\" matched with pattern \"".$key."\", full time for pattern: ".1000*$strpat->{$key}->{ptime}." milliseconds\n";
+	#	foreach (keys %{$strpat->{$key}->{pids}}) {
+	#		print "\tpid: $_, time: ".1000*$strpat->{$key}->{pids}->{$_}->{ptime}." milliseconds, user command: \"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\"\n";
+	#	}
+	#}
 	__print_uinfo($strpat);
 }
 

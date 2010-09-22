@@ -324,8 +324,14 @@ masters = MasterStats.new
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 	Trace.tools.each do |dbname,tag|
 		(ld/tag/"time").each do |entry|
-			trace.processe.create(:name => tag, :pattern => entry.attributes['name'], :time => entry.inner_html.to_i);
+			times = entry.inner_html.split(':')
+			trace.processe.create(:name => tag, :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2]);
 		end
+	end
+	# fix for bce
+	(ld/"build"/"time").each do |entry|
+			times = entry.inner_html.split(':')
+			trace.processe.create(:name => 'build-cmd-extractor', :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2]);
 	end
 
 end

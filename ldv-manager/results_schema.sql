@@ -146,7 +146,8 @@ create table processes(
 	name varchar(50) not null,
 	pattern varchar(50) not null,
 
-	time int(10) unsigned not null default 0, 
+	time_average int(10) unsigned not null default 0, 
+	time_detailed int(10) unsigned not null default 0, 
 
 	primary key(trace_id, name, pattern),
 	UNIQUE (trace_id, name, pattern),

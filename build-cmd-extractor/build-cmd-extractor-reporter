@@ -57,6 +57,9 @@ my @astate = get_state();
 
 
 my %cc_times;
+my %average_times;
+my $ld_counter = 0;
+
 my @instruments = ('drv-env-gen','rcv','dscv','rule-instrumentor');
 
 
@@ -64,6 +67,7 @@ my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream_cc,
 			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream_ld };
 my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
 $twig_inreport->parsefile($report_in);
+
 
 my $instrument = XML::Twig::Elt->new($xml_build);
 XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
@@ -87,10 +91,67 @@ if ( -f "$stats_file" ) {
         $time_elt->paste($instrument);
 };
 
-
 XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 $outreport_root = $twig_inreport->root;
 $instrument->paste('last_child',$outreport_root);
+
+
+
+# set average time for all ld commands
+my $croot=$twig_inreport->root;
+my $children_build = $croot->first_child('build');
+
+# calculate average build time
+foreach ($children_build->children('time')) {
+	$average_times->{'build'}->{$_->att('name')} = $_->text/$ld_counter;
+}
+my @childrens_ld = $croot->children('ld');
+foreach my $entry(@childrens_ld) {
+	my $build_fix_tag = XML::Twig::Elt->new('build');
+	foreach my $build_time_fix_tag(keys %{$average_times->{'build'}}) {
+		my $build_time = $average_times->{'build'}->{$build_time_fix_tag};
+		my $build_time_tag = XML::Twig::Elt->new('time',"$build_time:$build_time:$build_time");
+		$build_time_tag->set_att('name',$build_time_fix_tag);
+		$build_time_tag->paste($build_fix_tag);
+	}
+	$build_fix_tag->paste($entry);
+	foreach my $instrument(@instruments) {
+	 	my $instrument_tag = $entry->first_child($instrument) or next;
+	        foreach ($instrument_tag->children('time')) {
+	         	$_->text =~ /([0-9]*):([0-9].*):([0-9].*)/;
+			$average_times->{$instrument_tag->name}->{$_->att('name')} or next;
+			$_->set_text("$1:$2:".($average_times->{$instrument_tag->name}->{$_->att('name')}/$ld_counter+$3));
+			#$_->set_text("$2:".($average_times->{$instrument_tag->name}->{$_->att('name')}/$ld_counter+$3));
+		}
+	}
+}
+
+#my $instrument = XML::Twig::Elt->new($xml_build);
+#XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+
+#if ( -f "$stats_file" ) {
+#	my %timestats;
+#       open(STATS_FILE, '<', "$stats_file") or die "Can't open file with time statistics: \"$stats_file\", $!";
+#        while(<STATS_FILE>) {
+#	        /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+#        	$timestats{$1} += $2;
+#        }
+#        close STATS_FILE;
+#        foreach(keys %timestats) {
+#                my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$timestats{$_});
+#                $time_elt->set_att( name =>$_);
+#                $time_elt->paste($instrument);
+#        }
+#} else {
+#        my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
+#        $time_elt->set_att( name =>"ALL");
+#        $time_elt->paste($instrument);
+#};
+
+
+#XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+#$outreport_root = $twig_inreport->root;
+#$instrument->paste('last_child',$outreport_root);
 
 $twig_inreport->set_xml_version('1.0');
 $twig_inreport->set_pretty_print('indented');
@@ -100,7 +161,6 @@ $twig_inreport->print_to_file($report_out);
 #####################################################
 # twig  handlers
 #####################################################
-
 sub hxml_cmdstream_cc {
         my (undef, $entry) = @_; 
 	my $model = $entry->att('model');
@@ -108,26 +168,37 @@ sub hxml_cmdstream_cc {
                 my $instrumment_pattern = $entry->first_child($_) or next;
                 local $_; 
                 foreach ($instrumment_pattern->children('time')) {
+			$average_times->{$instrumment_pattern->name}->{$_->att('name')} += $_->text;
                         $cc_times->{$model}->{$instrumment_pattern->name}->{$_->att('name')}->{'time'} += $_->text;
                 }   
         } 
 }
 
 sub hxml_cmdstream_ld {
+	$ld_counter++;
         my (undef, $entry) = @_;
 	my $model = $entry->att('model');
+
+        foreach my $instrument(@instruments) {
+                my $instrument_tag = $entry->first_child($instrument) or next;
+                foreach my $time_tag($instrument_tag->children('time')) {
+			$time_tag->set_text($time_tag->text.':'.$time_tag->text.':'.$time_tag->text);
+		}
+	}
+
         foreach my $instrument(keys %{$cc_times->{$model}}) {
                 my $instrument_tag = $entry->first_child($instrument) or next;
-                foreach my $pattern(keys %{$cc_times->{$model}->{$instrument}}) {
-                        # find tim with attribute equals pattern
+               foreach my $pattern(keys %{$cc_times->{$model}->{$instrument}}) {
+                        # find time with attribute equals pattern
                         my $before = 0;
                         foreach ($instrument_tag->children('time')) {
                                 $_->att('name') eq $pattern or next;
                                 $before = 1;
-				$_->set_text($_->text+$cc_times->{$model}->{$instrument}->{$pattern}->{'time'});  
+				$_->text =~ /([0-9]*):([0-9]*):([0-9]*)/;
+				$_->set_text($1.':'.($1+$cc_times->{$model}->{$instrument}->{$pattern}->{'time'}).":$1");
                         }   
                         $before == 0 or next;
-                        my $newtime = XML::Twig::Elt->new('time',$cc_times->{$model}->{$instrument}->{$pattern}->{'time'});
+                        my $newtime = XML::Twig::Elt->new('time','0:'.$cc_times->{$model}->{$instrument}->{$pattern}->{'time'}.":0");
                         $newtime->set_atts('name', $pattern);
                         $newtime->paste('last_child',$instrument_tag);
                 }   
