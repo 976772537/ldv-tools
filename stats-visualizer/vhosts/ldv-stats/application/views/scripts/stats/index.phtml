@@ -1,7 +1,142 @@
-<br /><br /><center>View script for controller <b>Stats</b> and script/action name <b>index</b></center>
-<dl>
-    <?php echo 'User: \'' . $this->entries['user name'] . '\'. Profile: \'' . $this->entries['profile name'] . '\''; ?>
-    <?php /*foreach ($this->entries as $entry):*/ ?>
-    <dt><?php /*echo $this->escape($entry->id)*/ ?></dt>
-    <?php /*endforeach*/ ?>
-</dl>
+<?php
+
+// Get all infomation to be displayed.
+$results = $this->entries;
+
+// Get the view name.
+$page = $results['Page'];
+echo "<h3>The statistics for the page '$page'</h3>";
+
+// Get the statistics information part.
+$stats = $results['Stats']['Row info'];
+
+$statKeys = array_keys($stats[0]['Stats key']);
+$verificationKeys = array_keys($stats[0]['Verification info']);
+$toolKeys = array_keys($stats[0]['Tools info']);
+$problemKeys = array_keys($results['Stats']['All tool problems']);
+$toolNames = array_keys($results['Stats']['All tool names']);
+
+// Get the necessary tools information.
+$tools = array();
+
+foreach ($toolNames as $toolName) {
+  $tools[$toolName]['Info'] = array();
+  $tools[$toolName]['Problems'] = array();
+}
+
+foreach ($toolKeys as $toolKey) {
+  $toolNameInfo = preg_split('/ /', $toolKey);
+  $tools[$toolNameInfo[0]]['Info'][] = $toolNameInfo[1];
+}
+
+// Bind tool problems if soto the tool info.
+foreach ($problemKeys as $problemKey) {
+  $toolNameProblems = preg_split('/ /', $problemKey);
+  $tools[$toolNameProblems[0]]['Problems'] = $results['Stats']['All tool problems'][$problemKey];
+}
+
+$statVerificationKeyRowSpan = 1;
+$statToolsKeyRowSpan = 1;
+
+if (count($tools)) {
+  $statVerificationKeyRowSpan++;
+}
+
+if (count($problemKeys)) {
+  $statVerificationKeyRowSpan++;
+  $statToolsKeyRowSpan++;
+}
+
+echo "<table border=1>
+        <tr bgcolor='yellow'>";
+foreach ($statKeys as $statKey) {
+  echo "    <td rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
+}
+foreach ($verificationKeys as $verificationKey) {
+  echo "    <td rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
+}
+foreach ($tools as $toolName => $toolInfoProblems) {
+  echo "    <td colspan='" . (count($toolInfoProblems['Info']) + count($toolInfoProblems['Problems'])) . "'>$toolName</td>";
+}
+echo "  </tr>";
+echo "<tr bgcolor='gray'>";
+foreach ($tools as $toolName => $toolInfoProblems) {
+  foreach ($toolInfoProblems['Info'] as $toolInfo) {
+    echo "    <td rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
+  }
+  if ($problemsNumb = count($toolInfoProblems['Problems'])) {
+    echo "    <td colspan='$problemsNumb'>Problems</td>";
+  }
+}
+echo "  </tr>";
+if (count($problemKeys)) {
+  echo "<tr bgcolor='red'>";
+  foreach ($tools as $toolName => $toolInfoProblems) {
+    foreach (array_keys($toolInfoProblems['Problems']) as $toolProblem) {
+      echo "    <td>$toolProblem</td>";
+    }
+  }
+  echo "  </tr>";
+}
+
+foreach ($statKeys as $statKey) {
+  $prevStatKey[$statKey] = '';
+}
+foreach ($stats as $result) {
+  echo "  <tr>";
+  foreach ($statKeys as $statKey) {
+    echo "    <td>";
+    $value = $result['Stats key'][$statKey];
+    if ($value != $prevStatKey[$statKey]) {
+      echo "$value";
+      $prevStatKey[$statKey] = $value;
+    }
+    echo "</td>";
+  }
+
+  foreach ($verificationKeys as $verificationKey) {
+    echo "    <td>" . $result['Verification info'][$verificationKey] . "</td>";
+  }
+
+  foreach ($tools as $toolName => $toolInfoProblems) {
+    foreach ($toolInfoProblems['Info'] as $toolInfo) {
+      echo "    <td>" . $result['Tools info']["$toolName $toolInfo"] . "</td>";
+    }
+
+    foreach (array_keys($toolInfoProblems['Problems']) as $toolProblem) {
+      $isHasProblem = false;
+      // If a given tool has any problem at all.
+      if (array_key_exists("$toolName Problems", $result['Tool problems'])) {
+        foreach ($result['Tool problems']["$toolName Problems"] as $resultProblem) {
+          // If a given tool has a particular problem.
+          if ($toolProblem == $resultProblem['Problem name']) {
+            echo "    <td>" . $resultProblem['Problem number'] . "</td>";
+            $isHasProblem = true;
+          }
+        }
+      }
+
+      // In any case generate cell to fill the whole table correctly.
+      if (!$isHasProblem) {
+        echo "<td>-</td>";
+      }
+    }
+  }
+
+  echo "  </tr>";
+}
+echo "</table>";
+
+// Print information on the current database connection.
+echo "<h3>Current database connection options</h3>";
+$db_connection_options = $results['Database connection'];
+foreach ($db_connection_options as $option => $value) {
+  if ($option != 'profiler') {
+    echo "$option = '$value'<br>";
+  }
+}
+
+#foreach ($this->entries as $entry):
+#    echo $this->escape($entry->id)
+
+?>

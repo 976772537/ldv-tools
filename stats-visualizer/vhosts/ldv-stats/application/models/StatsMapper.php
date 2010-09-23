@@ -47,6 +47,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'scenarios' => 'SC',
     'stats' => 'ST',
     'tasks' => 'TA',
+    'toolsets' => 'TO',
     'traces' => 'TR');
   protected $_tableLaunchMapper = array(
     'drivers' => 'driver_id',
@@ -77,6 +78,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
     $this->_db = new Zend_Db_Adapter_Pdo_Mysql($options);
+
+    return $options;
   }
 
   public function getTableColumn($tableColumn)
@@ -89,8 +92,15 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
   public function getPageStats($profile, $pageName)
   {
+    // Here all information to be shown will be written.
+    $result = array();
+
+    // Get information on statistics entities to be displayed on the given page.
     $page = $profile->getPage($pageName);
-    $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+    $result['Page'] = $pageName;
+
+    // Connect to the profile database and remember connection settings.
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
 
     // Obtain the launch info columns. They will be selected as statistics key,
     // joined and by them groupping by and ordering will be done. Note that they
@@ -223,7 +233,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
           $select = $select
             ->from(array($this->_tableMapper[$tableMain] => $tableMain),
-                array_merge($launchInfo, array("$toolName Problems" => $problemsColumn)));
+                array_merge($launchInfo, array(
+                  "$toolName Problems" => $problemsColumn,
+                  "$toolName Problems number" => 'COUNT(*)')));
 
           // Join launches with related with statistics key tables. Note that
           // traces is always joined.
@@ -278,21 +290,26 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               $statsValues[] = $launchesProblemsRow[$statsKeyPart];
             }
             $statsValuesStr = join(';', $statsValues);
-            $toolProblems["$toolName Problems"][$statsValuesStr][] = $launchesProblemsRow["$toolName Problems"];
+            $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
           }
         }
       }
     }
 #echo "<br><br>";
     // Merge launch, verification and problems information.
-    $result = array();
     $verificationKey = array_merge(array_keys($verificationInfo), array_keys($verificationResultInfo));
     $toolsKey = array_keys($toolsInfo);
+    // Remember all tool names.
+    $result['Stats']['All tool names'] = array();
+    // Collect all set of problems for a given tool that will be used in
+    // visualization.
+    $result['Stats']['All tools problems'] = array();
 
     foreach ($launchesResultSet as $launchesRow) {
       $resultPart = array();
       $statsValues = array();
 
+      $resultPart['Stats key'] = array();
       foreach ($statsKey as $statsKeyPart) {
         $resultPart['Stats key'][$statsKeyPart] = $launchesRow[$statsKeyPart];
         $statsValues[] = $launchesRow[$statsKeyPart];
@@ -300,27 +317,37 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $statsValuesStr = join(';', $statsValues);
 
+      $resultPart['Verification info'] = array();
       foreach ($verificationKey as $verificationKeyPart) {
         $resultPart['Verification info'][$verificationKeyPart] = $launchesRow[$verificationKeyPart];
       }
 
+      $resultPart['Tools info'] = array();
       foreach ($toolsKey as $toolsKeyPart) {
         $resultPart['Tools info'][$toolsKeyPart] = $launchesRow[$toolsKeyPart];
+        $toolNameInfo = preg_split('/ /', $toolsKeyPart);
+        $result['Stats']['All tool names'][$toolNameInfo[0]] = 1;
       }
 
+      $resultPart['Tool problems'] = array();
       foreach ($toolProblems as $toolProblemsName => $toolProblemsKey) {
         if (array_key_exists($statsValuesStr, $toolProblemsKey)) {
-          $resultPart['Tools problems'][$toolProblemsName] = $toolProblemsKey[$statsValuesStr];
+          $problems = $toolProblemsKey[$statsValuesStr];
+          $resultPart['Tool problems'][$toolProblemsName] = $problems;
+          foreach ($problems as $problem) {
+            $result['Stats']['All tool problems'][$toolProblemsName][$problem['Problem name']] = 1;
+          }
+          $toolNameProblems = preg_split('/ /', $toolProblemsName);
+          $result['Stats']['All tool names'][$toolNameProblems[0]] = 1;
         }
       }
 
-      $result[] = $resultPart;
+      $result['Stats']['Row info'][] = $resultPart;
     }
 
 #    foreach ($result as $res) {
 #      echo "<br>";print_r($res);
 #    }
-
     return $result;
   }
 }
