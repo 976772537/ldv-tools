@@ -4,6 +4,7 @@ require 'active_record'
 require 'hpricot'
 require 'find'
 require 'open3'
+require 'logger'
 
 ActiveRecord::Base.establish_connection(
 	:adapter  => 'mysql',
@@ -22,6 +23,17 @@ require File.join(manhome,"results_model.rb")
 # All models were loaded in results_model.rb.  Now we just add a couple of methods that regard loading them from report
 
 class Task
+	# Get date and time of a task from a special "timestamp" tag.  It should be set in report-fixup correspondingly!
+	def self.process_timestamp_tag(timestamp_tag)
+		# List of tags to read
+		tags = %w{sec min hour mday mon year wday yday isdst}
+		# Read tags into tag->value hash
+		d = {}
+		tags.each {|tn| d[tn] = (timestamp_tag/tn).inner_html.to_i}
+		# Return date
+		DateTime.civil(d['year'], d['mon'], d['mday'], d['hour'], d['min'], d['sec'])
+	end
+
 	def self.from_xml(tag)
 		unless (tag/"task_id").empty?
 			# Get task from database
@@ -38,7 +50,7 @@ class Task
 			raise "Couldn't find or create task for task_name=#{task_name}" unless task
 			# Of course, we should re-create the other fields
 			task.username = (tag/"username").inner_html unless (tag/"task_name").empty?
-			task.timestamp = (tag/"timestamp").inner_html.to_datetime unless (tag/"timestamp").empty?
+			task.timestamp = Task.process_timestamp_tag(tag/"timestamp") unless (tag/"timestamp").empty?
 			task.description = (tag/"description").inner_html unless (tag/"description").empty?
 			task.driver_spec = (tag/"driver").inner_html unless (tag/"driver").inner_html.empty?
 			task.driver_spec_origin = (tag/"driver_origin").inner_html unless (tag/"driver_origin").empty?
@@ -49,7 +61,7 @@ class Task
 		unless (tag/"username").empty? || (tag/"timestamp").empty?
 			# Create task for user/given timestamp
 			username = (tag/"username").inner_html
-			timestamp = (tag/"timestamp").inner_html.to_datetime
+			timestamp = Task.process_timestamp_tag(tag/"timestamp")
 			description = (tag/"description").inner_html
 			driver_spec = (tag/"driver").inner_html
 			driver_spec = nil if driver_spec.empty?
@@ -72,6 +84,18 @@ class Trace
 	end
 end
 
+class Processe
+	def self.from_xml(entry,do_nulls)
+		ps = Processe.new
+		if entry.respond_to?('none?') && entry.none?
+			return nil if do_nulls
+		end
+		ps.pattern = entry.attributes['name'];		
+		ps.time = entry.inner_html.to_i || 0;		
+		ps
+	end
+end
+
 class Stats
 	def self.from_xml(entry,do_nulls)
 		st = Stats.new
@@ -80,7 +104,10 @@ class Stats
 		end
 		st.success = (entry/"status").inner_html == 'OK'
 		st.loc = (entry/"loc").inner_html.to_i || 0
-		st.time = (entry/"time").inner_html.to_i || 0
+		(entry/"time").each do |tag|
+			if tag.attributes['name'] == 'ALL' then st.time=tag.inner_html.to_i else st.time=0 end
+		end
+		#st.time = (entry/"time").inner_html.to_i || 0
 		st.description = (entry/"desc").inner_html
 		st
 	end
@@ -260,7 +287,7 @@ masters = MasterStats.new
 						# Send description to the checker
 						cin.write( tool_stat.description )
 						cin.close
-						cout.each {|line| tool_stat.problems << Problem.find_or_create_by_name(line.chomp) }
+						cout.each {|line| p = Problem.find_or_create_by_name(line.chomp); tool_stat.problems << p unless tool_stat.problems.include? p  }
 						cerr.each {|errln| $stderr.puts errln}
 					end
 				end
@@ -295,6 +322,18 @@ masters = MasterStats.new
 
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+	Trace.tools.each do |dbname,tag|
+		(ld/tag/"time").each do |entry|
+			times = entry.inner_html.split(':')
+			trace.processe.create(:name => tag, :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2]);
+		end
+	end
+	# fix for bce
+	(ld/"build"/"time").each do |entry|
+			times = entry.inner_html.split(':')
+			trace.processe.create(:name => 'build-cmd-extractor', :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2]);
+	end
+
 end
 
 # Report build errors

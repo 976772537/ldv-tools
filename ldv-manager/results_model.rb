@@ -48,6 +48,10 @@ end
 class Task < ActiveRecord::Base
 end
 
+class Processe < ActiveRecord::Base
+        belongs_to :trace
+end
+
 class Trace < ActiveRecord::Base
 	has_one :launch
 
@@ -58,6 +62,7 @@ class Trace < ActiveRecord::Base
 	belongs_to :rcv, :class_name => 'Stats', :autosave => true
 
 	has_many :sources, :autosave => true
+	has_many :processe, :autosave => true
 
 	#Tool nicknames -> XML names
 	def self.tools ; {

@@ -14,6 +14,20 @@ $work_dir or usage();
 use strict;
 use XML::Twig;
 
+sub current_date
+{
+	my ($name) = @_;
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+	$year+=1900; $mon+=1;	#required due to date-time format printed by localtime.  Months usually start with 1.
+	my @vals = qw(sec min hour mday mon year wday yday isdst);
+	my $elt_result = XML::Twig::Elt->new($name);
+	# Print variable values into tags that correspond to their names
+	local $_;
+	XML::Twig::Elt->new($_,{},eval "\$$_")->paste($elt_result) for @vals;
+
+	return $elt_result;
+}
+
 sub handle_report
 {
 	my ($twig, $cmdT) = @_;
@@ -29,8 +43,7 @@ sub handle_report
 		if ($ENV{'LDV_TASK_NAME'}){
 			XML::Twig::Elt->new('task_name',{},$ENV{'LDV_TASK_NAME'})->paste($taskT);
 		}
-		my $date = `date`; chomp $date;
-		XML::Twig::Elt->new('timestamp',{},$date)->paste($taskT);
+		current_date('timestamp')->paste($taskT);
 		my $user = `id -un`; chomp $user;
 		XML::Twig::Elt->new('username',{},$user)->paste($taskT);
 		XML::Twig::Elt->new('description',{},$task_name)->paste($taskT);

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# timer
+start_time=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`;
+
 BCE_TEMPDIR_NAME="bce_tempdir"
 DRIVER_DIR_NAME="driver"
 TEMP_DRIVER_DIR_NAME="tempdir_driver"
@@ -134,6 +137,8 @@ fi;
 if [ ! -n "$statefile" ]; then
 	ldv_print "ERROR: Parameter \"--state\" - is null. Setup it.";
         print_usage_and_exit;
+else
+	statefile_data=$statefile.data;
 fi;
 
 TEMP_DIR=$WORK_DIR/$basedir;
@@ -164,6 +169,8 @@ else
 	cd $env;
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: Failed change dir to: \"$env\".";
+		let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+		echo $worktime>$statefile_data;
 		exit 1;
 	fi;
 
@@ -209,10 +216,14 @@ else
 		if [ ! -n "$CORRECT_MAKEFILE" ]; then
 			ldv_print "ERROR: Can't find correct Makefile or Kbuild file.";
 			echo "Can't find correct Makefile or Kbuild file." > $statefile;
+			let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+			echo $worktime>$statefile_data;
 			exit 1;
 		fi;
 		DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
 		if [ $? -ne 0 ]; then
+			let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+			echo $worktime>$statefile_data;
 			ldv_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
 			exit 1;
 		fi;
@@ -230,8 +241,12 @@ else
 			shield_xml $statefile;
 			ldv_print "ERROR: Can't configure kernel.";
 		        if [ -f "$statefile" ]; then
+				let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+				echo $worktime>$statefile_data;
 		                echo "Can't configure kernel." >>$statefile;
 		        else
+				let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+				echo $worktime>$statefile_data;
 		                echo "Can't configure kernel." >$statefile;
 		        fi;
 			exit 1;
@@ -241,8 +256,12 @@ else
 			shield_xml $statefile;
 			ldv_print "ERROR: Can't init kernel.";
 		        if [ -f "$statefile" ]; then
+				let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+				echo $worktime>$statefile_data;
 		                echo "Can't init kernel." >>$statefile;
 	       		else
+				let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+				echo $worktime>$statefile_data;
 		                echo "Can't init kernel." >$statefile;
 		        fi;
 			exit 1;
@@ -259,8 +278,12 @@ else
 		shield_xml $statefile;
 		ldv_print "ERROR: Error during driver compile. See compile log for more details: \"$KERNEL_COMPILE_LOG\".";
        		if [ -f "$statefile" ]; then
+			let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+			echo $worktime>$statefile_data;
        	        	echo "Compile error." >>$statefile;
 	        else
+			let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+			echo $worktime>$statefile_data;
        		        echo "Compile error." >$statefile;
        		fi;
 		exit 1;
@@ -313,12 +336,16 @@ if [ ! -n "$cmdstream" ]; then
 	# Find kernel modules (i.e. ld check=true)
 	# 
 	if [ $KERNEL_LEVEL -eq 0 -a ! -n "`grep '<ld id=' $cmdfileout`" ]; then
+		let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+		echo $worktime>$statefile_data;
 		echo "Driver have no kernel modules." >$statefile;
 		ldv_print "ERROR: Driver have no kernel modules.";
 		exit 1;
 	fi;
 fi;
 
+let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+echo $worktime>$statefile_data;
 ldv_print "NORMAL: Command stream is successfully extracted.";
 exit;
 

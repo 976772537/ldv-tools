@@ -3,6 +3,7 @@ DRV_ENV_GEN_CC = ldv_cc.jar
 DRV_ENV_GEN_LD = ldv_ld.jar
 DRV_ENV_GEN_WRAPPER = drv-env-gen
 DRV_ENV_GEN_REPORTER = drv-env-gen-reporter
+DRV_ENV_GEN_PROPERTIES = default.properties
 
 # Top level hierarchy
 exec_prefix = ${prefix}
@@ -24,6 +25,7 @@ install:
 	cp $(srcdir)/dist/$(DRV_ENV_GEN_LD) $(prefix)/$(DRV_ENV_GEN_DIR)
 	cp $(srcdir)/$(DRV_ENV_GEN_WRAPPER) $(prefix)/$(DRV_ENV_GEN_DIR)
 	cp $(srcdir)/$(DRV_ENV_GEN_REPORTER) $(prefix)/$(DRV_ENV_GEN_DIR)
+	cp $(srcdir)/$(DRV_ENV_GEN_PROPERTIES) $(prefix)/$(DRV_ENV_GEN_DIR)
 
 clean:
 	ant clean

@@ -17,6 +17,9 @@ use Getopt::Long qw(:config require_order);
 
 my $timelimit = undef;
 my $memlimit = undef;
+my $strapt = undef;
+my $output = undef;
+my $reference = undef;
 # Requests per seccond
 my $frequency = 10;
 
@@ -24,9 +27,14 @@ GetOptions(
 	'timelimit|t=i'=>\$timelimit,
 	'memlimit|m=i'=>\$memlimit,
 	'frequency|x=i'=>\$frequency,
+	'pattern|p=s'=>\$strpat,
+	'output|o=s'=>\$output,
+	'reference|r=s'=>\$reference,
 ) or usage;
 
 @ARGV or usage;
+
+my $uinfo = get_patterns($strpat);
 
 my $uwait = int (1_000_000 / $frequency);
 
@@ -61,6 +69,8 @@ my $timeinfo = { total => 0, finished => 0, current => {} };
 # For this -- update_memory
 my $meminfo = 0;
 
+my $fulltime = 0;
+
 my $status = 'wait';
 my $box_status = 0;
 while ($status eq 'wait'){
@@ -72,6 +82,7 @@ while ($status eq 'wait'){
 			# According to signal(7), wait is a safe function, so we can call anything we want here.
 			$timeinfo = update_time($blackbox_pid,$timeinfo);
 			$meminfo = update_memory($blackbox_pid,$meminfo);
+			$fulltime = update_info_by_ucmd($blackbox_pid,$uinfo);
 			die "Assume waitpid return 0\n";
 		};
 		ualarm $uwait;
@@ -83,6 +94,7 @@ while ($status eq 'wait'){
 	if ($@ =~ /Assume waitpid return ([0-9]+)/){
 		$arrived = $1;
 	}else{
+		print_uinfo($uinfo,$fulltime);
 		die "Fail: $@";
 	}
 	if ($arrived == $blackbox_pid){
@@ -91,22 +103,26 @@ while ($status eq 'wait'){
 		$status = 'exit'
 	}elsif ($arrived == -1){
 		# Something happened!
+		print_uinfo($uinfo,$fulltime);
 		die "wait($blackbox_pid) failed: $!";
 	}else{
 		# Check if limits are exhausted (they should be updated by signal handler).
 		if (defined $timelimit && $timeinfo->{total} > $timelimit){
 			print STDERR "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
 			kill_process_group_safely($blackbox_pid);
+			print_uinfo($uinfo,$fulltime);
 			exit 0;
 		}
 		if (defined $memlimit && $meminfo > $memlimit){
 			print STDERR "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
 			kill_process_group_safely($blackbox_pid);
+			print_uinfo($uinfo,$fulltime);
 			exit 0;
 		}
 	}
 }
 
+print_uinfo($uinfo,$fulltime);
 exit $box_status;
 
 #-----------------------------------------------
@@ -116,8 +132,8 @@ BEGIN { $ticksize = POSIX::sysconf(&POSIX::_SC_CLK_TCK) or die "Couldn't get tic
 sub hires_proc_runtime
 {
 	my ($pid) = @_;
-	my $stat = `cat /proc/$pid/stat`;
-	# Since we invoke this function quite often, process may decease betweem ps invocation and attempt to access its /proc entry.  So, we return undef and handle it in the caller.
+	my $stat = `cat /proc/$pid/stat 2>/dev/null`;
+	# Since we invoke this function quite often, process may decease betweem ps invocation and attempt to access its /proc entry.  So, we return undef and handle it in the caller.  That's also the reason of error redirection to void.
 	return undef unless $stat;
 	# Parse proc stats--14th is utime, and it's expressed in ticks.
 	my (undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,$utime_ticks,$stime_ticks) = split /\s+/,$stat;
@@ -168,7 +184,6 @@ sub update_memory
 		$result += $mem;
 	}
 	close $PS_FH or die "Bad close ps: $!";
-
 	return $result;
 }
 
@@ -183,4 +198,81 @@ sub kill_process_group_safely
 	kill SIGKILL, -$pgrp or die;
 }
 
+sub update_info_by_ucmd 
+{
+	my ($pgrp, $strpat) = @_;
+	my $PS_FH; open $PS_FH, "-|", qw(ps -A -o pgrp= -o pid= -o ucmd=) or die "Bad open ps: $!"; 
+	while(<$PS_FH>){
+		/^\s*([0-9]+)\s+([0-9]+)\s+(.*)/ or next;
+		my ($grp, $pid, $ucmd) = ($1, $2, $3);
+		$pgrp == $grp or next;
+		my $proctime = hires_proc_runtime($pid);
+		$proctime or next;
+		# Search process by pattern		
+		foreach my $key(keys %{$strpat}) {
+			$ucmd =~ m/$key/ or next;
+			$strpat->{$key}->{pids}->{$pid}->{ptime} = $proctime;
+			$strpat->{$key}->{pids}->{$pid}->{ucmd} = $ucmd;
+		}	
+	}
+	close $PS_FH;
 
+	# Calculate full time for each pattern
+	foreach my $key(keys %{$strpat}) {
+		$strpat->{$key}->{ptime} = 0;
+		foreach (keys %{$strpat->{$key}->{pids}}) {
+			$strpat->{$key}->{ptime} += $strpat->{$key}->{pids}->{$_}->{ptime};
+		}
+	}	
+}
+
+
+#
+# TODO: If the file already exists, and it contains two or more <time>...</time>
+#       blocks with equals references and name 
+#       then we must be calculate summary time and write one <time>..</time> 
+#       block  instead of more with equlas references.
+#       It needs for rule-instrumentor, that execute aspectator two time for
+#       one cc command. 
+#
+sub __print_uinfo
+{		
+	defined $output and (open(FIL,">>", $output) or die "Can't open output file: $!\n");
+	my ($strpat) = @_;
+	my $reftext="";
+	defined $reference and $reftext="ref=\"$reference\"";
+	foreach my $key( keys %{$strpat}) {
+		%{$strpat->{$key}->{pids}} or next;
+		defined $output or next;
+		print(FIL "<time ".$reftext." name=\"".$strpat->{$key}->{name}."\">".1000*$strpat->{$key}->{ptime}."</time>\n");
+		#foreach (keys %{$strpat->{$key}->{pids}}) {
+		#	print FIL "<time ".$reftext." name=\"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\">".1000*$strpat->{$key}->{pids}->{$_}->{ptime}."</time>\n";
+		#}
+	}
+	defined $output and close FIL;
+}
+
+sub print_uinfo
+{
+	my ($strpat) = @_;
+	#foreach my $key( keys %{$strpat}) {
+	#	%{$strpat->{$key}->{pids}} or next;
+	#	print "NAME: \"".$strpat->{$key}->{name}."\" matched with pattern \"".$key."\", full time for pattern: ".1000*$strpat->{$key}->{ptime}." milliseconds\n";
+	#	foreach (keys %{$strpat->{$key}->{pids}}) {
+	#		print "\tpid: $_, time: ".1000*$strpat->{$key}->{pids}->{$_}->{ptime}." milliseconds, user command: \"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\"\n";
+	#	}
+	#}
+	__print_uinfo($strpat);
+}
+
+sub get_patterns
+{
+	my ($patterns_in_string) = @_;
+	my @splitted_patterns = split(/;/,$patterns_in_string);
+	my %patterns = ();
+	foreach (@splitted_patterns) {
+		my ($pattern, $name) = split(/,/,$_);
+		$patterns{$pattern} = {name=>$name, ptime=>0, pids=>{}};
+	}
+	return {%patterns};
+}

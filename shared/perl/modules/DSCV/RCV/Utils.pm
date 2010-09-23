@@ -45,10 +45,14 @@ sub set_up_timeout
 	ref $resource_spec eq 'HASH' or Carp::confess;
 	my $timelimit = $resource_spec->{timelimit};
 	my $memlimit = $resource_spec->{memlimit};
+	my $pattern = $resource_spec->{pattern};
+	my $output = $resource_spec->{output};
 	my $idstr = $resource_spec->{id_str};
 
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
+	unshift @cmdline,"-p",$pattern if $pattern;
+	unshift @cmdline,"-o",$output if $output;
 	unshift @cmdline,$timeout if $timelimit || $memlimit;
 
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
@@ -246,15 +250,15 @@ sub ld_maker
 		@mains or vsay("WARNING", "No mains specified for file ".$cmdT->first_child_text('out')."\n");
 		# List of error locations
 		my @errlocs = $cmdT->children_text('error');
-		# Report file
+		# Report file (%s will be replaced with main name)
 		my $report = reports_dir($workdir)."/$target.report";
 		mkpath(dirname($report));
 		# Tool debug file (to dump the trace of the tool)
-		my $debug = reports_dir($workdir)."/$target.debug";
+		my $debug = reports_dir($workdir)."/$target.%s.debug";
 		$debug.=".gz" if $archivated;
 		mkpath(dirname($debug));
 		# Trace file (to dump the error trace)
-		my $trace = reports_dir($workdir)."/$target.trace";
+		my $trace = reports_dir($workdir)."/$target.%s.trace";
 		mkpath(dirname($trace));
 
 		# Common arguments for the verifier command
@@ -344,6 +348,17 @@ sub ld_maker
 		$verify->(%common_vercmd_args, files => \@files);
 
 	};
+}
+
+# Given main name and arguments array, returns arguments unique for that name
+sub args_for_main
+{
+	my ($main,%args) = @_;
+	my %new_args = (%args);
+
+	local $_;
+	$new_args{$_} = sprintf ($args{$_},$main) for qw(debug trace);
+	return %new_args;
 }
 
 1;

@@ -104,21 +104,16 @@ sub verify_blast
 	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
 
+	# Since arguments alter depending on main, we should save them to temporary.
+	my %args_template = (%args);
+
 	for my $main (@{$args{mains}}){
+		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		my $result = call_blast(%args, main=>$main); 
 	
 		# Print verdict to console and to report 
 		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
 		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
-
-		my $bv = $result->{'BLAST-detailed'};
-		if ($bv =~ /\bsafe\b/) {
-			$bv='SAFE';
-		}elsif($bv =~ /\bunsafe\b/){
-			$bv='UNSAFE';
-		}else{
-			$bv='UNKNOWN';
-		}
 
 		my $br = $result->{'BLAST'};
 		if ($br =~ /\byes\b/i) {
@@ -128,6 +123,16 @@ sub verify_blast
 		}else{
 			$br='FAILED';
 		}
+
+		my $bv = $result->{'BLAST-detailed'};
+		if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
+			$bv='SAFE';
+		}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
+			$bv='UNSAFE';
+		}else{
+			$bv='UNKNOWN';
+		}
+
 
 		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
@@ -140,9 +145,34 @@ sub verify_blast
 		XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
 
 		# Calculate and output time elapsed
-		my $time_sec = $result->{'utime'}+$result->{'stime'};
-		my $time_msec = int($time_sec * 1000);
-		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
+		#		my $time_sec = $result->{'utime'}+$result->{'stime'};
+		#		my $time_msec = int($time_sec * 1000);
+		#		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
+		# Read file with time statistics
+		if ( -f "$workdir/stats_rcv.xml" ) {  
+			my %timestats;
+	        	open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
+		        while(<STATS_FILE>) {
+		                /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+				$timestats{$1} += $2;
+				#my $time_elt = XML::Twig::Elt->new('time',$2);
+				#$time_elt->set_att( name =>$1);
+				#$time_elt->paste($rcvResultT);			
+		        }    
+		        close STATS_FILE;
+			foreach(keys %timestats) {
+    				my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+				$time_elt->set_att( name =>$_);
+				$time_elt->paste($rcvResultT);			
+			}
+		} else {
+			my $time_elt = XML::Twig::Elt->new('time',0);
+			$time_elt->set_att( name =>"ALL");
+			$time_elt->paste($rcvResultT);			
+	        }; 
+
+
+
 
 		$rcvResultT->paste(last_child =>$cmdInstT);
 		$cmdInstT->paste($repT);
@@ -225,6 +255,8 @@ sub call_blast
 	@blast_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
 		memlimit => $memlimit,
+		pattern => ".*,ALL;.*pblast\.opt.*,PBLAST.OPT;.*cvc3.*,CVC3;.*smtlibServer.*,SMTSERVER",
+		output => "$workdir/stats_rcv.xml",
 		id_str => "DSCV_TIMEOUT ",
 		},@blast_options
 	);

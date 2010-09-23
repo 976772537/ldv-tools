@@ -64,9 +64,9 @@ function WSInit($ldvs_server_config) {
 				define("WS_SDB_PORT",$lmatches[1]);
                        	if(preg_match('/LogLevel=(.*)/', $file_array[$i], $lmatches))
 				define("WS_LDV_DEBUG",$lmatches[1]);
+			define("WS_FILE_WITH_ENVS",$ldvs_server_config);
 		}
 		WSInitPrint();
-		// TODO: test all options!
         } else {
 		WSPrintE("Can't read file with configuration.");
 		WSInitDefault();
@@ -88,6 +88,7 @@ function WSInitPrint() {
 	WSPrintD("Set up WS_ETV=".WS_ETV);
 	WSPrintD("Set up WS_TMP_DIR=".WS_TMP_DIR);
 	WSPrintD("Set up WS_MAX_DRIVER_SIZE=".WS_MAX_DRIVER_SIZE);
+	WSPrintD("Set up WS_FILE_WITH_ENVS=".WS_FILE_WITH_ENVS);
 }
 
 function WSInitDefault() {
@@ -106,30 +107,59 @@ function WSInitDefault() {
 	define("WS_MODELS_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/model-db.xml");
 	define("WS_RULES_DB_PATH","/home/iceberg/ldv-tools/kernel-rules/rules/DRVRULES_en.trl");
 	define("WS_DEBUG_MODE","off");
-	define("WS_ETV","/opt/ldv/bin/error-trace-visualizer.pl");
-	define("WS_TMP_DIR","/home/iceberg/ldvtest/ldv-online/tmpdir");
+	define("WS_ETV","/mnt/second/ldvoi/bin/error-trace-visualizer.pl");
+	define("WS_TMP_DIR","/mnt/second/tmp");
 	define("WS_MAX_DRIVER_SIZE",1500000);
+	define("WS_FILE_WITH_ENVS","null");
 }
 
 #
 # get kernel list strucure
 #
 function WSGetSupportedEnvList() {
-	$rules1 = array('32_1','77_1','08_1','29_1','37_1','43_1','60_1','68_1');
-//	$rules1 = array('32_1');
-//	$rules2 = array("32_1","77_1");
+	if(WS_FILE_WITH_ENVS != "null") {
+		WSPrintT(WS_FILE_WITH_ENVS);
+		if(!is_file(WS_FILE_WITH_ENVS)) {
+			WSPrintE("Can't find file with environemnt configuration.");
+			return;
+		}
+	        if(($file_array=file(WS_FILE_WITH_ENVS))) {
+			$envs = array();
+	                for($i=0; $i<count($file_array); $i++) {
+				if(preg_match('/env=\s*(.*)\s*:\s*(.*)\s*/', $file_array[$i], $lmatches)) {
+					$models = explode(',',$lmatches[2]);
+					$env = array('name' => $lmatches[1], 'rules' => $models);	
+					array_push($envs,$env);
+				}
+			}
+			return $envs;
+		}	
+	} else {
+		$rules1 = WSGetSupportedModels();
+		//	$rules1 = array('32_1');
+		//	$rules2 = array("32_1","77_1");
 	
-	$env1 = array('name' => "linux-2.6.32.12", 'rules' => $rules1);
-//	$env2 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules2);
-	$env2 = array('name' => "linux-2.6.33.3", 'rules' => $rules1);
-	$env3 = array('name' => "linux-2.6.34.1", 'rules' => $rules1);
-	$env4 = array('name' => "linux-2.6.35-rc6", 'rules' => $rules1);
-//	$env3 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules1);
+		$env1 = array('name' => "linux-2.6.32.12", 'rules' => $rules1);
+		//	$env2 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules2);
+		$env2 = array('name' => "linux-2.6.33.3", 'rules' => $rules1);
+		$env3 = array('name' => "linux-2.6.34", 'rules' => $rules1);
+		//	$env4 = array('name' => "linux-2.6.35-rc6", 'rules' => $rules1);
+		//	$env3 = array('name' => "linux-2.6.35-rc3", 'rules' => $rules1);
 
-	$envs = array($env1, $env2, $env3, $env4);
-//	$envs = array($env1);
-	//$envs = array($env2);
-	return $envs;
+		$envs = array($env1, $env2, $env3);//, $env4);
+		//	$envs = array($env1);
+		//$envs = array($env2);
+		return $envs;
+	}
+}
+
+#
+# get all supported models
+#
+function WSGetSupportedModels() {
+	$models = array('32_1','77_1','08_1','29_1','37_1','43_1','60_1','68_1','39_1');
+
+	return $models;
 }
 
 #
@@ -378,6 +408,10 @@ function WSRead($sock) {
 #
 # WSPutTask($task); 
 function WSPutTask($task) {
+        if(filesize($task['driverpath'])==0) {
+                WSPrintE('Driver size is null.');
+		return;
+        }   
 	// Wrapper for fix : "Premature end of file on server side message"
 	$result = __WSPutTask($task);
 	for($i=0; $i<3; $i++) {
@@ -803,9 +837,15 @@ function WSGetDetailedBuildError($launch_id) {
 	$lines = preg_split('/\n/', $trace['error_trace']);
 	
 	$lines_count = count($lines);
-	$trace['error_trace'] = '<p style="border:1px solid black;line-height: normal; height:400px;font-size:10px;font-family:monospace;overflow:scroll;white-space:pre">';
+	$trace['error_trace'] = '<p style="background: #EEEEFF; border:1px solid black;line-height: normal; height:400px;font-size:12px;font-family:sans-serif;overflow:scroll;white-space:pre">';
 	for ($i = 0; $i <= $lines_count; $i++) { 
-		$trace['error_trace'] .= sprintf ("<span style=\"background-color:#E0E0E0\">%5d </span>", $i); 
+                $lines[$i]= preg_replace('/(\/.*)\/ldv_tempdir\/driver\/(.*:)/','<font color="#555555">$2</font>:', $lines[$i]);
+                $lines[$i]= preg_replace('/\/.*\/ldv_tempdir\/driver/','', $lines[$i]);
+                $lines[$i]= preg_replace('/(.*):(\d+):(\d+)/','$1:<font color="#333333">   $2:$3</font>', $lines[$i]);
+                $lines[$i]= preg_replace('/:\swarning:/',': <strong><font color="#CCCC00">warning: </font></strong>', $lines[$i]);
+                $lines[$i]= preg_replace('/:\serror:/',': <strong><font color="red">error: </font></strong>', $lines[$i]);
+                $lines[$i]= preg_replace('/:\snote:/',': <strong><font color="green">note: </font></strong>', $lines[$i]);
+		$trace['error_trace'] .= sprintf ("<span unselectable=\"on\" style=\"color: #222233; font-family: monospace; background-color:#D0D0DD; -moz-user-select: none; -khtml-user-select: none; -webkit-user-select: none;\">%5d </span>   ", $i); 
 		$trace['error_trace'] .=  $lines[$i].'<BR>';
 	}
 	$trace['error_trace'] .= '</p>';

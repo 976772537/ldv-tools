@@ -126,4 +126,6 @@ Environment variables:
 
 	LDV_REMOVE_ON_SUCCESS
 		When set to a non-empty string, makes LDV remove wroking directory after creation of a pack.  Useful to save some disk space.
+	ENVGEN_PROPERTIES
+		Defines a path to a properties file. If set to a non-empty string, then driver environment generator component uses the properties defined in the file instead of default ones.
 

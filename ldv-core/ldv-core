@@ -50,6 +50,9 @@ BCE_DIR="$LDV_HOME/build-cmd-extractor";
 BCE="$BCE_DIR/build-cmd-extractor";
 BCE_REPORTER="$BCE_DIR/build-cmd-extractor-reporter";
 
+STATS="$LDV_HOME/shared/sh/timeout";
+STATS_LOG_FILENAME="stats.xml";
+
 DEG_DIR="$LDV_HOME/drv-env-gen";
 DEG="$DEG_DIR/drv-env-gen";
 DEG_REPORTER="$DEG_DIR/drv-env-gen-reporter";
@@ -80,8 +83,8 @@ bce_create_report() {
 		echo "</reports>" >> $BCE_REPORT;
 	else
 		ldv_print "NORMAL: Calling Build Commmand Extractor Reporter.";
-		ldv_print "DEBUG: $BCE_REPORTER --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-dir=$BCE_TEMPDIR;";
-		$BCE_REPORTER --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-dir=$BCE_TEMPDIR;
+		ldv_print "DEBUG: $BCE_REPORTER --cmdfile=$XML_AFTER_BCE --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;";
+		$BCE_REPORTER --cmdfile=$XML_AFTER_BCE --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;
 		if [ $? -ne 0 ]; then
 		        ldv_print "ERROR: BCE reporter failed.";
 		        exit 1;
@@ -102,8 +105,8 @@ ldv_create_report() {
 deg_create_report() {
  	DEG_REPORT=$DEG_TEMPDIR/$DEG_REPORT_FILENAME;
 	ldv_print "NORMAL: Calling Driver Environment Generator reporter.";
-	ldv_print "DEBUG: $DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;";
-	$DEG_REPORTER --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;
+	ldv_print "DEBUG: $DEG_REPORTER --stats-file=$DEG_STATS --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;";
+	$DEG_REPORTER --stats-file=$DEG_STATS --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;
 	if [ $? -ne 0 ]; then 
 		ldv_print "ERROR: DEG reporter failed."; 
 		
@@ -330,8 +333,14 @@ else
 	stream_option="--driver=$DRIVER_DIR";
 fi;
 
-ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;"
-                  LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;
+BCE_STATS_LOG="$BCE_TEMPDIR/$STATS_LOG_FILENAME";
+touch $BCE_STATS_LOG;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Can't touch stats file:\"$BCE_STATS_LOG\".";
+	exit 1;
+fi;
+ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1 -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;"
+                  LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1 -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;
 
 #if [ -n "$cmdstream" ]; then
 #	XML_AFTER_BCE=$cmdstream;
@@ -411,7 +420,7 @@ for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILE
 	DEG_TEMPDIR=$CURRENT_TEMPDIR/$DEG_TEMPDIR_NAME;
 	XML_AFTER_DEG=$DEG_TEMPDIR/$XML_FILENAME_AFTER_DEG;
 	DEG_STATE=$DEG_TEMPDIR/$DEG_STATE_FILENAME;
-
+	DEG_STATS=$DEG_TEMPDIR/$STATS_LOG_FILENAME;
 	if [ $KERNEL_LEVEL -eq 0 ]; then module_name="--driver-name=$driver"; fi;
 #	module_name="--driver-name=$driver";
 	ldv_print "NORMAL: Calling Driver Environment Generator";

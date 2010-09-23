@@ -6,6 +6,7 @@
 #Archives of drivers&kernels
 ldv-tests/regr-tests/test-sets/small/__install_drivers
 ldv-tests/regr-tests/test-sets/small/__install_kernels
+ldv-tests/regr-tests/test-sets/general/__install_drivers
 
 ldv-tests/aspect-tests/__install_drivers
 

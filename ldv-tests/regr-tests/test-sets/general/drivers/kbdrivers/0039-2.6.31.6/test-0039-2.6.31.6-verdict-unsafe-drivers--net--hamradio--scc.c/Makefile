@@ -1,0 +1,1 @@
+obj-m := scc.o

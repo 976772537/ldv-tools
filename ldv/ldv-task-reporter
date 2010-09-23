@@ -81,11 +81,20 @@ foreach my $file (@reports) {
 	$ctwig->parsefile($file);
 	my $croot=$ctwig->root;
 	my @childrens = $croot->children();
+	my @sections;
 	foreach my $section (@childrens) {
 		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld || $section->name eq $xml_reports_build) {
 			hxml_cmdstream($section,$file);
 		}
-		$section->move($twig_inroot);
+		if ($section->name eq $xml_reports_build) {
+			@sections = (@sections, $section);
+		} else {
+			@sections = ($section, @sections);
+		}
+		#$section->move($twig_inroot);
+	}
+	foreach (@sections) {
+		$_->move($twig_inroot);
 	}
 };
 

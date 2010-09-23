@@ -84,6 +84,14 @@ B<ONLY inline mode!>  Turns off aspectator.  Ignored if some rule models are spe
 $config->{inline_aspect} = 1;
 $optionSpecs{'aspect!'} = \$config->{inline_aspect};
 
+=item B<--force>
+
+Runs all the toolset even if no entry points were specified in the input cmdfile.  By default BLAST skips all checks and doesn't run Rule Instrumentor and RCV in such case.
+
+=cut
+$config->{force} = '';
+$optionSpecs{'force'} = \$config->{force};
+
 
 =back
 
@@ -204,6 +212,14 @@ Specify custom rule instrumentor.  Unless specified, the program is deduced from
 =cut
 $config->{rule_ins} = $ENV{'RULE_INSTRUMENTOR'} || "$ENV{'LDV_HOME'}/bin/rule-instrumentor.pl" || 'rule-instrumentor.pl';
 
+=item B<RI_CACHE>
+
+Cache directory for Rule Instrumentor.  When compiling large projects with many repeatedly checked files (if they're re-used among several verification tasks), we might want to cache these files after they're preprocessed with rule instrumentor.  If you specify folder in this variable, it will be used as cache.
+
+=cut
+$config->{ri_cache} = $ENV{'RI_CACHE'};
+
+
 =item B<VERIFIER_OVERRIDE>
 
 Overrides the verifier returned by the Rule Instrumentor.  C<--verifier> option takes precedence.
@@ -215,6 +231,9 @@ $config->{verifier_override_env} = $ENV{'VERIFIER_OVERRIDE'};
 =back
 
 =cut
+$config->{verifier_override_env} = $ENV{'VERIFIER_OVERRIDE'};
+
+$config->{timestats} = $ENV{'TIMESTATS'} || "$ENV{'LDV_HOME'}/shared/sh/timeout" || 'timeout';
 
 sub usage
 {
@@ -387,6 +406,56 @@ $process_input->parsefile($config->{cmdfile});
 $expected_blast_runs *= scalar @{$config->{properties}};
 vsay ('DEBUG',"Expecting $expected_blast_runs runs of RCV backend.\n");
 
+# Now, if we don't expect RCV to be run, we just skip all the checking!  It takes considerable time: copying and building driver, running Rule Instrumentor, running RCV's just to get information that no runs was actually performed.
+if ($expected_blast_runs == 0 && !$config->{force}){
+
+	vsay 10,"Nothing will be run (no mains!).  Printing final report...\n";
+
+	my $big_reportT = XML::Twig::Elt->new("reports");
+
+	# Walk through cmdfile and build the report according to it
+	sub fake_report_about_command
+	{
+		my ($twig,$cmdT) = @_;
+		# For this command, find all entities that refer to it and print them to outfile
+		my $id = $cmdT->id;
+		my $name = $cmdT->tag;
+
+		# Let's create new command tag
+		my $copyT = $cmdT->copy();
+		# Replace 'id' with 'ref'
+		$copyT->set_att('ref'=>$copyT->att('id'));
+		$copyT->del_att('id');
+		if ($name eq 'cc'){
+			# Nice and shiny bogus OK report
+			# This adds RI's info, not DSCV's (yes, I know about the name)
+			add_dscv_info($copyT,'OK',"RI wasnt even run--no mains anyway",'rule-instrumentor');
+			# This adds DSCV's
+			add_dscv_info($copyT,'OK',"DSCV wasnt even run--no mains anyway");
+		}elsif ($name eq 'ld'){
+			# RI is not necessary for DSCV.  Moreover, it will make ldv-upload fail with trace validation error.
+			# DSCV's failure report
+			add_dscv_info($copyT,'FAILED','No entry points specified');
+		}else {
+			vsay ('TRACE',"Encountered tag $name, skipping...\n");
+		}
+		$copyT->paste(last_child=>$big_reportT);
+	}
+	XML::Twig->new( twig_roots=> {
+		'cc'=>\&fake_report_about_command,
+		'ld'=>\&fake_report_about_command,
+	})->parsefile($config->{cmdfile});
+
+	my $BIG_REPORT; open $BIG_REPORT, ">", $config->{report} or die;
+	$big_reportT->print($BIG_REPORT,'indented');
+	close $BIG_REPORT;
+
+	vsay 20,"Final report is written to $config->{report}\n";
+
+	# Leave
+	exit 0;
+}
+
 # Function that copies driver
 use File::Copy::Recursive qw(dircopy);
 my $copy_driver = sub
@@ -425,12 +494,20 @@ for my $property (@properties){
 		$ri_basedir_for_rule = './'
 	}
 
-	my @rule_instr_args = ($config->{rule_ins},
+	vsay ('NORMAL',"CMDFILE    : ".$config->{cmdfile}."\n");
+	vsay ('NORMAL',"CMDFILE-OUT: ".$outfile."\n");
+	vsay ('NORMAL',"BASEDIR: ".$ri_basedir_for_rule."\n");
+	my @rule_instr_args = (
+        #	$config->{timestats},
+	#      	"--pattern=.*,ALL",
+	#      	"--output=".$config->{work_dir}."/rule-instrumentor/$property/stats.xml",
+		$config->{rule_ins},
 		"--basedir=$ri_basedir_for_rule",
 		"--rule-model=$property",
 		"--cmdfile=$config->{cmdfile}",
-		"--cmdfile-out=$outfile"
+		"--cmdfile-out=$outfile",
 	);
+	push @rule_instr_args, "--cache=$ENV{'RI_CACHE'}" if $ENV{'RI_CACHE'};
 	vsay (10,"Calling rule_instrumenter for rule model $property...\n");
 	vsay (20,@rule_instr_args,"\n");
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
@@ -469,9 +546,13 @@ for my $property (@properties){
 			my $tmp_FH; open $tmp_FH,">",$cmdfile or die "Couldn't create temporary file for RCV's command!";
 			$streamT->print($tmp_FH,'indented');
 			close $tmp_FH;
-
 			# Run RCV
-			my @rcv_args = ("$rcv_frontends_dir/$verifier",
+			my @rcv_args = (
+			#	$config->{timestats},
+			#	"--pattern=.*,ALL",
+			#	"--output=$dir/stats.xml",
+			#	"--reference=$id",
+				"$rcv_frontends_dir/$verifier",
 				"--cmdfile=$cmdfile",
 				"--workdir=$dir",
 				"--sanity-dir=$dscv_base_dir",
@@ -552,14 +633,37 @@ for my $property (@properties){
 # Add <dscv> tag to the report
 sub add_dscv_info
 {
-	my ($rep_entityT,$status_str,$descr) = @_;
+	my ($rep_entityT,$status_str,$descr,$name) = @_;
+
+	my %timestats;
+	my $rcv_tag = $rep_entityT->first_child('rcv');
+	if ($rcv_tag) {
+		foreach my $rcv_time ($rcv_tag->children('time')) {
+			$timestats{$rcv_time->att('name')} = $rcv_time->text;
+		}
+	} 
+	my $ri_tag = $rep_entityT->first_child('rule-instrumentor');
+	if ($ri_tag) {
+		foreach my $ri_time ($ri_tag->children('time')) {
+			$timestats{$ri_time->att('name')} += $ri_time->text;
+		}
+	} 
+
+
+	$name ||= 'dscv';
 	$descr ||= '';
 
-	my $dscvT = XML::Twig::Elt->new('dscv');
+	# calculate dscv time as ALL=rcv ALL time + ri ALL time for this tag
+	my $dscvT = XML::Twig::Elt->new($name);
 	XML::Twig::Elt->new('status',{},$status_str)->paste(last_child=>$dscvT);
-	XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0')->paste(last_child=>$dscvT);
+	#XML::Twig::Elt->new('time',{'note'=>'always zero for now :-('},'0')->paste(last_child=>$dscvT);
+        foreach(keys %timestats) {
+		/ALL/ or next;
+                my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+                $time_elt->set_att( name =>$_);
+                $time_elt->paste(last_child=>$dscvT);
+        } 
 	XML::Twig::Elt->new('desc',{},$descr)->paste(last_child=>$dscvT);
-
 	$dscvT->paste(last_child=>$rep_entityT);
 }
 

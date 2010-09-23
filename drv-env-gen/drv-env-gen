@@ -2,6 +2,7 @@
 
 use XML::Twig;
 use FindBin;
+use Time::HiRes qw(gettimeofday);
 
 my $deg_home = "$FindBin::Bin";
 
@@ -10,13 +11,21 @@ my $ldv_cc = "java";
 my @ldv_cc_add_options = ("-ea","-jar","$deg_home/ldv_cc.jar");
 my $ldv_ld = "java";
 my @ldv_ld_add_options = ("-ea","-jar","$deg_home/ldv_ld.jar");
-# output ooption
+
+my $state_script = "$deg_home/../shared/sh/timeout";
+# output option
 # -o
 my $output_option = "-o";
+
+my $props_file;
+my $default_props_file = "$deg_home/default.properties";
+
 # major options
 #
-# interface for (cc||ld):
-# ldv_(cc||ld) input_file input_file ... -o output_file options
+# interface for cc:
+# ldv_cc input_file1 (--main|--nomain) input_file2 (--main|--nomain)... -o output_file -c uniqueid -props properties_file other_options
+# interface for dd:
+# ldv_ld input_file input_file ... -o output_file options
 #
 #
 my $workdir;
@@ -71,6 +80,7 @@ ldv_dprint("Ok");
 # 2. create directories
 my $basedir="$workdir/$tempdir";
 my $my_driverdir="$basedir/$driver_dirname";
+my $stats_file="$basedir/stats.xml";
 
 chomp($basedir);
 if(! mkdir $basedir) {
@@ -91,6 +101,9 @@ my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream_c
 			"$xml_cmd_stream/$xml_cmd_basedir" => \&hxml_cmdstream_basedir };
 
 my $twig= new XML::Twig(TwigHandlers => $twig_handlers);
+
+# create hash with driver length and number of lines
+my %stats_hash = (); 
 
 $twig->parsefile($cmdfile);
 
@@ -155,8 +168,32 @@ sub hxml_cmdstream_basedir {
 }
 
 sub hxml_cmdstream_cc {
-	my @args = ($ldv_cc,@ldv_cc_add_options); 
+	my $start_time = gettimeofday;	
+	my $lid = $_[1]->att($xml_cmd_attr_id);
+	my @args = ($state_script,
+		"--pattern=.*,ALL",
+		"--output=$stats_file",
+		"--reference=$lid",
+		$ldv_cc,
+		@ldv_cc_add_options); 
+
+	my $summary_lines=0;
+	my $summary_size=0;
+
 	foreach my $section ( $_[1]->children('in') ) {
+
+		# Calculate file size and number of code lines.
+		# 1. calculate file size
+		my $cc_in_filename = $section->text;
+		my $stat_size = -s $cc_in_filename;
+		$summary_size += $stat_size;
+		# 2.  calculate number of strings
+		my $stat_lines = `wc -l $cc_in_filename | sed 's/ .*//'`;
+		chomp($stat_lines);
+		$summary_lines += $stat_lines;
+
+
+
 		if($section->has_atts && $section->att($xml_cmd_attr_restrict) eq $xml_cmd_entry_point) {
 			ldv_tprint("Forbidden to generate main for \"".$section->text."\".");
 			push(@args, $section->text, "--nomain"); 
@@ -165,9 +202,17 @@ sub hxml_cmdstream_cc {
 			push(@args, $section->text, "--main"); 
 		}	
 	}
+
 	push(@args,$output_option);
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
+		# put stats info in hash
+		$stats_hash{$outdir} = [$summary_size,$summary_lines];
+		print "HASH TEST: $outdir,";
+		print $stats_hash{$outdir}[0];
+		print ",";
+		print $stats_hash{$outdir}[1];
+		print "\n";
 		# 1. replace outdir from basedir in xml with our driverdir
   		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
 			ldv_eprint("Can't find basedir pattern in cc outdirs.");
@@ -176,6 +221,7 @@ sub hxml_cmdstream_cc {
 		push(@args, $outdir);
 	}
 	push(@args,"-c",$ldv_counter++);
+	push(@args,"-props",$props_file);
 	foreach my $section ( $_[1]->children('opt') ) {
 		push(@args,$section->text);
 	}
@@ -183,15 +229,10 @@ sub hxml_cmdstream_cc {
 		ldv_dprint("RUN LDV_CC: @args");
 	}
 	ldv_iprint("Starting ldv_cc interface...");
-	my $start_time = time();
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_cc failed !");
 		exit 1;
 	}
-	my $worktime=(time()-$start_time)*1000;
-	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver."\n"); 
-	ldv_iprint("End of ldv_cc - Ok.");
 
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
@@ -214,13 +255,40 @@ sub hxml_cmdstream_cc {
 			}
 		}
 	}
+	#
+	# id:time of work:::kernel driver name:summary length:summary lines 
+	#
+	my $worktime=int((gettimeofday-$start_time)*1000);
+	ldv_tprint("Statistica: lines: $summary_lines, size: $summary_size, worktime: $worktime");
+	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver.":$summary_lines:$summary_size\n"); 
+	ldv_iprint("End of ldv_cc - Ok.");
 }
 
 # handler for twig
 sub hxml_cmdstream_ld {
+	my $start_time = gettimeofday;	
+	my $lid = $_[1]->att($xml_cmd_attr_id);
+
+	my @args = ($state_script,
+		"--pattern=.*,ALL",
+		"--output=$stats_file",
+		"--reference=$lid",
+		$ldv_ld,
+		@ldv_ld_add_options); 
+
+
 	my @args = ($ldv_ld,@ldv_ld_add_options); 
+	my $summary_lines=0;
+	my $summary_size=0;
 	foreach my $section ( $_[1]->children('in') ) {
 		my $indir=$section->text;
+
+		#
+		# Calculate length and number of lines
+		#
+		$summary_size += $stats_hash{$indir}[0];
+		$summary_lines += $stats_hash{$indir}[1];
+
 		# 1. replace outdir from basedir in xml with our driverdir
   		if(!($indir =~ s/$xmlbasedir/$my_driverdir/)) {
 			ldv_eprint("Can't find basedir pattern in ld indirs.");
@@ -262,14 +330,10 @@ sub hxml_cmdstream_ld {
 		ldv_dprint("RUN LDV_LD: @debug_args");
 	}
 	ldv_iprint("Starting ldv_ld interface...");
-	my $start_time = time();
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_ld failed !");
 		exit 1;
 	}
-	my $worktime=(time()-$start_time)*1000;
-	my $lid = $_[1]->att($xml_cmd_attr_id);
-	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver."\n"); 
 	ldv_iprint("End of ldv_ld - Ok.");
 	foreach my $section ( $_[1]->children('out') ) {
 		my $outdir = $section->text;
@@ -292,6 +356,8 @@ sub hxml_cmdstream_ld {
 			}
 		}
 	}
+	my $worktime=int((gettimeofday - $start_time)*1000);
+	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver.":$summary_lines:$summary_size\n"); 
 }
 
 
@@ -326,6 +392,18 @@ sub get_ldv_opts
 		print_usage();
 	        exit 1;
 	};
+	
+	$props_file = $ENV{'ENVGEN_PROPERTIES'};
+	if(!$props_file) {
+	        ldv_dprint("ENVGEN_PROPERTIES variable not set. Using default properties $default_props_file\n");
+		$props_file = $default_props_file;
+	} 
+	
+	if(! -f $props_file) {
+		ldv_eprint("Can not find envgen properties file: \"$props_file\".");
+		print_usage();
+		exit 1;
+	}
 
 	# get all options
 	foreach $opt(@ARGV)

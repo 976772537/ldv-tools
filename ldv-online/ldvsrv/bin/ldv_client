@@ -4,9 +4,22 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 LDVS_DIST=$LDV_HOME/ldv-online/dist;
 LDVS_CONF=$LDV_HOME/ldv-online/conf;
 LDVS_CLIENT=$LDVS_DIST/vsClient.jar;
+LDVS_LOGS=$LDV_HOME/ldv-online/logs;
 LDVS_CONFIG=`readlink -f $LDVS_CONF/client.conf`;
 
-java -jar $LDVS_CLIENT $LDVS_CONFIG
+echo "Starting LDV client..."
+if [ ! -n "`ps aux | grep vsClient.jar | grep -v grep`" ]; then 
+        nohup java -Xmx128M -Xms64M -jar $LDVS_CLIENT $LDVS_CONFIG > $LDVS_LOGS/client.log 2>&1 & sleep 1;
+else
+	echo "LDV Client already started."
+	exit 0;
+fi;
+
+if [ ! -n "`ps aux | grep vsClient.jar | grep -v grep`" ]; then
+        echo "ERROR: Can't start LDV client. See \"$LDVS_LOGS/client.log\" for more details.";
+        exit 1;
+fi;
+echo "LDV client started.";
 
 
 

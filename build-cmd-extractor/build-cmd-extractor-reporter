@@ -32,6 +32,7 @@ my $xml_instrument_status = 'status';
 my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
 
+sub get_state;
 #####################################################
 # log options
 #####################################################
@@ -40,30 +41,117 @@ my $log_level=10;
 
 my $report_out = "";
 my $report_in = "";
-my $state_dir = "";
-my $state_filename="ckc.log";
+my $stats_file = "";
+my $cmdfile = "";
 
+$state_file ="";
 # 0. get options.
 get_ldv_opts();
+my $state_filename="$state_file.data";
 # 0.1 Create state file name
-my $state_file="$state_dir/$state_filename";
 # 1. read state file;
-#open(FIL,$state_file); 
-#my @states = <FIL>; 
-#close(FIL);
+open(FIL,$state_filename); 
+my @states = <FIL>; 
+close(FIL);
+my @astate = get_state();
 
-my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream,
-			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream };
+
+my %cc_times;
+my %average_times;
+my $ld_counter = 0;
+
+my @instruments = ('drv-env-gen','rcv','dscv','rule-instrumentor');
+
+
+my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream_cc,
+			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream_ld };
 my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
 $twig_inreport->parsefile($report_in);
 
+
 my $instrument = XML::Twig::Elt->new($xml_build);
 XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-XML::Twig::Elt->new($xml_instrument_time,"")->paste($instrument);
+
+if ( -f "$stats_file" ) {
+	my %timestats;
+        open(STATS_FILE, '<', "$stats_file") or die "Can't open file with time statistics: \"$stats_file\", $!";
+        while(<STATS_FILE>) {
+	        /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+        	$timestats{$1} += $2;
+        }
+        close STATS_FILE;
+        foreach(keys %timestats) {
+                my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$timestats{$_});
+                $time_elt->set_att( name =>$_);
+                $time_elt->paste($instrument);
+        }
+} else {
+        my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
+        $time_elt->set_att( name =>"ALL");
+        $time_elt->paste($instrument);
+};
+
 XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
 $outreport_root = $twig_inreport->root;
 $instrument->paste('last_child',$outreport_root);
 
+
+
+# set average time for all ld commands
+my $croot=$twig_inreport->root;
+my $children_build = $croot->first_child('build');
+
+# calculate average build time
+foreach ($children_build->children('time')) {
+	$average_times->{'build'}->{$_->att('name')} = $_->text/$ld_counter;
+}
+my @childrens_ld = $croot->children('ld');
+foreach my $entry(@childrens_ld) {
+	my $build_fix_tag = XML::Twig::Elt->new('build');
+	foreach my $build_time_fix_tag(keys %{$average_times->{'build'}}) {
+		my $build_time = $average_times->{'build'}->{$build_time_fix_tag};
+		my $build_time_tag = XML::Twig::Elt->new('time',"$build_time:$build_time:$build_time");
+		$build_time_tag->set_att('name',$build_time_fix_tag);
+		$build_time_tag->paste($build_fix_tag);
+	}
+	$build_fix_tag->paste($entry);
+	foreach my $instrument(@instruments) {
+	 	my $instrument_tag = $entry->first_child($instrument) or next;
+	        foreach ($instrument_tag->children('time')) {
+	         	$_->text =~ /([0-9]*):([0-9].*):([0-9].*)/;
+			$average_times->{$instrument_tag->name}->{$_->att('name')} or next;
+			$_->set_text("$1:$2:".($average_times->{$instrument_tag->name}->{$_->att('name')}/$ld_counter+$3));
+			#$_->set_text("$2:".($average_times->{$instrument_tag->name}->{$_->att('name')}/$ld_counter+$3));
+		}
+	}
+}
+
+#my $instrument = XML::Twig::Elt->new($xml_build);
+#XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+
+#if ( -f "$stats_file" ) {
+#	my %timestats;
+#       open(STATS_FILE, '<', "$stats_file") or die "Can't open file with time statistics: \"$stats_file\", $!";
+#        while(<STATS_FILE>) {
+#	        /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+#        	$timestats{$1} += $2;
+#        }
+#        close STATS_FILE;
+#        foreach(keys %timestats) {
+#                my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$timestats{$_});
+#                $time_elt->set_att( name =>$_);
+#                $time_elt->paste($instrument);
+#        }
+#} else {
+#        my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
+#        $time_elt->set_att( name =>"ALL");
+#        $time_elt->paste($instrument);
+#};
+
+
+#XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+#$outreport_root = $twig_inreport->root;
+#$instrument->paste('last_child',$outreport_root);
 
 $twig_inreport->set_xml_version('1.0');
 $twig_inreport->set_pretty_print('indented');
@@ -73,25 +161,58 @@ $twig_inreport->print_to_file($report_out);
 #####################################################
 # twig  handlers
 #####################################################
+sub hxml_cmdstream_cc {
+        my (undef, $entry) = @_; 
+	my $model = $entry->att('model');
+        foreach (@instruments) {
+                my $instrumment_pattern = $entry->first_child($_) or next;
+                local $_; 
+                foreach ($instrumment_pattern->children('time')) {
+			$average_times->{$instrumment_pattern->name}->{$_->att('name')} += $_->text;
+                        $cc_times->{$model}->{$instrumment_pattern->name}->{$_->att('name')}->{'time'} += $_->text;
+                }   
+        } 
+}
 
-sub hxml_cmdstream {
-#	my $instrument = XML::Twig::Elt->new($xml_instrument);
-#	XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-#	XML::Twig::Elt->new($xml_instrument_time,get_state())->paste($instrument);
-#	XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-#	$instrument->paste('last_child',$_[1]);
+sub hxml_cmdstream_ld {
+	$ld_counter++;
+        my (undef, $entry) = @_;
+	my $model = $entry->att('model');
+
+        foreach my $instrument(@instruments) {
+                my $instrument_tag = $entry->first_child($instrument) or next;
+                foreach my $time_tag($instrument_tag->children('time')) {
+			$time_tag->set_text($time_tag->text.':'.$time_tag->text.':'.$time_tag->text);
+		}
+	}
+
+        foreach my $instrument(keys %{$cc_times->{$model}}) {
+                my $instrument_tag = $entry->first_child($instrument) or next;
+               foreach my $pattern(keys %{$cc_times->{$model}->{$instrument}}) {
+                        # find time with attribute equals pattern
+                        my $before = 0;
+                        foreach ($instrument_tag->children('time')) {
+                                $_->att('name') eq $pattern or next;
+                                $before = 1;
+				$_->text =~ /([0-9]*):([0-9]*):([0-9]*)/;
+				$_->set_text($1.':'.($1+$cc_times->{$model}->{$instrument}->{$pattern}->{'time'}).":$1");
+                        }   
+                        $before == 0 or next;
+                        my $newtime = XML::Twig::Elt->new('time','0:'.$cc_times->{$model}->{$instrument}->{$pattern}->{'time'}.":0");
+                        $newtime->set_atts('name', $pattern);
+                        $newtime->paste('last_child',$instrument_tag);
+                }   
+        } 
+	$cc_times->{$model} = undef;
 }	
 
 sub get_state() {
-#
-# TODO: get states
-#
-#	foreach my $state (@states) {
-#		if($state =~ m/^(\d+):(.*)$/ && $1 == $_[0]) {
-#			return $2;
-#		}
-#	}
-	return 0;
+        foreach my $state (@states) {
+                if($state =~ m/^(\d+)$/) {
+	                # time of work  
+                        return ($1);
+                }   
+        }   
 }
 
 ######################################################
@@ -104,9 +225,17 @@ sub get_ldv_opts
 	# get all options
 	foreach $opt(@ARGV)
 	{
-		if($opt =~ s/--state-dir=(.*)/$1/)
+		if($opt =~ s/--state-file=(.*)/$1/)
 		{
-			$state_dir = $opt;
+			$state_file = $opt;
+		}
+		elsif($opt =~ s/--stats-file=(.*)/$1/)
+		{
+			$stats_file = $opt;
+		}
+		elsif($opt =~ s/--cmdfile=(.*)/$1/)
+		{
+			$cmdfile = $opt;
 		}
 		elsif($opt =~ s/--report-in=(.*)/$1/)
 		{
@@ -123,13 +252,25 @@ sub get_ldv_opts
 		}
 	}
 	# test all options
-	if(!$state_dir) {
-		ldv_eprint("You must setup dir with state: \"--state-dir\".");
+	if(!$state_file) {
+		ldv_eprint("You must setup file with error state: \"--state-file\".");
 		print_usage();
 		exit 1;
-	} elsif(! -d $state_dir) {
-		ldv_eprint("Can not find dir with state: \"$state_dir\".");
-		print_usage();
+	} elsif(! -f "$state_file.data" ) {
+		ldv_wprint("Can not find file with state: \"$state_file.data\".");
+	}
+	if(!$stats_file) {
+		ldv_eprint("You must setup input file with statistica in \"--stats-file\" option.");
+		exit 1;
+	} elsif(! -f $stats_file ) {
+		ldv_eprint("Can not find stats file: \"$stats_file\".");
+		exit 1;
+	}
+	if(!$cmdfile) {
+		ldv_eprint("You must setup command stream file in \"--cmdfile\" option.");
+		exit 1;
+	} elsif(! -f $cmdfile ) {
+		ldv_eprint("Can not find command stream file: \"$cmdfile\".");
 		exit 1;
 	}
 	if(!$report_in) {
