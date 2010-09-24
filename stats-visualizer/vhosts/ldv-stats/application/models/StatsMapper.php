@@ -68,6 +68,23 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'rcv' => 'RCV');
 
   public function connectToDb($host, $name, $user, $passord) {
+    // Override the profile database connection settings with the specified
+    // through the page address ones if so.
+    $global = new Zend_Session_Namespace('Statistics globals');
+
+    if ($global->dbName) {
+      $name = $global->dbName;
+    }
+    if ($global->dbUser) {
+      $user = $global->dbUser;
+    }
+    if ($global->dbHost) {
+      $host = $global->dbHost;
+    }
+    if ($global->dbPassword) {
+      $name = $global->dbPassword;
+    }
+
     $options = array(
       'host'     => 'localhost',
       'username' => $user,

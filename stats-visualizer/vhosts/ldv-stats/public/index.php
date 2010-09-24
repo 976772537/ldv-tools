@@ -33,8 +33,8 @@ $logger->addWriter($writer);
 Zend_Registry::set('logger', $logger);
 
 // Specify the default profile id as the current one.
-$profileDefaultId = 1;
-Zend_Registry::set('profileCurrentId', $profileDefaultId);
+#$profileDefaultId = 1;
+#Zend_Registry::set('profileCurrentId', $profileDefaultId);
 
 $application->bootstrap()
             ->run();
