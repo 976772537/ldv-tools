@@ -255,6 +255,7 @@ my $opt_model_id;
 my $opt_report_in;
 my $opt_report_out;
 my $opt_cache_dir;
+my $opt_skip_restrict_main;
 
 # This flag says whether usual or report mode is set up.
 my $report_mode = 0;
@@ -277,6 +278,7 @@ my $tool_working_dir;
 # Xml nodes names.
 my $xml_cmd_attr_id = 'id';
 my $xml_cmd_attr_check = 'check';
+my $xml_cmd_attr_restrict = 'restrict';
 my $xml_cmd_basedir = 'basedir';
 my $xml_cmd_entry_point = 'main';
 my $xml_cmd_cc = 'cc';
@@ -329,6 +331,7 @@ my $xml_report_verifier = 'verifier';
 # Cache funcitonality
 my $do_cache = '';	#false
 my $ri_cache_dir = undef;
+my $skip_cache_without_restrict = '';
 
 
 ################################################################################
@@ -827,6 +830,7 @@ sub get_opt()
     'report-out=s' => \$opt_report_out,
     'rule-model|m=s' => \$opt_model_id,
     'cache=s' => \$opt_cache_dir,
+    'skip-norestrict' => \$opt_skip_restrict_main,
   ))
   {
     warn("Incorrect options may completely change the meaning! Please run " .
@@ -1164,6 +1168,7 @@ sub prepare_files_and_dirs()
   # Initialize cache directory
   $do_cache = defined $opt_cache_dir;
   if ($do_cache){
+	$skip_cache_without_restrict = defined $opt_skip_restrict_main;
 	$ri_cache_dir = $opt_cache_dir;
 	if (!-d $ri_cache_dir){
 	  mkpath($ri_cache_dir)
@@ -1236,8 +1241,9 @@ sub process_cmd_cc()
 	my $cache_target = "$cmd{'out'}$llvm_bitcode_usual_suffix";
 	my $cache_file_key = $cache_target;
 	$cache_file_key =~ s/^$opt_basedir//;
+	my $skip_caching = $skip_cache_without_restrict && !$cmd{'restrict-main'};
 
-    if (copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
+    if (!$skip_caching && copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
       # Cache hit
       print_debug_info("Got file from CACHE instead of executing '@args'");
       $status = string_from_cache($opt_model_id,"$cache_file_key-status");
@@ -1253,9 +1259,13 @@ sub process_cmd_cc()
       print_debug_info("Execute the command '@args'");
       ($status, $desc) = exec_status_and_desc(@args);
 
-      # Save the information obtained to cache (even if it's a failure!)
-      string_to_cache($status,$opt_model_id,"$cache_file_key-status");
-      string_to_cache(join("\n",@$desc),$opt_model_id,"$cache_file_key-desc");
+			if (!$skip_caching){
+				# Save the information obtained to cache (even if it's a failure!)
+				string_to_cache($status,$opt_model_id,"$cache_file_key-status");
+				string_to_cache(join("\n",@$desc),$opt_model_id,"$cache_file_key-desc");
+			}else{
+				print_debug_info("Didn't cache file with main due to --skip-norestrict!");
+			}
 
       # Return on failure
       return ($status, $desc) if ($status);
@@ -1280,7 +1290,7 @@ sub process_cmd_cc()
       # If it happens, just drop the cache
       mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix") 
         or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
-      save_to_cache($cache_target,$opt_model_id,$cache_file_key);
+      save_to_cache($cache_target,$opt_model_id,$cache_file_key) unless $skip_caching;
     }
 
     $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
@@ -1580,7 +1590,10 @@ sub process_cmds()
         $check_text = 'false';
       }
       print_debug_debug("The attribute check leads to '$check_text' check (this has sence just for ld command)");
-      
+
+			# Calculate if this command has main, and should not be cached
+      my $restrict_main = 1;
+
       print_debug_trace("Read array of input file names");
       my @ins;
       my @ins_text;
@@ -1590,6 +1603,14 @@ sub process_cmds()
       {
         push(@ins, $in);
         push(@ins_text, $in->text);
+
+				# Attribute that says whether there should not be main for this file.
+				# We don't cache files with mains (if --no-cache-restricts is specified)
+				print_debug_trace("Restrict-main check");
+				my $restrict_attr = $in->att($xml_cmd_attr_restrict);
+        $restrict_main &&= ($restrict_attr and $restrict_attr eq 'main');
+				$restrict_main ||= '';	# Converto to printable string
+				print_debug_debug("The attribute restrict leads to '$restrict_main' (makes sense for caching)");
 
         last if ($in->is_last_child($xml_cmd_in));
       }
@@ -1934,6 +1955,7 @@ sub process_cmds()
         'ins' => \@ins_text,
         'out' => $out_text,
         'check' => $check_text,
+        'restrict-main' => $restrict_main,
         'opts' => \@opts);
 
       undef($cmd{'entry point'});
