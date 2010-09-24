@@ -4,6 +4,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 {
   protected $_db;
   protected $_launchInfoNameTableColumnMapper = array(
+    'Task id' => array('table' => 'tasks', 'column' => 'id'),
     'Task name' => array('table' => 'tasks', 'column' => 'name'),
     'Task description' => array('table' => 'tasks', 'column' => 'description'),
     'Task user name' => array('table' => 'tasks', 'column' => 'username'),
@@ -34,7 +35,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'Ok' => array('table' => 'stats', 'column' => 'success', 'cond' => 'TRUE'),
     'Fail' => array('table' => 'stats', 'column' => 'success', 'cond' => 'FALSE'),
     'Description' => array('table' => 'stats', 'column' => 'description'),
-    'Time' => array('table' => 'stats', 'column' => 'time'),
+    'Time' => array('table' => 'processes', 'column' => 'time_average'),
+    'Children time' => array('table' => 'processes', 'column' => 'time_average'),
     'LOC' => array('table' => 'stats', 'column' => 'loc'),
     'Problems' => array('table' => 'problems', 'column' => 'name'));
   protected $_tableMapper = array(
@@ -42,6 +44,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'environments' => 'EN',
     'launches' => 'LA',
     'problems' => 'PR',
+    'processes' => 'PRO',
     'problems_stats' => 'PRST',
     'rule_models' => 'RU',
     'scenarios' => 'SC',
@@ -57,6 +60,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'tasks' => 'task_id',
     'toolsets' => 'toolset_id',
     'traces' => 'trace_id');
+  protected $_tableToolMapper = array(
+    'build-cmd-extractor' => 'BCE',
+    'drv-env-gen' => 'DEG',
+    'dscv' => 'DSCV',
+    'rule-instrumentor' => 'RI',
+    'rcv' => 'RCV');
 
   public function connectToDb($host, $name, $user, $passord) {
     $options = array(
@@ -143,6 +152,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Obtain the list of tools info columns.
     $tools = array();
     $toolsInfo = array();
+    $isTimeNeeded = false;
+    $toolsTime = array();
     foreach ($page->toolsInfo as $info) {
       $toolName = $info->toolsInfoName;
       foreach ($info->tools as $toolInfo) {
@@ -156,9 +167,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           $tableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
           $toolsInfo["$toolName $name"] = "$tableColumn[tableShort]_$toolName.$tableColumn[column]";
         }
-        else if ($name == 'Time' || $name == 'LOC') {
+        else if ($name == 'LOC') {
           $tableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
           $toolsInfo["$toolName $name"] = "SUM(`$tableColumn[tableShort]_$toolName`.`$tableColumn[column]`)";
+        }
+        else if ($name == 'Time' || $name == 'Children time') {
+          $isTimeNeeded = true;
+          $toolsTime[$toolName][] = $name;
         }
       }
       $tools[$toolName] = 1;
@@ -284,7 +299,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           $launchesProblemsResultSet= $launches->fetchAll($select);
 
           foreach ($launchesProblemsResultSet as $launchesProblemsRow) {
-#echo  "<br>", $launchesProblemsRow['Rule name'], "  ", $launchesProblemsRow['Driver name'], "  ", $launchesProblemsRow['Entry point'], "  ", $launchesProblemsRow["$toolName Problems"];
             $statsValues = array();
             foreach ($statsKey as $statsKeyPart) {
               $statsValues[] = $launchesProblemsRow[$statsKeyPart];
@@ -295,6 +309,93 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
       }
     }
+
+    // Collect information on a tools and their children execution time.
+    if ($isTimeNeeded) {
+      $select = $launches
+        ->select()->setIntegrityCheck(false);
+      // Tool time and tool children time have the same table-column.
+      $name = 'Time';
+
+      $timeTableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
+      $timeGroupBy = $groupBy;
+      $timeGroupBy[] = "$timeTableColumn[tableShort].name";
+      $timeGroupBy[] = "$timeTableColumn[tableShort].pattern";
+      $timeOrderBy = $orderBy;
+      $timeOrderBy[] = "$timeTableColumn[tableShort].name";
+      $timeOrderBy[] = "$timeTableColumn[tableShort].pattern";
+
+      $select = $select
+        ->from(array($this->_tableMapper[$tableMain] => $tableMain),
+          array_merge($launchInfo, array(
+            'Tool name' => "$timeTableColumn[tableShort].name",
+            'Process pattern' => "$timeTableColumn[tableShort].pattern",
+            "$name Average" => "SUM(`$timeTableColumn[tableShort]`.`$timeTableColumn[column]`)")));
+
+      // Join launches with related with statistics key tables. Note that
+      // traces is always joined.
+      foreach (array_keys($joins) as $table) {
+      $select = $select
+        ->joinLeft(array($this->_tableMapper[$table] => $table),
+          '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
+      }
+
+      // Join time table.
+      $select = $select
+        ->joinLeft(array($timeTableColumn['tableShort'] => $timeTableColumn['table']),
+          '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$timeTableColumn[tableShort]`.`trace_id`");
+
+      // Laucnhes without time mustn't be taken into consideration.'
+      $select = $select->where("`$timeTableColumn[tableShort]`.`trace_id` IS NOT NULL");
+
+      // Group by the launch information.
+      foreach ($timeGroupBy as $group) {
+        $select = $select->group($group);
+      }
+
+      // Order by the launch information.
+      foreach ($timeOrderBy as $order) {
+        $select = $select->order($order);
+      }
+
+#print_r($select->assemble());
+#exit;
+
+      $launchesTimeResultSet= $launches->fetchAll($select);
+
+      $toolsTimes = array();
+      $patternItself = '__ITSELF';
+      foreach ($launchesTimeResultSet as $launchesTimeRow) {
+        $statsValues = array();
+        foreach ($statsKey as $statsKeyPart) {
+          $statsValues[] = $launchesTimeRow[$statsKeyPart];
+        }
+        $statsValuesStr = join(';', $statsValues);
+        $timeToolName = $this->_tableToolMapper[$launchesTimeRow['Tool name']];
+
+        // Understand what time is needed.
+        foreach ($toolsTime as $toolName => $toolTime) {
+          // Get time just for a given tool.
+          if ($timeToolName == $toolName) {
+            // Save time just for specified kinds (either tool itself or its
+            // children) in depend on a given pattern ('ALL' and !'ALL'
+            // correspondingly).
+            foreach ($toolTime as $toolTimeKind) {
+              $pattern = $launchesTimeRow['Process pattern'];
+              if ($toolTimeKind == 'Time' && $pattern == 'ALL') {
+                $toolsTimes["$toolName Time"][$statsValuesStr][$patternItself]['Time'] = $launchesTimeRow['Time Average'];
+              }
+              else if ($toolTimeKind == 'Children time' && $pattern != 'ALL') {
+                $toolsTimes["$toolName Time"][$statsValuesStr][$pattern][] = array('Time' => $launchesTimeRow['Time Average']);
+              }
+            }
+          }
+        }
+      }
+#print_r($toolsTimes);
+#exit;
+    }
+
 #echo "<br><br>";
     // Merge launch, verification and problems information.
     $verificationKey = array_merge(array_keys($verificationInfo), array_keys($verificationResultInfo));
@@ -303,7 +404,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Stats']['All tool names'] = array();
     // Collect all set of problems for a given tool that will be used in
     // visualization.
-    $result['Stats']['All tools problems'] = array();
+    $result['Stats']['All tool problems'] = array();
+    // Collect all set of children for a given tool that will be used in
+    // visualization.
+    $result['Stats']['All tool children'] = array();
+    // Remember what tool has a time.
+    $result['Stats']['All tool time'] = array();
 
     foreach ($launchesResultSet as $launchesRow) {
       $resultPart = array();
@@ -342,12 +448,37 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
       }
 
+      $resultPart['Tool time'] = array();
+      $resultPart['Tool children time'] = array();
+      foreach ($toolsTimes as $toolsTimesName => $toolsTimesKey) {
+        $toolNameTime = preg_split('/ /', $toolsTimesName);
+        if (array_key_exists($statsValuesStr, $toolsTimesKey)) {
+          $times = $toolsTimesKey[$statsValuesStr];
+          foreach ($times as $pattern => $time) {
+            if ($pattern == $patternItself) {
+              $resultPart['Tool time'][$toolsTimesName] = $time;
+              $result['Stats']['All tool time'][$toolNameTime[0]] = 1;
+            }
+            else {
+              $resultPart['Tool children time'][$toolsTimesName][$pattern] = $time[0];
+            }
+          }
+          foreach (array_keys($times) as $pattern) {
+            if ($pattern != $patternItself) {
+              $result['Stats']['All tool children'][$toolsTimesName][$pattern] = 1;
+            }
+          }
+          $result['Stats']['All tool names'][$toolNameTime[0]] = 1;
+        }
+      }
+
       $result['Stats']['Row info'][] = $resultPart;
     }
 
-#    foreach ($result as $res) {
-#      echo "<br>";print_r($res);
-#    }
+#foreach ($result as $res) {
+#  echo "<br>";print_r($res);
+#}
+#exit;
     return $result;
   }
 }

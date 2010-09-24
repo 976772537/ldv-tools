@@ -17,7 +17,9 @@ class IndexController extends Zend_Controller_Action
         $profileModel = new Application_Model_Profile(array('profileId' => $profileCurrent['profile']));
         $profileMapper = new Application_Model_ProfileMapper();
         $profileMapper->setProfileCurrent($profileModel);
-        
+        Zend_Registry::set('profileCurrentId', $profileModel->profileId);
+        $profileCurrentId = Zend_Registry::get('profileCurrentId');
+        echo $profileCurrentId; exit;
         if ($form->getElement('stats')->isChecked()) {
           return $this->_helper->redirector('index', 'stats');
         }

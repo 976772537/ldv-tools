@@ -7,128 +7,186 @@ $results = $this->entries;
 $page = $results['Page'];
 echo "<h3>The statistics for the page '$page'</h3>";
 
-// Get the statistics information part.
-$stats = $results['Stats']['Row info'];
+// Print general statistics table if so.
+if ($results['Stats']) {
+  // Get the statistics information part.
+  $stats = $results['Stats']['Row info'];
 
-$statKeys = array_keys($stats[0]['Stats key']);
-$verificationKeys = array_keys($stats[0]['Verification info']);
-$toolKeys = array_keys($stats[0]['Tools info']);
-$problemKeys = array_keys($results['Stats']['All tool problems']);
-$toolNames = array_keys($results['Stats']['All tool names']);
+  $statKeys = array_keys($stats[0]['Stats key']);
+  $verificationKeys = array_keys($stats[0]['Verification info']);
+  $toolKeys = array_keys($stats[0]['Tools info']);
+  $problemKeys = array_keys($results['Stats']['All tool problems']);
+  $toolNames = array_keys($results['Stats']['All tool names']);
+  $timeKeys = array_keys($results['Stats']['All tool time']);
+  $childrenKeys = array_keys($results['Stats']['All tool children']);
+#print_r($results['Stats']['All tool children']);
+#exit;
+  // Get the necessary tools information.
+  $tools = array();
 
-// Get the necessary tools information.
-$tools = array();
-
-foreach ($toolNames as $toolName) {
-  $tools[$toolName]['Info'] = array();
-  $tools[$toolName]['Problems'] = array();
-}
-
-foreach ($toolKeys as $toolKey) {
-  $toolNameInfo = preg_split('/ /', $toolKey);
-  $tools[$toolNameInfo[0]]['Info'][] = $toolNameInfo[1];
-}
-
-// Bind tool problems if soto the tool info.
-foreach ($problemKeys as $problemKey) {
-  $toolNameProblems = preg_split('/ /', $problemKey);
-  $tools[$toolNameProblems[0]]['Problems'] = $results['Stats']['All tool problems'][$problemKey];
-}
-
-$statVerificationKeyRowSpan = 1;
-$statToolsKeyRowSpan = 1;
-
-if (count($tools)) {
-  $statVerificationKeyRowSpan++;
-}
-
-if (count($problemKeys)) {
-  $statVerificationKeyRowSpan++;
-  $statToolsKeyRowSpan++;
-}
-
-echo "<table border=1>
-        <tr bgcolor='yellow'>";
-foreach ($statKeys as $statKey) {
-  echo "    <td rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
-}
-foreach ($verificationKeys as $verificationKey) {
-  echo "    <td rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
-}
-foreach ($tools as $toolName => $toolInfoProblems) {
-  echo "    <td colspan='" . (count($toolInfoProblems['Info']) + count($toolInfoProblems['Problems'])) . "'>$toolName</td>";
-}
-echo "  </tr>";
-echo "<tr bgcolor='gray'>";
-foreach ($tools as $toolName => $toolInfoProblems) {
-  foreach ($toolInfoProblems['Info'] as $toolInfo) {
-    echo "    <td rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
+  foreach ($toolNames as $toolName) {
+    $tools[$toolName]['Info'] = array();
+    $tools[$toolName]['Children time'] = array();
+    $tools[$toolName]['Problems'] = array();
   }
-  if ($problemsNumb = count($toolInfoProblems['Problems'])) {
-    echo "    <td colspan='$problemsNumb'>Problems</td>";
+
+  foreach ($toolKeys as $toolKey) {
+    $toolNameInfo = preg_split('/ /', $toolKey);
+    $tools[$toolNameInfo[0]]['Info'][] = $toolNameInfo[1];
   }
-}
-echo "  </tr>";
-if (count($problemKeys)) {
-  echo "<tr bgcolor='red'>";
-  foreach ($tools as $toolName => $toolInfoProblems) {
-    foreach (array_keys($toolInfoProblems['Problems']) as $toolProblem) {
-      echo "    <td>$toolProblem</td>";
+
+  // Consider tool time as general info.
+  foreach ($timeKeys as $timeKey) {
+    $tools[$timeKey]['Info'][] = 'Time';
+  }
+
+  // Bind tool children time if so to the tool info.
+  foreach ($childrenKeys as $childrenKey) {
+    $toolNameChildren = preg_split('/ /', $childrenKey);
+    $tools[$toolNameChildren[0]]['Children time'] = $results['Stats']['All tool children'][$childrenKey];
+  }
+
+  // Bind tool problems if so to the tool info.
+  foreach ($problemKeys as $problemKey) {
+    $toolNameProblems = preg_split('/ /', $problemKey);
+    $tools[$toolNameProblems[0]]['Problems'] = $results['Stats']['All tool problems'][$problemKey];
+  }
+#print_r($tools);
+#exit;
+  $statVerificationKeyRowSpan = 1;
+  $statToolsKeyRowSpan = 1;
+
+  if (count($tools)) {
+    $statVerificationKeyRowSpan++;
+  }
+
+  if (count($problemKeys) || count($childrenKeys)) {
+    $statVerificationKeyRowSpan++;
+    $statToolsKeyRowSpan++;
+  }
+
+  echo "<table border=1>
+          <tr bgcolor='yellow'>";
+  foreach ($statKeys as $statKey) {
+    echo "    <td rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
+  }
+  foreach ($verificationKeys as $verificationKey) {
+    echo "    <td rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
+  }
+  foreach ($tools as $toolName => $toolInfoTimeProblems) {
+    echo "    <td colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>";
+  }
+  echo "  </tr>";
+  echo "<tr bgcolor='gray'>";
+  foreach ($tools as $toolName => $toolInfoTimeProblems) {
+    foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
+      echo "    <td rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
+    }
+    if ($childrenNumb = count($toolInfoTimeProblems['Children time'])) {
+      echo "    <td colspan='$childrenNumb'>Children</td>";
+    }
+    if ($problemsNumb = count($toolInfoTimeProblems['Problems'])) {
+      echo "    <td colspan='$problemsNumb'>Problems</td>";
     }
   }
   echo "  </tr>";
-}
+  if (count($problemKeys)) {
+    echo "<tr>";
+    foreach ($tools as $toolName => $toolInfoTimeProblems) {
+      foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
+        echo "    <td bgcolor='green'>$toolChild</td>";
+      }
+      foreach (array_keys($toolInfoTimeProblems['Problems']) as $toolProblem) {
+        echo "    <td bgcolor='red'>$toolProblem</td>";
+      }
+    }
+    echo "  </tr>";
+  }
 
-foreach ($statKeys as $statKey) {
-  $prevStatKey[$statKey] = '';
-}
-foreach ($stats as $result) {
-  echo "  <tr>";
   foreach ($statKeys as $statKey) {
-    echo "    <td>";
-    $value = $result['Stats key'][$statKey];
-    if ($value != $prevStatKey[$statKey]) {
-      echo "$value";
-      $prevStatKey[$statKey] = $value;
-    }
-    echo "</td>";
+    $prevStatKey[$statKey] = '';
   }
-
-  foreach ($verificationKeys as $verificationKey) {
-    echo "    <td>" . $result['Verification info'][$verificationKey] . "</td>";
-  }
-
-  foreach ($tools as $toolName => $toolInfoProblems) {
-    foreach ($toolInfoProblems['Info'] as $toolInfo) {
-      echo "    <td>" . $result['Tools info']["$toolName $toolInfo"] . "</td>";
+  foreach ($stats as $result) {
+    echo "  <tr>";
+    foreach ($statKeys as $statKey) {
+      echo "    <td>";
+      $value = $result['Stats key'][$statKey];
+      if ($value != $prevStatKey[$statKey]) {
+        echo "$value";
+        $prevStatKey[$statKey] = $value;
+      }
+      echo "</td>";
     }
 
-    foreach (array_keys($toolInfoProblems['Problems']) as $toolProblem) {
-      $isHasProblem = false;
-      // If a given tool has any problem at all.
-      if (array_key_exists("$toolName Problems", $result['Tool problems'])) {
-        foreach ($result['Tool problems']["$toolName Problems"] as $resultProblem) {
-          // If a given tool has a particular problem.
-          if ($toolProblem == $resultProblem['Problem name']) {
-            echo "    <td>" . $resultProblem['Problem number'] . "</td>";
-            $isHasProblem = true;
+    foreach ($verificationKeys as $verificationKey) {
+      echo "    <td>" . $result['Verification info'][$verificationKey] . "</td>";
+    }
+
+    foreach ($tools as $toolName => $toolInfoTimeProblems) {
+      foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
+        echo "<td>";
+        if ($toolInfo == 'Time') {
+          if (array_key_exists("$toolName Time", $result['Tool time'])) {
+            echo $result['Tool time']["$toolName Time"]['Time'];
           }
+          else {
+            echo '-';
+          }
+        }
+        else {
+          echo $result['Tools info']["$toolName $toolInfo"];
+        }
+        echo "</td>";
+      }
+
+      foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
+        $isHasChild = false;
+
+        // If a given tool has any child at all.
+        if (array_key_exists("$toolName Time", $result['Tool children time'])) {
+          foreach ($result['Tool children time']["$toolName Time"] as $pattern => $time) {
+            // If a given tool has a particular child.
+            if ($toolChild == $pattern) {
+              echo "    <td>" . $time['Time'] . "</td>";
+              $isHasChild = true;
+              break;
+            }
+          }
+        }
+
+        // In any case generate cell to fill the whole table correctly.
+        if (!$isHasChild) {
+          echo "<td>-</td>";
         }
       }
 
-      // In any case generate cell to fill the whole table correctly.
-      if (!$isHasProblem) {
-        echo "<td>-</td>";
+      foreach (array_keys($toolInfoTimeProblems['Problems']) as $toolProblem) {
+        $isHasProblem = false;
+        // If a given tool has any problem at all.
+        if (array_key_exists("$toolName Problems", $result['Tool problems'])) {
+          foreach ($result['Tool problems']["$toolName Problems"] as $resultProblem) {
+            // If a given tool has a particular problem.
+            if ($toolProblem == $resultProblem['Problem name']) {
+              echo "    <td>" . $resultProblem['Problem number'] . "</td>";
+              $isHasProblem = true;
+            }
+          }
+        }
+
+        // In any case generate cell to fill the whole table correctly.
+        if (!$isHasProblem) {
+          echo "<td>-</td>";
+        }
       }
     }
-  }
 
-  echo "  </tr>";
+    echo "  </tr>";
+  }
+  echo "</table>";
 }
-echo "</table>";
 
 // Print information on the current database connection.
-echo "<h3>Current database connection options</h3>";
+echo "<h3>The current database connection options</h3>";
 $db_connection_options = $results['Database connection'];
 foreach ($db_connection_options as $option => $value) {
   if ($option != 'profiler') {

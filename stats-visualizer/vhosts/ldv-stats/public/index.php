@@ -30,7 +30,11 @@ $application = new Zend_Application(
 $logger = new Zend_Log();
 $writer = new Zend_Log_Writer_Firebug();
 $logger->addWriter($writer);
-Zend_Registry::set('logger',$logger);
+Zend_Registry::set('logger', $logger);
+
+// Specify the default profile id as the current one.
+$profileDefaultId = 1;
+Zend_Registry::set('profileCurrentId', $profileDefaultId);
 
 $application->bootstrap()
             ->run();
