@@ -19,6 +19,11 @@ class StatsController extends Zend_Controller_Action
     if ($this->_hasParam('password')) {
       $global->dbPassword =  $this->_getParam('password');
     }
+
+    // Remember the time where the page processing was begin.
+    $starttime = explode(' ', microtime());
+    $starttime =  $starttime[1] + $starttime[0];
+    $global->startTime = $starttime;
   }
 
   public function indexAction()

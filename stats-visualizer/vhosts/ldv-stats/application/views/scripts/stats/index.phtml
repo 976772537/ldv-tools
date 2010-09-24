@@ -194,6 +194,12 @@ foreach ($db_connection_options as $option => $value) {
   }
 }
 
+// Obtain the time where page was created and find the page generation time.
+$endtime = explode(' ', microtime());
+$global = new Zend_Session_Namespace('Statistics globals');
+$totaltime = $endtime[0] +  $endtime[1] - $global->startTime;
+printf('<h3>Page generated in %.3f seconds.</h3>',  $totaltime);
+
 #foreach ($this->entries as $entry):
 #    echo $this->escape($entry->id)
 
