@@ -199,11 +199,6 @@ sub hxml_cmdstream_cc {
 		my $outdir = $section->text;
 		# put stats info in hash
 		$stats_hash{$outdir} = [$summary_size,$summary_lines];
-		print "HASH TEST: $outdir,";
-		print $stats_hash{$outdir}[0];
-		print ",";
-		print $stats_hash{$outdir}[1];
-		print "\n";
 		# 1. replace outdir from basedir in xml with our driverdir
   		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
 			ldv_eprint("Can't find basedir pattern in cc outdirs.");
