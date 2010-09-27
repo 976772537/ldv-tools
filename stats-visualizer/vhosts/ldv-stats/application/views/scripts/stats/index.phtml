@@ -3,6 +3,10 @@
 // Get all infomation to be displayed.
 $results = $this->entries;
 
+// Get information on all current profile page names. For them links will be
+// generated inside the statistics table cells below.
+$profilePages = $results['Profile pages'];
+
 // Get the view name.
 $page = $results['Page'];
 echo "<h3>The statistics for the page '$page'</h3>";
@@ -20,6 +24,7 @@ if ($results['Stats']) {
   $timeKeys = array_keys($results['Stats']['All tool time']);
   $childrenKeys = array_keys($results['Stats']['All tool children']);
 #print_r($results['Stats']['All tool children']);
+#print_r($statKeys);print_r($verificationKeys);
 #exit;
   // Get the necessary tools information.
   $tools = array();
@@ -66,38 +71,38 @@ if ($results['Stats']) {
   }
 
   echo "<table border=1>
-          <tr bgcolor='yellow'>";
+          <tr align='center' bgcolor='yellow'>";
   foreach ($statKeys as $statKey) {
-    echo "    <td rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
+    echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
   }
   foreach ($verificationKeys as $verificationKey) {
-    echo "    <td rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
+    echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
   }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
-    echo "    <td colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>";
+    echo "    <td nowrap colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>";
   }
   echo "  </tr>";
-  echo "<tr bgcolor='gray'>";
+  echo "<tr align='center' bgcolor='gray'>";
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
-      echo "    <td rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
+      echo "    <td nowrap rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
     }
     if ($childrenNumb = count($toolInfoTimeProblems['Children time'])) {
-      echo "    <td colspan='$childrenNumb'>Children</td>";
+      echo "    <td nowrap colspan='$childrenNumb'>Children</td>";
     }
     if ($problemsNumb = count($toolInfoTimeProblems['Problems'])) {
-      echo "    <td colspan='$problemsNumb'>Problems</td>";
+      echo "    <td nowrap colspan='$problemsNumb'>Problems</td>";
     }
   }
   echo "  </tr>";
   if (count($problemKeys)) {
-    echo "<tr>";
+    echo "<tr align='center'>";
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
-        echo "    <td bgcolor='green'>$toolChild</td>";
+        echo "    <td nowrap bgcolor='green'>$toolChild</td>";
       }
       foreach (array_keys($toolInfoTimeProblems['Problems']) as $toolProblem) {
-        echo "    <td bgcolor='red'>$toolProblem</td>";
+        echo "    <td nowrap bgcolor='red'>$toolProblem</td>";
       }
     }
     echo "  </tr>";
@@ -107,12 +112,29 @@ if ($results['Stats']) {
     $prevStatKey[$statKey] = '';
   }
   foreach ($stats as $result) {
-    echo "  <tr>";
+    echo "  <tr align='center'>";
     foreach ($statKeys as $statKey) {
       echo "    <td>";
       $value = $result['Stats key'][$statKey];
       if ($value != $prevStatKey[$statKey]) {
-        echo "$value";
+        if (array_key_exists($statKey, $profilePages)) {
+          echo "<a href='"
+            . $this->url(
+              array(
+                'controller' => 'stats',
+                'action'     => 'index',
+                'page' => $statKey,
+                'value' => $value),
+              'default',
+              true)
+            . "'>"
+            . $value
+            . "</a>";
+
+        }
+        else {
+          echo "$value";
+        }
         $prevStatKey[$statKey] = $value;
       }
       echo "</td>";

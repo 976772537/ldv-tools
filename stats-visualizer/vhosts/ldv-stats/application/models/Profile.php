@@ -100,6 +100,15 @@ class Application_Model_Profile extends Application_Model_General
     return $this->_pages;
   }
 
+  public function getPageNames()
+  {
+    $pageNames = array();
+    foreach (array_keys($this->_pages) as $pageName) {
+      $pageNames[$pageName] = 1;
+    }
+    return $pageNames;
+  }
+
   public function getPage($name)
   {
     return $this->_pages[$name];

@@ -147,22 +147,24 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // that they are already ordered.
     $verificationInfo = array();
     $verificationResultInfo = array();
-    foreach ($page->verificationInfo as $info) {
-      // The 'Result' is just union of 'Safe', 'Unsafe' and 'Unknown' statuses
-      // that will be iterated below.
-      if ($info->verificationInfoName == 'Result') {
-        foreach ($info->results as $resultInfo) {
-        $name = $resultInfo->resultName;
-        $tableColumnCond = $this->_verificationResultInfoNameTableColumnMapper[$name];
-        $tableColumn = $this->getTableColumn($tableColumnCond);
-          $verificationResultInfo[$name] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
+    if (null !== $page->verificationInfo) {
+      foreach ($page->verificationInfo as $info) {
+        // The 'Result' is just union of 'Safe', 'Unsafe' and 'Unknown' statuses
+        // that will be iterated below.
+        if ($info->verificationInfoName == 'Result') {
+          foreach ($info->results as $resultInfo) {
+          $name = $resultInfo->resultName;
+          $tableColumnCond = $this->_verificationResultInfoNameTableColumnMapper[$name];
+          $tableColumn = $this->getTableColumn($tableColumnCond);
+            $verificationResultInfo[$name] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
+          }
         }
-      }
-      else
-      {
-        $name = $info->verificationInfoName;
-        $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
-        $verificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
+        else
+        {
+          $name = $info->verificationInfoName;
+          $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
+          $verificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
+        }
       }
     }
 
@@ -171,29 +173,33 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $toolsInfo = array();
     $isTimeNeeded = false;
     $toolsTime = array();
-    foreach ($page->toolsInfo as $info) {
-      $toolName = $info->toolsInfoName;
-      foreach ($info->tools as $toolInfo) {
-        $name = $toolInfo->toolName;
-        if ($name == 'Ok' || $name == 'Fail') {
-          $tableColumnCond = $this->_toolInfoNameTableColumnMapper[$name];
-          $tableColumn = $this->getTableColumn($tableColumnCond);
-          $toolsInfo["$toolName $name"] = "SUM(IF(`$tableColumn[tableShort]_$toolName`.`$tableColumn[column]`=$tableColumnCond[cond], 1, 0))";
+    if (null !== $page->toolsInfo) {
+      foreach ($page->toolsInfo as $info) {
+        $toolName = $info->toolsInfoName;
+        if (null !== $info->tools) {
+          foreach ($info->tools as $toolInfo) {
+            $name = $toolInfo->toolName;
+            if ($name == 'Ok' || $name == 'Fail') {
+              $tableColumnCond = $this->_toolInfoNameTableColumnMapper[$name];
+              $tableColumn = $this->getTableColumn($tableColumnCond);
+              $toolsInfo["$toolName $name"] = "SUM(IF(`$tableColumn[tableShort]_$toolName`.`$tableColumn[column]`=$tableColumnCond[cond], 1, 0))";
+            }
+            else if ($name == 'Description') {
+              $tableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
+              $toolsInfo["$toolName $name"] = "$tableColumn[tableShort]_$toolName.$tableColumn[column]";
+            }
+            else if ($name == 'LOC') {
+              $tableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
+              $toolsInfo["$toolName $name"] = "SUM(`$tableColumn[tableShort]_$toolName`.`$tableColumn[column]`)";
+            }
+            else if ($name == 'Time' || $name == 'Children time') {
+              $isTimeNeeded = true;
+              $toolsTime[$toolName][] = $name;
+            }
+          }
         }
-        else if ($name == 'Description') {
-          $tableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
-          $toolsInfo["$toolName $name"] = "$tableColumn[tableShort]_$toolName.$tableColumn[column]";
-        }
-        else if ($name == 'LOC') {
-          $tableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
-          $toolsInfo["$toolName $name"] = "SUM(`$tableColumn[tableShort]_$toolName`.`$tableColumn[column]`)";
-        }
-        else if ($name == 'Time' || $name == 'Children time') {
-          $isTimeNeeded = true;
-          $toolsTime[$toolName][] = $name;
-        }
+        $tools[$toolName] = 1;
       }
-      $tools[$toolName] = 1;
     }
 
     $launches = $this->getDbTable('Application_Model_DbTable_Launches', $this->_db);
@@ -250,84 +256,87 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     // Foreach specified tool collect its problems.
     $toolProblems = array();
-    foreach ($page->toolsInfo as $info) {
-      $toolName = $info->toolsInfoName;
-      foreach ($info->tools as $toolInfo) {
-        $name = $toolInfo->toolName;
-        if ($name == 'Problems') {
-          $select = $launches
-            ->select()->setIntegrityCheck(false);
+    if (null !== $page->toolsInfo) {
+      foreach ($page->toolsInfo as $info) {
+        $toolName = $info->toolsInfoName;
+        foreach ($info->tools as $toolInfo) {
+          $name = $toolInfo->toolName;
+          if ($name == 'Problems') {
+            $select = $launches
+              ->select()->setIntegrityCheck(false);
 
-          $problemsTableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
-          $problemsColumn = "$problemsTableColumn[tableShort].$problemsTableColumn[column]";
-          $problemsGroupBy = $groupBy;
-          $problemsGroupBy[] = $problemsColumn;
+            $problemsTableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
+            $problemsColumn = "$problemsTableColumn[tableShort].$problemsTableColumn[column]";
+            $problemsGroupBy = $groupBy;
+            $problemsGroupBy[] = $problemsColumn;
 
-          $select = $select
-            ->from(array($this->_tableMapper[$tableMain] => $tableMain),
-                array_merge($launchInfo, array(
-                  "$toolName Problems" => $problemsColumn,
-                  "$toolName Problems number" => 'COUNT(*)')));
+            $select = $select
+              ->from(array($this->_tableMapper[$tableMain] => $tableMain),
+                  array_merge($launchInfo, array(
+                    "$toolName Problems" => $problemsColumn,
+                    "$toolName Problems number" => 'COUNT(*)')));
 
-          // Join launches with related with statistics key tables. Note that
-          // traces is always joined.
-          foreach (array_keys($joins) as $table) {
-          $select = $select
-            ->joinLeft(array($this->_tableMapper[$table] => $table),
-              '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
-          }
+            // Join launches with related with statistics key tables. Note that
+            // traces is always joined.
+            foreach (array_keys($joins) as $table) {
+            $select = $select
+              ->joinLeft(array($this->_tableMapper[$table] => $table),
+                '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
+            }
 
-          // Join tool table.
-          $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$toolName]);
-          $tableStat = "$tableColumn[tableShort]_$toolName";
-          $select = $select
-            ->joinLeft(array($tableStat => $tableColumn['table']),
-              '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
+            // Join tool table.
+            $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$toolName]);
+            $tableStat = "$tableColumn[tableShort]_$toolName";
+            $select = $select
+              ->joinLeft(array($tableStat => $tableColumn['table']),
+                '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
 
-          // Join problems tool relating table.
-          $tableStatProblems = 'problems_stats';
-          $select = $select
-            ->joinLeft(array($this->_tableMapper[$tableStatProblems] => $tableStatProblems),
-              '`' . $this->_tableMapper[$tableStatProblems] . "`.`stats_id`=`$tableStat`.`id`");
+            // Join problems tool relating table.
+            $tableStatProblems = 'problems_stats';
+            $select = $select
+              ->joinLeft(array($this->_tableMapper[$tableStatProblems] => $tableStatProblems),
+                '`' . $this->_tableMapper[$tableStatProblems] . "`.`stats_id`=`$tableStat`.`id`");
 
 
-          // Join problems table.
-          $tableProblems = 'problems';
-          $select = $select
-            ->joinLeft(array($this->_tableMapper[$tableProblems] => $tableProblems),
-              '`' . $this->_tableMapper[$tableStatProblems] . '`.`problem_id`=`' . $this->_tableMapper[$tableProblems] . '`.`id`');
+            // Join problems table.
+            $tableProblems = 'problems';
+            $select = $select
+              ->joinLeft(array($this->_tableMapper[$tableProblems] => $tableProblems),
+                '`' . $this->_tableMapper[$tableStatProblems] . '`.`problem_id`=`' . $this->_tableMapper[$tableProblems] . '`.`id`');
 
-          // Laucnhes without problems mustn't be taken into consideration.'
-          $select = $select->where("`$problemsTableColumn[tableShort]`.`id` IS NOT NULL");
+            // Laucnhes without problems mustn't be taken into consideration.'
+            $select = $select->where("`$problemsTableColumn[tableShort]`.`id` IS NOT NULL");
 
-          // Group by the launch information.
-          foreach ($problemsGroupBy as $group) {
-            $select = $select->group($group);
-          }
+            // Group by the launch information.
+            foreach ($problemsGroupBy as $group) {
+              $select = $select->group($group);
+            }
 
-          // Order by the launch information.
-          foreach ($orderBy as $order) {
-            $select = $select->order($order);
-          }
+            // Order by the launch information.
+            foreach ($orderBy as $order) {
+              $select = $select->order($order);
+            }
 
 #print_r($select->assemble());
 #exit;
 
-          $launchesProblemsResultSet= $launches->fetchAll($select);
+            $launchesProblemsResultSet= $launches->fetchAll($select);
 
-          foreach ($launchesProblemsResultSet as $launchesProblemsRow) {
-            $statsValues = array();
-            foreach ($statsKey as $statsKeyPart) {
-              $statsValues[] = $launchesProblemsRow[$statsKeyPart];
+            foreach ($launchesProblemsResultSet as $launchesProblemsRow) {
+              $statsValues = array();
+              foreach ($statsKey as $statsKeyPart) {
+                $statsValues[] = $launchesProblemsRow[$statsKeyPart];
+              }
+              $statsValuesStr = join(';', $statsValues);
+              $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
             }
-            $statsValuesStr = join(';', $statsValues);
-            $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
           }
         }
       }
     }
 
     // Collect information on a tools and their children execution time.
+    $toolsTimes = array();
     if ($isTimeNeeded) {
       $select = $launches
         ->select()->setIntegrityCheck(false);
@@ -380,7 +389,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $launchesTimeResultSet= $launches->fetchAll($select);
 
-      $toolsTimes = array();
       $patternItself = '__ITSELF';
       foreach ($launchesTimeResultSet as $launchesTimeRow) {
         $statsValues = array();
