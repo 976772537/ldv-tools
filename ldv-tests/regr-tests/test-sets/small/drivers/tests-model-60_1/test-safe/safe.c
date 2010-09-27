@@ -47,5 +47,5 @@ module_init(my_init);
 module_exit(my_exit);
 
 MODULE_LICENSE("Apache 2.0");
-MODULE_AUTHOR("LDV Project, Vedim Mutilin <mutilin@ispras.ru>");
+MODULE_AUTHOR("LDV Project, Vadim Mutilin <mutilin@ispras.ru>");
 
