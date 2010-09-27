@@ -7,14 +7,16 @@ $results = $this->entries;
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
 
-print_r($profilePages);
+#print_r($profilePages);
 
 // Get the view name.
 $page = $results['Page'];
-echo "<h3>The statistics for the page '$page'</h3>";
+
+$resultsNumb = count($results['Stats']['Row info']);
+echo "<h3>The statistics for the page '$page' (" . $resultsNumb . " rows)</h3>";
 
 // Print general statistics table if so.
-if ($results['Stats']) {
+if ($resultsNumb) {
   // Get the statistics information part.
   $stats = $results['Stats']['Row info'];
 
@@ -25,9 +27,11 @@ if ($results['Stats']) {
   $toolNames = array_keys($results['Stats']['All tool names']);
   $timeKeys = array_keys($results['Stats']['All tool time']);
   $childrenKeys = array_keys($results['Stats']['All tool children']);
+
 #print_r($results['Stats']['All tool children']);
 #print_r($statKeys);print_r($verificationKeys);
 #exit;
+
   // Get the necessary tools information.
   $tools = array();
 
@@ -58,8 +62,10 @@ if ($results['Stats']) {
     $toolNameProblems = preg_split('/ /', $problemKey);
     $tools[$toolNameProblems[0]]['Problems'] = $results['Stats']['All tool problems'][$problemKey];
   }
+
 #print_r($tools);
 #exit;
+
   $statVerificationKeyRowSpan = 1;
   $statToolsKeyRowSpan = 1;
 
@@ -91,7 +97,7 @@ if ($results['Stats']) {
       echo "    <td nowrap rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
     }
     if ($childrenNumb = count($toolInfoTimeProblems['Children time'])) {
-      echo "    <td nowrap colspan='$childrenNumb'>Children</td>";
+      echo "    <td nowrap colspan='$childrenNumb'>Children time</td>";
     }
     if ($problemsNumb = count($toolInfoTimeProblems['Problems'])) {
       echo "    <td nowrap colspan='$problemsNumb'>Problems</td>";
@@ -190,7 +196,27 @@ if ($results['Stats']) {
           }
         }
         else {
-          echo $result['Tools info']["$toolName $toolInfo"];
+          $value = $result['Tools info']["$toolName $toolInfo"];
+          if (array_key_exists("$toolName $toolInfo", $profilePages)) {
+            echo "<a href='"
+              . $this->url(
+                array_merge(
+                  array(
+                    'controller' => 'stats',
+                    'action'     => 'index',
+                    'page' => "$toolName $toolInfo",
+                    'value' => $value),
+                  $statKeysValues),
+                'default',
+                true)
+              . "'>"
+              . $value
+              . "</a>";
+
+          }
+          else {
+            echo "$value";
+          }
         }
         echo "</td>";
       }
@@ -223,7 +249,29 @@ if ($results['Stats']) {
           foreach ($result['Tool problems']["$toolName Problems"] as $resultProblem) {
             // If a given tool has a particular problem.
             if ($toolProblem == $resultProblem['Problem name']) {
-              echo "    <td>" . $resultProblem['Problem number'] . "</td>";
+              echo "    <td>";
+              $value = $resultProblem['Problem number'];
+              if (array_key_exists("$toolName Problems", $profilePages)) {
+                echo "<a href='"
+                  . $this->url(
+                    array_merge(
+                      array(
+                        'controller' => 'stats',
+                        'action'     => 'index',
+                        'page' => "$toolName Problems",
+                        'value' => $resultProblem['Problem name']),
+                      $statKeysValues),
+                    'default',
+                    true)
+                  . "'>"
+                  . $value
+                  . "</a>";
+
+              }
+              else {
+                echo "$value";
+              }
+              echo "</td>";
               $isHasProblem = true;
             }
           }

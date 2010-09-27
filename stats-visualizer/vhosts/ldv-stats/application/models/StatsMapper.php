@@ -125,6 +125,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $pageName = $params['page'];
     }
 
+    // Some more information on a given page.
+    $value = '';
+    if (array_key_exists('value', $params)) {
+      $value = $params['value'];
+    }
+
     // Here all information to be shown will be written.
     $result = array();
 
@@ -256,12 +262,36 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
     // For result (safe, unsafe and unknown) pages restrict the selected result
-    // both to just corresponding result and to corresponding launch information
-    // key.
+    // both to the corresponding result and to the corresponding launch
+    // information key values.
     if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown') {
       $select = $select
         ->where('`' . $this->_tableMapper[$tableAux] . '`.`result` = ?', $pageName);
+    }
 
+    // For tools execution status (ok or fail) and tools problems pages restrict
+    // the selected result both to the corresponding result and to the
+    // corresponding launch information key values.
+    $isToolRestrict = false;
+    $tableTool = 'stats';
+    foreach (array_keys($this->_toolsInfoNameTableColumnMapper) as $toolName) {
+      if (preg_match("/$toolName/", $pageName)) {
+        $toolNameInfo = preg_split('/ /', $pageName);
+
+        // Ok corresponds to the true. Fail corresponds to the false.
+        $status = 1;
+        if ($toolNameInfo[1] == 'Fail' || $toolNameInfo[1] == 'Problems') {
+          $status = 0;
+        }
+
+        $select = $select
+          ->where('`' . $this->_tableMapper[$tableTool] . '_' . $toolNameInfo[0] . '`.`success` = ?', $status);
+        $isToolRestrict = true;
+        break;
+      }
+    }
+
+    if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
       foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
         $select = $select
           ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
@@ -340,6 +370,17 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
               // Laucnhes without problems mustn't be taken into consideration.'
               $select = $select->where("`$problemsTableColumn[tableShort]`.`id` IS NOT NULL");
+
+              // For tools problems pages restrict the selected result both to
+              // the corresponding problem name.
+              foreach (array_keys($this->_toolsInfoNameTableColumnMapper) as $toolName) {
+                if (preg_match("/$toolName/", $pageName)) {
+                  $toolNameProblems = preg_split('/ /', $pageName);
+                  $select = $select
+                    ->where('`' . $this->_tableMapper[$tableProblems] . '`.`name` = ?', $value);
+                  break;
+                }
+              }
 
               // Group by the launch information.
               foreach ($problemsGroupBy as $group) {
@@ -470,6 +511,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Stats']['All tool children'] = array();
     // Remember what tool has a time.
     $result['Stats']['All tool time'] = array();
+    // Here the data will be placed.
+    $result['Stats']['Row info'] = array();
 
     foreach ($launchesResultSet as $launchesRow) {
       $resultPart = array();
