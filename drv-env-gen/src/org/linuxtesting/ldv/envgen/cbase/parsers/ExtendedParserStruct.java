@@ -85,7 +85,7 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		Logger.trace("Content of struct initialization: " + innerContent);
 		/* найдем все предполагаемые имена функций в структуре */
 		List<NameAndType> fnames = getFunctionNames(innerContent);
-		Logger.trace("TokenStruct.parseContent " + sNameAndType + " functions " + fnames);
+		Logger.trace("TokenStruct.parseContent " + sNameAndType + " initialized as " + fnames);
 		if(fnames.size()>0) {
 			/* создадим парсер функций */
 			ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(getReader());
