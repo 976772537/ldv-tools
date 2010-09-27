@@ -67,7 +67,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'rule-instrumentor' => 'RI',
     'rcv' => 'RCV');
 
-  public function connectToDb($host, $name, $user, $passord = 'no') {
+  public function connectToDb($host, $name, $user, $password = 'no') {
     // Override the profile database connection settings with the specified
     // through the page address ones if so.
     $global = new Zend_Session_Namespace('Statistics globals');
@@ -388,8 +388,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
               // For tools problems pages restrict the selected result both to
               // the corresponding problem name.
-              foreach (array_keys($this->_toolsInfoNameTableColumnMapper) as $toolName) {
-                if (preg_match("/$toolName/", $pageName)) {
+              foreach (array_keys($this->_toolsInfoNameTableColumnMapper) as $toolNameForRestrict) {
+                if (preg_match("/$toolNameForRestrict/", $pageName)) {
                   $toolNameProblems = preg_split('/ /', $pageName);
                   $select = $select
                     ->where('`' . $this->_tableMapper[$tableProblems] . '`.`name` = ?', $value);
@@ -419,9 +419,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                 }
                 $statsValuesStr = join(';', $statsValues);
 
-                if (array_key_exists("$toolName Problems", $toolProblems)) {
-                  $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
-                }
+                $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
               }
             }
           }
