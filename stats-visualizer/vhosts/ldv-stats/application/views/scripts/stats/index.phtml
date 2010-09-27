@@ -153,8 +153,13 @@ if ($resultsNumb) {
           echo "$value";
         }
 
-        if ($value == null) {
+        // Use special designatures for NULL and empty string values to send
+        // them through address.
+        if (is_null($value)) {
           $value = '__NULL';
+        }
+        else if ($value == '') {
+          $value = '__EMPTY';
         }
 
         $statKeysValues[$statKey] = $value;

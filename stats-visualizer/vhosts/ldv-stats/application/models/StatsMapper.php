@@ -297,6 +297,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
       foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+        if ($statKeyValue == '__EMPTY') {
+          $statKeyValue = '';
+        }
+
         if ($statKeyValue == '__NULL') {
           $select = $select
             ->where("$launchInfoScreened[$statKey] IS NULL");
@@ -414,7 +418,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                   $statsValues[] = $launchesProblemsRow[$statsKeyPart];
                 }
                 $statsValuesStr = join(';', $statsValues);
-                $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
+
+                if (array_key_exists("$toolName Problems", $toolProblems)) {
+                  $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
+                }
               }
             }
           }
@@ -534,7 +541,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $resultPart['Stats key'][$statsKeyPart] = $launchesRow[$statsKeyPart];
         $statsValues[] = $launchesRow[$statsKeyPart];
       }
-
       $statsValuesStr = join(';', $statsValues);
 
       $resultPart['Verification info'] = array();
