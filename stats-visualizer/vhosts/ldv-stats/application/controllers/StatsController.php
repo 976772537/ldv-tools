@@ -7,6 +7,7 @@ class StatsController extends Zend_Controller_Action
     // Get the current session database connection settings from the address to
     // be used instead of the current profile ones.
     $global = new Zend_Session_Namespace('Statistics globals');
+
     if ($this->_hasParam('name')) {
       $global->dbName =  $this->_getParam('name');
     }

@@ -67,7 +67,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'rule-instrumentor' => 'RI',
     'rcv' => 'RCV');
 
-  public function connectToDb($host, $name, $user, $passord) {
+  public function connectToDb($host, $name, $user, $passord = 'no') {
     // Override the profile database connection settings with the specified
     // through the page address ones if so.
     $global = new Zend_Session_Namespace('Statistics globals');
@@ -82,7 +82,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $host = $global->dbHost;
     }
     if ($global->dbPassword) {
-      $name = $global->dbPassword;
+      $password = $global->dbPassword;
+    }
+
+    if ($password == 'no') {
+      $password = '';
     }
 
     $options = array(
@@ -102,7 +106,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     if (isset($host)) {
       $options['host'] = $host;
     }
-
+#print_r($options);exit;
     $this->_db = new Zend_Db_Adapter_Pdo_Mysql($options);
 
     return $options;
@@ -293,8 +297,15 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
       foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
-        $select = $select
-          ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+        if ($statKeyValue == '__NULL') {
+          $select = $select
+            ->where("$launchInfoScreened[$statKey] IS NULL");
+        }
+        else
+        {
+          $select = $select
+            ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+        }
       }
     }
 

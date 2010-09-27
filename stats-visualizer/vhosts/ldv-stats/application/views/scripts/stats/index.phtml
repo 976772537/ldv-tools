@@ -119,9 +119,9 @@ if ($resultsNumb) {
 
   // To print every value of statistics key just one time in the corresponding
   // groups.
-  foreach ($statKeys as $statKey) {
-    $prevStatKey[$statKey] = '';
-  }
+#  foreach ($statKeys as $statKey) {
+#    $prevStatKey[$statKey] = '';
+#  }
 
   // Iterate over all results.
   $i = 1;
@@ -133,7 +133,7 @@ if ($resultsNumb) {
     foreach ($statKeys as $statKey) {
       echo "    <td>";
       $value = $result['Stats key'][$statKey];
-      if ($value != $prevStatKey[$statKey]) {
+#      if ($value != $prevStatKey[$statKey]) {
         if (array_key_exists($statKey, $profilePages)) {
           echo "<a href='"
             . $this->url(
@@ -152,9 +152,14 @@ if ($resultsNumb) {
         else {
           echo "$value";
         }
+
+        if ($value == null) {
+          $value = '__NULL';
+        }
+
         $statKeysValues[$statKey] = $value;
 #       $prevStatKey[$statKey] = $value;
-      }
+#      }
       echo "</td>";
     }
 
