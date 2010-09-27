@@ -116,8 +116,15 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     return array('table' => $table, 'tableShort' => $tableShort, 'column' => $column);
   }
 
-  public function getPageStats($profile, $pageName)
+  public function getPageStats($profile, $params)
   {
+    // Get information for the specified if so or the default page of a current
+    // profile.
+    $pageName = 'Index';
+    if (array_key_exists('page', $params)) {
+      $pageName = $params['page'];
+    }
+
     // Here all information to be shown will be written.
     $result = array();
 
@@ -128,18 +135,32 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Connect to the profile database and remember connection settings.
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
 
+    // Gather all statistics key restrictions if so comming throuth the
+    // parameters.
+    $statKeysRestrictions = array();
+    foreach (array_keys($this->_launchInfoNameTableColumnMapper) as $statKey) {
+      if (array_key_exists($statKey, $params)) {
+        $statKeysRestrictions[$statKey] = $params[$statKey];
+      }
+    }
+
     // Obtain the launch info columns. They will be selected as statistics key,
     // joined and by them groupping by and ordering will be done. Note that they
     // are already ordered.
     $launchInfo = array();
+    $launchInfoScreened = array();
     $joins = array();
     $groupBy = array();
     $orderBy = array();
-    foreach ($page->launchInfo as $info) {
-    $name = $info->launchInfoName;
-    $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
-      $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
-      $joins[$tableColumn['table']] = 1;
+
+    if (null !== $page->launchInfo) {
+      foreach ($page->launchInfo as $info) {
+        $name = $info->launchInfoName;
+        $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
+          $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
+          $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
+          $joins[$tableColumn['table']] = 1;
+      }
     }
     $statsKey = array_keys($launchInfo);
 
@@ -227,11 +248,24 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     // Join tools tables.
     foreach (array_keys($tools) as $tool) {
-    $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$tool]);
-    $tableStat = "$tableColumn[tableShort]_$tool";
-    $select = $select
-      ->joinLeft(array($tableStat => $tableColumn['table']),
-        '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
+      $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$tool]);
+      $tableStat = "$tableColumn[tableShort]_$tool";
+      $select = $select
+        ->joinLeft(array($tableStat => $tableColumn['table']),
+          '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
+    }
+
+    // For result (safe, unsafe and unknown) pages restrict the selected result
+    // both to just corresponding result and to corresponding launch information
+    // key.
+    if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown') {
+      $select = $select
+        ->where('`' . $this->_tableMapper[$tableAux] . '`.`result` = ?', $pageName);
+
+      foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+        $select = $select
+          ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+      }
     }
 
     // Group by the launch information.
@@ -246,7 +280,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
 #print_r($select->assemble());
 #exit;
-#->where('pages_id = ?', $profilePagesRow['Id'])
 
     $launchesResultSet = $launches->fetchAll($select);
 
@@ -259,76 +292,78 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     if (null !== $page->toolsInfo) {
       foreach ($page->toolsInfo as $info) {
         $toolName = $info->toolsInfoName;
-        foreach ($info->tools as $toolInfo) {
-          $name = $toolInfo->toolName;
-          if ($name == 'Problems') {
-            $select = $launches
-              ->select()->setIntegrityCheck(false);
+        if (null !== $info->tools) {
+          foreach ($info->tools as $toolInfo) {
+            $name = $toolInfo->toolName;
+            if ($name == 'Problems') {
+              $select = $launches
+                ->select()->setIntegrityCheck(false);
 
-            $problemsTableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
-            $problemsColumn = "$problemsTableColumn[tableShort].$problemsTableColumn[column]";
-            $problemsGroupBy = $groupBy;
-            $problemsGroupBy[] = $problemsColumn;
+              $problemsTableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
+              $problemsColumn = "$problemsTableColumn[tableShort].$problemsTableColumn[column]";
+              $problemsGroupBy = $groupBy;
+              $problemsGroupBy[] = $problemsColumn;
 
-            $select = $select
-              ->from(array($this->_tableMapper[$tableMain] => $tableMain),
-                  array_merge($launchInfo, array(
-                    "$toolName Problems" => $problemsColumn,
-                    "$toolName Problems number" => 'COUNT(*)')));
+              $select = $select
+                ->from(array($this->_tableMapper[$tableMain] => $tableMain),
+                    array_merge($launchInfo, array(
+                      "$toolName Problems" => $problemsColumn,
+                      "$toolName Problems number" => 'COUNT(*)')));
 
-            // Join launches with related with statistics key tables. Note that
-            // traces is always joined.
-            foreach (array_keys($joins) as $table) {
-            $select = $select
-              ->joinLeft(array($this->_tableMapper[$table] => $table),
-                '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
-            }
+              // Join launches with related with statistics key tables. Note that
+              // traces is always joined.
+              foreach (array_keys($joins) as $table) {
+              $select = $select
+                ->joinLeft(array($this->_tableMapper[$table] => $table),
+                  '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
+              }
 
-            // Join tool table.
-            $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$toolName]);
-            $tableStat = "$tableColumn[tableShort]_$toolName";
-            $select = $select
-              ->joinLeft(array($tableStat => $tableColumn['table']),
-                '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
+              // Join tool table.
+              $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$toolName]);
+              $tableStat = "$tableColumn[tableShort]_$toolName";
+              $select = $select
+                ->joinLeft(array($tableStat => $tableColumn['table']),
+                  '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
 
-            // Join problems tool relating table.
-            $tableStatProblems = 'problems_stats';
-            $select = $select
-              ->joinLeft(array($this->_tableMapper[$tableStatProblems] => $tableStatProblems),
-                '`' . $this->_tableMapper[$tableStatProblems] . "`.`stats_id`=`$tableStat`.`id`");
+              // Join problems tool relating table.
+              $tableStatProblems = 'problems_stats';
+              $select = $select
+                ->joinLeft(array($this->_tableMapper[$tableStatProblems] => $tableStatProblems),
+                  '`' . $this->_tableMapper[$tableStatProblems] . "`.`stats_id`=`$tableStat`.`id`");
 
 
-            // Join problems table.
-            $tableProblems = 'problems';
-            $select = $select
-              ->joinLeft(array($this->_tableMapper[$tableProblems] => $tableProblems),
-                '`' . $this->_tableMapper[$tableStatProblems] . '`.`problem_id`=`' . $this->_tableMapper[$tableProblems] . '`.`id`');
+              // Join problems table.
+              $tableProblems = 'problems';
+              $select = $select
+                ->joinLeft(array($this->_tableMapper[$tableProblems] => $tableProblems),
+                  '`' . $this->_tableMapper[$tableStatProblems] . '`.`problem_id`=`' . $this->_tableMapper[$tableProblems] . '`.`id`');
 
-            // Laucnhes without problems mustn't be taken into consideration.'
-            $select = $select->where("`$problemsTableColumn[tableShort]`.`id` IS NOT NULL");
+              // Laucnhes without problems mustn't be taken into consideration.'
+              $select = $select->where("`$problemsTableColumn[tableShort]`.`id` IS NOT NULL");
 
-            // Group by the launch information.
-            foreach ($problemsGroupBy as $group) {
-              $select = $select->group($group);
-            }
+              // Group by the launch information.
+              foreach ($problemsGroupBy as $group) {
+                $select = $select->group($group);
+              }
 
-            // Order by the launch information.
-            foreach ($orderBy as $order) {
-              $select = $select->order($order);
-            }
+              // Order by the launch information.
+              foreach ($orderBy as $order) {
+                $select = $select->order($order);
+              }
 
 #print_r($select->assemble());
 #exit;
 
-            $launchesProblemsResultSet= $launches->fetchAll($select);
+              $launchesProblemsResultSet= $launches->fetchAll($select);
 
-            foreach ($launchesProblemsResultSet as $launchesProblemsRow) {
-              $statsValues = array();
-              foreach ($statsKey as $statsKeyPart) {
-                $statsValues[] = $launchesProblemsRow[$statsKeyPart];
+              foreach ($launchesProblemsResultSet as $launchesProblemsRow) {
+                $statsValues = array();
+                foreach ($statsKey as $statsKeyPart) {
+                  $statsValues[] = $launchesProblemsRow[$statsKeyPart];
+                }
+                $statsValuesStr = join(';', $statsValues);
+                $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
               }
-              $statsValuesStr = join(';', $statsValues);
-              $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
             }
           }
         }

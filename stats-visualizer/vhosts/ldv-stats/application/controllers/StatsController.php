@@ -32,14 +32,12 @@ class StatsController extends Zend_Controller_Action
     $profileMapper = new Application_Model_ProfileMapper();
     $profileCurrentInfo = $profileMapper->getProfileCurrentInfo();
 
-    // Get information for the spefied if so or the default page of a current
-    // profile.
-    $page = 'Index';
-    if ($this->_hasParam('page')) {
-      $page =  $this->_getParam('page');
-    }
+    // Get all parameters including page name, statistics key names and values
+    // and so on.
+    $params = $this->_getAllParams();
+
     $statsMapper = new Application_Model_StatsMapper();
-    $this->view->entries = $statsMapper->getPageStats($profileCurrentInfo, $page);
+    $this->view->entries = $statsMapper->getPageStats($profileCurrentInfo, $params);
     $this->view->entries['Profile pages'] = $profileCurrentInfo->getPageNames();
   }
 }

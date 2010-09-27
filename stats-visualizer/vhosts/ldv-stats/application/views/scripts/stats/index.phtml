@@ -7,6 +7,8 @@ $results = $this->entries;
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
 
+print_r($profilePages);
+
 // Get the view name.
 $page = $results['Page'];
 echo "<h3>The statistics for the page '$page'</h3>";
@@ -72,6 +74,7 @@ if ($results['Stats']) {
 
   echo "<table border=1>
           <tr align='center' bgcolor='yellow'>";
+  echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>#</td>";
   foreach ($statKeys as $statKey) {
     echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
   }
@@ -108,11 +111,19 @@ if ($results['Stats']) {
     echo "  </tr>";
   }
 
+  // To print every value of statistics key just one time in the corresponding
+  // groups.
   foreach ($statKeys as $statKey) {
     $prevStatKey[$statKey] = '';
   }
+
+  // Iterate over all results.
+  $i = 1;
   foreach ($stats as $result) {
     echo "  <tr align='center'>";
+    echo "    <td>$i</td>";
+    $i++;
+    $statKeysValues = array();
     foreach ($statKeys as $statKey) {
       echo "    <td>";
       $value = $result['Stats key'][$statKey];
@@ -135,13 +146,36 @@ if ($results['Stats']) {
         else {
           echo "$value";
         }
-        $prevStatKey[$statKey] = $value;
+        $statKeysValues[$statKey] = $value;
+#       $prevStatKey[$statKey] = $value;
       }
       echo "</td>";
     }
 
     foreach ($verificationKeys as $verificationKey) {
-      echo "    <td>" . $result['Verification info'][$verificationKey] . "</td>";
+      echo "    <td>";
+      $value = $result['Verification info'][$verificationKey];
+      if (array_key_exists($verificationKey, $profilePages)) {
+        echo "<a href='"
+          . $this->url(
+            array_merge(
+              array(
+                'controller' => 'stats',
+                'action'     => 'index',
+                'page' => $verificationKey,
+                'value' => $value),
+              $statKeysValues),
+            'default',
+            true)
+          . "'>"
+          . $value
+          . "</a>";
+
+      }
+      else {
+        echo "$value";
+      }
+      echo "</td>";
     }
 
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
