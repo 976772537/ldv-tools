@@ -17,6 +17,7 @@ drop table if exists rule_models;
 drop table if exists drivers ;
 drop table if exists environments ;
 drop table if exists processes ;
+drop table if exists db_properties ;
 
 -- Environments table holds kernels
 create table environments (
@@ -211,3 +212,19 @@ create table problems_stats(
 	foreign key (problem_id) references problems(id) on delete cascade
 ) ENGINE=InnoDB;
 
+-- ----------------------------
+-- DATABASE PROPERTIES
+-- ----------------------------
+
+create table db_properties(
+        id int(10) unsigned not null auto_increment,
+        name varchar(50) not null,
+        value varchar(50) not null,
+        primary key(id),
+        unique (name)
+) ENGINE=InnoDB;
+
+-- ----------------------------
+-- INSERT DATABASE PARAMETERS
+-- ----------------------------
+insert into db_properties (name, value) values ("version","1");
