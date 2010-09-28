@@ -4,6 +4,8 @@
 -- INPUT TO LAUNCHES
 -- ----------------------------
 
+drop table if exists db_properties ;
+drop table if exists processes ;
 drop table if exists launches;
 drop table if exists tasks;
 drop table if exists sources;
@@ -16,8 +18,6 @@ drop table if exists toolsets;
 drop table if exists rule_models;
 drop table if exists drivers ;
 drop table if exists environments ;
-drop table if exists processes ;
-drop table if exists db_properties ;
 
 -- Environments table holds kernels
 create table environments (
