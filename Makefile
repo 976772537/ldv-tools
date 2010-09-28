@@ -46,7 +46,6 @@ install-visualization: pre_tests $(call forall_subdirs,$(STATS_SUBDIRS),install)
 # Install only test stuff
 install-testing: pre_tests $(call forall_subdirs,$(TESTS_SUBDIRS),install)
 
-
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
 distclean: clean
