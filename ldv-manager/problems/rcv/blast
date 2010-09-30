@@ -17,7 +17,7 @@ while (<>){
 	/frontc reported an error/i and print "BLAST_Compile", "BLAST_frontend";
 	/AlignOfE not handled/i and print "BLAST_Unsupported", "BLAST_frontend";
 	/convertCilExp: align not handled/i and print "BLAST_Unsupported", "BLAST_frontend";
-	/SMT sovler answer is strange: \*\*\* Parse Error: stdin:29: syntax error/i and print "CVC3 Solver parse error";
+	/SMT sovler answer is strange: \*\*\* Parse Error: .*: syntax error/i and print "CVC3 Solver parse error";
 	/Errormsg\.Error/i and print "Parsing errors";
 }
 

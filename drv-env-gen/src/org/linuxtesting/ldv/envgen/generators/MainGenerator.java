@@ -242,6 +242,8 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "void check_final_state(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
 		sb.append("\n" + ctx.getIndent() + "void check_return_value(int res);\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Initializes the model. */");
+		sb.append("\n" + ctx.getIndent() + "void ldv_initialize(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
 		sb.append("\n" + ctx.getIndent() + "int nondet_int(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
@@ -254,6 +256,8 @@ public class MainGenerator {
 		sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_MAIN+" Main function for LDV verifier. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_main"+ctx.id+"(void) {\n\n\n");
 		ctx.incIndent();
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Initialize LDV model. */");
+		sb.append("\n" + ctx.getIndent() + "ldv_initialize();\n");		
 		ctx.fw.write(sb.toString());
 	}
 

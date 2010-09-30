@@ -82,9 +82,10 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		 *  распарсим спсиок вложенных функций -
 		 *  часть функций из старого парсера ! - убрать
 		 *  */
+		Logger.trace("Content of struct initialization: " + innerContent);
 		/* найдем все предполагаемые имена функций в структуре */
 		List<NameAndType> fnames = getFunctionNames(innerContent);
-		Logger.trace("TokenStruct.parseContent " + sNameAndType + " functions " + fnames);
+		Logger.trace("TokenStruct.parseContent " + sNameAndType + " initialized as " + fnames);
 		if(fnames.size()>0) {
 			/* создадим парсер функций */
 			ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(getReader());
@@ -96,7 +97,7 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 			/* и запустим парсер */
 			List<TokenFunctionDecl> functions = innerParserFunctions.parse();
 			Logger.trace("TokenStruct.parsed funcs " + functions);
-						
+			Logger.debug("TokenStruct.parseContent: Found " + functions.size() + " out of " + fnames.size() + " functions");
 			/* и создадим токен - структуру */
 			TokenStruct token = new TokenStruct(sNameAndType.getName(), sNameAndType.getType(),
 					start, nend, tokenClearContent, null, functions);
@@ -141,22 +142,21 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		}
 	}
 	
-	private final static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s[_a-zA-Z][_a-zA-Z0-9]*");
+	private final static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s*[_a-zA-Z][_a-zA-Z0-9]*");
 	
 	public static List<NameAndType> getFunctionNames(String buffer)
 	{
 		List<NameAndType> functions = new ArrayList<NameAndType>();
 		Matcher lmatcher = fstruct.matcher(buffer);
-		String lfinded;
-		String lname;
-		String ltype;
-		int lindex;
 		while(lmatcher.find()) {
-			lfinded = lmatcher.group();
-			lindex = lfinded.indexOf('=');
-			ltype = lfinded.substring(1,lindex).trim();
-			lname = lfinded.substring(lindex+1,lfinded.length()).trim();
-			functions.add(new NameAndType(lname,ltype));
+			String lfinded = lmatcher.group();
+			Logger.trace("lfinded=" + lfinded);
+			int lindex = lfinded.indexOf('=');
+			String ltype = lfinded.substring(1,lindex).trim();
+			String lname = lfinded.substring(lindex+1,lfinded.length()).trim();
+			NameAndType nt = new NameAndType(lname,ltype);
+			Logger.trace("" + nt);
+			functions.add(nt);
 		}
 		return functions;
 	}

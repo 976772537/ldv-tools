@@ -10,9 +10,10 @@ static DEFINE_SPINLOCK(my_lock);
 
 static int misc_open(struct inode * inode, struct file * file);
 
+//several spaces after = should be ignored
 static struct file_operations misc_fops = {
         .owner          = THIS_MODULE,
-        .open           = misc_open,
+        .open           =     misc_open,
 };
 
 static int misc_open(struct inode * inode, struct file * file)
@@ -36,5 +37,5 @@ module_init(my_init);
 module_exit(my_exit);
 
 MODULE_LICENSE("Apache 2.0");
-MODULE_AUTHOR("LDV Project, Vedim Mutilin <mutilin@ispras.ru>");
+MODULE_AUTHOR("LDV Project, Vadim Mutilin <mutilin@ispras.ru>");
 

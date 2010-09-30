@@ -14,6 +14,7 @@ STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer shared/php
 ONLINE_SUBDIRS = ldv-online 
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
 
+
 SUBDIRS = $(BUILD_SUBDIRS)
 INSTALL_SUBDIRS = $(LDV_SUBDIRS)
 CLEAN_SUBDIRS = $(SUBDIRS)
@@ -45,6 +46,7 @@ install-visualization: pre_tests $(call forall_subdirs,$(STATS_SUBDIRS),install)
 
 # Install only test stuff
 install-testing: pre_tests $(call forall_subdirs,$(TESTS_SUBDIRS),install)
+
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
