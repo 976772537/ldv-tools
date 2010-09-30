@@ -40,5 +40,19 @@ class StatsController extends Zend_Controller_Action
     $statsMapper = new Application_Model_StatsMapper();
     $this->view->entries = $statsMapper->getPageStats($profileCurrentInfo, $params);
     $this->view->entries['Profile pages'] = $profileCurrentInfo->getPageNames();
+
+    // Make a form for the tasks comparisson.
+    $request = $this->getRequest();
+    $form = new Application_Form_TasksComparisson();
+    $this->view->taskids = null;
+
+    if ($this->getRequest()->isPost()) {
+      if ($form->isValid($request->getPost())) {
+        $this->view->taskids = $form->getValue('taskids');
+        $form->reset();
+      }
+    }
+
+    $this->view->form = $form;
   }
 }

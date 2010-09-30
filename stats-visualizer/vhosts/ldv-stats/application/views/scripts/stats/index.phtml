@@ -1,5 +1,19 @@
 <?php
 
+// Whether the comparisson mode is activated.
+if (null !== $this->taskids && 'no' != $this->taskids) {
+ # echo "$this->taskids";exit;
+  $taskids = preg_split('/,/', $this->taskids);
+}
+
+if (isset($taskids)) {
+  echo "<h3>Compare the tasks having ids:";
+  foreach ($taskids as $taskid) {
+    echo " $taskid";
+  }
+  echo "</h3>";
+}
+
 // Get all infomation to be displayed.
 $results = $this->entries;
 
@@ -299,6 +313,10 @@ if ($resultsNumb) {
   }
   echo "</table>";
 }
+
+// Print form for the tasks comparisson.
+$this->form->setAction($this->url());
+echo $this->form;
 
 // Print information on the current database connection.
 echo "<h3>The current database connection options</h3>";

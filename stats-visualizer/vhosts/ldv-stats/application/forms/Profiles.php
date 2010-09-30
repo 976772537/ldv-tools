@@ -9,12 +9,12 @@ class Application_Form_Profiles extends Zend_Form
     $profiles = $profileMapper->getProfiles();
     $values = array();
     foreach ($profiles as $profile) {
-      $values[$profile->profileId] = "$profile->profileUser - $profile->profileName"; 
+      $values[$profile->profileId] = "$profile->profileUser - $profile->profileName";
     }
-    
+
     $this->setMethod('post');
- 
-    // Select user name.
+
+    // Select user and profile names.
     $this->addElement('select', 'profile', array(
       'label' => 'Plese select the profile (i.e. the pair \'profile user\', \'profile name\'):',
       'multiOptions' => $values,
@@ -27,7 +27,7 @@ class Application_Form_Profiles extends Zend_Form
       'value' => 'stats',
       'label'    => 'Show statistics'
     ));
-    
+
     $this->addElement('submit', 'edit', array(
       'ignore'   => true,
       'value' => 'edit',
