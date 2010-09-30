@@ -257,6 +257,7 @@ sub get_ldv_opts
 		print_usage();
 		exit 1;
 	} elsif(! -f "$state_file.data" ) {
+
 		ldv_wprint("Can not find file with state: \"$state_file.data\".");
 	}
 	if(!$stats_file) {

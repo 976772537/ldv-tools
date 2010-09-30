@@ -4,6 +4,7 @@ tests-model-39_1/test-safe ## envs=linux-2.6.32.15.tar.bz2 "rule_models=39_1 39_
 tests-model-32_1/test-doublelock ## envs=linux-2.6.32.15.tar.bz2 "rule_models=32_1 32_2" ## Two verdicts should be Unsafe
 tests-model-32_1/test-unlock ## envs=linux-2.6.32.15.tar.bz2 "rule_models=32_1 32_2" ## Two verdicts should be Unsafe
 tests-model-32_1/test-safe ## envs=linux-2.6.32.15.tar.bz2 "rule_models=32_1 32_2" ## Two verdicts should be Safe
+tests-model-32_1/test-safe-impossible-condition ## envs=linux-2.6.32.15.tar.bz2 "rule_models=32_1" ## One verdict should be Safe
 tests-model-60_1/test-doubleadd ## envs=linux-2.6.32.15.tar.bz2 "rule_models=60_1" ## One verdict should be Unsafe
 tests-model-60_1/test-del ## envs=linux-2.6.32.15.tar.bz2 "rule_models=60_1" ## One verdict should be Safe
 tests-model-60_1/test-move ## envs=linux-2.6.32.15.tar.bz2 "rule_models=60_1" ## One verdict should be Safe, currently Unsafe

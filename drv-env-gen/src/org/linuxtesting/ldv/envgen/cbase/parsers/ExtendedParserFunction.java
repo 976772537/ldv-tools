@@ -46,7 +46,10 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 		/* не должен матчииться:"PageDirty(page) && PageSwapCache(page)) {"  - */
 		/* по количеству закрывающих скобок */
 
-		if(content.indexOf(" && ")!=-1) return null;
+		if(content.indexOf(" && ")!=-1) {
+			Logger.debug("Hack. Ignore &&: " + content);
+			return null;
+		}
 		/*
 		 * вырежем GNU расширения из имени
 		 */
@@ -73,15 +76,17 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 		}
 
 		NameAndType sNameAndRetType = parseNameAndType(tokenClearContent);
-		if (sNameAndRetType == null)
-			return null;
+		if (sNameAndRetType == null) {
+			Logger.debug("Name and type not found " + tokenClearContent);
+			return null;			
+		}
 		List<String> replacementParams = createReplacementParams(tokenClearContent,sNameAndRetType.getName());
 		/* найдем реальный конец контента фукнции */
-		int level = 1;
-		char[] buffer = inputReader.readAll().toCharArray();
 		/* из-за препроцессора количество скобок может быть нечетным */
 		try {
 			int localstate = 0;
+			int level = 1;
+			char[] buffer = inputReader.readAll().toCharArray();
 			for(; level!=0; end++) {
 				/* возможны проблемы со строками, содержащими экранирование */
 				/**
@@ -130,6 +135,7 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 				}
 			}
 		} catch(Exception e) {
+			Logger.warn("Function end not found: " +  sNameAndRetType + "\n Exception: " + e);
 			e.printStackTrace();
 		}
 

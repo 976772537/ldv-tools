@@ -1,17 +1,14 @@
-/** 
+/**
+ * The test demonstrates that 37_1 model can't check multiple locks when field names are equal.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/major.h>
 #include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/dmapool.h>
 
-struct device mydev;
-
-struct my_desc {
-	int a,b;
-};
+/* The same name as field of struct inode has */
+static DEFINE_MUTEX(i_mutex);
 
 static int misc_open(struct inode * inode, struct file * file);
 
@@ -20,28 +17,17 @@ static const struct file_operations misc_fops = {
         .open           = misc_open,
 };
 
+static void alock(void) {
+	mutex_lock(&i_mutex);
+	mutex_unlock(&i_mutex);
+}
 
 static int misc_open(struct inode * inode, struct file * file)
 {
-	int err;
-	struct dma_pool *pool;
-	dma_addr_t dma_handle;
-	struct my_desc *item;
-
-        /* create a pool of consistent memory blocks */
-        pool = dma_pool_create("my_desc_pool",
-		&mydev, sizeof(struct my_desc),
-		4 /* word alignment */, 0);
-	if (!pool) {
-		err = -ENOMEM;
-		goto err_pool_create;
-	}
-	dma_pool_destroy(pool);
-	dma_pool_destroy(pool);
+	mutex_lock(&inode->i_mutex);
+	alock();
+	mutex_unlock(&inode->i_mutex);
 	return 0;
-
-err_pool_create:
-	return err;
 }
 
 static int __init my_init(void)
@@ -49,7 +35,7 @@ static int __init my_init(void)
 	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops))
 		goto fail_register;
 	return 0;
-	
+
 fail_register:
 	return -1;
 }
