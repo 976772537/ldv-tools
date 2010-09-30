@@ -101,6 +101,6 @@ class Source < ActiveRecord::Base
 end
 
 class Problem < ActiveRecord::Base
-	has_and_belongs_to_many :traces
+	has_and_belongs_to_many :stats
 end
 
