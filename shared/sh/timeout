@@ -74,6 +74,7 @@ my $fulltime = 0;
 my $status = 'wait';
 my $box_status = 0;
 while ($status eq 'wait'){
+	my $child_errno, $child_retv;
 	# Usually we would just do alarm-waitpid, but in Perl we should do weird evals.
 	# Refer to `perldoc alarm` if surprised.
 	eval {
@@ -90,8 +91,10 @@ while ($status eq 'wait'){
 		ualarm 0;
 		die "Assume waitpid return $arrived\n";
 	};
-	my $arrived = -1;
-	if ($@ =~ /Assume waitpid return ([0-9]+)/){
+	$child_errno = $!;
+	$child_retv = $?;
+	my $arrived = -1child_errno
+	if ($@ =~ /Assume waitpid return (.*)/){
 		$arrived = $1;
 	}else{
 		print_uinfo($uinfo,$fulltime);
@@ -99,12 +102,12 @@ while ($status eq 'wait'){
 	}
 	if ($arrived == $blackbox_pid){
 		# Child process terminated.
-		$box_status = $?>>8;
+		$box_status = $child_retv>>8;
 		$status = 'exit'
 	}elsif ($arrived == -1){
 		# Something happened!
 		print_uinfo($uinfo,$fulltime);
-		die "wait($blackbox_pid) failed: $!";
+		print STDERR "Wait($blackbox_pid) failed: $child_errno\n";
 	}else{
 		# Check if limits are exhausted (they should be updated by signal handler).
 		if (defined $timelimit && $timeinfo->{total} > $timelimit){
