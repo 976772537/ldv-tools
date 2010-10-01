@@ -1,6 +1,6 @@
 <?php
 
-class Application_Form_TasksComparisson extends Zend_Form
+class Application_Form_TasksComparison extends Zend_Form
 {
   public function init()
   {
@@ -8,7 +8,7 @@ class Application_Form_TasksComparisson extends Zend_Form
 
     // Select task ids.
     $el = $this->addElement('text', 'taskids', array(
-      'label'    => "Enter separated with commas task ids to be compared (type 'no' to leave the comparisson mode)",
+      'label'    => "Enter separated with commas task ids to be compared with the choosen one",
       'required' => true
     ));
 

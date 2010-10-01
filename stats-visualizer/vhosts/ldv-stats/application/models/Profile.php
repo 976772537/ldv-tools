@@ -111,7 +111,11 @@ class Application_Model_Profile extends Application_Model_General
 
   public function getPage($name)
   {
-    return $this->_pages[$name];
+    if (array_key_exists($name, $this->_pages)) {
+      return $this->_pages[$name];
+    }
+
+    throw new Exception("The page '$name' doesn't exist");
   }
 }
 

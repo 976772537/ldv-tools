@@ -135,12 +135,26 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $value = $params['value'];
     }
 
+    // Get task ids for the comparison mode.
+    $taskids = '';
+    if (array_key_exists('task ids', $params)) {
+      $taskids = $params['task ids'];
+    }
+
+    // Use another page name for the comparison mode.
+    if ($taskids != '') {
+      $pageNameMode = "$pageName (the comparison mode)";
+    }
+    else {
+      $pageNameMode = $pageName;
+    }
+
     // Here all information to be shown will be written.
     $result = array();
 
     // Get information on statistics entities to be displayed on the given page.
-    $page = $profile->getPage($pageName);
-    $result['Page'] = $pageName;
+    $page = $profile->getPage($pageNameMode);
+    $result['Page'] = $pageNameMode;
 
     // Connect to the profile database and remember connection settings.
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
@@ -178,16 +192,18 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // that they are already ordered.
     $verificationInfo = array();
     $verificationResultInfo = array();
+    $verificationKey = array();
     if (null !== $page->verificationInfo) {
       foreach ($page->verificationInfo as $info) {
         // The 'Result' is just union of 'Safe', 'Unsafe' and 'Unknown' statuses
         // that will be iterated below.
         if ($info->verificationInfoName == 'Result') {
           foreach ($info->results as $resultInfo) {
-          $name = $resultInfo->resultName;
-          $tableColumnCond = $this->_verificationResultInfoNameTableColumnMapper[$name];
-          $tableColumn = $this->getTableColumn($tableColumnCond);
+            $name = $resultInfo->resultName;
+            $tableColumnCond = $this->_verificationResultInfoNameTableColumnMapper[$name];
+            $tableColumn = $this->getTableColumn($tableColumnCond);
             $verificationResultInfo[$name] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
+            $verificationKey[] = $name;
           }
         }
         else
@@ -195,6 +211,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           $name = $info->verificationInfoName;
           $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
           $verificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
+          $verificationKey[] = $name;
         }
       }
     }
@@ -267,8 +284,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     // For result (safe, unsafe and unknown) pages restrict the selected result
     // both to the corresponding result and to the corresponding launch
-    // information key values.
-    if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown') {
+    // information key values. In the comparison mode the given restriction is
+    // unneeded.
+    if ($taskids == '' && ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown')) {
       $select = $select
         ->where('`' . $this->_tableMapper[$tableAux] . '`.`result` = ?', $pageName);
     }
@@ -307,8 +325,19 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
         else
         {
-          $select = $select
-            ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+          // In the task comparison mode restrict task ids to the corresponding
+          // set.
+          if ($taskids != '' && $statKey == 'Task id') {
+            $select = $select
+              ->where("$launchInfoScreened[$statKey] IN ($statKeyValue, $taskids)");
+          }
+          // Ignore other task attribute restrictions in the task comparison
+          // mode. In the noncomparison mode just restrict a given statistics
+          // key with the corresponding value.
+          else if (($taskids != '' && !preg_match('/^Task/', $statKey)) || $taskids == '') {
+            $select = $select
+              ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+          }
         }
       }
     }
@@ -513,9 +542,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 #exit;
     }
 
-#echo "<br><br>";
     // Merge launch, verification and problems information.
-    $verificationKey = array_merge(array_keys($verificationInfo), array_keys($verificationResultInfo));
     $toolsKey = array_keys($toolsInfo);
     // Remember all tool names.
     $result['Stats']['All tool names'] = array();

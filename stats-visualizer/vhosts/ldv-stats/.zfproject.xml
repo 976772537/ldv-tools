@@ -22,7 +22,7 @@
       <formsDirectory>
         <formFile formName="Profiles"/>
         <formFile formName="ProfileEdit"/>
-        <formFile formName="TasksComparisson"/>
+        <formFile formName="TasksComparison"/>
       </formsDirectory>
       <layoutsDirectory enabled="false"/>
       <modelsDirectory>

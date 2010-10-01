@@ -1,18 +1,17 @@
 <?php
 
-// Whether the comparisson mode is activated.
+// Whether the comparison mode is activated.
+$taskids = '';
 if (null !== $this->taskids && 'no' != $this->taskids) {
- # echo "$this->taskids";exit;
-  $taskids = preg_split('/,/', $this->taskids);
+  echo "<h3>A selected task will be compared with the tasks having ids: " . $this->taskids . "</h3>";
+  echo "<i>Note that you are in the comparison mode now. To leave it submit 'no' in the form placed under the table</i>";
+
+  $taskids = $this->taskids;
 }
 
-if (isset($taskids)) {
-  echo "<h3>Compare the tasks having ids:";
-  foreach ($taskids as $taskid) {
-    echo " $taskid";
-  }
-  echo "</h3>";
-}
+// Print form for the tasks comparison.
+$this->form->setAction($this->url());
+echo $this->form;
 
 // Get all infomation to be displayed.
 $results = $this->entries;
@@ -194,7 +193,8 @@ if ($resultsNumb) {
                 'controller' => 'stats',
                 'action'     => 'index',
                 'page' => $verificationKey,
-                'value' => $value),
+                'value' => $value,
+                'task ids' => $taskids),
               $statKeysValues),
             'default',
             true)
@@ -314,10 +314,6 @@ if ($resultsNumb) {
   echo "</table>";
 }
 
-// Print form for the tasks comparisson.
-$this->form->setAction($this->url());
-echo $this->form;
-
 // Print information on the current database connection.
 echo "<h3>The current database connection options</h3>";
 $db_connection_options = $results['Database connection'];
@@ -331,7 +327,7 @@ foreach ($db_connection_options as $option => $value) {
 $endtime = explode(' ', microtime());
 $global = new Zend_Session_Namespace('Statistics globals');
 $totaltime = $endtime[0] +  $endtime[1] - $global->startTime;
-printf('<h3>Page generated in %.3f seconds.</h3>',  $totaltime);
+printf('<h3>Page generated in %.3f seconds</h3>',  $totaltime);
 
 #foreach ($this->entries as $entry):
 #    echo $this->escape($entry->id)
