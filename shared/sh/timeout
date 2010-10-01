@@ -93,7 +93,7 @@ while ($status eq 'wait'){
 	};
 	$child_errno = $!;
 	$child_retv = $?;
-	my $arrived = -1child_errno
+	my $arrived = -1;
 	if ($@ =~ /Assume waitpid return (.*)/){
 		$arrived = $1;
 	}else{
