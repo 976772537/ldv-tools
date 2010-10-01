@@ -1,5 +1,5 @@
 diff --git ./Makefile ./Makefile
-index 4f2223f..1e7d2ee 100644
+index 4f2223f..c376e43 100644
 --- ./Makefile
 +++ ./Makefile
 @@ -704,11 +704,14 @@ export KBUILD_VMLINUX_OBJS := $(vmlinux-all)
@@ -42,7 +42,7 @@ index 4f2223f..1e7d2ee 100644
  
  # vmlinux image - including updated kernel symbols
 -vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) vmlinux.o $(kallsyms.o) FORCE
-+vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) vmlinux.o FORCE
++vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) FORCE
  ifdef CONFIG_HEADERS_CHECK
  	$(Q)$(MAKE) -f $(srctree)/Makefile headers_check
  endif
