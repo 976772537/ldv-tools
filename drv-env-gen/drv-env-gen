@@ -272,7 +272,6 @@ sub hxml_cmdstream_ld {
 		@ldv_ld_add_options); 
 
 
-	my @args = ($ldv_ld,@ldv_ld_add_options); 
 	my $summary_lines=0;
 	my $summary_size=0;
 	foreach my $section ( $_[1]->children('in') ) {
