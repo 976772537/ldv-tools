@@ -74,7 +74,8 @@ my $fulltime = 0;
 my $status = 'wait';
 my $box_status = 0;
 while ($status eq 'wait'){
-	my $child_errno, $child_retv;
+	my $child_errno;
+	my $child_retv;
 	# Usually we would just do alarm-waitpid, but in Perl we should do weird evals.
 	# Refer to `perldoc alarm` if surprised.
 	eval {
@@ -107,7 +108,8 @@ while ($status eq 'wait'){
 	}elsif ($arrived == -1){
 		# Something happened!
 		print_uinfo($uinfo,$fulltime);
-		print STDERR "Wait($blackbox_pid) failed: $child_errno\n";
+                print "ldv-timeout: WARNING: Wait($blackbox_pid) failed: $child_errno\n";
+                exit 0;
 	}else{
 		# Check if limits are exhausted (they should be updated by signal handler).
 		if (defined $timelimit && $timeinfo->{total} > $timelimit){
