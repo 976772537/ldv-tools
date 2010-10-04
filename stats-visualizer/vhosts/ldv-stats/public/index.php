@@ -32,9 +32,12 @@ $writer = new Zend_Log_Writer_Firebug();
 $logger->addWriter($writer);
 Zend_Registry::set('logger', $logger);
 
-// Specify the default profile id as the current one.
-#$profileDefaultId = 1;
-#Zend_Registry::set('profileCurrentId', $profileDefaultId);
+// Once specify the default profile id as the current one .
+$profileDefaultId = 1;
+$global = new Zend_Session_Namespace('Statistics globals');
+if (!isset($global->profileCurrentId)) {
+  $global->profileCurrentId = $profileDefaultId;
+}
 
 $application->bootstrap()
             ->run();
