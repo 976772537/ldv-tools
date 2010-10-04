@@ -48,8 +48,9 @@ end
 class Task < ActiveRecord::Base
 end
 
+# We have to create a class named Processe, because "Process" is a name of a standard Ruby module >_<
 class Processe < ActiveRecord::Base
-        belongs_to :trace
+	belongs_to :trace
 end
 
 class Trace < ActiveRecord::Base
@@ -61,7 +62,7 @@ class Trace < ActiveRecord::Base
 	belongs_to :ri, :class_name => 'Stats', :autosave => true
 	belongs_to :rcv, :class_name => 'Stats', :autosave => true
 
-	has_many :sources, :autosave => true
+	has_many :sources, :autosave => true, :uniq => true
 	has_many :processe, :autosave => true
 
 	#Tool nicknames -> XML names
@@ -92,7 +93,24 @@ class Trace < ActiveRecord::Base
 end
 
 class Stats < ActiveRecord::Base
-	has_and_belongs_to_many :problems
+	has_and_belongs_to_many :problems, :uniq => true
+
+	# Calculate and apply problems for this trace
+	def calc_problems(scripts_dir)
+		Find.find(scripts_dir) do |file|
+			if !FileTest.directory?(file) && FileTest.executable?(file)
+				# Run the script and get its output
+				Open3.popen3(file) do |cin,cout,cerr|
+					# Send description to the checker
+					cin.write( description )
+					cin.close
+					# This should be very sumple, but somehow has_and_belongs_to_many :uniq doesn't work! O_o
+					cout.each {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
+					cerr.each {|errln| $stderr.puts errln}
+				end
+			end
+		end
+	end
 end
 
 class Source < ActiveRecord::Base
@@ -101,6 +119,11 @@ class Source < ActiveRecord::Base
 end
 
 class Problem < ActiveRecord::Base
-	has_and_belongs_to_many :stats
+	has_and_belongs_to_many :stats, :uniq => true
+
+	# Removes all associations between problems and Stats
+	def self.clear_all(sql)
+		sql.execute('DELETE FROM problems_stats')
+	end
 end
 

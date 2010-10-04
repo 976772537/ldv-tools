@@ -1,26 +1,26 @@
 #!/usr/bin/ruby
 require 'rubygems'
 require 'active_record'
-require 'hpricot'
 require 'find'
 require 'open3'
 require 'logger'
-
-ActiveRecord::Base.establish_connection(
-	:adapter  => 'mysql',
-	:database => ENV['LDVDB'],
-	:username => ENV['LDVUSER'],
-	:password => ENV['LDVDBPASSWD'],
-	:host     => (ENV['LDVDBHOST'] || 'localhost')
-)
-ActiveRecord::Base.logger = Logger.new(STDERR)
+require 'rexml/document'
 
 ENV['LDV_SRVHOME'] ||= File.expand_path("../",File.dirname(__FILE__))
 manhome = File.join(ENV['LDV_SRVHOME'],"ldv-manager")
 
+require File.join(manhome,"upload_utils.rb")
+ldv_db_connect
+
+# We should connect before we load our data model
 require File.join(manhome,"results_model.rb")
 
 # All models were loaded in results_model.rb.  Now we just add a couple of methods that regard loading them from report
+#
+# Convenience functions are in upload_utils.rb
+
+
+## Ancillary commands for loading models from XML
 
 class Task
 	# Get date and time of a task from a special "timestamp" tag.  It should be set in report-fixup correspondingly!
@@ -29,45 +29,42 @@ class Task
 		tags = %w{sec min hour mday mon year wday yday isdst}
 		# Read tags into tag->value hash
 		d = {}
-		tags.each {|tn| d[tn] = (timestamp_tag/tn).inner_html.to_i}
+		tags.each {|tn| d[tn] = (timestamp_tag/tn).to_i}
 		# Return date
 		DateTime.civil(d['year'], d['mon'], d['mday'], d['hour'], d['min'], d['sec'])
 	end
 
 	def self.from_xml(tag)
-		unless (tag/"task_id").empty?
+		if task_id = tag.field("task_id")
 			# Get task from database
-			task_id = (tag/"task_id").inner_html.to_i
+			task_id = task_id.to_i
 			task = Task.find(task_id)
 			raise "Couldn't find task for task_id=#{task_id.to_s}" unless task
 			return task
 		end
 
-		unless (tag/"task_name").empty?
+		if task_name = tag.field("task_name")
 			# Get task from database or add it there
-			task_name = (tag/"task_name").inner_html
 			task = Task.find_or_create_by_name(task_name)
 			raise "Couldn't find or create task for task_name=#{task_name}" unless task
 			# Of course, we should re-create the other fields
-			task.username = (tag/"username").inner_html unless (tag/"task_name").empty?
-			task.timestamp = Task.process_timestamp_tag(tag/"timestamp") unless (tag/"timestamp").empty?
-			task.description = (tag/"description").inner_html unless (tag/"description").empty?
-			task.driver_spec = (tag/"driver").inner_html unless (tag/"driver").inner_html.empty?
-			task.driver_spec_origin = (tag/"driver_origin").inner_html unless (tag/"driver_origin").empty?
+			task.username = (tag/"username")
+			task.timestamp = Task.process_timestamp_tag(tag.elements["timestamp"])
+			task.description = (tag/"description")
+			task.driver_spec = (tag/"driver")
+			task.driver_spec_origin = (tag/"driver_origin")
 			task.save
 			return task
 		end
 
-		unless (tag/"username").empty? || (tag/"timestamp").empty?
+		unless (tag/"username").nil? || (tag/"timestamp").nil?
 			# Create task for user/given timestamp
-			username = (tag/"username").inner_html
-			timestamp = Task.process_timestamp_tag(tag/"timestamp")
-			description = (tag/"description").inner_html
-			driver_spec = (tag/"driver").inner_html
-			driver_spec = nil if driver_spec.empty?
-			driver_spec_origin = (tag/"driver_origin").inner_html
-			driver_spec_origin = nil if driver_spec_origin.empty?
-			task = Task.find_or_create_by_username_and_timestamp_and_description_and_driver_spec_and_driver_spec_origin(username,timestamp,description,driver_spec,driver_spec_origin)
+			username = (tag/"username")
+			timestamp = Task.process_timestamp_tag(tag.elements["timestamp"])
+			description = (tag/"description")
+			driver_spec = (tag/"driver")
+			driver_spec_origin = (tag/"driver_origin")
+			task = Task.find_or_create(:username=>username,:timestamp=>timestamp,:description=>description,:driver_spec=>driver_spec,:driver_spec_origin=>driver_spec_origin)
 			raise "Couldn't find or create task for username=#{username.to_s} and timestamp=#{timestamp.to_s} and description=#{description} and driver=#{driver_spec.to_s} with driver_origin=#{driver_spec_origin.to_s}" unless task
 			return task
 		end
@@ -82,47 +79,48 @@ class Trace
 	def save(validate=true)
 		ActiveRecord::Base.silence { super(validate) }
 	end
-end
 
-class Processe
-	def self.from_xml(entry,do_nulls)
-		ps = Processe.new
-		if entry.respond_to?('none?') && entry.none?
-			return nil if do_nulls
+	# Load time statistics for this trace
+	def time_from_xml(tag)
+		# Tag query-target hash to make code DRY
+		query_target = Trace.tools.inject({}) {|hash,kv| hash["#{kv[1]}/time"] = kv[1]; hash }
+		query_target["build/time"] = 'build-cmd-extractor'
+		# Load time for each target
+		query_target.each do |query,target|
+			tag.elements.each(query) do |entry|
+				times = entry.text.split(':')
+				processe.create(:name => target, :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2])
+			end
 		end
-		ps.pattern = entry.attributes['name'];		
-		ps.time = entry.inner_html.to_i || 0;		
-		ps
 	end
 end
 
 class Stats
 	def self.from_xml(entry,do_nulls)
+		return nil if do_nulls && !entry
+
 		st = Stats.new
-		if entry.respond_to?('none?') && entry.none?
-			return nil if do_nulls
+		st.success = (entry/"status") == 'OK'
+		st.loc = (entry/"loc").to_i || 0
+		entry.elements.each("time") do |tag|
+			if tag.attributes['name'] == 'ALL' then st.time=tag.text.to_i else st.time=0 end
 		end
-		st.success = (entry/"status").inner_html == 'OK'
-		st.loc = (entry/"loc").inner_html.to_i || 0
-		(entry/"time").each do |tag|
-			if tag.attributes['name'] == 'ALL' then st.time=tag.inner_html.to_i else st.time=0 end
-		end
-		#st.time = (entry/"time").inner_html.to_i || 0
-		st.description = (entry/"desc").inner_html
+		st.description = (entry/"desc")
 		st
 	end
 end
 
 class Source
-	# Returns array of sources found in the directory supplied
+	# Returns hash of sources found in the directory supplied
+	# We will attach sources based on this hash to the relevant traces
 	def self.from_dir(dirname)
 		return [] unless FileTest.directory? dirname
-		file_recs = []
+		file_recs = {}
 		Find.find(dirname) do |path|
 			unless FileTest.directory?(path)
 				# Strip dirname from the file name and save it as database key
-				filename = path.gsub(Regexp.new("^#{Regexp.quote(dirname)}\/*"),"/")
-				file_recs << Source.new({ :name => filename, :contents => File.open(path, "rb").read })
+				filename = path.gsub(Regexp.new("^#{Regexp.quote(dirname)}\/*"),"")
+				file_recs[filename] = Source.new({ :name => filename, :contents => File.open(path, "rb").read })
 			end
 		end
 		file_recs
@@ -134,9 +132,71 @@ class Source
 	end
 end
 
-# Unpack and load document
+class Launch
+	def self.init_global_params(a)
+		@@driver_origin = a[:driver_origin]
+		@@driver_name = a[:driver_name]
+		@@git_tag = a[:git_tag]
+		@@global_verifier = a[:global_verifier] || "model-specific"
+		@@task = a[:task]
+	end
+
+	def self.init_from_xml(ld,launch=nil)
+		launch ||= Launch.new
+
+		# Get parameters from XML
+		kernel_name = ld.attributes['kernel']
+		kernel = Environment.find_or_create_by_version(kernel_name)
+
+		local_driver_name = ld.attributes['driver_name'] || @@driver_name
+		raise "Driver name is empty for ld #{ld.attributes['id']}!" if local_driver_name.nil? || local_driver_name.empty?
+		driver = Driver.find_or_create(:name=>local_driver_name,:origin=>@@driver_origin)
+
+		rule_model_name = ld.attributes['model']
+		if rule_model_name && !rule_model_name.empty?
+			rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
+		else
+			rule_model = nil
+		end
+
+		if ld.attributes['module_name'] || ld.attributes['main']
+			scenario = Scenario.find_or_create(:driver_id=>driver.id,:executable=>ld.attributes['module_name'],:main=>ld.attributes['main'])
+		else
+			scenario = nil
+		end
+
+		toolset = Toolset.find_or_create_by_version_and_verifier(@@git_tag,@@global_verifier)
+
+		# Update launch with the parameters gotten
+		launch.driver = driver
+		launch.environment = kernel
+		launch.toolset = toolset
+		launch.rule_model = rule_model
+		launch.scenario = scenario
+		launch.task = @@task
+		launch
+	end
+
+	# Parse current LD tag and select from database the relevant master launches.  Master launches are those with no scenario or trace identifiers; they're used in "LDV online" to check if the launch is running or have already finished.
+	# The block can "reject" current launch--i.e. if the block is true (for an _unsaved_ launch record it takes), then the function returns no launches.
+	def self.master_launches_for_xml(ld)
+		l = Launch.init_from_xml(ld)
+
+		return [] if yield(l)
+
+		unless l.rule_model.nil?
+			[Launch.first(:conditions => { :driver_id=>l.driver, :environment_id=>l.environment, :rule_model_id=>l.rule_model, :scenario_id=>nil, :task_id=>l.task})]
+		else
+			# If rule_model is unspecified, we should update all relevant records
+			Launch.all(:conditions => { :driver_id=>l.driver, :environment_id=>l.environment, :scenario_id=>nil, :task_id=>task})
+		end
+	end
+
+end
+
+#Unpack and load document
 tmpdir=`mktemp -d`.chomp
-paxname = ARGV[0] or raise "Specify package name, please"
+paxname = ARGV[0] or raise "Specify the package name, please"
 paxname = File.expand_path(paxname)
 Dir.chdir(tmpdir) do |dir|
 	# Unpack to temporary dir
@@ -149,25 +209,23 @@ raise "Only one report in the archive given should match *.report.xml pattern!  
 filename = filenames[0]
 
 # Load document
-doc = open(filename) { |f| Hpricot(f) }
+doc = REXML::Document.new File.new(filename)
 
-driver_name = (doc/"reports/launch_info/driver").inner_html
-driver_origin = (doc/"reports/launch_info/driver_origin").inner_html
-git_tag = (doc/"reports/launch_info/tag").inner_html
+launch_info_tag = doc.elements["reports/launch_info"]
+
+driver_name = launch_info_tag.field("driver")
+driver_origin = launch_info_tag.field("driver_origin")
+git_tag = launch_info_tag.field("tag")
 
 # Get verifier name
-unless (verif_tag = doc/"reports/launch_info/globalverifier").none?
-	global_verifier = verif_tag.inner_html
-else
-	global_verifier = "model-specific"
-end
+global_verifier = launch_info_tag.field("globalverifier")
 
 # Create current task unless it's already added
-task = Task.from_xml(doc/"reports/launch_info/task")
+task = Task.from_xml(launch_info_tag.elements["task"])
 
 # Fetch dources (due to not very beautiful structure of the output reports, the sources are fetched beforehand).
 sources_dir = File.join(tmpdir,"sources/")
-sources=[]
+sources={}
 sources_for_kernel={}
 unless sources_dir.empty?
 	# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
@@ -193,32 +251,14 @@ class MasterStats
 end
 masters = MasterStats.new
 
-(doc/"ld").each do |ld|
-	kernel_name = ld.attributes['kernel']
-	kernel = Environment.find_or_create_by_version(kernel_name)
+Launch.init_global_params(:driver_name => driver_name, :driver_origin=>driver_origin, :git_tag => git_tag, :global_verifier => global_verifier, :task => task)
 
-	local_driver_name = ld.attributes['driver_name'] || driver_name
-	raise "Driver name is empty for ld #{ld.attributes['id']}!" if local_driver_name.nil? || local_driver_name.empty?
-	driver = Driver.find_or_create_by_name_and_origin(local_driver_name,driver_origin)
-
-	rule_model_name = ld.attributes['model']
-	rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
-
-	scenario = Scenario.find_or_create_by_driver_id_and_executable_and_main(driver.id,ld.attributes['module_name'],ld.attributes['main'])
-
+doc.elements.each("reports/ld") do |ld|
+	launch = Launch.init_from_xml(ld)
 	#Get status, and if it's "failed" skip the rest
-	status = (ld/"ldv_status").inner_html.downcase
+	status = (ld.field("ldv_status") || "OK").downcase
 	if status == "failed"
-		# Save launch to DB with just a few details
-		launch = Launch.new
-
-		# Assign a primary key
-		launch.driver = driver
-		launch.environment = kernel
-		launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,global_verifier)
-		launch.rule_model = rule_model
 		launch.scenario = nil
-		launch.task = task
 
 		launch = launch.load_on_duplicate_key
 
@@ -233,177 +273,97 @@ masters = MasterStats.new
 
 	trace = Trace.new
 	#verdict
-	verdict = (ld/"verdict").inner_html.downcase
+	verdict = (ld/"verdict").downcase
 	unsafe = verdict=="unsafe"
 	trace.result=verdict
 	trace.result='unknown' if verdict.empty?
 
-	# We only get sources if verdict is unsafe
 	if unsafe
-		# HACK: Get sources for current kernel (unless already gotten)
-		# Although we're adding the same files for the second time (see generic source adding procedure), we now have to use separate names for them (since they're somehow are referenced by their relative path to kernel origin).
-		unless sources_dir.empty?
-			sources_for_kernel[kernel_name] ||= Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
-		else
-			sources_for_kernel[kernel_name] = []
+		# Get sources
+		# Now sources are matched with traces inside the XML file
+		ld.elements.each("sourcefile") do |source_fname_tag| 
+			trace.sources << sources[source_fname_tag.text]
 		end
-	else
-		sources_for_kernel[kernel_name] = []
-	end
 
-	if unsafe
-		trace.sources = Source.from_dir(File.join(sources_dir)) + Source.from_dir(File.join(sources_dir, kernel_name, 'kernel'))
-	end
-
-	#trace -- read the whole trace from file
-	#We only do this if verdict is unsafe
-	if unsafe
-		if (trace_tag = ld/"trace")
-			trace_fname=trace_tag.inner_html
+		# Get trace itself
+		if trace_fname = ld/"trace"
 			trace_abs_fname=File.join(traces_dir,trace_fname)
 			puts "Trying to find trace in #{trace_fname}"
-			unless trace_fname.empty? || !File.exists?(trace_abs_fname)
-				trace.error_trace = IO.read(trace_abs_fname)
-			end
+			trace.error_trace = IO.read(trace_abs_fname) if File.exists?(trace_abs_fname)
 		end
 	end
-	# We assume that if there's no report for a tool, it's not 
+	# We assume that if there's no report for a tool, it should not be loaded
 	do_nulls = true
 	# Load stats from XML
 	Trace.tools.each do |dbname,tag|
-		stats = Stats.from_xml(ld/tag,do_nulls)
+		stats = Stats.from_xml(ld.elements[tag],do_nulls)
 		trace.send("#{dbname}=",stats)
 	end
 
 	# Run scripts that check for problems
 	Trace.tools.each do |tool,v|
-		tool_stat = trace.send(tool)
-		if tool_stat
-			scripts_dir = File.join(manhome, "problems", tool)
-			Find.find(scripts_dir) do |file|
-				if !FileTest.directory?(file) && FileTest.executable?(file)
-					# Run the script and get its output
-					Open3.popen3(file) do |cin,cout,cerr|
-						# Send description to the checker
-						cin.write( tool_stat.description )
-						cin.close
-						cout.each {|line| p = Problem.find_or_create_by_name(line.chomp); tool_stat.problems << p unless tool_stat.problems.include? p  }
-						cerr.each {|errln| $stderr.puts errln}
-					end
-				end
-			end
+		if tool_stat = trace.send(tool)
+			tool_stat.calc_problems(File.join(manhome, "problems", tool))
 		end
 	end
 
-	# Build is handled in a special way
-	build = Stats.from_xml(doc/"build[@kernel=\"#{kernel_name}\"]",false)
+	# Build is handled in a special way (because it's an attribute of the whole task, not just this launch)
+	build = Stats.from_xml(doc.elements["reports/build[@kernel=\"#{ld.attributes["kernel"]}\"]"],false)
 	trace.build = build
 	# We should also get verifier from RCV, if it was run
-	if (rcv_tag = ld/"rcv") && !rcv_tag.none?
-		raise "Two <rcv> tags in ld #{ld.id}?" if rcv_tag.size != 1
-		trace.verifier = rcv_tag[0].attributes['verifier']
+	ld.elements.inject("rcv",false) do |seen, rcv_tag|
+		raise "Two <rcv> tags in ld #{ld.attributes['ref']}?" if seen
+		trace.verifier = rcv_tag.attributes['verifier']
+		true	#Return that we've seen this element; this will make the next iteration fail
 	end
-
-	# Save trace to DB
-	launch = Launch.new
-
 	# Assign a primary key
-	launch.driver = driver
-	launch.environment = kernel
-	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,global_verifier)
-	launch.rule_model = rule_model
-	launch.scenario = scenario
-	launch.task = task
-
 	launch = launch.load_on_duplicate_key
-
 	launch.trace = trace
 	launch.status = "finished"
 
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-	Trace.tools.each do |dbname,tag|
-		(ld/tag/"time").each do |entry|
-			times = entry.inner_html.split(':')
-			trace.processe.create(:name => tag, :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2]);
-		end
-	end
-	# fix for bce
-	(ld/"build"/"time").each do |entry|
-			times = entry.inner_html.split(':')
-			trace.processe.create(:name => 'build-cmd-extractor', :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2]);
-	end
 
+	launch.trace.time_from_xml(ld)
 end
 
 # Report build errors
 # A build error is a <build> command with FAILED status.
-(doc/'build').select{|e| (e/"status").inner_html == "FAILED"}.each do |build_fail|
-	build = Stats.from_xml(build_fail,false)
-
-	# Driver name is already loaded globally from launch_info tag
-	driver = Driver.find_or_create_by_name_and_origin(driver_name,driver_origin)
-
-	kernel_name = build_fail.attributes['kernel']
-	kernel = Environment.find_or_create_by_version(kernel_name)
+doc.elements.each('reports/build')  do |build_fail_tag|
+	next unless (build_fail_tag/"status").downcase == "failed"
+	launch = Launch.init_from_xml(build_fail_tag)
 
 	# Create a pseudo-trace
+	build = Stats.from_xml(build_fail_tag,false)
 	trace = Trace.new
 	trace.result='unknown'
 	trace.build = build
-
-	# Save this pesudo-trace to DB
-	launch = Launch.new
-
-	launch.driver = driver
-	launch.environment = kernel
-	launch.toolset = Toolset.find_or_create_by_version_and_verifier(git_tag,global_verifier)
-	launch.task = task
+	launch.trace = trace
+	launch.status = 'finished'
 
 	launch = launch.load_on_duplicate_key
 
-	launch.trace = trace
-
-	launch.status = 'finished'
-
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+	# TODO: upload time of a failed build!
 end
 
 # Update status of special tasks that have driver, kernel and rule set, but don't have any model
 # Let's track already processed items to save db queries
-(doc/"ld").each do |ld|
-	kernel_name = ld.attributes['kernel']
-	kernel = Environment.find_or_create_by_version(kernel_name)
-
-	local_driver_name = ld.attributes['driver_name'] || driver_name
-	raise "Driver name is empty for ld #{ld.attributes['id']}!" if local_driver_name.nil? || local_driver_name.empty?
-	driver = Driver.find_or_create_by_name_and_origin(local_driver_name,driver_origin)
-
-	rule_model_name = ld.attributes['model']
-	if rule_model_name && !rule_model_name.empty?
-		rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
-	else
-		rule_model = nil
-	end
-
-	unless masters.lookup(kernel_name,local_driver_name,rule_model_name)
-		# Save launch to DB with just a few details
-		unless rule_model.nil?
-			launches = [Launch.find_by_driver_id_and_environment_id_and_rule_model_id_and_scenario_id_and_task_id(driver.id,kernel.id,rule_model.id,nil,task.id)]
-		else
-			# If rule_model is unspecified, we should update all relevant records
-			launches = Launch.find_all_by_driver_id_and_environment_id_and_scenario_id_and_task_id(driver.id,kernel.id,nil,task)
+puts "Setting up master launches..."
+doc.elements.each("reports/ld") do |ld|
+	# We select all relevant launches but reject them on the basis of if they're already "fixed" in masters table--i.e. were uploaded as failed
+	launches = Launch.master_launches_for_xml(ld) { |l| masters.lookup(l.environment.version,l.driver.name,l.rule_model.name) }
+	launches.each do |launch|
+		if launch
+			launch.status = 'finished'
+			# Because of :autosave property, recursively saves all records
+			launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 		end
-
-		launches.each do |launch|
-			if launch
-				launch.status = 'finished'
-				# Because of :autosave property, recursively saves all records
-				launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-			end
-		end
-		masters.fix(kernel_name,local_driver_name,rule_model_name)
+		masters.fix(launch.environment.version,launch.driver.name,launch.rule_model.name)
 	end
 end
+
+# Remove temporary directory on success (keep it if something failed, we might want to examine it!)
+FileUtils.remove_dir(tmpdir)
 

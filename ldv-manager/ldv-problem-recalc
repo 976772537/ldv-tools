@@ -7,83 +7,27 @@ require 'active_record'
 require 'open3'
 require 'find'
 
-ActiveRecord::Base.establish_connection(
-	:adapter  => 'mysql',
-	:database => ENV['LDVDB'],
-	:username => ENV['LDVUSER'],
-	:password => ENV['LDVDBPASSWD'],
-	:host     => (ENV['LDVDBHOST'] || 'localhost')
-)
-ActiveRecord::Base.logger = Logger.new(STDERR)
-
 ENV['LDV_SRVHOME'] ||= File.expand_path("../",File.dirname(__FILE__))
 manhome = File.join(ENV['LDV_SRVHOME'],"ldv-manager")
 
+require File.join(manhome,"upload_utils.rb")
+
+sql = ldv_db_connect
+
+# We should connect before we load our data model
 require File.join(manhome,"results_model.rb")
 
-# Die if no scripts are given
-tool = ARGV.shift
-scripts = ARGV
+# By default (and this is the only option), we just recalculate everything
+$stderr.write "ldv-problem-recalc: WARNING! ARGUMENTS ARE DEPRECATED AND NOT USED!\n" unless ARGV.empty?
+Problem.clear_all(sql)
+puts "ldv-problem-recalc: All problems are deleted from database, and will now be recalculated..."
 
-# Different variations...
-if scripts.empty? && tool == "all"
-	# All tools, all standard scripts
-	Trace.all.each do |trace|
-		Trace.tools.each do |tool,v|
-			tool_stat = trace.send(tool)
-			if tool_stat
-				scripts_dir = File.join(manhome, "problems", tool)
-				Find.find(scripts_dir) do |file|
-					if !FileTest.directory?(file) && FileTest.executable?(file)
-						# Run the script and get its output
-						Open3.popen3(file) do |cin,cout,cerr|
-							# Send description to the checker
-							cin.write( tool_stat.description )
-							cin.close
-							cout.each {|line| p=Problem.find_or_create_by_name(line.chomp); tool_stat.problems << p unless tool_stat.problems.include? p  }
-							cerr.each {|errln| $stderr.puts errln}
-						end
-					end
-				end
-			end
+# All tools, all standard scripts
+Trace.all.each do |trace|
+	Trace.tools.each do |tool,v|
+		if tool_stat = trace.send(tool)
+			tool_stat.calc_problems(File.join(manhome, "problems", tool))
 		end
-		trace.save
 	end
-elsif !scripts.empty? && Trace.tools[tool]
-puts "HUI"
-	# Scripts for concrete tool
-	Trace.all.each do |trace|
-		tool_stat = trace.send(tool)
-		if tool_stat
-			scripts.each do |script|
-				# Run the script and get its output
-				Open3.popen3(script) do |cin,cout,cerr|
-					# Send description to the checker
-					cin.write( tool_stat.description )
-					cin.close
-					cout.each {|line| p=Problem.find_or_create_by_name(line.chomp); tool_stat.problems << p unless tool_stat.problems.include? p  }
-					cerr.each {|errln| $stderr.puts errln}
-				end
-			end
-		end
-		# trace.problems.uniq!
-		trace.save
-	end
-else
-	# Die with error
-
-	raise <<EOF
-No scripts are given in command line or tool is incorrect!
-Usage:
-	ldv-problem-recalc TOOL problems/rcv/blast_new_script another/script
-	ldv-problem-recalc all
-
-where TOOL is maingen, dscv, ri or rcv.
-
-EOF
 end
-
-
-# TODO:  Rewrite to be more fast, speed is sacrificed for simplicity atm
-
 
