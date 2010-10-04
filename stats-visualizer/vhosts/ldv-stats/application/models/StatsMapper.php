@@ -129,6 +129,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $pageName = $params['page'];
     }
 
+    // Get a tool name and its feature if so are presented in a page name.
+    $toolNameFeature = preg_split('/ /', $pageName);
+
     // Some more information on a given page.
     $value = '';
     if (array_key_exists('value', $params)) {
@@ -591,6 +594,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           $toolNameProblems = preg_split('/ /', $toolProblemsName);
           $result['Stats']['All tool names'][$toolNameProblems[0]] = 1;
         }
+      }
+
+      // Don't consider rows that doesn't have'a certain problem if problems
+      // must be shown.
+      if (array_key_exists(1, $toolNameFeature)
+        && $toolNameFeature[1] == 'Problems'
+        && !count($resultPart['Tool problems'])) {
+        continue;
       }
 
       $resultPart['Tool time'] = array();
