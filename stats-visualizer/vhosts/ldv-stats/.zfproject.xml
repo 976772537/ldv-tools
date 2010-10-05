@@ -12,10 +12,56 @@
           <actionMethod actionName="index"/>
         </controllerFile>
         <controllerFile controllerName="Error"/>
+        <controllerFile controllerName="Stats">
+          <actionMethod actionName="index"/>
+        </controllerFile>
+        <controllerFile controllerName="Profiles">
+          <actionMethod actionName="index"/>
+        </controllerFile>
       </controllersDirectory>
-      <formsDirectory enabled="false"/>
+      <formsDirectory>
+        <formFile formName="Profiles"/>
+        <formFile formName="ProfileEdit"/>
+        <formFile formName="TasksComparison"/>
+      </formsDirectory>
       <layoutsDirectory enabled="false"/>
-      <modelsDirectory/>
+      <modelsDirectory>
+        <modelFile modelName="Stats"/>
+        <modelFile modelName="StatsMapper"/>
+        <modelFile modelName="Profile"/>
+        <modelFile modelName="ProfileMapper"/>
+        <dbTableDirectory>
+          <dbTableFile dbTableName="Profiles"/>
+          <dbTableFile dbTableName="ProfilesPages"/>
+          <dbTableFile dbTableName="Pages"/>
+          <dbTableFile dbTableName="PagesLaunchInfo"/>
+          <dbTableFile dbTableName="LaunchInfo"/>
+          <dbTableFile dbTableName="AuxInfo"/>
+          <dbTableFile dbTableName="PagesVerificationInfo"/>
+          <dbTableFile dbTableName="VerificationInfo"/>
+          <dbTableFile dbTableName="ResultInfo"/>
+          <dbTableFile dbTableName="VerificationResultInfo"/>
+          <dbTableFile dbTableName="PagesToolsInfo"/>
+          <dbTableFile dbTableName="ToolsInfo"/>
+          <dbTableFile dbTableName="ToolInfo"/>
+          <dbTableFile dbTableName="ToolsToolInfo"/>
+          <dbTableFile dbTableName="LaunchFiltersInfo"/>
+          <dbTableFile dbTableName="FiltersInfo"/>
+          <dbTableFile dbTableName="Databases"/>
+          <dbTableFile dbTableName="ProfilesDatabases"/>
+          <dbTableFile dbTableName="Launches"/>
+        </dbTableDirectory>
+        <modelFile modelName="Page"/>
+        <modelFile modelName="LaunchInfo"/>
+        <modelFile modelName="FilterInfo"/>
+        <modelFile modelName="VerificationInfo"/>
+        <modelFile modelName="ResultInfo"/>
+        <modelFile modelName="ToolsInfo"/>
+        <modelFile modelName="ToolInfo"/>
+        <modelFile modelName="AuxInfo"/>
+        <modelFile modelName="General"/>
+        <modelFile modelName="GeneralMapper"/>
+      </modelsDirectory>
       <modulesDirectory enabled="false"/>
       <viewsDirectory>
         <viewScriptsDirectory>
@@ -24,6 +70,12 @@
           </viewControllerScriptsDirectory>
           <viewControllerScriptsDirectory forControllerName="Error">
             <viewScriptFile forActionName="error"/>
+          </viewControllerScriptsDirectory>
+          <viewControllerScriptsDirectory forControllerName="Stats">
+            <viewScriptFile forActionName="index"/>
+          </viewControllerScriptsDirectory>
+          <viewControllerScriptsDirectory forControllerName="Profiles">
+            <viewScriptFile forActionName="index"/>
           </viewControllerScriptsDirectory>
         </viewScriptsDirectory>
         <viewHelpersDirectory/>
@@ -58,6 +110,10 @@
       <testPHPUnitConfigFile filesystemName="phpunit.xml"/>
       <testApplicationDirectory>
         <testApplicationBootstrapFile filesystemName="bootstrap.php"/>
+        <testApplicationControllerDirectory>
+          <testApplicationControllerFile filesystemName="StatsControllerTest.php"/>
+          <testApplicationControllerFile filesystemName="ProfilesControllerTest.php"/>
+        </testApplicationControllerDirectory>
       </testApplicationDirectory>
       <testLibraryDirectory>
         <testLibraryBootstrapFile filesystemName="bootstrap.php"/>

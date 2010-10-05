@@ -1169,7 +1169,7 @@ sub process_source_code_files()
 	  next;	
 	}
 
-	die("The source code file has incorrect format. No file name is specified") 
+	print_debug_warning("The source code file has incorrect format. No file name is specified") 
 	  unless ($file_name);
 	
 	# Read LDV model comments.

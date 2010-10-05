@@ -1,0 +1,335 @@
+<?php
+
+// Whether the comparison mode is activated.
+$taskids = '';
+if (null !== $this->taskids && 'no' != $this->taskids) {
+  echo "<h3>A selected task will be compared with the tasks having ids: " . $this->taskids . "</h3>";
+  echo "<i>Note that you are in the comparison mode now. To leave it submit 'no' in the form placed under the table</i>";
+
+  $taskids = $this->taskids;
+}
+
+// Print form for the tasks comparison.
+$this->form->setAction($this->url());
+echo $this->form;
+
+// Get all infomation to be displayed.
+$results = $this->entries;
+
+// Get information on all current profile page names. For them links will be
+// generated inside the statistics table cells below.
+$profilePages = $results['Profile pages'];
+
+#print_r($profilePages);
+
+// Get the view name.
+$page = $results['Page'];
+
+$resultsNumb = count($results['Stats']['Row info']);
+echo "<h3>The statistics for the page '$page' (" . $resultsNumb . " rows)</h3>";
+
+// Print general statistics table if so.
+if ($resultsNumb) {
+  // Get the statistics information part.
+  $stats = $results['Stats']['Row info'];
+
+  $statKeys = array_keys($stats[0]['Stats key']);
+  $verificationKeys = array_keys($stats[0]['Verification info']);
+  $toolKeys = array_keys($stats[0]['Tools info']);
+  $problemKeys = array_keys($results['Stats']['All tool problems']);
+  $toolNames = array_keys($results['Stats']['All tool names']);
+  $timeKeys = array_keys($results['Stats']['All tool time']);
+  $childrenKeys = array_keys($results['Stats']['All tool children']);
+
+#print_r($results['Stats']['All tool children']);
+#print_r($statKeys);print_r($verificationKeys);
+#print_r($problemKeys);
+#exit;
+
+  // Get the necessary tools information.
+  $tools = array();
+
+  foreach ($toolNames as $toolName) {
+    $tools[$toolName]['Info'] = array();
+    $tools[$toolName]['Children time'] = array();
+    $tools[$toolName]['Problems'] = array();
+  }
+
+  foreach ($toolKeys as $toolKey) {
+    $toolNameInfo = preg_split('/ /', $toolKey);
+    $tools[$toolNameInfo[0]]['Info'][] = $toolNameInfo[1];
+  }
+
+  // Consider tool time as general info.
+  foreach ($timeKeys as $timeKey) {
+    $tools[$timeKey]['Info'][] = 'Time';
+  }
+
+  // Bind tool children time if so to the tool info.
+  foreach ($childrenKeys as $childrenKey) {
+    $toolNameChildren = preg_split('/ /', $childrenKey);
+    $tools[$toolNameChildren[0]]['Children time'] = $results['Stats']['All tool children'][$childrenKey];
+  }
+
+  // Bind tool problems if so to the tool info.
+  foreach ($problemKeys as $problemKey) {
+    $toolNameProblems = preg_split('/ /', $problemKey);
+    $tools[$toolNameProblems[0]]['Problems'] = $results['Stats']['All tool problems'][$problemKey];
+  }
+
+#print_r($tools);
+#exit;
+
+  $statVerificationKeyRowSpan = 1;
+  $statToolsKeyRowSpan = 1;
+
+  if (count($tools)) {
+    $statVerificationKeyRowSpan++;
+  }
+
+  if (count($problemKeys) || count($childrenKeys)) {
+    $statVerificationKeyRowSpan++;
+    $statToolsKeyRowSpan++;
+  }
+
+  echo "<table border=1>
+          <tr align='center' bgcolor='yellow'>";
+  echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>#</td>";
+  foreach ($statKeys as $statKey) {
+    echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
+  }
+  foreach ($verificationKeys as $verificationKey) {
+    echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
+  }
+  foreach ($tools as $toolName => $toolInfoTimeProblems) {
+    echo "    <td nowrap colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>";
+  }
+  echo "  </tr>";
+  echo "<tr align='center' bgcolor='gray'>";
+  foreach ($tools as $toolName => $toolInfoTimeProblems) {
+    foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
+      echo "    <td nowrap rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
+    }
+    if ($childrenNumb = count($toolInfoTimeProblems['Children time'])) {
+      echo "    <td nowrap colspan='$childrenNumb'>Children time</td>";
+    }
+    if ($problemsNumb = count($toolInfoTimeProblems['Problems'])) {
+      echo "    <td nowrap colspan='$problemsNumb'>Problems</td>";
+    }
+  }
+  echo "  </tr>";
+  if (count($problemKeys)) {
+    echo "<tr align='center'>";
+    foreach ($tools as $toolName => $toolInfoTimeProblems) {
+      foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
+        echo "    <td nowrap bgcolor='green'>$toolChild</td>";
+      }
+      foreach (array_keys($toolInfoTimeProblems['Problems']) as $toolProblem) {
+        echo "    <td nowrap bgcolor='red'>$toolProblem</td>";
+      }
+    }
+    echo "  </tr>";
+  }
+
+  // To print every value of statistics key just one time in the corresponding
+  // groups.
+#  foreach ($statKeys as $statKey) {
+#    $prevStatKey[$statKey] = '';
+#  }
+
+  // Iterate over all results.
+  $i = 1;
+  foreach ($stats as $result) {
+    echo "  <tr align='center'>";
+    echo "    <td>$i</td>";
+    $i++;
+    $statKeysValues = array();
+    foreach ($statKeys as $statKey) {
+      echo "    <td>";
+      $value = $result['Stats key'][$statKey];
+#      if ($value != $prevStatKey[$statKey]) {
+        if (array_key_exists($statKey, $profilePages)) {
+          echo "<a href='"
+            . $this->url(
+              array(
+                'controller' => 'stats',
+                'action'     => 'index',
+                'page' => $statKey,
+                'value' => $value),
+              'default',
+              true)
+            . "'>"
+            . $value
+            . "</a>";
+
+        }
+        else {
+          echo "$value";
+        }
+
+        // Use special designatures for NULL and empty string values to send
+        // them through address.
+        if (is_null($value)) {
+          $value = '__NULL';
+        }
+        else if ($value == '') {
+          $value = '__EMPTY';
+        }
+
+        $statKeysValues[$statKey] = $value;
+#       $prevStatKey[$statKey] = $value;
+#      }
+      echo "</td>";
+    }
+
+    foreach ($verificationKeys as $verificationKey) {
+      echo "    <td>";
+      $value = $result['Verification info'][$verificationKey];
+      if (array_key_exists($verificationKey, $profilePages)) {
+        echo "<a href='"
+          . $this->url(
+            array_merge(
+              array(
+                'controller' => 'stats',
+                'action'     => 'index',
+                'page' => $verificationKey,
+                'value' => $value,
+                'task ids' => $taskids),
+              $statKeysValues),
+            'default',
+            true)
+          . "'>"
+          . $value
+          . "</a>";
+
+      }
+      else {
+        echo "$value";
+      }
+      echo "</td>";
+    }
+
+    foreach ($tools as $toolName => $toolInfoTimeProblems) {
+      foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
+        echo "<td>";
+        if ($toolInfo == 'Time') {
+          if (array_key_exists("$toolName Time", $result['Tool time'])) {
+            echo $result['Tool time']["$toolName Time"]['Time'];
+          }
+          else {
+            echo '-';
+          }
+        }
+        else {
+          $value = $result['Tools info']["$toolName $toolInfo"];
+          if (array_key_exists("$toolName $toolInfo", $profilePages)) {
+            echo "<a href='"
+              . $this->url(
+                array_merge(
+                  array(
+                    'controller' => 'stats',
+                    'action'     => 'index',
+                    'page' => "$toolName $toolInfo",
+                    'value' => $value),
+                  $statKeysValues),
+                'default',
+                true)
+              . "'>"
+              . $value
+              . "</a>";
+
+          }
+          else {
+            echo "$value";
+          }
+        }
+        echo "</td>";
+      }
+
+      foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
+        $isHasChild = false;
+
+        // If a given tool has any child at all.
+        if (array_key_exists("$toolName Time", $result['Tool children time'])) {
+          foreach ($result['Tool children time']["$toolName Time"] as $pattern => $time) {
+            // If a given tool has a particular child.
+            if ($toolChild == $pattern) {
+              echo "    <td>" . $time['Time'] . "</td>";
+              $isHasChild = true;
+              break;
+            }
+          }
+        }
+
+        // In any case generate cell to fill the whole table correctly.
+        if (!$isHasChild) {
+          echo "<td>-</td>";
+        }
+      }
+
+      foreach (array_keys($toolInfoTimeProblems['Problems']) as $toolProblem) {
+        $isHasProblem = false;
+        // If a given tool has any problem at all.
+        if (array_key_exists("$toolName Problems", $result['Tool problems'])) {
+          foreach ($result['Tool problems']["$toolName Problems"] as $resultProblem) {
+            // If a given tool has a particular problem.
+            if ($toolProblem == $resultProblem['Problem name']) {
+              echo "    <td>";
+              $value = $resultProblem['Problem number'];
+              if (array_key_exists("$toolName Problems", $profilePages)) {
+                echo "<a href='"
+                  . $this->url(
+                    array_merge(
+                      array(
+                        'controller' => 'stats',
+                        'action'     => 'index',
+                        'page' => "$toolName Problems",
+                        'value' => $resultProblem['Problem name']),
+                      $statKeysValues),
+                    'default',
+                    true)
+                  . "'>"
+                  . $value
+                  . "</a>";
+
+              }
+              else {
+                echo "$value";
+              }
+              echo "</td>";
+              $isHasProblem = true;
+            }
+          }
+        }
+
+        // In any case generate cell to fill the whole table correctly.
+        if (!$isHasProblem) {
+          echo "<td>-</td>";
+        }
+      }
+    }
+
+    echo "  </tr>";
+  }
+  echo "</table>";
+}
+
+// Print information on the current database connection.
+echo "<h3>The current database connection options</h3>";
+$db_connection_options = $results['Database connection'];
+foreach ($db_connection_options as $option => $value) {
+  if ($option != 'profiler') {
+    echo "$option = '$value'<br>";
+  }
+}
+
+// Obtain the time where page was created and find the page generation time.
+$endtime = explode(' ', microtime());
+$global = new Zend_Session_Namespace('Statistics globals');
+$totaltime = $endtime[0] +  $endtime[1] - $global->startTime;
+printf('<h3>Page generated in %.3f seconds</h3>',  $totaltime);
+
+#foreach ($this->entries as $entry):
+#    echo $this->escape($entry->id)
+
+?>
