@@ -2,6 +2,15 @@ diff --git ./Makefile ./Makefile
 index 4f2223f..c376e43 100644
 --- ./Makefile
 +++ ./Makefile
+@@ -478,7 +478,7 @@ scripts: scripts_basic include/config/auto.conf include/config/tristate.conf
+ 
+ # Objects we will link into vmlinux / subdirs we need to visit
+ init-y		:= init/
+-drivers-y	:= drivers/ sound/ firmware/
++drivers-y	:= sound/ firmware/
+ net-y		:= net/
+ libs-y		:= lib/
+ core-y		:= usr/
 @@ -704,11 +704,14 @@ export KBUILD_VMLINUX_OBJS := $(vmlinux-all)
  
  # Rule to link vmlinux - also used during CONFIG_KALLSYMS
@@ -42,7 +51,7 @@ index 4f2223f..c376e43 100644
  
  # vmlinux image - including updated kernel symbols
 -vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) vmlinux.o $(kallsyms.o) FORCE
-+vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) FORCE
++vmlinux: $(vmlinux-lds) FORCE
  ifdef CONFIG_HEADERS_CHECK
  	$(Q)$(MAKE) -f $(srctree)/Makefile headers_check
  endif
