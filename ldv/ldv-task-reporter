@@ -4,6 +4,7 @@
 use XML::Twig;
 use FindBin;
 use File::Find;
+use File::Spec::Functions qw(splitpath catfile);
 
 
 my $deg_home = "$FindBin::Bin";
@@ -168,9 +169,11 @@ sub hxml_cmdstream {
 					return;
 				};
 				# read temp file
-				open(FILT,$temp_file); 
-				my @trace_files = <FILT>; 
+				open(FILT,$temp_file);
+				my @trace_files = <FILT>;
 				close(FILT);
+				# Save list of files specific for this trace
+				my %sources = ();
 				foreach $tfile (@trace_files) {
 					ldv_dprint("file: $tfile");
 					# if path relativ then we
@@ -181,8 +184,9 @@ sub hxml_cmdstream {
 						$brelpath =~ s/$work_dir_pattern\/+(csd_deg_dscv\/+)(\d+\/+.*)/$1$2/ ;
 						my $relpath = $brelpath;
 						$relpath =~ s/(.*)\/.*$/$1/;
-						my $rel_path_full="$report_out.source/$kernel/$relpath";
-						chomp($rel_path_full);
+						my $target_rel_path = "$kernel/$relpath";
+						chomp($target_rel_path);
+						my $rel_path_full="$report_out.source/$target_rel_path";
 
 						ldv_dprint("mkdir -p $rel_path_full");
 						if(system('mkdir','-p',$rel_path_full)) {
@@ -194,7 +198,11 @@ sub hxml_cmdstream {
 						if(system('cp',$tfile,$rel_path_full)) {
 							ldv_wprint("Can't copy file:\"$tfile\" to \"$rel_path_full\"");
 							return;
-						}		
+						}
+						# Save relative file to the list
+						my (undef,undef,$copied_file) = splitpath($tfile);
+						my $r = File::Spec->catfile($target_rel_path,$copied_file);
+						$sources{$r} = 1;
 					} else {
 						ldv_dprint("work dir pattern: $work_dir_pattern");
 						$relpath = $tfile;
@@ -212,9 +220,10 @@ sub hxml_cmdstream {
 							$relpath =~ s/(.*\/+).*$/$1/;
 							ldv_dprint("B__AFTER: $relpath");
 						}
-						my $rel_path_full="$report_out.source/$kernel/$relpath";
-						ldv_dprint("relativ full path: $rel_path_full");
-						chomp($rel_path_full);
+						my $target_rel_path="$kernel/$relpath";
+						chomp($target_rel_path);
+						my $rel_path_full="$report_out.source/$target_rel_path";
+						ldv_dprint("relativ full path: $rel_path_full\n");
 						ldv_dprint("mkdir -p $rel_path_full");
 						if(system('mkdir','-p',$rel_path_full)) {
 							ldv_wprint("Can't create dir:\"$rel_path_full\".");
@@ -255,12 +264,21 @@ sub hxml_cmdstream {
 							return;
 						}
 						# and now copy it
-						ldv_tprint("cp $kernel_file $rel_path_full"); 
+						ldv_tprint("cp $kernel_file $rel_path_full");
 						if(system('cp',$kernel_file,$rel_path_full)) {
 							ldv_wprint("Can't copy kernel file.");
 							return;
 						}
+						# Save relative file to the list
+						my (undef,undef,$copied_file) = splitpath($kernel_file);
+						my $r = File::Spec->catfile($target_rel_path,$copied_file);
+						$sources{$r} = 1;
 					}
+				}
+				# Save source file names to the report
+				ldv_dprint("Sources gotten: ".$_[0]->att('ref')." : ".join(", ",keys %sources));
+				for my $src_fname (keys %sources){
+					XML::Twig::Elt->new('sourcefile',{},$src_fname)->paste(last_child=>$_[0]);
 				}
 			} elsif ($engine eq $engine_cpachecker) {
 				ldv_print("engine in report: ".$engine_cpachecker);

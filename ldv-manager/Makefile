@@ -20,7 +20,7 @@ mkscript_dir=$(ldvm_dir)/mk
 mkscript_sources=$(shell find -iname '*.mk')
 mkscript_targets=$(mkscript_sources:%=$(mkscript_dir)/%)
 
-stuff=results_schema.sql results_model.rb report-fixup package failed-run
+stuff=results_schema.sql results_model.rb report-fixup package failed-run upload_utils.rb
 stuff_targets=$(stuff:%=$(ldvm_dir)/%)
 
 install: $(bin_targets) $(problem_targets) $(problem_script_target) $(mkscript_targets) $(stuff_targets)
