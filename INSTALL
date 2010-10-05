@@ -36,7 +36,6 @@ MINIMAL PREREQUISITES
 	o PAX archiver
 	o Ruby gem manager
 	o Ruby gems:
-		- gem hpricot
 		- gem activerecord
 		- gem mysql
 

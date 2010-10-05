@@ -8,7 +8,6 @@ PREREQUISITES:
 1. MySQL server and libmysqlclient15-dev+ 
 2. Ruby v1.8+
 3. Ruby gems package and the following gems:
-	gem install hpricot
 	gem install activerecord
 	gem install mysql
 4. GNU Make
