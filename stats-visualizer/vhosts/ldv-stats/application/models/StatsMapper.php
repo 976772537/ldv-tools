@@ -415,16 +415,23 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                 ->joinLeft(array($this->_tableMapper[$tableProblems] => $tableProblems),
                   '`' . $this->_tableMapper[$tableStatProblems] . '`.`problem_id`=`' . $this->_tableMapper[$tableProblems] . '`.`id`');
 
-              // Laucnhes without problems mustn't be taken into consideration.'
-              $select = $select->where("`$problemsTableColumn[tableShort]`.`id` IS NOT NULL");
+              // Consider just laucnhes that finished badly (either with
+              // problems or without).
+              $select = $select->where("`$tableStat`.`success` = FALSE");
 
               // For tools problems pages restrict the selected result both to
               // the corresponding problem name.
               foreach (array_keys($this->_toolsInfoNameTableColumnMapper) as $toolNameForRestrict) {
                 if (preg_match("/$toolNameForRestrict/", $pageName)) {
                   $toolNameProblems = preg_split('/ /', $pageName);
-                  $select = $select
-                    ->where('`' . $this->_tableMapper[$tableProblems] . '`.`name` = ?', $value);
+                  if ($value == 'Unmatched') {
+                    $select = $select
+                      ->where('`' . $this->_tableMapper[$tableProblems] . '`.`name` IS NULL');
+                  }
+                  else {
+                    $select = $select
+                      ->where('`' . $this->_tableMapper[$tableProblems] . '`.`name` = ?', $value);
+                  }
                   break;
                 }
               }
@@ -451,7 +458,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                 }
                 $statsValuesStr = join(';', $statsValues);
 
-                $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $launchesProblemsRow["$toolName Problems"], 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
+                $problemName = $launchesProblemsRow["$toolName Problems"];
+                // Use special class fot the unmatched problems.
+                if (null == $problemName) {
+                  $problemName = 'Unmatched';
+                }
+
+                $toolProblems["$toolName Problems"][$statsValuesStr][] = array('Problem name' => $problemName, 'Problem number' => $launchesProblemsRow["$toolName Problems number"]);
               }
             }
           }
