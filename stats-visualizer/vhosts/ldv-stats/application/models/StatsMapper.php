@@ -272,8 +272,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $joins[$tableAux] = 1;
     foreach (array_keys($joins) as $table) {
     $select = $select
-      ->joinLeft(array($this->_tableMapper[$table] => $table),
-        '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
+      ->joinLeft(array($this->_tableMapper[$table] => $table)
+        , '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`'
+        , array());
     }
 
     // Join tools tables.
@@ -281,8 +282,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$tool]);
       $tableStat = "$tableColumn[tableShort]_$tool";
       $select = $select
-        ->joinLeft(array($tableStat => $tableColumn['table']),
-          '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
+        ->joinLeft(array($tableStat => $tableColumn['table'])
+          , '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`"
+          , array());
     }
 
     // For result (safe, unsafe and unknown) pages restrict the selected result
@@ -391,29 +393,33 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               // traces is always joined.
               foreach (array_keys($joins) as $table) {
               $select = $select
-                ->joinLeft(array($this->_tableMapper[$table] => $table),
-                  '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
+                ->joinLeft(array($this->_tableMapper[$table] => $table)
+                  , '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`'
+                  , array());
               }
 
               // Join tool table.
               $tableColumn = $this->getTableColumn($this->_toolsInfoNameTableColumnMapper[$toolName]);
               $tableStat = "$tableColumn[tableShort]_$toolName";
               $select = $select
-                ->joinLeft(array($tableStat => $tableColumn['table']),
-                  '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`");
+                ->joinLeft(array($tableStat => $tableColumn['table'])
+                  , '`' . $this->_tableMapper[$tableAux] . '`.`' . $tableColumn['column'] . "`=`$tableStat`.`id`"
+                  , array());
 
               // Join problems tool relating table.
               $tableStatProblems = 'problems_stats';
               $select = $select
-                ->joinLeft(array($this->_tableMapper[$tableStatProblems] => $tableStatProblems),
-                  '`' . $this->_tableMapper[$tableStatProblems] . "`.`stats_id`=`$tableStat`.`id`");
+                ->joinLeft(array($this->_tableMapper[$tableStatProblems] => $tableStatProblems)
+                  , '`' . $this->_tableMapper[$tableStatProblems] . "`.`stats_id`=`$tableStat`.`id`"
+                  , array());
 
 
               // Join problems table.
               $tableProblems = 'problems';
               $select = $select
-                ->joinLeft(array($this->_tableMapper[$tableProblems] => $tableProblems),
-                  '`' . $this->_tableMapper[$tableStatProblems] . '`.`problem_id`=`' . $this->_tableMapper[$tableProblems] . '`.`id`');
+                ->joinLeft(array($this->_tableMapper[$tableProblems] => $tableProblems)
+                  , '`' . $this->_tableMapper[$tableStatProblems] . '`.`problem_id`=`' . $this->_tableMapper[$tableProblems] . '`.`id`'
+                  , array());
 
               // Consider just laucnhes that finished badly (either with
               // problems or without).
@@ -499,14 +505,16 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       // traces is always joined.
       foreach (array_keys($joins) as $table) {
       $select = $select
-        ->joinLeft(array($this->_tableMapper[$table] => $table),
-          '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`');
+        ->joinLeft(array($this->_tableMapper[$table] => $table)
+          , '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`'
+          , array());
       }
 
       // Join time table.
       $select = $select
-        ->joinLeft(array($timeTableColumn['tableShort'] => $timeTableColumn['table']),
-          '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$timeTableColumn[tableShort]`.`trace_id`");
+        ->joinLeft(array($timeTableColumn['tableShort'] => $timeTableColumn['table'])
+          , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$timeTableColumn[tableShort]`.`trace_id`"
+          , array());
 
       // Laucnhes without time mustn't be taken into consideration.'
       $select = $select->where("`$timeTableColumn[tableShort]`.`trace_id` IS NOT NULL");
