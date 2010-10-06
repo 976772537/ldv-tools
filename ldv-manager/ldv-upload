@@ -161,7 +161,12 @@ class Launch
 		end
 
 		if ld.attributes['module_name'] || ld.attributes['main']
-			scenario = Scenario.find_or_create(:driver_id=>driver.id,:executable=>ld.attributes['module_name'],:main=>ld.attributes['main'])
+			# If we have only "module_name" it may be a module, in which no names were found.  We should add this to the database anyway, but just insert an empty string instead of main name.
+			main_name = ld.attributes['main'] || ''
+			# If we have only "main", but no "module name" specified, we fail!
+			# FIXME just like the main above if it's necessary
+			module_name = ld.attributes['module_name'] or raise "module_name attribute is empty for ld #{ld.attributes['ref']}.  Fix ldv-upload or reporter!"
+			scenario = Scenario.find_or_create(:driver_id=>driver.id,:executable=>module_name,:main=>main_name)
 		else
 			scenario = nil
 		end
@@ -203,6 +208,7 @@ Dir.chdir(tmpdir) do |dir|
 	# Unpack to temporary dir
 	Kernel.system("pax","-r","-f",paxname) or raise "pax didn't work."
 end
+$stderr.write "Unpacked to: #{tmpdir}\n"
 # Get report name
 filenames = Dir.glob(File.join(tmpdir,'*.report.xml'))
 raise "Only one report in the archive given should match *.report.xml pattern!  These found: #{filenames.join(",")}" if filenames.size != 1
@@ -255,6 +261,7 @@ masters = MasterStats.new
 Launch.init_global_params(:driver_name => driver_name, :driver_origin=>driver_origin, :git_tag => git_tag, :global_verifier => global_verifier, :task => task)
 
 doc.elements.each("reports/ld") do |ld|
+	puts "Uploading ld #{ld.attributes['ref'] || 'UNKNOWN! ref is not set!'}..."
 	launch = Launch.init_from_xml(ld)
 	#Get status, and if it's "failed" skip the rest
 	status = (ld.field("ldv_status") || "OK").downcase
@@ -274,7 +281,7 @@ doc.elements.each("reports/ld") do |ld|
 
 	trace = Trace.new
 	#verdict
-	verdict = (ld/"verdict").downcase
+	verdict = (ld/"verdict" || 'unknown').downcase
 	unsafe = verdict=="unsafe"
 	trace.result=verdict
 	trace.result='unknown' if verdict.empty?
