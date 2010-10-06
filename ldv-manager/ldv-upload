@@ -282,8 +282,11 @@ doc.elements.each("reports/ld") do |ld|
 	if unsafe
 		# Get sources
 		# Now sources are matched with traces inside the XML file
-		ld.elements.each("sourcefile") do |source_fname_tag| 
-			trace.sources << sources[source_fname_tag.text]
+		unless (source_files = ld.elements.collect("sourcefile") {|tag| tag.text}).empty?
+			source_files.each {|fname| trace.sources << sources[fname] }
+		else
+			$stderr.write "No <sourcefile> tags for ld #{ld.attributes['ref']}!  Adding all sources to this trace...\n"
+			sources.values.each {|src| trace.sources << src }
 		end
 
 		# Get trace itself
