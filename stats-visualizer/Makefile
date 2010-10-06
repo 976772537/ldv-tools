@@ -74,6 +74,10 @@ install:
 	@if [ ! -n "$(LDV_STATS_CONF_DIR)" ]; then echo 'Specify the LDV_STATS_CONF_DIR variable value!' && exit 1; else echo 'LDV_STATS_CONF_DIR is $(LDV_STATS_CONF_DIR)'; fi
 	@if [ ! -n "$(LDV_STATS_VHOSTS_CONF_DIR)" ]; then echo 'Specify the LDV_STATS_VHOSTS_CONF_DIR variable value!' && exit 1; else echo 'LDV_STATS_VHOSTS_CONF_DIR is $(LDV_STATS_VHOSTS_CONF_DIR)'; fi
 	@if [ ! -n "$(LDV_STATS_VHOSTS_DIR)" ]; then echo 'Specify the LDV_STATS_VHOSTS_DIR variable value!' && exit 1; else echo 'LDV_STATS_VHOSTS_DIR is $(LDV_STATS_VHOSTS_DIR)'; fi
+	@if [ ! -d $(LDV_STATS_CONF_DIR) ]; then echo 'The specified web server configuration directory "$(LDV_STATS_CONF_DIR)" does not exist' && exit 1; fi;
+	@if [ ! -d $(LDV_STATS_VHOSTS_CONF_DIR) ]; then echo 'The specified web server virtual hosts configuration directory "$(LDV_STATS_VHOSTS_CONF_DIR)" does not exist' && exit 1; fi;
+	@if [ ! -d $(LDV_STATS_VHOSTS_DIR) ]; then echo 'The specified web server virtual hosts directory "$(LDV_STATS_VHOSTS_DIR)" does not exist' && exit 1; fi;
+	
 	if [ ! -n "$(LDV_STATS_PORT)" ]; then echo 'The default LDV_STATS_PORT "$(DEFAULT_PORT)" is used' && export LDV_STATS_PORT=$(DEFAULT_PORT); else echo 'LDV_STATS_PORT is $(LDV_STATS_PORT)'; export LDV_STATS_PORT=$(LDV_STATS_PORT); fi; \
 	if [ ! -n "$(LDV_STATS_APPLICATION_ENV)" ]; then echo 'The default LDV_STATS_APPLICATION_ENV "$(DEFAULT_APPLICATION_ENV)" is used' && export LDV_STATS_APPLICATION_ENV=$(DEFAULT_APPLICATION_ENV); else echo 'LDV_STATS_APPLICATION_ENV is $(LDV_STATS_APPLICATION_ENV)'; export LDV_STATS_APPLICATION_ENV=$(LDV_STATS_APPLICATION_ENV); fi; \
 	\

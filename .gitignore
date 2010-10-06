@@ -13,7 +13,6 @@ ldv-tests/aspect-tests/__install_drivers
 # Statistics server auxiliary files. Sorry for them.
 # After the end of active development stage i'll
 # remove them. 
-stats-visualizer/vhosts/ldv-stats/data/db/*
 stats-visualizer/vhosts/ldv-stats/data/trace/*
 stats-visualizer/vhosts/ldv-stats/application/configs/scripts.ini
 stats-visualizer/vhosts/ldv-stats/library/*
