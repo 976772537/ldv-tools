@@ -20,6 +20,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'Entry point' => array('table' => 'scenarios', 'column' => 'main'));
   protected $_verificationInfoNameTableColumnMapper = array(
     'Verifier' => array('table' => 'traces', 'column' => 'verifier'),
+    'Result' => array('table' => 'traces', 'column' => 'id'),
     'Error trace' => array('table' => 'traces', 'column' => 'error_trace'));
   protected $_verificationResultInfoNameTableColumnMapper = array(
     'Safe' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Safe'),
@@ -32,6 +33,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'RI' => array('table' => 'stats', 'column' => 'ri_id'),
     'RCV' => array('table' => 'stats', 'column' => 'rcv_id'));
   protected $_toolInfoNameTableColumnMapper = array(
+    'In' => array('table' => 'stats', 'column' => 'id'),
     'Ok' => array('table' => 'stats', 'column' => 'success', 'cond' => 'TRUE'),
     'Fail' => array('table' => 'stats', 'column' => 'success', 'cond' => 'FALSE'),
     'Description' => array('table' => 'stats', 'column' => 'description'),
@@ -155,6 +157,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Here all information to be shown will be written.
     $result = array();
 
+    // In general there is no restriction at all.
+    $result['Restrictions'] = array();
+
     // Get information on statistics entities to be displayed on the given page.
     $page = $profile->getPage($pageNameMode);
     $result['Page'] = $pageNameMode;
@@ -198,27 +203,32 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $verificationKey = array();
     if (null !== $page->verificationInfo) {
       foreach ($page->verificationInfo as $info) {
+        $name = $info->verificationInfoName;
+        $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
+        $verificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
+
+        // For 'Result' count the total number of grouped launches.
+        if ($name == 'Result') {
+          $verificationInfo[$name] = "COUNT($verificationInfo[$name])";
+        }
+
+        $verificationKey[] = $name;
+
         // The 'Result' is just union of 'Safe', 'Unsafe' and 'Unknown' statuses
         // that will be iterated below.
-        if ($info->verificationInfoName == 'Result') {
+        if ($name == 'Result') {
           foreach ($info->results as $resultInfo) {
-            $name = $resultInfo->resultName;
-            $tableColumnCond = $this->_verificationResultInfoNameTableColumnMapper[$name];
+            $nameResult = $resultInfo->resultName;
+            $tableColumnCond = $this->_verificationResultInfoNameTableColumnMapper[$nameResult];
             $tableColumn = $this->getTableColumn($tableColumnCond);
-            $verificationResultInfo[$name] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
-            $verificationKey[] = $name;
+            $verificationResultInfo[$nameResult] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
+            $verificationKey[] = $nameResult;
           }
         }
-        else
-        {
-          $name = $info->verificationInfoName;
-          $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
-          $verificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
-          $verificationKey[] = $name;
-        }
+
       }
     }
-
+#print_r($verificationInfo);exit;
     // Obtain the list of tools info columns.
     $tools = array();
     $toolsInfo = array();
@@ -231,6 +241,15 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           foreach ($info->tools as $toolInfo) {
             $name = $toolInfo->toolName;
             if ($name == 'Ok' || $name == 'Fail') {
+              // For 'Ok' and 'Fail' automatically count the total number of
+              // tool inputs.
+              $tool_in = 'In';
+              if (!array_key_exists("$toolName $tool_in", $toolsInfo)) {
+                $tableColumnCond = $this->_toolInfoNameTableColumnMapper[$tool_in];
+                $tableColumn = $this->getTableColumn($tableColumnCond);
+                $toolsInfo["$toolName $tool_in"] = "COUNT(`$tableColumn[tableShort]_$toolName`.`$tableColumn[column]`)";
+              }
+
               $tableColumnCond = $this->_toolInfoNameTableColumnMapper[$name];
               $tableColumn = $this->getTableColumn($tableColumnCond);
               $toolsInfo["$toolName $name"] = "SUM(IF(`$tableColumn[tableShort]_$toolName`.`$tableColumn[column]`=$tableColumnCond[cond], 1, 0))";
@@ -294,6 +313,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     if ($taskids == '' && ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown')) {
       $select = $select
         ->where('`' . $this->_tableMapper[$tableAux] . '`.`result` = ?', $pageName);
+      $result['Restrictions']['Result'] = $pageName;
     }
 
     // For tools execution status (ok or fail) and tools problems pages restrict
@@ -303,7 +323,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $tableTool = 'stats';
     foreach (array_keys($this->_toolsInfoNameTableColumnMapper) as $toolName) {
       if (preg_match("/$toolName/", $pageName)) {
+        // Statistics key values must be restricted for a given tool.
+        $isToolRestrict = true;
+
         $toolNameInfo = preg_split('/ /', $pageName);
+        // Inputs don't require the given restriction.
+        if ($toolNameInfo[1] == 'In') {
+          break;
+        }
 
         // Ok corresponds to the true. Fail corresponds to the false.
         $status = 1;
@@ -313,12 +340,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
         $select = $select
           ->where('`' . $this->_tableMapper[$tableTool] . '_' . $toolNameInfo[0] . '`.`success` = ?', $status);
-        $isToolRestrict = true;
+        $result['Restrictions']['Status'] = $status == 0 ? 'Fail' : 'Ok';
+
         break;
       }
     }
 
-    if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
+    if ($pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
       foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
         if ($statKeyValue == '__EMPTY') {
           $statKeyValue = '';
@@ -327,6 +355,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         if ($statKeyValue == '__NULL') {
           $select = $select
             ->where("$launchInfoScreened[$statKey] IS NULL");
+          $result['Restrictions'][$statKey] = 'NULL';
         }
         else
         {
@@ -335,6 +364,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           if ($taskids != '' && $statKey == 'Task id') {
             $select = $select
               ->where("$launchInfoScreened[$statKey] IN ($statKeyValue, $taskids)");
+            $result['Restrictions'][$statKey] = "in ($statKeyValue, $taskids)";
           }
           // Ignore other task attribute restrictions in the task comparison
           // mode. In the noncomparison mode just restrict a given statistics
@@ -342,6 +372,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           else if (($taskids != '' && !preg_match('/^Task/', $statKey)) || $taskids == '') {
             $select = $select
               ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+            $result['Restrictions'][$statKey] = $statKeyValue;
           }
         }
       }
@@ -438,6 +469,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                     $select = $select
                       ->where('`' . $this->_tableMapper[$tableProblems] . '`.`name` = ?', $value);
                   }
+                  $result['Restrictions']['Problem name'] = $value;
                   break;
                 }
               }
