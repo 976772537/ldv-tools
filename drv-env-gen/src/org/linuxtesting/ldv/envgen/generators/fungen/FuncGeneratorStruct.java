@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
+import org.linuxtesting.ldv.envgen.generators.MainGenerator;
 
 
 public class FuncGeneratorStruct implements FuncGenerator {
@@ -52,7 +53,7 @@ public class FuncGeneratorStruct implements FuncGenerator {
 	}
 
 	@Override
-	public List<String> generateVarDeclare() {
+	public List<String> generateVarDeclare(boolean init) {
 		List<String> replacementParams = token.getReplacementParams();
 		int paramCnt = 0;
 		List<String> paramsList = new ArrayList<String>();
@@ -61,8 +62,8 @@ public class FuncGeneratorStruct implements FuncGenerator {
 			String replacementParam = replacementParamsIterator.next().trim();
 			if(!replacementParam.equals("...")) {
 				if(!replacementParam.equals("void")) {
-					if(replacementParam.contains("const"))
-						paramsList.add(replacementParam.replaceAll("\\$var", getVarName(paramCnt))+"=0;");
+					if(replacementParam.contains("const") && init)
+						paramsList.add(replacementParam.replaceAll("\\$var", getVarName(paramCnt))+"= " + MainGenerator.NONDET_INT + "();");
 					else
 						paramsList.add(replacementParam.replaceAll("\\$var", getVarName(paramCnt))+";");
 				}

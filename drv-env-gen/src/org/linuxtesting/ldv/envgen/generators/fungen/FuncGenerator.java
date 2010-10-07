@@ -7,7 +7,7 @@ import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 public interface FuncGenerator {
 	public void set(TokenFunctionDecl token);
-	public List<String> generateVarDeclare();
+	public List<String> generateVarDeclare(boolean init);
 	public List<String> generateVarInit();
 	public String generateFunctionCall();
 	public String generateRetDecl();

@@ -11,7 +11,7 @@ public class SequenceParams extends EnvParams {
 	int n;
 	
 	public SequenceParams(boolean check, boolean stateful, Length length) {
-		super(true, check);
+		super(true, check, false);
 		assert length!=Length.n;
 		this.stateful = stateful;
 		this.length = length;
@@ -19,7 +19,7 @@ public class SequenceParams extends EnvParams {
 	}
 
 	public SequenceParams(boolean check, boolean stateful, int n) {
-		super(true, check);
+		super(true, check, false);
 		this.stateful = stateful;
 		this.length = Length.n;
 		this.n = n;
