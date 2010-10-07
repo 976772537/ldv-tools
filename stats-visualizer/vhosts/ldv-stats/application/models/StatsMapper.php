@@ -21,7 +21,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
   protected $_verificationInfoNameTableColumnMapper = array(
     'Verifier' => array('table' => 'traces', 'column' => 'verifier'),
     'Result' => array('table' => 'traces', 'column' => 'id'),
-    'Error trace' => array('table' => 'traces', 'column' => 'error_trace'));
+    // Don't load huge error traces. Just select their ids.
+    'Error trace' => array('table' => 'traces', 'column' => 'id'));
   protected $_verificationResultInfoNameTableColumnMapper = array(
     'Safe' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Safe'),
     'Unsafe' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Unsafe'),
@@ -688,6 +689,79 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 #  echo "<br>";print_r($res);
 #}
 #exit;
+    return $result;
+  }
+
+  public function getErrorTrace($profile, $params) {
+    if (array_key_exists('page', $params)) {
+      $pageName = $params['page'];
+    }
+    else {
+      throw new Exception('Page name is not specified');
+    }
+
+    // Get a corresponding trace id.
+    if (array_key_exists('value', $params)) {
+      $trace_id = $params['value'];
+    }
+    else {
+      throw new Exception('Trace id is not specified');
+    }
+
+    // Connect to the profile database and remember connection settings.
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+
+    $traces = $this->getDbTable('Application_Model_DbTable_Traces', $this->_db);
+
+    // Prepare query to the statistics database to obtrain a error trace.
+    $select = $traces
+      ->select()->setIntegrityCheck(false);
+
+    // Get data from the traces table.
+    $tableMain = 'traces';
+    $select = $select
+      ->from($tableMain,
+        array($pageName => "$tableMain.error_trace", 'Engine' => "$tableMain.verifier"));
+    $select = $select
+      ->where("$tableMain.id = ?", $trace_id);
+
+#print_r($select->assemble());
+#exit;
+
+    $errorTraceRow = $traces->fetchRow($select);
+    $errorTrace = new Application_Model_ErrorTrace(array('errorTraceRaw' => $errorTraceRow[$pageName], 'engine' => $errorTraceRow['Engine']));
+
+    $sources = $this->getDbTable('Application_Model_DbTable_Sources', $this->_db);
+
+    // Prepare query to the statistics database to obtrain source code files
+    // corresponding to a given error trace.
+    $select = $sources
+      ->select()->setIntegrityCheck(false);
+
+    // Get data from the sources table.
+    $tableMain = 'sources';
+    $select = $select
+      ->from($tableMain,
+        array('File name' => "$tableMain.name", 'Source code' => "$tableMain.contents"));
+    $select = $select
+      ->where("$tableMain.trace_id = ?", $trace_id);
+
+#print_r($select->assemble());
+#exit;
+
+    $sourcesResultSet= $sources->fetchAll($select);
+
+    // Store source code files in array where keys are file names and values are
+    // source code itself.
+    $sourceCodeFiles = array();
+    foreach ($sourcesResultSet as $sourcesRow) {
+      $sourceCodeFiles[$sourcesRow['File name']] = $sourcesRow['Source code'];
+    }
+
+    $errorTrace = $errorTrace->setOptions(array('errorTraceRaw' => $errorTraceRow[$pageName], 'sourceCodeFiles' => $sourceCodeFiles));
+
+    $result['Error trace'] = $errorTrace;
+
     return $result;
   }
 }

@@ -1,0 +1,15 @@
+<?php
+
+// Print error if so and finish execution.
+if (isset($this->error)) {
+  echo $this->error;
+  return;
+}
+
+
+// Get all infomation to be displayed.
+$results = $this->entries;
+
+print_r($results['Error trace']->errorTrace);
+
+?>

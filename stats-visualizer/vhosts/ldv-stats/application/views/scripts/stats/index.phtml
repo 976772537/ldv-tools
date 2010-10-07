@@ -192,7 +192,21 @@ if ($resultsNumb) {
     foreach ($verificationKeys as $verificationKey) {
       echo "    <td>";
       $value = $result['Verification info'][$verificationKey];
-      if (array_key_exists($verificationKey, $profilePages)) {
+      if ($verificationKey == 'Error trace') {
+        echo "<a href='"
+          . $this->url(
+            array_merge(
+              array(
+                'controller' => 'stats',
+                'action'     => 'errortrace',
+                'page' => $verificationKey,
+                'value' => $value),
+              $statKeysValues),
+            'default',
+            true)
+          . "'>error trace...</a>";
+      }
+      else if (array_key_exists($verificationKey, $profilePages)) {
         echo "<a href='"
           . $this->url(
             array_merge(
@@ -208,7 +222,6 @@ if ($resultsNumb) {
           . "'>"
           . $value
           . "</a>";
-
       }
       else {
         echo "$value";

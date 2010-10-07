@@ -1,6 +1,6 @@
 <?php
 
-class Application_Model_Profile extends Application_Model_General
+class Application_Model_Profile extends Application_Model_GeneralStats
 {
   protected $_profileId;
   protected $_profileName;

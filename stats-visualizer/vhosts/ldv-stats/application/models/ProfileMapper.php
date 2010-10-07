@@ -92,6 +92,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 
       foreach($pagesLaunchInfoResultSet as $pagesLaunchInfoRow) {
         $profileCurrentPageLaunchInfo = $profileCurrentPage->setLaunchInfoOrder($pagesLaunchInfoRow['Order']);
+
         $profileCurrentPageLaunchInfo->setOptions(array(
           'launchInfoName' => $pagesLaunchInfoRow['Name'],
           'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
