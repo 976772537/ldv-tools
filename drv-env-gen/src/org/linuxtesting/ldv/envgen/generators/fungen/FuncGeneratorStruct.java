@@ -80,8 +80,13 @@ public class FuncGeneratorStruct implements FuncGenerator {
 	@Override
 	public String generateCheckedFunctionCall(String check_label, String indent) {
 		assert token.getTestString()!=null && !token.getRetType().contains("void");
+		String checkString = token.getTestString();
+		//Replace predefined patterns
+		checkString = checkString.replaceAll("\\$CHECK_NONZERO", FuncGenerator.CHECK_NONZERO);
+		checkString = checkString.replaceAll("\\$CHECK_LESSTHANZERO", FuncGenerator.CHECK_LESSTHANZERO);
+		//Replace variables
 		String funcCallStr = genFuncCallExpr();
-		funcCallStr = token.getTestString().
+		funcCallStr = checkString.
 				replaceAll("\\$retvar", getRetName()).
 				replaceAll("\\$fcall", funcCallStr).
 				replaceAll("\\$check_label", check_label).
