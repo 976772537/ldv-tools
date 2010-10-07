@@ -168,7 +168,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Connect to the profile database and remember connection settings.
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
 
-    // Gather all statistics key restrictions if so comming throuth the
+    // Gather all statistics key restrictions if so comming through the
     // parameters.
     $statKeysRestrictions = array();
     foreach (array_keys($this->_launchInfoNameTableColumnMapper) as $statKey) {
@@ -761,6 +761,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $errorTrace = $errorTrace->setOptions(array('errorTraceRaw' => $errorTraceRow[$pageName], 'sourceCodeFiles' => $sourceCodeFiles));
 
     $result['Error trace'] = $errorTrace;
+
+    // Gather all statistics key restrictions comming through the parameters.
+    // For error trace they are always presented.
+    foreach (array_keys($this->_launchInfoNameTableColumnMapper) as $statKey) {
+      if (array_key_exists($statKey, $params)) {
+        $result['Restrictions'][$statKey] = $params[$statKey];
+      }
+    }
 
     return $result;
   }

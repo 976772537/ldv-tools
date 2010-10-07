@@ -12,4 +12,45 @@ $results = $this->entries;
 
 print_r($results['Error trace']->errorTrace);
 
+// Print restrictions for a given page if so.
+if (count($results['Restrictions'])){
+  echo "<h3>Current page restrictions</h3>";
+  foreach ($results['Restrictions'] as $restriction => $value) {
+    echo "$restriction = '$value'<br>";
+  }
+}
+
+// Print information on the current database connection.
+echo "<h3>Current database connection options</h3>";
+$db_connection_options = $results['Database connection'];
+foreach ($db_connection_options as $option => $value) {
+  if ($option != 'profiler') {
+    echo "$option = '$value'<br>";
+  }
+}
+
+// Obtain the time where page was created and find the page generation time.
+$endtime = explode(' ', microtime());
+$global = new Zend_Session_Namespace('Statistics globals');
+$totaltime = $endtime[0] +  $endtime[1] - $global->startTime;
+printf('<h3>Page generated in %.1f seconds (the maximum execution time is %.1f seconds)</h3>',  $totaltime, ini_get('max_execution_time'));
+
+// Obtain the session peak application memory usage and compare it with the
+// memory limit.
+function return_bytes($val) {
+  $val = trim($val);
+  $last = strtolower($val[strlen($val) - 1]);
+  switch ($last) {
+    case 'g':
+      $val *= 1024;
+    case 'm':
+      $val *= 1024;
+    case 'k':
+      $val *= 1024;
+  }
+
+  return $val;
+}
+echo "<h3>Application peak memory usage through the given session is " . number_format(memory_get_peak_usage(), 0, ',', ' ') . " bytes (the memory limit is " . number_format(return_bytes(ini_get('memory_limit')), 0, ',', ' ') . " bytes)</h3>";
+
 ?>

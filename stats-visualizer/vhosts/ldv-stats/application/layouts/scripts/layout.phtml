@@ -10,7 +10,6 @@
     $this->headScript()->appendFile($this->baseUrl() . '/jslib/jquery-1.4.2.min.js', 'text/javascript');
     echo $this->headLink();
     echo $this->headScript();
-  #"<script type='text/javascript' src='" . $this->baseUrl() . '/include/jquery-1.4.2.min.js' . "'></script>";
   ?>
 </head>
 <body>
@@ -19,10 +18,12 @@
     <b>Linux driver verification statistics</b>
   </div>
   <div id="header-navigation" style="float: right">
-    <a href="<?php echo $this->url(
+<!-- There is no action implemented at the moment.
+    <a href="<?php /*echo $this->url(
       array('controller'=>'index'),
       'default',
-      true) ?>">Choose profile</a>
+      true)*/ ?>">Choose profile</a>
+-->
   </div>
 </div>
 
