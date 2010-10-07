@@ -73,28 +73,59 @@ public class FuncGeneratorStruct implements FuncGenerator {
 	}
 
 	@Override
-	public String generateFunctionCall() {
-		return genFuncCallExpr() + ";";
+	public String generateSimpleFunctionCall(String indent) {
+		String checkString = FuncGenerator.SIMPLE_CALL;
+		return replaceVariables(null, indent, checkString);
 	}
 
 	@Override
-	public String generateCheckedFunctionCall(String check_label, String indent) {
-		assert token.getTestString()!=null && !token.getRetType().contains("void");
-		String checkString = token.getTestString();
+	public String generateCheckedFunctionCall(String checkString, String check_label, String indent) {
 		//Replace predefined patterns
 		checkString = checkString.replaceAll("\\$CHECK_NONZERO", FuncGenerator.CHECK_NONZERO);
 		checkString = checkString.replaceAll("\\$CHECK_LESSTHANZERO", FuncGenerator.CHECK_LESSTHANZERO);
 		//Replace variables
-		String funcCallStr = genFuncCallExpr();
-		funcCallStr = checkString.
-				replaceAll("\\$retvar", getRetName()).
-				replaceAll("\\$fcall", funcCallStr).
-				replaceAll("\\$check_label", check_label).
-				replaceAll("\\$indent", indent);
-		for(int i=0; i<token.getReplacementParams().size(); i++) {
-			funcCallStr = funcCallStr.replaceAll("\\$p" + i, getVarName(i));
+		return replaceVariables(check_label, indent, checkString);		
+	}
+	
+	@Override
+	public String generateCheckedFunctionCall(String check_label, String indent) {
+		assert token.getTestString()!=null;
+		String checkString = token.getTestString();
+		return generateCheckedFunctionCall(checkString, check_label, indent);
+	}
+
+	private String replaceVariables(String check_label, String indent, String checkString) {
+		assert checkString!=null;
+		
+		String funcCallStr = genFuncCallExpr();		
+		
+		if(checkString.contains("$retvar")) {
+			if(token.getRetType().contains("void")) {
+				Logger.err("Check string is not applicable for void function");
+				Logger.err("checkString=" + checkString);
+				Logger.err("retType=" + token.getRetType());
+				Logger.err("funcCallStr=" + funcCallStr);
+				Logger.err("Using default template");
+				checkString = FuncGenerator.SIMPLE_CALL;
+			}
+			checkString = checkString.replaceAll("\\$retvar", getRetName());
 		}
-		return funcCallStr;
+
+		if(check_label!=null) {
+			checkString = checkString.replaceAll("\\$check_label", check_label);
+		} else {
+			assert !checkString.contains("$check_label");			
+		}
+		
+		checkString = checkString.replaceAll("\\$fcall", funcCallStr);
+		
+		assert indent!=null;
+		checkString = checkString.replaceAll("\\$indent", indent);
+		
+		for(int i=0; i<token.getReplacementParams().size(); i++) {
+			checkString = checkString.replaceAll("\\$p" + i, getVarName(i));
+		}
+		return checkString;
 	}
 
 	@Override

@@ -293,12 +293,8 @@ public class MainGenerator {
 				ctx.fg.set(token);
 				appendPpcBefore(sb,ctx,token);
 				/* добавляем вызовы функций */
-				String lparams = ctx.fg.generateFunctionCall();
 				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
-				sb.append("\n" + ctx.getIndent() + "if ("+lparams.substring(0,lparams.length()-1)+")");
-				ctx.incIndent();
-				sb.append("\n" + ctx.getIndent() + "goto " + getCheckFinalLabel() +";");
-				ctx.decIndent();
+				sb.append(ctx.fg.generateCheckedFunctionCall(FuncGenerator.CHECK_NONZERO, getCheckFinalLabel(), ctx.getIndent()));
 				appendPpcAfter(sb,ctx,token);
 				/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 				ctx.fw.write(sb.toString());
@@ -322,9 +318,8 @@ public class MainGenerator {
 			appendPpcBefore(sb,ctx,token);
 			/* увеличим счетчик, на число параметров*/
 			/* добавляем вызовы функций */
-			String exitCall = ctx.fg.generateFunctionCall();
 			sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver release function before driver will be uploaded from kernel. This function declared as \"MODULE_EXIT(function name)\". */");
-			sb.append("\n" + ctx.getIndent() + exitCall);
+			sb.append(ctx.fg.generateSimpleFunctionCall(ctx.getIndent()));
 			appendPpcAfter(sb,ctx,token);
 			/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 			ctx.fw.write(sb.toString());
@@ -534,7 +529,7 @@ public class MainGenerator {
 		/* добавляем вызовы функций */
 		//String gdebug = tfd.getName();
 		/* добавляем к ним проверку, если это стандартная функция */
-		if (ctx.p.isCheck() && tfd.getTestString()!=null && !tfd.getRetType().contains("void")) {
+		if (ctx.p.isCheck() && tfd.getTestString()!=null) {
 			if(tfd.getLdvCommentContent()!=null) {				
 				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" "+"Function from field \""+tfd.getLdvCommentContent()+"\" from driver structure with callbacks \""+token.getName()+"\". Standart function test for correct return result. */");
 			} else {
@@ -548,7 +543,7 @@ public class MainGenerator {
 			} else {
 				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" */");
 			}
-			sb.append("\n" + ctx.getIndent() + ctx.fg.generateFunctionCall());
+			sb.append(ctx.fg.generateSimpleFunctionCall(ctx.getIndent()));
 		}
 		appendPpcAfter(sb,ctx,tfd);
 		/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */

@@ -9,9 +9,10 @@ public interface FuncGenerator {
 	public void set(TokenFunctionDecl token);
 	public List<String> generateVarDeclare();
 	public List<String> generateVarInit();
-	public String generateFunctionCall();
 	public String generateRetDecl();
 
+	public final String SIMPLE_CALL = "\n$indent$fcall;";
+		
 	public final String CHECK_NONZERO = 
 		"\n$indent$retvar = $fcall;"
 		+ "\n$indent check_return_value($retvar);"
@@ -35,5 +36,13 @@ public interface FuncGenerator {
 	 * $CHECK_NONZERO
 	 * $CHECK_LESSTHANZERO
 	 */
+	public String generateCheckedFunctionCall(String checkExpr, String checkLabel, String indent);
+	/**
+	 * gets checkExpr from the token
+	 */
 	public String generateCheckedFunctionCall(String checkLabel, String indent);
+	/**
+	 * generates SIMPLE_CALL
+	 */
+	public String generateSimpleFunctionCall(String indent);
 }
