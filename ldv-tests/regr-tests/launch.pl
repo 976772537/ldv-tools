@@ -104,7 +104,7 @@ my $regr_task_prefix = 'regr-task-';
 my $result_dir;
 
 # The name of the launcher task.
-my $task-name = $ENV{'TASK_NAME'} || 'regression-test';
+my $task_name = $ENV{'TASK_NAME'} || 'regression-test';
 
 # This hash contains unique tasks to be executed. Task is '(driver, kernel, 
 # model)'.
