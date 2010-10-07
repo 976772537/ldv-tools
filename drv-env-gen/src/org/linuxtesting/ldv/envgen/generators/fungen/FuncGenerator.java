@@ -13,6 +13,10 @@ public interface FuncGenerator {
 
 	public final String SIMPLE_CALL = "\n$indent$fcall;";
 		
+	public final String CHECK_INIT_MODULE = 
+		"\n$indent if($fcall) " 
+			+ "\n$indent\tgoto $check_label;";
+	
 	public final String CHECK_NONZERO = 
 		"\n$indent$retvar = $fcall;"
 		+ "\n$indent check_return_value($retvar);"

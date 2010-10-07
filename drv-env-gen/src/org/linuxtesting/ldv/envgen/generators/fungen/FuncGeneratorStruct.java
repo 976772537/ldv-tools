@@ -3,6 +3,7 @@ package org.linuxtesting.ldv.envgen.generators.fungen;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Matcher;
 
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
@@ -81,8 +82,12 @@ public class FuncGeneratorStruct implements FuncGenerator {
 	@Override
 	public String generateCheckedFunctionCall(String checkString, String check_label, String indent) {
 		//Replace predefined patterns
-		checkString = checkString.replaceAll("\\$CHECK_NONZERO", FuncGenerator.CHECK_NONZERO);
-		checkString = checkString.replaceAll("\\$CHECK_LESSTHANZERO", FuncGenerator.CHECK_LESSTHANZERO);
+		checkString = checkString.replaceAll(
+				"\\$CHECK_NONZERO", 
+				Matcher.quoteReplacement(FuncGenerator.CHECK_NONZERO));
+		checkString = checkString.replaceAll(
+				"\\$CHECK_LESSTHANZERO", 
+				Matcher.quoteReplacement(FuncGenerator.CHECK_LESSTHANZERO));
 		//Replace variables
 		return replaceVariables(check_label, indent, checkString);		
 	}
@@ -108,22 +113,27 @@ public class FuncGeneratorStruct implements FuncGenerator {
 				Logger.err("Using default template");
 				checkString = FuncGenerator.SIMPLE_CALL;
 			}
-			checkString = checkString.replaceAll("\\$retvar", getRetName());
+			checkString = checkString.replaceAll("\\$retvar", 
+					Matcher.quoteReplacement(getRetName()));
 		}
 
 		if(check_label!=null) {
-			checkString = checkString.replaceAll("\\$check_label", check_label);
+			checkString = checkString.replaceAll("\\$check_label", 
+					Matcher.quoteReplacement(check_label));
 		} else {
 			assert !checkString.contains("$check_label");			
 		}
 		
-		checkString = checkString.replaceAll("\\$fcall", funcCallStr);
+		checkString = checkString.replaceAll("\\$fcall", 
+				Matcher.quoteReplacement(funcCallStr));
 		
 		assert indent!=null;
-		checkString = checkString.replaceAll("\\$indent", indent);
+		checkString = checkString.replaceAll("\\$indent", 
+				Matcher.quoteReplacement(indent));
 		
 		for(int i=0; i<token.getReplacementParams().size(); i++) {
-			checkString = checkString.replaceAll("\\$p" + i, getVarName(i));
+			checkString = checkString.replaceAll("\\$p" + i, 
+					Matcher.quoteReplacement(getVarName(i)));
 		}
 		return checkString;
 	}

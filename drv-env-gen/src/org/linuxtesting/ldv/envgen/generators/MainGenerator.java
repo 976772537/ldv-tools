@@ -294,7 +294,7 @@ public class MainGenerator {
 				appendPpcBefore(sb,ctx,token);
 				/* добавляем вызовы функций */
 				sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Kernel calls driver init function after driver loading to kernel. This function declared as \"MODULE_INIT(function name)\". */");
-				sb.append(ctx.fg.generateCheckedFunctionCall(FuncGenerator.CHECK_NONZERO, getCheckFinalLabel(), ctx.getIndent()));
+				sb.append(ctx.fg.generateCheckedFunctionCall(FuncGenerator.CHECK_INIT_MODULE, getCheckFinalLabel(), ctx.getIndent()));
 				appendPpcAfter(sb,ctx,token);
 				/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
 				ctx.fw.write(sb.toString());
