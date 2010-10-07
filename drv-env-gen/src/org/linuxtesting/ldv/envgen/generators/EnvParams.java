@@ -12,11 +12,13 @@ public abstract class EnvParams {
 
 	boolean sorted;
 	boolean check;
+	boolean init;
 	
-	public EnvParams(boolean sorted, boolean check) {
+	public EnvParams(boolean sorted, boolean check, boolean init) {
 		super();
 		this.check = check;
 		this.sorted = sorted;
+		this.init = init;
 		assert !check || sorted : "if you want to check please sort it"; 
 	}
 	
@@ -34,6 +36,13 @@ public abstract class EnvParams {
 		} else {
 			this.check = true;
 		}
+		
+		String init = props.getProperty(key + ".init", "false");
+		if(init.trim().equalsIgnoreCase("false")) {
+			this.init = false;
+		} else {
+			this.init = true;
+		}
 	}
 
 	public boolean isSorted() {
@@ -42,6 +51,10 @@ public abstract class EnvParams {
 	
 	public boolean isCheck() {
 		return check;
+	}
+	
+	public boolean isInit() {
+		return init;
 	}
 	
 	final static String CONFIG_LIST = "include";

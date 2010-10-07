@@ -60,7 +60,8 @@ public class MainGenerator {
 	private static final String ldvTag_VARIABLE_INITIALIZING_PART = "_VARIABLE_INITIALIZING_PART";
 	private static final String ldvTag_VARIABLE_DECLARATION_PART = "_VARIABLE_DECLARATION_PART";
 	private static final String ldvTag_FUNCTION_CALL_SECTION = "_FUNCTION_CALL_SECTION";
-
+	public static final String NONDET_INT = "nondet_int";
+	
 	public static String getModuleExitLabel() {
 		return "ldv_module_exit";
 	}
@@ -82,7 +83,7 @@ public class MainGenerator {
 	}
 	
 	public static void generate(String filename) {
-		generateByIndex(null, filename, null, null, false, new PlainParams(true,true));
+		generateByIndex(null, filename, null, null, false, new PlainParams(true,true,false));
 	}
 	
 	public static void generate(String source, String destination, EnvParams p) {
@@ -209,7 +210,7 @@ public class MainGenerator {
 			indent = indent.substring(0, indent.length()-SHIFT.length());
 		}
 	}
-	
+		
 	private static void generateMainFooter(GeneratorContext ctx) throws IOException {
 		StringBuffer sb = new StringBuffer();
 		sb.append("\n" + ctx.getIndent() + "return;\n");
@@ -238,6 +239,8 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "/*###########################################################################*/\n");
 		sb.append("\n\n");
 		Logger.trace("Pre-main code:");
+		if(ctx.p.isInit())
+			sb.append("#include <linux/slab.h>");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
 		sb.append("\n" + ctx.getIndent() + "void check_final_state(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
@@ -245,7 +248,7 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Initializes the model. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_initialize(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
-		sb.append("\n" + ctx.getIndent() + "int nondet_int(void);\n");
+		sb.append("\n" + ctx.getIndent() + "int " + NONDET_INT + "(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
 		sb.append("\n" + ctx.getIndent() + "extern int IN_INTERRUPT;\n");
 
@@ -330,34 +333,36 @@ public class MainGenerator {
 	}
 
 	private static void generateVarInitSection(GeneratorContext ctx) throws IOException {
+
 		StringBuffer sb = new StringBuffer();
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_INITIALIZING_PART+" */");
 		Logger.trace("Start appending \"VARIABLE INITIALIZING PART\"...");
 		sb.append("\n" + ctx.getIndent() + "/*============================= VARIABLE INITIALIZING PART  =============================*/");
 		sb.append("\n" + ctx.getIndent() + "IN_INTERRUPT = 1;\n");
-		
-		for(TokenStruct token : ctx.structTokens) {
-			if(token.hasInnerTokens()) {
-					Logger.trace("Start appending inittialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
-					sb.append("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
-					for(TokenFunctionDecl tfd : token.getTokens()) {
-						sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
-						ctx.fg.set(tfd);
-						appendPpcBefore(sb,ctx,tfd);
-						/* добавляем инициализацию */
-						List<String> lparams = ctx.fg.generateVarInit();
-						Iterator<String> paramIterator = lparams.iterator();
-						while(paramIterator.hasNext()) {
-							sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_INIT+" Variable initialization for function \""+tfd.getName()+"\" */");
-							sb.append("\n" + ctx.getIndent() + paramIterator.next());
+		if(ctx.p.isInit()) {
+			for(TokenStruct token : ctx.structTokens) {
+				if(token.hasInnerTokens()) {
+						Logger.trace("Start appending inittialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
+						sb.append("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+						for(TokenFunctionDecl tfd : token.getTokens()) {
+							sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
+							ctx.fg.set(tfd);
+							appendPpcBefore(sb,ctx,tfd);
+							/* добавляем инициализацию */ 
+							List<String> lparams = ctx.fg.generateVarInit();
+							Iterator<String> paramIterator = lparams.iterator();
+							while(paramIterator.hasNext()) {
+								sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_INIT+" Variable initialization for function \""+tfd.getName()+"\" */");
+								sb.append("\n" + ctx.getIndent() + paramIterator.next());
+							}
+							appendPpcAfter(sb,ctx,tfd);
+							/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
+							ctx.fw.write(sb.toString());
+							sb = new StringBuffer();
 						}
-						appendPpcAfter(sb,ctx,tfd);
-						/* после каждой итерации освобождаем StringBuffer, иначе будет JavaHeapSpace */
-						ctx.fw.write(sb.toString());
-						sb = new StringBuffer();
-					}
-					sb.append("\n");
-					Logger.trace("Ok. Var initialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
+						sb.append("\n");
+						Logger.trace("Ok. Var initialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
+				}
 			}
 		}
 		sb.append("\n\n\n");
@@ -383,7 +388,7 @@ public class MainGenerator {
 
 						appendPpcBefore(sb, ctx, tfd);
 						/* добавляем описания параметров */
-						List<String> lparams = ctx.fg.generateVarDeclare();
+						List<String> lparams = ctx.fg.generateVarDeclare(ctx.p.isInit());
 						Iterator<String> paramIterator = lparams.iterator();
 						while(paramIterator.hasNext()) {
 							sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE+" Variable declaration for function \""+tfd.getName()+"\" */");
@@ -442,7 +447,7 @@ public class MainGenerator {
 	}
 
 	private static void generateSequenceInf(GeneratorContext ctx, SequenceParams sp) throws IOException {
-		ctx.fw.write("\n" + ctx.getIndent() + "while(nondet_int()) {\n");
+		ctx.fw.write("\n" + ctx.getIndent() + "while(" + NONDET_INT + "()) {\n");
 		ctx.incIndent();
 		generateSequenceOne(ctx, sp);
 		ctx.decIndent();
@@ -460,7 +465,7 @@ public class MainGenerator {
 
 	private static void generateSequenceOne(GeneratorContext ctx, SequenceParams sp) throws IOException {
 		int caseCounter = 0;
-		ctx.fw.write("\n" + ctx.getIndent() + "switch(nondet_int()) {\n");		
+		ctx.fw.write("\n" + ctx.getIndent() + "switch(" + NONDET_INT + "()) {\n");		
 		for(TokenStruct token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
 				ctx.incIndent();
