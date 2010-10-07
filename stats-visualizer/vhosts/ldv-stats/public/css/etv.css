@@ -1,0 +1,461 @@
+/* General scheme style. */
+#ETVErrorTrace
+{
+  background: #FFFFEB;
+  font-size: 12px;
+  line-height: normal;
+  overflow: scroll;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+#ETVErrorTraceHeader
+{
+  background: #F9FFBC;
+  font-size: 14px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+#ETVErrorTraceHeaderHiddenMenu
+{
+  display: none;
+}
+
+#ETVErrorTraceWindow
+{
+  vertical-align: top;
+}
+
+#ETVGeneralWindow
+{
+  border: 4px groove #0000CB;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.ETVSrc
+{
+  background: #F6FFF7;
+  font-size: 12px;
+  line-height: normal;
+  margin: 0px;
+  white-space: pre;
+}
+
+#ETVSrcWindow
+{
+  vertical-align: top;
+}
+
+.ETVTableColumnHeader
+{
+  color: #0000CB;
+  font-family: verdana, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 5px 0px 7px 0px;
+  text-align: center;
+}
+
+#ETVTabs 
+{
+  background: #F3FFFA;
+}
+
+/* Show hide meny style. */
+#ETVShowHideMenuMain
+{
+  float: left;
+  height: 30px;
+  line-height: 30px;
+}
+
+.ETVShowHideMenuMainItem
+{
+  display: inline;
+  float: left;
+  border: 1px solid #000000;
+  padding: 0px 10px 0px 10px;
+  white-space: nowrap;
+}
+
+#ETVShowHideMenuOthers
+{
+  display: inline;
+  margin: 0;	
+  padding: 0;	
+}
+
+#ETVShowHideMenuOthers li 
+{
+  float: left;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#ETVShowHideMenuOthers li div
+{
+  display: block;
+  padding: 0px 10px 0px 10px;
+  margin: 0;
+  height: 30px;
+  line-height: 30px;
+  color: #0000FF;
+  border: 1px solid #000000;
+}
+
+#ETVShowHideMenuOthers li div:hover
+{
+  color: #0000CC;
+}
+
+#ETVShowHideMenuOthers li form
+{
+  background: #F9FFBC;
+  border: 1px solid #000000;
+  margin: 0;
+  padding: 5px 5px 5px 5px;
+  position: absolute;
+}
+
+#ETVShowHideMenuOthers li form input
+{
+  display: inline;
+  float: none;
+}
+
+#ETVShowHideMenuOthers li form input:hover
+{
+  background: #FCFFD5;
+}
+
+#ETVShowHideMenuOthers li.ETVactive div 
+{
+  background-color: #F3FF83;
+}
+
+/* Source code tabs style. */
+#ETVTabsHeader 
+{
+  height: 30px;
+  list-style:none outside none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+#ETVTabsHeader li
+{
+  border: 1px solid #000000;
+  float: left;
+  background: #DAEEE5;
+  height: 30px;
+  line-height: 30px;
+  margin: 0;
+  padding: 0;
+}
+
+#ETVTabsHeader li a
+{
+  color: #000000;
+  display: block;
+  font-size: 14px;
+  outline: none;
+  overflow: hidden;
+  padding-left: 5px;
+  padding-right: 5px;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#ETVTabsHeader li a:hover
+{
+  background: #C7FFE7;
+}
+
+#ETVTabsHeader li.ETVActive 
+{
+  border-bottom-style: none;
+}
+
+#ETVTabsHeader li.ETVActive a 
+{
+  background: #F6FFF7;  
+  font-weight: bold;
+}
+
+#ETVTabs div 
+{
+  clear: both;
+  overflow: auto;  
+}
+
+#ETVTabs div span.ETVMarked
+{
+  background: #5CC99A;
+}
+
+/* Error trace style. */
+.ETVAssert
+{
+  color: #5E0000;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal;
+}
+
+.ETVAssertCondition
+{
+  color: #5E0000;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
+}
+
+.ETVBlock
+{
+  color: #733200;  
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal;
+}
+
+.ETVDriverEnvFunctionBody
+{
+  color: #801B14;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVDriverEnvFunctionCall
+{
+  color: #801B14;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.ETVDriverEnvInit
+{
+  color: #C09359;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVEntryPoint
+{
+  color: #815600;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVEntryPointBody
+{
+  color: #815600;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVFunctionBody
+{
+  color: #5A0024;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
+}
+
+.ETVFunctionCall
+{
+  color: #5A0024;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
+}
+
+.ETVFunctionCallInitialization
+{
+  color: #797A53;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVFunctionCallWithoutBody
+{
+  color: #8E5B58;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVFunctionFormalParamName
+{
+  color: #A1884F;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVFunctionInitializationBody
+{
+  color: #797A53;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVIdentation
+{
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal;
+  white-space: pre;
+}
+
+.ETVLineNumber
+{
+  background-color: #F3F3F3;
+  color: black;
+  font-weight: normal;
+  font-size: 12px;
+  font-style: normal;
+  white-space: pre;
+}
+
+.ETVModelAssert
+{
+  color: #B30095;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.ETVModelChangeState
+{
+  color: #7E009E;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.ETVModelFuncBody
+{
+  color: #3F005A;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVModelFuncCall
+{
+  color: #3F005A; 
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold; 
+}
+
+.ETVModelFuncFuncCall
+{
+  color: #3F005A; 
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal; 
+}
+
+.ETVModelFuncFuncBody
+{
+  color: #3F005A; 
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal; 
+}
+
+.ETVModelReturn
+{
+  color: #69308E;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.ETVModelOther
+{
+  color: #5E4B6B;  
+  font-size: 12px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.ETVReturn
+{
+  color: #9A5C0B;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal;
+}
+
+.ETVReturnValue
+{
+  color: #9A5C0B;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
+}
+
+.ETVShowHide
+{
+  font-weight: normal;
+  font-size: 8pt;
+}
+
+/* Source code style. */
+.ETVSrcCKeywords
+{
+  color: #003399;
+  font-weight: bold;
+}
+
+.ETVSrcCPPKeywords
+{
+  color: #248E72;
+  font-weight: bold;
+}
+
+.ETVSrcComment
+{
+  color: #9E9E9E;
+  font-style: italic;
+}
+
+.ETVSrcLineNumber
+{
+  background-color: #F3F3F3;
+  color: black;
+  font-weight: normal;
+  font-size: 12px;
+  font-style: normal;
+  white-space: pre;
+}
+
+.ETVSrcNumber
+{
+  color: #298FBA;
+  font-weight: bold;
+}
+
+.ETVSrcString
+{
+  color: #0A610A;
+  font-weight: bold;
+}

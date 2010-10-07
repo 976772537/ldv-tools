@@ -3,19 +3,27 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <title>Linux driver verification statistics</title>
-  <?php echo $this->headLink()->appendStylesheet($this->baseUrl() . '/css/global.css') ?>
+  <?php
+    $this->headLink()->appendStylesheet($this->baseUrl() . '/css/global.css');
+    $this->headLink()->appendStylesheet($this->baseUrl() . '/css/etv.css');
+    $this->headLink()->appendStylesheet($this->baseUrl() . '/css/etv-stats.css');
+    $this->headScript()->appendFile($this->baseUrl() . '/jslib/jquery-1.4.2.min.js', 'text/javascript');
+    echo $this->headLink();
+    echo $this->headScript();
+  #"<script type='text/javascript' src='" . $this->baseUrl() . '/include/jquery-1.4.2.min.js' . "'></script>";
+  ?>
 </head>
 <body>
 <div id="header" style="background-color: #EEEEEE; height: 30px;">
-    <div id="header-logo" style="float: left">
-        <b>Linux driver verification statistics</b>
-    </div>
-    <div id="header-navigation" style="float: right">
-        <a href="<?php echo $this->url(
-            array('controller'=>'index'),
-            'default',
-            true) ?>">Choose profile</a>
-    </div>
+  <div id="header-logo" style="float: left">
+    <b>Linux driver verification statistics</b>
+  </div>
+  <div id="header-navigation" style="float: right">
+    <a href="<?php echo $this->url(
+      array('controller'=>'index'),
+      'default',
+      true) ?>">Choose profile</a>
+  </div>
 </div>
 
 <?php echo $this->layout()->content ?>
