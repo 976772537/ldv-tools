@@ -86,6 +86,9 @@ public class FuncGeneratorStruct implements FuncGenerator {
 				replaceAll("\\$fcall", funcCallStr).
 				replaceAll("\\$check_label", check_label).
 				replaceAll("\\$indent", indent);
+		for(int i=0; i<token.getReplacementParams().size(); i++) {
+			funcCallStr = funcCallStr.replaceAll("\\$p" + i, getVarName(i));
+		}
 		return funcCallStr;
 	}
 

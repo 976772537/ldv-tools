@@ -11,5 +11,14 @@ public interface FuncGenerator {
 	public List<String> generateVarInit();
 	public String generateFunctionCall();
 	public String generateRetDecl();
+	
+	/**
+	 * variables to be replaced in the patterns
+	 * $retvar
+	 * $fcall
+	 * $p0,..,$pn
+	 * $check_label
+	 * $indent
+	 */
 	public String generateCheckedFunctionCall(String checkLabel, String indent);
 }

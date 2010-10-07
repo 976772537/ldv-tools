@@ -61,11 +61,6 @@ public class PatternSorter {
 	}
 
 	/**
-	 * variables to be replaced in the patterns
-	 * $retvar
-	 * $fcall
-	 * $check_label
-	 * $indent
 	 * @param properties 
 	 */
 	private void initPatterns(Properties props) throws IllegalArgumentException {
@@ -108,6 +103,7 @@ public class PatternSorter {
 		}
 	}
 	
+	@Deprecated
 	private void initDefaultPatterns() {
 		List<FuncInfo> mainPtrs = new ArrayList<FuncInfo>();
 		mainPtrs.add(new FuncInfo(
