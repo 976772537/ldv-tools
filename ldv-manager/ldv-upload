@@ -191,10 +191,11 @@ class Launch
 		return [] if yield(l)
 
 		unless l.rule_model.nil?
-			[Launch.first(:conditions => { :driver_id=>l.driver, :environment_id=>l.environment, :rule_model_id=>l.rule_model, :scenario_id=>nil, :task_id=>l.task})]
+			[Launch.first(:conditions => { :driver_id=>l.driver, :environment_id=>l.environment, :rule_model_id=>l.rule_model, :scenario_id=>nil, :task_id=>l.task})].compact
+				# NOTE: we use compact to return an empty list without nils
 		else
 			# If rule_model is unspecified, we should update all relevant records
-			Launch.all(:conditions => { :driver_id=>l.driver, :environment_id=>l.environment, :scenario_id=>nil, :task_id=>task})
+			Launch.all(:conditions => { :driver_id=>l.driver, :environment_id=>l.environment, :scenario_id=>nil, :task_id=>l.task})
 		end
 	end
 
@@ -364,14 +365,12 @@ end
 puts "Setting up master launches..."
 doc.elements.each("reports/ld") do |ld|
 	# We select all relevant launches but reject them on the basis of if they're already "fixed" in masters table--i.e. were uploaded as failed
-	launches = Launch.master_launches_for_xml(ld) { |l| masters.lookup(l.environment.version,l.driver.name,l.rule_model.name) }
+	launches = Launch.master_launches_for_xml(ld) { |l| masters.lookup(l.environment.version,l.driver.name,(l.rule_model.nil?? "nil" : l.rule_model.name)) }
 	launches.each do |launch|
-		if launch
-			launch.status = 'finished'
-			# Because of :autosave property, recursively saves all records
-			launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-		end
-		masters.fix(launch.environment.version,launch.driver.name,launch.rule_model.name)
+		launch.status = 'finished'
+		# Because of :autosave property, recursively saves all records
+		launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+		masters.fix(launch.environment.version,launch.driver.name,(l.rule_model.nil?? "nil" : l.rule_model.name))
 	end
 end
 
