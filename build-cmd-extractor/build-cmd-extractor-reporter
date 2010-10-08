@@ -130,33 +130,6 @@ foreach my $entry(@childrens_ld) {
 	}
 }
 
-#my $instrument = XML::Twig::Elt->new($xml_build);
-#XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-
-#if ( -f "$stats_file" ) {
-#	my %timestats;
-#       open(STATS_FILE, '<', "$stats_file") or die "Can't open file with time statistics: \"$stats_file\", $!";
-#        while(<STATS_FILE>) {
-#	        /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
-#        	$timestats{$1} += $2;
-#        }
-#        close STATS_FILE;
-#        foreach(keys %timestats) {
-#                my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$timestats{$_});
-#                $time_elt->set_att( name =>$_);
-#                $time_elt->paste($instrument);
-#        }
-#} else {
-#        my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
-#        $time_elt->set_att( name =>"ALL");
-#        $time_elt->paste($instrument);
-#};
-
-
-#XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-#$outreport_root = $twig_inreport->root;
-#$instrument->paste('last_child',$outreport_root);
-
 $twig_inreport->set_xml_version('1.0');
 $twig_inreport->set_pretty_print('indented');
 $twig_inreport->print_to_file($report_out);
@@ -167,7 +140,7 @@ $twig_inreport->print_to_file($report_out);
 #####################################################
 sub hxml_cmdstream_cc {
         my (undef, $entry) = @_; 
-	my $model = $entry->att('model');
+	my $model = $entry->att('model') || 'unknown';
         foreach (@instruments) {
                 my $instrumment_pattern = $entry->first_child($_) or next;
                 local $_; 
@@ -181,7 +154,7 @@ sub hxml_cmdstream_cc {
 sub hxml_cmdstream_ld {
 	$ld_counter++;
         my (undef, $entry) = @_;
-	my $model = $entry->att('model');
+	my $model = $entry->att('model') || 'unknown';
 
         foreach my $instrument(@instruments) {
                 my $instrument_tag = $entry->first_child($instrument) or next;

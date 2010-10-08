@@ -142,7 +142,6 @@ sub hxml_cmdstream {
 			}
 		};
 		my $instrument = XML::Twig::Elt->new($xml_instrument);
-		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
 		my $i=0;
 		foreach(@stats) {
 	                /^\s*<time\s+ref="$id"\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
@@ -156,7 +155,16 @@ sub hxml_cmdstream {
 			$time_elt->set_att('name'=>"ALL");
 			$time_elt->paste($instrument);
 		}
-		#XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
+		my $description = '';
+		if($astate[6] eq 'FAILED') {
+			open(FIL,$astate[7]);
+			while(<FIL>) {
+				$description .= $_;
+			} 
+			$description.='      ';
+			close(FIL);
+		} 
+		XML::Twig::Elt->new($xml_instrument_desc,$description)->paste($instrument);
 		XML::Twig::Elt->new($xml_instrument_status,$astate[6])->paste($instrument);
 		XML::Twig::Elt->new($xml_stats_loc,$astate[4])->paste($instrument);
 		$instrument->paste('last_child',$command);
@@ -165,9 +173,9 @@ sub hxml_cmdstream {
 
 sub get_state() {
 	foreach my $state (@states) {
-		if($state =~ m/^(\d+):(.*):(.*):(.*):(.*):(.*):(.*):(.*)$/ && $1 == $_[0]) {
-		# id:time of work:::kernel driver name:summary lines:summary size  
-			return ($2,$3,$4,$5,$6,$7,$8);
+		if($state =~ m/^(\d+):(.*):(.*):(.*):(.*):(.*):(.*):(.*):(.*)$/ && $1 == $_[0]) {
+			# id:time of work:::kernel driver name:summary lines:summary size:result - failed or ok:file with error description(remove it later)
+			return ($2,$3,$4,$5,$6,$7,$8,$9);
 		}
 	}
 }
