@@ -157,7 +157,7 @@ sub hxml_cmdstream {
 			$time_elt->paste($instrument);
 		}
 		#XML::Twig::Elt->new($xml_instrument_time,$astate[0])->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
+		XML::Twig::Elt->new($xml_instrument_status,$astate[6])->paste($instrument);
 		XML::Twig::Elt->new($xml_stats_loc,$astate[4])->paste($instrument);
 		$instrument->paste('last_child',$command);
 	}
@@ -165,9 +165,9 @@ sub hxml_cmdstream {
 
 sub get_state() {
 	foreach my $state (@states) {
-		if($state =~ m/^(\d+):(.*):(.*):(.*):(.*):(.*):(.*)$/ && $1 == $_[0]) {
+		if($state =~ m/^(\d+):(.*):(.*):(.*):(.*):(.*):(.*):(.*)$/ && $1 == $_[0]) {
 		# id:time of work:::kernel driver name:summary lines:summary size  
-			return ($2,$3,$4,$5,$6,$7);
+			return ($2,$3,$4,$5,$6,$7,$8);
 		}
 	}
 }

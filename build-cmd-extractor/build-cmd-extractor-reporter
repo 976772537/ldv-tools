@@ -103,7 +103,11 @@ my $children_build = $croot->first_child('build');
 
 # calculate average build time
 foreach ($children_build->children('time')) {
-	$average_times->{'build'}->{$_->att('name')} = $_->text/$ld_counter;
+	if($ld_counter != 0) {
+		$average_times->{'build'}->{$_->att('name')} = $_->text/$ld_counter;
+	} else {
+		$average_times->{'build'}->{$_->att('name')} = 0;
+	}
 }
 my @childrens_ld = $croot->children('ld');
 foreach my $entry(@childrens_ld) {

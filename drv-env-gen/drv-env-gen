@@ -65,6 +65,8 @@ my $ldv_counter = 0;
 my $driver_dirname = "driver";
 my $xmlbasedir;
 
+my $wresult = 'OK';
+
 # 1. get options.
 get_ldv_opts();
 
@@ -123,6 +125,7 @@ $check_twig_handlers = { "$xml_cmd_stream/$xml_cmd_ld"  => \&hxml_cmdstream_chec
 $check_twig= new XML::Twig(TwigHandlers => $check_twig_handlers);
 $check_twig->parsefile($cmdfile_out);
 ldv_dprint("Ok");
+$wresult eq 'FAILED' && exit 1;
 
 sub hxml_cmdstream_check_ld {
 	my $id_ld=$_[1]->att($xml_cmd_attr_id);
@@ -168,6 +171,7 @@ sub hxml_cmdstream_basedir {
 }
 
 sub hxml_cmdstream_cc {
+	my $result = 'OK';
 	my $start_time = gettimeofday;	
 	my $lid = $_[1]->att($xml_cmd_attr_id);
 	my @args = ($state_script,
@@ -226,27 +230,30 @@ sub hxml_cmdstream_cc {
 	ldv_iprint("Starting ldv_cc interface...");
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_cc failed !");
-		exit 1;
+		$result = 'FAILED';
+		$wresult = 'FAILED';
 	}
 
-	foreach my $section ( $_[1]->children('out') ) {
-		my $outdir = $section->text;
-		# 1. replace outdir from basedir in xml with our driverdir
-  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
-			ldv_eprint("Can't find basedir pattern in cc outdirs int end.");
-			exit 1;
-		}
-		if(! -f $outdir) {
-			 next;
-		}
-		open(FIL,$outdir);
-		my @strings = <FIL>;
-		close(FIL);
-		foreach $line (@strings)
-		{
-			if($line =~ s/.*\://) {
-				$line =~  s/\n//;
-				XML::Twig::Elt->new("opt",$line)->paste('last_child',$_[1]);
+	if ($result ne 'FAILED') {
+		foreach my $section ( $_[1]->children('out') ) {
+			my $outdir = $section->text;
+			# 1. replace outdir from basedir in xml with our driverdir
+	  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
+				ldv_eprint("Can't find basedir pattern in cc outdirs int end.");
+				exit 1;
+			}
+			if(! -f $outdir) {
+				 next;
+			}
+			open(FIL,$outdir);
+			my @strings = <FIL>;
+			close(FIL);
+			foreach $line (@strings)
+			{
+				if($line =~ s/.*\://) {
+					$line =~  s/\n//;
+					XML::Twig::Elt->new("opt",$line)->paste('last_child',$_[1]);
+				}
 			}
 		}
 	}
@@ -255,12 +262,13 @@ sub hxml_cmdstream_cc {
 	#
 	my $worktime=int((gettimeofday-$start_time)*1000);
 	ldv_tprint("Statistica: lines: $summary_lines, size: $summary_size, worktime: $worktime");
-	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver.":$summary_lines:$summary_size\n"); 
+	print (STATEFIL $lid.":".$worktime.":::".$kernel_driver.":$summary_lines:$summary_size:$result\n"); 
 	ldv_iprint("End of ldv_cc - Ok.");
 }
 
 # handler for twig
 sub hxml_cmdstream_ld {
+	my $result = 'OK';
 	my $start_time = gettimeofday;	
 	my $lid = $_[1]->att($xml_cmd_attr_id);
 
@@ -327,32 +335,35 @@ sub hxml_cmdstream_ld {
 	ldv_iprint("Starting ldv_ld interface...");
 	if(system(@args) != 0) {
 		ldv_eprint("ldv_ld failed !");
-		exit 1;
+		$result = 'FAILED';
+		$wresult = 'FAILED';
 	}
 	ldv_iprint("End of ldv_ld - Ok.");
-	foreach my $section ( $_[1]->children('out') ) {
-		my $outdir = $section->text;
-		# 1. replace outdir from basedir in xml with our driverdir
-  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
-			ldv_eprint("Can't find basedir pattern in ld outdirs int end.");
-			exit 1;
-		}
-		if(! -f $outdir) {
-			 next;
-		}
-		open(FIL,$outdir);
-		my @strings = <FIL>;
-		close(FIL);
-		foreach $line (@strings)
-		{
-			if($line =~ s/-DLDV_MAIN/ldv_main/) {
-				$line =~  s/\n//;
-				XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
+	if ($result ne 'FAILED') {
+		foreach my $section ( $_[1]->children('out') ) {
+			my $outdir = $section->text;
+			# 1. replace outdir from basedir in xml with our driverdir
+	  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
+				ldv_eprint("Can't find basedir pattern in ld outdirs int end.");
+				exit 1;
+			}
+			if(! -f $outdir) {
+				 next;
+			}
+			open(FIL,$outdir);
+			my @strings = <FIL>;
+			close(FIL);
+			foreach $line (@strings)
+			{
+				if($line =~ s/-DLDV_MAIN/ldv_main/) {
+					$line =~  s/\n//;
+					XML::Twig::Elt->new("main",$line)->paste('last_child',$_[1]);
+				}
 			}
 		}
 	}
 	my $worktime=int((gettimeofday - $start_time)*1000);
-	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver.":$summary_lines:$summary_size\n"); 
+	print (STATEFIL $lid.":".$worktime.":".$module_name.":".$driver_name.":".$kernel_driver.":$summary_lines:$summary_size:$result\n"); 
 }
 
 
