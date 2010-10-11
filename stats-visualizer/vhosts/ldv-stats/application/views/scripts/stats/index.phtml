@@ -125,7 +125,7 @@ if ($resultsNumb) {
     }
   }
   echo "  </tr>";
-  if (count($problemKeys)) {
+  if (count($problemKeys) || count($childrenKeys)) {
     echo "<tr align='center'>";
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
