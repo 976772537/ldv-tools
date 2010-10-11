@@ -55,6 +55,10 @@ class Task
 			task_id = task_id.to_i
 			task = Task.find(task_id)
 			raise "Couldn't find task for task_id=#{task_id.to_s}" unless task
+			if ENV['LDV_TASK_DESCRIPTION']
+				task.description = task_description
+				task.save
+			end
 			return task
 		end
 
