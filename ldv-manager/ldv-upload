@@ -36,7 +36,21 @@ class Task
 	end
 
 	def self.from_xml(tag)
-		if task_id = tag.field("task_id")
+		# Get parameters that may characterize the task
+		task_id = ENV['LDV_TASK_ID'] || tag.field("task_id")
+		task_name = ENV['LDV_TASK_NAME'] || tag.field("task_name")
+		task_username = ENV['LDV_TASK_USERNAME'] || tag/"username"
+		if ENV['LDV_TASK_TIMESTAMP']
+			begin
+				task_timestamp = DateTime.parse(ENV['LDV_TASK_TIMESTAMP'])
+			rescue ArgumentError
+				nil
+			end
+		end
+		task_timestamp ||= Task.process_timestamp_tag(tag.elements["timestamp"])
+		task_description = ENV['LDV_TASK_DESCRIPTION'] || (tag/"description")
+
+		if task_id
 			# Get task from database
 			task_id = task_id.to_i
 			task = Task.find(task_id)
@@ -44,25 +58,25 @@ class Task
 			return task
 		end
 
-		if task_name = tag.field("task_name")
+		if task_name
 			# Get task from database or add it there
 			task = Task.find_or_create_by_name(task_name)
 			raise "Couldn't find or create task for task_name=#{task_name}" unless task
 			# Of course, we should re-create the other fields
 			task.username = (tag/"username")
 			task.timestamp = Task.process_timestamp_tag(tag.elements["timestamp"])
-			task.description = (tag/"description")
+			task.description = task_description
 			task.driver_spec = (tag/"driver")
 			task.driver_spec_origin = (tag/"driver_origin")
 			task.save
 			return task
 		end
 
-		unless (tag/"username").nil? || (tag/"timestamp").nil?
+		unless task_username.nil? || task_timestamp.nil?
 			# Create task for user/given timestamp
-			username = (tag/"username")
-			timestamp = Task.process_timestamp_tag(tag.elements["timestamp"])
-			description = (tag/"description")
+			username = task_username
+			timestamp = task_timestamp
+			description = task_description
 			driver_spec = (tag/"driver")
 			driver_spec_origin = (tag/"driver_origin")
 			task = Task.find_or_create(:username=>username,:timestamp=>timestamp,:description=>description,:driver_spec=>driver_spec,:driver_spec_origin=>driver_spec_origin)

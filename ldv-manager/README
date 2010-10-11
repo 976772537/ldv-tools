@@ -73,13 +73,11 @@ Set up LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD shell variables to gain the proper
 
 	ldv-manager/ldv-upload package_from_ldv_manager.
 
-At the point of uploading, Known Problems are automatically calculated based on descriptions.  Problem-scripts (that get description as input and print problems, one per line, as output) reside in ldv-manager/problems/ directory.  If you added more scripts, or modified existing ones, you may call special script.  To recalculate all stats for all scripts in standard directory, run
+You may use LDV_TASK_ID, LDV_TASK_NAME, LDV_TASK_USERNAME, and LDV_TASK_USERNAME variables to override task settings specified in the report file.  You may set either id, or task name, or both username and timestamp.
 
-	ldv-problem-recalc all
+At the point of uploading, Known Problems are automatically calculated based on descriptions.  Problem-scripts (that get description as input and print problems, one per line, as output) reside in ldv-manager/problems/ directory.  If you added more scripts, or modified existing ones, you may call a special script.  To recalculate all stats for all scripts in standard directory, run
 
-To re-run scpecific scripts for specific tools,
-
-	ldv-problem-recalc ri ./ri_script ./ri_another_script
+	ldv-problem-recalc
 
 
 SWITCHING AND TUNING C VERIFIERS
