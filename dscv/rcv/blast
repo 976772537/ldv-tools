@@ -178,7 +178,8 @@ sub verify_blast
 		$cmdInstT->paste($repT);
 	}
 
-	$repT->print($BLAST_REPORT,'indented');
+	$repT->set_pretty_print('indented');
+	$repT->print($BLAST_REPORT);
 	close $BLAST_REPORT;
 }
 
