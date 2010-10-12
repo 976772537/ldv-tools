@@ -57,7 +57,8 @@ sub handle_report
 	XML::Twig::Elt->new('sources',{},$sources_dir)->paste($launchT) if defined $sources_dir && -d $sources_dir;
 	XML::Twig::Elt->new('workdir',{},$work_dir)->paste($launchT) if defined $work_dir && -d $work_dir;
 	$launchT->paste($cmdT);
-	$cmdT->print('indented');
+	$cmdT->set_pretty_print('indented');
+	$cmdT->print();
 }
 
 use Cwd 'abs_path';
