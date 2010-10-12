@@ -295,12 +295,12 @@ if [ ! -n "$cmdstream" ]; then
 			application/x-gzip)
 				tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
 			*)
-				bce_ldv_report "FAILED" "Driver source type not supported.";
-				ldv_print "ERROR: Unknown driver source type.";
+				bce_ldv_report "FAILED" "Incorrect driver archive type.";
+				ldv_print "ERROR: Incorrect driver archive type";
 				exit 0;;
 		esac
 		if [ $? -ne 0 ]; then
-			bce_ldv_report "FAILED" "Failed to unpack driver source.";
+			bce_ldv_report "FAILED" "Failed to unpack driver archive.";
 		        ldv_print "ERROR: Failed to unpacked archive: \"$driver\".";
 	       		exit 0;
 		fi;
