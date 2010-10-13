@@ -97,9 +97,10 @@ class StatsController extends Zend_Controller_Action
     // Make error trace visualization.
     exec("LDV_DEBUG=20 $etv --engine=$engine --report=$errorTraceRawFile --report-out=$errorTraceFile --src-files=$sourceCodeFile 2>&1", $output, $retCode);
 
+    echo "<div>Error trace visualizer log<pre>" . implode('<br>', $output) . "</pre></div>";
+
     if ($retCode) {
-      $error = "<h1>The error trace visualizer fails!!! Its log is so:</h1>"
-        . "<pre>" . implode('<br>', $output) . "</pre>";
+      $error = "<h1>The error trace visualizer fails!!!</h1>";
       $this->view->error = $error;
       return;
     }
