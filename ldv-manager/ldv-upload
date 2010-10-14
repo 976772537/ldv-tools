@@ -44,10 +44,13 @@ class Task
 			begin
 				task_timestamp = DateTime.parse(ENV['LDV_TASK_TIMESTAMP'])
 			rescue ArgumentError
-				nil
+				task_timestamp = nil
 			end
+		elsif tt = tag.elements["timestamp"]
+			task_timestamp ||= Task.process_timestamp_tag(tt)
+		else
+			task_timestamp = nil
 		end
-		task_timestamp ||= Task.process_timestamp_tag(tag.elements["timestamp"])
 		task_description = ENV['LDV_TASK_DESCRIPTION'] || (tag/"description")
 
 		if task_id
