@@ -331,7 +331,8 @@ if ($mode eq 'inline'){
 	XML::Twig::Elt->new('basedir',{},"./")->paste($streamT);
 
 	# Write XML to the file and close it
-	$streamT->print($CMDFILE,'indented');
+        $streamT->set_pretty_print('indented');
+        $streamT->print($CMDFILE);
 	close $CMDFILE or die;
 
 	#Prepare usual DSCV options and proceed to the rest of the script
@@ -450,7 +451,9 @@ if ($expected_blast_runs == 0 && !$config->{force}){
 	})->parsefile($config->{cmdfile});
 
 	my $BIG_REPORT; open $BIG_REPORT, ">", $config->{report} or die;
-	$big_reportT->print($BIG_REPORT,'indented');
+
+        $big_reportT->set_pretty_print('indented');
+        $big_reportT->print($BIG_REPORT);
 	close $BIG_REPORT;
 
 	vsay 20,"Final report is written to $config->{report}\n";
@@ -548,7 +551,8 @@ for my $property (@properties){
 			# Print tag to temporary file
 			my $cmdfile = "$dir/model$property-$verifier-$id.xml";
 			my $tmp_FH; open $tmp_FH,">",$cmdfile or die "Couldn't create temporary file for RCV's command!";
-			$streamT->print($tmp_FH,'indented');
+		        $streamT->set_pretty_print('indented');
+		        $streamT->print($tmp_FH);
 			close $tmp_FH;
 			# Run RCV
 			my @rcv_args = (
@@ -593,7 +597,8 @@ for my $property (@properties){
 	};
 	DSCV::RCV::Utils::foreach_report($verifier_dir,$cat_rep);
 
-	$bigRepT->print($BIG_REPORT,'indented');
+        $bigRepT->set_pretty_print('indented');
+        $bigRepT->print($BIG_REPORT);
 	close ($BIG_REPORT);
 
 	# Now feed that BIG_REPORT to rule-instrumenter
@@ -708,7 +713,8 @@ XML::Twig->new( twig_roots=> {
 })->parsefile($config->{cmdfile});
 
 my $BIG_REPORT; open $BIG_REPORT, ">", $config->{report} or die;
-$big_reportT->print($BIG_REPORT,'indented');
+$big_reportT->set_pretty_print('indented');
+$big_reportT->print($BIG_REPORT);
 close $BIG_REPORT;
 
 vsay 20,"Final report is written to $config->{report}\n";

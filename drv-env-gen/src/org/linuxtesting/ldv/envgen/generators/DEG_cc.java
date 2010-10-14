@@ -6,8 +6,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.generators.SequenceParams.Length;
@@ -38,9 +40,9 @@ public class DEG_cc {
 	@SuppressWarnings("unused")
 	private static EnvParams[] getAllParamVariations() {
 		List<EnvParams> list = new ArrayList<EnvParams>();
-		list.add(new PlainParams(false, false));
-		list.add(new PlainParams(true, false));
-		list.add(new PlainParams(true, true));
+		list.add(new PlainParams(false, false, false));
+		list.add(new PlainParams(true, false, false));
+		list.add(new PlainParams(true, true, false));
 		
 		list.add(new SequenceParams(true,false,Length.one));
 		list.add(new SequenceParams(true,false,Length.infinite));
