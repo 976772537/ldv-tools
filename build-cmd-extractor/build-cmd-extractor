@@ -268,11 +268,22 @@ else
 		fi;
 	
 		# test for root of kernel
-		abs_driver=`readlink -f $driver`;
-		if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
-		#if [ ! -n "`echo $env | grep $driver`" ]; then mdriver="M=$driver/"; fi;
-		ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";
-		BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;
+		# abs_driver=`readlink -f $driver`;
+
+		#
+		# test if driver - single file extensions .ko or .o
+		#
+		is_single_driver=`echo $driver | grep -E '\.(o|ko)$'`;
+		if [ -n "$is_single_driver" ]; then
+			ldv_print "INFO: Single driver compile mode.";
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $driver > $KERNEL_COMPILE_LOG 2>$statefile;";
+			BUILDFILE=$cmdfileout make V=1 $driver > $KERNEL_COMPILE_LOG 2>$statefile;
+		else 
+			ldv_print "INFO: Kernel folder compile mode.";
+			if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";
+			BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;
+		fi;
 	fi;
 	if [ $? -ne 0 ]; then
 		shield_xml $statefile;
