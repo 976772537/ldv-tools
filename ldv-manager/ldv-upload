@@ -282,7 +282,13 @@ masters = MasterStats.new
 
 Launch.init_global_params(:driver_name => driver_name, :driver_origin=>driver_origin, :git_tag => git_tag, :global_verifier => global_verifier, :task => task)
 
-doc.elements.each("reports/ld") do |ld|
+xml_query_string = "reports/ld"
+# You can use LDV_MODFILTER environment variable to filter modules you're going to load.
+if mod_filter = ENV['LDV_MODFILTER']
+	xml_query_string = "reports/ld[@module_name=\"#{mod_filter}\"]"
+end
+
+doc.elements.each(xml_query_string) do |ld|
 	puts "Uploading ld #{ld.attributes['ref'] || 'UNKNOWN! ref is not set!'}..."
 	launch = Launch.init_from_xml(ld)
 	#Get status, and if it's "failed" skip the rest
@@ -386,7 +392,7 @@ end
 # Update status of special tasks that have driver, kernel and rule set, but don't have any model
 # Let's track already processed items to save db queries
 puts "Setting up master launches..."
-doc.elements.each("reports/ld") do |ld|
+doc.elements.each(xml_query_string) do |ld|
 	# We select all relevant launches but reject them on the basis of if they're already "fixed" in masters table--i.e. were uploaded as failed
 	launches = Launch.master_launches_for_xml(ld) { |l| masters.lookup(l.environment.version,l.driver.name,(l.rule_model.nil?? "nil" : l.rule_model.name)) }
 	launches.each do |launch|
