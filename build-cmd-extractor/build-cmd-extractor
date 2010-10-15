@@ -25,6 +25,10 @@ source $LDV_HOME/shared/sh/log.sh;
 
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
+
+CMD_FILTER_NAME="cmd-stream-mod.pl"
+CMD_FILTER=$BCE_DIR/$CMD_FILTER_NAME;
+
 #if [ $# -eq 5 -o $# -eq 4 ]; then print_usage_and_exit; fi;
 if [ ! -n "$WORK_DIR" ]; then
 	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -357,6 +361,15 @@ fi;
 
 let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
 echo $worktime>$statefile_data;
+ldv_print "DEBUG: $CMD_FILTER -c $cmdfileout";
+$CMD_FILTER -c $cmdfileout;
+if [ $? -ne 0 ]; then
+	let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+	echo $worktime>$statefile_data;
+	echo "Filter failed." >$statefile;
+	ldv_print "ERROR: Filter failed.";
+	exit 1;
+fi;
 ldv_print "NORMAL: Command stream is successfully extracted.";
 exit;
 

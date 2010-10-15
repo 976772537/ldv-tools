@@ -27,6 +27,7 @@ install:
 	cp $(srcdir)/$(LDV_BUILD_CMD_STREAM_DIVIDER_BIN) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 	cp $(srcdir)/$(LDV_BUILD_CMD_STREAM_DIVIDER_REPORTER_BIN) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_REPORTER_BIN) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
+	cp $(srcdir)/cmd-stream-mod.pl $(prefix)/build-cmd-extractor/cmd-stream-mod.pl
 
 clean:
 	@cd $(srcdir)/$(LDV_BUILD_CMD_STREAM_DIVIDER_DIR); ant clean
