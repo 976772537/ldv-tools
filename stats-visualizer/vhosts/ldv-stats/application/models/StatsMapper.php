@@ -21,6 +21,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
   protected $_verificationInfoNameTableColumnMapper = array(
     'Verifier' => array('table' => 'traces', 'column' => 'verifier'),
     'Result' => array('table' => 'traces', 'column' => 'id'),
+    // Verdict is similar to result except it's a result name nor a result itself..
+    'Verdict' => array('table' => 'traces', 'column' => 'result'),
     // Don't load huge error traces. Just select their ids.
     'Error trace' => array('table' => 'traces', 'column' => 'id'));
   protected $_verificationResultInfoNameTableColumnMapper = array(
@@ -141,20 +143,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $value = $params['value'];
     }
 
-    // Get task ids for the comparison mode.
-    $taskids = '';
-    if (array_key_exists('task ids', $params)) {
-      $taskids = $params['task ids'];
-    }
-
-    // Use another page name for the comparison mode.
-    if ($taskids != '') {
-      $pageNameMode = "$pageName (the comparison mode)";
-    }
-    else {
-      $pageNameMode = $pageName;
-    }
-
     // Here all information to be shown will be written.
     $result = array();
 
@@ -162,8 +150,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Restrictions'] = array();
 
     // Get information on statistics entities to be displayed on the given page.
-    $page = $profile->getPage($pageNameMode);
-    $result['Page'] = $pageNameMode;
+    $page = $profile->getPage($pageName);
+    $result['Page'] = $pageName;
 
     // Connect to the profile database and remember connection settings.
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
@@ -309,9 +297,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     // For result (safe, unsafe and unknown) pages restrict the selected result
     // both to the corresponding result and to the corresponding launch
-    // information key values. In the comparison mode the given restriction is
-    // unneeded.
-    if ($taskids == '' && ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown')) {
+    // information key values.
+    if ($pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown') {
       $select = $select
         ->where('`' . $this->_tableMapper[$tableAux] . '`.`result` = ?', $pageName);
       $result['Restrictions']['Result'] = $pageName;
@@ -360,21 +347,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
         else
         {
-          // In the task comparison mode restrict task ids to the corresponding
-          // set.
-          if ($taskids != '' && $statKey == 'Task id') {
-            $select = $select
-              ->where("$launchInfoScreened[$statKey] IN ($statKeyValue, $taskids)");
-            $result['Restrictions'][$statKey] = "in ($statKeyValue, $taskids)";
-          }
-          // Ignore other task attribute restrictions in the task comparison
-          // mode. In the noncomparison mode just restrict a given statistics
-          // key with the corresponding value.
-          else if (($taskids != '' && !preg_match('/^Task/', $statKey)) || $taskids == '') {
-            $select = $select
-              ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
-            $result['Restrictions'][$statKey] = $statKeyValue;
-          }
+          $select = $select
+            ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+          $result['Restrictions'][$statKey] = $statKeyValue;
         }
       }
     }
@@ -601,6 +576,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     // Merge launch, verification and problems information.
     $toolsKey = array_keys($toolsInfo);
+    // Collect the whole launches statisitc.
+    $result['Stats'] = array();
     // Remember all tool names.
     $result['Stats']['All tool names'] = array();
     // Collect all set of problems for a given tool that will be used in
@@ -771,5 +748,236 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
     return $result;
+  }
+
+  public function getComparisonStats($profile, $params)
+  {
+    $pageName = 'Index (comparison mode)';
+
+    // Get task ids for the comparison mode.
+    if (array_key_exists('task ids', $params)) {
+      $taskIdsStr = $params['task ids'];
+    }
+    else {
+      throw new Exception('Task ids are not specified');
+    }
+    $taskIds = preg_split('/[, ]/', $taskIdsStr);
+
+    // Here all information to be shown will be written.
+    $result = array();
+
+    // Get information on statistics entities to be displayed on the given page.
+    $page = $profile->getPage($pageName);
+    $result['Page'] = $pageName;
+
+    // Connect to the profile database and remember connection settings.
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+
+    // Obtain the launch info columns. They will be selected as statistics key,
+    // joined and by them and ordering will be done. Note that they are already
+    // ordered.
+    $launchInfo = array();
+    $launchInfoScreened = array();
+    $joins = array();
+    $orderBy = array();
+
+    if (null !== $page->launchInfo) {
+      foreach ($page->launchInfo as $info) {
+        $name = $info->launchInfoName;
+        $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
+        $launchInfo[$name] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
+        $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
+        $joins[$tableColumn['table']] = 1;
+      }
+    }
+
+    // This's a part of launch information that wiil be used in matching. So it
+    // must be selected as well as the grouping part.
+    $launchInfoForComparison = array('Rule name' => 1, 'Module' => 1, 'Entry point' => 1);
+    $launchInfoComparison = array();
+    $joinsComparison = array();
+
+    foreach (array_keys($launchInfoForComparison) as $name) {
+      // Skip comparison launch information if it's already selected while grouping.
+      if (array_key_exists($name, $launchInfo)) {
+        continue;
+      }
+
+      $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
+      $launchInfoComparison[$name] = "$tableColumn[tableShort].$tableColumn[column]";
+      $joinsComparison[$tableColumn['table']] = 1;
+    }
+
+    // As for verification info then just take verdict into consideration..
+    $verificationInfo = array();
+    $verificationInfoName = 'Verdict';
+    $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$verificationInfoName]);
+    $verificationInfo[$verificationInfoName] = "$tableColumn[tableShort].$tableColumn[column]";
+
+    $launches = $this->getDbTable('Application_Model_DbTable_Launches', $this->_db);
+
+    // Prepare query to the statistics database to collect launch and
+    // verification info.
+    $select = $launches
+      ->select()->setIntegrityCheck(false);
+
+    // Get data from the main launches table.
+    $tableMain = 'launches';
+    $select = $select
+      ->from(array($this->_tableMapper[$tableMain] => $tableMain),
+        array_merge($launchInfo, $launchInfoComparison, $verificationInfo));
+
+    // Join launches with related with statistics key tables. Note that traces
+    // is always joined.
+    $tableAux = 'traces';
+    $joins[$tableAux] = 1;
+    foreach (array_merge(array_keys($joins), array_keys($joinsComparison)) as $table) {
+      $select = $select
+        ->joinLeft(array($this->_tableMapper[$table] => $table)
+          , '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`'
+          , array());
+    }
+
+    // Restrict to the necessary task ids.
+    $select = $select
+      ->where($launchInfoScreened['Task id'] . ' IN (' . join(',', $taskIds) . ')');
+
+    // Order by the launch information.
+    foreach ($orderBy as $order) {
+      $select = $select->order($order);
+    }
+
+#print_r($select->assemble());
+#exit;
+
+    $launchesResultSet = $launches->fetchAll($select);
+
+    // Collect the whole raw launches statisitc assigning to corresponding task
+    // id and comparison launch information key string.
+    $statsCmp = array();
+
+    foreach ($launchesResultSet as $launchesRow) {
+      $statsPart = array();
+      $statsCmpValues = array();
+      $taskId = $launchesRow['Task id'];
+
+      if (!array_key_exists($taskId, $statsCmp)) {
+        $statsCmp[$taskId] = array();
+      }
+
+      foreach (array_keys(array_merge($launchInfo, $launchInfoComparison, $verificationInfo)) as $statsKeyPart) {
+        $statsPart[$statsKeyPart] = $launchesRow[$statsKeyPart];
+
+        if (array_key_exists($statsKeyPart, $launchInfoForComparison)) {
+          $statsCmpValues[] = $launchesRow[$statsKeyPart];
+        }
+      }
+      $statsCmpValuesStr = join(';', $statsCmpValues);
+
+      if (array_key_exists($statsCmpValuesStr, $statsCmp[$taskId])) {
+        throw new Exception('Comparison launch information key string is duplicated');
+      }
+;
+      $statsCmp[$taskId][$statsCmpValuesStr] = $statsPart;
+    }
+
+    // Add special key to be used when no matching will be established. At the
+    // beginning a value is an empty array.
+    $deleted = '__DELETED';
+    foreach (array_keys($statsCmp) as $taskId) {
+      $statsCmp[$taskId][$deleted] = array();
+    }
+
+    // Match tasks launches with each other. The first task id is used as the
+    // referenced one. For matching use the special regexp.
+    $statsCmpMatchPattern = '/^([^_;]+)[^;]+;([^;]+);ldv_main(\d+)/';
+    $statsCmpMatch = array();
+    $taskIdCmpRef = array_shift(array_keys($statsCmp));
+    foreach (array_slice(array_keys($statsCmp), 1) as $taskIdCmp) {
+      // Foreach task to be compared use its own referenced first task copy.
+      $statsCmpRef = $statsCmp[$taskIdCmpRef];
+      $statsCmpMatch[$taskIdCmp] = array();
+
+      foreach ($statsCmp[$taskIdCmp] as $statsCmpValuesStr => $statsPart) {
+        foreach ($statsCmpRef as $statsCmpRefValuesStr => $statsRefPart) {
+          // All as possible is already matched.
+          if ($statsCmpValuesStr == $deleted and $statsCmpRefValuesStr == $deleted) {
+            break;
+          }
+
+          // Check are there unmatched launches in the referenced task at the end.
+          if ($statsCmpValuesStr == $deleted) {
+            $statsCmpMatch[$taskIdCmp][$statsCmpValuesStr][] = $statsCmpRefValuesStr;
+            continue;
+          }
+
+          // No launch from referenced task is matched.
+          if ($statsCmpRefValuesStr == $deleted) {
+            $statsCmpMatch[$taskIdCmp][$statsCmpValuesStr] = array('match' => $deleted, 'stats' => $statsPart);
+            break;
+          }
+
+          preg_match($statsCmpMatchPattern, $statsCmpValuesStr, $statsCmpValuesParts);
+          preg_match($statsCmpMatchPattern, $statsCmpRefValuesStr, $statsCmpRefValuesParts);
+
+          // Launches are matched to each other.
+          if (!count(array_diff_assoc(array_slice($statsCmpValuesParts, 1), array_slice($statsCmpRefValuesParts, 1)))) {
+            $statsCmpMatch[$taskIdCmp][$statsCmpValuesStr] = array('match' => $statsCmpRefValuesStr, 'stats' => $statsPart);
+            unset($statsCmpRef[$statsCmpRefValuesStr]);
+            // Note that other matches aren't checked.'
+            break;
+          }
+        }
+      }
+    }
+
+    print_r($statsCmpMatch);
+
+    $result['Comparison stats'] = array();
+    $result['Comparison stats']['Row info'] = array();
+
+    // Count the number of needed transitions with grouping by the corresponding
+    // launch information statistics keys.
+    foreach (array_slice(array_keys($statsCmp), 1) as $taskIdCmp) {
+      foreach ($statsCmpMatch[$taskIdCmp] as $statsCmpValuesStr => $matchStats) {
+        $resultPart = array();
+        $resultPart['Stats key'] = array();
+
+        if ($statsCmpValuesStr == $deleted) {
+          $statsVerdict = $deleted;
+          $statsRefVerdicts = array();
+          foreach ($matchStats as $statsCmpRefValuesStr) {
+            $statsRefVerdicts[] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr]['Verdict'];
+          }
+          print_r($statsRefVerdicts);
+          continue;
+        }
+        else {
+          foreach (array_keys($launchInfo) as $statsKeyPart) {
+            $resultPart['Stats key'][$statsKeyPart] = $matchStats['stats'][$statsKeyPart];
+          }
+
+          // Get verdicts from the task compared and the referenced task.
+          $statsVerdict = $matchStats['stats']['Verdict'];
+          if ($matchStats['match'] == $deleted) {
+            $statsRefVerdict = $deleted;
+          }
+          else {
+            $statsRefVerdict = $statsCmp[$taskIdCmpRef][$matchStats['match']]['Verdict'];
+          }
+
+          print_r("$statsVerdict - $statsRefVerdict\n");
+        }
+
+        // Either group with the last created row (note that they are ordered)
+        // or add a new row.
+        if (!($last = end($result['Comparison stats']['Row info']))
+          or count(array_diff_assoc($last['Stats key'], $resultPart['Stats key']))) {
+            $result['Comparison stats']['Row info'][] = $resultPart;
+        }
+      }
+    }
+
+    exit;
   }
 }

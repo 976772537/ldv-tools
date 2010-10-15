@@ -7,8 +7,8 @@ class Application_Form_TasksComparison extends Zend_Form
     $this->setMethod('post');
 
     // Select task ids.
-    $el = $this->addElement('text', 'taskids', array(
-      'label'    => "Enter separated with commas task ids to be compared with the choosen one",
+    $this->addElement('text', 'taskids', array(
+      'label'    => "Enter separated with commas or spaces task ids to be compared. The first task will be used as the referenced one.",
       'required' => true
     ));
 

@@ -1,17 +1,8 @@
 <?php
 
-// Whether the comparison mode is activated.
-$taskids = '';
-if (null !== $this->taskids && 'no' != $this->taskids) {
-  echo "<h3>A selected task will be compared with the tasks having ids: " . $this->taskids . "</h3>";
-  echo "<i>Note that you are in the comparison mode now. To leave it submit 'no' in the form placed under the table</i>";
-
-  $taskids = $this->taskids;
-}
-
 // Print form for the tasks comparison.
 $this->form->setAction($this->url());
-#echo $this->form;
+echo $this->form;
 
 // Get all infomation to be displayed.
 $results = $this->entries;
@@ -214,8 +205,7 @@ if ($resultsNumb) {
                 'controller' => 'stats',
                 'action'     => 'index',
                 'page' => $verificationKey,
-                'value' => $value,
-                'task ids' => $taskids),
+                'value' => $value),
               $statKeysValues),
             'default',
             true)

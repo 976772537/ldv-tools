@@ -44,12 +44,15 @@ class StatsController extends Zend_Controller_Action
     // Make a form for the tasks comparison.
     $request = $this->getRequest();
     $form = new Application_Form_TasksComparison();
-    $this->view->taskids = null;
 
     if ($this->getRequest()->isPost()) {
       if ($form->isValid($request->getPost())) {
-        $this->view->taskids = $form->getValue('taskids');
-        $form->reset();
+        $taskIdsStr = $form->getValue('taskids');
+        return $this->_helper->redirector->gotoSimple(
+          'comparison'
+          , 'stats'
+          , null
+          , array('task ids' => $taskIdsStr));
       }
     }
 
@@ -112,5 +115,19 @@ class StatsController extends Zend_Controller_Action
     $results['Error trace']->setOptions(array('errorTrace' => $errorTrace));
 
     $this->view->entries = $results;
+  }
+
+  public function comparisonAction()
+  {
+    // Get information on the current profile.
+    $profileMapper = new Application_Model_ProfileMapper();
+    $profileCurrentInfo = $profileMapper->getProfileCurrentInfo();
+
+    // Get all parameters including page name, statistics key names and values
+    // and so on.
+    $params = $this->_getAllParams();
+
+    $statsMapper = new Application_Model_StatsMapper();
+    $this->view->entries = $statsMapper->getComparisonStats($profileCurrentInfo, $params);
   }
 }

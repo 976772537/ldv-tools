@@ -15,6 +15,7 @@
         <controllerFile controllerName="Stats">
           <actionMethod actionName="index"/>
           <actionMethod actionName="errortrace"/>
+          <actionMethod actionName="comparison"/>
         </controllerFile>
         <controllerFile controllerName="Profiles">
           <actionMethod actionName="index"/>
@@ -84,6 +85,9 @@
           </viewControllerScriptsDirectory>
           <viewControllerScriptsDirectory forControllerName="stats">
             <viewScriptFile forActionName="errortrace"/>
+          </viewControllerScriptsDirectory>
+          <viewControllerScriptsDirectory forControllerName="stats">
+            <viewScriptFile forActionName="comparison"/>
           </viewControllerScriptsDirectory>
         </viewScriptsDirectory>
         <viewHelpersDirectory/>
