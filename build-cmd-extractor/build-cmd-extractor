@@ -27,7 +27,7 @@ BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
 
 CMD_FILTER_NAME="cmd-stream-mod.pl"
-CMD_FILTER=$BCE_DIR/$CMD_FILTER_NAME;
+CMD_FILTER_RUN=$BCE_DIR/$CMD_FILTER_NAME;
 
 #if [ $# -eq 5 -o $# -eq 4 ]; then print_usage_and_exit; fi;
 if [ ! -n "$WORK_DIR" ]; then
@@ -361,8 +361,8 @@ fi;
 
 let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
 echo $worktime>$statefile_data;
-ldv_print "DEBUG: $CMD_FILTER -c $cmdfileout";
-$CMD_FILTER -c $cmdfileout;
+ldv_print "DEBUG: $CMD_FILTER_RUN -c $cmdfileout";
+$CMD_FILTER_RUN -c $cmdfileout;
 if [ $? -ne 0 ]; then
 	let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
 	echo $worktime>$statefile_data;
