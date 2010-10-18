@@ -1,0 +1,6 @@
+To add your test please:
+1. Add sources of the driver
+  a) put external driver to 'drivers/' directory, give it a name with 'test-' prefix
+  b) put internal driver to 'kernels/kernel-drivers/mydrv/' (see prepare-kernels.sh)
+2. add test to regr-task-small
+3. add test and ideal verdict to regr-task-small-ideal
