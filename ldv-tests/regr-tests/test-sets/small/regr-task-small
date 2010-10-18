@@ -4,6 +4,7 @@ driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/doublelock.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/linkdl.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unknown;RCV_status=fail;problems=Exception,Parsing errors
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/safe.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
+driver=mydrv/safe.ko;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/safe.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=tests-bce--test-failedon32.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
 driver=tests-bce--test-nomakefile.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
 driver=tests-envgen--test-exit.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-exit/exit.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
