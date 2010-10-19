@@ -931,9 +931,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-    print_r($statsCmpMatch);
+#    print_r($statsCmpMatch);
 
     $result['Comparison stats'] = array();
+    $result['Comparison stats']['All changes'] = array();
     $result['Comparison stats']['Row info'] = array();
 
     // Count the number of needed transitions with grouping by the corresponding
@@ -942,15 +943,22 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       foreach ($statsCmpMatch[$taskIdCmp] as $statsCmpValuesStr => $matchStats) {
         $resultPart = array();
         $resultPart['Stats key'] = array();
+        $resultPart['Stats key matched'] = array();
+        $resultPart['Verdict changes'] = array();
+        $resultPart['Total changes'] = 0;
+        $statsRefVerdicts = array();
 
         if ($statsCmpValuesStr == $deleted) {
           $statsVerdict = $deleted;
           $statsRefVerdicts = array();
+
           foreach ($matchStats as $statsCmpRefValuesStr) {
             $statsRefVerdicts[] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr]['Verdict'];
           }
-          print_r($statsRefVerdicts);
-          continue;
+
+          foreach (array_keys($launchInfo) as $statsKeyPart) {
+            $resultPart['Stats key matched'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
+          }
         }
         else {
           foreach (array_keys($launchInfo) as $statsKeyPart) {
@@ -959,14 +967,17 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
           // Get verdicts from the task compared and the referenced task.
           $statsVerdict = $matchStats['stats']['Verdict'];
+
           if ($matchStats['match'] == $deleted) {
-            $statsRefVerdict = $deleted;
+            $statsRefVerdicts[] = $deleted;
           }
           else {
-            $statsRefVerdict = $statsCmp[$taskIdCmpRef][$matchStats['match']]['Verdict'];
-          }
+            $statsRefVerdicts[] = $statsCmp[$taskIdCmpRef][$matchStats['match']]['Verdict'];
 
-          print_r("$statsVerdict - $statsRefVerdict\n");
+            foreach (array_keys($launchInfo) as $statsKeyPart) {
+              $resultPart['Stats key matched'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$statsKeyPart];
+            }
+          }
         }
 
         // Either group with the last created row (note that they are ordered)
@@ -975,9 +986,39 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           or count(array_diff_assoc($last['Stats key'], $resultPart['Stats key']))) {
             $result['Comparison stats']['Row info'][] = $resultPart;
         }
+
+        // Add corresponding change of verdict to the last inserted value.
+        $last = array_pop($result['Comparison stats']['Row info']);
+
+        // Fill the matched statistics key if it isn't done.
+        if (!count($last['Stats key matched'])) {
+          $last['Stats key matched'] = $resultPart['Stats key matched'];
+        }
+
+        foreach ($statsRefVerdicts as $statsRefVerdict) {
+          if (!array_key_exists($statsRefVerdict, $last['Verdict changes'])) {
+            $last['Verdict changes'][$statsRefVerdict] = array();
+          }
+
+          if (array_key_exists($statsVerdict, $last['Verdict changes'][$statsRefVerdict])) {
+            $last['Verdict changes'][$statsRefVerdict][$statsVerdict]++;
+          }
+          else {
+            $last['Verdict changes'][$statsRefVerdict][$statsVerdict] = 1;
+          }
+
+          if ($statsRefVerdict != $statsVerdict) {
+            $last['Total changes']++;
+          }
+
+          $result['Comparison stats']['All changes'][$statsRefVerdict][$statsVerdict] = 1;
+        }
+
+        array_push($result['Comparison stats']['Row info'], $last);
       }
     }
-
-    exit;
+#print_r($result);
+#exit;
+    return $result;
   }
 }
