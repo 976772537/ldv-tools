@@ -892,8 +892,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // referenced one. For matching use the special regexp.
     $statsCmpMatchPattern = '/^([^_;]+)[^;]+;([^;]+);ldv_main(\d+)/';
     $statsCmpMatch = array();
-    $taskIdCmpRef = array_shift(array_keys($statsCmp));
-    foreach (array_slice(array_keys($statsCmp), 1) as $taskIdCmp) {
+    $taskIdCmpRef = $taskIds[0];
+    foreach (array_slice($taskIds, 1) as $taskIdCmp) {
       // Foreach task to be compared use its own referenced first task copy.
       $statsCmpRef = $statsCmp[$taskIdCmpRef];
       $statsCmpMatch[$taskIdCmp] = array();
@@ -932,14 +932,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
 #    print_r($statsCmpMatch);
-
+#    exit;
     $result['Comparison stats'] = array();
     $result['Comparison stats']['All changes'] = array();
     $result['Comparison stats']['Row info'] = array();
 
     // Count the number of needed transitions with grouping by the corresponding
     // launch information statistics keys.
-    foreach (array_slice(array_keys($statsCmp), 1) as $taskIdCmp) {
+    foreach (array_slice($taskIds, 1) as $taskIdCmp) {
       foreach ($statsCmpMatch[$taskIdCmp] as $statsCmpValuesStr => $matchStats) {
         $resultPart = array();
         $resultPart['Stats key'] = array();
@@ -947,6 +947,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $resultPart['Verdict changes'] = array();
         $resultPart['Total changes'] = 0;
         $statsRefVerdicts = array();
+        $driver = array();
+        $driverMatched = array();
 
         if ($statsCmpValuesStr == $deleted) {
           $statsVerdict = $deleted;
@@ -959,10 +961,22 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           foreach (array_keys($launchInfo) as $statsKeyPart) {
             $resultPart['Stats key matched'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
           }
+
+          foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
+            if (!array_key_exists($statsKeyPart, $resultPart['Stats key matched'])) {
+              $driverMatched[$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
+            }
+          }
         }
         else {
           foreach (array_keys($launchInfo) as $statsKeyPart) {
             $resultPart['Stats key'][$statsKeyPart] = $matchStats['stats'][$statsKeyPart];
+          }
+
+          foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
+            if (!array_key_exists($statsKeyPart, $resultPart['Stats key'])) {
+              $driver[$statsKeyPart] = $matchStats['stats'][$statsKeyPart];
+            }
           }
 
           // Get verdicts from the task compared and the referenced task.
@@ -976,6 +990,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
             foreach (array_keys($launchInfo) as $statsKeyPart) {
               $resultPart['Stats key matched'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$statsKeyPart];
+            }
+
+            foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
+              if (!array_key_exists($statsKeyPart, $resultPart['Stats key matched'])) {
+                $driverMatched[$statsKeyPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$statsKeyPart];
+              }
             }
           }
         }
@@ -1001,11 +1021,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           }
 
           if (array_key_exists($statsVerdict, $last['Verdict changes'][$statsRefVerdict])) {
-            $last['Verdict changes'][$statsRefVerdict][$statsVerdict]++;
+            $last['Verdict changes'][$statsRefVerdict][$statsVerdict]['numb']++;
           }
           else {
-            $last['Verdict changes'][$statsRefVerdict][$statsVerdict] = 1;
+            $last['Verdict changes'][$statsRefVerdict][$statsVerdict]['numb'] = 1;
           }
+
+          $last['Verdict changes'][$statsRefVerdict][$statsVerdict]['drivers'][] = array('driver' => $driver, 'matched driver' => $driverMatched);
 
           if ($statsRefVerdict != $statsVerdict) {
             $last['Total changes']++;

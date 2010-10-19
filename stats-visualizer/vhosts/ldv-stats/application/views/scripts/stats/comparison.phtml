@@ -87,6 +87,23 @@ if ($resultsNumb) {
           });
         </script>";
 
+  // Also print plugin for conversion drivers show/hide.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('a.SCConversion').toggle(function() {
+              var entityId = $(this).attr('id');
+              var entityIdClassId = entityId.split('_');
+              $('#SCConversionDrivers_' + entityIdClassId[1]).show();
+              return false;
+            } , function() {
+              var entityId = $(this).attr('id');
+              var entityIdClassId = entityId.split('_');
+              $('#SCConversionDrivers_' + entityIdClassId[1]).hide();
+              return false;
+            });
+          });
+        </script>";
+
   $deleted = 'Deleted';
   // This array contains mapping between verdict 'from database' and verdict to
   // be shown on the page.
@@ -158,6 +175,7 @@ if ($resultsNumb) {
 
   // Iterate over all results.
   $i = 1;
+  $conversionId = 1;
   foreach ($stats as $result) {
     echo "  <tr align='center'>";
     echo "    <td>$i</td>";
@@ -191,8 +209,37 @@ if ($resultsNumb) {
           $isConversionPrinted = false;
           if (array_key_exists($verdictRefRaw, $result['Verdict changes'])) {
             if (array_key_exists($verdictRaw, $result['Verdict changes'][$verdictRefRaw])) {
-              echo $result['Verdict changes'][$verdictRefRaw][$verdictRaw];
+              echo "<a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['numb'] . "</a>";
+              $drivers = $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['drivers'];
+
+              $driversStatKeys = array_keys($drivers[0]['driver']);
+              $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']);
+
+              echo "<table border=1 style='display:none' id='SCConversionDrivers_$conversionId'>
+                      <tr align='center' bgcolor='yellow'>";
+              foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
+                echo "  <td nowrap>$driversMatchedStatKey</td>";
+              }
+              echo "<td rowspan='" . (1 + count($drivers)) . "'> -> </td>";
+              foreach ($driversStatKeys as $driversStatKey) {
+                echo "  <td nowrap>$driversStatKey</td>";
+              }
+              echo "  </tr>";
+
+              foreach ($drivers as $driver) {
+                echo "<tr>";
+                foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
+                  echo "  <td nowrap>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
+                }
+                foreach ($driversStatKeys as $driversStatKey) {
+                  echo "  <td nowrap>" . $driver['driver'][$driversStatKey] . "</td>";
+                }
+                echo "</tr>";
+              }
+
+              echo "</table>";
               $isConversionPrinted = true;
+              $conversionId++;
             }
           }
 
