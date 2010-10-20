@@ -804,7 +804,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
 
       $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
-      $launchInfoComparison[$name] = "$tableColumn[tableShort].$tableColumn[column]";
+      $launchInfoComparison[$name] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
       $joinsComparison[$tableColumn['table']] = 1;
     }
 

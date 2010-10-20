@@ -14,9 +14,25 @@ echo "<div>Note that the first part of the verdict conversions corresponds to th
 // Print general comparison statistics table if so.
 if ($resultsNumb) {
   // At the beginning print javascript plugin to show/hide some comparison
-  // statistics.
-  echo "<h3>Action menu</h3>";
+  // statistics parts.
+  echo "<br>";
 
+  // Print show/hide plugin for action menu itself. By default it's hidden.'
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('#SCActionMenuHeader').toggle(function() {
+              $('#SCActionMenu').show();
+              return false;
+            } , function() {
+              $('#SCActionMenu').hide();
+              return false;
+            });
+          });
+        </script>";
+
+  echo "<a href='#' id='SCActionMenuHeader'>Action menu</a>";
+
+  // Print show/hide plugin for different kinds and types of conversions.
   echo "<script type='text/javascript'>
           $(document).ready(function() {
             $('.SCFromToShowHide').click(function() {
@@ -104,6 +120,24 @@ if ($resultsNumb) {
           });
         </script>";
 
+  // Print plugin for show/hide all conversion drivers.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('#SCConversionDriversShow').click(function() {
+              $('.SCConversionDrivers').show();
+              return false;
+            });
+          });
+        </script>
+        <script type='text/javascript'>
+          $(document).ready(function() {
+            $('#SCConversionDriversHide').click(function() {
+              $('.SCConversionDrivers').hide();
+              return false;
+            });
+          });
+        </script>";
+
   $deleted = 'Deleted';
   // This array contains mapping between verdict 'from database' and verdict to
   // be shown on the page.
@@ -112,6 +146,8 @@ if ($resultsNumb) {
     'unsafe' => 'Unsafe',
     'unknown' => 'Unknown',
     '__DELETED' => $deleted);
+
+  echo "<div id='SCActionMenu' style='display:none' >";
 
   foreach ($verdicts as $verdict) {
     echo "<table>
@@ -141,6 +177,11 @@ if ($resultsNumb) {
           <tr>";
   }
   echo "</tr></table>";
+
+  echo "<div><a href='#' id='SCConversionDriversShow'>Show all conversion drivers</a></div>";
+  echo "<div><a href='#' id='SCConversionDriversHide'>Hide all conversion drivers</a></div>";
+
+  echo "</div>";
 
   echo "<br>";
 
@@ -194,14 +235,83 @@ if ($resultsNumb) {
       echo "</td>";
     }
 
-    echo "    <td>" . $result['Total changes'] . "</td>";
+    echo "    <td><a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Total changes'] . "</a>";
+    echo "<div style='display:none'  id='SCConversionDrivers_$conversionId' class='SCConversionDrivers'>";
+    $conversionId++;
+
+    foreach ($verdictsRef as $verdictRefRaw => $verdictRef) {
+      foreach ($verdicts as $verdictRaw => $verdict) {
+        if ($verdictRef == $deleted and $verdict == $deleted or $verdictRef == $verdict) {
+          continue;
+        }
+
+        if (array_key_exists($verdictRefRaw, $changes) and array_key_exists($verdictRaw, $changes[$verdictRefRaw])) {
+          echo "<div>From '$verdictRef' to '$verdict' (";
+          $isChangesNumbPrinted = false;
+          if (array_key_exists($verdictRefRaw, $result['Verdict changes'])) {
+            if (array_key_exists($verdictRaw, $result['Verdict changes'][$verdictRefRaw])) {
+              echo $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['numb'];
+              $isChangesNumbPrinted = true;
+            }
+          }
+          if (!$isChangesNumbPrinted) {
+            echo '0';
+          }
+          echo " rows)</div>";
+
+          $isConversionPrinted = false;
+          if (array_key_exists($verdictRefRaw, $result['Verdict changes'])) {
+            if (array_key_exists($verdictRaw, $result['Verdict changes'][$verdictRefRaw])) {
+              $drivers = $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['drivers'];
+
+              $driversStatKeys = array_keys($drivers[0]['driver']);
+              $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']);
+
+              echo "<table border=1>
+                      <tr align='center' bgcolor='yellow'>";
+              echo "    <td nowrap>#</td>";
+              foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
+                echo "  <td nowrap>$driversMatchedStatKey</td>";
+              }
+              echo "<td rowspan='" . (1 + count($drivers)) . "'> -> </td>";
+              foreach ($driversStatKeys as $driversStatKey) {
+                echo "  <td nowrap>$driversStatKey</td>";
+              }
+              echo "  </tr>";
+
+              // Iterate over all drivers.
+              $i = 1;
+              foreach ($drivers as $driver) {
+                echo "<tr>";
+                echo "  <td>$i</td>";
+                $i++;
+                foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
+                  echo "  <td nowrap>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
+                }
+                foreach ($driversStatKeys as $driversStatKey) {
+                  echo "  <td nowrap>" . $driver['driver'][$driversStatKey] . "</td>";
+                }
+                echo "</tr>";
+              }
+
+              echo "</table>";
+              $isConversionPrinted = true;
+            }
+          }
+
+          if (!$isConversionPrinted) {
+            echo '-';
+          }
+        }
+      }
+    }
+    echo "</div></td>";
 
     foreach ($verdictsRef as $verdictRefRaw => $verdictRef) {
       foreach ($verdicts as $verdictRaw => $verdict) {
         if ($verdictRef == $deleted and $verdict == $deleted) {
           continue;
         }
-
 
         if (array_key_exists($verdictRefRaw, $changes) and array_key_exists($verdictRaw, $changes[$verdictRefRaw])) {
           echo "<td class='SCFrom_$verdictRef SCTo_$verdict'>";
@@ -215,8 +325,9 @@ if ($resultsNumb) {
               $driversStatKeys = array_keys($drivers[0]['driver']);
               $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']);
 
-              echo "<table border=1 style='display:none' id='SCConversionDrivers_$conversionId'>
+              echo "<table border=1 style='display:none' id='SCConversionDrivers_$conversionId' class='SCConversionDrivers'>
                       <tr align='center' bgcolor='yellow'>";
+              echo "    <td nowrap>#</td>";
               foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
                 echo "  <td nowrap>$driversMatchedStatKey</td>";
               }
@@ -226,8 +337,12 @@ if ($resultsNumb) {
               }
               echo "  </tr>";
 
+              // Iterate over all drivers.
+              $i = 1;
               foreach ($drivers as $driver) {
                 echo "<tr>";
+                echo "  <td>$i</td>";
+                $i++;
                 foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
                   echo "  <td nowrap>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
                 }
