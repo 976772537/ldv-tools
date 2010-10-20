@@ -47,16 +47,19 @@ unless ($config->{report}){
 			dircopy($_[1]->text(),$config->{basedir}) or die $!;
 			$$basedir = $_[1]->text();
 			$_[1]->set_text($config->{basedir});
-			$_[1]->print('indented',$OUTR);
+			$_[1]->set_pretty_print('indented');
+			$_[1]->print($OUTR);
 		},
 		'out' => sub{
 			my $t=$_[1]->text();  $t =~ s/^\Q$$basedir/$config->{basedir}/;
 			$_[1]->set_text($t);
+			$_[1]->set_pretty_print('indented');
 			$_[1]->print($OUTR);
 		},
 		'in' => sub{
 			my $t=$_[1]->text();  $t =~ s/^\Q$$basedir/$config->{basedir}/;
 			$_[1]->set_text($t);
+			$_[1]->set_pretty_print('indented');
 			$_[1]->print($OUTR);
 		},
 		},

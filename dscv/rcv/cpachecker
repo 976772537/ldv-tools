@@ -178,7 +178,8 @@ sub verify_cpachecker
 	}
 
 CLOSE_REPORT:
-	$repT->print($CPACHECKER_REPORT,'indented');
+	$repT->set_pretty_print('indented');
+	$repT->print($CPACHECKER_REPORT);
 	close $CPACHECKER_REPORT;
 }
 

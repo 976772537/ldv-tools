@@ -170,7 +170,8 @@ sub verify_mock
 		}
 	}
 
-	$repT->print($MOCK_REPORT,'indented');
+	$repT->set_pretty_print('indented');
+	$repT->print($MOCK_REPORT);
 	close $MOCK_REPORT;
 }
 
