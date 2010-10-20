@@ -51,8 +51,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
                 'Name' => 'DA.dbname',
                 'User' => 'DA.username',
                 'Password' => 'DA.password'))
-      ->joinLeft(array('PR' => 'profiles'), 'PRDA.profile_id=PR.id')
-      ->joinLeft(array('DA' => 'databases'), 'PRDA.database_id=DA.id')
+      ->joinLeft(array('PR' => 'profiles'), 'PRDA.profile_id=PR.id', array())
+      ->joinLeft(array('DA' => 'databases'), 'PRDA.database_id=DA.id', array())
       ->where('PR.id = ?', $profileCurrent->profileId));
     $profileCurrent->setOptions(array(
       'dbHost' => $profileDatabasesRow['Host'],
@@ -68,8 +68,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
       ->from(array('PRPA' => 'profiles_pages'),
           array('Id' => 'PA.id',
                 'Name' => 'PA.name'))
-      ->joinLeft(array('PR' => 'profiles'), 'PRPA.profile_id=PR.id')
-      ->joinLeft(array('PA' => 'pages'), 'PRPA.page_id=PA.id')
+      ->joinLeft(array('PR' => 'profiles'), 'PRPA.profile_id=PR.id', array())
+      ->joinLeft(array('PA' => 'pages'), 'PRPA.page_id=PA.id', array())
       ->where('PR.id = ?', $profileCurrent->profileId));
 
     foreach($profilePagesResultSet as $profilePagesRow) {
@@ -85,13 +85,14 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
                   'Id' => 'La.id',
                   'Order' => 'AU.order',
                   'Presence' => 'AU.presence'))
-        ->joinLeft(array('LA' => 'launch_info'), 'PALA.launch_info_id=LA.id')
-        ->joinLeft(array('AU' => 'aux_info'), 'LA.aux_info_id=AU.id')
+        ->joinLeft(array('LA' => 'launch_info'), 'PALA.launch_info_id=LA.id', array())
+        ->joinLeft(array('AU' => 'aux_info'), 'LA.aux_info_id=AU.id', array())
         ->where('pages_id = ?', $profilePagesRow['Id'])
         ->order('AU.order'));
 
       foreach($pagesLaunchInfoResultSet as $pagesLaunchInfoRow) {
         $profileCurrentPageLaunchInfo = $profileCurrentPage->setLaunchInfoOrder($pagesLaunchInfoRow['Order']);
+
         $profileCurrentPageLaunchInfo->setOptions(array(
           'launchInfoName' => $pagesLaunchInfoRow['Name'],
           'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
@@ -106,8 +107,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
                   'Value' => 'FI.value',
                   'Order' => 'AU.order',
                   'Presence' => 'AU.presence'))
-          ->joinLeft(array('FI' => 'filters_info'), 'LAFI.filter_info_id=FI.id')
-          ->joinLeft(array('AU' => 'aux_info'), 'FI.aux_info_id=AU.id')
+          ->joinLeft(array('FI' => 'filters_info'), 'LAFI.filter_info_id=FI.id', array())
+          ->joinLeft(array('AU' => 'aux_info'), 'FI.aux_info_id=AU.id', array())
           ->where('launch_info_id = ?', $pagesLaunchInfoRow['Id'])
           ->order('AU.order'));
 
@@ -130,8 +131,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
                   'Id' => 'VE.id',
                   'Order' => 'AU.order',
                   'Presence' => 'AU.presence'))
-        ->joinLeft(array('VE' => 'verification_info'), 'PAVE.verification_info_id=VE.id')
-        ->joinLeft(array('AU' => 'aux_info'), 'VE.aux_info_id=AU.id')
+        ->joinLeft(array('VE' => 'verification_info'), 'PAVE.verification_info_id=VE.id', array())
+        ->joinLeft(array('AU' => 'aux_info'), 'VE.aux_info_id=AU.id', array())
         ->where('pages_id = ?', $profilePagesRow['Id'])
         ->order('AU.order'));
 
@@ -151,8 +152,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
               array('Name' => 'RE.name',
                     'Order' => 'AU.order',
                     'Presence' => 'AU.presence'))
-            ->joinLeft(array('RE' => 'result_info'), 'VERE.result_info_id=RE.id')
-            ->joinLeft(array('AU' => 'aux_info'), 'RE.aux_info_id=AU.id')
+            ->joinLeft(array('RE' => 'result_info'), 'VERE.result_info_id=RE.id', array())
+            ->joinLeft(array('AU' => 'aux_info'), 'RE.aux_info_id=AU.id', array())
             ->where('verification_info_id = ?', $pagesVerificationInfoRow['Id'])
             ->order('AU.order'));
 
@@ -175,8 +176,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
                   'Id' => 'TOO.id',
                   'Order' => 'AU.order',
                   'Presence' => 'AU.presence'))
-        ->joinLeft(array('TOO' => 'tools_info'), 'PATO.tools_info_id=TOO.id')
-        ->joinLeft(array('AU' => 'aux_info'), 'TOO.aux_info_id=AU.id')
+        ->joinLeft(array('TOO' => 'tools_info'), 'PATO.tools_info_id=TOO.id', array())
+        ->joinLeft(array('AU' => 'aux_info'), 'TOO.aux_info_id=AU.id', array())
         ->where('pages_id = ?', $profilePagesRow['Id'])
         ->order('AU.order'));
 
@@ -195,8 +196,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
             array('Name' => 'TOO.name',
                   'Order' => 'AU.order',
                   'Presence' => 'AU.presence'))
-          ->joinLeft(array('TOO' => 'tool_info'), 'TOTO.tool_info_id=TOO.id')
-          ->joinLeft(array('AU' => 'aux_info'), 'TOO.aux_info_id=AU.id')
+          ->joinLeft(array('TOO' => 'tool_info'), 'TOTO.tool_info_id=TOO.id', array())
+          ->joinLeft(array('AU' => 'aux_info'), 'TOO.aux_info_id=AU.id', array())
           ->where('tools_info_id = ?', $pagesToolsInfoRow['Id'])
           ->order('AU.order'));
 

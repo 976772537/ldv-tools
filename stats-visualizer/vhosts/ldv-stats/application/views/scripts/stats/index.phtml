@@ -1,14 +1,5 @@
 <?php
 
-// Whether the comparison mode is activated.
-$taskids = '';
-if (null !== $this->taskids && 'no' != $this->taskids) {
-  echo "<h3>A selected task will be compared with the tasks having ids: " . $this->taskids . "</h3>";
-  echo "<i>Note that you are in the comparison mode now. To leave it submit 'no' in the form placed under the table</i>";
-
-  $taskids = $this->taskids;
-}
-
 // Print form for the tasks comparison.
 $this->form->setAction($this->url());
 echo $this->form;
@@ -24,9 +15,13 @@ $profilePages = $results['Profile pages'];
 
 // Get the view name.
 $page = $results['Page'];
+// Use more meaningful name for results page.
+if ($page == 'Result') {
+  $page = 'Total';
+}
 
 $resultsNumb = count($results['Stats']['Row info']);
-echo "<h3>The statistics for the page '$page' (" . $resultsNumb . " rows)</h3>";
+echo "<h3>Statistics for the page '$page' (" . $resultsNumb . " rows)</h3>";
 
 // Print general statistics table if so.
 if ($resultsNumb) {
@@ -99,6 +94,9 @@ if ($resultsNumb) {
     echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
   }
   foreach ($verificationKeys as $verificationKey) {
+    if ($verificationKey == 'Result') {
+      $verificationKey = 'Total';
+    }
     echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
   }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
@@ -118,7 +116,7 @@ if ($resultsNumb) {
     }
   }
   echo "  </tr>";
-  if (count($problemKeys)) {
+  if (count($problemKeys) || count($childrenKeys)) {
     echo "<tr align='center'>";
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
@@ -185,7 +183,21 @@ if ($resultsNumb) {
     foreach ($verificationKeys as $verificationKey) {
       echo "    <td>";
       $value = $result['Verification info'][$verificationKey];
-      if (array_key_exists($verificationKey, $profilePages)) {
+      if ($verificationKey == 'Error trace') {
+        echo "<a href='"
+          . $this->url(
+            array_merge(
+              array(
+                'controller' => 'stats',
+                'action'     => 'errortrace',
+                'page' => $verificationKey,
+                'value' => $value),
+              $statKeysValues),
+            'default',
+            true)
+          . "'>error trace...</a>";
+      }
+      else if (array_key_exists($verificationKey, $profilePages)) {
         echo "<a href='"
           . $this->url(
             array_merge(
@@ -193,15 +205,13 @@ if ($resultsNumb) {
                 'controller' => 'stats',
                 'action'     => 'index',
                 'page' => $verificationKey,
-                'value' => $value,
-                'task ids' => $taskids),
+                'value' => $value),
               $statKeysValues),
             'default',
             true)
           . "'>"
           . $value
           . "</a>";
-
       }
       else {
         echo "$value";
@@ -314,8 +324,16 @@ if ($resultsNumb) {
   echo "</table>";
 }
 
+// Print restrictions for a given page if so.
+if (count($results['Restrictions'])){
+  echo "<h3>Current page restrictions</h3>";
+  foreach ($results['Restrictions'] as $restriction => $value) {
+    echo "$restriction = '$value'<br>";
+  }
+}
+
 // Print information on the current database connection.
-echo "<h3>The current database connection options</h3>";
+echo "<h3>Current database connection options</h3>";
 $db_connection_options = $results['Database connection'];
 foreach ($db_connection_options as $option => $value) {
   if ($option != 'profiler') {
@@ -327,9 +345,24 @@ foreach ($db_connection_options as $option => $value) {
 $endtime = explode(' ', microtime());
 $global = new Zend_Session_Namespace('Statistics globals');
 $totaltime = $endtime[0] +  $endtime[1] - $global->startTime;
-printf('<h3>Page generated in %.3f seconds</h3>',  $totaltime);
+printf('<h3>Page generated in %.1f seconds (the maximum execution time is %.1f seconds)</h3>',  $totaltime, ini_get('max_execution_time'));
 
-#foreach ($this->entries as $entry):
-#    echo $this->escape($entry->id)
+// Obtain the session peak application memory usage and compare it with the
+// memory limit.
+function return_bytes($val) {
+  $val = trim($val);
+  $last = strtolower($val[strlen($val) - 1]);
+  switch ($last) {
+    case 'g':
+      $val *= 1024;
+    case 'm':
+      $val *= 1024;
+    case 'k':
+      $val *= 1024;
+  }
+
+  return $val;
+}
+echo "<h3>Application peak memory usage through the given session is " . number_format(memory_get_peak_usage(), 0, ',', ' ') . " bytes (the memory limit is " . number_format(return_bytes(ini_get('memory_limit')), 0, ',', ' ') . " bytes)</h3>";
 
 ?>

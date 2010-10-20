@@ -1,6 +1,6 @@
 <?php
 
-class Application_Model_ToolsInfo extends Application_Model_General
+class Application_Model_ToolsInfo extends Application_Model_GeneralStats
 {
   protected $_toolsInfoName;
   protected $_tools;
@@ -11,18 +11,18 @@ class Application_Model_ToolsInfo extends Application_Model_General
     $this->_tools[$order] = $filter;
     return $filter;
   }
- 
+
   public function getTools()
   {
     return $this->_tools;
-  }  
-  
+  }
+
   public function setToolsInfoName($name)
   {
     $this->_toolsInfoName = (string) $name;
     return $this;
   }
- 
+
   public function getToolsInfoName()
   {
     return $this->_toolsInfoName;

@@ -1,0 +1,36 @@
+/* Linuxtesting.org bindings. */
+#ETVErrorTrace
+{
+  height: 450px;
+  width: 400px;
+}
+
+.ETVHelp
+{
+  color: #000000;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: normal; 
+  width: 1000px; 
+}
+
+#ETVTabs 
+{
+  width: 600px;
+}
+
+#ETVShowHideMenuOthers li 
+{
+  width: 146px;
+}
+
+#ETVTabsHeader li.ETVActive 
+{
+  width: 200px;
+}
+
+#ETVTabs div 
+{
+  height: 450px;  
+}
+
