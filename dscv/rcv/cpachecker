@@ -114,7 +114,7 @@ sub verify_cpachecker
 	$args{report} or die;
 	open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
-
+	# TODO(time): args_for_main as in commit 7521902fd66b2d6a5d118d62c41596fabc6440a9
 	for my $main (@{$args{mains}}){
 		if ($args{already_failed}){
 			# Prepare a failure command
@@ -168,9 +168,30 @@ sub verify_cpachecker
 			XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
 
 			# Calculate and output time elapsed
-			my $time_sec = $result->{'utime'}+$result->{'stime'};
-			my $time_msec = int($time_sec * 1000);
-			XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
+			# Read file with time statistics
+			# copied from blast script
+			# TODO(time): check it
+			if ( -f "$workdir/stats_rcv.xml" ) {  
+				my %timestats;
+		        	open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
+			        while(<STATS_FILE>) {
+			                /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+					$timestats{$1} += $2;
+					#my $time_elt = XML::Twig::Elt->new('time',$2);
+					#$time_elt->set_att( name =>$1);
+					#$time_elt->paste($rcvResultT);			
+			        }    
+		        	close STATS_FILE;
+				foreach(keys %timestats) {
+    					my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+					$time_elt->set_att( name =>$_);
+					$time_elt->paste($rcvResultT);			
+				}
+			} else {
+				my $time_elt = XML::Twig::Elt->new('time',0);
+				$time_elt->set_att( name =>"ALL");
+				$time_elt->paste($rcvResultT);			
+		        }; 
 
 			$rcvResultT->paste(last_child =>$cmdInstT);
 			$cmdInstT->paste($repT);
@@ -254,10 +275,15 @@ EOF
 
 	# Additional options
 	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
+	
+	# TODO rerouting like in blast
 
 	# Resources limit.  We don't set memlimit--see below
+	# TODO(time): check it
 	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
+		pattern => ".*,ALL;.*java.*;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
+		output => "$workdir/stats_rcv.xml",
 		id_str => "DSCV_TIMEOUT ",
 		},@cpachecker_options
 	);
