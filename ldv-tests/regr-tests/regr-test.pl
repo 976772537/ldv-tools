@@ -14,16 +14,16 @@ use strict;
 use lib("$FindBin::RealBin/../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info 
-  print_debug_debug print_debug_trace print_debug_all get_debug_level 
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
   check_system_call);
-  
+
 
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
 
-# Process command-line options. To see detailed description of these options 
+# Process command-line options. To see detailed description of these options
 # run script with --help option.
 # args: no.
 # retn: nothing.
@@ -55,7 +55,7 @@ my $current_working_dir;
 # Prefix for all debug messages.
 my $debug_name = 'regr-test';
 
-# The default placement of difference. It's relative to the current working 
+# The default placement of difference. It's relative to the current working
 # directory.
 my $diff_file = 'regr-test.diff';
 # The diff/merge tool to be used.
@@ -80,7 +80,7 @@ my $opt_test_set;
 # The prefix to the regression test task.
 my $regr_task_prefix = 'regr-task-';
 
-# Scripts required for regression tests performing. They are in the tool 
+# Scripts required for regression tests performing. They are in the tool
 # auxiliary directory.
 my $script_launch = 'launch.pl';
 my $script_upload = 'upload.pl';
@@ -130,7 +130,7 @@ sub get_opt()
   }
 
   help() if ($opt_help);
-  
+
   print_debug_debug("The command-line options are processed successfully");
 }
 
@@ -145,7 +145,7 @@ SYNOPSIS
   $PROGRAM_NAME [option...]
 
 OPTIONS
-    
+
   -t, --diff-tool, --merge-tool <tool>
     <tool> is a some diff/merge tool (e.g. 'diff', 'meld' and so on) with
     some options (e.g. 'diff -u'). It's optional. The standard diff tool 'diff -u' is
@@ -153,36 +153,36 @@ OPTIONS
 
   -h, --help
     Print this help and exit with a error.
-    
+
   -o, diff-file <file>
     <file> is a file where the compare results will be put. It's optional.
-    For some diff/merge tool (e.g. 'meld') it useless. If it isn't specified 
-    then the output is placed to the file '$diff_file' in the current directory.  
-    
+    For some diff/merge tool (e.g. 'meld') it useless. If it isn't specified
+    then the output is placed to the file '$diff_file' in the current directory.
+
   --test-set <name>
     <name> may be one of the predefined test set names or may be absolute
-    path to the regression test task file. It's optional. If this option isn't 
-    specified, then current folder is scanned for the first regression test 
-    task. Note then regression test task is a file beginning with the 
+    path to the regression test task file. It's optional. If this option isn't
+    specified, then current folder is scanned for the first regression test
+    task. Note then regression test task is a file beginning with the
     '$regr_task_prefix' prefix.
 
 ENVIRONMENT VARIABLES
 
   LDV_DEBUG
-    It's an optional environment variable that specifies a debug 
+    It's an optional environment variable that specifies a debug
     level. It uses the standard designatures to distinguish different
     debug information printings. Each next level includes all previous
     levels and its own messages.
 
   LDV_REGR_TEST_DEBUG
-    Like LDV_DEBUG but it has more priority. It specifies a debug 
+    Like LDV_DEBUG but it has more priority. It specifies a debug
     level just for this instrument.
-  
-  LDVDBHOSTTEST, LDVDBTEST, LDVUSERTEST, LDVDBPASSWDTEST  
-    Keeps settings (host, database, user and password) for connection 
-    to the database. Note that LDVDBTEST and LDVUSERTEST must always be 
+
+  LDVDBHOSTTEST, LDVDBTEST, LDVUSERTEST, LDVDBPASSWDTEST
+    Keeps settings (host, database, user and password) for connection
+    to the database. Note that LDVDBTEST and LDVUSERTEST must always be
     presented!
-    
+
 EOM
 
   exit(1);
@@ -190,23 +190,23 @@ EOM
 
 sub perform_regr_test()
 {
-  print_debug_normal("Start to launch ldv-manager and obtain the results");	
+  print_debug_normal("Start to launch ldv-manager and obtain the results");
   my @args = ("$tool_aux_dir/$script_launch", "--results", "$current_working_dir/$launcher_results_dir");
-  push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);		
+  push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);
   print_debug_info("Execute the command '@args'");
 
   print_debug_trace("Go to the launcher working directory '$current_working_dir/$launcher_working_dir' to launch it");
   chdir("$current_working_dir/$launcher_working_dir")
     or die("Can't change directory to '$current_working_dir/$launcher_working_dir'");
-            		 
+
   system(@args);
   die("The launcher fails") if (check_system_call());
-          
+
   print_debug_trace("Go to the initial working directory '$current_working_dir'");
   chdir($current_working_dir)
     or die("Can't change directory to '$current_working_dir'");
- 
-  print_debug_normal("Upload the obtain results to the database"); 
+
+  print_debug_normal("Upload the obtain results to the database");
   @args = ("$tool_aux_dir/$script_upload", "--results", "$current_working_dir/$launcher_results_dir");
   print_debug_info("Execute the command '@args'");
   system(@args);
@@ -220,20 +220,20 @@ sub perform_regr_test()
 
   print_debug_normal("Compare the old and the new results");
   @args = ("$tool_aux_dir/$script_check", "--task", "$current_working_dir/$task_file", "--diff-file", "$diff_file", "--t", "$diff_merge_tool");
-  push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);	
+  push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);
   print_debug_info("Execute the command '@args'");
   system(@args);
   die("The checker fails") if (check_system_call());
-  
+
   print_debug_normal("The result of the regression test is placed to the file '$diff_file'");
 }
 
 sub prepare_files_and_dirs()
 {
-  $current_working_dir = Cwd::cwd() 
+  $current_working_dir = Cwd::cwd()
     or die("Can't obtain the current working directory");
   print_debug_debug("The current working directory is '$current_working_dir'");
-  	
+
   print_debug_trace("Check that database connection is setup");
   die("You don't setup connection to your testing database. See --help for details")
     unless ($LDVDBTEST and $LDVUSERTEST);
@@ -250,32 +250,32 @@ sub prepare_files_and_dirs()
     unless (-x "$tool_aux_dir/$script_upload");
   die ("There is no the checker script '$tool_aux_dir/$script_check'")
     unless (-x "$tool_aux_dir/$script_check");
-  
+
   die("You run regression tests in the already used directory. Please remove file '$current_working_dir/$task_file'")
     if (-f "$current_working_dir/$task_file");
-  
-  die("You run regression tests in the already used directory. Please remove directories '$current_working_dir/$launcher_working_dir' and '$current_working_dir/$launcher_results_dir'") 
-    if (-d "$current_working_dir/$launcher_working_dir" or -d "$current_working_dir/$launcher_results_dir");  
+
+  die("You run regression tests in the already used directory. Please remove directories '$current_working_dir/$launcher_working_dir' and '$current_working_dir/$launcher_results_dir'")
+    if (-d "$current_working_dir/$launcher_working_dir" or -d "$current_working_dir/$launcher_results_dir");
   print_debug_trace("Create auxiliary directories for the launcher");
   mkpath("$current_working_dir/$launcher_working_dir")
-    or die("Couldn't recursively create directory '$current_working_dir/$launcher_working_dir': $ERRNO");          
+    or die("Couldn't recursively create directory '$current_working_dir/$launcher_working_dir': $ERRNO");
   mkpath("$current_working_dir/$launcher_results_dir")
     or die("Couldn't recursively create directory '$current_working_dir/$launcher_results_dir': $ERRNO");
-    
-  print_debug_trace("Obtain the diff/merge tool");  
+
+  print_debug_trace("Obtain the diff/merge tool");
   if ($opt_diff_merge_tool)
   {
-	$diff_merge_tool = $opt_diff_merge_tool;  
+    $diff_merge_tool = $opt_diff_merge_tool;
   }
   else
   {
-	$diff_merge_tool = $diff_tool;  
-  }  
-  print_debug_debug("The diff/merge tool is '$diff_merge_tool'");  
+    $diff_merge_tool = $diff_tool;
+  }
+  print_debug_debug("The diff/merge tool is '$diff_merge_tool'");
 
   print_debug_trace("Try to obtain the diff file");
   $diff_file = $opt_diff_file if ($opt_diff_file);
   die("You run checker in the already used directory. Please remove task file '$diff_file'")
     if (-f $diff_file);
-  print_debug_debug("The diff file is '$diff_file'");     
+  print_debug_debug("The diff file is '$diff_file'");
 }

@@ -17,7 +17,7 @@ use Text::Highlight;
 use LDV::Utils;
 require Entity;
 require Annotation;
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info 
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
 
@@ -35,7 +35,7 @@ sub add_mising_spaces($);
 # retn: link corresponding to the given file path.
 sub convert_file_to_link($);
 
-# Process command-line options. To see detailed description of these options 
+# Process command-line options. To see detailed description of these options
 # run script with --help option.
 # args: no.
 # retn: nothing.
@@ -121,7 +121,7 @@ sub read_line();
 # retn: the processed names or undef if it can't be read.
 sub read_locals($);
 
-# Read location. Location includes an useless location, a path to the source 
+# Read location. Location includes an useless location, a path to the source
 # file and a line number.
 # args: some string.
 # retn: the processed path to file and line number or undef if it can't be read.
@@ -167,13 +167,13 @@ my $debug_name = 'error-trace-visualizer';
 # pathes to corresponding dependencies files.
 my %dependencies;
 
-# Engines which reports can be processed are keys and values are 
+# Engines which reports can be processed are keys and values are
 # corresponding processing subroutines.
-my %engines = (my $engine_blast = 'blast' => 
-                 {'print', \&print_error_trace_blast, 
+my %engines = (my $engine_blast = 'blast' =>
+                 {'print', \&print_error_trace_blast,
                   'process', \&process_error_trace_blast});
 
-# These variables contain a current line number and a current source code file 
+# These variables contain a current line number and a current source code file
 # if so or 0 and '' otherwise.
 my $entity_line = 0;
 my $entity_src = '';
@@ -193,23 +193,23 @@ my %files_short_name;
 # The unique html tags identifier.
 my $html_id = 0;
 
-# LDV driver environment comments collected from source code. Keys are file 
-# names and line numbers, values are comments with the corresponding short alias 
+# LDV driver environment comments collected from source code. Keys are file
+# names and line numbers, values are comments with the corresponding short alias
 # names.
 my %ldv_driver_env_comments;
 # The LDV driver environment comments aliases and names.
 my %ldv_driver_env_comment_names = (
-    'entry point beginning' => 'LDV_COMMENT_BEGIN_MAIN' 
+    'entry point beginning' => 'LDV_COMMENT_BEGIN_MAIN'
   , 'entry point end' => 'LDV_COMMENT_END_MAIN'
   , my $ldv_driver_env_comment_func_call = 'function call' => 'LDV_COMMENT_FUNCTION_CALL'
   , my $ldv_driver_env_comment_var_init = 'variable initialization' => 'LDV_COMMENT_VAR_INIT');
 
-# LDV model comments collected from source code. Keys are file names and line 
+# LDV model comments collected from source code. Keys are file names and line
 # numbers, values are comments with the corresponding short alias names.
 my %ldv_model_comments;
 # The LDV model comments aliases and names.
 my %ldv_model_comment_names = (
-    my $ldv_model_comment_assert = 'assert' => 'LDV_COMMENT_ASSERT' 
+    my $ldv_model_comment_assert = 'assert' => 'LDV_COMMENT_ASSERT'
   , my $ldv_model_comment_change_state = 'state changing' => 'LDV_COMMENT_CHANGE_STATE'
   , my $ldv_model_comment_func_def = 'function definition' => 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION'
   , my $ldv_model_comment_func_call = 'function call' => 'LDV_COMMENT_MODEL_FUNCTION_CALL'
@@ -267,12 +267,12 @@ my $space_indent = 3;
 # name.
 my $src_tag = '-------';
 
-# Source code files referenced by the error trace. Keys are source code file 
+# Source code files referenced by the error trace. Keys are source code file
 # names, values are their contents.
 my %srcs;
-  
-# The colors to be used in highlighting.  
-my $syntax_colors = { 
+
+# The colors to be used in highlighting.
+my $syntax_colors = {
   comment => 'ETVSrcComment',
   string  => 'ETVSrcString',
   number  => 'ETVSrcNumber',
@@ -296,14 +296,14 @@ my $tree_root = process_error_trace();
 if ($opt_report_out)
 {
   process_source_code_files();
-  visualize_error_trace($tree_root);	
+  visualize_error_trace($tree_root);
 }
 
 # TODO this must be fixed!!!!!!
 if ($opt_reqs_out)
 {
       if ($opt_engine eq $engine_blast)
-         { 
+         {
   foreach my $dep (keys(%dependencies))
   {
     print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
@@ -312,19 +312,19 @@ if ($opt_reqs_out)
 }
 
 print_debug_trace("Close file handlers");
-close($file_report_in) 
+close($file_report_in)
   or die("Can't close the file '$opt_report_in': $ERRNO\n");
 if ($opt_report_out)
 {
-  close($file_report_out) 
+  close($file_report_out)
     or die("Can't close the file '$opt_report_out': $ERRNO\n");
 }
 if ($opt_reqs_out)
 {
-  close($file_reqs_out) 
+  close($file_reqs_out)
     or die("Can't close the file '$opt_reqs_out': $ERRNO\n");
 }
-  
+
 print_debug_normal("Make all successfully");
 
 
@@ -337,21 +337,21 @@ sub add_mising_spaces($)
   my $str = shift;
 
   # Add mising spaces around equality sign.
-  $str =~ s/([_a-zA-Z\d])=/$1 =/g;  	
+  $str =~ s/([_a-zA-Z\d])=/$1 =/g;
   $str =~ s/=([_a-zA-Z\d])/= $1/g;
-  
+
   return $str;
 }
 
 sub convert_file_to_link($)
 {
   my $file_path = shift;
-  
-  # Exchange slashes and points with '_'.	
+
+  # Exchange slashes and points with '_'.
   $file_path =~ s/\//_/g;
   $file_path =~ s/\./_/g;
-  
-  return $file_path; 	
+
+  return $file_path;
 }
 
 sub get_opt()
@@ -376,8 +376,8 @@ sub get_opt()
   }
 
   help() if ($opt_help);
-  
-  unless ($opt_engine and $opt_report_in) 
+
+  unless ($opt_engine and $opt_report_in)
   {
     warn("You must specify the options --engine, --report|c in the command-line");
     help();
@@ -389,14 +389,14 @@ sub get_opt()
     foreach my $engine (keys(%engines))
     {
       warn("  - '$engine'\n");
-	}
-	die();
+    }
+    die();
   }
 
   unless ($opt_report_out or $opt_reqs_out)
   {
     warn("You must specify either the option --report-out|o or --reqs-out in the command-line");
-    help();    
+    help();
   }
 
   if ($opt_report_out)
@@ -404,28 +404,28 @@ sub get_opt()
     open($file_report_out, '>', "$opt_report_out")
       or die("Can't open the file '$opt_report_out' specified through the option --report-out|o for write: $ERRNO");
     print_debug_debug("The report output file is '$opt_report_out'");
-  
+
     # When the error trace is visualized it'll good if corresponding sources are
     # presented too.
     if ($opt_src_files)
     {
       open($file_src_files, '<', "$opt_src_files")
         or die("Can't open the file '$opt_src_files' specified through the option --src-files for read: $ERRNO");
-      print_debug_debug("The source code file is '$opt_src_files'");	  
-	}
+      print_debug_debug("The source code file is '$opt_src_files'");
+    }
   }
-  
+
   if ($opt_reqs_out)
   {
     open($file_reqs_out, '>', "$opt_reqs_out")
       or die("Can't open the file '$opt_reqs_out' specified through the option --reqs-out for write: $ERRNO");
     print_debug_debug("The requrements output file is '$opt_reqs_out'");
   }
-  
+
   open($file_report_in, '<', "$opt_report_in")
     or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for read: $ERRNO");
   print_debug_debug("The report input file is '$opt_report_in'");
-  
+
   print_debug_debug("The command-line options are processed successfully");
 }
 
@@ -434,7 +434,7 @@ sub help()
     print(STDERR << "EOM");
 
 NAME
-  $PROGRAM_NAME: the tool is intended to visualize error traces 
+  $PROGRAM_NAME: the tool is intended to visualize error traces
     obtained from different static verifiers.
 
 SYNOPSIS
@@ -457,24 +457,24 @@ OPTIONS
 
   --reqs-out <file>
     <file> is an absolute path to a file that will contain a list of
-    required for report files. This is needed to gather all 
+    required for report files. This is needed to gather all
     requirements that will be used then in the visualization mode.
 
   --src-files <file>
-    <file> is an absolute path to a file containing source code 
+    <file> is an absolute path to a file containing source code
     referenced by the given error trace. It's optional. If there is no
     such option then no source code is shown.
-    
+
 ENVIRONMENT VARIABLES
 
   LDV_DEBUG
-    It's an optional environment variable that specifies a debug 
+    It's an optional environment variable that specifies a debug
     level. It uses the standard designatures to distinguish different
     debug information printings. Each next level includes all previous
     levels and its own messages.
-    
-  LDV_ERROR_TRACE_VISUALIZER_DEBUG 
-    Like LDV_DEBUG but it has more priority. It specifies a debug 
+
+  LDV_ERROR_TRACE_VISUALIZER_DEBUG
+    Like LDV_DEBUG but it has more priority. It specifies a debug
     level just for this instrument.
 
 EOM
@@ -485,131 +485,131 @@ EOM
 sub print_error_trace($)
 {
   my $tree_root = shift;
-  	
+
   print_debug_debug("Print the '$opt_engine' static verifier error trace");
-  $engines{$opt_engine}{'print'}->($tree_root);  
+  $engines{$opt_engine}{'print'}->($tree_root);
   print_debug_debug("'$opt_engine' static verifier error trace is printed successfully");
 }
 
 sub print_error_trace_blast($)
 {
   my $tree_root = shift;
-  	
+
   # Print show/hide menu plugin.
-  print($file_report_out 
+  print($file_report_out
     "\n<script type='text/javascript'>"
     , "\n\$(document).ready(function() {"
     , "\n  \$('#ETVShowHideMenuOthers li').hover(function() {"
-	, "\n    \$(this).addClass('ETVactive');" 
-	, "\n    \$(this).find('form').show();" 
+    , "\n    \$(this).addClass('ETVactive');"
+    , "\n    \$(this).find('form').show();"
     , "\n  }, function() {"
-	, "\n    \$(this).removeClass('ETVactive');" 
-	, "\n    \$(this).find('form').hide();"
+    , "\n    \$(this).removeClass('ETVactive');"
+    , "\n    \$(this).find('form').hide();"
     , "\n  });"
     , "\n});"
     , "\n</script>");
-  
+
   foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
   {
-    print($file_report_out 
+    print($file_report_out
       "\n<script type='text/javascript'>"
       , "\n\$(document).ready(function() {"
       , "\n  \$('#${show_hide_global{$order}{'class'}}Menu').change(function() {"
-	  , "\n    \$('a.#${show_hide_global{$order}{'class'}}ShowHide').click();"
+      , "\n    \$('a.#${show_hide_global{$order}{'class'}}ShowHide').click();"
       , "\n  });"
       , "\n});"
-      , "\n</script>");	 
-  }  
-  	
+      , "\n</script>");
+  }
+
   # Print entities global show/hide menu.
-  print($file_report_out 
+  print($file_report_out
     "\n<div id='ETVErrorTraceHeader'>");
   # First of all print the main entities to be show/hide.
-  print($file_report_out 
+  print($file_report_out
       "\n  <div id='ETVShowHideMenuMain'>"
     , "\n    <form>");
   foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
   {
-	print($file_report_out
-	  "\n      <div class='ETVShowHideMenuMainItem'><input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}</div>")  
-	  if ($show_hide_global{$order}{'main'});
-  }  
-  print($file_report_out 
+    print($file_report_out
+      "\n      <div class='ETVShowHideMenuMainItem'><input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}</div>")
+      if ($show_hide_global{$order}{'main'});
+  }
+  print($file_report_out
       "\n    </form>"
-    , "\n  </div>");    
+    , "\n  </div>");
   # Others are available through the advanced menu.
-  print($file_report_out 
+  print($file_report_out
       "\n  <ul id='ETVShowHideMenuOthers'>"
     , "\n    <li><div>Others...</div>"
     , "\n      <form style='display: none;'>");
   foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
   {
-	print($file_report_out
-	  "\n        <input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}<br>")  
-	  if (!$show_hide_global{$order}{'main'});
-  }  
-  print($file_report_out 
+    print($file_report_out
+      "\n        <input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}<br>")
+      if (!$show_hide_global{$order}{'main'});
+  }
+  print($file_report_out
       "\n      </form>"
     , "\n    </li>"
     , "\n  </ul>");
-  print($file_report_out 
+  print($file_report_out
     "\n</div>");
 
-  # Print global show/hide script.  	
-  print($file_report_out 
+  # Print global show/hide script.
+  print($file_report_out
     "\n<div id='ETVErrorTraceHeaderHiddenMenu'>");
   foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
   {
-	print_show_hide_global($show_hide_global{$order}{'class'}, $show_hide_global{$order}{'name'})
-	 if ($show_hide_global{$order}{'class'} ne $entity_class_intellectual_func_body);
-  }        	
+    print_show_hide_global($show_hide_global{$order}{'class'}, $show_hide_global{$order}{'name'})
+     if ($show_hide_global{$order}{'class'} ne $entity_class_intellectual_func_body);
+  }
 
-  # Print intellectual global show/hide that allows to collapse all function 
+  # Print intellectual global show/hide that allows to collapse all function
   # bodies that don't contain model function calls.
-  print($file_report_out 
+  print($file_report_out
     "\n<script type='text/javascript'>"
     , "\n\$(document).ready(function() {"
     , "\n \$('a.#${entity_class_intellectual_func_body}ShowHide').toggle(function() {"
-    , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"  
+    , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"
     , "\n      var isFuncBodyHasModelFuncCall = false;"
     , "\n      \$(this).children('div').each(function() {"
     , "\n        if (\$(this).hasClass('$entity_class_model_func_call')) {"
     , "\n          isFuncBodyHasModelFuncCall = true;"
-    , "\n        }"      
-    , "\n      });"    
+    , "\n        }"
+    , "\n      });"
     , "\n      if (!isFuncBodyHasModelFuncCall) {"
     , "\n        if (\$(this).css('display') != 'none') {"
     , "\n          \$('#' + \$(this).attr('id') + 'ShowHide').click();"
-    , "\n        }" 
+    , "\n        }"
     , "\n      }"
     , "\n    });"
     , "\n    \$(this).html('Show $entity_class_intellectual_func_body_name');"
     , "\n  }, function() {"
-    , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"  
+    , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"
     , "\n      var isFuncBodyHasModelFuncCall = false;"
     , "\n      \$(this).children('div').each(function() {"
     , "\n        if (\$(this).hasClass('$entity_class_model_func_call')) {"
     , "\n          isFuncBodyHasModelFuncCall = true;"
-    , "\n        }"      
-    , "\n      });"    
+    , "\n        }"
+    , "\n      });"
     , "\n      if (!isFuncBodyHasModelFuncCall) {"
     , "\n        if (\$(this).css('display') == 'none') {"
     , "\n          \$('#' + \$(this).attr('id') + 'ShowHide').click();"
-    , "\n        }"  
+    , "\n        }"
     , "\n      }"
     , "\n    });"
     , "\n    \$(this).html('Hide $entity_class_intellectual_func_body_name');"
     , "\n  });"
     , "\n});"
     , "\n</script>"
-    , "\n<a id='${entity_class_intellectual_func_body}ShowHide' href='#'>Hide $entity_class_intellectual_func_body_name</a>");   
-  print($file_report_out 
+    , "\n<a id='${entity_class_intellectual_func_body}ShowHide' href='#'>Hide $entity_class_intellectual_func_body_name</a>");
+  print($file_report_out
     "\n</div>");
-  
-  # Make defaults for global show/hide.  
+
+  # Make defaults for global show/hide.
   # At the beginning reset all show/hide checkbox since they are stored for the
   # session.
-  print($file_report_out 
+  print($file_report_out
     "\n<script type='text/javascript'>"
     , "\n\$(document).ready(function() {"
     , "\n  \$('#ETVErrorTraceHeader input:checkbox').attr('checked', true);"
@@ -618,20 +618,20 @@ sub print_error_trace_blast($)
 
   foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
   {
-    print($file_report_out 
+    print($file_report_out
       "\n<script type='text/javascript'>"
       , "\n\$(document).ready(function() {"
       , "\n  \$('#${show_hide_global{$order}{'class'}}Menu').change().attr('checked', false);"
       , "\n});"
-      , "\n</script>") 	  	  
+      , "\n</script>")
       if (!$show_hide_global{$order}{'show'});
   }
-  
-  # Print error trace tree recursively.	
-  print($file_report_out  
+
+  # Print error trace tree recursively.
+  print($file_report_out
     "\n    <div id='ETVErrorTrace'>");
   print_error_trace_node_blast($tree_root, 0);
-  print($file_report_out  
+  print($file_report_out
     "\n    </div>");
 }
 
@@ -639,7 +639,7 @@ sub print_error_trace_node_blast($$)
 {
   my $tree_node = shift;
   my $indent = shift;
-  
+
   print_debug_trace("Print the '$tree_node->{'kind'}' tree node");
 
   # Process tree node values a bit.
@@ -650,22 +650,22 @@ sub print_error_trace_node_blast($$)
     # Add spaces around some operators.
     ${$tree_node->{'values'}}[0] = add_mising_spaces(${$tree_node->{'values'}}[0]);
   }
-  
+
   # Get source and line if so.
   my $src_full = '';
   my $src = '';
   my $line = 0;
   if ($tree_node->{'pre annotations'})
   {
-	foreach my $pre_annotation (@{$tree_node->{'pre annotations'}})
-	{
-	  if ($pre_annotation->{'kind'} eq 'Location')
-	  {
-		$src_full = $pre_annotation->{'values'}[0];
-		$src = $files_short_name{$src_full} || $src_full;
-	    $line = $pre_annotation->{'values'}[1];  
-	  }
-	}
+    foreach my $pre_annotation (@{$tree_node->{'pre annotations'}})
+    {
+      if ($pre_annotation->{'kind'} eq 'Location')
+      {
+        $src_full = $pre_annotation->{'values'}[0];
+        $src = $files_short_name{$src_full} || $src_full;
+        $line = $pre_annotation->{'values'}[1];
+      }
+    }
   }
   $entity_line = $line;
   $entity_src = $src_full;
@@ -675,45 +675,45 @@ sub print_error_trace_node_blast($$)
   my $class = '';
   if (my $model_comment = $ldv_model_comments{$entity_src}{($line - 1)})
   {
-	my %model_comment = %{$model_comment};  
+    my %model_comment = %{$model_comment};
     $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
     $class = $entity_class_model_assert
-      if ($model_comment{'alias'} eq $ldv_model_comment_assert);  
+      if ($model_comment{'alias'} eq $ldv_model_comment_assert);
     $class = $entity_class_model_change_state
       if ($model_comment{'alias'} eq $ldv_model_comment_change_state);
     $class = $entity_class_model_return
       if ($model_comment{'alias'} eq $ldv_model_comment_return);
     $class = $entity_class_model_func_func_call
-      if ($model_comment{'alias'} eq $ldv_model_comment_func_call);   
+      if ($model_comment{'alias'} eq $ldv_model_comment_func_call);
     $class = $entity_class_model_other
-      if ($model_comment{'alias'} eq $ldv_model_comment_other);            
+      if ($model_comment{'alias'} eq $ldv_model_comment_other);
   }
   elsif (my $driver_env_comment = $ldv_driver_env_comments{$entity_src}{($line - 1)})
   {
-	my %driver_env_comment = %{$driver_env_comment};  
+    my %driver_env_comment = %{$driver_env_comment};
     $title .= ": Driver environment " . $driver_env_comment{'alias'} . " - " . $driver_env_comment{'comment'};
     $class = $entity_class_driver_env_init
       if ($driver_env_comment{'alias'} eq $ldv_driver_env_comment_var_init);
     $class = $entity_class_driver_env_func_call
       if ($driver_env_comment{'alias'} eq $ldv_driver_env_comment_func_call);
   }
-    
+
   # Get formal parameter names if so.
   my @names = ();
   if ($tree_node->{'post annotations'})
   {
-	foreach my $post_annotation (@{$tree_node->{'post annotations'}})
-	{
-	  if ($post_annotation->{'kind'} eq 'Locals')
-	  {
-		foreach my $name (@{$post_annotation->{'values'}})
-		{
-		  # Remove parameter name scope.
-		  $name =~ s/@[_a-zA-Z0-9]+//g;
-		  push(@names, $name);	
-		}  
-	  }
-	}
+    foreach my $post_annotation (@{$tree_node->{'post annotations'}})
+    {
+      if ($post_annotation->{'kind'} eq 'Locals')
+      {
+        foreach my $name (@{$post_annotation->{'values'}})
+        {
+          # Remove parameter name scope.
+          $name =~ s/@[_a-zA-Z0-9]+//g;
+          push(@names, $name);
+        }
+      }
+    }
   }
 
   # Print tree node declaration.
@@ -725,7 +725,7 @@ sub print_error_trace_node_blast($$)
     print($file_report_out "entry_point()", ";</div>");
     print($file_report_out "\n<div class='$entity_class_entry_point_body' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "{");    
+    print($file_report_out "{");
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCall')
   {
@@ -734,34 +734,34 @@ sub print_error_trace_node_blast($$)
     my $func_name;
     if ($val =~ /=\s*([^\(]+)/ or $val =~ /\s*([^\(]+)/)
     {
-	  $func_name = $1;	
-	  print_debug_debug("Find the function name '$1' in '$val'");
-	  
-	  # Check wether function is a model function.
-	  if ($ldv_model_func_def{$func_name})
-	  {
+      $func_name = $1;
+      print_debug_debug("Find the function name '$1' in '$val'");
+
+      # Check wether function is a model function.
+      if ($ldv_model_func_def{$func_name})
+      {
         print_debug_debug("Find the model function '$func_name'");
-		$class = $entity_class_model_func_call;
-		
-		# Try to get corresponding model comment.
-		if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$func_name}{'src'}}{$ldv_model_func_def{$func_name}{'line'}})
+        $class = $entity_class_model_func_call;
+
+        # Try to get corresponding model comment.
+        if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$func_name}{'src'}}{$ldv_model_func_def{$func_name}{'line'}})
         {
-	      my %model_comment = %{$model_comment};  
-		  $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
-	    }
-	    else
-	    {
-	      print_debug_warning("Can't find the model comment for the function '$func_name'");		  
-		}
-	  }
-	}
-	else
-	{
-	  print_debug_warning("Can't find the function name in '$val'");
-	}
-    
+          my %model_comment = %{$model_comment};
+          $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
+        }
+        else
+        {
+          print_debug_warning("Can't find the model comment for the function '$func_name'");
+        }
+      }
+    }
+    else
+    {
+      print_debug_warning("Can't find the function name in '$val'");
+    }
+
     $class = $entity_class_func_call unless ($class);
-    
+
     print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print_show_hide_local("ETV$html_id");
@@ -770,121 +770,121 @@ sub print_error_trace_node_blast($$)
     my $pos = 0;
     while (@names)
     {
-	  my $name = shift(@names);
-	  my $comment = " /* $name */";
-	  my $comment_length = length($comment);
-	  
-	  my $pos_cur;
-	  	
-	  # The actual paramet is finished with ',' or ')' finishing function call.	
-	  if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = rindex($val, ')')) != -1)
-	  {
-		$val = substr($val, 0, $pos_cur) . $comment . substr($val, $pos_cur);
-		$pos = $pos_cur + $comment_length + 1;
-		next;  
-	  }
-	  
-	  last;
-	}
+      my $name = shift(@names);
+      my $comment = " /* $name */";
+      my $comment_length = length($comment);
+
+      my $pos_cur;
+
+      # The actual paramet is finished with ',' or ')' finishing function call.
+      if (($pos_cur = index($val, ',', $pos)) != -1 or ($pos_cur = rindex($val, ')')) != -1)
+      {
+        $val = substr($val, 0, $pos_cur) . $comment . substr($val, $pos_cur);
+        $pos = $pos_cur + $comment_length + 1;
+        next;
+      }
+
+      last;
+    }
 
     $val =~ s/(\/\*[^\*\/]*\*\/)/<span class='ETVFunctionFormalParamName'>$1<\/span>/g;
-    
+
     print($file_report_out $val, ";</div>");
-    
+
     my $class_body = $entity_class_func_body;
-    
+
     if ($class eq $entity_class_model_func_call)
     {
-	  $class_body = $entity_class_model_func_body;
-	}
-	elsif ($class eq $entity_class_model_func_func_call)
-	{
+      $class_body = $entity_class_model_func_body;
+    }
+    elsif ($class eq $entity_class_model_func_func_call)
+    {
       $class_body = $entity_class_model_func_func_body;
-	}
-	elsif ($class eq $entity_class_driver_env_init)
-	{
+    }
+    elsif ($class eq $entity_class_driver_env_init)
+    {
       $class_body = $entity_class_driver_env_init;
-	}
-	elsif ($class eq $entity_class_driver_env_func_call)
-	{
-	  $class_body = $entity_class_driver_env_func_body;
-	}
-    
+    }
+    elsif ($class eq $entity_class_driver_env_func_call)
+    {
+      $class_body = $entity_class_driver_env_func_body;
+    }
+
     print($file_report_out "\n<div class='$class_body' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "{<br>");    
+    print($file_report_out "{<br>");
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
     print($file_report_out "\n<div class='$entity_class_func_call_init' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print_show_hide_local("ETV$html_id"); 
+    print_show_hide_local("ETV$html_id");
     print($file_report_out ${$tree_node->{'values'}}[0], ";</div>");
     print($file_report_out "\n<div class='$entity_class_func_body_init' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "{");    
+    print($file_report_out "{");
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallWithoutBody')
   {
-	$class = $entity_class_func_call_without_body unless ($class);  
+    $class = $entity_class_func_call_without_body unless ($class);
     print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
     print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
   }
   elsif ($tree_node->{'kind'} eq 'Block')
   {
-	# Split expressions joined together into one block.
-	my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
-	$class = $entity_class_block unless ($class);
-	print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
-	my $isshow_hide = 1;
-	$isshow_hide = 0 unless (scalar(@exprs) > 1);
-	
-	foreach my $expr (@exprs)
-	{
-	  print_spaces($indent);		
-	  print_show_hide_local("ETV$html_id") if ($isshow_hide);
-	  print($file_report_out $expr, ";<br>");
-	  
-	  if ($isshow_hide)
-	  {
-	    print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
-		$isshow_hide = 0;
-	  }
+    # Split expressions joined together into one block.
+    my @exprs = split(/;/, ${$tree_node->{'values'}}[0]);
+    $class = $entity_class_block unless ($class);
+    print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
+    my $isshow_hide = 1;
+    $isshow_hide = 0 unless (scalar(@exprs) > 1);
+
+    foreach my $expr (@exprs)
+    {
+      print_spaces($indent);
+      print_show_hide_local("ETV$html_id") if ($isshow_hide);
+      print($file_report_out $expr, ";<br>");
+
+      if ($isshow_hide)
+      {
+        print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
+        $isshow_hide = 0;
+      }
     }
-    
+
     print($file_report_out "</span>")
-      if (scalar(@exprs) > 1);	 
-    
-    print($file_report_out "</div>");	 
+      if (scalar(@exprs) > 1);
+
+    print($file_report_out "</div>");
   }
   elsif ($tree_node->{'kind'} eq 'Return')
   {
-	$class = $entity_class_return unless ($class);  
+    $class = $entity_class_return unless ($class);
     print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "return ", "<span class='$entity_class_return_val'>", ${$tree_node->{'values'}}[0], "</span>;</div>");    
+    print($file_report_out "return ", "<span class='$entity_class_return_val'>", ${$tree_node->{'values'}}[0], "</span>;</div>");
   }
   elsif ($tree_node->{'kind'} eq 'Pred')
   {
-	$class = $entity_class_assert 
-	  unless ($class eq $entity_class_model_assert);  
+    $class = $entity_class_assert
+      unless ($class eq $entity_class_model_assert);
     print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "assert(", "<span class='$entity_class_assert_cond'>", ${$tree_node->{'values'}}[0], "</span>);</div>");    
+    print($file_report_out "assert(", "<span class='$entity_class_assert_cond'>", ${$tree_node->{'values'}}[0], "</span>);</div>");
   }
-      
+
   # Print all tree node children with enlarged indentation.
   if ($tree_node->{'children'})
   {
     foreach my $child (@{$tree_node->{'children'}})
     {
-	  print_error_trace_node_blast($child, ($indent + $space_indent));
-	}
+      print_error_trace_node_blast($child, ($indent + $space_indent));
+    }
   }
-  
+
   # Print the close brace after the body of root and function bodies nodes.
-  if ($tree_node->{'kind'} eq 'Root' 
+  if ($tree_node->{'kind'} eq 'Root'
     or $tree_node->{'kind'} eq 'FunctionCall'
     or $tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
@@ -896,30 +896,30 @@ sub print_error_trace_node_blast($$)
 sub print_spaces($)
 {
   my $space_number = shift;
-  
-  # Print the line number at the beginning of every line. Note that the line 
+
+  # Print the line number at the beginning of every line. Note that the line
   # number is generated just one time for each entity that has it. If entity
-  # occupies more than one line then following to the first line fields are 
+  # occupies more than one line then following to the first line fields are
   # filled with spaces. Because of there is spaces indentation before each line
   # this is done here.
   print($file_report_out "<span class='ETVLineNumber'>");
   if ($entity_line and $entity_src)
   {
-	# Generate a link to the source code line if so.
+    # Generate a link to the source code line if so.
     my $entity_line_str = sprintf("%5d ", $entity_line);
-	
-	if ($files_long_name{$entity_src})
-	{
-  	  my $file_link = convert_file_to_link($files_long_name{$entity_src});
-	
-	  $entity_line_str =~ s/(\d+)/<a href='#$file_link:$entity_line'>$1<\/a>/;	
-	  print($file_report_out $entity_line_str)
+
+    if ($files_long_name{$entity_src})
+    {
+      my $file_link = convert_file_to_link($files_long_name{$entity_src});
+
+      $entity_line_str =~ s/(\d+)/<a href='#$file_link:$entity_line'>$1<\/a>/;
+      print($file_report_out $entity_line_str)
     }
     else
     {
-	  print($file_report_out $entity_line_str);
-	}
-	
+      print($file_report_out $entity_line_str);
+    }
+
     $entity_line = 0;
     $entity_src = '';
   }
@@ -928,15 +928,15 @@ sub print_spaces($)
     print($file_report_out "      ");
   }
   print($file_report_out "</span>");
-    
+
   # Print identation spaces.
   print($file_report_out "<span class='$entity_class_ident'>");
-  
+
   for (my $i = 1; $i <= $space_number; $i++)
   {
-	print($file_report_out ' ');
+    print($file_report_out ' ');
   }
-  
+
   print($file_report_out "</span>");
 }
 
@@ -944,8 +944,8 @@ sub print_show_hide_global($$)
 {
   my $entity_class = shift;
   my $entity_class_human_readable = shift;
-  
-  print($file_report_out 
+
+  print($file_report_out
     "\n<script type='text/javascript'>"
     , "\n\$(document).ready(function() {"
     , "\n  \$('a.#${entity_class}ShowHide').toggle(function() {"
@@ -959,7 +959,7 @@ sub print_show_hide_global($$)
     , "\n  }, function() {"
     , "\n    \$('.$entity_class').each(function() {"
     , "\n      if (\$(this).css('display') == 'none') {"
-	, "\n      	 \$(this).show();"
+    , "\n        \$(this).show();"
     , "\n        \$('#' + \$(this).attr('id') + 'ShowHide').click();"
     , "\n      }"
     , "\n    });"
@@ -967,42 +967,42 @@ sub print_show_hide_global($$)
     , "\n  });"
     , "\n});"
     , "\n</script>"
-    , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>"); 
+    , "\n<a id='${entity_class}ShowHide' href='#'>Hide $entity_class_human_readable</a>");
 }
 
 sub print_show_hide_local($)
 {
   my $entity_id = shift;
-  
-  print($file_report_out 
-    "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n"); 	
+
+  print($file_report_out
+    "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n");
 }
 
 sub process_error_trace()
 {
   print_debug_debug("Process the '$opt_engine' static verifier error trace");
-  my $tree_root = $engines{$opt_engine}{'process'}->();  
+  my $tree_root = $engines{$opt_engine}{'process'}->();
   print_debug_debug("'$opt_engine' static verifier error trace is processed successfully");
-  
+
   return $tree_root;
 }
 
 sub process_error_trace_blast()
 {
-  # The list of current parents.	
-  my @parents = ();	
+  # The list of current parents.
+  my @parents = ();
 
   # Currently processed entity and annotation.
   my $entity;
   my $annotation;
-  
+
   # Stored pre annotations.
   my @pre_annotations = ();
-	
+
   # Create the tree root corresponding to the entry point or main.
-  $entity = Entity->new({'engine' => 'blast', 'kind' => 'Root'});	
+  $entity = Entity->new({'engine' => 'blast', 'kind' => 'Root'});
   push(@parents, $entity);
-				
+
   while(1)
   {
     # Read some element, either tree node (like function call) or annotation
@@ -1014,69 +1014,69 @@ sub process_error_trace_blast()
     while ($iselement_read == 0)
     {
       my $element_part = read_line();
-        
+
       unless (defined($element_part))
       {
         $iselement_read = -1;
         last;
       }
-      
+
       # Empty lines are meanigless.
       next unless($element_part);
-      
+
       $element .= $element_part;
-      
+
       # Detect the element kind and call the corresponding handler to read it.
       die("Can't find the element '$element' kind.") unless ($element =~ /$regexp_element_kind/);
       my $element_kind = $1;
       my $element_content = $POSTMATCH;
 
-      die("The element kind '$element_kind' belongs neither to tree nodes nor to annotations.") 
-        unless ($element_kind 
-          or defined($blast{'tree node'}{$element_kind}) 
-          or defined($blast{'annotation'}{$element_kind}));  
+      die("The element kind '$element_kind' belongs neither to tree nodes nor to annotations.")
+        unless ($element_kind
+          or defined($blast{'tree node'}{$element_kind})
+          or defined($blast{'annotation'}{$element_kind}));
 
-      # When handler is available then run it. If an element is processed 
-      # successfully then a handler returns some defined value.  
+      # When handler is available then run it. If an element is processed
+      # successfully then a handler returns some defined value.
       if ($blast{'tree node'}{$element_kind})
       {
         if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
         {
-		  print_debug_trace("Process the '$element_kind' tree node");
-		  	
-		  # Ignore skips at all.	
-		  if ($element_value)
-		  {
-			$entity = Entity->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
+          print_debug_trace("Process the '$element_kind' tree node");
 
-			# Process entities as tree.
-    		$entity->set_parent($parents[$#parents])
-    		  if (@parents);
-			push(@parents, $entity) 
-			  if ($entity->ismay_have_children());
-			pop(@parents)
-			  if ($entity->isparent_end());
-	  
-    		# Add pre annotations.
-    		$entity->set_pre_annotations(@pre_annotations);
-    		@pre_annotations = ();  
-		  }
+          # Ignore skips at all.
+          if ($element_value)
+          {
+            $entity = Entity->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
+
+            # Process entities as tree.
+            $entity->set_parent($parents[$#parents])
+              if (@parents);
+            push(@parents, $entity)
+              if ($entity->ismay_have_children());
+            pop(@parents)
+              if ($entity->isparent_end());
+
+            # Add pre annotations.
+            $entity->set_pre_annotations(@pre_annotations);
+            @pre_annotations = ();
+          }
         }
-        # The following line is needed. So read it and concatenate with the 
+        # The following line is needed. So read it and concatenate with the
         # previous one(s).
         else
         {
           next;
-        }          
+        }
       }
       elsif ($blast{'annotation'}{$element_kind})
       {
         if (defined(my $element_value = $blast{'annotation'}{$element_kind}->($element_content)))
         {
-		  print_debug_trace("Process the '$element_kind' annotation");
-		  
-          # Ignore arificial locations at all.  
-          if ($element_value) 
+          print_debug_trace("Process the '$element_kind' annotation");
+
+          # Ignore arificial locations at all.
+          if ($element_value)
           {
             # Story dependencies. TODO make it entity specific!!!!!!!!!!!!!!!!!!!!!!!
             if ($element_kind eq $element_kind_location)
@@ -1084,12 +1084,12 @@ sub process_error_trace_blast()
               my ($src, $line) = @{$element_value};
               $dependencies{$src} = 1;
               $files_long_name{$src} = 0;
-	          $src =~ /([^\/]*)$/;
-	          $files_short_name{$src} = $1;
-	          print_debug_debug("The full name '$src' was related with the short name '$1'");                
+              $src =~ /([^\/]*)$/;
+              $files_short_name{$src} = $1;
+              print_debug_debug("The full name '$src' was related with the short name '$1'");
             }
-            
-			$annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
+
+            $annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
 
             # Process annotation in depend on whether it pre or post.
             push(@pre_annotations, $annotation)
@@ -1097,29 +1097,29 @@ sub process_error_trace_blast()
             if ($annotation->ispost_annotation())
             {
               $entity->set_post_annotations(($annotation));
-              
+
               # Update parents since post annotation may change the entity kind.
               pop(@parents)
-			    if ($entity->isparent_end());  
-			}
+                if ($entity->isparent_end());
+            }
           }
         }
-        # The following line is needed. So read it and concatenate with the 
+        # The following line is needed. So read it and concatenate with the
         # previous one(s). Does it happen whenever for annotations?
         else
         {
           next;
-        }          
+        }
       }
-      
+
       # Element was read sucessfully.
       $iselement_read = 1;
     }
-    
+
     # All was read.
     last if ($iselement_read == -1);
   }
-  
+
   # Return the tree root node.
   return $parents[0];
 }
@@ -1128,190 +1128,190 @@ sub process_source_code_files()
 {
   # Do nothing if there is no source code files.
   return 0 unless ($opt_src_files);
-  
+
   # Otherwise separate files into the source code files hash.
   my $file_name;
   my $isrelated_with;
   my $line_numb;
   while (<$file_src_files>)
   {
-	my $line = $_;
-	chomp($line);
-	
-	if ($line =~ /^$src_tag(.*)$src_tag$/)
-	{	
-	  $file_name = $1;
-	  print_debug_trace("Try to relate file by its long name '$file_name' with some long name");
-	  $isrelated_with = '';
-	  foreach my $full_name (keys(%files_long_name))
-	  {
-		if ($full_name =~ /\Q$file_name\E$/ or $file_name =~ /\Q$full_name\E$/)
-		{
-		  if ($files_long_name{$file_name})
-		  {
-			print_debug_warning("The full name '$full_name' corresponds to several long names '$files_long_name{$full_name}' and '$file_name'")
-		  }
-		  else
-		  {
-			$files_long_name{$full_name} = $file_name;
-			$isrelated_with = $full_name;
-			print_debug_debug("The full name '$full_name' was related with the long name '$file_name'");
-		  }
-		}  
-	  }
-	  print_debug_warning("The long name '$file_name' wasn't related with any full name")
-	    unless ($isrelated_with);
-	  $file_name =~ /([^\/]*)$/;
-	  $files_short_name{$file_name} = $1;
-	  print_debug_debug("The long name '$file_name' was related with the short name '$1'");  
-	  print_debug_debug("Process the '$file_name' source code file");
-	  $line_numb = 1;
-	  next;	
-	}
+    my $line = $_;
+    chomp($line);
 
-	print_debug_warning("The source code file has incorrect format. No file name is specified") 
-	  unless ($file_name);
-	
-	# Read LDV model comments.
-	foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
-	{
+    if ($line =~ /^$src_tag(.*)$src_tag$/)
+    {
+      $file_name = $1;
+      print_debug_trace("Try to relate file by its long name '$file_name' with some long name");
+      $isrelated_with = '';
+      foreach my $full_name (keys(%files_long_name))
+      {
+        if ($full_name =~ /\Q$file_name\E$/ or $file_name =~ /\Q$full_name\E$/)
+        {
+          if ($files_long_name{$file_name})
+          {
+            print_debug_warning("The full name '$full_name' corresponds to several long names '$files_long_name{$full_name}' and '$file_name'")
+          }
+          else
+          {
+            $files_long_name{$full_name} = $file_name;
+            $isrelated_with = $full_name;
+            print_debug_debug("The full name '$full_name' was related with the long name '$file_name'");
+          }
+        }
+      }
+      print_debug_warning("The long name '$file_name' wasn't related with any full name")
+        unless ($isrelated_with);
+      $file_name =~ /([^\/]*)$/;
+      $files_short_name{$file_name} = $1;
+      print_debug_debug("The long name '$file_name' was related with the short name '$1'");
+      print_debug_debug("Process the '$file_name' source code file");
+      $line_numb = 1;
+      next;
+    }
+
+    print_debug_warning("The source code file has incorrect format. No file name is specified")
+      unless ($file_name);
+
+    # Read LDV model comments.
+    foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
+    {
       if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias}\s*([^\*\/]*)\*\/\s*$/)
-	  {
+      {
         my $comment = $1;
         # Attributes hash. Keys are attribute names, values are corresponding
         # attribute values.
         my %attrs;
-        
+
         # Read auxiliary comment attributes. They are in form:
         # (attr1 = 'attr1 value', attr2 = 'attr2 value', ...)
         if ($comment =~ /\(([^\)]*)\)\s*/)
         {
-		  my $attr_all = $1;	
-		  $comment = $POSTMATCH;
-		  
-		  my @attrs = split(/,/, $attr_all);
-		  # Read attribute name and value for each attribute.
-		  foreach my $attr (@attrs)
-		  {
-			# Attributes must have the correct form.  
-			if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
-			{
-			  $attrs{$1} = $2;
-			  print_debug_debug("Read the model comment attibute $1='$2'");	
-			}
-			# If not so then warn and skip attribute.
-			else
-			{
-			  print_debug_warning("The model comment attribute '$attr' has incorrect form");
-			}
-		  }
-		}
-        
-        $ldv_model_comments{$isrelated_with}{$line_numb} 
-	      = {'alias' => $ldv_model_comment_alias, 'comment' => $comment, 'attrs' => \%attrs};
-	    
-	    # Remember placement of the ldv functions definitions.
-	    if ($ldv_model_comment_alias eq $ldv_model_comment_func_def)
-	    {
-		  # All model functions definitions must have a name attribute.
-		  if ($attrs{'name'})
-		  {
-			$ldv_model_func_def{$attrs{'name'}} = {'src' => $isrelated_with, 'line' => $line_numb};
-		  }
-		  else
-		  {
-			print_debug_warning("The model function definition hasn't the 'name' attribute");
-		  }
-		}
-	  }
-	}
-	
-	# Read LDV driver environment comments.
-	foreach my $ldv_driver_env_comment_alias (keys(%ldv_driver_env_comment_names))
-	{
-	  $ldv_driver_env_comments{$isrelated_with}{$line_numb} 
-	    = {'alias' => $ldv_driver_env_comment_alias, 'comment' => $1}	
-	    if ($line =~ /^\s*\/\*\s*$ldv_driver_env_comment_names{$ldv_driver_env_comment_alias}\s*([^\*\/]*)\*\/\s*$/);
-	}
+          my $attr_all = $1;
+          $comment = $POSTMATCH;
 
-	push(@{$srcs{$file_name}}, "$line");
-	$line_numb++;
+          my @attrs = split(/,/, $attr_all);
+          # Read attribute name and value for each attribute.
+          foreach my $attr (@attrs)
+          {
+            # Attributes must have the correct form.
+            if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
+            {
+              $attrs{$1} = $2;
+              print_debug_debug("Read the model comment attibute $1='$2'");
+            }
+            # If not so then warn and skip attribute.
+            else
+            {
+              print_debug_warning("The model comment attribute '$attr' has incorrect form");
+            }
+          }
+        }
+
+        $ldv_model_comments{$isrelated_with}{$line_numb}
+          = {'alias' => $ldv_model_comment_alias, 'comment' => $comment, 'attrs' => \%attrs};
+
+        # Remember placement of the ldv functions definitions.
+        if ($ldv_model_comment_alias eq $ldv_model_comment_func_def)
+        {
+          # All model functions definitions must have a name attribute.
+          if ($attrs{'name'})
+          {
+            $ldv_model_func_def{$attrs{'name'}} = {'src' => $isrelated_with, 'line' => $line_numb};
+          }
+          else
+          {
+            print_debug_warning("The model function definition hasn't the 'name' attribute");
+          }
+        }
+      }
+    }
+
+    # Read LDV driver environment comments.
+    foreach my $ldv_driver_env_comment_alias (keys(%ldv_driver_env_comment_names))
+    {
+      $ldv_driver_env_comments{$isrelated_with}{$line_numb}
+        = {'alias' => $ldv_driver_env_comment_alias, 'comment' => $1}
+        if ($line =~ /^\s*\/\*\s*$ldv_driver_env_comment_names{$ldv_driver_env_comment_alias}\s*([^\*\/]*)\*\/\s*$/);
+    }
+
+    push(@{$srcs{$file_name}}, "$line");
+    $line_numb++;
   }
 }
 
 sub read_brackets($)
 {
   my $line = shift;
-  
-  # Check that line begins with open bracket. It'll be so if there is no 
+
+  # Check that line begins with open bracket. It'll be so if there is no
   # critical error in trace.
   return undef unless ($line =~ /^\(/);
-  
+
   # Check that line finishes with close bracket. If it's not so then additional
   # line must be read. It seems that every time close bracket will be found
   # after all.
   return undef unless ($line =~ /\)$/);
-  
+
   # Check the balance of open and close brackets. If it isn't correct
   # then additional strings are needed.
   my $open_bracket_numb = ($line =~ tr/\(//);
   my $close_bracket_numb = ($line =~ tr/\)//);
   return undef if ($open_bracket_numb != $close_bracket_numb);
-  
+
   # Remove brackets surrounding the line.
   $line =~ /^\(/;
   $line = $POSTMATCH;
   $line =~ /\)$/;
   $line = $PREMATCH;
-  
+
   my @content = ($line);
-  
+
   return \@content;
 }
 
 sub read_equal_int($)
 {
   my $line = shift;
-  
-  # Check that line begins with equality and consists just of integer digits. 
+
+  # Check that line begins with equality and consists just of integer digits.
   # It'll be so if there is no critical error in trace.
   return undef unless ($line =~ /^=\d+$/);
 
   # Remove equality beginning the line.
   $line =~ /^=/;
   $line = $POSTMATCH;
-  
+
   return $line;
 }
 
 sub read_equal_src($)
 {
   my $line = shift;
-  
-  # Check that line begins with equality and open double quote. It'll be so if 
+
+  # Check that line begins with equality and open double quote. It'll be so if
   # there is no critical error in trace.
   return undef unless ($line =~ /^="/);
 
-  # Check that line finishes with close quote and semicolon. If it's not so then 
-  # additional line must be read. It seems that every time close bracket will be 
-  # found after all. And it seems that it isn't actual for the source annotation 
+  # Check that line finishes with close quote and semicolon. If it's not so then
+  # additional line must be read. It seems that every time close bracket will be
+  # found after all. And it seems that it isn't actual for the source annotation
   # at all.
   return undef unless ($line =~ /";$/);
-  
+
   # Remove equality, semicolon and quotes surrounding the line.
   $line =~ /^="/;
   $line = $POSTMATCH;
   $line =~ /";$/;
   $line = $PREMATCH;
-  
+
   return $line;
 }
 
 sub read_ldv_comment($)
 {
   my $line = shift;
-  
-  # Check that line begins with colon. It'll be so if there is no critical error 
+
+  # Check that line begins with colon. It'll be so if there is no critical error
   # in trace.
   return undef unless ($line =~ /^:/);
 
@@ -1329,7 +1329,7 @@ sub read_line()
 {
   # Read the next line from the input report file if so.
   return undef unless (defined(my $line = <$file_report_in>));
-  
+
   # Remove the end of line.
   chomp($line);
   # Remove all formatting spaces and tabs placed at the beginning of the line.
@@ -1344,7 +1344,7 @@ sub read_locals($)
 {
   my $line = shift;
 
-  # Check that line begins with colon. It'll be so if there is no critical error 
+  # Check that line begins with colon. It'll be so if there is no critical error
   # in trace.
   return undef unless ($line =~ /^:/);
 
@@ -1361,30 +1361,30 @@ sub read_locals($)
 sub read_location($)
 {
   my $line = shift;
-  
+
   # Location isn't interesting for visualization. So just ignore it.
   return undef unless ($line =~ /^: id=\d+#\d+/);
   $line = $POSTMATCH;
   $line = $POSTMATCH if ($line =~ /^ \(Artificial\)/);
-       
+
   # Remove all formatting spaces and tabs placed at the beginning of the line.
   $line =~ /^[\s]*/;
   $line = $POSTMATCH;
-   
+
   # There may be no source file and line number (for artificial locations).
   return '' unless ($line);
-  
-  # The rest path of location contains path to the source file and line number.     
+
+  # The rest path of location contains path to the source file and line number.
   my @location = split(/\s+/, $line);
-  
-  die("Can't find a source path in the '$location[0]'.") 
+
+  die("Can't find a source path in the '$location[0]'.")
     unless ($location[0] =~ /$regexp_element_kind/);
-  my $src_content = $POSTMATCH;       
+  my $src_content = $POSTMATCH;
   my $src = read_equal_src($src_content);
-  
-  die("Can't find a line number in the $line '$location[1]'.") 
+
+  die("Can't find a line number in the $line '$location[1]'.")
     unless ($location[1] =~ /$regexp_element_kind/);
-  my $line_numb_content = $POSTMATCH;       
+  my $line_numb_content = $POSTMATCH;
   my $line_numb = read_equal_int($line_numb_content);
 
   @location = ($src, $line_numb);
@@ -1395,13 +1395,13 @@ sub read_location($)
 sub visualize_error_trace($)
 {
   my $tree_root = shift;
-  
+
   # Print javascript global variables at the beginning.
   print($file_report_out
       "\n<script type='text/javascript'>"
     , "\n  var tabNoActiveWidth;"
     , "\n</script>");
-      
+
   # Print simple tab plugin before its usage.
   print($file_report_out
       "\n<script type='text/javascript'>"
@@ -1455,7 +1455,7 @@ sub visualize_error_trace($)
     , "\n</script>");
 
   # Print local show/hide plugin.
-  print($file_report_out 
+  print($file_report_out
       "\n<script type='text/javascript'>"
     , "\n\$(document).ready(function() {"
     , "\n    \$('a.ETVShowHide').toggle(function() {"
@@ -1472,8 +1472,8 @@ sub visualize_error_trace($)
     , "\n  });"
     , "\n</script>");
 
-  # Print short ETV help. 
-  print($file_report_out 
+  # Print short ETV help.
+  print($file_report_out
       "\n  <div class='ETVHelp'>"
     , "\n    <p>Here is the <i>explanation</i> of the rule violation arisen in your driver for the corresponding kernel.</p>"
     , "\n    <p>Note that there may be <i>no</i> error indeed. Please <i>see</i> on error trace and source code to <i>understand</i> whether there is an error in your driver.</p>"
@@ -1482,8 +1482,8 @@ sub visualize_error_trace($)
     , "\n  </div>");
 
   # Create the table having two cells. The first cell is for the error trace and
-  # the second is for the tabed source code. 
-  print($file_report_out 
+  # the second is for the tabed source code.
+  print($file_report_out
       "\n<table id='ETVGeneralWindow'>"
     , "\n<tr>"
     , "\n  <td id='ETVErrorTraceWindow'>"
@@ -1501,36 +1501,36 @@ sub visualize_error_trace($)
     , "\n      <ul id='ETVTabsHeader'>");
   foreach my $src (sort(keys(%srcs)))
   {
-    print($file_report_out 
+    print($file_report_out
       "\n        <li><a title='$files_short_name{$src}' href='#" . convert_file_to_link($src) . "'>$files_short_name{$src}</a></li>");
   }
-  print($file_report_out 
+  print($file_report_out
       "\n      </ul>");
-        
+
   foreach my $src (sort(keys(%srcs)))
-  {    
-    print($file_report_out 
+  {
+    print($file_report_out
       "\n      <div id='" . convert_file_to_link($src) . "' class='ETVSrc'>");
-    
+
     # Make syntax highlighting of the source code.
     my $syntax_highlighter = new Text::Highlight('colors' => $syntax_colors, wrapper => "%s");
-    my $src_all = join("\n", @{$srcs{$src}}); 
+    my $src_all = join("\n", @{$srcs{$src}});
     my $src_all_highlighted = $syntax_highlighter->highlight('CPP', $src_all);
     my @src_highlighted = split(/\n/, $src_all_highlighted);
     my $line_numb = 1;
     foreach my $line (@src_highlighted)
     {
-	  printf($file_report_out "<span class='ETVSrcLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'></a>%5d </span>", $line_numb);
-	  print($file_report_out "$line");
-	  $line_numb++;
-	  print($file_report_out "\n") if ($line_numb <= scalar(@src_highlighted));
-	}
-    
+      printf($file_report_out "<span class='ETVSrcLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'></a>%5d </span>", $line_numb);
+      print($file_report_out "$line");
+      $line_numb++;
+      print($file_report_out "\n") if ($line_numb <= scalar(@src_highlighted));
+    }
+
     print($file_report_out
       "\n      </div>");
   }
-  
-  print($file_report_out 
+
+  print($file_report_out
       "\n    </div>"
     , "\n  </td>"
     , "\n</tr>"

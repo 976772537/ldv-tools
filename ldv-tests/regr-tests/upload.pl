@@ -12,16 +12,16 @@ use strict;
 use lib("$FindBin::RealBin/../../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info 
-  print_debug_debug print_debug_trace print_debug_all get_debug_level 
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
   check_system_call);
-  
+
 
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
 
-# Process command-line options. To see detailed description of these options 
+# Process command-line options. To see detailed description of these options
 # run script with --help option.
 # args: no.
 # retn: nothing.
@@ -55,7 +55,7 @@ my $debug_name = 'regr-test-uploader';
 
 # The ldv-manager results are identified by their suffix.
 my $ldv_manager_result_suffix = '.pax';
-# Path to the binary that tells a path to sql script that contains cleaning and 
+# Path to the binary that tells a path to sql script that contains cleaning and
 # creating of the test database. It must be found in the PATH.
 my $ldv_path_to_results_sql_bin = "path-to-results-schema-sql";
 # The sql script that contains cleaning and creating of the test database.
@@ -68,7 +68,7 @@ my $ldv_uploader_database = 'LDVDB';
 my $ldv_uploader_user = 'LDVUSER';
 my $ldv_uploader_password = 'LDVDBPASSWD';
 
-# The system mysql binary. 
+# The system mysql binary.
 my $mysql_bin = 'mysql';
 
 # Command-line options. Use --help option to see detailed description of them.
@@ -120,7 +120,7 @@ sub get_opt()
       unless (-d $opt_in);
     print_debug_debug("The launcher results will be searched for in the '$opt_in' directory");
   }
-  
+
   print_debug_debug("The command-line options are processed successfully");
 }
 
@@ -141,26 +141,26 @@ OPTIONS
     Print this help and exit with a error.
 
   -c, --results <dir>
-    <dir> is a path to a directory where may be launches results. It's optional. 
+    <dir> is a path to a directory where may be launches results. It's optional.
     If it isn't specified then results are searched for in the current directory.
 
 ENVIRONMENT VARIABLES
 
   LDV_DEBUG
-    It's an optional environment variable that specifies a debug 
+    It's an optional environment variable that specifies a debug
     level. It uses the standard designatures to distinguish different
     debug information printings. Each next level includes all previous
     levels and its own messages.
 
   LDV_REGR_TEST_UPLOADER_DEBUG
-    Like LDV_DEBUG but it has more priority. It specifies a debug 
+    Like LDV_DEBUG but it has more priority. It specifies a debug
     level just for this instrument.
-    
-  LDVDBHOSTTEST, LDVDBTEST, LDVUSERTEST, LDVDBPASSWDTEST  
-    Keeps settings (host, database, user and password) for connection 
-    to the database. Note that LDVDBTEST and LDVUSERTEST must always be 
+
+  LDVDBHOSTTEST, LDVDBTEST, LDVUSERTEST, LDVDBPASSWDTEST
+    Keeps settings (host, database, user and password) for connection
+    to the database. Note that LDVDBTEST and LDVUSERTEST must always be
     presented!
-        
+
 EOM
 
   exit(1);
@@ -168,33 +168,33 @@ EOM
 
 sub prepare_files_and_dirs()
 {
-  $current_working_dir = Cwd::cwd() 
+  $current_working_dir = Cwd::cwd()
     or die("Can't obtain the current working directory");
   print_debug_debug("The current working directory is '$current_working_dir'");
-  	
+
   print_debug_trace("Check that database connection is setup");
   die("You don't setup connection to your testing database. See --help for details")
     unless ($LDVDBTEST and $LDVUSERTEST);
-    
-  print_debug_trace("Obtain the directory where results will be searched for");  
+
+  print_debug_trace("Obtain the directory where results will be searched for");
   if ($opt_in)
   {
-	$result_dir = $opt_in;
+    $result_dir = $opt_in;
   }
   else
   {
-	$result_dir = $current_working_dir;  
+    $result_dir = $current_working_dir;
   }
   print_debug_debug("The launcher results directory is '$result_dir'");
-  
+
   print_debug_info("Execute the command '$ldv_path_to_results_sql_bin'");
   my @lines = `$ldv_path_to_results_sql_bin`;
-  die("There is no the script that says the path to results schema sql executable in your PATH!") 
+  die("There is no the script that says the path to results schema sql executable in your PATH!")
     if (check_system_call() == -1);
-  # This script must always finish success.    
-  die("The script that says the path to results schema sql returns '" . ($CHILD_ERROR >> 8) . "'") 
+  # This script must always finish success.
+  die("The script that says the path to results schema sql returns '" . ($CHILD_ERROR >> 8) . "'")
     if ($CHILD_ERROR >> 8);
-  die("The script doesn't say the path to results schema sql in the first line") 
+  die("The script doesn't say the path to results schema sql in the first line")
     unless (defined($lines[0]));
   chomp($lines[0]);
   $ldv_results_sql = $lines[0];
@@ -210,19 +210,19 @@ sub upload_results()
   $cmd .= " <$ldv_results_sql";
   print_debug_info("Execute the command '$cmd'");
   `$cmd`;
-  die("There is no the mysql executable in your PATH!") 
+  die("There is no the mysql executable in your PATH!")
     if (check_system_call() == -1);
-  # This is checked separately since mysql isn't the part of the LDV toolset but 
-  # it's too important for toolset.    
-  die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'") 
+  # This is checked separately since mysql isn't the part of the LDV toolset but
+  # it's too important for toolset.
+  die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'")
     if ($CHILD_ERROR >> 8);
 
-  foreach my $file (<$result_dir/*>) 
+  foreach my $file (<$result_dir/*>)
   {
-	if (-f $file and $file =~ /$ldv_manager_result_suffix$/)
-	{  
-	  print_debug_trace("Begin to upload the result '$file'");	
-      my @args = ($ldv_uploader_bin, $file);		
+    if (-f $file and $file =~ /$ldv_manager_result_suffix$/)
+    {
+      print_debug_trace("Begin to upload the result '$file'");
+      my @args = ($ldv_uploader_bin, $file);
       print_debug_trace("Specify the database connection environment variables for the ldv-upload");
       $ENV{$ldv_uploader_database} = $LDVDBTEST;
       $ENV{$ldv_uploader_user} = $LDVUSERTEST;
@@ -231,18 +231,18 @@ sub upload_results()
       if ($LDVDBHOSTTEST)
       {
         $ENV{$ldv_uploader_host} = $LDVDBHOSTTEST;
-        print_debug_debug("The host '$LDVDBHOSTTEST' is setup for the ldv-upload");		
-	  }
-	  # The password is completely optional.
-	  if ($LDVDBPASSWDTEST)
+        print_debug_debug("The host '$LDVDBHOSTTEST' is setup for the ldv-upload");
+      }
+      # The password is completely optional.
+      if ($LDVDBPASSWDTEST)
       {
         $ENV{$ldv_uploader_password} = $LDVDBPASSWDTEST;
-        print_debug_debug("The password '$LDVDBPASSWDTEST' is setup for the ldv-upload");		
-	  }
+        print_debug_debug("The password '$LDVDBPASSWDTEST' is setup for the ldv-upload");
+      }
       print_debug_info("Execute the command '@args'");
       system(@args);
-      die("There is no the ldv-upload executable in your PATH!") 
-		 if (check_system_call() == -1);
+      die("There is no the ldv-upload executable in your PATH!")
+         if (check_system_call() == -1);
       # Unset special environments variables.
       delete($ENV{$ldv_uploader_database});
       delete($ENV{$ldv_uploader_user});
