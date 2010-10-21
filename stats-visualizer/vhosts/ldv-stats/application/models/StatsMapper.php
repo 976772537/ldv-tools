@@ -345,8 +345,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             ->where("$launchInfoScreened[$statKey] IS NULL");
           $result['Restrictions'][$statKey] = 'NULL';
         }
-        else
-        {
+        else {
           $select = $select
             ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
           $result['Restrictions'][$statKey] = $statKeyValue;
@@ -450,6 +449,23 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                 }
               }
 
+              if ($pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
+                foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+                  if ($statKeyValue == '__EMPTY') {
+                    $statKeyValue = '';
+                  }
+
+                  if ($statKeyValue == '__NULL') {
+                    $select = $select
+                      ->where("$launchInfoScreened[$statKey] IS NULL");
+                  }
+                  else {
+                    $select = $select
+                      ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+                  }
+                }
+              }
+
               // Group by the launch information.
               foreach ($problemsGroupBy as $group) {
                 $select = $select->group($group);
@@ -526,6 +542,23 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       // Laucnhes without time mustn't be taken into consideration.'
       $select = $select->where("`$timeTableColumn[tableShort]`.`trace_id` IS NOT NULL");
+
+      if ($pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
+        foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+          if ($statKeyValue == '__EMPTY') {
+            $statKeyValue = '';
+          }
+
+          if ($statKeyValue == '__NULL') {
+            $select = $select
+              ->where("$launchInfoScreened[$statKey] IS NULL");
+          }
+          else {
+            $select = $select
+              ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
+          }
+        }
+      }
 
       // Group by the launch information.
       foreach ($timeGroupBy as $group) {
