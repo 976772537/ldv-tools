@@ -94,6 +94,9 @@ if ($resultsNumb) {
     echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
   }
   foreach ($verificationKeys as $verificationKey) {
+    if ($verificationKey == 'Error trace presence') {
+      continue;
+    }
     if ($verificationKey == 'Result') {
       $verificationKey = 'Total';
     }
@@ -180,22 +183,42 @@ if ($resultsNumb) {
       echo "</td>";
     }
 
+    $isErrorTracePresent = false;
     foreach ($verificationKeys as $verificationKey) {
+      if ($verificationKey == 'Error trace presence') {
+        if ($result['Verification info'][$verificationKey]) {
+          $isErrorTracePresent = true;
+        }
+
+        break;
+      }
+    }
+
+    foreach ($verificationKeys as $verificationKey) {
+      if ($verificationKey == 'Error trace presence') {
+        continue;
+      }
+
       echo "    <td>";
       $value = $result['Verification info'][$verificationKey];
       if ($verificationKey == 'Error trace') {
-        echo "<a href='"
-          . $this->url(
-            array_merge(
-              array(
-                'controller' => 'stats',
-                'action'     => 'errortrace',
-                'page' => $verificationKey,
-                'value' => $value),
-              $statKeysValues),
-            'default',
-            true)
-          . "'>error trace...</a>";
+        if ($isErrorTracePresent) {
+          echo "<a href='"
+            . $this->url(
+              array_merge(
+                array(
+                  'controller' => 'stats',
+                  'action'     => 'errortrace',
+                  'page' => $verificationKey,
+                  'value' => $value),
+                $statKeysValues),
+              'default',
+              true)
+            . "'>error trace...</a>";
+        }
+        else {
+          echo "-";
+        }
       }
       else if (array_key_exists($verificationKey, $profilePages)) {
         echo "<a href='"

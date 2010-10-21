@@ -215,6 +215,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           }
         }
 
+        // For error trace additionally specify wether error trace is presented.
+        if ($name == 'Error trace') {
+            $nameAux = 'Error trace presence';
+            $verificationInfo[$nameAux] = "IF(`$tableColumn[tableShort]`.`error_trace` IS NULL, 0, 1)";
+            $verificationKey[] = $nameAux;
+        }
       }
     }
 #print_r($verificationInfo);exit;
@@ -334,7 +340,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-    if ($pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
+    if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
       foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
         if ($statKeyValue == '__EMPTY') {
           $statKeyValue = '';
@@ -449,7 +455,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                 }
               }
 
-              if ($pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
+              if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
                 foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
                   if ($statKeyValue == '__EMPTY') {
                     $statKeyValue = '';
@@ -543,7 +549,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       // Laucnhes without time mustn't be taken into consideration.'
       $select = $select->where("`$timeTableColumn[tableShort]`.`trace_id` IS NOT NULL");
 
-      if ($pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
+      if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
         foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
           if ($statKeyValue == '__EMPTY') {
             $statKeyValue = '';
@@ -625,6 +631,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Stats']['Row info'] = array();
 
     foreach ($launchesResultSet as $launchesRow) {
+#print_r($launchesRow);exit;
       $resultPart = array();
       $statsValues = array();
 
@@ -981,7 +988,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $resultPart['Total changes'] = 0;
         $statsRefVerdicts = array();
         $driver = array();
-        $driverMatched = array();
+        $driversMatched = array();
 
         if ($statsCmpValuesStr == $deleted) {
           $statsVerdict = $deleted;
@@ -989,16 +996,19 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
           foreach ($matchStats as $statsCmpRefValuesStr) {
             $statsRefVerdicts[] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr]['Verdict'];
-          }
 
-          foreach (array_keys($launchInfo) as $statsKeyPart) {
-            $resultPart['Stats key matched'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
-          }
-
-          foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
-            if (!array_key_exists($statsKeyPart, $resultPart['Stats key matched'])) {
-              $driverMatched[$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
+            // Pass launch statistics key with matched driver since there a lot
+            // of them.
+            $driverMatched = array();
+            foreach (array_keys($launchInfo) as $statsKeyPart) {
+              $driverMatched['Stats key matched'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
             }
+            foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
+              if (!array_key_exists($statsKeyPart, $driverMatched['Stats key matched'])) {
+                $driverMatched[$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
+              }
+            }
+            $driversMatched[] = $driverMatched;
           }
         }
         else {
@@ -1014,6 +1024,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
           // Get verdicts from the task compared and the referenced task.
           $statsVerdict = $matchStats['stats']['Verdict'];
+
+          $driverMatched = array();
 
           if ($matchStats['match'] == $deleted) {
             $statsRefVerdicts[] = $deleted;
@@ -1031,6 +1043,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               }
             }
           }
+
+          $driversMatched[] = $driverMatched;
         }
 
         // Either group with the last created row (note that they are ordered)
@@ -1049,6 +1063,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
 
         foreach ($statsRefVerdicts as $statsRefVerdict) {
+          $driverMatched = array_shift($driversMatched);
+
           if (!array_key_exists($statsRefVerdict, $last['Verdict changes'])) {
             $last['Verdict changes'][$statsRefVerdict] = array();
           }

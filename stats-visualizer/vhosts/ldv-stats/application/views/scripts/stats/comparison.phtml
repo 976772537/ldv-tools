@@ -226,13 +226,36 @@ if ($resultsNumb) {
       echo "    <td>";
 
       if (array_key_exists($statKey, $result['Stats key'])) {
-        echo $result['Stats key'][$statKey];
+        $value = $result['Stats key'][$statKey];
+        echo $value;
+        if (is_null($value)) {
+          $value = '__NULL';
+        }
+        else if ($value == '') {
+          $value = '__EMPTY';
+        }
+
+        $statKeysValues[$statKey] = $value;
       }
       else {
         echo '-';
       }
 
       echo "</td>";
+    }
+    $statKeysMatchedValues = array();
+    foreach ($statKeys as $statKey) {
+      if (array_key_exists($statKey, $result['Stats key matched'])) {
+        $value = $result['Stats key matched'][$statKey];
+        if (is_null($value)) {
+          $value = '__NULL';
+        }
+        else if ($value == '') {
+          $value = '__EMPTY';
+        }
+
+        $statKeysMatchedValues[$statKey] = $value;
+      }
     }
 
     echo "    <td><a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Total changes'] . "</a>";
@@ -280,11 +303,11 @@ if ($resultsNumb) {
               echo "  </tr>";
 
               // Iterate over all drivers.
-              $i = 1;
+              $j = 1;
               foreach ($drivers as $driver) {
                 echo "<tr>";
-                echo "  <td>$i</td>";
-                $i++;
+                echo "  <td>$j</td>";
+                $j++;
                 foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
                   echo "  <td nowrap>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
                 }
@@ -329,25 +352,93 @@ if ($resultsNumb) {
                       <tr align='center' bgcolor='yellow'>";
               echo "    <td nowrap>#</td>";
               foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
-                echo "  <td nowrap>$driversMatchedStatKey</td>";
+                if (!($driversMatchedStatKey == 'Stats key matched')) {
+                  echo "  <td nowrap>$driversMatchedStatKey</td>";
+                }
+              }
+              if (count($driversMatchedStatKeys)) {
+                echo " <td nowrap>Details</td>";
               }
               echo "<td rowspan='" . (1 + count($drivers)) . "'> -> </td>";
               foreach ($driversStatKeys as $driversStatKey) {
                 echo "  <td nowrap>$driversStatKey</td>";
               }
+              if (count($driversStatKeys)) {
+                echo " <td nowrap>Details</td>";
+              }
               echo "  </tr>";
 
               // Iterate over all drivers.
-              $i = 1;
+              $j = 1;
               foreach ($drivers as $driver) {
+                $statKeysDriverValues = array();
+                $statKeysDriverMatchedValues = array();
                 echo "<tr>";
-                echo "  <td>$i</td>";
-                $i++;
+                echo "  <td>$j</td>";
+                $j++;
+
                 foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
-                  echo "  <td nowrap>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
+                  $value = $driver['matched driver'][$driversMatchedStatKey];
+
+                  // For conversions to deleted state matched driver carries
+                  // information on statistics key values.
+                  if ($driversMatchedStatKey == 'Stats key matched') {
+                    $statKeysMatchedValues = array();
+                    foreach ($statKeys as $statKey) {
+                      if (array_key_exists($statKey, $value)) {
+                        $valueAux = $value[$statKey];
+                        if (is_null($valueAux)) {
+                          $valueAux = '__NULL';
+                        }
+                        else if ($valueAux == '') {
+                          $valueAux = '__EMPTY';
+                        }
+
+                        $statKeysMatchedValues[$statKey] = $valueAux;
+                      }
+                    }
+                  }
+                  else {
+                    echo "  <td nowrap>$value</td>";
+                    $statKeysDriverMatchedValues[$driversMatchedStatKey] = $value;
+                  }
+                }
+                if (count($driversMatchedStatKeys)) {
+                  echo "    <td>";
+                  echo "<a href='"
+                    . $this->url(
+                      array_merge(
+                        array(
+                          'controller' => 'stats',
+                          'action'     => 'index',
+                          'page' => "Launches"),
+                        $statKeysMatchedValues,
+                        $statKeysDriverMatchedValues),
+                      'default',
+                      true)
+                    . "'>...</a>";
+                  echo "</td>";
                 }
                 foreach ($driversStatKeys as $driversStatKey) {
-                  echo "  <td nowrap>" . $driver['driver'][$driversStatKey] . "</td>";
+                  $value = $driver['driver'][$driversStatKey];
+                  echo "  <td nowrap>$value</td>";
+                  $statKeysDriverValues[$driversStatKey] = $value;
+                }
+                if (count($driversStatKeys)) {
+                  echo "    <td>";
+                  echo "<a href='"
+                    . $this->url(
+                      array_merge(
+                        array(
+                          'controller' => 'stats',
+                          'action'     => 'index',
+                          'page' => "Launches"),
+                        $statKeysValues,
+                        $statKeysDriverValues),
+                      'default',
+                      true)
+                    . "'>...</a>";
+                  echo "</td>";
                 }
                 echo "</tr>";
               }
