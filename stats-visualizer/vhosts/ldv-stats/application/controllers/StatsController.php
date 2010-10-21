@@ -2,6 +2,8 @@
 
 class StatsController extends Zend_Controller_Action
 {
+  protected $_params;
+
   public function init()
   {
     // Get the current session database connection settings from the address to
@@ -25,6 +27,11 @@ class StatsController extends Zend_Controller_Action
     $starttime = explode(' ', microtime());
     $starttime =  $starttime[1] + $starttime[0];
     $global->startTime = $starttime;
+
+    // Obtain profile name from parameters.
+    if ($this->_hasParam('profilename')) {
+      $this->_params['profilename'] = $this->_getParam('profilename');
+    }
   }
 
   public function indexAction()
