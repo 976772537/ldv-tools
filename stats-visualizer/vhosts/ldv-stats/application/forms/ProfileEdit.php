@@ -6,6 +6,5 @@ class Application_Form_ProfileEdit extends Zend_Form
   {
     // Get information on the current profile.
     $profileMapper = new Application_Model_ProfileMapper();
-    $profileCurrentInfo = $profileMapper->getProfileCurrentInfo();
   }
 }

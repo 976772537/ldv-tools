@@ -35,27 +35,13 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
     throw new Exception("The profile having name '$name' and user '$user' can't be found");
   }
 
-  public function getProfileCurrent()
+  public function getProfileInfo($profile = null)
   {
-    $profiles = $this->getProfiles();
-    $global = new Zend_Session_Namespace('Statistics globals');
-
-    foreach ($profiles as $profile) {
-      if ($profile->profileId == $global->profileCurrentId) {
-        return $profile;
-      }
+    // Get the default profile if no one is specified.
+    if (null === $profile) {
+      $profile = $this->getProfile();
     }
 
-    throw new Exception("The current profile can't be found");
-  }
-
-  public function getProfileCurrentInfo()
-  {
-    return $this->getProfileInfo($this->getProfileCurrent());
-  }
-
-  public function getProfileInfo($profile)
-  {
     // Add information from db for the current profile.
     // Obtain information on the database connection.
     $profileDatabases = $this->getDbTable('Application_Model_DbTable_ProfilesDatabases');

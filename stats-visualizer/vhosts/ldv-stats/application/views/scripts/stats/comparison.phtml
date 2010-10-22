@@ -5,6 +5,7 @@ $results = $this->entries;
 
 // Get the view name.
 $page = $results['Page'];
+$globals = $results['Globals'];
 
 $resultsNumb = count($results['Comparison stats']['Row info']);
 echo "<h3>Comparison statistics for the page '$page' (" . $resultsNumb . " rows)</h3>";
@@ -408,6 +409,7 @@ if ($resultsNumb) {
                   echo "<a href='"
                     . $this->url(
                       array_merge(
+                        $globals,
                         array(
                           'controller' => 'stats',
                           'action'     => 'index',
@@ -429,6 +431,7 @@ if ($resultsNumb) {
                   echo "<a href='"
                     . $this->url(
                       array_merge(
+                        $globals,
                         array(
                           'controller' => 'stats',
                           'action'     => 'index',
@@ -462,10 +465,17 @@ if ($resultsNumb) {
   echo "</table>";
 }
 
+// Print information on the current profile.
+echo "<h3>Current profile</h3>";
+$profileOptions = $results['Profile'];
+foreach ($profileOptions as $option => $value) {
+  echo "$option = '$value'<br>";
+}
+
 // Print information on the current database connection.
 echo "<h3>Current database connection options</h3>";
-$db_connection_options = $results['Database connection'];
-foreach ($db_connection_options as $option => $value) {
+$dbConnectionOptions = $results['Database connection'];
+foreach ($dbConnectionOptions as $option => $value) {
   if ($option != 'profiler') {
     echo "$option = '$value'<br>";
   }
@@ -473,7 +483,7 @@ foreach ($db_connection_options as $option => $value) {
 
 // Obtain the time where page was created and find the page generation time.
 $endtime = explode(' ', microtime());
-$global = new Zend_Session_Namespace('Statistics globals');
+$global = new Zend_Session_Namespace();
 $totaltime = $endtime[0] +  $endtime[1] - $global->startTime;
 printf('<h3>Page generated in %.1f seconds (the maximum execution time is %.1f seconds)</h3>',  $totaltime, ini_get('max_execution_time'));
 

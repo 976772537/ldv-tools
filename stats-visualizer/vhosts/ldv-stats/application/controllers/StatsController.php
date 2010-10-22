@@ -3,58 +3,62 @@
 class StatsController extends Zend_Controller_Action
 {
   protected $_globals;
+  protected $_profileInfo;
 
   public function init()
   {
     $this->_globals = array();
 
-    // Get the current session database connection settings from the address to
-    // be used instead of the current profile ones.
-    $global = new Zend_Session_Namespace();
+    // Obtain profile name from parameters.
+    if ($this->_hasParam('profilename')) {
+      $this->_globals['profilename'] = $this->_getParam('profilename');
+    }
 
+    // Get current database connection settings from the address to be used
+    // instead of the current profile ones.
     if ($this->_hasParam('name')) {
-      $global->dbName =  $this->_getParam('name');
+      $this->_globals['name'] =  $this->_getParam('name');
     }
     if ($this->_hasParam('user')) {
-      $global->dbUser =  $this->_getParam('user');
+      $this->_globals['user'] =  $this->_getParam('user');
     }
     if ($this->_hasParam('host')) {
-      $global->dbHost =  $this->_getParam('host');
+      $this->_globals['host'] =  $this->_getParam('host');
     }
     if ($this->_hasParam('password')) {
-      $global->dbPassword =  $this->_getParam('password');
+      $this->_globals['password'] =  $this->_getParam('password');
     }
+
+    // Use session global variables just for unimportant time counting.
+    $global = new Zend_Session_Namespace();
 
     // Remember the time where the page processing was begin.
     $starttime = explode(' ', microtime());
     $starttime =  $starttime[1] + $starttime[0];
+    $global = new Zend_Session_Namespace();
     $global->startTime = $starttime;
 
-    // Obtain profile name from parameters.
-    if ($this->_hasParam('profilename')) {
-      $this->_globals['profilename'] = $this->_getParam('profilename');
+    // Get information on the current profile.
+    $profileMapper = new Application_Model_ProfileMapper();
+    if (array_key_exists('profilename', $this->_globals)) {
+      $this->_profileInfo = $profileMapper->getProfileInfo($profileMapper->getProfile($this->_globals['profilename']));
+    }
+    else {
+      $this->_profileInfo = $profileMapper->getProfileInfo();
     }
   }
 
   public function indexAction()
   {
-    // Get information on the current profile.
-    $profileMapper = new Application_Model_ProfileMapper();
-    if (array_key_exists('profilename', $this->_globals)) {
-      $profileInfo = $profileMapper->getProfileInfo($profileMapper->getProfile($this->_globals['profilename']));
-    }
-    else {
-      $profileInfo = $profileMapper->getProfileCurrentInfo();
-    }
-
     // Get all parameters including page name, statistics key names and values
     // and so on.
     $params = $this->_getAllParams();
 
     $statsMapper = new Application_Model_StatsMapper();
-    $this->view->entries = $statsMapper->getPageStats($profileInfo, $params);
+    $this->view->entries = $statsMapper->getPageStats($this->_profileInfo, $params);
     $this->view->entries['Globals'] = $this->_globals;
-    $this->view->entries['Profile pages'] = $profileInfo->getPageNames();
+    $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
+    $this->view->entries['Profile pages'] = $this->_profileInfo->getPageNames();
 
     // Make a form for the tasks comparison.
     $request = $this->getRequest();
@@ -67,7 +71,9 @@ class StatsController extends Zend_Controller_Action
           'comparison'
           , 'stats'
           , null
-          , array('task ids' => $taskIdsStr));
+          , array_merge(
+            array('task ids' => $taskIdsStr)
+            , $this->_globals));
       }
     }
 
@@ -76,15 +82,11 @@ class StatsController extends Zend_Controller_Action
 
   public function errortraceAction()
   {
-    // Get information on the current profile.
-    $profileMapper = new Application_Model_ProfileMapper();
-    $profileCurrentInfo = $profileMapper->getProfileCurrentInfo();
-
     // Get all parameters including page name, trace id and so on.
     $params = $this->_getAllParams();
 
     $statsMapper = new Application_Model_StatsMapper();
-    $results = $statsMapper->getErrorTrace($profileCurrentInfo, $params);
+    $results = $statsMapper->getErrorTrace($this->_profileInfo, $params);
 
     // Write raw representation of error trace directly to the file.
     $errorTraceRawFile = APPLICATION_PATH . "/../data/trace/original";
@@ -130,19 +132,19 @@ class StatsController extends Zend_Controller_Action
     $results['Error trace']->setOptions(array('errorTrace' => $errorTrace));
 
     $this->view->entries = $results;
+    $this->view->entries['Globals'] = $this->_globals;
+    $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
   }
 
   public function comparisonAction()
   {
-    // Get information on the current profile.
-    $profileMapper = new Application_Model_ProfileMapper();
-    $profileCurrentInfo = $profileMapper->getProfileCurrentInfo();
-
     // Get all parameters including page name, statistics key names and values
     // and so on.
     $params = $this->_getAllParams();
 
     $statsMapper = new Application_Model_StatsMapper();
-    $this->view->entries = $statsMapper->getComparisonStats($profileCurrentInfo, $params);
+    $this->view->entries = $statsMapper->getComparisonStats($this->_profileInfo, $params);
+    $this->view->entries['Globals'] = $this->_globals;
+    $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
   }
 }

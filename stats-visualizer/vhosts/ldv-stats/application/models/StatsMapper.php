@@ -72,22 +72,20 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'rule-instrumentor' => 'RI',
     'rcv' => 'RCV');
 
-  public function connectToDb($host, $name, $user, $password = 'no') {
+  public function connectToDb($host, $name, $user, $password = 'no', $params = array()) {
     // Override the profile database connection settings with the specified
     // through the page address ones if so.
-    $global = new Zend_Session_Namespace('Statistics globals');
-
-    if ($global->dbName) {
-      $name = $global->dbName;
+    if (array_key_exists('name', $params)) {
+      $name = $params['name'];
     }
-    if ($global->dbUser) {
-      $user = $global->dbUser;
+    if (array_key_exists('user', $params)) {
+      $user = $params['user'];
     }
-    if ($global->dbHost) {
-      $host = $global->dbHost;
+    if (array_key_exists('host', $params)) {
+      $host = $params['host'];
     }
-    if ($global->dbPassword) {
-      $password = $global->dbPassword;
+    if (array_key_exists('password', $params)) {
+      $password = $params['password'];
     }
 
     if ($password == 'no') {
@@ -160,7 +158,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Page'] = $pageName;
 
     // Connect to the profile database and remember connection settings.
-    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     // Gather all statistics key restrictions if so comming through the
     // parameters.
@@ -752,7 +750,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
     // Connect to the profile database and remember connection settings.
-    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     $traces = $this->getDbTable('Application_Model_DbTable_Traces', $this->_db);
 
@@ -837,7 +835,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Page'] = $pageName;
 
     // Connect to the profile database and remember connection settings.
-    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     // Obtain the launch info columns. They will be selected as statistics key,
     // joined and by them and ordering will be done. Note that they are already
