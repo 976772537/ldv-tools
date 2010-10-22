@@ -55,7 +55,7 @@ fi;
 # if options not set =>
 #   i am set default allmodconfig
 #
-make allnoconfig;
+make allyesconfig;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: make allyesconfig failed."
         exit 1;
