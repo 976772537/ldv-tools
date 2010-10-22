@@ -1,0 +1,939 @@
+#!/usr/bin/perl -w
+#=============================================
+=head1 NAME
+
+ldv-git - incrementally analyze Linux kernel drivers with LDV static analyser
+
+=head1 SYNOPSIS
+
+  export LDVDB=results
+  export LDVUSER=user
+  export LDVDBPASSWD=passwd
+
+  cd /path/to/kernel/git/repo
+  ldv-git [--options..] [action]
+
+=head1 DESCRIPTION
+
+LDV-GIT is an infrastructure to track the quality of the Linux Kernel with aid of Linux Driver Verification tool set.  It tracks how the quality of kernel drivers changes as new commits appear in a repository.
+
+You should run B<ldv-git> from directory of the kernel repository you want to check.  LDV dir with binaries (C<bin/>) should be in your C<PATH>.
+
+If you run B<ldv-git> for the first time, it will perform check of all drivers available (you can limit set of drivers by specifying filter, see B<COMMAND LINE OPTIONS> for details).  This is called a B<full check>.
+
+Now you can make some changes on top of the commit you checked.  Commit these changes (or merge some from others, or check out the other commit) and run C<ldv-git> again.  LDV-GIT will find the first predecessing commit that was checked; then it will automatically detect, behavior of which drivers could change since that commit, and will statically verify these drivers with aid of LDV tools.
+
+The detection of behavior affected by the committed changes includes, but is not limited to files that were modified according to GIT histroy.  Additionally, LDV-GIT detects if some of the functions called are changed or if some header files included are changed.
+
+LDV-GIT displays the results of driver verification via web-based application.  During the verification process the relevant URLs will be printed, provided you correctly configured it (see C<LDV_GIT_STATSRV> variable).
+
+For further information, please, proceed to B<USAGE> and B<WHAT DOES THIS ERROR MEAN?> sections.
+
+=cut
+
+use strict;
+use File::Basename;
+use File::Copy;
+use File::Path qw(mkpath rmtree);
+use File::Spec::Functions;
+use File::Temp qw/tempfile/;
+use XML::Twig;
+use Graph;
+use Cwd;
+use Pod::Usage;
+
+use FindBin;
+my $script_dir;
+BEGIN{
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        $ENV{'LDV_GIT_HOME'} ||= "$ENV{'LDV_HOME'}/ldv-git";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+        $script_dir = $ENV{'LDV_GIT_HOME'};
+};
+use MetaUtils;
+
+=head1 COMMAND LINE OPTIONS
+
+=over 8
+
+=cut
+my %optionSpecs = ();
+
+=item B<--shadow=/path/to/shadow>
+
+Directory in which shadow kernel resides (or should be created if it's the first run).  By default it's in C<~/.ldv/git/shadows/cwd>, where C<cwd> is the current path.
+
+=cut
+
+sub getShadowDir {
+	my $shadow;
+        open( FILE, "$ENV{'LDV_HOME'}/ldv/ldv-kmanager --action=getpath-by-dir --src=".getcwd()." --extractor=ldv-git-vanilla|" );  
+        while( <FILE> ) { $shadow = $_; } 
+        close( FILE );
+	chomp($shadow);
+	return $shadow;
+};
+
+my $shadow_dir = getShadowDir();
+my $shadow_kernel_dir = catdir($shadow_dir,'shadows');
+$optionSpecs{'shadowdir=s'} = \$shadow_dir;
+
+=item B<--force-full>
+
+Force full checking.  Useful when build commands dramatically change.  This option doesn B<not> imply C<--force>.
+
+=cut
+my $force_full = '';
+$optionSpecs{'force-full'} = \$force_full;
+
+=item B<--pretend-full>
+
+Pretend that this commit was fully checked.  Do not perform any actual check.
+
+=cut
+my $pretend_full = '';
+$optionSpecs{'pretend-full'} = \$pretend_full;
+
+=item B<--no-update-meta>
+
+Skip metadata generation phase.  Do not invoke kernel compilation.
+
+=cut
+my $metagen = 1;
+$optionSpecs{'update-meta!'} = \$metagen;
+
+
+=item B<--force>
+
+Ignore that some files (or the whole commit) have already been checked and force complete re-checking of all necessary drivers.  May be used in conjunction of C<--force-full>.
+
+If the commit was already checked, and the C<--force> option is specified, ldv-git will pretend that the commit wasn't checked, and re-build the list of drivers to verify.
+
+When LDV-GIT is terminated in the middle of verification process, it doesn't have to verify all dirvers again at next invocation.  Only those drivers, checks of which haven't been finished are re-checked.  C<--force> option is necessary to force checking of all drivers (that pass the filter) again.
+
+=cut
+my $force = '';
+$optionSpecs{'force'} = \$force;
+
+=item B<--filter=media/video>
+
+Restrict checking only to drivers that reside in the directory specified.  May be a Perl regexp. Specifying C<--force> is also helpful.
+
+=cut
+my $filter = '';
+$optionSpecs{'filter=s'} = \$filter;
+
+=item B<--no-cache>
+
+Disable caching functionality.  LDV-GIT uses LDV tools caching capabilities (if available).  It stores one cache per repository commit.  You may try to use this option if your files seem not to change.  You can also wipe the cache (it's stores inside ont of the directories inside of the C<LDBGIT_BASE>.
+
+=cut
+my $cache = 1;
+$optionSpecs{'cache!'} = \$cache;
+
+=back
+
+=head2 Options for developers
+
+=over 8
+
+=item B<--rule=rule_id,rule_id>
+
+Check only the rules listed.  By default, checks the following rules: 32_1, 77_1, 08_1, 29_1, 37_1, 43_1.
+
+=cut
+# Default array needed since GetOptions only appends to this array instead of rewriting it.
+my @rules_default = qw/32_1 77_1 08_1 29_1 37_1 43_1/;
+# Rules 68_1 and 60_1 were excluded, because they don't work with latest kernels.
+my @rules = ();
+$optionSpecs{'rules=s'} = \@rules;
+
+=item B<--keep-work>
+Do not erase directories with debug information after verifying a driver.  By default they're erased even if checking results with an exception (but not with an integration failure.
+=cut
+
+my $keep_work = '';
+$optionSpecs{'keep-work!'} = \$keep_work;
+
+# To skip checking out intermediate commit--currently it just messes everything up.
+my $suppress_interm = '';
+$optionSpecs{'no-intermediate'} = \$suppress_interm;
+
+=back
+
+=cut
+
+sub usage
+{
+	my $msg=shift;
+	return pod2usage(-msg => $msg, -verbose => 99, -sections=>'SYNOPSIS|ACTIONS|COMMAND LINE OPTIONS|ENVIRONMENT VARIABLES');
+}
+
+use Getopt::Long;
+GetOptions(%optionSpecs,
+	'--help' => sub { pod2usage(-verbose => 3); },
+) or usage("Unrecognized options!");
+
+=head1 ACTIONS
+
+You may select an action to perform.  If you specified no action, the C<check> action will be carried out.  Here's the list of available acitons:
+
+=over 8
+
+=cut
+my $action = shift @ARGV || 'check';
+my @actions_allowed = ();
+
+my $actions = {};
+
+use LDV::Utils;
+LDV::Utils::set_verbosity($ENV{'LDV_DEBUG'} || 'NORMAL');
+LDV::Utils::push_instrument('ldv-git');
+
+=item B<check>
+
+The default action.  Perform verfification of the drivers that were changed since a check of the latest ancestor commit.  The results are uploaded to the database.
+
+=cut
+push @actions_allowed,'check';
+if ($action eq 'check'){
+	$actions->{check_db} = 1;
+	$actions->{list} = '';
+	$actions->{status} = 1;
+	$actions->{plan} = 1;
+	$actions->{metadata} = 1;
+	$actions->{verification} = 1;
+}
+
+=item B<list>
+
+List checked commits and URLs via which you may access the checking results.
+
+=cut
+push @actions_allowed,'list';
+if ($action eq 'list'){
+	$actions->{check_db} = 1;
+	$actions->{list} = 1;
+	$actions->{plan} = '';
+	$actions->{metadata} = '';
+	$actions->{verification} = '';
+}
+
+=item B<status>
+
+Tell what type of check will be performed if the current C<HEAD> commit is checked.
+
+=cut
+push @actions_allowed,'status';
+if ($action eq 'status'){
+	$actions->{check_db} = 1;
+	$actions->{check_db_is_not_fatal} = 1;
+	$actions->{status} = 1;
+	$actions->{plan} = '';
+	$actions->{metadata} = '';
+	$actions->{verification} = '';
+}
+
+=item B<plan>
+
+Tell what drivers will be checked if you run the check of the current C<HEAD> commit.  This involves updating metadata (unless you specify C<--no-update-meta>), and it also reports if certain drivers were already checked.
+
+=cut
+push @actions_allowed,'plan';
+if ($action eq 'plan'){
+	$actions->{check_db} = 1;
+	$actions->{check_db_is_not_fatal} = 1;
+	$actions->{status} = 1;
+	$actions->{plan} = 1;
+	$actions->{metadata} = 1;
+	$actions->{verification} = '';
+}
+
+=back
+
+=cut
+
+# Check if action supplied was correct
+unless (grep {$_ eq $action} @actions_allowed){
+	pod2usage(-msg => "Unrecognized action: $action", -verbose => 99, -sections=>'SYNOPSIS|ACTIONS|COMMAND LINE OPTIONS');
+}
+if (@ARGV){
+	pod2usage(-msg => "You can specify only one action!", -verbose => 99, -sections=>'SYNOPSIS|ACTIONS|COMMAND LINE OPTIONS');
+}
+
+=head1 ENVIRONMENT VARIABLES
+
+=over 8
+
+=item B<LDVGIT_BASE>
+
+The location of the LDV-GIT working directory.  For each repository you run checks in, up to 40Gb will be required. NOTE that checking several commits in one repository requires much smaller fraction of this amount of space.
+
+Default value is C<~/.ldv/git>.
+
+=cut
+$ENV{'LDVGIT_BASE'} ||= catdir(($ENV{HOME} || $ENV{LOGDIR}),"/.ldv/git");
+vsay 'TRACE', "Variable LDVGIT_BASE: \"$ENV{'LDVGIT_BASE'}\"\n";
+
+=item B<LDVGIT_STAT_SRV>
+
+URL that shows the path to stat server.  It is not hardcoded anywhere in the data or in the results--it just affects the output of C<ldv-git> command.
+
+The default value of this variable is C<http://localhost/stats-server>; it doesn't mean anything, just makes URLs look nice and not disturbing.
+
+=cut
+#http://10.10.2.59:8999/stats/index/name/ldv_qa_night_res/host/10.10.2.59/user/qarobot/password/12345
+$ENV{'LDVGIT_STAT_SRV'} ||= "http://localhost:8999";
+vsay 'TRACE', "Variable LDVGIT_STAT_SRV: \"$ENV{'LDVGIT_STAT_SRV'}\"\n";
+
+=item B<LDVGIT_CONFIG_CMD>
+
+Command that will be invoked in the shadow kernel directory to configure it.  The command should include configuring all the drivers you're interested in.
+
+By default it's set to C<make allyesconfig>.  It turns on nearly all kernel configuration options.  However, along with enabling all drivers, it also enables all filesystems, networking options and other things, compilation of which is totally unnecessary.  If you know a better command for that, supply it as this environment variable.
+
+=cut
+$ENV{'LDVGIT_CONFIG_CMD'} ||= 'make allyesconfig';
+vsay 'TRACE', "Variable LDVGIT_CONFIG_CMD: \"$ENV{'LDVGIT_CONFIG_CMD'}\"\n";
+
+=item B<LDVDBHOST>, B<LDVDB>, B<LDVUSER>, B<LDVDBPASSWD>
+
+These environment variables are needed to access the database.  When you set them LDV-GIT, upon its invocation, will show the commands necessary to initialize the database.  These variables are also used to access statistics server.
+
+=cut
+$ENV{'LDVDBHOST'} ||= 'localhost';
+vsay 'TRACE', "Variable LDVDBHOST: \"$ENV{'LDVDBHOST'}\"\n";
+
+=item B<MAKE>
+
+Override the build system tool that executed Kernel makefiles.  By default it's whatever your shell resolves "make" to.
+
+=cut
+# Processed by ldv-git-prepare nad ldv-git-meta scripts.
+
+=back
+
+=cut
+
+#======================================================================
+# Prepare some input data.
+
+# Create database unless it exists
+if ($actions->{check_db}){
+	vsay 'NORMAL', "Ensuring that the database is created...\n";
+	no warnings;	#Suppress warnings about undefs in concatenation
+	my $mysql_passw_str = $ENV{'LDVDBPASSWD'} ? "-p$ENV{'LDVDBPASSWD'}" : "";
+	my @mysql_call_cmd = ("mysql","-e",'');
+	push @mysql_call_cmd, "-u$ENV{'LDVUSER'}" if $ENV{'LDVUSER'};
+	push @mysql_call_cmd, $mysql_passw_str if $mysql_passw_str;
+	push @mysql_call_cmd, $ENV{'LDVDB'} if $ENV{'LDVDB'};
+	push @mysql_call_cmd, "-h$ENV{'LDVDBHOST'}";
+	vsay 'DEBUG', join (" ",map {$_?$_:"''"} @mysql_call_cmd,"\n");	# this map transforms empty strings to '' for the resultant shell commant to look nicer
+	system @mysql_call_cmd;
+	if ($? != 0 || !$ENV{'LDVDB'}){
+		# Make user create the database;
+		print STDERR <<EOF;
+To use LDV git checker, you should create MySQL database.  Statistics about the drivers verified will be stored in it.
+
+Database settings are governed by the following environment variables: LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD.
+To set up the database, if the variables are correctly set, you should execute the following commands in admin's console (in these commands the values taken from the corresponding environment variables are inserted):
+
+	CREATE DATABASE $ENV{'LDVDB'};
+	CREATE USER \'$ENV{'LDVUSER'}\'\@'$ENV{'LDVDBHOST'}' IDENTIFIED BY '$ENV{'LDVDBPASSWD'}';
+	GRANT ALL PRIVILEGES ON $ENV{'LDVDB'}.* TO '$ENV{'LDVUSER'}'\@'$ENV{'LDVDBHOST'}' WITH GRANT OPTION;
+	FLUSH PRIVILEGES;
+
+Then, from the command line
+	mysql -u$ENV{'LDVUSER'} $mysql_passw_str $ENV{'LDVDB'} < `path-to-results-schema-sql`
+
+Restart the ldv-git script after you've completed these steps.
+EOF
+		exit 1 unless $actions->{check_db_is_not_fatal};
+	}else{
+		# Verify additionally that the database contains tables.
+		my $sql_call_str = join (" ", map {"'$_'"} (@mysql_call_cmd,"-e","show tables;"));
+		# Check if database actuially contains any tables
+		if (`$sql_call_str` !~ /./s){
+			print STDERR <<EOF;
+You seem to have created the database, but it's not initialized.
+
+Please, run the following command (provided LDV binaries are in your path):
+	mysql -u$ENV{'LDVUSER'} $mysql_passw_str $ENV{'LDVDB'} < `path-to-results-schema-sql`
+
+Restart the ldv-git script after you've done this.
+EOF
+			exit 1 unless $actions->{check_db_is_not_fatal};
+		}else{
+			vsay 'NORMAL', "Database ok.\n";
+		}
+	}
+}
+use warnings;
+
+
+# Hash with command names -- to run them via system, popens, etc
+my $ldv_commands = {};
+$ldv_commands->{prepare} = catfile("$ENV{'LDV_HOME'}/ldv/",'ldv-kmanager');
+$ldv_commands->{update_meta} = catfile($script_dir,'ldv-git-meta');
+$ldv_commands->{meta_diff} = catfile($script_dir,'metadiff');
+$ldv_commands->{meta_deps} = catfile($script_dir,'metadeps');
+$ldv_commands->{meta_driver} = catfile($script_dir,'metadriver');
+
+# Target directories
+my $meta_dir = catdir($shadow_dir,'metadata');
+my $logs_dir = catdir($shadow_dir,'logs');
+my $work_dir_base = catdir($shadow_dir,'work');
+my $stamps_base = catdir($shadow_dir,'stamps');
+my $cache_base = catdir($shadow_dir,'cache');
+# Create them
+mkpath($meta_dir);
+mkpath($logs_dir);
+mkpath($work_dir_base);
+mkpath($stamps_base);
+mkpath($cache_base);
+
+# Get commit name
+my $commit = `git rev-parse HEAD`;
+$? == 0 or die "You must run this command from a Kernel GIT repository!\n";
+chomp $commit;
+# Find the most recent commit that was checked with LDV-GIT.
+# TODO: improve the way ancestors are found: currently a started and not finished check may lurk into this list.
+my @full_ancestors = map {s/$stamps_base\/full-//; $_} <$stamps_base/full-*>;
+my @incremental_ancestors = map {s/$stamps_base\/incremental-//; $_} <$stamps_base/incremental-*>;
+my @incomplete_ancestors = map {s/$stamps_base\/started-//; $_} <$stamps_base/started-*>;
+my %ancestors = ((map {$_ => 'full'} @full_ancestors), (map {$_ => 'incremental'} @incremental_ancestors));
+
+#======================================================================
+# Execute "list" action here.
+if ($action eq 'list'){
+	vsay 'NORMAL',"Reading GIT history...\n";
+	my @commits = git_all_commits();
+	my %full_ancestors_test = map {$_ => 1} @full_ancestors;
+	my %incremental_ancestors_test = map {$_ => 1} @incremental_ancestors;
+	my %incomplete_ancestors_test = map {$_ => 1} @incomplete_ancestors;
+
+	# Iterate all git commits and pick those checked
+	for my $commit_from_history (@commits){
+		next unless $ancestors{$commit_from_history} || $incomplete_ancestors_test{$commit_from_history};
+		my $verboseness = "incomplete";
+		$verboseness = 'full' if $full_ancestors_test{$commit_from_history};
+		$verboseness = "incremental" if $incremental_ancestors_test{$commit_from_history};
+		$verboseness.="\t";
+		my $url = form_task($ENV{'LDVGIT_STAT_SRV'},toshow_commits($commit_from_history,previous_commits($commit_from_history,%ancestors)));
+		vsay 'NORMAL',"$commit_from_history $verboseness $url\n";
+	}
+	# Proceed to the exit point
+	goto AFTER_CHECK;
+}
+#======================================================================
+# Proceed with fixing git repo
+vsay 'NORMAL', "Reading GIT history...\n";
+my @partials = previous_commits($commit,%ancestors);
+my $base_commit = $partials[0];
+if ($force && (defined $base_commit) && $base_commit eq $commit){
+	vsay 'NORMAL', "The current commit $commit has already been checked.  Forcing it's re-checking (due to --force).\n";
+	shift @partials;
+	$base_commit = $partials[0];
+}
+my $full = !defined $base_commit || $pretend_full || $force_full;
+@partials = () if $full;
+
+# Set metadata file
+my $meta_file = catfile($meta_dir,"meta-$commit");
+# Set command file (note that it's the same for all commits--and actually this is a flaw in the algorithm
+my $cmd_file = catfile($meta_dir,"commands-$commit");
+# Work dir for this commit
+my $work_dir = catfile($work_dir_base,"work-$commit");
+mkpath($work_dir);
+# Cache dir for this commit
+my $cache_dir = catfile($cache_base,"cache-$commit");
+# File that designates that checking finished, and also shows its type
+my $stamp_file = catfile($stamps_base, ($full ? "full" : "incremental")."-$commit");
+my $stamp_begin_file = catfile($stamps_base, "started-$commit");
+
+# Compose URL for statistic server.  We should list all intermediate checks on our way to the first full check.
+my $stats_url = form_task($ENV{'LDVGIT_STAT_SRV'},toshow_commits($commit,@partials));
+
+# Rules to verify
+@rules = @rules_default unless @rules;
+@rules = split(/,/,join(',',@rules));
+
+#======================================================================
+# Handle runs that pretend full
+if ($pretend_full){
+	vsay('NORMAL', "Already checked $base_commit found.  However ") if $base_commit;
+	vsay 'NORMAL', "I'll pretend that this commit is checked fully due to --pretend-full.\n";
+	goto PREPARE_KERNEL;
+}
+
+#======================================================================
+# Initialize metadata out of existing
+# If current commit hasn't already been checked, we should initialize metadata by copying those of the previous commit.
+my $base_meta_file = undef;
+if ($actions->{status}){
+	if (!$full){
+		$base_meta_file = catfile($meta_dir,"meta-$base_commit");
+		if ($commit ne $base_commit){
+			if (($metagen && $actions->{metadata})
+				# If metadata files do not exist, we should copy them, but not regenerate
+				|| (!-f $meta_file)
+			){
+				# If we don't  update metadata, we don't need to copy the old files.
+				copy($base_meta_file,$meta_file);
+				copy(catfile($meta_dir,"commands-$base_commit"),$cmd_file);
+			}
+			vsay 'NORMAL', "Already checked $base_commit found.  I'll use it as base, and check changes only (incremental run).\n";
+		}else{
+			vsay 'NORMAL', "The current commit $commit has already been checked.  I'll just regenerate metadata (unless you --force).\n";
+		}
+	}else{
+		vsay 'NORMAL', "No checked ancestors found.  I'll perform full check.\n";
+	}
+	# TODO: fix it by printing from string
+	no warnings;
+	vsay 'NORMAL', "You'll be able to access results via web browser:\n\n\t$stats_url\n\n";
+}
+use warnings;
+
+#======================================================================
+# Prepare kernel (TODO: unless prepared)
+
+PREPARE_KERNEL:
+
+goto AFTER_CHECK unless $actions->{metadata} || $actions->{verification};
+
+my @prepare_cmds = (	$ldv_commands->{prepare},
+			'--action=add-by-dir',
+			'--src='.getcwd(),
+			'--extractor=ldv-git-vanilla');
+push @prepare_cmds, "--commit=$base_commit" if !$full && !$suppress_interm;
+vsay 'TRACE', @prepare_cmds;
+system @prepare_cmds  and die "Prepare died, code $?, see \"$logs_dir/kmanager.log\" for more details.";
+
+# Update metadata
+if ($metagen && $actions->{metadata}){
+	system ($ldv_commands->{update_meta},$shadow_kernel_dir,$meta_file,$cmd_file,catfile($meta_dir,'as_gcc_pool'),$pretend_full || $force_full) and die "Update meta died, code $?";
+}
+
+system("touch",$stamp_begin_file);
+
+goto CORRECT_FINALIZE if $pretend_full;
+
+# Get list of changed files since the last check.
+my @modified_files = ();
+if (!$full){
+	@modified_files = grep {m/^drivers/} keys %{git_modified($commit,$base_commit)}
+}else{
+	# Do nothing: metadiff can work without old metadata
+	## if there's no previous check then all files are marked as modified
+	## We get these 'all' files from metadata file.
+	#my $META_F; open $META_F, "<", $meta_file or die "can't open $meta_file: $!";
+	#while (<$META_F>){
+		#chomp;
+		#/^== (drivers\/.*)/ or next;
+		#push @modified_files,$1;
+	#}
+	#close $META_F;
+}
+
+# Generate list of files that are directly or indirectly changed
+my @changed_files = ();
+
+my @metadiff_cmd = ($ldv_commands->{meta_diff},$meta_file);
+push @metadiff_cmd, $base_meta_file if !$full;
+
+use IPC::Open3;
+my ($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR); 
+use Symbol 'gensym'; $METADIFF_ERR = gensym;
+vsay 'NORMAL', "Generating list of changed files...\n";
+my $metadiff_pid = open3($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR,@metadiff_cmd) or do { local $"=" "; die "Can't open3. Cmdline: @metadiff_cmd";};
+
+print $MODIFIED_FILES_EATER "$_\n" for @modified_files;
+close $MODIFIED_FILES_EATER;
+
+vsay 'NORMAL', "Reading list of changed files...\n";
+
+@changed_files = map {chomp; $_;} (<$CHANGED_FILES>);
+
+print STDERR for (<$METADIFF_ERR>);
+
+waitpid $metadiff_pid, 0;
+
+# Filter drivers
+vsay 'NORMAL', "Filtering changed files...\n";
+# First we filter according to --filter option
+#print "DEBUG_1: filter: $filter\n";
+@changed_files = grep {m/^drivers\/$filter/} @changed_files;
+# Also filter the files that are not checkable "drivers" (TODO!)
+@changed_files = @changed_files;
+
+# Generate lists of C files that constitute driver, for each "changed" file.
+my $full_drivers = {};
+
+vsay 'NORMAL', "Generating sets of C files that form drivers...\n";
+
+#print "DEBUG_2:".$meta_file."\n";
+vsay 'NORMAL',$_ for @changed_files;
+
+$,=" ";
+#print $ldv_commands->{meta_deps}, $meta_file, @changed_files ;
+# Read raw list of files from metadeps script
+my $FULL_DR_LIST; open $FULL_DR_LIST, "-|", $ldv_commands->{meta_deps}, $meta_file, @changed_files or die $!;
+my $full_drivers_raw = MetaUtils::meta_to_raw_hash_from_fh($FULL_DR_LIST);
+close $FULL_DR_LIST;
+
+for my $driver_raw (keys %$full_drivers_raw){
+	$full_drivers->{$driver_raw} = {};
+	$full_drivers->{$driver_raw}->{$_} = 1 for split /\s+/s, $full_drivers_raw->{$driver_raw};
+	delete $full_drivers->{$driver_raw}->{$driver_raw} if exists $full_drivers->{$driver_raw}->{$driver_raw};
+}
+
+# If we're to show our plan, we print it here
+if ($actions->{plan}){
+	vsay 'NORMAL', "List of drivers that would be verified:\n";
+	# Prepare to printing progress info
+	my $driver_total = scalar keys %$full_drivers;
+	my $driver_num = 0;
+	for my $driver (keys %$full_drivers){
+		$driver_num++;
+		# Check if the dirver was already checked, and print the relevant progress message
+		my $already_checked_stamp = catfile($work_dir,$driver,'checked');
+		if (!$force && -f $already_checked_stamp){
+			vsay 'NORMAL', "Skipping #$driver_num:\t$driver\n";
+		}else{
+			vsay 'NORMAL', "Checking #$driver_num:\t$driver\n";
+		}
+	}
+	vsay 'NORMAL',"----------------------------------------------\n";
+	vsay 'NORMAL',"Total:\t$driver_total drivers\n";
+}
+
+# It's possible to just print the list of drivers to be checked.  So we skip the rest of this loop if we're in this mode
+goto AFTER_CHECK unless $actions->{verification};
+
+# Generate cmdstreams
+vsay 'NORMAL', "Generating build commands for all drivers...\n";
+
+my @cmdgen_cmd = ($ldv_commands->{meta_driver},"--stdin",$cmd_file,$work_dir);
+use IPC::Open3;
+my ($FULL_DR_EATER,$CMDGEN_REPORTS,$CMDGEN_ERR); 
+use Symbol 'gensym'; $CMDGEN_ERR = gensym;
+my $cmdgen_pid = open3($FULL_DR_EATER,$CMDGEN_REPORTS,$CMDGEN_ERR,@cmdgen_cmd) or do { local $"=" "; die "Can't open3. Cmdline: @cmdgen_cmd";};
+
+for my $driver (keys %$full_drivers){
+	print $FULL_DR_EATER "== $driver\n$driver\n";
+	print $FULL_DR_EATER "$_\n" for keys %{$full_drivers->{$driver}}; 
+}
+close $FULL_DR_EATER;
+
+while (<$CMDGEN_REPORTS>){
+	print STDOUT "$_";
+}
+print STDERR $_ for (<$CMDGEN_ERR>);
+
+waitpid $cmdgen_pid, 0;
+$? and die "metadriver for $meta_file";
+vsay 'NORMAL', ((scalar keys %$full_drivers)." drivers to verify...\n");
+
+# Prepare to printing progress info
+my $driver_total = scalar keys %$full_drivers;
+my $driver_num = 0;
+
+vsay 'NORMAL', "Running static verification on drivers...\n";
+# Launch checks and upload results
+my $saved_blast_options = $ENV{'BLAST_OPTIONS'};
+for my $driver (keys %$full_drivers){
+	$driver_num++;
+
+	# Check if the dirver was already checked, and print the relevant progress message
+	my $already_checked_stamp = catfile($work_dir,$driver,'checked');
+	if (!$force && -f $already_checked_stamp){
+		vsay 'NORMAL', "Skipping already checked $driver...\n";
+		next;
+	}else{
+		vsay 'NORMAL', "Checking $driver ($driver_num of $driver_total)...\n";
+	}
+
+	my $driver_work_dir = catdir($work_dir,$driver);
+	my $pwd_save = cwd();
+	eval {
+		chdir $driver_work_dir;
+		# Save finished packs, just in case
+		system("mv finished/* old_finished") or vsay 'INFO', "No previous results.";
+		# Remove temporary files for drivers that were succesfully checked
+		if ($keep_work) {
+			$ENV{'LDV_REMOVE_ON_SUCCESS'} ||= undef;
+		}else{
+			$ENV{'LDV_REMOVE_ON_SUCCESS'} ||= "yes";
+		}
+		# Set task name for further uploading to the correct bucket
+		$ENV{'LDV_TASK_NAME'} = "Kernel-$commit";
+		# Set some LDV-specific tuning for the model checker
+		$ENV{'RCV_TIMELIMIT'} ||= 300;
+		$ENV{'RCV_MEMLIMIT'} ||= 1_500_000;
+		$ENV{'BLAST_OPTIONS'} = "-enable-recursion -fdepth 5".($saved_blast_options?" $saved_blast_options":'');
+		$ENV{'BLAST_EXP_NOALIAS'} = "y";
+		# Utilize caching functionality
+		$ENV{'RI_CACHE'} = $cache_dir if $cache;
+		# Set up to not cache files with mains
+		$ENV{'RI_CACHE_MODE'} = "git" if $cache;
+		# Launch check
+		system(qw/ldv-manager tag=current/,"envs=$shadow_kernel_dir",qw/drivers=commands.xml cmdstream_driver=1/,"rule_models=".join(" ",@rules)) and die "Code: $?";
+		# Upload results
+		for my $results_pax (<finished/*.pax>){
+			system("ldv-upload",$results_pax) and die "upload $results_pax: Code $?";
+		}
+		# Launch stats server (or just print the launch line to stdout).
+		vsay 'NORMAL', "You can access results via browser:\n\n\t$stats_url\n\n";
+		# Mark this driver as checked
+		system("touch",$already_checked_stamp) and die "touch stamp, code $?";
+	};
+	# Recover from error
+	my $errcode = $?;
+	chdir $pwd_save;
+	if ($@){
+		warn $@;
+		print STDERR "Verification of $driver failed!  Proceeding to the next driver...\n";
+		if (($errcode & 127) != 0){
+			die "Signal caught, exiting";
+		}
+	}
+}
+
+vsay 'NORMAL', "You can access results via browser:\n\n\t$stats_url\n\n";
+
+CORRECT_FINALIZE:
+
+# Everything is verified, create stamps
+system("touch",$stamp_file) and die "touch $stamp_file failed, code $?";
+
+unless ($pretend_full){
+	vsay 'NORMAL', "All drivers are verified.\n";
+}else{
+	vsay 'NORMAL', "I pretended that you've checked commit $commit completely.\n";
+}
+
+AFTER_CHECK:
+
+exit 0;
+#===========================================
+# Stat server utils
+sub form_task
+{
+	my ($stat_server_address,@partials) = @_;
+	$stat_server_address =~ s/\/*$//;
+	#http://10.10.2.59:8999/stats/index/name/ldv_qa_night_res/host/10.10.2.59/user/qarobot/password/12345
+	#http://10.10.2.118/stats3/public/index.php/stats/index/mode/git/user/joker/password/joker/host/10.10.2.82/name/statsdb/task1/Kernel-2b666ca4a68cbc22483b0f2e1ba3c0e59b01ae9e/
+	#http://localhost:8999/stats/index/profilename/git/user/statsuserd/password/statspass/host//name/statsdb/task1/Kernel-2b666ca4a68cbc22483b0f2e1ba3c0e59b01ae9e/task2/.../task..
+	# "mode/git/" means short form of the report.
+	my $app_str = "stats/index/profilename/git";
+	my $access_str = sprintf "name/%s/host/%s/user/%s/password/%s", ($ENV{'LDVDB'} || ""), ($ENV{'LDVDBHOST'} || ""), ($ENV{'LDVUSER'} || ""), ($ENV{'LDVDBPASSWD'} || "no");
+
+	my $tasks = '';
+	my $task_idx = 1;
+	for my $task_comm ((@partials)){
+		next unless $task_comm;
+		$tasks .= 'task'.($task_idx++)."/Kernel-$task_comm/";
+	}
+
+	return "$stat_server_address/$app_str/$access_str/$tasks";
+}
+
+#===========================================
+# GIT utils
+
+# Get the most recent ancestor commit that was fully checked (among the given ones) of a given commit, and the list of incremental commits on the way to it
+sub previous_commits
+{
+	my ($current,%ancestors) = @_;
+	# results
+	my $recent_full_ancestor = undef;
+	my @other_ancestors = ();
+	local $_;
+	# We used to think that commit can't be an ancestor of itself.  However, we were wrong.  This is the only way to make the logic consistent, and prevent data loss on edge-cases.  So from now on, a commit can be ancestor of itself (this is a case when it has already been checked)
+
+	# List revisions and select the first that is a valid ancestor
+	my $GIT_REVS; open $GIT_REVS, "-|", qw(git rev-list),$current or die "Can't launch git-rev-list: $!";
+	while (<$GIT_REVS>){
+		chomp;
+		goto RET if exists $ancestors{$_} && $ancestors{$_} eq 'full';
+		push @other_ancestors, $_ if exists $ancestors{$_};
+	}
+	$_ = undef;
+RET:
+	close $GIT_REVS;
+	return (@other_ancestors,$_);
+}
+
+# List of commits to show in browser, given the commit itself and the list of its ancestors, as given by previous_commits subroutine
+sub toshow_commits
+{
+	my ($current,@previous) = @_;
+	my $p0 = $previous[0];
+	if ((defined $p0) && $p0 eq $current){
+		return @previous;
+	}else{
+		return ($current,@previous);
+	}
+}
+
+# Given two revisions, list the files that were modified in $from_commit..$to_commit revisions
+sub git_modified
+{
+	my ($to_commit, $from_commit) = @_;
+	defined $from_commit or Carp::confess;
+
+	my $files = {};
+
+	my $GIT_REVS; open $GIT_REVS, "-|", qw(git log --name-only --format=format:), "$from_commit..$to_commit" or die "Can't launch git-log: $!";
+	while (<$GIT_REVS>){
+		chomp;
+		# Skip empty lines, which appear due to necessity to print commit information (which we suppress) in git-log.
+		/./ or next;
+		$files->{$_} = 1;
+	}
+	close $GIT_REVS;
+
+	return $files;
+}
+
+# Get ALL commits in the repository
+sub git_all_commits
+{
+	my @commits = ();
+
+	my $GIT_REVS; open $GIT_REVS, "-|", qw(git rev-list --all) or die "Can't launch git-rev-list: $!";
+	while (<$GIT_REVS>){
+		chomp;
+		push @commits,$_;
+	}
+	close $GIT_REVS;
+
+	return @commits;
+}
+
+
+=head1 USAGE
+
+The most common use-case of LDV-GIT is to confirm certain commits you make or merge not degrade correctness of device drivers.  LDV-GIT is used to supply input to Linux Driver Verification console tools (LDV), wchich performs the check of correctness.
+
+B<Correctness> of a device driver is understood within LDV as adherence to certain rules of interaction with kernel core subsystem.  The rules are devised by LDV developers, and are stored within LDV.  You can select the set of rules to check for by using B<--rules> option.  Neither LDV not LDV-GIT actually devises how drivers should be used based on contents of the kernel itself; rules are generated by humans.
+
+The process of checking the whole set of drivers is time-consuming.  That's why LDV-GIT has an incremental nature: once you fully checked your kernel (or just pretended that you did; see B<--pretend-full> option) the subsequent invocations of LDV-GIT will check only those drivers, which could change their behavior.
+
+Here's a sample workflow.  First, we should set up prerequisites: add LDV to our path and specify place to stopre temporary files.
+
+	export PATH=$PATH:/path/to/ldv/bin
+	export LDVGIT_BASE=/path/to/work/dir
+
+Inside LDVGIT_BASE approximately 40Gb will be written, so choose carefully, where it should be placed.  By default, LDV_GIT creates this directory in C<~/.ldv/>.
+
+Now assume we're going to merge some changes to network drivers subtree, and here's what we do.  First we ensure we're in a GIT Kernel repository:
+
+	git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
+	cd linux-2.6
+
+Now we can run ldv-git.  We specify C<filter>, because we're only interested in network drivers, and we want to skip checking of the other (note that filter affects only verification step, it doesn't affect shadow kernel compilation).
+
+	ldv-git --filter=net
+
+This command runs for a long time.  Among its steps are: cloning kernel to the C<LDVGIT_BASE> (this clone is called "shadow copy"), compiling it there with B<every option turned on> (i.e. with C<make allyesconfig>), generating build scenarios for separate drivers, and running LDV infrastructure.  The last step takes the most time, and may require a week of runtime for the whole kernel.
+
+As soon as shadow kernel started compiling, you may safely modify the original repository: make changes, switch branches, et cetera.
+
+After checking completes, you can check another commit incrementally.  This requires current commit containing the commit that was fully checked before.  To run checks, launch
+
+	ldv-git --filter=net
+
+In the console output you'll immediately see:
+
+	Already checked <SHA of previously checked commit> found.  I'll use it as base, and check changes only.
+
+This means that all goes well, and LDV-GIT will check the changes made or merged into since the previous check.
+
+=head2 Interrupting and resuming verification
+
+If you interrupt verification of a commit, it will resume on next run.  The drivers, verificaiton of which was finished succesfully (without serious errors) won't be re-checked.  If you want to re-check them, use C<--force> option.
+
+Sometimes you want to re-check a couple of drivers, source code of which you've modified, but you don't want to wait until the kernel recomipes, and you also don't want to check all other drivers.  That's where C<--no-update-meta> option helps.  So, to re-check C<rtc-proc> driver, that was already checked, without unnecessary waiting, you may run:
+
+	ldv-git --force-full --force --no-update-meta "--filter=.*rtc-proc.*"
+
+=head1 HOW TO EXAMINE VERIFICATION RESULTS
+
+Verification results can be viewed through Web browser (and currently that's an only human-readable way).
+
+=head2 Making LDV-GIT show URLs
+
+First you should install statistics web server (referred hereabout as B<stats server>), and direct LDV-GIT to it via C<LDVGIT_STAT_SRV> environment variable.  After you've done so, during the verification process, URLs to access verification server will be printed to the console.  Just tupe it to your web browser window.
+
+URLs to view results of previously completed checks may be fetched through C<ldv-git list> command.  Along with infomration about checked commits, URLs for stat server will be shown there.
+
+=head2 Using web-interface
+
+On a typical web interface display you will see a table that describes results of verification of several commits.  These are a full run followed by a series of incremental C<ldv-git> runs.  The commits are arranged in the order of appearance in history.  You can see the whole picture and track down the changes that interest you.
+
+I<Safe> column displays dirvers, in which no error was found.  I<Unsafe>, on the contrary, those, in which LDV found an error.  If you sum the amounts of drivers in these two columns, you most likely won't get the total number of drivers.  That's why certain drivers couldn't be verified by LDV within the arranged time and memory, or just because static checker appeared to be not powerful enough.
+
+Clicking on the numbers within the table sends you to the page with detailed results.  If you click on a number in the I<Unsafe> column, you can further proceed from the page opened to the B<Error traces>.  In these views you'll be able to browse through the source code of the original drivers, and to see how the violation of rules detected happens.
+
+=head1 FALSE POSITIVES
+
+Results of LDV still have some false positives in rules.  For example, the rule "Mutex lock/unlock" sometimes detects two consecutive locks of different mutexes as a violation.  Make sure you investigated all "errors" and checked if they're not spurious.
+
+=head1 WHAT DOES THIS ERROR MEAN
+
+There is a number of obscure errors that may be shown, by C<ldv-git> itself or by underlying LDV infrastructure.  Here's a short list of what should be done if an error is encountered.
+
+However, for now this list is empty.  As development progresses, and more testers and volunteers use ths script, the list will appear here.
+
+=head2 C<readline() on closed filehandle $META at /home/hed/ldv/ldv-gsoc/ldv-git/metamerge line 39>
+
+It's not an error, ignore this.  It just means that a new metadata file is being created.
+
+=head2 Undefined rule...
+
+You may see this message in statistics web interface.  This denotes an internal error, and you can just ignore it, considering that LDV tools just can't verify the driver in subject.
+
+=head1 IMPROVING RUN TIME
+
+LDV-GIT and LDV runs B<very> slowly.  This is because verification tools need running time improvement.  However, there are few things that can decrease the running time.
+
+=head2 Filtering drivers
+
+If you're only interested in verifying specific drivers (not all of them), you may specify C<--filter> option.  See L<COMMAND LINE OPTIONS> for details.
+
+=head2 Fixing kernel configuration
+
+Shadow kernel is by default configured with "make allyesconfig", and then is rebuilt on each invocation.  This takes considerable time and memory.
+
+However, the configuration doesn't need to be exhaustive.  Instead, its only requirement is that it should only build I<drivers>, which you're going to check.  You can supply configuration command by changing environment variable C<LDVGIT_CONFIG_CMD>.  See L<ENVIRONMENT VARIABLES> for more info.
+
+If you know a generic way to do this, or have some thoughts how to decrease it, please, contact us via e-mail (see L<AUTHORS> section).
+
+=head2 Decreasing limits
+
+The core component of LDV tool suite, Reachability C language Verifier, consumes a lot of time and memory.  Having reached one of these limits, it terminates, and the result of checking the particular driver remains unknown.  The greater these limits are, the more time it takes to reach them.
+
+However, the dependency between increaing the limits and getting more acomplished verifications is non-linear.  You may increase limits, but gain no additional results.  That's why you might want to decrease these limits.
+
+The default values are described in LDV manuals. You may control the limits by setting environment variables: C<RCV_TIMELIMIT> for CPU+sys time limit in seconds, and C<RCV_MEMLIMIT> for total memory in kilobytes.  Note that these limits affect checking of B<one> driver only.
+
+=head2 Decreasing amount of recompiled entities in kernel.
+
+If you do not check changes on different branches, but just verify commits sequentally, you might want to add C<--no-intermediate> option.  It should make LDV-GIT recompile less of shadow kernel.  This option is not documented.
+
+=head2 Avoiding kernel recompilation
+
+If you have already checked this commit, you might want to avoid shadow kernel recompilation completely.  To do this, supply C<--no-update-meta> option to C<ldv-git> script.
+
+=head1 AUTHORS
+
+Current maintainer of LDV-GIT: Pavel Shved <pavel.shved@gmail.com>.
+
+The initial version of LDV-GIT was developed by Andrey Tretyakov within Google Summer of Code 2010.  All LDV project members also contributed to the project at that period.
+
+The project will be merged into LDV soon.
+
+=cut
+

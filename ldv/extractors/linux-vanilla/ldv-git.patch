@@ -1,0 +1,31 @@
+diff --git a/scripts/Makefile.build b/scripts/Makefile.build
+index e4deb73..558511b 100644
+--- a/scripts/Makefile.build
++++ b/scripts/Makefile.build
+@@ -175,6 +175,10 @@ $(obj)/%.symtypes : $(src)/%.c FORCE
+ 
+ quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
+ 
++LDVGIT_SCRIPTS?=.
++cmd_ldv_meta1=$(LDVGIT_SCRIPTS)/meta1
++cmd_ldv_metamerge=$(LDVGIT_SCRIPTS)/metamerge
++
+ ifndef CONFIG_MODVERSIONS
+ cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
+ 
+@@ -214,9 +217,12 @@ cmd_record_mcount = set -e ; perl $(srctree)/scripts/recordmcount.pl "$(ARCH)" \
+ endif
+ 
+ define rule_cc_o_c
+-	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
+-	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
++	$(CC) $(c_flags) $(LDVGIT_EXTRA_CFLAGS) -O0 -E -o $@.i $< ;	  \
++	$(call echo-cmd,checksrc) $(cmd_checksrc) 			  \
++	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c) -fdump-rtl-expand;	  \
+ 	$(cmd_modversions)						  \
++	$(cmd_ldv_meta1) $< $@.i $(notdir $<).*.expand $@ | $(cmd_ldv_metamerge) $(LDVGIT_META) ;		  \
++	if echo "$<" | grep drivers >/dev/null 2>/dev/null ; then ( echo "== $<"; cat $@.xmlcmd ) | $(cmd_ldv_metamerge) $(LDVGIT_CMDS) ; fi ;		  \
+ 	$(call echo-cmd,record_mcount)					  \
+ 	$(cmd_record_mcount)						  \
+ 	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' >    \
+

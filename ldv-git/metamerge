@@ -1,0 +1,71 @@
+#!/usr/bin/perl -w
+
+# Merge metadata from stdin into metadata file specified in command line
+
+use strict;
+my ($meta_fname) = @ARGV;
+$meta_fname or die "Usage fail";
+
+# For now we assume that new metadata contain just a few files, and can be loaded to memory.
+my %meta_in = ();
+use constant { META_WAIT => 0, META_READING => 1};
+my $meta_in_st = {st=>META_WAIT, file => undef};
+local $_;
+while (<STDIN>){
+	if (/^== (.*)/m){
+		$meta_in_st->{st} = META_READING;
+		$meta_in_st->{file} = $1;
+	}else{
+		if ($meta_in_st->{st} == META_READING){
+			$meta_in{$meta_in_st->{file}} .= $_;
+		}
+	}
+}
+
+# TODO: lock metadata file to prevent clashes
+
+# Create temporary file with the new metadata
+use File::Basename;
+use File::Copy;
+use File::Path;
+use File::Temp qw/tempfile/;
+my ($TMP, $tmp_fname) = tempfile();
+
+mkpath(dirname($meta_fname));
+-f $meta_fname or system("touch $meta_fname");
+my $META; open $META, "<", $meta_fname or print("Can't meta file: $!");
+use constant { DATA_WAIT => 0, DATA_READING => 1, DATA_IGNORING =>2};
+my $st = DATA_WAIT;
+while (<$META>){
+	if (/^== (.*)/m){
+		print $TMP $_;
+		my $file = $1;
+		if (exists $meta_in{$file}){
+			print $TMP $meta_in{$file};
+			$st = DATA_IGNORING;
+			delete $meta_in{$file};
+		}else{
+			$st = DATA_READING;
+		}
+	}else{
+		unless ($st == DATA_IGNORING){
+			print $TMP $_;
+		}
+	}
+}
+close $META;
+
+# Print the rest of the input metadata, for each file noe encountered in the target file
+for my $file (keys %meta_in){
+	print $TMP "== $file\n";
+	print $TMP $meta_in{$file};
+}
+
+close $TMP;
+
+# all ok -- move temp file to meta
+move($tmp_fname,$meta_fname);
+
+exit 0;
+
+
