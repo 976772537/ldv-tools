@@ -1,0 +1,110 @@
+#!/usr/bin/perl
+
+# Merge metadata from stdin into metadata file specified in command line
+
+use strict;
+my ($new_fname,$old_fname) = @ARGV;
+# Sanity checks
+-f $new_fname or die;
+# List of changed files
+my %changed_files = map {chomp; $_ => 1} (<STDIN>);
+
+use File::Basename;
+use File::Copy;
+use File::Path;
+use File::Temp qw/tempfile/;
+use Graph;
+
+use FindBin;
+BEGIN{
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+};
+use MetaUtils;
+
+# We don't print warnings about unmatched symbols, since there's too many of them, and they don't really affect anything.
+my $report_unmatched ='';
+
+# Let's read both metadata to hashes
+my $old = {};
+$old = MetaUtils::meta_to_hash($old_fname) if defined $old_fname;
+my $new = MetaUtils::meta_to_hash($new_fname);
+
+# Now detect the new parts.  These are:
+# 1. New files
+# 2. Changed files
+# 3. Files which included a changed file
+# 4. Files which (directly and indirectly) called a function defined in a changed file
+#
+# Let's mark the new files, step by step
+
+# 1. New files
+my %old_files = map {$_ => 1} keys %$old;
+my %new_files = map {$_ => 1} keys %$new;
+my %changed_1 = map {$_ => 1} grep {!$old_files{$_}} keys %new_files;
+
+# 2. Changed files
+my %changed_2 = (%changed_files);
+
+# 3. Files that included a changed file
+my %changed_3 = map{$_=>1} grep {my $f = $_; local $_; scalar grep {$changed_files{$_}} @{$new->{$f}->{includes}}} keys %$new;
+
+# 4. Files which (directly and indirectly) called a function defined in a changed file
+
+# We construct "call graph".  It's an oriented graph. in which:
+# Vertexes: C files in `drivers/` directory
+# Edge V->W means that W calls a function from V.
+use Graph::Directed;
+my $file_cg = Graph::Directed->new();
+# TODO: Present a "true" call graph, that rules out this situation:  file X calls function from Y, but another function in Y calls a function from a changed file Z.  Therefore, according to the graph we build now, we should re-check X.  However, it's not necessary.
+
+# Get mapping function -> file that provides it
+my %fname_for = ();
+for my $c_file (keys %$new){
+	for my $sym (@{$new->{$c_file}->{provides}}){
+		$fname_for{$sym} = $c_file;
+	}
+}
+# In order not to duplicate errors
+my %reported=();
+# Get the graph we want
+for my $c_file (keys %$new){
+	for my $sym (@{$new->{$c_file}->{calls}}){
+		unless ($fname_for{$sym}){
+			if ($report_unmatched){
+				print STDERR "File name for called symbol $sym not found!\n" unless $reported{$sym}++;
+			}
+		}else{
+			$file_cg->add_edge($fname_for{$sym},$c_file);
+		}
+	}
+}
+# Get all files that depend (via callgraph)
+my %changed_4 = ();
+my %changed_for_calls = (%changed_1, %changed_2);
+for my $changed_file (keys %changed_for_calls){
+	$changed_4{$_} = 1 for $file_cg->all_successors($changed_file);
+}
+
+# Alright.  Now squash all hashes with changed files and priont them
+my %changed_all = (%changed_1,%changed_2,%changed_3,%changed_4);
+
+# Now detect the new parts.  These are:
+# 1. New files
+# 2. Changed files
+# 3. Files which included a changed file
+# 4. Files which (directly and indirectly) called a function defined in a changed file
+my $stats = {
+	'New' => scalar keys %changed_1,
+	'Changed' => scalar keys %changed_2,
+	'Included' => scalar keys %changed_3,
+	'Called' => scalar keys %changed_4,
+};
+
+$\="\n";
+print STDERR "$_: $stats->{$_}" for keys %$stats;
+print for keys %changed_all;
+
+
+exit 0;
+

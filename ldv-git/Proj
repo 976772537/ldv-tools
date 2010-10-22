@@ -1,0 +1,20 @@
+=== LDV-GIT
+../README
+
+ldv-git
+
+ldv-git-prepare
+ldv-git-meta
+
+meta1
+metadiff
+metamerge
+
+metadeps
+metadriver
+
+kernel_fix/
+	fix_bigobj.pl
+	patches/makefile.patch
+	patches/arch_arm_x86.patch
+	

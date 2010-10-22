@@ -1,0 +1,152 @@
+#!/usr/bin/perl -w
+
+# Creates an XML cmdstream for the files listed on command line.
+# It also takes a file with commands as an input
+
+use strict;
+use File::Basename;
+use File::Copy;
+use File::Path;
+use File::Temp qw/tempfile/;
+use File::Spec::Functions;
+use XML::Twig;
+use Graph;
+use Cwd;
+
+use FindBin;
+BEGIN{
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+};
+use LDV::Utils;
+LDV::Utils::set_verbosity($ENV{'LDV_DEBUG'} || 'NORMAL');
+LDV::Utils::push_instrument('metadriver');
+
+use MetaUtils;
+
+# Whether to include indirect dependencies
+my $indirect = 1;
+# Whether to read files from input instead of command line
+my $stdin = '';
+# Skip drivers if file with commands already exists
+my $skip_existing = 1;
+
+use Getopt::Long;
+GetOptions(
+	'stdin' => \$stdin,
+	'skip-existing!' => \$skip_existing,
+) or die "incorrect options";
+
+if (!$stdin){
+	my ($meta_fname,@c_files) = @ARGV;
+
+	# First C file is the main
+	my $main_c_file = $c_files[0] or die;
+
+	# Sanity checks
+	-f $meta_fname or die;
+
+	# Load data
+	my $filter_files = {map {$_ => 1} @c_files};
+	my $meta = MetaUtils::meta_to_raw_hash($meta_fname,$filter_files);
+	cmd_for_driver($meta,$main_c_file,\*STDOUT,@c_files);
+}else{
+	my ($meta_fname,$target_dir) = @ARGV;
+	my $meta = MetaUtils::meta_to_raw_hash($meta_fname);
+	# is it empty?
+	my $drivers = MetaUtils::meta_to_raw_hash_from_fh(\*STDIN);
+	for my $driver (keys %$drivers){
+		my $driver_fname = catfile($target_dir,$driver,'commands.xml');
+		# Skip driver if cmdfile exists
+		$skip_existing && -f $driver_fname and next;
+
+		my @sources = split /\s+/s, $drivers->{$driver};
+		mkpath(catdir($target_dir,$driver));
+		my $OUTF; open $OUTF,">",catfile($target_dir,$driver,'commands.xml') or die "Can't open file".catfile($target_dir,$driver,'commands.xml').": $!";
+		cmd_for_driver($meta,$driver,$OUTF,@sources);
+		close $OUTF;
+		vsay 'NORMAL', "Commands for $driver generated.\n";
+	}
+}
+
+sub cmd_for_driver
+{
+	my ($meta,$main_c_file,$OUT_FH,@c_files) = @_;
+# Form first variant of XML cmdstream by mere concatenation.
+# This stream is piped from a child process, which we specifically fork for that.
+# Parent process will rewrite it and print to stdout
+my $CMD1; my $writer_pid = open $CMD1, "-|";
+defined $writer_pid or die;
+
+if (!$writer_pid){
+	# Write first variant of cmdstream (to STDOUT, which is piped to CMD1)
+	print "<cmdstream>\n";
+	for my $c_file (@c_files){
+		print $meta->{$c_file};
+	}
+	print "</cmdstream>\n";
+	close $CMD1;
+	exit 0;
+}else{
+	# Read and process the first variant of cmdstream
+	# (for now, we just print it to output to check if it's ok.)
+	print $OUT_FH '<?xml version="1.0"?>',"\n";
+	XML::Twig->new( twig_handlers=> { 'cmdstream' => sub {
+		my ($twig,$streamT) = @_;
+		local $_;
+		# We rewrite command IDs
+		my $cmd_id = 1;
+		my @o_files = ();
+		my $cwd_for_ld_command = undef;
+		for my $ccT ($streamT->children){
+			$ccT->set_att('id' => $cmd_id++);
+			# Tell main generator that we don't need main for this file
+			unless ($ccT->field('in') eq $main_c_file){
+				#print $ccT->att('id'),"\n" unless defined $ccT->first_child('in');
+				$ccT->first_child('in')->set_att(restrict=>"main");
+			}
+			$cwd_for_ld_command ||= $ccT->field('cwd');
+			push @o_files,$ccT->field('out');
+		}
+		# Add basedir tag
+		# TODO: add more correct update of basedir (it should be the shadow kernel root dir!)
+		XML::Twig::Elt->new('basedir',$cwd_for_ld_command)->paste(first_child=>$streamT);
+		# Add LD command with proper sub-fields
+		my $ld = XML::Twig::Elt->new('ld',{'id'=>$cmd_id++});
+		my $ko_name = $main_c_file; $ko_name =~ s/^.*\/(.*)\.c$/$1.ko/;
+		XML::Twig::Elt->new('cwd',$cwd_for_ld_command)->paste(first_child=>$ld);
+		XML::Twig::Elt->new('out',{check=>'true'},$ko_name)->paste(first_child=>$ld);
+		XML::Twig::Elt->new('in',$_)->paste(last_child=>$ld) for @o_files;
+		$ld->paste(last_child=>$streamT);
+
+		# Make paths absolute, and add 
+		for my $ccT ($streamT->children('cc'),$streamT->children('ld')){
+			next unless defined $ccT;
+			# Transform in and out tags to absolute paths.  That's an unnecessary and clumsy requirement of LDV
+			for my $tags (('in','out')){
+				$_->set_text(relpath($ccT->field('cwd'),$_->text)) for $ccT->children($tags);
+			}
+		}
+
+		# Print resultant stream
+		$streamT->set_pretty_print('indented');
+		$streamT->print($OUT_FH);
+	}})->parse($CMD1);
+}
+}
+
+exit 0;
+
+# Usage: relpath($base, $to);
+# Return path that would be reached if you wrote "cd $base; cd $to" in the shell.
+sub relpath
+{
+	my $base = shift or die;
+	my $to = shift or die;
+	if ($to =~ /^\//) {
+		return $to;
+	}else{
+		return "$base/$to";
+	}
+}
+

@@ -1,0 +1,36 @@
+LDV-GIT
+=======
+
+LDV-GIT is an infrastructure to support continious monitoring of quality of
+Linux Kernel drivers.
+
+During that monitoring, the Kernel is analyzed with static analysis tools
+provided by Linux Driver Verification project (LDV).  You can find more
+about LDV at http://linuxtesting.org/ldv.
+
+The main feature of LDV-GIT is that it supports incremental checking.  If a
+certain version of a kernel has already been checked, and you check another
+version, which is based on it, LDV-GIT makes LDV check only drivers,
+behavior of which could change.  Not only it takes direct file modifications
+into account, but also calling functions from a file that could change, and
+includeing a modified header file.
+
+
+HOW TO INSTALL
+==============
+
+Please, refer to main INSTALL file to see installation information.
+
+HOW TO USE
+==========
+
+You may browse comprehensive documentation by typing into console.
+
+	ldv-git --help
+
+
+ACKNOWLEDGEMENTS
+================
+
+LDV-GIT was supported by Google Summer of Code 2010 program.
+

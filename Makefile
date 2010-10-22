@@ -3,7 +3,7 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online
+BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh error-trace-visualizer
 ERROR_TRACE_VISUALIZER_SUBDIRS = error-trace-visualizer shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
@@ -11,6 +11,7 @@ LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SU
 STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer shared/php
 ONLINE_SUBDIRS = ldv-online 
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
+LDV_GIT_SUBDIRS = $(LDV_SUBDIRS) ldv-git
 
 
 SUBDIRS = $(BUILD_SUBDIRS)
@@ -45,6 +46,8 @@ install-visualization: pre_tests $(call forall_subdirs,$(STATS_SUBDIRS),install)
 # Install only test stuff
 install-testing: pre_tests $(call forall_subdirs,$(TESTS_SUBDIRS),install)
 
+# Install only test stuff
+install-ldv-git: pre_tests $(call forall_subdirs,$(LDV_GIT_SUBDIRS),install)
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 
@@ -60,6 +63,7 @@ $(foreach subdir,$(ONLINE_NODE_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(ONLINE_SERVER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(LDV_MANAGER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(TESTS_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(LDV_GIT_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 
 pre_tests:
 	@$(call test_var_prefix)

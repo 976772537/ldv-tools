@@ -1,0 +1,147 @@
+#!/usr/bin/perl -w
+# Script to calculate metadata for ONE file
+# Usage: meta1 file.c file.i file.expand file.o
+# Result: prints metadata to output
+
+use strict;
+
+my ($c,$i,$e,$o) = @ARGV;
+do { print STDERR "LDV: Not a driver, analysis skipped.\n"; goto CLEANUP; } unless $c =~ /^drivers\//;
+defined $o or die "Usage fail";
+
+sub included_files
+# In:  preprocessed C file.
+# Out: list of included files, relative to kernel
+{
+	my ($i_file,$basedir) = @_;
+
+	my %result = ();
+
+	# Open and process the include file
+	local $_;
+	my $iF;
+	open $iF, "<", $i_file or die $!;
+	while (<$iF>){
+		chomp;
+		if (/^#\s+[0-9]+.*"(.*)"/){
+			my $file = $1;
+			# Remove path if it expanded to absolute
+			$file =~ s/^$basedir\/*//;
+			unless ($file =~ /</){	# Wtf? oO
+				$result{$file} = 1;
+			}
+		}
+	}
+	close $iF;
+
+	return keys %result;
+}
+
+sub functions_called
+# In:  RTL file
+# Out: Functions that were called in this file.  The list includes calls of internal functions
+{
+	my ($rtl_file,$c_file) = @_;
+
+	# If a file doesn't emit any function, then rtl file may not be emitted as well.
+	return () unless -f $rtl_file;
+
+	my %result = ();
+
+	# Read and process the RTL file
+	local $_;
+	my $FF;
+	open $FF, "<", $rtl_file or die "Opening $rtl_file error: $!";
+	# Function, body of which we currently explore
+	my $curfunc = undef;
+	my $callers = {};
+	while (<$FF>) {
+		chomp;
+		if (/^;; Function (\S+)\s*$/) {
+			# pre-gcc4 style
+			$curfunc = $1;
+		} elsif (/^;; Function (.*)\s+\((\S+)\)$/) {
+			# gcc4 style
+			$curfunc = $2;
+		}
+		# We should filter out functions that are defined outsite of the .c file.  Here we set $infile variable accordingly, unless we've already done this
+#		if (!defined $infile && defined $curfunc && /^\(insn.*\s(.*?):([0-9]+)/) {
+#			my $src = $1;
+#			$infile = $src =~ /^$c_file/; 
+#			# Also filter some unclear functions that are emitted by GCC
+#			$infile &&= ($curfunc =~ /^[a-zA-Z0-9_]+$/));
+#		}
+		if (/^.*\(call.*"(.*)".*$/) {
+			$result{$1} = 1;
+			# Add caller of the function called
+			$callers->{$1} ||= {};
+			$callers->{$1}->{$curfunc} = 1 if $curfunc;
+		} elsif (/^.*\(symbol_ref.*"(.*)".*$/) {
+			$result{$1} = 1;
+			# Add caller of the function called
+			$callers->{$1} ||= {};
+			$callers->{$1}->{$curfunc} = 1 if $curfunc;
+		}
+	}
+	close $FF;
+
+	# Filter out some "strange" functions
+	return {map {$_ => $callers->{$_}} grep { /^[a-zA-Z_][a-zA-Z0-9_]*$/} keys %$callers};
+}
+
+sub functions_provided
+# In:  Object file
+# Out: list of functions exported from this file
+{
+	my ($o_file) = @_;
+	my %result = ();
+
+	local $_;
+	my $NM;
+	# We use nm program to list symbols.
+	open $NM, "-|", "nm", $o_file or die $!;
+	while (<$NM>) {
+		chomp;
+		# An external symbol is marked with a capital letter before its name.
+		if (/ [A-TV-Z] (.*)/){
+			$result{$1} = 1;
+		}
+	}
+
+	close $NM;
+
+	return keys %result;
+}
+
+# Preprocess .i file to get included files
+use Cwd;
+
+print "== $c\n";
+
+$\ = "\n";
+
+print "-- INCLUDED";
+print for grep /^drivers/, included_files($i,getcwd());
+
+print "-- CALLED";
+my $callers = functions_called($e,$c);
+for my $fun (keys %$callers){
+	my $callers = $callers->{$fun} ? "[".join(" ",keys %{$callers->{$fun}})."]" : '';
+	print "$fun $callers";
+}
+
+print "-- PROVIDED";
+print for functions_provided($o);
+
+
+# Cleanup
+CLEANUP:
+
+# RTL file is not necessary
+unlink $e if !$ENV{'LDV_GCC_KEEP'} && -f $e;
+
+# TODO: replace .o file with something less space-consuming
+
+
+exit 0;
+

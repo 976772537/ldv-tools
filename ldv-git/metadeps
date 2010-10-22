@@ -1,0 +1,107 @@
+#!/usr/bin/perl -w
+
+# Fetch all .c files, on which the given .c file depends.
+# The script also takes metadata file as input
+
+use strict;
+use File::Basename;
+use File::Copy;
+use File::Path;
+use File::Temp qw/tempfile/;
+use Graph;
+
+use FindBin;
+BEGIN{
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+};
+
+use LDV::Utils;
+LDV::Utils::set_verbosity($ENV{'LDV_DEBUG'} || 'NORMAL');
+LDV::Utils::push_instrument('metadeps');
+
+use MetaUtils;
+
+# Whether to include indirect dependencies
+my $indirect = 1;
+# Whether to print "== file.c" heaaders
+my $raw = '';
+
+use Getopt::Long;
+GetOptions(
+	'indirect!' => \$indirect,
+	'raw!' => \$raw,
+) or die "incorrect options";
+
+my ($meta_fname,@c_files) = @ARGV;
+
+# Sanity checks
+-f $meta_fname or die;
+
+# Load data
+my $meta = MetaUtils::meta_to_hash($meta_fname);
+
+# Now detect filed on which our file depends
+# Headers will be included automatically.  An only problem is more .c files.
+
+# We build a list of files which (directly and indirectly) called a function defined in a changed file
+
+# We construct "call graph".  It's an oriented graph. in which:
+# Vertexes: C files in `drivers/` directory
+# Edge V->W means that W calls a function from V.
+use Graph::Directed;
+my $file_cg = Graph::Directed->new();
+# TODO: Present a "true" call graph, that rules out this situation:  file X calls function from Y, but another function in Y calls a function from a changed file Z.  Therefore, according to the graph we build now, we should re-check X.  However, it's not necessary.
+
+# Get mapping function -> file that provides it
+my %fname_for = ();
+for my $c_file (keys %$meta){
+	for my $sym (@{$meta->{$c_file}->{provides}}){
+		$fname_for{$sym} = $c_file;
+	}
+}
+# In order not to duplicate errors
+my %reported=();
+# Get the graph we want
+for my $c_file (keys %$meta){
+	for my $sym (keys %{$meta->{$c_file}->{called_by}}){
+		my $sym_v = "$sym\@$c_file";
+		$file_cg->add_edge($sym_v,$c_file);
+		for my $caller (keys %{$meta->{$c_file}->{called_by}->{$sym}}){
+			unless ($fname_for{$caller}){
+				#print STDERR "File name for symbol $caller not found!\n" unless $reported{$caller}++;
+			}else{
+				$file_cg->add_edge("$caller\@".$fname_for{$caller},$sym_v);
+				#print STDERR "Edge found: $caller\@".$fname_for{$caller}." ----> $sym_v\n";
+			}
+		}
+	}
+}
+
+$\="\n";
+for my $c_file (@c_files){
+	print "== $c_file" unless $raw;
+
+	# Check if the file we look for actually exists in these metadata
+	exists $meta->{$c_file} or warn "Metadata you supplied ($meta_fname) do not contain information about the C file ($c_file)! Failed";
+
+	# Get all files on which out file depends (via callgraph)
+	my %included = ();
+	if ($indirect){
+		%included =  map {$_ => 1} $file_cg->all_predecessors($c_file);
+	}else{
+		%included =  map {$_ => 1} map {$file_cg->predecessors($_)} $file_cg->predecessors($c_file);
+	}
+
+	#now %included contains symbols in form of funciton@file.  We should fetch files only.
+	my @symfiles = (keys %included);
+	my @files = map {s/.*@//; $_} @symfiles;
+	my %files = map {$_ => 1} @files;
+
+	print for keys %files;
+}
+
+
+exit 0;
+
+

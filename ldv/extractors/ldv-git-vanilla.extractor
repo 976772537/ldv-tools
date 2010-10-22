@@ -1,0 +1,149 @@
+#!/bin/bash
+
+
+LDV_HOME=`readlink -f \`dirname $0\`/../../`;
+USAGE_STRING="LDV_DEBUG=loglevel ldv-git-vanilla.extractor descriptor";
+LOG_PREFIX="ldv-git-vanilla: ";
+source $LDV_HOME/shared/sh/log.sh;
+
+
+XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
+BCE_XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/build-cmd-extractor\\/bce_gcc";
+
+recover_state_and_die() {
+        # Recover old kernel state 
+        ldv_print "ERROR: $1\n";
+        ldv_print "INFO: Recovering...\n";
+        git reset --hard LDV_ORIG
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: hard-reset to LDV_ORIG: code: $?";
+		exit 1;
+	fi;
+        git stash pop
+	if [ $? -ne 0 ]; then
+		ldv_print "ERROR: recover stash failed: code: $?";
+		exit 1;
+	fi;
+        chdir $BEFORE_DIR;
+        exit 1;
+}
+
+
+
+ldv_print "NORMAL: LDV-Git Linux Vanilla extractor.";
+
+#
+# extractor kernel-description
+#
+
+if [ ! -f "$1" ]; then
+	ldv_print "ERROR: can't find description file \"$1\".";
+	exit 1;
+fi;
+
+# read field from description;
+DSCR_SOURCE=`cat $1 | grep ^source |  sed 's/^source=//'`;
+DSCR_DEST=`cat $1 | grep ^dest |  sed 's/^dest=//'`;
+DSCR_OPTIONS=`cat $1 | grep ^options |  sed 's/^options=//'`;
+DSCR_COMMIT=`cat $1 | grep ^commit |  sed 's/^commit=//'`;
+
+# test kernel source type:
+if [ ! -d $DSCR_DEST ]; then
+	mkdir $DSCR_DEST;
+	if [ $? -ne 0 ]; then
+	        ldv_print "ERROR: Failed to create destination dir: \"$DSCR_DEST\"."
+	        exit 1;
+	fi;
+fi;
+
+#
+# test format for driver file and unpack driver
+#
+if [ ! -d $DSCR_SOURCE ]; then
+	ldv_print "ERROR: Failed source type. It must be dir with kernel sources: \"$DSCR_SOURCE\".";
+	exit 1;
+fi;
+
+#
+# Is it already cloned
+#
+KERNEL_DEST=$DSCR_DEST/shadows;
+KERNEL_MAKEFILE=$KERNEL_DEST/Makefile;
+if [ ! -d "$KERNEL_DEST" ]; then
+	git clone file://$DSCR_SOURCE/ $KERNEL_DEST
+	if [ ! -d $KERNEL_DEST ]; then
+		ldv_print "ERROR: Failed to clone source.";
+		exit 1;
+	fi;
+else
+	ldv_print "DEBUG: Git repo already cloned.";
+	if [ ! -d $KERNEL_DEST/.git ]; then
+		ldv_print "ERROR: Kernel directory - not a git repo.";
+		exit 1;
+	fi;
+fi;
+
+ldv_print "INFO: Shadow repository is in $KERNEL_DEST";
+ldv_print "DEBUG: Changing dir to shadow repo \"$KERNEL_DEST\"";
+BEFORE_DIR=`pwd`;
+cd $KERNEL_DEST
+ldv_print "INFO: Stashing LDV changes...";
+ldv_print "DEBUG: git stash";
+git stash
+if [ $? -ne 0 ]; then recover_state_and_die "git stash failed"; fi;
+ldv_print "DEBUG: git update-ref LDV_ORIG HEAD";
+git update-ref LDV_ORIG HEAD
+if [ $? -ne 0 ]; then recover_state_and_die "saving refname failed"; fi;
+
+# Getting latest changes
+ldv_print "INFO: Pulling your changes to shadow repo...";
+ldv_print "DEBUG: git pull origin +HEAD:master";
+git pull origin +HEAD:master
+if [ $? -ne 0 ]; then recover_state_and_die "initial stash failed"; fi;
+
+
+#
+# INTERMEDIATE COMMIT OPTION
+#
+if [ -n "$DSCR_COMMIT" ]; then
+	ldv_print "DEBUG: Commit: $DSCR_COMMIT";
+	ldv_print "INFO: Simulating finished build in intermediate commit $DSCR_COMMIT...\n";
+
+	ldv_print "TRACE: git checkout $DSCR_COMMIT";
+        git checkout $DSCR_COMMIT
+	if [ $? -ne 0 ]; then recover_state_and_die "interm checkout failed"; fi;
+
+	ldv_print "TRACE: find drivers -iname '*.o' | xargs -L 100 --no-run-if-empty touch";
+        find drivers -iname '*.o' | xargs -L 100 --no-run-if-empty touch
+	if [ $? -ne 0 ]; then recover_state_and_die "interm touching failed for .o"; fi;
+
+	ldv_print "TRACE: find drivers -iname '*.so' | xargs -L 100 --no-run-if-empty touch";
+        find drivers -iname '*.so' | xargs -L 100 --no-run-if-empty touch
+	if [ $? -ne 0 ]; then recover_state_and_die "interm touching failed for .so"; fi;
+
+	ldv_print "TRACE: find drivers -iname '*.ko' | xargs -L 100 --no-run-if-empty touch";
+        find drivers -iname '*.ko' | xargs -L 100 --no-run-if-empty touch
+	if [ $? -ne 0 ]; then recover_state_and_die "interm touching failed for .ko"; fi;
+
+	ldv_print "TRACE: git checkout master";
+        git checkout master
+	if [ $? -ne 0 ]; then recover_state_and_die "checkout master failed"; fi;
+fi;
+
+#
+# Create other dirs:
+# like as cache  metadata  shadows  stamps  work
+#
+#mkdir -p $DSCR_DEST/cache;
+#mkdir -p $DSCR_DEST/metadata;
+#mkdir -p $DSCR_DEST/stamps;
+#mkdir -p $DSCR_DEST/work;
+
+ldv_print "INFO: Patching shadow kernel...";
+source $LDV_HOME/ldv/extractors/shared/ldv-git-vanilla.sh;
+
+ldv_print "DEBUG: git stash drop";
+git stash drop
+if [ $? -ne 0 ]; then ldv_print "WARNING: dropping have some errors"; fi;
+cd $BEFORE_DIR;
+ldv_print "INFO: Shadow repository is now prepared to static checking of your Linux Kernel.";

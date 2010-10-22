@@ -1,0 +1,77 @@
+#!/usr/bin/perl
+use strict;
+# Runs metadata update for target kernel 
+# Usage:
+# 	ldv-git-metadata target_kernel metadata_file
+
+use FindBin;
+my $script_dir;
+BEGIN{
+	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";	
+	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+	$script_dir = $FindBin::Bin;
+}
+
+use LDV::Utils;
+LDV::Utils::set_verbosity($ENV{'LDV_DEBUG'} || 'NORMAL');
+LDV::Utils::push_instrument('ldv-git-meta');
+
+# Process and verify input
+my ($target_dir,$metadata_file,$cmddata_file,$pool_file,$forced_full_check) = @ARGV;
+
+use File::Basename qw(dirname);
+use File::Path qw(mkpath);
+use Cwd qw(getcwd abs_path);
+
+# Metadata file will be accessed from shadow kernel dir, so we should use its abs.path
+$metadata_file = abs_path($metadata_file);
+$cmddata_file = abs_path($cmddata_file);
+$pool_file = abs_path($pool_file);
+-d $target_dir or die "Target directory ($target_dir) must contain Shadow kernel";
+-d dirname($metadata_file) && -w dirname($metadata_file) or die "Can't create metadata file ($metadata_file)";
+-d dirname($cmddata_file) && -w dirname($cmddata_file) or die "Can't create metadata file ($cmddata_file)";
+-d dirname($pool_file) && -w dirname($pool_file) or die "Can't create metadata file ($pool_file)";
+
+# Change dir to target repo
+my $orig_cwd = getcwd();
+chdir $target_dir;
+
+# Allow user to override make program
+my $make_prog = $ENV{'MAKE'} || "make";
+
+
+vsay 'NORMAL', "Recompiling Shadow kernel to get the newest metadata...\n";
+eval {
+	$ENV{'LDVGIT_SCRIPTS'} = $script_dir;
+	vsay 'DEBUG', "Variable LDVGIT_SCRIPTS: $ENV{'LDVGIT_SCRIPTS'}\n";
+	$ENV{'LDVGIT_META'} = $metadata_file;
+	vsay 'DEBUG', "Variable LDVGIT_META: $ENV{'LDVGIT_META'}\n";
+	$ENV{'LDVGIT_CMDS'} = $cmddata_file;
+	vsay 'DEBUG', "Variable LDVGIT_CMDS: $ENV{'LDVGIT_CMDS'}\n";
+	# For cmd generator
+	$ENV{'AS_GCC_POOL'} = $pool_file;
+	vsay 'DEBUG', "Variable AS_GCC_POOL: $ENV{'AS_GCC_POOL'}\n";
+	# Upon a forced full check, make sure that all drivers will be updated.  To do that, touch all .c files.
+	if ($forced_full_check){
+		vsay 'NORMAL', "Touch'ing all *.c files to force full regeneration...\n";
+		system("find drivers -iname '*.c' | xargs -L 100 --no-run-if-empty touch") and die "interm touching: $?";
+	}
+	system($make_prog) and warn "Compiling shadow kernel failed: code $?";
+};
+if ($@){
+	# Recover old kernel state 
+	vsay 'NORMAL', "Error occured!  Recovering...\n";
+	# Go back to directory
+	chdir $orig_cwd;
+	# Proceed with dying
+	die $@;
+}
+
+
+# Go back to original directory
+chdir $orig_cwd;
+
+print "Metadata in $metadata_file have been regenerated.\n";
+
+exit 0;
+
