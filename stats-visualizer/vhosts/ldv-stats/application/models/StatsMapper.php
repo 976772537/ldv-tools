@@ -72,22 +72,20 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'rule-instrumentor' => 'RI',
     'rcv' => 'RCV');
 
-  public function connectToDb($host, $name, $user, $password = 'no') {
+  public function connectToDb($host, $name, $user, $password = 'no', $params = array()) {
     // Override the profile database connection settings with the specified
     // through the page address ones if so.
-    $global = new Zend_Session_Namespace('Statistics globals');
-
-    if ($global->dbName) {
-      $name = $global->dbName;
+    if (array_key_exists('name', $params)) {
+      $name = $params['name'];
     }
-    if ($global->dbUser) {
-      $user = $global->dbUser;
+    if (array_key_exists('user', $params)) {
+      $user = $params['user'];
     }
-    if ($global->dbHost) {
-      $host = $global->dbHost;
+    if (array_key_exists('host', $params)) {
+      $host = $params['host'];
     }
-    if ($global->dbPassword) {
-      $password = $global->dbPassword;
+    if (array_key_exists('password', $params)) {
+      $password = $params['password'];
     }
 
     if ($password == 'no') {
@@ -125,7 +123,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     return array('table' => $table, 'tableShort' => $tableShort, 'column' => $column);
   }
 
-  public function getPageStats($profile, $params)
+  public function getPageStats($profile, $params = array())
   {
     // Get information for the specified if so or the default page of a current
     // profile.
@@ -143,6 +141,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $value = $params['value'];
     }
 
+    // Obtain task names from parameters.
+    $tasks = array();
+    for ($i = 1; array_key_exists("task$i", $params) and ($tasks[] = $params["task$i"]); $i++) {
+      ;
+    }
+
     // Here all information to be shown will be written.
     $result = array();
 
@@ -154,7 +158,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Page'] = $pageName;
 
     // Connect to the profile database and remember connection settings.
-    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     // Gather all statistics key restrictions if so comming through the
     // parameters.
@@ -342,6 +346,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
       foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+        // A given page may not contain a given key at all.
+        if (!array_key_exists($statKey, $launchInfoScreened)) {
+          continue;
+        }
+
         if ($statKeyValue == '__EMPTY') {
           $statKeyValue = '';
         }
@@ -359,6 +368,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
+    // Restrict to the necessary task names.
+    if (count($tasks)) {
+      $select = $select
+        ->where($launchInfoScreened['Task name'] . " IN ('" . join("','", $tasks) . "')");
+    }
+
     // Group by the launch information.
     foreach ($groupBy as $group) {
       $select = $select->group($group);
@@ -369,8 +384,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $select = $select->order($order);
     }
 
-#print_r($select->assemble());
-#exit;
+#print_r($select->assemble());exit;
 
     $launchesResultSet = $launches->fetchAll($select);
 
@@ -457,6 +471,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
               if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
                 foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+                  // A given page may not contain a given key at all.
+                  if (!array_key_exists($statKey, $launchInfoScreened)) {
+                    continue;
+                  }
+
                   if ($statKeyValue == '__EMPTY') {
                     $statKeyValue = '';
                   }
@@ -551,6 +570,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
         foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+          // A given page may not contain a given key at all.
+          if (!array_key_exists($statKey, $launchInfoScreened)) {
+            continue;
+          }
+
           if ($statKeyValue == '__EMPTY') {
             $statKeyValue = '';
           }
@@ -726,7 +750,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
     // Connect to the profile database and remember connection settings.
-    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     $traces = $this->getDbTable('Application_Model_DbTable_Traces', $this->_db);
 
@@ -811,7 +835,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Page'] = $pageName;
 
     // Connect to the profile database and remember connection settings.
-    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword);
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     // Obtain the launch info columns. They will be selected as statistics key,
     // joined and by them and ordering will be done. Note that they are already

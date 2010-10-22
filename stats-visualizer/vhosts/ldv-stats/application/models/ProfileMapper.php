@@ -22,24 +22,25 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
     return $entries;
   }
 
-  public function getProfileCurrent()
+  public function getProfile($name = 'default', $user = 'default')
   {
     $profiles = $this->getProfiles();
-    $global = new Zend_Session_Namespace('Statistics globals');
 
     foreach ($profiles as $profile) {
-      if ($profile->profileId == $global->profileCurrentId) {
+      if ($profile->profileName == $name and $profile->profileUser == $user) {
         return $profile;
       }
     }
 
-    throw new Exception("The current profile can't be found");
+    throw new Exception("The profile having name '$name' and user '$user' can't be found");
   }
 
-  public function getProfileCurrentInfo()
+  public function getProfileInfo($profile = null)
   {
-    // Obtain the current profile at the first.
-    $profileCurrent = $this->getProfileCurrent();
+    // Get the default profile if no one is specified.
+    if (null === $profile) {
+      $profile = $this->getProfile();
+    }
 
     // Add information from db for the current profile.
     // Obtain information on the database connection.
@@ -53,8 +54,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
                 'Password' => 'DA.password'))
       ->joinLeft(array('PR' => 'profiles'), 'PRDA.profile_id=PR.id', array())
       ->joinLeft(array('DA' => 'databases'), 'PRDA.database_id=DA.id', array())
-      ->where('PR.id = ?', $profileCurrent->profileId));
-    $profileCurrent->setOptions(array(
+      ->where('PR.id = ?', $profile->profileId));
+    $profile->setOptions(array(
       'dbHost' => $profileDatabasesRow['Host'],
       'dbName' => $profileDatabasesRow['Name'],
       'dbUser' => $profileDatabasesRow['User'],
@@ -70,10 +71,10 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
                 'Name' => 'PA.name'))
       ->joinLeft(array('PR' => 'profiles'), 'PRPA.profile_id=PR.id', array())
       ->joinLeft(array('PA' => 'pages'), 'PRPA.page_id=PA.id', array())
-      ->where('PR.id = ?', $profileCurrent->profileId));
+      ->where('PR.id = ?', $profile->profileId));
 
     foreach($profilePagesResultSet as $profilePagesRow) {
-      $profileCurrentPage = $profileCurrent->setPageName($profilePagesRow['Name']);
+      $profilePage = $profile->setPageName($profilePagesRow['Name']);
       $this->_logger->log("The current profile page: $profilePagesRow[Name]", Zend_Log::DEBUG);
 
       // Get information on the page.
@@ -91,9 +92,9 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         ->order('AU.order'));
 
       foreach($pagesLaunchInfoResultSet as $pagesLaunchInfoRow) {
-        $profileCurrentPageLaunchInfo = $profileCurrentPage->setLaunchInfoOrder($pagesLaunchInfoRow['Order']);
+        $profilePageLaunchInfo = $profilePage->setLaunchInfoOrder($pagesLaunchInfoRow['Order']);
 
-        $profileCurrentPageLaunchInfo->setOptions(array(
+        $profilePageLaunchInfo->setOptions(array(
           'launchInfoName' => $pagesLaunchInfoRow['Name'],
           'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
         $this->_logger->log("The launch information: $pagesLaunchInfoRow[Name]", Zend_Log::DEBUG);
@@ -113,8 +114,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
           ->order('AU.order'));
 
         foreach($launchFiltersInfoResultSet as $launchFiltersInfoRow) {
-          $profileCurrentPageLaunchInfoFilter = $profileCurrentPageLaunchInfo->setFilterOrder($launchFiltersInfoRow['Order']);
-          $profileCurrentPageLaunchInfoFilter->setOptions(array(
+          $profilePageLaunchInfoFilter = $profilePageLaunchInfo->setFilterOrder($launchFiltersInfoRow['Order']);
+          $profilePageLaunchInfoFilter->setOptions(array(
             'filterName' => $launchFiltersInfoRow['Name'],
             'filterValue' => $launchFiltersInfoRow['Value'],
             'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
@@ -137,8 +138,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         ->order('AU.order'));
 
       foreach($pagesVerificationInfoResultSet as $pagesVerificationInfoRow) {
-        $profileCurrentPageVerificationInfo = $profileCurrentPage->setVerificationInfoOrder($pagesVerificationInfoRow['Order']);
-        $profileCurrentPageVerificationInfo->setOptions(array(
+        $profilePageVerificationInfo = $profilePage->setVerificationInfoOrder($pagesVerificationInfoRow['Order']);
+        $profilePageVerificationInfo->setOptions(array(
           'verificationInfoName' => $pagesVerificationInfoRow['Name'],
           'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
         $this->_logger->log("The verification information: $pagesVerificationInfoRow[Name]", Zend_Log::DEBUG);
@@ -158,8 +159,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
             ->order('AU.order'));
 
           foreach($verificationResultInfoResultSet as $verificationResultInfoRow) {
-            $profileCurrentPageVerificationInfoResult = $profileCurrentPageVerificationInfo->setResultOrder($verificationResultInfoRow['Order']);
-            $profileCurrentPageVerificationInfoResult->setOptions(array(
+            $profilePageVerificationInfoResult = $profilePageVerificationInfo->setResultOrder($verificationResultInfoRow['Order']);
+            $profilePageVerificationInfoResult->setOptions(array(
               'resultName' => $verificationResultInfoRow['Name'],
               'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
             $this->_logger->log("The verification result information: $verificationResultInfoRow[Name]", Zend_Log::DEBUG);
@@ -182,8 +183,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         ->order('AU.order'));
 
       foreach($pagesToolsInfoResultSet as $pagesToolsInfoRow) {
-        $profileCurrentPageToolsInfo = $profileCurrentPage->setToolsInfoOrder($pagesToolsInfoRow['Order']);
-        $profileCurrentPageToolsInfo->setOptions(array(
+        $profilePageToolsInfo = $profilePage->setToolsInfoOrder($pagesToolsInfoRow['Order']);
+        $profilePageToolsInfo->setOptions(array(
           'toolsInfoName' => $pagesToolsInfoRow['Name'],
           'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
         $this->_logger->log("The tools information: $pagesToolsInfoRow[Name]", Zend_Log::DEBUG);
@@ -202,8 +203,8 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
           ->order('AU.order'));
 
         foreach($toolsToolInfoResultSet as $toolsToolInfoRow) {
-          $profileCurrentPageToolsInfoTool = $profileCurrentPageToolsInfo->setToolOrder($toolsToolInfoRow['Order']);
-          $profileCurrentPageToolsInfoTool->setOptions(array(
+          $profilePageToolsInfoTool = $profilePageToolsInfo->setToolOrder($toolsToolInfoRow['Order']);
+          $profilePageToolsInfoTool->setOptions(array(
             'toolName' => $toolsToolInfoRow['Name'],
             'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
           $this->_logger->log("The tools tool information: $toolsToolInfoRow[Name]", Zend_Log::DEBUG);
@@ -211,7 +212,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
       }
     }
 
-    return $profileCurrent;
+    return $profile;
   }
 }
 
