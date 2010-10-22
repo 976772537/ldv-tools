@@ -33,6 +33,12 @@ else
 	ldv_print "WARNING: Can't find headers patch for your kernel."
 fi
 
+# To allow models 60_1 and 68_1 to be processed with kernel having versions higher then 2.6.33.
+# See details in Bug #338.
+if [ $k_sublevel -ge 33 ]; then
+ sed -i -e "s/# define LOCK_PADSIZE (offsetof(struct raw_spinlock, dep_map))/# define LOCK_PADSIZE 1/g" $KERNEL_MAKEFILE_DIR/include/linux/spinlock_types.h;
+fi;
+
 
 #
 # if options not set =>
