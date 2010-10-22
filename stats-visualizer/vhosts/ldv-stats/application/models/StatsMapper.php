@@ -904,15 +904,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     // Restrict to the necessary task ids.
     $select = $select
-      ->where($launchInfoScreened['Task id'] . ' IN (' . join(',', $taskIds) . ')');
+      ->where($launchInfoScreened['Task id'] . " IN ('" . join("','", $taskIds) . "')");
 
     // Order by the launch information.
     foreach ($orderBy as $order) {
       $select = $select->order($order);
     }
 
-#print_r($select->assemble());
-#exit;
+#print_r($select->assemble());exit;
 
     $launchesResultSet = $launches->fetchAll($select);
 

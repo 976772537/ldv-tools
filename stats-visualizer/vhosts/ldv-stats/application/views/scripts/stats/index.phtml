@@ -1,11 +1,15 @@
 <?php
 
-// Print form for the tasks comparison.
-$this->form->setAction($this->url());
-echo $this->form;
-
 // Get all infomation to be displayed.
 $results = $this->entries;
+
+// Don't use comparison for git mode.
+$profileOptions = $results['Profile'];
+if (!($profileOptions['name'] == 'git')) {
+  // Print form for the tasks comparison.
+  $this->form->setAction($this->url());
+  echo $this->form;
+}
 
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
