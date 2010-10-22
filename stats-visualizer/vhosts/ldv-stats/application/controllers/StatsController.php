@@ -2,13 +2,15 @@
 
 class StatsController extends Zend_Controller_Action
 {
-  protected $_params;
+  protected $_globals;
 
   public function init()
   {
+    $this->_globals = array();
+
     // Get the current session database connection settings from the address to
     // be used instead of the current profile ones.
-    $global = new Zend_Session_Namespace('Statistics globals');
+    $global = new Zend_Session_Namespace();
 
     if ($this->_hasParam('name')) {
       $global->dbName =  $this->_getParam('name');
@@ -30,7 +32,7 @@ class StatsController extends Zend_Controller_Action
 
     // Obtain profile name from parameters.
     if ($this->_hasParam('profilename')) {
-      $this->_params['profilename'] = $this->_getParam('profilename');
+      $this->_globals['profilename'] = $this->_getParam('profilename');
     }
   }
 
@@ -38,15 +40,21 @@ class StatsController extends Zend_Controller_Action
   {
     // Get information on the current profile.
     $profileMapper = new Application_Model_ProfileMapper();
-    $profileCurrentInfo = $profileMapper->getProfileCurrentInfo();
+    if (array_key_exists('profilename', $this->_globals)) {
+      $profileInfo = $profileMapper->getProfileInfo($profileMapper->getProfile($this->_globals['profilename']));
+    }
+    else {
+      $profileInfo = $profileMapper->getProfileCurrentInfo();
+    }
 
     // Get all parameters including page name, statistics key names and values
     // and so on.
     $params = $this->_getAllParams();
 
     $statsMapper = new Application_Model_StatsMapper();
-    $this->view->entries = $statsMapper->getPageStats($profileCurrentInfo, $params);
-    $this->view->entries['Profile pages'] = $profileCurrentInfo->getPageNames();
+    $this->view->entries = $statsMapper->getPageStats($profileInfo, $params);
+    $this->view->entries['Globals'] = $this->_globals;
+    $this->view->entries['Profile pages'] = $profileInfo->getPageNames();
 
     // Make a form for the tasks comparison.
     $request = $this->getRequest();

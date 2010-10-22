@@ -125,7 +125,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     return array('table' => $table, 'tableShort' => $tableShort, 'column' => $column);
   }
 
-  public function getPageStats($profile, $params)
+  public function getPageStats($profile, $params = array())
   {
     // Get information for the specified if so or the default page of a current
     // profile.
@@ -141,6 +141,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $value = '';
     if (array_key_exists('value', $params)) {
       $value = $params['value'];
+    }
+
+    // Obtain task names from parameters.
+    $tasks = array();
+    for ($i = 1; array_key_exists("task$i", $params) and ($tasks[] = $params["task$i"]); $i++) {
+      ;
     }
 
     // Here all information to be shown will be written.
@@ -342,6 +348,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
       foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+        // A given page may not contain a given key at all.
+        if (!array_key_exists($statKey, $launchInfoScreened)) {
+          continue;
+        }
+
         if ($statKeyValue == '__EMPTY') {
           $statKeyValue = '';
         }
@@ -359,6 +370,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
+    // Restrict to the necessary task names.
+    if (count($tasks)) {
+      $select = $select
+        ->where($launchInfoScreened['Task name'] . " IN ('" . join("','", $tasks) . "')");
+    }
+
     // Group by the launch information.
     foreach ($groupBy as $group) {
       $select = $select->group($group);
@@ -369,8 +386,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $select = $select->order($order);
     }
 
-#print_r($select->assemble());
-#exit;
+#print_r($select->assemble());exit;
 
     $launchesResultSet = $launches->fetchAll($select);
 
@@ -457,6 +473,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
               if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
                 foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+                  // A given page may not contain a given key at all.
+                  if (!array_key_exists($statKey, $launchInfoScreened)) {
+                    continue;
+                  }
+
                   if ($statKeyValue == '__EMPTY') {
                     $statKeyValue = '';
                   }
@@ -551,6 +572,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       if ($pageName == 'Launches' || $pageName == 'Result' || $pageName == 'Safe' || $pageName == 'Unsafe' || $pageName == 'Unknown' || $isToolRestrict) {
         foreach ($statKeysRestrictions as $statKey => $statKeyValue) {
+          // A given page may not contain a given key at all.
+          if (!array_key_exists($statKey, $launchInfoScreened)) {
+            continue;
+          }
+
           if ($statKeyValue == '__EMPTY') {
             $statKeyValue = '';
           }

@@ -11,7 +11,13 @@ $results = $this->entries;
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
 
-#print_r($profilePages);
+#print_r($profilePages);exit;
+
+// Get information on all current global variables valuse to pass them for child
+// pages.
+$globals = $results['Globals'];
+
+#print_r($globals);exit;
 
 // Get the view name.
 $page = $results['Page'];
@@ -152,11 +158,13 @@ if ($resultsNumb) {
         if (array_key_exists($statKey, $profilePages)) {
           echo "<a href='"
             . $this->url(
-              array(
-                'controller' => 'stats',
-                'action'     => 'index',
-                'page' => $statKey,
-                'value' => $value),
+              array_merge(
+                $globals,
+                array(
+                  'controller' => 'stats',
+                  'action'     => 'index',
+                  'page' => $statKey,
+                  'value' => $value)),
               'default',
               true)
             . "'>"
@@ -206,6 +214,7 @@ if ($resultsNumb) {
           echo "<a href='"
             . $this->url(
               array_merge(
+                $globals,
                 array(
                   'controller' => 'stats',
                   'action'     => 'errortrace',
@@ -224,6 +233,7 @@ if ($resultsNumb) {
         echo "<a href='"
           . $this->url(
             array_merge(
+              $globals,
               array(
                 'controller' => 'stats',
                 'action'     => 'index',
@@ -259,6 +269,7 @@ if ($resultsNumb) {
             echo "<a href='"
               . $this->url(
                 array_merge(
+                  $globals,
                   array(
                     'controller' => 'stats',
                     'action'     => 'index',
@@ -313,6 +324,7 @@ if ($resultsNumb) {
                 echo "<a href='"
                   . $this->url(
                     array_merge(
+                      $globals,
                       array(
                         'controller' => 'stats',
                         'action'     => 'index',
