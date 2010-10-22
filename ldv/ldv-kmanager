@@ -41,6 +41,13 @@ for arg in $@; do
 			        exit 1;
 			fi;
 		;;
+                --commit=*)
+                	commit=`echo $arg | sed 's/--commit=//g'`
+			if [ ! -n "$commit" ]; then
+				ldv_print "ERROR: Parameter \"--commit\" - is null. Setup it or remove";
+			        exit 1;
+			fi;
+		;;
                 --name=*)
                 	name=`echo $arg | sed 's/--name=//g'`
 			if [ ! -n "$name" ]; then
@@ -92,8 +99,52 @@ if [ ! -d "$LDV_ENVS_DIR" ]; then
 		exit 1;
 	fi;
 fi;
-
 case $action in
+	add-by-dir)
+		if [ ! -n "$src" ]; then
+			ldv_print "ERROR: When you add kernel \"--src\" can't be null.";
+			exit 1;
+		fi;
+		if [ ! -n "$extractor" ]; then
+			ldv_print "ERROR: When you add kernel \"--extractor\" can't be null.";
+			print_extractors;
+			exit 1;
+		fi;
+		EXTRACTOR=$LDV_EXTRACTORS_DIR/$extractor.extractor;
+		if [ ! -f "$EXTRACTOR" ]; then
+			ldv_print "ERROR: Can't find extractor: \"$EXTRACTOR\".";
+			print_extractors;
+			exit 1;
+		fi;
+		dsrc=`echo "readlink -f $src" | sh`;
+		if [ $? -ne 0 ]; then 
+			dsrc=$src; # ???
+		fi;
+		#
+		# serach descriptors with this path
+		#
+		for i in `find $LDV_DESCRIPTIONS_DIR/ -maxdepth 1 -type f`; do
+			DSCR_SOURCE=`cat $i | grep ^source= | sed 's/source=//'`;
+			if [ "$dsrc" == "$DSCR_SOURCE" ]; then
+				sed -i -e "s/commit=.*/commit=$commit/g" $i; 
+				$EXTRACTOR $i;
+				if [ $? -ne 0 ]; then
+					ldv_print "ERROR: Extractor: \"$EXTRACTOR\" - failed.";
+					sed -i -e 's/commit=.*//g' $i; 
+					rm $i;
+					rm -fr $LDV_ENVS_DIR/$i;
+					exit 1;
+				fi;
+				sed -i -e 's/commit=.*/commit=/g' $i; 
+				name=`cat $i | grep ^name= | sed 's/^name=//'`;
+				ldv_print "NORMAL: Description name = \"$name\".";
+				ldv_print "NORMAL: Kernel successfully prepared.";
+				exit;
+			fi;
+		done		
+		ldv_print "ERROR: Can't find descriptor.";
+		exit 1;
+	;;
 	add)
 		if [ ! -n "$src" ]; then
 			ldv_print "ERROR: When you add kernel \"--src\" can't be null.";
@@ -114,6 +165,12 @@ case $action in
 			ldv_print "ERROR: When you add kernel \"--name\" can't be null.";
 			exit 1;
 		fi;
+		if [ ! "$extractor" == "ldv-git-vanilla" ]; then
+			if [ ! -n "$src" ]; then
+				ldv_print "ERROR: When you add kernel \"--src\" can't be null.";
+				exit 1;
+			fi;
+		fi;
 		#
 		# check if it exists
 		#
@@ -126,29 +183,36 @@ case $action in
 					ldv_print "ERROR: Can't remove old gcsock description \"$NEW_DESCRIPTION\".";
 					exit 1;
 				fi;
+			elif [ "$extractor" == "ldv-git-vanilla" ]; then
+				ldv_print "INFO: Description \"$name\" already exists.";
 			else
 				ldv_print "ERROR: Kernel description with name \"$name\" already exists. Try to select another name.";
 				exit 1;
 			fi;
 		fi;
-		if [ -d "$LDV_ENVS_DIR/$name" ]; then
-			ldv_print "ERROR: Kernel environment with name \"$name\" already exists. Try to select another name.";
-			exit 1;
+		if [ ! "$extractor" == "ldv-git-vanilla" ]; then
+			if [ -d "$LDV_ENVS_DIR/$name" ]; then
+				ldv_print "ERROR: Kernel environment with name \"$name\" already exists. Try to select another name.";
+				exit 1;
+			fi;
 		fi;
-		#
-		# create descriptor
-		#
-		echo "id=$name" > $NEW_DESCRIPTION;
-		echo "name=$name" >> $NEW_DESCRIPTION;
-		echo "type=$extractor" >> $NEW_DESCRIPTION;
-		dsrc=`echo "readlink -f $src" | sh`;
-		if [ $? -ne 0 ]; then 
-			dsrc=$src; 
+
+		if [ ! -d "$LDV_ENVS_DIR/$name" ]; then
+			#
+			# create descriptor
+			#
+			echo "id=$name" > $NEW_DESCRIPTION;
+			echo "name=$name" >> $NEW_DESCRIPTION;
+			echo "type=$extractor" >> $NEW_DESCRIPTION;
+			dsrc=`echo "readlink -f $src" | sh`;
+			if [ $? -ne 0 ]; then 
+				dsrc=$src; 
+			fi;
+			echo "source=$dsrc" >> $NEW_DESCRIPTION;
+			echo "dest=$LDV_ENVS_DIR/$name" >> $NEW_DESCRIPTION;
+			echo "options=$eoptions" >> $NEW_DESCRIPTION;
+			ldv_print "DEBUG: $EXTRACTOR $NEW_DESCRIPTION";
 		fi;
-		echo "source=$dsrc" >> $NEW_DESCRIPTION;
-		echo "dest=$LDV_ENVS_DIR/$name" >> $NEW_DESCRIPTION;
-		echo "options=$eoptions" >> $NEW_DESCRIPTION;
-		ldv_print "DEBUG: $EXTRACTOR $NEW_DESCRIPTION";
 		$EXTRACTOR $NEW_DESCRIPTION;
 		if [ $? -ne 0 ]; then
 			ldv_print "ERROR: Extractor: \"$EXTRACTOR\" - failed.";
@@ -197,16 +261,63 @@ case $action in
 		rm $DESCRIPTION_TO_REMOVE;
                 ldv_print "NORMAL: Kernel env \"$name\" - successfully removed.";
 	;;
+	getpath-by-dir)
+		mkdir -p $LDV_DESCRIPTIONS_DIR;
+		if [ -n "$name" ]; then
+			ldv_print "ERROR: When you get path for kernel \"--name\" must be null.";
+			exit 1;
+		fi;
+		if [ ! -n "$src" ]; then
+			ldv_print "ERROR: Option \"--src\" can not be null.";
+			exit 1;
+		fi;
+		dsrc=`echo "readlink -f $src" | sh`;
+		if [ $? -ne 0 ]; then 
+			dsrc=$src; # ???
+		fi;
+		#
+		# serach descriptors with this path
+		#
+		for i in `find $LDV_DESCRIPTIONS_DIR/ -maxdepth 1 -type f`; do
+			DSCR_SOURCE=`cat $i | grep ^source= | sed 's/source=//'`;
+			if [ "$dsrc" == "$DSCR_SOURCE" ]; then
+				DSCR_KMD=`cat $i | grep ^kernel-make-dir= | sed 's/kernel-make-dir=//'`;
+				echo $DSCR_KMD;
+				exit;
+			fi;
+		done		
+		#
+		# In other way - create it...
+		# 
+		let gnumber=1;
+		while i=1; do
+			if [ ! -f $LDV_DESCRIPTIONS_DIR/$gnumber ]; then 
+				break; 
+			fi;
+			let gnumber=$gnumber+1;
+		done;
+		NEW_DESCRIPTION=$LDV_DESCRIPTIONS_DIR/$gnumber;
+		echo "id=$gnumber" > $NEW_DESCRIPTION;
+		echo "name=$gnumber" >> $NEW_DESCRIPTION;
+		echo "type=$extractor" >> $NEW_DESCRIPTION;
+		echo "source=$dsrc" >> $NEW_DESCRIPTION;
+		echo "dest=$LDV_ENVS_DIR/$gnumber" >> $NEW_DESCRIPTION;
+		echo "kernel-make-dir=$LDV_ENVS_DIR/$gnumber" >> $NEW_DESCRIPTION;
+		echo "commit=" >> $NEW_DESCRIPTION;
+		mkdir -p $LDV_ENVS_DIR/$gnumber;
+		echo $LDV_ENVS_DIR/$gnumber;
+		exit;		
+	;;
 	getpath)
 		if [ ! -n "$name" ]; then
-			ldv_print "ERROR: When you get path fro kernel \"--name\" can't be null.";
+			ldv_print "ERROR: When you get path for kernel \"--name\" can't be null.";
 			exit 1;
 		fi;
 		if [ -n "$src" ]; then
 			ldv_print "ERROR: Option \"--src\" unsupported in the getpath action.";
 			exit 1;
 		fi;
-		if [ -n "$extractor" ]; then
+		if [ -n "$extractor" -a ! "$extractor" == "ldv-git-vanilla" ]; then
 			ldv_print "ERROR: Option \"--extractor\" unsupported in the getpath action.";
 			exit 1;
 		fi;
@@ -215,26 +326,36 @@ case $action in
 			exit 1;
 		fi;
 		DESCRIPTION_TO_VIEW=$LDV_DESCRIPTIONS_DIR/$name;
-		if [ ! -f "$DESCRIPTION_TO_VIEW" ]; then
-			ldv_print "ERROR: Can't find description: \"$DESCRIPTION_TO_VIEW\".";
-			exit 1;
-		fi;
-		ENV_STATUS=`cat $DESCRIPTION_TO_VIEW | grep ^status= | sed 's/status=//'`;
-		if [ "$ENV_STATUS" != "prepared" ]; then
-			ldv_print "ERROR: Wrong status for getpath: \"$ENV_STATUS\".";
-			exit 1;
-		fi;
-		DSCR_KMD=`cat $DESCRIPTION_TO_VIEW | grep ^kernel-make-dir= | sed 's/kernel-make-dir=//'`;
-		if [ ! -d "$DSCR_KMD" ]; then
-			ldv_print "ERROR: Bad kernel environment \"$DESCRIPTION_TO_VIEW\".";
-			# TODO: set status bad - and try to reintsall kernel
-			exit 1;
+		if [ ! "$extractor" == "ldv-git-vanilla" ]; then
+			if [ ! -f "$DESCRIPTION_TO_VIEW" ]; then
+				ldv_print "ERROR: Can't find description: \"$DESCRIPTION_TO_VIEW\".";
+				exit 1;
+			fi;
+			ENV_STATUS=`cat $DESCRIPTION_TO_VIEW | grep ^status= | sed 's/status=//'`;
+			if [ "$ENV_STATUS" != "prepared" ]; then
+				ldv_print "ERROR: Wrong status for getpath: \"$ENV_STATUS\".";
+				exit 1;
+			fi;
+			DSCR_KMD=`cat $DESCRIPTION_TO_VIEW | grep ^kernel-make-dir= | sed 's/kernel-make-dir=//'`;
+			if [ ! -d "$DSCR_KMD" ]; then
+				ldv_print "ERROR: Bad kernel environment \"$DESCRIPTION_TO_VIEW\".";
+				# TODO: set status bad - and try to reintsall kernel
+				exit 1;
+			fi;
+		else
+			echo "id=$name" > $DESCRIPTION_TO_VIEW;
+			echo "name=$name" >> $DESCRIPTION_TO_VIEW;
+			echo "type=$extractor" >> $DESCRIPTION_TO_VIEW;
+			echo "dest=$LDV_ENVS_DIR/$name" >> $DESCRIPTION_TO_VIEW;
+			echo "ldv-make-dir=$LDV_ENVS_DIR/$name" >> $DESCRIPTION_TO_VIEW;
+			echo "options=$eoptions" >> $DESCRIPTION_TO_VIEW;
+			DSCR_KMD=$LDV_ENVS_DIR/$name;
 		fi;
 		echo $DSCR_KMD;
 		exit;
 	;;
 	*)
-		ldv_print "ERROR: Unknown option: \"$2\". It must be \"add|remove\".";
+		ldv_print "ERROR: Unknown option: \"$2\". It must be \"add|remove|getpath-by-dir|getpath\".";
 	;;
 esac;
 

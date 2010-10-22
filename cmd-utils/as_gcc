@@ -15,7 +15,7 @@ use strict;
 use Fcntl qw(LOCK_EX SEEK_SET);
 
 # If we have ID-pool, open it in a thread-safe way.
-my $lock_file = $ENV{'POOL'};
+my $lock_file = $ENV{'AS_GCC_POOL'};
 my $peeked_id = 1;
 my $LOCK;
 if ($lock_file){
@@ -32,6 +32,14 @@ if ($lock_file){
 
 # Get next id
 $peeked_id++;
+
+if ($lock_file){
+	truncate $LOCK,0;
+	seek($LOCK, 0, SEEK_SET);
+	# Write id
+	print $LOCK "$peeked_id\n";
+	close $LOCK;
+}
 
 # What will be done in the file
 my $compile = undef;
@@ -85,6 +93,8 @@ while ($_ = shift @ARGV){
 		}
 	}elsif(/^[^-].*/ && $output){	#output file
 		$outfile = $_;
+		$argument = '';
+		$output = '';
 	}else{	# reset state
 		push @opts,$_;
 		$argument = '';

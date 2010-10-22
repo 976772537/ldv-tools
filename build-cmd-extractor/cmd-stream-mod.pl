@@ -53,7 +53,7 @@ my $config = {
 
 GetOptions(
         'cmdfile|c=s'=>\$config->{'cmdfile'},
-        'filter|f=s'=>\$config->{'filter'},
+       'filter|f=s'=>\$config->{'filter'},
 ) or usage;
 
 $config->{'cmdfile'} or usage;

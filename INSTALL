@@ -54,6 +54,10 @@ listed above:
 		- DOM
 	o Markdown code formatter
 
+LDV-GIT ADDITIONAL PREREQUISITES
+	
+	o Graph.pm Perl module
+	o `perldoc` Perl util
 
 INSTALLING LDV
 
@@ -76,18 +80,11 @@ before installing '6' and '7'.
   4. To install tests use:
      prefix=/path/to/your/installation/directory make install-testing
 
-  5. To install everything use:
+  5. To install everything use (also including ldv-online):
      prefix=/path/to/your/installation/directory make install-all
 
-  6. To install online web-service:
-        prefix=/path/to/your/installation/directory \
-        TMP_DIR=/path/to/tmpfiles \
-        WEB_DIR=/path/to/apahce/web/dir make install-online-server
-
-  7. To install online web-service node:
-        prefix=/path/to/your/installation/directory \
-        TMP_DIR=/path/to/tmpfiles \
-        make install-online-node
+  7. To install ldv-git:
+     prefix=/path/to/your/installation/directory make install-ldv-git
 
 For some tools that use LDV to work, you need to add directory with binaries to
 your path:
