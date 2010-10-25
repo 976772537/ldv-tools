@@ -114,8 +114,12 @@ sub verify_cpachecker
 	$args{report} or die;
 	open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
-	# TODO(time): args_for_main as in commit 7521902fd66b2d6a5d118d62c41596fabc6440a9
+
+	# Since arguments alter depending on main, we should save them to temporary.
+	my %args_template = (%args);
+
 	for my $main (@{$args{mains}}){
+		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		if ($args{already_failed}){
 			# Prepare a failure command
 			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
@@ -177,9 +181,6 @@ sub verify_cpachecker
 			        while(<STATS_FILE>) {
 			                /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
 					$timestats{$1} += $2;
-					#my $time_elt = XML::Twig::Elt->new('time',$2);
-					#$time_elt->set_att( name =>$1);
-					#$time_elt->paste($rcvResultT);			
 			        }    
 		        	close STATS_FILE;
 				foreach(keys %timestats) {
@@ -237,7 +238,7 @@ EOF
 
 	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
 	print $ERRLOC_AUT <<EOF;
-AUTOMATON ErrorLocationAutomaton
+OBSERVER AUTOMATON ErrorLocationAutomaton
 // This Automaton replaces the ErrorLocationCPA. It detects error locations that were defined in the sourcecode.
 
 /* The ErrorLocationCPA had 3 triggers.
@@ -256,6 +257,7 @@ AUTOMATON ErrorLocationAutomaton
 
   -> ERROR;
 
+END AUTOMATON
 EOF
 	close $LDV_errloc_autom;
 
