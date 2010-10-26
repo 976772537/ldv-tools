@@ -277,6 +277,22 @@ sub call_blast
 	);
 	# Identification to distinguish timeout's messages from other stuff
 
+	# Tune OCaml runtime options, if necessary
+	# (this option will be default soon)
+	unless ($ENV{'BLAST_NOOCAMLTUNE'}){
+		my $ocamltune = "$ENV{'DSCV_HOME'}/shared/sh/ocaml_params";
+		-x $ocamltune or die "Executable ocaml_params script needed but $ocamltune given!";
+		my $params = `$ocamltune $memlimit`; chomp $params;
+		if ($?){
+			vsay ('WARNING',"OCaml machine-specific tuning ($ocamltune) failed!!!  No params set.\n");
+		}else{
+			$ENV{'OCAMLRUNPARAM'} = $params;
+		}
+		vsay ('INFO',sprintf("OCaml machine-specific tuning is performed!  OCAMLRUNPARAM='%s'\n",($ENV{'OCAMLRUNPARAM'}||'')));
+	}else{
+		vsay ('INFO',sprintf("OCaml machine-specific tuning is not performed.  OCAMLRUNPARAM='%s'\n",($ENV{'OCAMLRUNPARAM'}||'')));
+	}
+
 	# Tell arguments
 	vsay ('NORMAL',"Running BLAST for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@blast_options,"\n");

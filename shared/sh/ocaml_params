@@ -1,0 +1,41 @@
+#!/usr/bin/perl
+# Print processor-specific settings for running OCaml on this machine with the given memory limit specified
+# On failure, prints empty string.
+# Doesn't print newline.
+
+# Usage: ocaml_params [max_mem_in_kilobytes]
+
+use strict;
+
+# Determine wordsize
+my $uname = `uname -i`; chomp $uname;
+my $arch = ($uname =~ /64/)? 64 : 32;
+my $wordsize = $arch / 8;
+
+$wordsize ||= 32;	#Just in case...
+
+# Set minor heap size to half of CPU cache
+my $cache_size = `cat /proc/cpuinfo | grep 'cache size' | head -n 1`; chomp $cache_size;
+$cache_size =~ s/cache size\s*:\s*([0-9]+).*KB/$1/;
+$cache_size *= 1024;
+my $minheap_sz = $cache_size / 2 / $wordsize;
+
+# Set initial heap to half of maximal memory
+my $max_mem = $ARGV[0] * 1024;	# In kilobytes
+my $init_heap_sz = undef;
+if ($max_mem) {
+	$init_heap_sz = $max_mem / 2 / $wordsize;
+}
+
+# Set heap increment to 15M
+my $heap_incr = "15M";
+
+my @params = ();
+push @params, "h=$init_heap_sz" if $init_heap_sz;
+push @params, "i=$heap_incr";
+push @params, "s=$minheap_sz";
+# Set garbage collector's efficiency to 40%
+push @params, "o=40";
+
+print join(",",@params);
+

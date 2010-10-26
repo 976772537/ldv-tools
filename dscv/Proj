@@ -13,6 +13,7 @@
 		RCV/Utils.pm
 	Utils.pm
 ../shared/sh/
+	ocaml_params
 	timeout
 
 dscv
