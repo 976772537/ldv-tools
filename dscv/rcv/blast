@@ -219,13 +219,11 @@ sub call_blast
 	my $do_aliases =
 		# Aliases may be hinted by the model
 		(defined $hintsT && ($hintsT->first_child_text('alias')))
-		# BUt by default we make them anyway
-		|| (!defined $hintsT)
-		# But for now we just alias everything
-		|| 1
+		# But now we don't perform the analysis
 		;
-	# Special "noaliases" switch may be activated
-	$do_aliases &&= !$ENV{'BLAST_EXP_NOALIAS'};
+	# Special "aliases" switch may be activated (BLAST_EXP_NOALIAS is obsolete now)
+	vsay('WARNING',"Use of BLAST_EXP_NOALIAS is obsolete!!\n") if $ENV{'BLAST_EXP_NOALIAS'};
+	$do_aliases ||= $ENV{'BLAST_ALIASES'};
 	if ($do_aliases){
 		vsay ('NORMAL',"Running BLAST with alias analysis (this may take longer).\n");
 		push @blast_options,
