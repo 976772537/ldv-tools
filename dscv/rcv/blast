@@ -149,30 +149,27 @@ sub verify_blast
 		#		my $time_msec = int($time_sec * 1000);
 		#		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
 		# Read file with time statistics
-		if ( -f "$workdir/stats_rcv.xml" ) {  
+		if ( -f "$workdir/stats_rcv.xml" ) {
 			my %timestats;
-	        	open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
-		        while(<STATS_FILE>) {
-		                /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
-				$timestats{$1} += $2;
-				#my $time_elt = XML::Twig::Elt->new('time',$2);
-				#$time_elt->set_att( name =>$1);
-				#$time_elt->paste($rcvResultT);			
-		        }    
-		        close STATS_FILE;
-			foreach(keys %timestats) {
-    				my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
-				$time_elt->set_att( name =>$_);
-				$time_elt->paste($rcvResultT);			
-			}
+				open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
+				while(<STATS_FILE>) {
+					/^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+					$timestats{$1} += $2;
+					#my $time_elt = XML::Twig::Elt->new('time',$2);
+					#$time_elt->set_att( name =>$1);
+					#$time_elt->paste($rcvResultT);
+				}
+				close STATS_FILE;
+				foreach(keys %timestats) {
+					my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+					$time_elt->set_att( name =>$_);
+					$time_elt->paste($rcvResultT);
+				}
 		} else {
 			my $time_elt = XML::Twig::Elt->new('time',0);
 			$time_elt->set_att( name =>"ALL");
-			$time_elt->paste($rcvResultT);			
-	        }; 
-
-
-
+			$time_elt->paste($rcvResultT);
+		};
 
 		$rcvResultT->paste(last_child =>$cmdInstT);
 		$cmdInstT->paste($repT);
