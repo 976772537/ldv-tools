@@ -80,6 +80,7 @@ for my $c_file (keys %$meta){
 
 $\="\n";
 for my $c_file (@c_files){
+	exists $meta->{$c_file} or next;
 	print "== $c_file" unless $raw;
 
 	# Check if the file we look for actually exists in these metadata

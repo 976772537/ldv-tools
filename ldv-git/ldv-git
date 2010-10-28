@@ -461,7 +461,7 @@ my $stats_url = form_task($ENV{'LDVGIT_STAT_SRV'},toshow_commits($commit,@partia
 #======================================================================
 # Handle runs that pretend full
 if ($pretend_full){
-	vsay('NORMAL', "Already checked $base_commit found.  However ") if $base_commit;
+	vsay('NORMAL', "Already checked $base_commit found.  However \n") if $base_commit;
 	vsay 'NORMAL', "I'll pretend that this commit is checked fully due to --pretend-full.\n";
 	goto PREPARE_KERNEL;
 }
@@ -507,7 +507,7 @@ my @prepare_cmds = (	$ldv_commands->{prepare},
 			'--src='.getcwd(),
 			'--extractor=ldv-git-vanilla');
 push @prepare_cmds, "--commit=$base_commit" if !$full && !$suppress_interm;
-vsay 'TRACE', @prepare_cmds;
+vsay 'TRACE', "@prepare_cmds\n";
 system @prepare_cmds  and die "Prepare died, code $?, see \"$logs_dir/kmanager.log\" for more details.";
 
 # Update metadata
@@ -573,7 +573,7 @@ my $full_drivers = {};
 vsay 'NORMAL', "Generating sets of C files that form drivers...\n";
 
 #print "DEBUG_2:".$meta_file."\n";
-vsay 'NORMAL',$_ for @changed_files;
+vsay 'NORMAL',"$_\n" for @changed_files;
 
 $,=" ";
 #print $ldv_commands->{meta_deps}, $meta_file, @changed_files ;
@@ -659,7 +659,7 @@ for my $driver (keys %$full_drivers){
 	eval {
 		chdir $driver_work_dir;
 		# Save finished packs, just in case
-		system("mv finished/* old_finished") or vsay 'INFO', "No previous results.";
+		system("mv finished/* old_finished") or vsay 'INFO', "No previous results.\n";
 		# Remove temporary files for drivers that were succesfully checked
 		if ($keep_work) {
 			$ENV{'LDV_REMOVE_ON_SUCCESS'} ||= undef;
