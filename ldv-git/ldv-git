@@ -672,7 +672,7 @@ for my $driver (keys %$full_drivers){
 		$ENV{'RCV_TIMELIMIT'} ||= 300;
 		$ENV{'RCV_MEMLIMIT'} ||= 1_500_000;
 		$ENV{'BLAST_OPTIONS'} = "-enable-recursion -fdepth 5".($saved_blast_options?" $saved_blast_options":'');
-		$ENV{'BLAST_EXP_NOALIAS'} = "y";
+		# Blast runs without alias analysis by default.  Good.  That's what we want.
 		# Utilize caching functionality
 		$ENV{'RI_CACHE'} = $cache_dir if $cache;
 		# Set up to not cache files with mains
