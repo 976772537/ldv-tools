@@ -2,6 +2,8 @@ driver=test-doublelock-2.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;
 driver=test-doublelock-2.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_2;
 driver=test-doublelock.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1;
 driver=test-doublelock.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_2;
+driver=test-drivers-media-video-gspca-main-1.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1;
+driver=test-drivers-media-video-gspca-main-1.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_2;
 driver=test-drivers-media-video-gspca-main-2.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1;
 driver=test-drivers-media-video-gspca-main-2.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_2;
 driver=test-drivers-media-video-gspca-main-3.tar.bz2;origin=external;kernel=linux-2.6.32.15.tar.bz2;model=32_1;
