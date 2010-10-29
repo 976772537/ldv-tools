@@ -15,26 +15,26 @@ my $verbosity = 10;
 
 # "English" debug levels
 my %levels = (
-	"QUIET"    => 0,
-	"WARNING"  => 4,
-	"NORMAL"   => 10,
-	"INFO"     => 20,
-	"DEBUG"    => 30,
-	"TRACE"    => 40,
-	"ALL"      => 100,
+  "QUIET"    => 0,
+  "WARNING"  => 4,
+  "NORMAL"   => 10,
+  "INFO"     => 20,
+  "DEBUG"    => 30,
+  "TRACE"    => 40,
+  "ALL"      => 100,
 );
 
 my %backlev = reverse %levels;
 
 sub from_eng
 {
-	my $lvl = uc shift;
-	return $levels{$lvl} if exists $levels{$lvl};
-	Carp::confess "Incorrect debug level: $lvl" unless $lvl =~ /^[0-9]*$/;
-	return $lvl;
+  my $lvl = uc shift;
+  return $levels{$lvl} if exists $levels{$lvl};
+  Carp::confess "Incorrect debug level: $lvl" unless $lvl =~ /^[0-9]*$/;
+  return $lvl;
 }
 
-# Check whether a user specified verbosity level is greater then the package 
+# Check whether a user specified verbosity level is greater then the package
 # standard one.
 sub check_verbosity
 {
@@ -46,33 +46,33 @@ sub check_verbosity
 # Set verbosity level according to the value supplied or evironment variable
 sub set_verbosity
 {
-	my $level = shift || $ENV{'LDV_DEBUG'};
-	$level = from_eng($level);
-	$verbosity = $level;
+  my $level = shift || $ENV{'LDV_DEBUG'};
+  $level = from_eng($level);
+  $verbosity = $level;
 }
 
 my @instrument = ($0);
 sub push_instrument
 {
-	push @instrument,@_;
+  push @instrument,@_;
 }
 sub pop_instrument
 {
-	pop @instrument;
+  pop @instrument;
 }
 
 # Say something only if the number supplied is not less than current verbosity
 sub vsay
 {
-	my $v = from_eng shift;
-	local $,=' ';
-	if ($v <= $verbosity) {
-		my $instrument = $instrument[-1];
-		my $level_string = $backlev{$v};
-		print $debug_stream "$instrument: " if defined $instrument;
-		print $debug_stream "$level_string: ";
-		print $debug_stream @_;
-	}
+  my $v = from_eng shift;
+  local $,=' ';
+  if ($v <= $verbosity) {
+    my $instrument = $instrument[-1];
+    my $level_string = $backlev{$v};
+    print $debug_stream "$instrument: " if defined $instrument;
+    print $debug_stream "$level_string: ";
+    print $debug_stream @_;
+  }
 }
 
 # Debug printing functions output some information in depend on the debug level.
@@ -109,18 +109,18 @@ sub print_debug_all
 sub get_debug_level
 {
   my $tool_debug_name = shift;
-  
+
   return 0 unless ($tool_debug_name);
-  	
+
   push_instrument($tool_debug_name);
 
   # By default (in case when neither the LDV_DEBUG nor the tool debug
-  # environment variables aren't specified) or when they are both 0 just 
-  # information on critical errors is printed. 
+  # environment variables aren't specified) or when they are both 0 just
+  # information on critical errors is printed.
   # Otherwise the tool debug environment variable is preferable.
   my $ldv_debug = shift;
   my $tool_debug = shift;
-    
+
   if ($tool_debug)
   {
     set_verbosity($tool_debug);
@@ -135,16 +135,19 @@ sub get_debug_level
 
 sub check_system_call
 {
-  # This is got almost directly from the Perl manual: 
+  # This is got almost directly from the Perl manual:
   # http://perldoc.perl.org/functions/system.html
-  if ($? == -1) 
+  if ($? == -1)
   {
     print("Failed to execute: $!\n");
     return -1;
   }
-  elsif ($? & 127) 
+  elsif ($? & 127)
   {
     printf("Child died with signal %d, %s coredump\n", ($? & 127), ($? & 128) ? 'with' : 'without');
+
+    die("The process was interrupted with CTRL+C") if (($? & 127) == 2);
+
     return ($? & 127);
   }
   elsif ($? >> 8)
@@ -152,7 +155,7 @@ sub check_system_call
     printf("Child exited with value %d\n", ($? >> 8));
     return ($? >> 8);
   }
-  
+
   return 0;
 }
 
