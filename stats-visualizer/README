@@ -1,10 +1,19 @@
 To install the statics server you may copy the file 'config.sample' that is
-placed in the current directory to the file 'config' and define your own values
-of variables there. Also you may specify them through the corresponding
-environment variables. Note that environment variables are preferable.
+placed at the current directory to the file 'config' also placed at the 
+current directory and define your own values of variables there. 
+Also you may specify them through the corresponding environment variables. 
+Note that environment variables are preferable.
 
 Note! Most likely you must install the statistics server under root since it
-copy files to web server virtual host and configuration directories.
+have to copy files to web server virtual host and configuration directories.
+
+Well known problems. It seems that usually the required web server module 
+mod_rewrite is turned off. So you must read documentation on your web server
+to turn it on.
 
 After installation you must restart your web server to see the statistics server
-on the specified port (8999 by default).
+on the specified port.
+
+Visit http://localhost:8999 (with default port) by means of your browser.
+
+
