@@ -858,10 +858,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // This's a part of launch information that wiil be used in matching. So it
     // must be selected as well as the grouping part.
     $launchInfoForComparison = array('Rule name' => 1, 'Module' => 1, 'Entry point' => 1);
+    // Some part of launch information may be used or not in matching in depend
+    // on problems with matching (i.e. when key values are the same).
+    $launchInfoForComparisonPossible = array('Environment version' => 1);
     $launchInfoComparison = array();
     $joinsComparison = array();
 
-    foreach (array_keys($launchInfoForComparison) as $name) {
+    foreach (array_merge(array_keys($launchInfoForComparison), array_keys($launchInfoForComparisonPossible)) as $name) {
       // Skip comparison launch information if it's already selected while grouping.
       if (array_key_exists($name, $launchInfo)) {
         continue;
@@ -915,6 +918,25 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     $launchesResultSet = $launches->fetchAll($select);
 
+    // Find out quickly whether additional part of key must be used in matching
+    // for a given task id.
+    $launchInfoAdditional = array();
+    $tasksKernels = array();
+    foreach ($launchesResultSet as $launchesRow) {
+      $taskId = $launchesRow['Task id'];
+      $kernelName = $launchesRow['Environment version'];
+      $tasksKernels[$taskId][$kernelName] = 1;
+    }
+    foreach ($tasksKernels as $taskKernels) {
+      // Use additional part of key when task con
+      if (count($taskKernels) > 1) {
+        // At the moment use the whole addons but may be it won't be so in future.
+        $launchInfoAdditional = $launchInfoForComparisonPossible;
+      }
+    }
+#print_r($tasksKernels);exit;
+    $launchInfoForComparison = array_merge($launchInfoForComparison, $launchInfoAdditional);
+
     // Collect the whole raw launches statisitc assigning to corresponding task
     // id and comparison launch information key string.
     $statsCmp = array();
@@ -937,10 +959,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
       $statsCmpValuesStr = join(';', $statsCmpValues);
 
-      if (array_key_exists($statsCmpValuesStr, $statsCmp[$taskId])) {
-        throw new Exception('Comparison launch information key string is duplicated');
+      // For build errors there is no module is specified for a set of launches
+      // related with the same task. Don't take these launches into consideration.
+      if ($launchesRow['Module'] != '' and array_key_exists($statsCmpValuesStr, $statsCmp[$taskId])) {
+        throw new Exception("Comparison launch information key string is duplicated ('$statsCmpValuesStr')");
       }
-;
+
       $statsCmp[$taskId][$statsCmpValuesStr] = $statsPart;
     }
 
