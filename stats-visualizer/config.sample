@@ -1,22 +1,26 @@
 #
 # If you want you may once edit values of some variables and copy this file near
-# to a file named as 'config'. Note that 'config' file is ignored by git. Also
+# to the file named as 'config'. Note that the 'config' file is ignored by git. Also
 # you may setup all values through the corresponding environment variables.
 #
 # Note that variable definitions must have the following 'make' form:
 #   'name_of_variable = value_of_variable'.
 #
+# To understand what values must be specified please see documentation on your 
+# web server! Pay your attention on whether some option is required or optional. 
+# All options that have default values are optional. 
+#
 
-# Web server configuration directory.
+# Web server configuration directory. It's always required!
 #LDV_STATS_CONF_DIR = /etc/apache2/conf.d
 
-# Web server virtual hosts configuration directory.
+# Web server virtual hosts configuration directory. It's always required!
 #LDV_STATS_VHOSTS_CONF_DIR = /etc/apache2/vhosts.d
 
-# Web server virtual hosts directory.
+# Web server virtual hosts directory. It's always required!
 #LDV_STATS_VHOSTS_DIR = /srv/www/vhosts
 
-# Following two options may be optional in depend on your system.
+# Following two options are optional in depend on your system.
 # They are needed to change access to some files to make them writable for
 # the statistics server.
 # Web server user.
@@ -29,6 +33,8 @@
 
 # Statistics server application environment. It may be either 'production' or
 # 'staging' or 'testing' or 'development' ('production' is default).
+# If you want to see errors detailed descriptions you can use 'development'
+# value for this option. 
 #LDV_STATS_APPLICATION_ENV = production
 
 # The database containing profiles may be overwritten by specifing 'yes' for
