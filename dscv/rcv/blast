@@ -263,12 +263,20 @@ sub call_blast
 	# Solver
 	push @blast_options,"-smt" if $ENV{'BLAST_SOLVER'};
 
+	# Adjust timewatch if a supported solver is set (it should begin with a semicolon if not empty!)
+	my $solver_timewatch = '';
+	if (my $slv = $ENV{'BLAST_SOLVER'}){
+		if ($slv eq 'yices'){
+			$solver_timewatch = ';.*yices.*,YICES';
+		}
+	}
+
 	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 	# To Limit resources for BLAST we use timeout script.
 	@blast_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
 		memlimit => $memlimit,
-		pattern => ".*,ALL;.*pblast\.opt.*,PBLAST.OPT;.*cvc3.*,CVC3;.*smtlibServer.*,SMTSERVER".($ENV{'BLAST_TIMEWATCH'} ? ";".$ENV{'BLAST_TIMEWATCH'} : "") ,
+		pattern => ".*,ALL;.*pblast\.opt.*,PBLAST.OPT;.*cvc3.*,CVC3;.*smtlibServer.*,SMTSERVER".$solver_timewatch.($ENV{'BLAST_TIMEWATCH'} ? ";".$ENV{'BLAST_TIMEWATCH'} : "") ,
 		output => "$workdir/stats_rcv.xml",
 		id_str => "DSCV_TIMEOUT ",
 		},@blast_options
