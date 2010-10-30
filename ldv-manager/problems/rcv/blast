@@ -20,5 +20,6 @@ while (<>){
 	/SMT sovler answer is strange: \*\*\* Parse Error: .*: syntax error/i and print "CVC3 Solver parse error";
 	/Errormsg\.Error/i and print "Parsing errors";
 	/simplemem: temporary needed outside a function/i and print "Temp outside func"; 
+	/Invalid_argument\("Predicate index is less than zero"\)/ and print "Large_int";
 }
 
