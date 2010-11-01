@@ -279,10 +279,10 @@ vsay 'TRACE', "Variable LDVGIT_BASE: \"$ENV{'LDVGIT_BASE'}\"\n";
 
 URL that shows the path to stat server.  It is not hardcoded anywhere in the data or in the results--it just affects the output of C<ldv-git> command.
 
-The default value of this variable is C<http://localhost/stats-server>; it doesn't mean anything, just makes URLs look nice and not disturbing.
+The default value of this variable is C<http://localhost:8999>; it doesn't mean anything, just makes URLs look nice and not disturbing.
 
 =cut
-#http://10.10.2.59:8999/stats/index/name/ldv_qa_night_res/host/10.10.2.59/user/qarobot/password/12345
+
 $ENV{'LDVGIT_STAT_SRV'} ||= "http://localhost:8999";
 vsay 'TRACE', "Variable LDVGIT_STAT_SRV: \"$ENV{'LDVGIT_STAT_SRV'}\"\n";
 
