@@ -61,6 +61,25 @@ For kernel drivers there's no way to achieve this bit to erase certain folders f
 
 If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.  In this case LDV_GIT_REPO may be omitted.
 
+If you want to select only needed in-kernel drivers for verify, you should specify environment variable CMD_FILTER=regexp. 
+
+	CMD_FILTER=".*ums-alauda.ko" \
+	ldv-manager \
+	tag=current \
+	"envs=linux-2.6.31.6.tar.bz2" \
+	kernel_driver=1 \
+	"drivers=drivers/usb/storage/" \
+	"rule_models=32_7"
+
+
+You can specify one driver for verify too.
+
+	ldv-manager \
+	tag=current \
+	"envs=linux-2.6.31.6.tar.bz2" \
+	kernel_driver=1 \
+	"drivers=drivers/usb/storage/ums-alauda.ko" \
+	"rule_models=32_7"
 
 HOW TO USE DATABASE
 ===================
