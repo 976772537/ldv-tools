@@ -5,6 +5,6 @@ $\ = "\n";
 $, = "\n";
 while (<>){
 	chomp;
-	/error: implicit declaration of function kmalloc/ and print "drv-env-gen: kmalloc";
+	/error: implicit declaration of function kmalloc/ and print "DEG: implicit kmalloc";
 }
 
