@@ -262,8 +262,8 @@ driver=online-drivers--from_oldserv--wl12xx.tar.bz2.tar.bz2;origin=external;kern
 driver=online-drivers--from_oldserv--wl12xx.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=60_1;module=main.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
 driver=online-drivers--from_oldserv--wl12xx.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=main.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
 driver=online-drivers--from_oldserv--wl12xx.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=77_1;module=main.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
-driver=online-drivers--some_other--a.c.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
 driver=online-drivers--some_other--a.c_out.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
+driver=online-drivers--some_other--a.c.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
 driver=online-drivers--some_other--driver3.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
 driver=online-drivers--some_other--mmc-card-block.tar.bz2.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
 driver=test-0008-drivers-mtd-blkdevs-safe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=08_1;module=drivers/test-0008-drivers-mtd-blkdevs-safe/mtd_blkdevs.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unknown;RCV_status=fail;problems=Out_of_memory
