@@ -659,7 +659,7 @@ for my $driver (keys %$full_drivers){
 	eval {
 		chdir $driver_work_dir;
 		# Save finished packs, just in case
-		system("mv finished/* old_finished") or vsay 'INFO', "No previous results.\n";
+		-d "finished/" and system("mv finished/* old_finished");
 		# Remove temporary files for drivers that were succesfully checked
 		if ($keep_work) {
 			$ENV{'LDV_REMOVE_ON_SUCCESS'} ||= undef;
