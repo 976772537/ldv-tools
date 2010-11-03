@@ -33,6 +33,7 @@ sub patch_kbuild_include;
 sub patch_arch_files;
 sub patch_arch_files_x86;
 sub patch_arch_x86_makefile;
+sub patch_headers;
 
 sub usage{ print STDERR<<usage_ends;
 
@@ -62,7 +63,7 @@ my $kernel_info = get_kernel_info($path_to_kernel);
 patch_final_link($kernel_info);
 
 sub patch_kbuild_include {
-	my ($kernel_info) = (@_);
+	my ($kernel_info) = @_;
 	open (FILE, $kernel_info->{'kbuild_include'}) or die("Can't open main Kbuild.include for reading while patching: $!");
 	my @string = <FILE>;
 	close FILE or die("Can't close main Kbuild.include after reading for patching: $!");
@@ -79,7 +80,7 @@ sub patch_kbuild_include {
 }
 
 sub patch_arch_x86_makefile {
-	my ($kernel_info) = (@_);
+	my ($kernel_info) = @_;
 	open (FILE, $kernel_info->{'arch'}->{'x86'}->{'makefile'}) or die("Can't open main arch makefile for reading while patching: $!");
 	my @string = <FILE>;
 	close FILE or die("Can't close main arch makefile after reading for patching: $!");
@@ -97,8 +98,66 @@ sub patch_arch_files_x86 {
 	patch_arch_x86_makefile($kernel_info);
 }
 
+sub patch_headers {
+	vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_linux_gfp_h'}\".\n";
+	open (FILE, $kernel_info->{'header_linux_gfp_h'}) or die("Can't open header file reading while patching: $!");
+	my @string = <FILE>;
+	close FILE or die("Can't close main arch makefile after reading for patching: $!");
+	open (FILE,">".$kernel_info->{'header_linux_gfp_h'}) or die("Can't open header file for patching: $!");
+	my $state = 1;
+	foreach (@string) {
+		/^(\s*if \(__builtin_constant_p\(bit\)\)\s*)$/ and $_="/*$1";
+		/^\s*BUG_ON\(\(GFP_ZONE_BAD >> bit\) & 1\);\s*$/ and $state = 2;
+		/^\s*#endif\s*$/ and $state==2 and $state=3;
+		/^(\s*})(\s*)$/ and $state==3 and $state=1 and $_="$1*/$2";
+		print FILE;
+	}
+	close FILE or die("Can't close header file after patching: $!");
+
+	vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_linux_kernel_h'}\".\n";
+	open (FILE, $kernel_info->{'header_linux_kernel_h'}) or die("Can't file reading while patching: $!");
+	my @string = <FILE>;
+	close FILE or die("Can't close file after reading for patching: $!");
+	open (FILE,">".$kernel_info->{'header_linux_kernel_h'}) or die("Can't open file for patching: $!");
+	my $state = 1;
+	foreach (@string) {
+		/^(\s*#define BUILD_BUG_ON\(condition\) )(\(\(void\)BUILD_BUG_ON_ZERO\(condition\)\)\s*)$/ and $_="$1 //$2";
+		/^(\s*#define BUILD_BUG_ON\(condition\) )(\(\(void\)sizeof\(char\[1 - 2\*\!\!\(condition\)\]\)\)\s*)$/ and $_="$1//$2";
+		print FILE;
+	}
+	close FILE or die("Can't close file after patching: $!");
+
+	vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_net_inet_sock_h'}\".\n";
+	open (FILE, $kernel_info->{'header_net_inet_sock_h'}) or die("Can't file reading while patching: $!");
+	my @string = <FILE>;
+	close FILE or die("Can't close file after reading for patching: $!");
+	open (FILE,">".$kernel_info->{'header_net_inet_sock_h'}) or die("Can't open file for patching: $!");
+	my $state = 1;
+	foreach (@string) {
+		/^\s*kmemcheck_annotate_bitfield\(ireq, flags\);\s*$/ and next;
+		print FILE;
+	}
+	close FILE or die("Can't close file after patching: $!");
+
+	# To allow models 60_1 and 68_1 to be processed with kernel having versions higher then 2.6.33.
+	# See details in Bug #338.
+	if($kernel_info->{'SUBLEVEL'}>=33) {
+		vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_spinlock_types_h'}\".\n";
+		open (FILE, $kernel_info->{'header_spinlock_types_h'}) or die("Can't file reading while patching: $!");
+		my @string = <FILE>;
+		close FILE or die("Can't close file after reading for patching: $!");
+		open (FILE,">".$kernel_info->{'header_spinlock_types_h'}) or die("Can't open file for patching: $!");
+		my $state = 1;
+		foreach (@string) {
+			/^\s*# define LOCK_PADSIZE \(offsetof\(struct raw_spinlock, dep_map\)\)\s*$/ and $_="\n# define LOCK_PADSIZE 1\n";
+			print FILE;
+		}
+		close FILE or die("Can't close file after patching: $!");
+	}
+}
+
 sub patch_arch_files {
-	my ($kernel_info) = (@_);
+	my ($kernel_info) = @_;
 	foreach $arch (keys %{$kernel_info->{'arch'}}) {
 		vsay 'NORMAL', "Patching files for arch \"$arch\"\n";		
 		$arch eq 'x86' and patch_arch_files_x86($kernel_info);
@@ -106,7 +165,7 @@ sub patch_arch_files {
 }
 
 sub patch_modpost_makefile {
-	my ($kernel_info) = (@_);
+	my ($kernel_info) = @_;
 	open (FILE, $kernel_info->{'modpost_makefile'}) or die("Can't open main modpost makefile for reading while patching: $!");
 	my @string = <FILE>;
 	close FILE or die("Can't close main modpost makefile after reading for patching: $!");
@@ -120,7 +179,7 @@ sub patch_modpost_makefile {
 
 
 sub patch_main_makefile {
-	my ($kernel_info) = (@_);
+	my ($kernel_info) = @_;
 	open (FILE, $kernel_info->{'makefile'}) or die("Can't open main makefile for reading while patching: $!");
 	my @string = <FILE>;
 	close FILE or die("Can't close main makefile after reading for patching: $!");
@@ -152,7 +211,7 @@ sub patch_main_makefile {
 }
 
 sub patch_final_link {
-	my ($kernel_info) = (@_);
+	my ($kernel_info) = @_;
 	vsay 'NORMAL', "Your kernel version is: ".$kernel_info->{'FULLVERSION'}."\n";
 	vsay 'NORMAL', "Patching main makefile \"".$kernel_info->{'makefile'}."\".\n";
 	patch_main_makefile($kernel_info);
@@ -162,10 +221,12 @@ sub patch_final_link {
 	patch_kbuild_include($kernel_info);
 	vsay 'NORMAL', "Patching arch files.\n";
 	patch_arch_files($kernel_info);
+	vsay 'NORMAL', "Patching headers files.\n";
+	patch_headers($kernel_info);
 }
 
 sub get_kernel_info {
-	my ($path_to_kernel) = (@_);
+	my ($path_to_kernel) = @_;
 	my %kernel_info = ('path' => $path_to_kernel, 'makefile'=>$path_to_kernel.'/Makefile');	
 	open FILE, "<", $kernel_info{'makefile'} or die("Can't open main makefile for reading kernel information: $!");
 	while(<FILE>) {
@@ -182,6 +243,10 @@ sub get_kernel_info {
 	$kernel_info{'modpost_makefile'} = $path_to_kernel.'/scripts/Makefile.modpost';
 	$kernel_info{'kbuild_include'} = $path_to_kernel.'/scripts/Kbuild.include';
 	$kernel_info{'arch'}->{'x86'}->{'makefile'} = $path_to_kernel.'/arch/x86/Makefile';
+	$kernel_info{'header_linux_gfp_h'} = $path_to_kernel.'/include/linux/gfp.h';
+	$kernel_info{'header_linux_kernel_h'} = $path_to_kernel.'/include/linux/kernel.h';
+	$kernel_info{'header_net_inet_sock_h'} = $path_to_kernel.'/include/net/inet_sock.h';
+	$kernel_info{'header_spinlock_types_h'} = $path_to_kernel.'/include/linux/spinlock_types.h';
 	close FILE or die("Can't close main makefile after reading kernel information.");
 	return {%kernel_info};
 }

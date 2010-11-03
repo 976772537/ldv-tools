@@ -16,29 +16,8 @@ k_version=`cat $KERNEL_MAKEFILE_ABS | grep -E "^VERSION = 2\$" | sed 's/\VERSION
 k_patchlevel=`cat $KERNEL_MAKEFILE_ABS | grep -E "^PATCHLEVEL = 6\$" | sed 's/\PATCHLEVEL = //g'`
 k_sublevel=`cat $KERNEL_MAKEFILE_ABS | grep -E "^SUBLEVEL = [0-9][0-9]?\$" | sed 's/\SUBLEVEL = //g'`
 k_kernelversion="$k_version.$k_patchlevel.$k_sublevel"
-headers_patch="$LDV_HOME/ldv/extractors/linux-vanilla/headers-$k_kernelversion.patch";
+kernel_final_link_patch="$LDV_HOME/ldv/extractors/linux-vanilla/fix_bigobj.pl -k ";
 ldv_print "NORMAL: Kernel version is: $k_kernelversion";
-ldv_print "NORMAL: headers patch is: $headers_patch";
-if [ -f "$headers_patch" ]; then
-	ldv_print "NORMAL: Headers patch for your kernel exists.";
-	#
-	# Apply "headers" patch
-	#
-	ldv_print "NORMAL: Patching kernel for _headers..."
-	patch -i $headers_patch -p0 -d $KERNEL_MAKEFILE_DIR;
-	if [ $? -ne 0 ]; then 
-		ldv_print "WARNING: Can't apply headers patch for your kernel.";
-	fi;
-else
-	ldv_print "WARNING: Can't find headers patch for your kernel."
-fi
-
-# To allow models 60_1 and 68_1 to be processed with kernel having versions higher then 2.6.33.
-# See details in Bug #338.
-if [ $k_sublevel -ge 33 ]; then
- sed -i -e "s/# define LOCK_PADSIZE (offsetof(struct raw_spinlock, dep_map))/# define LOCK_PADSIZE 1/g" $KERNEL_MAKEFILE_DIR/include/linux/spinlock_types.h;
-fi;
-
 
 #
 # if options not set =>
@@ -137,6 +116,15 @@ if [ $? -ne 0 ]; then
 	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.build !"; fi;
 	exit 1;
 fi;
+
+ldv_print "INFO: Apply complex patch...";
+ldv_print "DEBUG: $kernel_final_link_patch $KERNEL_MAKEFILE_DIR";
+$kernel_final_link_patch $KERNEL_MAKEFILE_DIR;
+if [ $? -ne 0 ]; then
+        ldv_print "ERROR: Can't apply complex patch.";
+        exit 1;
+fi;
+
 
 echo "kernel-make-dir=$KERNEL_MAKEFILE_DIR" >> $1;
 echo "status=prepared" >> $1;
