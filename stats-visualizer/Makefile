@@ -5,7 +5,7 @@ CONFIG = config
 
 ifneq ($(wildcard $(CONFIG)),)
   include $(CONFIG)
-endif 
+endif
 
 VHOST_DIR = vhosts
 STATS_DIR = ldv-stats
@@ -52,15 +52,15 @@ STATS_APPLICATION = application
 
 # Some configuration files. They are relative to the application directory.
 STATS_CONFIG = configs
-STATS_CONFIG_SCRIPTS = scripts.ini
+STATS_CONFIG_DATA = data.ini
 STATS_CONFIG_ERROR_TRACE_VISUALIZER = [error-trace-visualizer]
-STATS_CONFIG_SCRIPT = script = 
+STATS_CONFIG_SCRIPT = script =
 
 # Error trace visualizer script. It's relative to the bin directory.
 ERROR_TRACE_VISUALIZER = error-trace-visualizer.pl
 
 # Standard Makefile section.
-# Use root installation directory if no prefix was specified. 
+# Use root installation directory if no prefix was specified.
 ifndef prefix
 prefix = `readlink -f $(INSTALL_DIR)`
 endif
@@ -83,7 +83,7 @@ install:
 	@if [ ! -d $(LDV_STATS_CONF_DIR) ]; then echo 'The specified web server configuration directory "$(LDV_STATS_CONF_DIR)" does not exist' && exit 1; fi;
 	@if [ ! -d $(LDV_STATS_VHOSTS_CONF_DIR) ]; then echo 'The specified web server virtual hosts configuration directory "$(LDV_STATS_VHOSTS_CONF_DIR)" does not exist' && exit 1; fi;
 	@if [ ! -d $(LDV_STATS_VHOSTS_DIR) ]; then echo 'The specified web server virtual hosts directory "$(LDV_STATS_VHOSTS_DIR)" does not exist' && exit 1; fi;
-	
+
 	@if [ ! -n "$(LDV_STATS_PORT)" ]; then echo 'The default LDV_STATS_PORT "$(DEFAULT_PORT)" is used' && export LDV_STATS_PORT=$(DEFAULT_PORT); else echo 'LDV_STATS_PORT is $(LDV_STATS_PORT)'; export LDV_STATS_PORT=$(LDV_STATS_PORT); fi; \
 	if [ ! -n "$(LDV_STATS_APPLICATION_ENV)" ]; then echo 'The default LDV_STATS_APPLICATION_ENV "$(DEFAULT_APPLICATION_ENV)" is used' && export LDV_STATS_APPLICATION_ENV=$(DEFAULT_APPLICATION_ENV); else echo 'LDV_STATS_APPLICATION_ENV is $(LDV_STATS_APPLICATION_ENV)'; export LDV_STATS_APPLICATION_ENV=$(LDV_STATS_APPLICATION_ENV); fi; \
 	\
@@ -94,7 +94,7 @@ install:
 	    -e 's|$(WEB_SERVER_VHOSTS_CONF_STATS_ROOT)|$(STATS_DIR)/$(STATS_ROOT)|g' \
 	    -e "s|$(WEB_SERVER_VHOSTS_CONF_APPLICATION_ENV)|$$LDV_STATS_APPLICATION_ENV|g" \
 	  > $(LDV_STATS_VHOSTS_CONF_DIR)/$(WEB_SERVER_VHOSTS_CONF);
-	
+
 	cp -r $(VHOST_DIR)/$(STATS_DIR) $(LDV_STATS_VHOSTS_DIR) || exit 1;
 	@if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) || exit 1; fi
 	ln -sfT "$(prefix)/$(ZEND_FRAMEWORK_DIR)" "$(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR)/$(ZEND_FRAMEWORK_LINK)" || exit 1;
@@ -107,14 +107,14 @@ install:
 	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED) || exit 1;
 	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_SRC) || exit 1
 	@if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG) || exit 1; fi
-	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_SCRIPTS) || exit 1;
+	touch $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA) || exit 1;
 	@echo Give the correct access to the needed files to the statistics server
 	@if [ ! -n "$(LDV_STATS_USER)" -o ! -n "$(LDV_STATS_GROUP)" ]; then echo 'Specify the LDV_STATS_USER and LDV_STATS_GROUP variable values if you want to grant the correct access to the statistics server!'; \
 	  else echo 'LDV_STATS_USER is $(LDV_STATS_USER)'; echo 'LDV_STATS_GROUP is $(LDV_STATS_GROUP)'; \
 	    chown $(LDV_STATS_USER):$(LDV_STATS_GROUP) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_SRC) || exit 1; \
 	fi
 	@echo Add pathes to scripts to the statistics server script configuration file
-	@echo -e "$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_SCRIPTS)
+	@echo -e "$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
 
 test:
 	@echo The statistics server doesn\'t have any test
