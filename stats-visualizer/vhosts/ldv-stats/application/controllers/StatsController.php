@@ -108,8 +108,8 @@ class StatsController extends Zend_Controller_Action
     fclose($handle);
 
     // Obtain the path to the error trace visualizer script.
-    $config = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'error-trace-visualizer');
-    $etv = $config->script;
+    $etvConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'error-trace-visualizer');
+    $etv = $etvConfig->script;
 
     $errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
     $engine = $results['Error trace']->engine;

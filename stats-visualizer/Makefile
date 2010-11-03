@@ -54,10 +54,19 @@ STATS_APPLICATION = application
 STATS_CONFIG = configs
 STATS_CONFIG_DATA = data.ini
 STATS_CONFIG_ERROR_TRACE_VISUALIZER = [error-trace-visualizer]
-STATS_CONFIG_SCRIPT = script =
+STATS_CONFIG_SCRIPT = script=
+STATS_CONFIG_MODEL_DB = [model-database]
+STATS_CONFIG_RULE_DB = [rule-database]
+STATS_CONFIG_FILE = file=
 
 # Error trace visualizer script. It's relative to the bin directory.
 ERROR_TRACE_VISUALIZER = error-trace-visualizer.pl
+
+# Model database xml file. It's relative to the prefix directory.
+STATS_CONFIG_MODEL_DB_FILE = kernel-rules/model-db.xml
+
+# Rule database xml file. It's relative to the prefix directory.
+STATS_CONFIG_RULE_DB_FILE = kernel-rules/rules/DRVRULES_en.trl
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified.
@@ -114,7 +123,10 @@ install:
 	    chown $(LDV_STATS_USER):$(LDV_STATS_GROUP) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_SRC) || exit 1; \
 	fi
 	@echo Add pathes to scripts to the statistics server script configuration file
-	@echo -e "$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
+	@echo -e "$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)\n"\
+	"$(STATS_CONFIG_MODEL_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_MODEL_DB_FILE)\n"\
+	"$(STATS_CONFIG_RULE_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_RULE_DB_FILE)\n"\
+	  > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
 
 test:
 	@echo The statistics server doesn\'t have any test
