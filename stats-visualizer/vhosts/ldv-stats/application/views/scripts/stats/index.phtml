@@ -156,11 +156,19 @@ if ($resultsNumb) {
     $i++;
     $statKeysValues = array();
     foreach ($statKeys as $statKey) {
-      echo "    <td>";
       $value = $result['Stats key'][$statKey];
 #      if ($value != $prevStatKey[$statKey]) {
-        if (array_key_exists($statKey, $profilePages)) {
-          echo "<a href='"
+        // For null rule name print auxiliary name instead of nothing.
+        if (is_null($value)) {
+          echo "<td>Fail before RI</td>";
+        }
+        // For git profile generate links to the rule description.
+        else if ($profileOptions['name'] == 'git' and $statKey == 'Rule name') {
+          $global = new Zend_Session_Namespace();
+          echo "<td title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
+        }
+        else if (array_key_exists($statKey, $profilePages)) {
+          echo "<td><a href='"
             . $this->url(
               array_merge(
                 $globals,
@@ -173,11 +181,11 @@ if ($resultsNumb) {
               true)
             . "'>"
             . $value
-            . "</a>";
+            . "</a></td>";
 
         }
         else {
-          echo "$value";
+          echo "<td>$value</td>";
         }
 
         // Use special designatures for NULL and empty string values to send
@@ -192,7 +200,6 @@ if ($resultsNumb) {
         $statKeysValues[$statKey] = $value;
 #       $prevStatKey[$statKey] = $value;
 #      }
-      echo "</td>";
     }
 
     $isErrorTracePresent = false;
