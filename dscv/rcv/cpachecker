@@ -180,7 +180,7 @@ sub verify_cpachecker
 				my %timestats;
 		        	open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
 			        while(<STATS_FILE>) {
-			                /^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+			                /^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
 					$timestats{$1} += $2;
 			        }    
 		        	close STATS_FILE;
