@@ -153,7 +153,7 @@ sub verify_blast
 			my %timestats;
 				open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
 				while(<STATS_FILE>) {
-					/^\s*<time\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+					/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
 					$timestats{$1} += $2;
 					#my $time_elt = XML::Twig::Elt->new('time',$2);
 					#$time_elt->set_att( name =>$1);
