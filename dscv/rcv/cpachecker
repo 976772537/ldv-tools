@@ -132,7 +132,7 @@ sub verify_cpachecker
 			XML::Twig::Elt->new('desc',{},$args{already_failed})->paste($rcvResultT);
 
 			# Calculate and output time elapsed
-			XML::Twig::Elt->new('time',{},0)->paste($rcvResultT);
+			XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
 
 			$rcvResultT->paste(last_child =>$cmdInstT);
 			$cmdInstT->paste($repT);
@@ -176,7 +176,7 @@ sub verify_cpachecker
 			# Read file with time statistics
 			# copied from blast script
 			# TODO(time): check it
-			if ( -f "$workdir/stats_rcv.xml" ) {  
+			if ( -f "$workdir/stats_rcv.xml" && ! -z "$workdir/stats_rcv.xml" ) {  
 				my %timestats;
 		        	open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
 			        while(<STATS_FILE>) {
