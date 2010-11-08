@@ -2226,10 +2226,10 @@ sub process_report()
     };
 
     # Read file with time statistics
-    if ( -f "$tool_aux_dir/$tool_stats_xml" ) {
+    if ( -f "$tool_aux_dir/$tool_stats_xml" && ! -z "$tool_aux_dir/$tool_stats_xml" ) {
     open(STATS_FILE, '<', "$tool_aux_dir/$tool_stats_xml") or die "Can't open file with time statistics: \"$tool_aux_dir/stats.xml\", $!";
     while(<STATS_FILE>) {
-        /^\s*<time\s+ref="$cmd_id"\s+name="(.*)"\s*>\s*([0-9]*)\s*<\/time>/ or next;
+        /^\s*<time\s+ref="$cmd_id"\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
         $cmds_log{$cmd_id}->{'cmd time'}->{$1} += $2;
     }
     close STATS_FILE;

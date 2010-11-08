@@ -149,7 +149,7 @@ sub verify_blast
 		#		my $time_msec = int($time_sec * 1000);
 		#		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
 		# Read file with time statistics
-		if ( -f "$workdir/stats_rcv.xml" ) {
+		if ( -f "$workdir/stats_rcv.xml" && ! -z "$workdir/stats_rcv.xml") {
 			my %timestats;
 				open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
 				while(<STATS_FILE>) {
