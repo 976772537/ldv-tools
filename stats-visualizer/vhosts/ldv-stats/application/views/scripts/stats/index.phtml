@@ -53,6 +53,11 @@ if ($resultsNumb) {
 #print_r($problemKeys);
 #exit;
 
+  // At first use a task id for grouping.
+  $isTaskId = in_array('Task id', $statKeys);
+  // If no task id is specified then try to use a task name.
+  $isTaskName = in_array('Task name', $statKeys);
+
   // Get the necessary tools information.
   $tools = array();
 
@@ -102,8 +107,27 @@ if ($resultsNumb) {
   echo "<table border=1>
           <tr align='center' bgcolor='yellow'>";
   echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>#</td>";
+  $isTaskPrinted = false;
   foreach ($statKeys as $statKey) {
-    echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
+    // Merge all task information to the one column.
+    if (preg_match('/^Task/', $statKey)) {
+      if (!$isTaskPrinted) {
+        echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>Task</td>";
+        $isTaskPrinted = true;
+      }
+    }
+    else {
+      // Make more human readable name for statistics key part.
+      $statKeyPrint = $statKey;
+      if ($statKey == 'Environment version') {
+        $statKeyPrint = 'Kernel';
+      }
+      else if ($statKey == 'Rule name') {
+        $statKeyPrint = 'Rule';
+      }
+
+      echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKeyPrint</td>";
+    }
   }
   foreach ($verificationKeys as $verificationKey) {
     if ($verificationKey == 'Error trace presence') {
@@ -144,11 +168,48 @@ if ($resultsNumb) {
     echo "  </tr>";
   }
 
-  // To print every value of statistics key just one time in the corresponding
-  // groups.
-#  foreach ($statKeys as $statKey) {
-#    $prevStatKey[$statKey] = '';
-#  }
+  // Iterate over all results to build a rowspan tree.
+  $rowSpanTree = array();
+  foreach ($stats as $result) {
+    $nextNode = &$rowSpanTree;
+    foreach ($statKeys as $statKey) {
+      // Skip all task information except task id.
+      if (preg_match('/^Task/', $statKey)) {
+        if ($isTaskId) {
+          if ($statKey != 'Task id') {
+            continue;
+          }
+        }
+        else if ($isTaskName) {
+          if ($statKey != 'Task name') {
+            continue;
+          }
+        }
+        else {
+          continue;
+        }
+      }
+
+      $value = $result['Stats key'][$statKey];
+      if (is_null($value)) {
+        $value = '__NOVALUE';
+      }
+      if (!array_key_exists($value, $nextNode)) {
+        $nextNode[$value] = array();
+      }
+      $nextNode = &$nextNode[$value];
+    }
+  }
+#print_r($rowSpanTree);exit;
+  if (array_key_exists('__NOVALUE', $rowSpanTree)) {
+    throw new Exception("Can't show statistics using a given profile. Neither task id nor task name is specified");
+  }
+
+  // To print the same values of statistics key just one time for a
+  // corresponding groups.
+  foreach ($statKeys as $statKey) {
+    $prevStatKey[$statKey] = '__NOVALUE';
+  }
 
   // Iterate over all results.
   $i = 1;
@@ -157,11 +218,60 @@ if ($resultsNumb) {
     echo "    <td>$i</td>";
     $i++;
     $statKeysValues = array();
+    $isTaskColumnPrinted = false;
+    $nextNode = &$rowSpanTree;
     foreach ($statKeys as $statKey) {
       $value = $result['Stats key'][$statKey];
-#      if ($value != $prevStatKey[$statKey]) {
+
+      // Merge all task information to one column.
+      if (preg_match('/^Task/', $statKey)) {
+        if ($isTaskId) {
+          $taskKey = 'Task id';
+        }
+        else if ($isTaskName) {
+          $taskKey = 'Task name';
+        }
+        else {
+          throw new Exception("Neither task id nor task name is specified");
+        }
+
+        $taskKeyValue = $result['Stats key'][$taskKey];
+        if (is_null($taskKeyValue)) {
+          $taskKeyValue = '__NOVALUE';
+        }
+
+        // All task information is grouped by task key.
+        if ($taskKeyValue != $prevStatKey[$taskKey]) {
+          if (!$isTaskColumnPrinted) {
+            echo "<td rowspan='" . count_leaves($rowSpanTree[$taskKeyValue]) . "'>";
+
+            foreach ($statKeys as $statTaskKey) {
+              if (preg_match('/^Task/', $statTaskKey)) {
+                // Hide internal task id.
+                if ($statTaskKey != 'Task id') {
+                  echo "$statTaskKey<br>" . $result['Stats key'][$statTaskKey] . "<br>";
+                  $statKeysValues[$statTaskKey] = $value;
+                }
+              }
+            }
+
+            foreach ($statKeys as $statKey) {
+              $prevStatKey[$statKey] = '__NOVALUE';
+            }
+            $prevStatKey[$taskKey] = $taskKeyValue;
+
+            $nextNode = &$nextNode[$taskKeyValue];
+
+            $isTaskColumnPrinted = true;
+          }
+        }
+        else if ($taskKey == $statKey) {
+          $nextNode = &$nextNode[$taskKeyValue];
+        }
+      }
+      else if (is_null($value) or $value != $prevStatKey[$statKey]) {
         // For null rule name print auxiliary name instead of nothing.
-        if (is_null($value)) {
+        if (is_null($value) and $statKey == 'Rule name') {
           echo "<td>Fail before RI</td>";
         }
         // For git profile generate links to the rule description.
@@ -170,7 +280,10 @@ if ($resultsNumb) {
           echo "<td title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
         }
         else if (array_key_exists($statKey, $profilePages)) {
-          echo "<td><a href='"
+          if (!array_key_exists($value, $nextNode)) {
+            print_r($nextNode);exit;
+          }
+          echo "<td rowspan='" . count_leaves($nextNode[$value]) . "'><a href='"
             . $this->url(
               array_merge(
                 $globals,
@@ -200,8 +313,13 @@ if ($resultsNumb) {
         }
 
         $statKeysValues[$statKey] = $value;
-#       $prevStatKey[$statKey] = $value;
-#      }
+        $prevStatKey[$statKey] = $value;
+        $nextNode = &$nextNode[$value];
+      }
+    }
+
+    if ($isTaskColumnPrinted) {
+      echo "</td>";
     }
 
     $isErrorTracePresent = false;

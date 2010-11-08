@@ -146,6 +146,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     for ($i = 1; array_key_exists("task$i", $params) and ($tasks[] = $params["task$i"]); $i++) {
       ;
     }
+    $isTaskNameNeeded = count($tasks) ? true : false;
 
     // Here all information to be shown will be written.
     $result = array();
@@ -182,10 +183,21 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       foreach ($page->launchInfo as $info) {
         $name = $info->launchInfoName;
         $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
-          $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
-          $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
-          $joins[$tableColumn['table']] = 1;
+        $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
+        $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
+        $joins[$tableColumn['table']] = 1;
+
+        if ($name == 'Task name') {
+          $isTaskNameNeeded = false;
+        }
       }
+    }
+    if ($isTaskNameNeeded) {
+      $name = 'Task name';
+      $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
+      $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
+      $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
+      $joins[$tableColumn['table']] = 1;
     }
     $statsKey = array_keys($launchInfo);
 

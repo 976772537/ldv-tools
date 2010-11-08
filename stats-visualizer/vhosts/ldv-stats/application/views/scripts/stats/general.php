@@ -1,5 +1,25 @@
 <?php
 
+// Count the number of tree leaves for a given array.
+function count_leaves($array) {
+  if (is_null($array)) {
+    return 0;
+  }
+
+  // Reach a leaf.
+  if (!count(array_keys($array))) {
+    return 1;
+  }
+
+  // Count the number of subtree leaves.
+  $subtreeSize = 0;
+  foreach ($array as $value) {
+    $subtreeSize += count_leaves($value);
+  }
+
+  return $subtreeSize;
+}
+
 // Print information on a current database connection.
 function print_db_info($dbConnectionOptions) {
   echo "<h3>Current database connection options</h3>";
