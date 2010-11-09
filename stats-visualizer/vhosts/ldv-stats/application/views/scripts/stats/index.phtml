@@ -6,8 +6,7 @@ include 'general.php';
 $results = $this->entries;
 
 // Don't use comparison for git mode.
-$profileOptions = $results['Profile'];
-if (!($profileOptions['name'] == 'git')) {
+if (!isGit($results)) {
   // Print form for the tasks comparison.
   $this->form->setAction($this->url());
   echo $this->form;
@@ -16,8 +15,6 @@ if (!($profileOptions['name'] == 'git')) {
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
-
-#print_r($profilePages);exit;
 
 // Get information on all current global variables valuse to pass them for child
 // pages.
@@ -38,43 +35,45 @@ echo "<h3>Statistics for the page '$page' (" . $resultsNumb . " rows)</h3>";
 // Print general statistics table if so.
 if ($resultsNumb) {
   // At the beginning print javascript plugin to relate comparison interfaces.
-  echo "<script type='text/javascript'>
-          $(document).ready(function() {
-            $('input[name=\"SCComparisonIds\"]').click(function() {
-              var valPrev = $('input[name=\"SCTaskIds\"]').val();
-              var valAdd = $(this).val();
-              var valNew = '';
+  if (!isGit($results)) {
+    echo "<script type='text/javascript'>
+            $(document).ready(function() {
+              $('input[name=\"SCComparisonIds\"]').click(function() {
+                var valPrev = $('input[name=\"SCTaskIds\"]').val();
+                var valAdd = $(this).val();
+                var valNew = '';
 
-              if ($(this).is(':checked')) {
-                if (valPrev.indexOf(valAdd) == -1) {
-                  valNew = valPrev + ' ' + valAdd;
-                  $('input[name=\"SCTaskIds\"]').val(valNew);
+                if ($(this).is(':checked')) {
+                  if (valPrev.indexOf(valAdd) == -1) {
+                    valNew = valPrev + ' ' + valAdd;
+                    $('input[name=\"SCTaskIds\"]').val(valNew);
+                  }
                 }
-              }
-              else {
-                if (valPrev.indexOf(valAdd) != -1) {
-                  valNew = valPrev.replace(new RegExp(valAdd, 'g'), '');
-                  $('input[name=\"SCTaskIds\"]').val(valNew);
+                else {
+                  if (valPrev.indexOf(valAdd) != -1) {
+                    valNew = valPrev.replace(new RegExp(valAdd, 'g'), '');
+                    $('input[name=\"SCTaskIds\"]').val(valNew);
+                  }
                 }
-              }
+              });
             });
-          });
-        </script>";
-  echo "<script type='text/javascript'>
-          $(document).ready(function() {
-            $('input[name=\"SCReferenceComparisonId\"]').click(function() {
-              var valPrev = $('input[name=\"SCTaskIds\"]').val();
-              var valAdd = $(this).val();
-              var valNew = '';
+          </script>";
+    echo "<script type='text/javascript'>
+            $(document).ready(function() {
+              $('input[name=\"SCReferenceComparisonId\"]').click(function() {
+                var valPrev = $('input[name=\"SCTaskIds\"]').val();
+                var valAdd = $(this).val();
+                var valNew = '';
 
-              // Remove all inclusions of reference task id and add it to beginning.
-              valNew = valPrev.replace(new RegExp(valAdd, 'g'), '');
-              var valNew = valAdd + ' ' + valPrev;
+                // Remove all inclusions of reference task id and add it to beginning.
+                valNew = valPrev.replace(new RegExp(valAdd, 'g'), '');
+                var valNew = valAdd + ' ' + valPrev;
 
-              $('input[name=\"SCTaskIds\"]').val(valNew);
+                $('input[name=\"SCTaskIds\"]').val(valNew);
+              });
             });
-          });
-        </script>";
+          </script>";
+  }
 
   // Get the statistics information part.
   $stats = $results['Stats']['Row info'];
@@ -295,10 +294,12 @@ if ($resultsNumb) {
           if (!$isTaskColumnPrinted) {
             echo "<td rowspan='" . count_leaves($rowSpanTree[$taskKeyValue]) . "'>";
 
-            echo "  <div>";
-            echo "     <input type='radio' name='SCReferenceComparisonId' value='$taskKeyValue'>";
-            echo "     <input type='checkbox' name='SCComparisonIds' value='$taskKeyValue'>";
-            echo "  </div>";
+            if (!isGit($results)) {
+              echo "  <div>";
+              echo "     <input type='radio' name='SCReferenceComparisonId' value='$taskKeyValue'>";
+              echo "     <input type='checkbox' name='SCComparisonIds' value='$taskKeyValue'>";
+              echo "  </div>";
+            }
 
             foreach ($statKeys as $statTaskKey) {
               if (preg_match('/^Task/', $statTaskKey)) {
@@ -333,7 +334,7 @@ if ($resultsNumb) {
           echo "<td rowspan='" . count_leaves($nextNode[$value]) . "'>Fail before RI</td>";
         }
         // For git profile generate links to the rule description.
-        else if ($profileOptions['name'] == 'git' and $statKey == 'Rule name') {
+        else if (isGit($results) and $statKey == 'Rule name') {
           $global = new Zend_Session_Namespace();
           if (array_key_exists($value, $global->models)) {
             echo "<td  rowspan='" . count_leaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
@@ -564,6 +565,6 @@ if ($resultsNumb) {
   echo "</table>";
 }
 
-print_info($results);
+printInfo($results);
 
 ?>
