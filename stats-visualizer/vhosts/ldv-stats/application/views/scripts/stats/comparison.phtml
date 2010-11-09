@@ -297,7 +297,9 @@ if ($resultsNumb) {
                       <tr align='center' bgcolor='yellow'>";
               echo "    <td nowrap>#</td>";
               foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
-                echo "  <td nowrap>$driversMatchedStatKey</td>";
+                if (!($driversMatchedStatKey == 'Stats key matched')) {
+                  echo "  <td nowrap>$driversMatchedStatKey</td>";
+                }
               }
               echo "<td rowspan='" . (1 + count($drivers)) . "'> -> </td>";
               foreach ($driversStatKeys as $driversStatKey) {
@@ -312,7 +314,9 @@ if ($resultsNumb) {
                 echo "  <td>$j</td>";
                 $j++;
                 foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
-                  echo "  <td nowrap>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
+                  if ($driversMatchedStatKey != 'Stats key matched') {
+                    echo "  <td nowrap>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
+                  }
                 }
                 foreach ($driversStatKeys as $driversStatKey) {
                   echo "  <td nowrap>" . $driver['driver'][$driversStatKey] . "</td>";

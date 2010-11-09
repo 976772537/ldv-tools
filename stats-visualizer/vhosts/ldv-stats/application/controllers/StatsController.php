@@ -66,7 +66,9 @@ class StatsController extends Zend_Controller_Action
 
     if ($this->getRequest()->isPost()) {
       if ($form->isValid($request->getPost())) {
-        $taskIdsStr = $form->getValue('taskids');
+        $taskIdsStr = $form->getValue('SCTaskIds');
+        // Delete continuos spaces.
+        $taskIdsStr = trim(preg_replace('/\s+/', ' ', $taskIdsStr));
         return $this->_helper->redirector->gotoSimple(
           'comparison'
           , 'stats'

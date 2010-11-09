@@ -1030,8 +1030,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-#    print_r($statsCmpMatch);
-#    exit;
+#print_r($statsCmpMatch);exit;
+
     $result['Comparison stats'] = array();
     $result['Comparison stats']['All changes'] = array();
     $result['Comparison stats']['Row info'] = array();
@@ -1039,6 +1039,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Count the number of needed transitions with grouping by the corresponding
     // launch information statistics keys.
     foreach (array_slice($taskIds, 1) as $taskIdCmp) {
+      $isTaskNew = true;
+
       foreach ($statsCmpMatch[$taskIdCmp] as $statsCmpValuesStr => $matchStats) {
         $resultPart = array();
         $resultPart['Stats key'] = array();
@@ -1107,8 +1109,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
 
         // Either group with the last created row (note that they are ordered)
-        // or add a new row.
-        if (!($last = end($result['Comparison stats']['Row info']))
+        // or add a new row. Note that for a new task the last element from a
+        // previous task isn't considered.
+        if ($isTaskNew
+          or !($last = end($result['Comparison stats']['Row info']))
           or count(array_diff_assoc($last['Stats key'], $resultPart['Stats key']))) {
             $result['Comparison stats']['Row info'][] = $resultPart;
         }
@@ -1145,10 +1149,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
 
         array_push($result['Comparison stats']['Row info'], $last);
+
+        $isTaskNew = false;
       }
     }
-#print_r($result);
-#exit;
+
+#print_r($result);exit;
+
     return $result;
   }
 }
