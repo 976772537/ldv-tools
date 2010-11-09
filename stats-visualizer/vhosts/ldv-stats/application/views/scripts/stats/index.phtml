@@ -192,8 +192,11 @@ if ($resultsNumb) {
 
       $value = $result['Stats key'][$statKey];
       if (is_null($value)) {
-        $value = '__NOVALUE';
+        $value = '__NULL';
       }
+        else if ($value == '') {
+          $value = '__EMPTY';
+        }
       if (!array_key_exists($value, $nextNode)) {
         $nextNode[$value] = array();
       }
@@ -201,7 +204,7 @@ if ($resultsNumb) {
     }
   }
 #print_r($rowSpanTree);exit;
-  if (array_key_exists('__NOVALUE', $rowSpanTree)) {
+  if (array_key_exists('__NULL', $rowSpanTree)) {
     throw new Exception("Can't show statistics using a given profile. Neither task id nor task name is specified");
   }
 
@@ -222,6 +225,14 @@ if ($resultsNumb) {
     $nextNode = &$rowSpanTree;
     foreach ($statKeys as $statKey) {
       $value = $result['Stats key'][$statKey];
+      // Use special designatures for NULL and empty string values to send
+      // them through address.
+      if (is_null($value)) {
+        $value = '__NULL';
+      }
+      else if ($value == '') {
+        $value = '__EMPTY';
+      }
 
       // Merge all task information to one column.
       if (preg_match('/^Task/', $statKey)) {
@@ -237,7 +248,7 @@ if ($resultsNumb) {
 
         $taskKeyValue = $result['Stats key'][$taskKey];
         if (is_null($taskKeyValue)) {
-          $taskKeyValue = '__NOVALUE';
+          $taskKeyValue = '__NULL';
         }
 
         // All task information is grouped by task key.
@@ -247,10 +258,11 @@ if ($resultsNumb) {
 
             foreach ($statKeys as $statTaskKey) {
               if (preg_match('/^Task/', $statTaskKey)) {
+                $statTaskKeyValue = $result['Stats key'][$statTaskKey];
+
                 // Hide internal task id.
                 if ($statTaskKey != 'Task id') {
-                  echo "$statTaskKey<br>" . $result['Stats key'][$statTaskKey] . "<br>";
-                  $statKeysValues[$statTaskKey] = $value;
+                  echo "$statTaskKey<br>$statTaskKeyValue<br>";
                 }
               }
             }
@@ -268,21 +280,30 @@ if ($resultsNumb) {
         else if ($taskKey == $statKey) {
           $nextNode = &$nextNode[$taskKeyValue];
         }
+
+        // Find out task restrictions.
+        foreach ($statKeys as $statTaskKey) {
+          if (preg_match('/^Task/', $statTaskKey)) {
+            $statKeysValues[$statTaskKey] = $result['Stats key'][$statTaskKey];
+          }
+        }
       }
-      else if (is_null($value) or $value != $prevStatKey[$statKey]) {
+      else if ($value == '__EMPTY' or $value != $prevStatKey[$statKey]) {
         // For null rule name print auxiliary name instead of nothing.
-        if (is_null($value) and $statKey == 'Rule name') {
-          echo "<td>Fail before RI</td>";
+        if ($value == '__NULL' and $statKey == 'Rule name') {
+          echo "<td rowspan='" . count_leaves($nextNode[$value]) . "'>Fail before RI</td>";
         }
         // For git profile generate links to the rule description.
         else if ($profileOptions['name'] == 'git' and $statKey == 'Rule name') {
           $global = new Zend_Session_Namespace();
-          echo "<td title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
+          if (array_key_exists($value, $global->models)) {
+            echo "<td  rowspan='" . count_leaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
+          }
+          else {
+            echo "<td rowspan='" . count_leaves($nextNode[$value]) . "'>$value</td>";
+          }
         }
         else if (array_key_exists($statKey, $profilePages)) {
-          if (!array_key_exists($value, $nextNode)) {
-            print_r($nextNode);exit;
-          }
           echo "<td rowspan='" . count_leaves($nextNode[$value]) . "'><a href='"
             . $this->url(
               array_merge(
@@ -300,20 +321,34 @@ if ($resultsNumb) {
 
         }
         else {
-          echo "<td>$value</td>";
-        }
-
-        // Use special designatures for NULL and empty string values to send
-        // them through address.
-        if (is_null($value)) {
-          $value = '__NULL';
-        }
-        else if ($value == '') {
-          $value = '__EMPTY';
+          if (!array_key_exists($value, $nextNode)) {
+            print_r($nextNode);exit;
+          }
+          $valueToPrint = $value;
+          if ($valueToPrint == '__EMPTY' and $statKey == 'Entry point') {
+            $valueToPrint = 'No entry point';
+          }
+          echo "<td rowspan='" . count_leaves($nextNode[$value]) . "'>$valueToPrint</td>";
         }
 
         $statKeysValues[$statKey] = $value;
+
         $prevStatKey[$statKey] = $value;
+        // Reset all subsequent previous values.
+        $isKeyMatched = false;
+        foreach ($statKeys as $statKeyReset) {
+          if ($isKeyMatched) {
+            $prevStatKey[$statKeyReset] = '__NOVALUE';
+          }
+          if (!$isKeyMatched and $statKeyReset == $statKey) {
+            $isKeyMatched = true;
+          }
+        }
+
+        $nextNode = &$nextNode[$value];
+      }
+      else {
+        $statKeysValues[$statKey] = $value;
         $nextNode = &$nextNode[$value];
       }
     }
