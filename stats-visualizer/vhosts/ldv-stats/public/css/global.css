@@ -65,6 +65,11 @@ body
   border-collapse: collapse;
 }
 
+.SCStatsComparisonSubTableTotal, .SCStatsComparisonSubTable
+{
+  width: 100%;
+}
+
 #SSStatsTable td, #SCStatsComparisonTable td,
 .SCStatsComparisonSubTableTotal td, .SCStatsComparisonSubTable td
 {
