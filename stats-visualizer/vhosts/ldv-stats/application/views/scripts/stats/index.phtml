@@ -127,11 +127,49 @@ if ($resultsNumb) {
           $(document).ready(function() {
             $('.SSStatsTableRow').mouseover(function() {
               $(this).addClass('SSStatsTableColorOver');
-              $(this).not(':has(div.SSStatsTableTaskStatKey)').prevAll('tr').has('div.SSStatsTableTaskStatKey').first().children('td.SSStatsTableStatKeys[rowspan!=1]').addClass('SSStatsTableColorOver');
+              var statKeysClasses = new Array();
+
+              // Collect all already colored statistics keys.
+              $(this).children('td.SSStatsTableStatKeys').each(function() {
+                // Get statistics key class.
+                var statKeyClass;
+                var elem = $(this).get(0);
+                var elemClasses = elem.className.split(/\s+/);
+
+                for (i = 0; i < elemClasses.length; i++) {
+                  if (elemClasses[i].search(/__STATKEY$/) != -1 || elemClasses[i].search(/__STATKEYAUX$/) != -1) {
+                    statKeyClass = elemClasses[i];
+                    break;
+                  }
+                }
+
+                statKeysClasses[statKeyClass] = true;
+              })
+
+              $(this).prevAll('tr').each(function () {
+                $(this).children('td.SSStatsTableStatKeys[rowspan!=1]').each(function() {
+                  // Get statistics key class.
+                  var statKeyClass;
+                  var elem = $(this).get(0);
+                  var elemClasses = elem.className.split(/\s+/);
+
+                  for (i = 0; i < elemClasses.length; i++) {
+                    if (elemClasses[i].search(/__STATKEY$/) != -1 || elemClasses[i].search(/__STATKEYAUX$/) != -1) {
+                      statKeyClass = elemClasses[i];
+                      break;
+                    }
+                  }
+
+                  if (statKeyClass && !statKeysClasses[statKeyClass]) {
+                    $(this).addClass('SSStatsTableColorOver');
+                  }
+
+                  statKeysClasses[statKeyClass] = true;
+                })
+              })
             })
             $('.SSStatsTableRow').mouseout(function() {
-              $(this).removeClass('SSStatsTableColorOver');
-              $(this).not(':has(div.SSStatsTableTaskStatKey)').prevAll('tr').has('div.SSStatsTableTaskStatKey').first().children('td.SSStatsTableStatKeys[rowspan!=1]').removeClass('SSStatsTableColorOver');
+              $('.SSStatsTableColorOver').removeClass('SSStatsTableColorOver');
             })
           });
         </script>";
@@ -355,6 +393,10 @@ if ($resultsNumb) {
     $nextNode = &$rowSpanTree;
     foreach ($statKeys as $statKey) {
       $value = $result['Stats key'][$statKey];
+      $statKeyClass = 'SSStatsTableStatKey';
+      $statKeyClass .= preg_replace('/\s+/', '_', $statKey);
+      $statKeyClass .= '__STATKEY';
+
       // Use special designatures for NULL and empty string values to send
       // them through address.
       if (is_null($value)) {
@@ -384,7 +426,7 @@ if ($resultsNumb) {
         // All task information is grouped by task key.
         if ($taskKeyValue != $prevStatKey[$taskKey]) {
           if (!$isTaskColumnPrinted) {
-            echo "<td class='SSStatsTableStatKeys' rowspan='" . countLeaves($rowSpanTree[$taskKeyValue]) . "'>";
+            echo "<td class='SSStatsTableStatKeys ${statKeyClass}AUX' rowspan='" . countLeaves($rowSpanTree[$taskKeyValue]) . "'>";
 
             if (!isGit($results)) {
               echo "  <div>";
@@ -395,7 +437,7 @@ if ($resultsNumb) {
               echo "  </div>";
 
               echo "</td>";
-              echo "<td class='SSStatsTableStatKeys' rowspan='" . countLeaves($rowSpanTree[$taskKeyValue]) . "'>";
+              echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($rowSpanTree[$taskKeyValue]) . "'>";
             }
 
             foreach ($statKeys as $statTaskKey) {
@@ -405,7 +447,7 @@ if ($resultsNumb) {
                   $statTaskKeyClass = 'TaskId';
                 }
 
-                echo "<div class='SSStatsTableTaskStatKey$statTaskKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value'>" . $result['Stats key'][$statTaskKey] ."</div>";
+                echo "<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value'>" . $result['Stats key'][$statTaskKey] ."</div>";
               }
             }
 
@@ -433,20 +475,20 @@ if ($resultsNumb) {
       else if ($value == '__EMPTY' or $value != $prevStatKey[$statKey]) {
         // For null rule name print auxiliary name instead of nothing.
         if ($value == '__NULL' and $statKey == 'Rule name') {
-          echo "<td class='SSStatsTableStatKeys' rowspan='" . countLeaves($nextNode[$value]) . "'>Fail before RI</td>";
+          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>Fail before RI</td>";
         }
         // For git profile generate links to the rule description.
         else if (isGit($results) and $statKey == 'Rule name') {
           $global = new Zend_Session_Namespace();
           if (array_key_exists($value, $global->models)) {
-            echo "<td class='SSStatsTableStatKeys' rowspan='" . countLeaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
+            echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
           }
           else {
-            echo "<td class='SSStatsTableStatKeys' rowspan='" . countLeaves($nextNode[$value]) . "'>$value</td>";
+            echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$value</td>";
           }
         }
         else if (array_key_exists($statKey, $profilePages)) {
-          echo "<td class='SSStatsTableStatKeys' rowspan='" . countLeaves($nextNode[$value]) . "'><a href='"
+          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'><a href='"
             . $this->url(
               array_merge(
                 $globals,
@@ -470,7 +512,7 @@ if ($resultsNumb) {
           if ($valueToPrint == '__EMPTY' and $statKey == 'Entry point') {
             $valueToPrint = 'No entry point';
           }
-          echo "<td class='SSStatsTableStatKeys' rowspan='" . countLeaves($nextNode[$value]) . "'>$valueToPrint</td>";
+          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$valueToPrint</td>";
         }
 
         $statKeysValues[$statKey] = $value;
