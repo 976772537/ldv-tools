@@ -146,6 +146,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     for ($i = 1; array_key_exists("task$i", $params) and ($tasks[] = $params["task$i"]); $i++) {
       ;
     }
+    $isTaskNameNeeded = count($tasks) ? true : false;
 
     // Here all information to be shown will be written.
     $result = array();
@@ -182,10 +183,21 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       foreach ($page->launchInfo as $info) {
         $name = $info->launchInfoName;
         $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
-          $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
-          $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
-          $joins[$tableColumn['table']] = 1;
+        $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
+        $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
+        $joins[$tableColumn['table']] = 1;
+
+        if ($name == 'Task name') {
+          $isTaskNameNeeded = false;
+        }
       }
+    }
+    if ($isTaskNameNeeded) {
+      $name = 'Task name';
+      $tableColumn = $this->getTableColumn($this->_launchInfoNameTableColumnMapper[$name]);
+      $launchInfo[$name] = $groupBy[] = $orderBy[] = "$tableColumn[tableShort].$tableColumn[column]";
+      $launchInfoScreened[$name] = "`$tableColumn[tableShort]`.`$tableColumn[column]`";
+      $joins[$tableColumn['table']] = 1;
     }
     $statsKey = array_keys($launchInfo);
 
@@ -981,6 +993,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $statsCmpMatch = array();
     $taskIdCmpRef = $taskIds[0];
     foreach (array_slice($taskIds, 1) as $taskIdCmp) {
+      // Skip undefined tasks.
+      if (!array_key_exists($taskIdCmp, $statsCmp)) {
+        continue;
+      }
+
       // Foreach task to be compared use its own referenced first task copy.
       $statsCmpRef = $statsCmp[$taskIdCmpRef];
       $statsCmpMatch[$taskIdCmp] = array();
@@ -1018,8 +1035,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-#    print_r($statsCmpMatch);
-#    exit;
+#print_r($statsCmpMatch);exit;
+
     $result['Comparison stats'] = array();
     $result['Comparison stats']['All changes'] = array();
     $result['Comparison stats']['Row info'] = array();
@@ -1027,6 +1044,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Count the number of needed transitions with grouping by the corresponding
     // launch information statistics keys.
     foreach (array_slice($taskIds, 1) as $taskIdCmp) {
+      // Skip undefined tasks.
+      if (!array_key_exists($taskIdCmp, $statsCmpMatch)) {
+        continue;
+      }
+
+      $isTaskNew = true;
+
       foreach ($statsCmpMatch[$taskIdCmp] as $statsCmpValuesStr => $matchStats) {
         $resultPart = array();
         $resultPart['Stats key'] = array();
@@ -1095,8 +1119,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
 
         // Either group with the last created row (note that they are ordered)
-        // or add a new row.
-        if (!($last = end($result['Comparison stats']['Row info']))
+        // or add a new row. Note that for a new task the last element from a
+        // previous task isn't considered.
+        if ($isTaskNew
+          or !($last = end($result['Comparison stats']['Row info']))
           or count(array_diff_assoc($last['Stats key'], $resultPart['Stats key']))) {
             $result['Comparison stats']['Row info'][] = $resultPart;
         }
@@ -1133,10 +1159,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
 
         array_push($result['Comparison stats']['Row info'], $last);
+
+        $isTaskNew = false;
       }
     }
-#print_r($result);
-#exit;
+
+#print_r($result);exit;
+
     return $result;
   }
 }

@@ -1,7 +1,338 @@
+/* General style. */
 body
 {
   background-color: white;
   color: black;
-  font-size: 12pt;
+  font-size: 10pt;
   font-family: sans-serif;
+}
+
+/* Statistics server header style. */
+#SSHeader
+{
+  background-color: #EEEEEE;
+  height: 30px;
+}
+
+#SSHeaderLogo
+{
+  float: left;
+  font-size: 14pt;
+  font-weight: bold;
+  padding: 5px;
+}
+
+/* Comparison menu style. */
+#SSTaskIds-label
+{
+  font-size: 12pt;
+}
+
+#SSTaskIds-element
+{
+  margin: 5px;
+}
+
+#submit-label
+{
+  display: none;
+}
+
+#submit-element
+{
+  font-size: 12pt;
+  margin: 5px;
+}
+
+/* Different notes style. */
+.SSNote
+{
+  font-size: 11pt;
+  font-style: italic;
+}
+
+/* Statistics (comparison) table style. */
+#SSStatsTableTitle, #SCStatsComparisonTableTitle
+{
+  font-size: 12pt;
+  font-weight: bold;
+  padding: 5px 5px 5px 0px;
+}
+
+#SSStatsTable, #SCStatsComparisonTable, .SCStatsComparisonSubTableTotal,
+.SCStatsComparisonSubTable
+{
+  border-collapse: collapse;
+}
+
+.SCStatsComparisonSubTableTotal, .SCStatsComparisonSubTable
+{
+  width: 100%;
+}
+
+#SSStatsTable td, #SCStatsComparisonTable td,
+.SCStatsComparisonSubTableTotal td, .SCStatsComparisonSubTable td
+{
+  border: 2px ridge #3B6656;
+}
+
+#SSStatsTableHeaderFirstRow, #SCStatsComparisonTableHeaderFirstRow,
+.SCStatsComparisonSubTableHeaderTotalFirstRow, .SCStatsComparisonSubTableHeaderFirstRow
+{
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#SSStatsTableHeaderSecondRow
+{
+  text-align: center;
+  white-space: nowrap;
+}
+
+#SSStatsTableHeaderThirdRow
+{
+  font-size: 8pt;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#SSStatsTableHeaderRowCounter, #SCStatsComparisonTableHeaderRowCounter,
+.SCStatsComparisonSubTableHeaderTotalRowCounter, .SCStatsComparisonSubTableHeaderRowCounter
+{
+  background-color: #01C47A;
+}
+
+.SSStatsTableHeaderTaskStatKey
+{
+  background-color: #0FDB8E;
+}
+
+.SSStatsTableHeaderStatKeys, .SCStatsComparisonTableHeaderStatKeys,
+.SCStatsComparisonSubTableHeaderTotalStatKeys, .SCStatsComparisonSubTableHeaderStatKeys
+{
+  background-color: #0CD299;
+}
+
+.SSStatsTableHeaderVerificationInfo
+{
+  background-color: #47B48B;
+}
+
+.SSStatsTableHeaderTools
+{
+  background-color: #2A9326;
+}
+
+.SSStatsTableHeaderToolInfo
+{
+  background-color: #53B92A;
+}
+
+.SSStatsTableHeaderToolChildren
+{
+  background-color: #A3D66A;
+}
+
+.SSStatsTableHeaderToolProblems
+{
+  background-color: #FF6C75;
+}
+
+.SSStatsTableHeaderToolChild
+{
+  background-color: #99DC4D;
+}
+
+.SSStatsTableHeaderToolProblem
+{
+  background-color: #E91622;
+}
+
+.SSStatsTableStatKeys, .SCStatsComparisonTableStatKeys,
+.SCStatsComparisonSubTableTotalStatKeys, .SCStatsComparisonSubTableStatKeys
+{
+  text-align: left;
+  vertical-align: top;
+}
+
+.SSStatsTableTaskStatKeyTaskId
+{
+  display: none;
+}
+
+.SSStatsTableTaskStatKeyTaskIdValue
+{
+  display: none;
+}
+
+.SSStatsTableTaskStatKey
+{
+  font-size: 8pt;
+  text-align: left;
+}
+
+.SSStatsTableTaskStatKeyValue
+{
+  font-weight: bold;
+  padding: 0px 0px 0px 5px;
+  text-align: left;
+}
+
+.SSNoWrap
+{
+  white-space: nowrap;
+}
+
+.SSStatsTableDescriptionTd
+{
+  vertical-align: top;
+}
+
+.SSStatsTableDescription
+{
+  font-family: monospace;
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 300px;
+}
+
+.SSStatsTableDescriptionBubbleShowHide
+{
+  font-weight: bold;
+  text-align: left;
+}
+
+.SSBubble
+{
+  background-color: #FFFFA1;
+  border: 1px solid #000000;
+  display: block;
+  font-family: monospace;
+  font-size: 8pt;
+  position: absolute;
+  text-align: left;
+  white-space: pre;
+}
+
+.SSStatsTableColorAlternationFirstLight
+{
+  background-color: #EAFEEF;
+}
+
+.SSStatsTableColorAlternationFirstDark
+{
+  background-color: #D4F3DB;
+}
+
+.SSStatsTableColorAlternationSecondLight
+{
+  background-color: #EFFFD3;
+}
+
+.SSStatsTableColorAlternationSecondDark
+{
+  background-color: #E0FFA8;
+}
+
+.SSStatsTableColorOver, .SSStatsComparisonTableColorOver, .SSStatsComparisonSubTableColorOver
+{
+  background-color: #EFB9E0;
+}
+
+/* Statistics comparison table style. */
+.SCStatsComparisonTableHeaderTotalChanges
+{
+  background-color: #25BE4A;
+}
+
+.SCStatsComparisonTableHeaderConversions
+{
+  background-color: #77D046;
+}
+
+.SCStatsComparisonSubTableTotalHeader
+{
+  font-weight: bold;
+  padding: 10px 0px 5px 5px;
+  text-align: left;
+}
+
+.SCStatsComparisonSubTableHeaderTotalArrow, .SCStatsComparisonSubTableHeaderArrow
+{
+  background-color: #16897B;
+}
+
+.SCStatsComparisonSubTableHeaderDetails
+{
+  background-color: #20A461;
+}
+
+.SCStatsComparisonSubTableDetails
+{
+  font-weight: bold;
+  text-align: left;
+}
+
+.SSVerticalAlignTop
+{
+  vertical-align: top;
+}
+
+.SSAlignRight
+{
+  text-align: right;
+}
+
+/* Statistics comparison action menu style. */
+#SCActionMenuShowHide
+{
+  font-size: 12pt;
+}
+
+#SCActionMenu
+{
+  font-size: 12pt;
+}
+
+/* Statistics error trace visualizer style. */
+#SETVLogShowHide
+{
+  font-size: 12pt;
+  padding: 10px 0px 0px 0px;
+}
+
+#SETVLog
+{
+  font-family: monospace;
+  font-size: 8pt;
+  padding: 5px 0px 0px 0px;
+}
+
+/* Auxiliary information style. */
+#SSInfoShowHide
+{
+  font-size: 12pt;
+  padding: 30px 0px 0px 0px;
+}
+
+#SSInfo
+{
+  padding: 5px 0px 0px 0px;
+}
+
+.SSInfoBody
+{
+  font-size: 8pt;
+  padding: 0px 0px 0px 10px;
+}
+
+.SSInfoHeader
+{
+  font-size: 10pt;
+  font-weight: bold;
+  padding: 5px 0px 0px 0px;
 }

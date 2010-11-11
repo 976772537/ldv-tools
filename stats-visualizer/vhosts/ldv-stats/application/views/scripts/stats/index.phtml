@@ -1,11 +1,12 @@
 <?php
 
+include 'general.php';
+
 // Get all infomation to be displayed.
 $results = $this->entries;
 
 // Don't use comparison for git mode.
-$profileOptions = $results['Profile'];
-if (!($profileOptions['name'] == 'git')) {
+if (!isGit($results)) {
   // Print form for the tasks comparison.
   $this->form->setAction($this->url());
   echo $this->form;
@@ -14,8 +15,6 @@ if (!($profileOptions['name'] == 'git')) {
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
-
-#print_r($profilePages);exit;
 
 // Get information on all current global variables valuse to pass them for child
 // pages.
@@ -31,10 +30,177 @@ if ($page == 'Result') {
 }
 
 $resultsNumb = count($results['Stats']['Row info']);
-echo "<h3>Statistics for the page '$page' (" . $resultsNumb . " rows)</h3>";
+echo "<div id='SSStatsTableTitle'>Statistics for the page '$page' (" . $resultsNumb . " rows)</div>";
 
 // Print general statistics table if so.
 if ($resultsNumb) {
+  echo "<div class='SSNote'>Time is shown in seconds.</div>";
+
+  // At the beginning print javascript plugin to relate comparison interfaces.
+  if (!isGit($results)) {
+    echo "<script type='text/javascript'>
+            $(document).ready(function() {
+              $('input[name=\"SSComparisonIds\"]').click(function() {
+                var valPrev = $('input[name=\"SSTaskIds\"]').val();
+                var valAdd = $(this).val();
+                var valNew = '';
+
+                if ($(this).is(':checked')) {
+                  if (valPrev.indexOf(valAdd) == -1) {
+                    valNew = valPrev + ' ' + valAdd;
+                    $('input[name=\"SSTaskIds\"]').val(valNew);
+                  }
+                }
+                else {
+                  if (valPrev.indexOf(valAdd) != -1) {
+                    valNew = valPrev.replace(new RegExp(valAdd, 'g'), '');
+                    $('input[name=\"SSTaskIds\"]').val(valNew);
+                  }
+                }
+              });
+            });
+          </script>";
+    echo "<script type='text/javascript'>
+            $(document).ready(function() {
+              $('input[name=\"SSReferenceComparisonId\"]').click(function() {
+                var valPrev = $('input[name=\"SSTaskIds\"]').val();
+                var valAdd = $(this).val();
+                var valNew = '';
+
+                // Remove all inclusions of reference task id and add it to beginning.
+                valNew = valPrev.replace(new RegExp(valAdd, 'g'), '');
+                var valNew = valAdd + ' ' + valPrev;
+
+                $('input[name=\"SSTaskIds\"]').val(valNew);
+              });
+            });
+          </script>";
+  }
+
+  // Print row color alternation plugin.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            var isSecond = true;
+            var i = 0;
+            $('.SSStatsTableRow').each(function() {
+              var isSwitch = false;
+
+              $(this).find('.SSStatsTableTaskStatKey').each(function() {
+                if (!isSwitch) {
+                  isSwitch = true;
+                }
+              })
+
+              if (isSwitch) {
+                if (isSecond) {
+                  isSecond = false;
+                }
+                else {
+                  isSecond = true;
+                }
+              }
+
+              if (i%2 == 1) {
+                if (isSecond) {
+                  $(this).addClass('SSStatsTableColorAlternationSecondDark');
+                }
+                else {
+                  $(this).addClass('SSStatsTableColorAlternationFirstDark');
+                }
+              }
+              else {
+                if (isSecond) {
+                  $(this).addClass('SSStatsTableColorAlternationSecondLight');
+                }
+                else {
+                  $(this).addClass('SSStatsTableColorAlternationFirstLight');
+                }
+              }
+
+              i++;
+            })
+          });
+        </script>";
+
+  // Print row chooser plugin.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SSStatsTableRow').mouseover(function() {
+              $(this).addClass('SSStatsTableColorOver');
+              var statKeysClasses = new Array();
+
+              // Collect all already colored statistics keys.
+              $(this).children('td.SSStatsTableStatKeys').each(function() {
+                // Get statistics key class.
+                var statKeyClass;
+                var elem = $(this).get(0);
+                var elemClasses = elem.className.split(/\s+/);
+
+                for (i = 0; i < elemClasses.length; i++) {
+                  if (elemClasses[i].search(/__STATKEY$/) != -1 || elemClasses[i].search(/__STATKEYAUX$/) != -1) {
+                    statKeyClass = elemClasses[i];
+                    break;
+                  }
+                }
+
+                statKeysClasses[statKeyClass] = true;
+              })
+
+              $(this).prevAll('tr').each(function () {
+                $(this).children('td.SSStatsTableStatKeys[rowspan!=1]').each(function() {
+                  // Get statistics key class.
+                  var statKeyClass;
+                  var elem = $(this).get(0);
+                  var elemClasses = elem.className.split(/\s+/);
+
+                  for (i = 0; i < elemClasses.length; i++) {
+                    if (elemClasses[i].search(/__STATKEY$/) != -1 || elemClasses[i].search(/__STATKEYAUX$/) != -1) {
+                      statKeyClass = elemClasses[i];
+                      break;
+                    }
+                  }
+
+                  if (statKeyClass && !statKeysClasses[statKeyClass]) {
+                    $(this).addClass('SSStatsTableColorOver');
+                  }
+
+                  statKeysClasses[statKeyClass] = true;
+                })
+              })
+            })
+            $('.SSStatsTableRow').mouseout(function() {
+              $('.SSStatsTableColorOver').removeClass('SSStatsTableColorOver');
+            })
+          });
+        </script>";
+
+  // Print large text bubble plugin.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SSStatsTableDescription').each(function() {
+              // Add bubble just for really large descriptions that have a
+              // scroolbar either on Ox or Oy direction.
+              var elem = $(this).get(0);
+              if (elem.clientWidth != elem.scrollWidth || elem.clientHeight != elem.scrollHeight) {
+                var html = $(this).parent().html();
+                var text = $(this).text();
+                html = \"<div class='SSStatsTableDescriptionBubbleShowHide'><a href='#' class='SSStatsTableDescriptionBubbleShowHideLink'>...</a></div>\" + html;
+                $(this).parent().html(html);
+              }
+            })
+          });
+        </script>";
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SSStatsTableDescriptionBubbleShowHideLink').toggle(function() {
+              var bubbleText = $(this).parent().next().text();
+              $(\"<div class='SSBubble'>\" + bubbleText + '</div>').insertAfter($(this).parent());
+            }, function() {
+              $(this).parent().next().remove();
+            })
+          });
+        </script>";
+
   // Get the statistics information part.
   $stats = $results['Stats']['Row info'];
 
@@ -50,6 +216,11 @@ if ($resultsNumb) {
 #print_r($statKeys);print_r($verificationKeys);
 #print_r($problemKeys);
 #exit;
+
+  // At first use a task id for grouping.
+  $isTaskId = in_array('Task id', $statKeys);
+  // If no task id is specified then try to use a task name.
+  $isTaskName = in_array('Task name', $statKeys);
 
   // Get the necessary tools information.
   $tools = array();
@@ -97,11 +268,34 @@ if ($resultsNumb) {
     $statToolsKeyRowSpan++;
   }
 
-  echo "<table border=1>
-          <tr align='center' bgcolor='yellow'>";
-  echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>#</td>";
+  echo "<table id='SSStatsTable' border='1'>
+          <tr id='SSStatsTableHeaderFirstRow'>";
+  echo "    <td id='SSStatsTableHeaderRowCounter' rowspan='$statVerificationKeyRowSpan'>#</td>";
+  $isTaskPrinted = false;
   foreach ($statKeys as $statKey) {
-    echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$statKey</td>";
+    // Merge all task information to the one column.
+    if (preg_match('/^Task/', $statKey)) {
+      if (!$isTaskPrinted) {
+        $taskColSpan = 1;
+        if (!isGit($results)) {
+          $taskColSpan = 2;
+        }
+        echo "    <td class='SSStatsTableHeaderTaskStatKey' rowspan='$statVerificationKeyRowSpan' colspan='$taskColSpan'>Task</td>";
+        $isTaskPrinted = true;
+      }
+    }
+    else {
+      // Make more human readable name for statistics key part.
+      $statKeyPrint = $statKey;
+      if ($statKey == 'Environment version') {
+        $statKeyPrint = 'Kernel';
+      }
+      else if ($statKey == 'Rule name') {
+        $statKeyPrint = 'Rule';
+      }
+
+      echo "    <td class='SSStatsTableHeaderStatKeys' rowspan='$statVerificationKeyRowSpan'>$statKeyPrint</td>";
+    }
   }
   foreach ($verificationKeys as $verificationKey) {
     if ($verificationKey == 'Error trace presence') {
@@ -110,57 +304,191 @@ if ($resultsNumb) {
     if ($verificationKey == 'Result') {
       $verificationKey = 'Total';
     }
-    echo "    <td nowrap rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
+    echo "    <td class='SSStatsTableHeaderVerificationInfo' rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
   }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
-    echo "    <td nowrap colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>";
+    echo "    <td class='SSStatsTableHeaderTools' colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>";
   }
   echo "  </tr>";
-  echo "<tr align='center' bgcolor='gray'>";
+  echo "<tr id='SSStatsTableHeaderSecondRow'>";
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
-      echo "    <td nowrap rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
+      echo "    <td class='SSStatsTableHeaderToolInfo' rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
     }
     if ($childrenNumb = count($toolInfoTimeProblems['Children time'])) {
-      echo "    <td nowrap colspan='$childrenNumb'>Children time</td>";
+      echo "    <td class='SSStatsTableHeaderToolChildren' colspan='$childrenNumb'>Children time</td>";
     }
     if ($problemsNumb = count($toolInfoTimeProblems['Problems'])) {
-      echo "    <td nowrap colspan='$problemsNumb'>Problems</td>";
+      echo "    <td class='SSStatsTableHeaderToolProblems' colspan='$problemsNumb'>Problems</td>";
     }
   }
   echo "  </tr>";
   if (count($problemKeys) || count($childrenKeys)) {
-    echo "<tr align='center'>";
+    echo "<tr id='SSStatsTableHeaderThirdRow'>";
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
-        echo "    <td nowrap bgcolor='green'>$toolChild</td>";
+        echo "    <td class='SSStatsTableHeaderToolChild'>$toolChild</td>";
       }
       foreach (array_keys($toolInfoTimeProblems['Problems']) as $toolProblem) {
-        echo "    <td nowrap bgcolor='red'>$toolProblem</td>";
+        echo "    <td class='SSStatsTableHeaderToolProblem'>$toolProblem</td>";
       }
     }
     echo "  </tr>";
   }
 
-  // To print every value of statistics key just one time in the corresponding
-  // groups.
-#  foreach ($statKeys as $statKey) {
-#    $prevStatKey[$statKey] = '';
-#  }
+  // Iterate over all results to build a rowspan tree.
+  $rowSpanTree = array();
+  foreach ($stats as $result) {
+    $nextNode = &$rowSpanTree;
+    foreach ($statKeys as $statKey) {
+      // Skip all task information except task id.
+      if (preg_match('/^Task/', $statKey)) {
+        if ($isTaskId) {
+          if ($statKey != 'Task id') {
+            continue;
+          }
+        }
+        else if ($isTaskName) {
+          if ($statKey != 'Task name') {
+            continue;
+          }
+        }
+        else {
+          continue;
+        }
+      }
+
+      $value = $result['Stats key'][$statKey];
+      if (is_null($value)) {
+        $value = '__NULL';
+      }
+        else if ($value == '') {
+          $value = '__EMPTY';
+        }
+      if (!array_key_exists($value, $nextNode)) {
+        $nextNode[$value] = array();
+      }
+      $nextNode = &$nextNode[$value];
+    }
+  }
+#print_r($rowSpanTree);exit;
+  if (array_key_exists('__NULL', $rowSpanTree)) {
+    throw new Exception("Can't show statistics using a given profile. Neither task id nor task name is specified");
+  }
+
+  // To print the same values of statistics key just one time for a
+  // corresponding groups.
+  foreach ($statKeys as $statKey) {
+    $prevStatKey[$statKey] = '__NOVALUE';
+  }
 
   // Iterate over all results.
   $i = 1;
   foreach ($stats as $result) {
-    echo "  <tr align='center'>";
+    echo "  <tr class='SSStatsTableRow' align='center'>";
     echo "    <td>$i</td>";
     $i++;
     $statKeysValues = array();
+    $isTaskColumnPrinted = false;
+    $nextNode = &$rowSpanTree;
     foreach ($statKeys as $statKey) {
-      echo "    <td>";
       $value = $result['Stats key'][$statKey];
-#      if ($value != $prevStatKey[$statKey]) {
-        if (array_key_exists($statKey, $profilePages)) {
-          echo "<a href='"
+      $statKeyClass = 'SSStatsTableStatKey';
+      $statKeyClass .= preg_replace('/\s+/', '_', $statKey);
+      $statKeyClass .= '__STATKEY';
+
+      // Use special designatures for NULL and empty string values to send
+      // them through address.
+      if (is_null($value)) {
+        $value = '__NULL';
+      }
+      else if ($value == '') {
+        $value = '__EMPTY';
+      }
+
+      // Merge all task information to one column.
+      if (preg_match('/^Task/', $statKey)) {
+        if ($isTaskId) {
+          $taskKey = 'Task id';
+        }
+        else if ($isTaskName) {
+          $taskKey = 'Task name';
+        }
+        else {
+          throw new Exception("Neither task id nor task name is specified");
+        }
+
+        $taskKeyValue = $result['Stats key'][$taskKey];
+        if (is_null($taskKeyValue)) {
+          $taskKeyValue = '__NULL';
+        }
+
+        // All task information is grouped by task key.
+        if ($taskKeyValue != $prevStatKey[$taskKey]) {
+          if (!$isTaskColumnPrinted) {
+            echo "<td class='SSStatsTableStatKeys ${statKeyClass}AUX' rowspan='" . countLeaves($rowSpanTree[$taskKeyValue]) . "'>";
+
+            if (!isGit($results)) {
+              echo "  <div>";
+              echo "     <input type='radio' name='SSReferenceComparisonId' value='$taskKeyValue' />";
+              echo "  <div>";
+              echo "  </div>";
+              echo "     <input type='checkbox' name='SSComparisonIds' value='$taskKeyValue' />";
+              echo "  </div>";
+
+              echo "</td>";
+              echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($rowSpanTree[$taskKeyValue]) . "'>";
+            }
+
+            foreach ($statKeys as $statTaskKey) {
+              if (preg_match('/^Task/', $statTaskKey)) {
+                $statTaskKeyClass = '';
+                if ($statTaskKey == 'Task id') {
+                  $statTaskKeyClass = 'TaskId';
+                }
+
+                echo "<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value'>" . $result['Stats key'][$statTaskKey] ."</div>";
+              }
+            }
+
+            foreach ($statKeys as $statKey) {
+              $prevStatKey[$statKey] = '__NOVALUE';
+            }
+            $prevStatKey[$taskKey] = $taskKeyValue;
+
+            $nextNode = &$nextNode[$taskKeyValue];
+
+            $isTaskColumnPrinted = true;
+          }
+        }
+        else if ($taskKey == $statKey) {
+          $nextNode = &$nextNode[$taskKeyValue];
+        }
+
+        // Find out task restrictions.
+        foreach ($statKeys as $statTaskKey) {
+          if (preg_match('/^Task/', $statTaskKey)) {
+            $statKeysValues[$statTaskKey] = $result['Stats key'][$statTaskKey];
+          }
+        }
+      }
+      else if ($value == '__EMPTY' or $value != $prevStatKey[$statKey]) {
+        // For null rule name print auxiliary name instead of nothing.
+        if ($value == '__NULL' and $statKey == 'Rule name') {
+          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>Fail before RI</td>";
+        }
+        // For git profile generate links to the rule description.
+        else if (isGit($results) and $statKey == 'Rule name') {
+          $global = new Zend_Session_Namespace();
+          if (array_key_exists($value, $global->models)) {
+            echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
+          }
+          else {
+            echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$value</td>";
+          }
+        }
+        else if (array_key_exists($statKey, $profilePages)) {
+          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'><a href='"
             . $this->url(
               array_merge(
                 $globals,
@@ -173,25 +501,43 @@ if ($resultsNumb) {
               true)
             . "'>"
             . $value
-            . "</a>";
+            . "</a></td>";
 
         }
         else {
-          echo "$value";
-        }
-
-        // Use special designatures for NULL and empty string values to send
-        // them through address.
-        if (is_null($value)) {
-          $value = '__NULL';
-        }
-        else if ($value == '') {
-          $value = '__EMPTY';
+          if (!array_key_exists($value, $nextNode)) {
+            print_r($nextNode);exit;
+          }
+          $valueToPrint = $value;
+          if ($valueToPrint == '__EMPTY' and $statKey == 'Entry point') {
+            $valueToPrint = 'No entry point';
+          }
+          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$valueToPrint</td>";
         }
 
         $statKeysValues[$statKey] = $value;
-#       $prevStatKey[$statKey] = $value;
-#      }
+
+        $prevStatKey[$statKey] = $value;
+        // Reset all subsequent previous values.
+        $isKeyMatched = false;
+        foreach ($statKeys as $statKeyReset) {
+          if ($isKeyMatched) {
+            $prevStatKey[$statKeyReset] = '__NOVALUE';
+          }
+          if (!$isKeyMatched and $statKeyReset == $statKey) {
+            $isKeyMatched = true;
+          }
+        }
+
+        $nextNode = &$nextNode[$value];
+      }
+      else {
+        $statKeysValues[$statKey] = $value;
+        $nextNode = &$nextNode[$value];
+      }
+    }
+
+    if ($isTaskColumnPrinted) {
       echo "</td>";
     }
 
@@ -211,7 +557,7 @@ if ($resultsNumb) {
         continue;
       }
 
-      echo "    <td>";
+      echo "    <td class='SSAlignRight'>";
       $value = $result['Verification info'][$verificationKey];
       if ($verificationKey == 'Error trace') {
         if ($isErrorTracePresent) {
@@ -227,7 +573,7 @@ if ($resultsNumb) {
                 $statKeysValues),
               'default',
               true)
-            . "'>error trace...</a>";
+            . "'>...</a>";
         }
         else {
           echo "-";
@@ -258,10 +604,32 @@ if ($resultsNumb) {
 
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
-        echo "<td>";
+        $classAux = '';
+
+        if ($toolInfo == 'Time' or $toolInfo == 'LOC') {
+          $classAux = 'SSNoWrap';
+        }
+        else if ($toolInfo == 'Description') {
+          $classAux = 'SSStatsTableDescriptionTd';
+        }
+
+        echo "<td class='SSAlignRight $classAux'>";
+
+        // Place large text description inside a special block.
+        if ($toolInfo == 'Description') {
+          // Inspect whether there is some description at all.
+          $value = $result['Tools info']["$toolName $toolInfo"];
+          if ($value == '') {
+            echo "<div>";
+          }
+          else {
+            echo "<div class='SSStatsTableDescription'>";
+          }
+        }
+
         if ($toolInfo == 'Time') {
           if (array_key_exists("$toolName Time", $result['Tool time'])) {
-            echo $result['Tool time']["$toolName Time"]['Time'];
+            echo formatTime($result['Tool time']["$toolName Time"]['Time']);
           }
           else {
             echo '-';
@@ -282,15 +650,31 @@ if ($resultsNumb) {
                   $statKeysValues),
                 'default',
                 true)
-              . "'>"
-              . $value
-              . "</a>";
+              . "'>";
 
+            if ($toolInfo == 'LOC') {
+              echo formatLoc($value);
+            }
+            else {
+              echo $value;
+            }
+
+            echo "</a>";
           }
           else {
-            echo "$value";
+            if ($toolInfo == 'LOC') {
+              echo formatLoc($value);
+            }
+            else {
+              echo $value;
+            }
           }
         }
+
+        if ($toolInfo == 'Description') {
+          echo "</div>";
+        }
+
         echo "</td>";
       }
 
@@ -302,7 +686,7 @@ if ($resultsNumb) {
           foreach ($result['Tool children time']["$toolName Time"] as $pattern => $time) {
             // If a given tool has a particular child.
             if ($toolChild == $pattern) {
-              echo "    <td>" . $time['Time'] . "</td>";
+              echo "    <td class='SSAlignRight SSNoWrap'>" . formatTime($time['Time']) . "</td>";
               $isHasChild = true;
               break;
             }
@@ -311,7 +695,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasChild) {
-          echo "<td>-</td>";
+          echo "<td class='SSAlignRight'>-</td>";
         }
       }
 
@@ -322,7 +706,7 @@ if ($resultsNumb) {
           foreach ($result['Tool problems']["$toolName Problems"] as $resultProblem) {
             // If a given tool has a particular problem.
             if ($toolProblem == $resultProblem['Problem name']) {
-              echo "    <td>";
+              echo "    <td class='SSAlignRight'>";
               $value = $resultProblem['Problem number'];
               if (array_key_exists("$toolName Problems", $profilePages)) {
                 echo "<a href='"
@@ -353,7 +737,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasProblem) {
-          echo "<td>-</td>";
+          echo "<td class='SSAlignRight'>-</td>";
         }
       }
     }
@@ -363,52 +747,6 @@ if ($resultsNumb) {
   echo "</table>";
 }
 
-// Print restrictions for a given page if so.
-if (count($results['Restrictions'])){
-  echo "<h3>Current page restrictions</h3>";
-  foreach ($results['Restrictions'] as $restriction => $value) {
-    echo "$restriction = '$value'<br>";
-  }
-}
-
-// Print information on the current profile.
-echo "<h3>Current profile</h3>";
-$profileOptions = $results['Profile'];
-foreach ($profileOptions as $option => $value) {
-  echo "$option = '$value'<br>";
-}
-
-// Print information on the current database connection.
-echo "<h3>Current database connection options</h3>";
-$dbConnectionOptions = $results['Database connection'];
-foreach ($dbConnectionOptions as $option => $value) {
-  if ($option != 'profiler') {
-    echo "$option = '$value'<br>";
-  }
-}
-
-// Obtain the time where page was created and find the page generation time.
-$endtime = explode(' ', microtime());
-$global = new Zend_Session_Namespace();
-$totaltime = $endtime[0] +  $endtime[1] - $global->startTime;
-printf('<h3>Page generated in %.1f seconds (the maximum execution time is %.1f seconds)</h3>',  $totaltime, ini_get('max_execution_time'));
-
-// Obtain the session peak application memory usage and compare it with the
-// memory limit.
-function return_bytes($val) {
-  $val = trim($val);
-  $last = strtolower($val[strlen($val) - 1]);
-  switch ($last) {
-    case 'g':
-      $val *= 1024;
-    case 'm':
-      $val *= 1024;
-    case 'k':
-      $val *= 1024;
-  }
-
-  return $val;
-}
-echo "<h3>Application peak memory usage through the given session is " . number_format(memory_get_peak_usage(), 0, ',', ' ') . " bytes (the memory limit is " . number_format(return_bytes(ini_get('memory_limit')), 0, ',', ' ') . " bytes)</h3>";
+printInfo($results);
 
 ?>

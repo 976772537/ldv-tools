@@ -545,7 +545,7 @@ sub print_error_trace_blast($)
   foreach my $order (sort({$a <=> $b} keys(%show_hide_global)))
   {
     print($file_report_out
-      "\n        <input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}<br>")
+      "\n        <input type='checkbox' id='${show_hide_global{$order}{'class'}}Menu' />$show_hide_global{$order}{'name'}<br />")
       if (!$show_hide_global{$order}{'main'});
   }
   print($file_report_out
@@ -812,7 +812,7 @@ sub print_error_trace_node_blast($$)
 
     print($file_report_out "\n<div class='$class_body' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out "{<br>");
+    print($file_report_out "{<br />");
   }
   elsif ($tree_node->{'kind'} eq 'FunctionCallInitialization')
   {
@@ -844,7 +844,7 @@ sub print_error_trace_node_blast($$)
     {
       print_spaces($indent);
       print_show_hide_local("ETV$html_id") if ($isshow_hide);
-      print($file_report_out $expr, ";<br>");
+      print($file_report_out $expr, ";<br />");
 
       if ($isshow_hide)
       {
