@@ -66,7 +66,10 @@ class StatsController extends Zend_Controller_Action
 
     if ($this->getRequest()->isPost()) {
       if ($form->isValid($request->getPost())) {
-        $taskIdsStr = $form->getValue('SCTaskIds');
+        $taskIdsStr = $form->getValue('SSTaskIds');
+        // Replace commas with usual spaces.
+        $taskIdsStr = preg_replace('/,/', ' ', $taskIdsStr);
+
         // Delete continuos spaces.
         $taskIdsStr = trim(preg_replace('/\s+/', ' ', $taskIdsStr));
         return $this->_helper->redirector->gotoSimple(
@@ -117,9 +120,7 @@ class StatsController extends Zend_Controller_Action
     $engine = $results['Error trace']->engine;
 
     // Make error trace visualization.
-    exec("LDV_DEBUG=20 $etv --engine=$engine --report=$errorTraceRawFile --report-out=$errorTraceFile --src-files=$sourceCodeFile 2>&1", $output, $retCode);
-
-    echo "<div>Error trace visualizer log<pre>" . implode('<br>', $output) . "</pre></div>";
+    exec("LDV_DEBUG=30 $etv --engine=$engine --report=$errorTraceRawFile --report-out=$errorTraceFile --src-files=$sourceCodeFile 2>&1", $output, $retCode);
 
     if ($retCode) {
       $error = "<h1>The error trace visualizer fails!!!</h1>";
@@ -134,6 +135,7 @@ class StatsController extends Zend_Controller_Action
     $results['Error trace']->setOptions(array('errorTrace' => $errorTrace));
 
     $this->view->entries = $results;
+    $this->view->entries['ETV log'] = $output;
     $this->view->entries['Globals'] = $this->_globals;
     $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
   }

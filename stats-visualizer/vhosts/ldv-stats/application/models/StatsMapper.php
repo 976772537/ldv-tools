@@ -993,6 +993,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $statsCmpMatch = array();
     $taskIdCmpRef = $taskIds[0];
     foreach (array_slice($taskIds, 1) as $taskIdCmp) {
+      // Skip undefined tasks.
+      if (!array_key_exists($taskIdCmp, $statsCmp)) {
+        continue;
+      }
+
       // Foreach task to be compared use its own referenced first task copy.
       $statsCmpRef = $statsCmp[$taskIdCmpRef];
       $statsCmpMatch[$taskIdCmp] = array();
@@ -1039,6 +1044,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Count the number of needed transitions with grouping by the corresponding
     // launch information statistics keys.
     foreach (array_slice($taskIds, 1) as $taskIdCmp) {
+      // Skip undefined tasks.
+      if (!array_key_exists($taskIdCmp, $statsCmpMatch)) {
+        continue;
+      }
+
       $isTaskNew = true;
 
       foreach ($statsCmpMatch[$taskIdCmp] as $statsCmpValuesStr => $matchStats) {
