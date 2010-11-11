@@ -282,6 +282,11 @@ body
   vertical-align: top;
 }
 
+.SSAlignRight
+{
+  text-align: right;
+}
+
 /* Statistics comparison action menu style. */
 #SCActionMenuShowHide
 {

@@ -281,7 +281,7 @@ if ($resultsNumb) {
       }
     }
 
-    echo "    <td class='SSVerticalAlignTop'><a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Total changes'] . "</a>";
+    echo "    <td class='SSVerticalAlignTop SSAlignRight'><a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Total changes'] . "</a>";
     echo "<div style='display:none' id='SCConversionDrivers_$conversionId' class='SCConversionDrivers'>";
     $conversionId++;
 
@@ -364,7 +364,7 @@ if ($resultsNumb) {
         }
 
         if (array_key_exists($verdictRefRaw, $changes) and array_key_exists($verdictRaw, $changes[$verdictRefRaw])) {
-          echo "<td class='SSVerticalAlignTop SCFrom_$verdictRef SCTo_$verdict'>";
+          echo "<td class='SSVerticalAlignTop SSAlignRight SCFrom_$verdictRef SCTo_$verdict'>";
 
           $isConversionPrinted = false;
           if (array_key_exists($verdictRefRaw, $result['Verdict changes'])) {

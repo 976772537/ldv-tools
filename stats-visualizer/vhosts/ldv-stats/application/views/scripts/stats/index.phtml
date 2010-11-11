@@ -557,7 +557,7 @@ if ($resultsNumb) {
         continue;
       }
 
-      echo "    <td>";
+      echo "    <td class='SSAlignRight'>";
       $value = $result['Verification info'][$verificationKey];
       if ($verificationKey == 'Error trace') {
         if ($isErrorTracePresent) {
@@ -613,7 +613,7 @@ if ($resultsNumb) {
           $classAux = 'SSStatsTableDescriptionTd';
         }
 
-        echo "<td class='$classAux'>";
+        echo "<td class='SSAlignRight $classAux'>";
 
         // Place large text description inside a special block.
         if ($toolInfo == 'Description') {
@@ -686,7 +686,7 @@ if ($resultsNumb) {
           foreach ($result['Tool children time']["$toolName Time"] as $pattern => $time) {
             // If a given tool has a particular child.
             if ($toolChild == $pattern) {
-              echo "    <td>" . formatTime($time['Time']) . "</td>";
+              echo "    <td class='SSAlignRight SSNoWrap'>" . formatTime($time['Time']) . "</td>";
               $isHasChild = true;
               break;
             }
@@ -695,7 +695,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasChild) {
-          echo "<td>-</td>";
+          echo "<td class='SSAlignRight'>-</td>";
         }
       }
 
@@ -706,7 +706,7 @@ if ($resultsNumb) {
           foreach ($result['Tool problems']["$toolName Problems"] as $resultProblem) {
             // If a given tool has a particular problem.
             if ($toolProblem == $resultProblem['Problem name']) {
-              echo "    <td>";
+              echo "    <td class='SSAlignRight'>";
               $value = $resultProblem['Problem number'];
               if (array_key_exists("$toolName Problems", $profilePages)) {
                 echo "<a href='"
@@ -737,7 +737,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasProblem) {
-          echo "<td>-</td>";
+          echo "<td class='SSAlignRight'>-</td>";
         }
       }
     }
