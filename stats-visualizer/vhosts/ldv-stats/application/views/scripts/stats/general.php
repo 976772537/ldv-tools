@@ -65,7 +65,7 @@ function printInfo($info) {
             $('#SSInfoShowHideLink').toggle(function() {
               $('#SSInfo').hide();
               return false;
-            } , function() {
+            }, function() {
               $('#SSInfo').show();
               return false;
             });

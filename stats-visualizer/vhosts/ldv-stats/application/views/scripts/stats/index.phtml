@@ -122,7 +122,7 @@ if ($resultsNumb) {
           });
         </script>";
 
-  // Print over row plugin.
+  // Print row chooser plugin.
   echo "<script type='text/javascript'>
           $(document).ready(function() {
             $('.SSStatsTableRow').mouseover(function() {
@@ -132,6 +132,33 @@ if ($resultsNumb) {
             $('.SSStatsTableRow').mouseout(function() {
               $(this).removeClass('SSStatsTableColorOver');
               $(this).not(':has(div.SSStatsTableTaskStatKey)').prevAll('tr').has('div.SSStatsTableTaskStatKey').first().children('td.SSStatsTableStatKeys[rowspan!=1]').removeClass('SSStatsTableColorOver');
+            })
+          });
+        </script>";
+
+  // Print large text bubble plugin.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SSStatsTableDescription').each(function() {
+              // Add bubble just for really large descriptions that have a
+              // scroolbar either on Ox or Oy direction.
+              var elem = $(this).get(0);
+              if (elem.clientWidth != elem.scrollWidth || elem.clientHeight != elem.scrollHeight) {
+                var html = $(this).parent().html();
+                var text = $(this).text();
+                html = \"<div class='SSStatsTableDescriptionBubbleShowHide'><a href='#' class='SSStatsTableDescriptionBubbleShowHideLink'>...</a></div>\" + html;
+                $(this).parent().html(html);
+              }
+            })
+          });
+        </script>";
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SSStatsTableDescriptionBubbleShowHideLink').toggle(function() {
+              var bubbleText = $(this).parent().next().text();
+              $(\"<div class='SSBubble'>\" + bubbleText + '</div>').insertAfter($(this).parent());
+            }, function() {
+              $('.SSBubble').remove();
             })
           });
         </script>";
@@ -362,6 +389,8 @@ if ($resultsNumb) {
             if (!isGit($results)) {
               echo "  <div>";
               echo "     <input type='radio' name='SSReferenceComparisonId' value='$taskKeyValue'>";
+              echo "  <div>";
+              echo "  </div>";
               echo "     <input type='checkbox' name='SSComparisonIds' value='$taskKeyValue'>";
               echo "  </div>";
 
@@ -533,7 +562,22 @@ if ($resultsNumb) {
 
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
-        echo "<td>";
+        $classAux = '';
+
+        if ($toolInfo == 'Time' or $toolInfo == 'LOC') {
+          $classAux = 'SSNoWrap';
+        }
+        else if ($toolInfo == 'Description') {
+          $classAux = 'SSStatsTableDescriptionTd';
+        }
+
+        echo "<td class='$classAux'>";
+
+        // Place large text description inside a special block.
+        if ($toolInfo == 'Description') {
+          echo "<div class='SSStatsTableDescription'>";
+        }
+
         if ($toolInfo == 'Time') {
           if (array_key_exists("$toolName Time", $result['Tool time'])) {
             echo formatTime($result['Tool time']["$toolName Time"]['Time']);
@@ -577,6 +621,11 @@ if ($resultsNumb) {
             }
           }
         }
+
+        if ($toolInfo == 'Description') {
+          echo "</div>";
+        }
+
         echo "</td>";
       }
 

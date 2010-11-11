@@ -173,6 +173,45 @@ body
   text-align: left;
 }
 
+.SSNoWrap
+{
+  white-space: nowrap;
+}
+
+.SSStatsTableDescriptionTd
+{
+  vertical-align: top;
+}
+
+.SSStatsTableDescription
+{
+  font-family: monospace;
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 300px;
+}
+
+.SSStatsTableDescriptionBubbleShowHide
+{
+  font-weight: bold;
+  text-align: left;
+}
+
+.SSBubble
+{
+  background-color: #FFFFA1;
+  border: 1px solid #000000;
+  display: block;
+  font-family: monospace;
+  font-size: 8pt;
+  position: absolute;
+  text-align: left;
+  white-space: pre;
+}
+
 .SSStatsTableColorAlternationFirstLight
 {
   background-color: #EAFEEF;
