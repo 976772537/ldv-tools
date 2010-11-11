@@ -137,6 +137,34 @@ if ($resultsNumb) {
           });
         </script>";
 
+  // Print row color alternation plugin.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SSStatsComparisonTableRow:even').addClass('SSStatsTableColorAlternationFirstLight');
+            $('.SSStatsComparisonTableRow:odd').addClass('SSStatsTableColorAlternationFirstDark');
+            $('.SSStatsComparisonSubTableRow:even').addClass('SSStatsTableColorAlternationSecondLight');
+            $('.SSStatsComparisonSubTableRow:odd').addClass('SSStatsTableColorAlternationSecondDark');
+          });
+        </script>";
+
+  // Print row chooser plugin.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SSStatsComparisonTableRow').mouseover(function() {
+              $(this).addClass('SSStatsComparisonTableColorOver');
+            })
+            $('.SSStatsComparisonTableRow').mouseout(function() {
+              $(this).removeClass('SSStatsComparisonTableColorOver');
+            })
+            $('.SSStatsComparisonSubTableRow').mouseover(function() {
+              $(this).addClass('SSStatsComparisonSubTableColorOver');
+            })
+            $('.SSStatsComparisonSubTableRow').mouseout(function() {
+              $(this).removeClass('SSStatsComparisonSubTableColorOver');
+            })
+          });
+        </script>";
+
   $deleted = 'Deleted';
   // This array contains mapping between verdict 'from database' and verdict to
   // be shown on the page.
@@ -213,7 +241,7 @@ if ($resultsNumb) {
   $i = 1;
   $conversionId = 1;
   foreach ($stats as $result) {
-    echo "  <tr align='center'>";
+    echo "  <tr class='SSStatsComparisonTableRow' align='center'>";
     echo "    <td>$i</td>";
     $i++;
     $statKeysValues = array();
@@ -253,7 +281,7 @@ if ($resultsNumb) {
       }
     }
 
-    echo "    <td><a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Total changes'] . "</a>";
+    echo "    <td class='SSVerticalAlignTop'><a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Total changes'] . "</a>";
     echo "<div style='display:none' id='SCConversionDrivers_$conversionId' class='SCConversionDrivers'>";
     $conversionId++;
 
@@ -302,7 +330,7 @@ if ($resultsNumb) {
               // Iterate over all drivers.
               $j = 1;
               foreach ($drivers as $driver) {
-                echo "<tr align='center'>";
+                echo "<tr class='SSStatsComparisonSubTableRow' align='center'>";
                 echo "  <td>$j</td>";
                 $j++;
                 foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
@@ -336,7 +364,7 @@ if ($resultsNumb) {
         }
 
         if (array_key_exists($verdictRefRaw, $changes) and array_key_exists($verdictRaw, $changes[$verdictRefRaw])) {
-          echo "<td class='SCFrom_$verdictRef SCTo_$verdict'>";
+          echo "<td class='SSVerticalAlignTop SCFrom_$verdictRef SCTo_$verdict'>";
 
           $isConversionPrinted = false;
           if (array_key_exists($verdictRefRaw, $result['Verdict changes'])) {
@@ -372,7 +400,7 @@ if ($resultsNumb) {
               foreach ($drivers as $driver) {
                 $statKeysDriverValues = array();
                 $statKeysDriverMatchedValues = array();
-                echo "<tr align='center'>";
+                echo "<tr class='SSStatsComparisonSubTableRow' align='center'>";
                 echo "  <td>$j</td>";
                 $j++;
 

@@ -148,6 +148,7 @@ body
 .SCStatsComparisonSubTableTotalStatKeys, .SCStatsComparisonSubTableStatKeys
 {
   text-align: left;
+  vertical-align: top;
 }
 
 .SSStatsTableTaskStatKeyTaskId
@@ -232,7 +233,7 @@ body
   background-color: #E0FFA8;
 }
 
-.SSStatsTableColorOver
+.SSStatsTableColorOver, .SSStatsComparisonTableColorOver, .SSStatsComparisonSubTableColorOver
 {
   background-color: #EFB9E0;
 }
@@ -251,6 +252,7 @@ body
 .SCStatsComparisonSubTableTotalHeader
 {
   font-weight: bold;
+  padding: 10px 0px 5px 5px;
   text-align: left;
 }
 
@@ -268,6 +270,11 @@ body
 {
   font-weight: bold;
   text-align: left;
+}
+
+.SSVerticalAlignTop
+{
+  vertical-align: top;
 }
 
 /* Statistics comparison action menu style. */

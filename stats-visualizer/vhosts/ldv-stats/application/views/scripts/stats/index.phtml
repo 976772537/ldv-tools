@@ -575,7 +575,14 @@ if ($resultsNumb) {
 
         // Place large text description inside a special block.
         if ($toolInfo == 'Description') {
-          echo "<div class='SSStatsTableDescription'>";
+          // Inspect whether there is some description at all.
+          $value = $result['Tools info']["$toolName $toolInfo"];
+          if ($value == '') {
+            echo "<div>";
+          }
+          else {
+            echo "<div class='SSStatsTableDescription'>";
+          }
         }
 
         if ($toolInfo == 'Time') {
