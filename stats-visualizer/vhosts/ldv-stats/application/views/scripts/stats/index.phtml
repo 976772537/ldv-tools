@@ -196,7 +196,7 @@ if ($resultsNumb) {
               var bubbleText = $(this).parent().next().text();
               $(\"<div class='SSBubble'>\" + bubbleText + '</div>').insertAfter($(this).parent());
             }, function() {
-              $('.SSBubble').remove();
+              $(this).parent().next().remove();
             })
           });
         </script>";
@@ -430,10 +430,10 @@ if ($resultsNumb) {
 
             if (!isGit($results)) {
               echo "  <div>";
-              echo "     <input type='radio' name='SSReferenceComparisonId' value='$taskKeyValue'>";
+              echo "     <input type='radio' name='SSReferenceComparisonId' value='$taskKeyValue' />";
               echo "  <div>";
               echo "  </div>";
-              echo "     <input type='checkbox' name='SSComparisonIds' value='$taskKeyValue'>";
+              echo "     <input type='checkbox' name='SSComparisonIds' value='$taskKeyValue' />";
               echo "  </div>";
 
               echo "</td>";

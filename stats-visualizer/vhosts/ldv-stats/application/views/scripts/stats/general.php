@@ -51,7 +51,7 @@ function printDbInfo($dbConnectionOptions) {
   echo "<div class='SSInfoBody'>";
   foreach ($dbConnectionOptions as $option => $value) {
     if ($option != 'profiler') {
-      echo "$option = '$value'<br>";
+      echo "$option = '$value'<br />";
     }
   }
   echo "</div>";
@@ -109,7 +109,7 @@ function printProfileInfo($profileOptions) {
   echo "<div class='SSInfoHeader'>Current profile</div>";
   echo "<div class='SSInfoBody'>";
   foreach ($profileOptions as $option => $value) {
-    echo "$option = '$value'<br>";
+    echo "$option = '$value'<br />";
   }
   echo "</div>";
 }
@@ -120,7 +120,7 @@ function printRestrictionsInfo($restrictions) {
     echo "<div class='SSInfoHeader'>Current page restrictions</div>";
     echo "<div class='SSInfoBody'>";
     foreach ($restrictions as $restriction => $value) {
-      echo "$restriction = '$value'<br>";
+      echo "$restriction = '$value'<br />";
     }
     echo "</div>";
   }
