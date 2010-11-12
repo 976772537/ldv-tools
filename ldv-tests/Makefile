@@ -1,6 +1,6 @@
 INSTALL_DIR = __install
 
-TEST_DIRS = regr-tests
+TEST_DIRS = integration-testing 
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified.
@@ -27,4 +27,4 @@ clean:
 install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
-	for test_dir in $(TEST_DIRS); do cd $$test_dir || exit 1; $(MAKE) $@ || exit 1; done
+	for test_dir in $(TEST_DIRS); do $(MAKE) -C $$test_dir $@ || exit 1; pwd; done
