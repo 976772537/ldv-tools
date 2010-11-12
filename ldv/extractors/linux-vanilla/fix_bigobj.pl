@@ -116,10 +116,10 @@ sub patch_headers {
 
 	vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_linux_kernel_h'}\".\n";
 	open (FILE, $kernel_info->{'header_linux_kernel_h'}) or die("Can't file reading while patching: $!");
-	my @string = <FILE>;
+	@string = <FILE>;
 	close FILE or die("Can't close file after reading for patching: $!");
 	open (FILE,">".$kernel_info->{'header_linux_kernel_h'}) or die("Can't open file for patching: $!");
-	my $state = 1;
+	$state = 1;
 	foreach (@string) {
 		/^(\s*#define BUILD_BUG_ON\(condition\) )(\(\(void\)BUILD_BUG_ON_ZERO\(condition\)\)\s*)$/ and $_="$1 //$2";
 		/^(\s*#define BUILD_BUG_ON\(condition\) )(\(\(void\)sizeof\(char\[1 - 2\*\!\!\(condition\)\]\)\)\s*)$/ and $_="$1//$2";
@@ -129,10 +129,10 @@ sub patch_headers {
 
 	vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_net_inet_sock_h'}\".\n";
 	open (FILE, $kernel_info->{'header_net_inet_sock_h'}) or die("Can't file reading while patching: $!");
-	my @string = <FILE>;
+	@string = <FILE>;
 	close FILE or die("Can't close file after reading for patching: $!");
 	open (FILE,">".$kernel_info->{'header_net_inet_sock_h'}) or die("Can't open file for patching: $!");
-	my $state = 1;
+	$state = 1;
 	foreach (@string) {
 		/^\s*kmemcheck_annotate_bitfield\(ireq, flags\);\s*$/ and next;
 		print FILE;
@@ -144,10 +144,10 @@ sub patch_headers {
 	if($kernel_info->{'SUBLEVEL'}>=33) {
 		vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_spinlock_types_h'}\".\n";
 		open (FILE, $kernel_info->{'header_spinlock_types_h'}) or die("Can't file reading while patching: $!");
-		my @string = <FILE>;
+		@string = <FILE>;
 		close FILE or die("Can't close file after reading for patching: $!");
 		open (FILE,">".$kernel_info->{'header_spinlock_types_h'}) or die("Can't open file for patching: $!");
-		my $state = 1;
+		$state = 1;
 		foreach (@string) {
 			/^\s*# define LOCK_PADSIZE \(offsetof\(struct raw_spinlock, dep_map\)\)\s*$/ and $_="\n# define LOCK_PADSIZE 1\n";
 			print FILE;
