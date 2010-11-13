@@ -1,6 +1,6 @@
 INSTALL_DIR = __install
 
-TEST_DIRS = integration-testing 
+TEST_DIRS = integration-testing regr-tests
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified.
