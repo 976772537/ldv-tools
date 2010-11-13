@@ -503,6 +503,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                 }
               }
 
+              // Restrict to the necessary task names.
+              if (count($tasks)) {
+                $select = $select
+                  ->where($launchInfoScreened['Task name'] . " IN ('" . join("','", $tasks) . "')");
+              }
+
               // Group by the launch information.
               foreach ($problemsGroupBy as $group) {
                 $select = $select->group($group);
@@ -600,6 +606,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
           }
         }
+      }
+
+      // Restrict to the necessary task names.
+      if (count($tasks)) {
+        $select = $select
+          ->where($launchInfoScreened['Task name'] . " IN ('" . join("','", $tasks) . "')");
       }
 
       // Group by the launch information.
