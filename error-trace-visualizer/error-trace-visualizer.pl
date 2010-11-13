@@ -56,6 +56,11 @@ sub print_error_trace($);
 # retn: nothing.
 sub print_error_trace_blast($);
 
+# Pretty print a cpachecker error trace.
+# args: the tree root node.
+# retn: nothing.
+sub print_error_trace_cpachecker($);
+
 # Pretty print an unknown engine error trace.
 # args: the error trace.
 # retn: nothing.
@@ -90,6 +95,11 @@ sub process_error_trace();
 # args: no.
 # retn: the tree root node.
 sub process_error_trace_blast();
+
+# Process a cpachecker error trace.
+# args: no.
+# retn: the tree root node.
+sub process_error_trace_cpachecker();
 
 # Process an unknown error trace.
 # args: no.
@@ -185,6 +195,9 @@ my $engine = '';
 my %engines = (my $engine_blast = 'blast' =>
                  {'print', \&print_error_trace_blast,
                   'process', \&process_error_trace_blast}
+               , my $engine_cpachecker = 'cpachecker' =>
+                 {'print', \&print_error_trace_cpachecker,
+                  'process', \&process_error_trace_cpachecker}
                , my $engine_unknown = 'unknown' =>
                  {'print', \&print_error_trace_unknown,
                   'process', \&process_error_trace_unknown});
@@ -317,16 +330,16 @@ if ($opt_report_out)
   visualize_error_trace($tree_root);
 }
 
-# TODO this must be fixed!!!!!!
+# TODO this must be fixed!!!!!! Add dependency on nodes!
 if ($opt_reqs_out)
 {
-      if ($opt_engine eq $engine_blast)
-         {
-  foreach my $dep (keys(%dependencies))
+  if ($opt_engine eq $engine_blast)
   {
-    print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+    foreach my $dep (keys(%dependencies))
+    {
+      print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+    }
   }
-         }
 }
 
 print_debug_trace("Close file handlers");
@@ -657,6 +670,14 @@ sub print_error_trace_blast($)
   print_error_trace_node_blast($tree_root, 0);
   print($file_report_out
     "\n    </div>");
+}
+
+sub print_error_trace_cpachecker($)
+{
+  my $tree_root = shift;
+
+  # At the moment the unknown stub is used.
+  print_error_trace_unknown($tree_root);
 }
 
 sub print_error_trace_unknown($)
@@ -1164,6 +1185,12 @@ sub process_error_trace_blast()
 
   # Return the tree root node.
   return $parents[0];
+}
+
+sub process_error_trace_cpachecker()
+{
+  # At the moment the unknown stub is used.
+  return process_error_trace_unknown();
 }
 
 sub process_error_trace_unknown()
