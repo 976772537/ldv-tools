@@ -373,7 +373,7 @@ if ($resultsNumb) {
   }
 #print_r($rowSpanTree);exit;
   if (array_key_exists('__NULL', $rowSpanTree)) {
-    throw new Exception("Can't show statistics using a given profile. Neither task id nor task name is specified");
+    throw new Exception("Neither task id nor task name is specified! Can't show statistics using the given profile (<b>" . returnProfile($results) . "</b>). Try to use the <b>default</b> profile name");
   }
 
   // To print the same values of statistics key just one time for a
