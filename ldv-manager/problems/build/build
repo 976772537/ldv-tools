@@ -1,0 +1,11 @@
+#!/usr/bin/perl
+# Problem finder for aspectator
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/Compile error/ and print "Compile error";
+	/Can\'t find correct Makefile or Kbuild file/ and print "No Makefile or Kbuild file";
+}
+
