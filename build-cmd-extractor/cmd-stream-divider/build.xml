@@ -21,7 +21,7 @@
 		<jar jarfile="${dist}/csd.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
-				<attribute name="Main-class" value="org.linuxtesting.ldv.CSD"/>
+				<attribute name="Main-class" value="org.linuxtesting.ldv.csd.CSD"/>
 			</manifest>
 		</jar>
 	</target>
