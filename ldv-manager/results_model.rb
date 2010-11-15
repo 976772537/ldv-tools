@@ -67,7 +67,7 @@ class Trace < ActiveRecord::Base
 
 	#Tool nicknames -> XML names
 	def self.tools ; {
-		'build' => 'bce',
+		'build' => 'build',
 		'maingen' => 'drv-env-gen',
 		'dscv' => 'dscv',
 		'ri' => 'rule-instrumentor',
