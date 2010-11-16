@@ -1,85 +1,104 @@
 TUTORIAL
 ========
-   
+
    I. PREPARE
-      You should prepare database and environment variables before verification start. 
-      This procedure is performed only once for each instance of ldv-tools. It is 
-      minimal requieres for work with ldv-tools.
+      You should prepare database and environment variables before verification
+      start. This procedure is performed only once for each instance of the ldv
+      tools. Following subsections describes minimal requirements.
 
-      1. Create database:
-  	  - Install and configure mysql server and client if it is not installed
-          - Start mysql server daemon: 
-            sudo /etc/init.d/mysqld
-	  - Connect to db server as root like this: 
-            mysql -u root -p rootpassword
-	  - Create db for ldv-tools: 
-            CREATE DATABASE dbname;
-  	  - Create user for stats db:
-            CREATE USER 'dbuser'@'dbhost' IDENTIFIED BY 'dbpass';
-	  - Add priviledges: 
-            GRANT ALL PRIVILEGES ON dbname.* TO 'dbuser'@'dbhost' WITH GRANT OPTION;
-	  - Update privileges: 
-            FLUSH PRIVILEGES;
-	  - Create tables 
-            MySQL -uuser -ppass -hhost dbname < \
-            PATH_TI_INSTALLED_LDV/ldv-manager/results_schema.sql
+      1. Create a database:
+          - Install and configure mysql server and client if they are not 
+            installed.
+          - Start mysql server daemon if it is not launched:
+              # In openSUSE this can be done by means of the command:
+              sudo /etc/init.d/mysqld start
+          - Connect to the database server as root like this:
+              mysql -u root -p rootpassword
+          - Create a database for the ldv tools:
+              CREATE DATABASE dbname;
+          - Create a user for the given database:
+              CREATE USER 'dbuser'@'dbhost' IDENTIFIED BY 'dbpass';
+          - Add priviledges:
+              GRANT ALL PRIVILEGES ON dbname.* TO 'dbuser'@'dbhost' WITH GRANT OPTION;
+          - Update privileges:
+              FLUSH PRIVILEGES;
+          - Create the ldv tools tables:
+              mysql -udbuser -pdbpass -hdbhost dbname < \
+              INSTALL_DIR/ldv-manager/results_schema.sql
 
-      2. Set environment variable (If yuo do not want to set it each times then
-         write it to ~/.bashrc):
-         export PATH:$PATH:PATH_TO_INSTALLED_LDV/bin 
+      2. Update the environment variable PATH (if you do not want to do this
+         each time then write it to ~/.bashrc):
+           export PATH=$PATH:INSTALL_DIR/bin
 
-      You can create more than one databases (step one) if you do not want to 
-      mix results from different launches. 
+      You can create more than one database (step 1) if you do not want to mix
+      results from different launches.
 
-
-  II. VERIFY DRIVER
-      Now you can verify your drivers by means of ldv-manager. Simple
-      way to use it:
-
-      1. Starting verify process
-          - Create direcory for work with ldv-tools. 
-            mkdir ~/sample
-          - Change dir to folder you created.
-            cd ~/sample
-          - Take the kernel from which your driver should work. You can download it
-            from http://www.kernel.org.
-            wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.36.tar.bz2	
-          - Ensure that your drivers satisfy the following requirements:
-             * The driver is archived using gzip or bzip2 and has one of the 
-               following extensions: .tar.bz2, tar.gz, .tgz
-             * Archive should contain: Makefile (written to be compiled with the 
-               selected kernel)
-             * Sources needed by Makefile
-             * Archive should not contain generated files left from builds
-          - Look at the model database (LDV_INSTALLED_DIR/kernel-rules/model-db.xml) 
-            and select id from interesting model. More details about rules we can 
-            see in LDV_INSTALLED_DIR/kernel-rules/rules/DRVRULES_en.trl. 
-            Also you may see rule description on web site
+  II. VERIFY DRIVERS
+      Now you can verify your drivers by means of the ldv manager tool. Here is
+      the simple way to do this:
+        - Create a direcory to work with the ldv tools and go to it:
+            mkdir sample
+            cd sample
+        - Obtain a kernel that contains your driver or with which your driver
+          should work. For example you can download kernels from the
+          http://www.kernel.org:
+            wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.36.tar.bz2
+          Place the kernel to the ldv tools work directory.
+        - If you check external drivers ensure that they satisfy the following
+          requirements:
+            * The driver is archived using gzip or bzip2 and has one of the
+              following extensions: .tar.bz2, tar.gz, .tgz.
+            * Archive should contain: Makefile (written to be compiled with the
+              selected kernel) and source code needed by Makefile.
+            * Archive should not contain generated files left from builds.
+          Place driver archives to be verified to the ldv tools working
+          directory.
+        - Look at the model database:
+            INSTALL_DIR/kernel-rules/model-db.xml 
+          and select ids for models that are interesting for you. More details
+          about verification rules to which models refer you can see in the
+          rules database: 
+            INSTALL_DIR/kernel-rules/rules/DRVRULES_en.trl
+          Also you can see rules description on the web site:
             http://www.linuxtesting.org/ldv/online?action=rules
-          - Start verification:
-            ldv-manager "envs=linux-2.6.31.6.tar.bz2" "drivers=PATH_TO_YOUR_DRIVER" \
-            "rule_models=32_7,32_1"
-      
-      It is possible to verify some drivers with differrent rules for single run. Also
-      you can verify modules from Linux kernel. Information about all opportunities and
-      options for ldv-manager is in the file ./ldv-manager/README. To verify drivers from
-      Linux kernel git repository see ./ldv-git/README.
+        - Start the verification process:
+            * For external drivers:
+              ldv-manager tag=current "envs=linux-2.6.31.6.tar.bz2" \
+              "drivers=PATH_TO_YOUR_DRIVER_ARCHIEVE" "rule_models=32_7 32_1"
+            * For kernel drivers:
+              ldv-manager tag=current "envs=linux-2.6.31.6.tar.bz2" \
+              kernel_driver=1 "drivers=PATH_TO_YOUR_DRIVERS_DIR" \
+              "rule_models=32_7 32_1"
 
+      Additional information on the ldv tools opportunities and options you can
+      see there:
+        SOURCE_DIR/ldv-manager/README.
 
- III. VIEW RESULTS 
-      You can find pax file in ./finished dir after verification is finished.
-      PAX file contains verification results. Use a web interface of stats server 
-      to view it. Detailed information about installing and using stats server  
-      you'll find in ./stats-visualizer/README.
+      To verify drivers from a Linux kernel git repository see:
+        SOURCE_DIR/ldv-git/README.
 
-      1. Upload results to databases:
-         LDVDB=dbname LDVUSER=dbuser LDVDBPASSWD=dbpass LDVDBHOST=localhost ldv-upload
-      2. View link (with corresponding database name, user name, password etc) in browser
-         http://localhost:8999/stats/index/name/dnname/host/localhost/user/dbuser/password/dbpass
+ III. VIEW RESULTS
+      You can find pax archives containing verification results in the directory:
+        samle/finished
+      after ther verification process is finished. Note that pax archives have
+      names corresponding to the ldv manager invocation. Upload interesting
+      arhives to some database:
+        LDVDB=dbname LDVUSER=dbuser LDVDBPASSWD=dbpass LDVDBHOST=dbhost \
+        ldv-upload finished/PATH_TO_RESULTS_ARCHIVE
 
-      Note: Stats server not installed by default. 
+      To see statistics on verication restults and some auxiliary information
+      you can use a web interface of the statistics server. Detailed information
+      on installation and using of the statistics server you can find in:
+        SOURCE_DIR/stats-visualizer/README
+      After the correct installation and results uploding you can put link
+      (with corresponding database name, user name, password and host) to your
+      browser address bar:
+        http://localhost:8999/stats/index/name/dnname/host/dbhost/user/dbuser/password/dbpass
 
-  Verification as web-service. 
-  ldv-tools have another way to verify your drivers. To use this way follow next steps:
-      - install ldv-online (for more info ./ldv-online/README) 
-      - open link http://localhost/ldv_online_service.php
+ IV. VERIFICATION AS WEB-SERVICE 
+     The ldv tools have another way to verify your drivers. To use this way
+     follow the next steps:
+       - Install the ldv online. For more info see:
+           SOURCE_DIR/ldv-online/README
+       - Follow link:
+           http://localhost/ldv_online_service.php
