@@ -21,5 +21,6 @@ while (<>){
 	/Errormsg\.Error/i and print "Parsing errors";
 	/simplemem: temporary needed outside a function/i and print "Temp outside func"; 
 	/Invalid_argument\("Predicate index is less than zero"\)/ and print "Large_int";
+	/FociInterface.SAT/ and print "Blocks_SAT";
 }
 
