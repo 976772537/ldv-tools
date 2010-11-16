@@ -37,12 +37,7 @@ function formatTime($time) {
 
 // Says whether the git profile is used.
 function isGit($info) {
-  if (array_key_exists('Profile', $info)) {
-    $profileOptions = $info['Profile'];
-    return ($profileOptions['name'] == 'git');
-  }
-
-  return false;
+  return (returnProfile($info) == 'git');
 }
 
 // Print information on a current database connection.
@@ -141,6 +136,16 @@ function returnBytes($val) {
   }
 
   return $val;
+}
+
+// Return profile used.
+function returnProfile($info) {
+  if (array_key_exists('Profile', $info)) {
+    $profileOptions = $info['Profile'];
+    return $profileOptions['name'];
+  }
+
+  return '';
 }
 
 ?>

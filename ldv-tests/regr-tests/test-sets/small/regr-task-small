@@ -2,11 +2,11 @@ driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/linkdl.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/safe.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/doublelock.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
-driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/linkdl.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unknown;RCV_status=fail;problems=Exception,Parsing errors
+driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/linkdl.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/safe.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
 driver=mydrv/safe.ko;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/safe.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
-driver=tests-bce--test-failedon32.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
-driver=tests-bce--test-nomakefile.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=
+driver=tests-bce--test-failedon32.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=Compile error
+driver=tests-bce--test-nomakefile.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=No Makefile or Kbuild file
 driver=tests-envgen--test-exit.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-exit/exit.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=tests-envgen--test-fops-check-exit.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-check-exit/fops-check-exit.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
 driver=tests-envgen--test-fops-check-order.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-fops-check-order/fops-check-order.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
@@ -19,8 +19,8 @@ driver=tests-envgen--test-order.tar.bz2;origin=external;kernel=mykernel-1-2.6.32
 driver=tests-envgen--test-struct.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-struct/struct.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=tests-envgen--test-twomains-mutex.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-envgen/test-twomains-mutex/twomains.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe
 driver=tests-envgen--test-twomains-mutex.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-envgen/test-twomains-mutex/twomains.ko;main=ldv_main1_plain_sorted_withcheck;verdict=unsafe
-driver=tests-envgen--test-twomains.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-twomains/twomains.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unknown;RCV_status=fail;problems=Exception,Parsing errors
-driver=tests-envgen--test-twomains.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-twomains/twomains.ko;main=ldv_main1_plain_sorted_withcheck;verdict=unknown;RCV_status=fail;problems=Exception,Parsing errors
+driver=tests-envgen--test-twomains.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-twomains/twomains.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
+driver=tests-envgen--test-twomains.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-envgen/test-twomains/twomains.ko;main=ldv_main1_plain_sorted_withcheck;verdict=safe
 driver=tests-model-08_1--test-doubleget.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-doubleget/doubleget.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=tests-model-08_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-safe/safe.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe
 driver=tests-model-08_1--test-safe2.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=08_1;module=drivers/tests-model-08_1/test-safe2/safe2.ko;main=ldv_main0_plain_sorted_withcheck;verdict=unsafe

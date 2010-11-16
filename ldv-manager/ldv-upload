@@ -376,6 +376,8 @@ doc.elements.each('reports/build')  do |build_fail_tag|
 
 	# Create a pseudo-trace
 	build = Stats.from_xml(build_fail_tag,false)
+	# Don't forget to calculate problems for failed build since there is no ld for failed builds.
+	build.calc_problems(File.join(manhome, "problems", "build"))
 	trace = Trace.new
 	trace.result='unknown'
 	trace.build = build

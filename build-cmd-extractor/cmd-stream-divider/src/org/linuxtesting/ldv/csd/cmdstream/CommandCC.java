@@ -1,10 +1,10 @@
-package com.iceberg.csd.cmdstream;
+package org.linuxtesting.ldv.csd.cmdstream;
 
 import java.io.File;
 
+import org.linuxtesting.ldv.csd.utils.Logger;
 import org.w3c.dom.Node;
 
-import com.iceberg.csd.utils.Logger;
 
 public class CommandCC extends Command {
 
