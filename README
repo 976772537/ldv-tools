@@ -46,6 +46,105 @@ GETTING LATEST SOURCES OF LDV
     $ git clone --recursive git://forge.ispras.ru/ldv-tools.git
      (you'll download about 200 Mb)
 
+  If your git version is lower than 1.6.6, and you can't upgrade, refer to
+  section "USING OBSOLETE GIT".
+
+
+HOW TO INSTALL
+==============
+
+  Please, refer to INSTALL file for the list of prerequisites and installation
+  instructions.
+
+HOW TO USE
+==========
+
+      RUNNING
+
+  The verification process is launched by means of the ldv manager tool. If
+  you want to understand deeper how to use this tool please read its manual
+  placed here:
+    # SOURCE_DIR is a directory where the ldv tools were downloaded.
+    SOURCE_DIR/ldv-tools/ldv-manager/README
+
+  Please pay your attention. Kernel archives and extrenal drivers archives
+  should be placed directly in your working directory.
+
+
+      EXAMPLES
+
+  To set up environment you may do following stages:
+    # INSTALL_DIR is a directory where the ldv tools were installed.
+    export PATH=$PATH:INSTALL_DIR/bin
+    # TEST_DIR is your working directory where the ldv tools will place their
+    # temporary files and store results of their work
+    cd TEST_DIR
+    wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.34.tar.bz2
+
+  To verify all or some portion of kernel drivers you may use:
+    ldv-manager "envs=linux-2.6.34.tar.bz2" kernel_driver=1 \
+    "drivers=drivers/usb/storage/" "rule_models=39_1"
+
+  To verify one external driver (don't forget to place it into the TEST_DIR):
+    ldv-manager tag=current "envs=linux-2.6.32.9.tar.bz2" \
+    "drivers=hdpvr-core.tar.bz2" "rule_models=39_1"
+
+
+      VIEW RESULTS
+
+  To view verification results and some auxiliary information, you should
+  install the stats visualizer tool.  The tool is implemented as a web server,
+  and can be run by Apache and mod_php. To learn how to set it up, please, see:
+    SOURCE_DIR/stats-visualizer/INSTALL
+
+  Note that also you should set up a MySQL database:
+    - Install MySQL if it is not installed.
+    - Create your database and user with write privileges.
+    - Upload the database schema to the created database. The schema is there:
+        INSTALL_DIR/ldv-manager/results_schema.sql
+
+  LDV tools results are uploaded to the database as in the following instruction:
+    SOURCE_DIR/ldv-tools/ldv-manager/README
+
+  In a nutshell, having set the proper environment variables that specify your
+  database connection parameters (user, host, database, etc), you just run:
+    ldv-upload finished/package.pax
+
+  where package.pax is the package named after your driver.
+
+  The statistics server will be available trough your browser. To see it you must
+  specify database connection options in URL.
+
+      EXAMPLES
+
+  To upload results you can use:
+    cd TEST_DIR
+    # A directory 'finished' will contains archives corresponding to your
+    # ldv-manager invocation.
+    LDVDB=ldvdb LDVUSER=ldvreports ldv-upload \
+    finished/default--X--drivers-usb-storage---X--default.pax
+
+  To see results in your browser put corresponding URL in the address bar:
+    http://localhost:8999/stats/index/name/ldvdb/user/ldvreports/password/no
+
+      TUTORIAL
+
+  More information about starting with ldv tools you can see in ./TUTORIAL file.
+
+CONTACT US
+==========
+
+  Developer site where you can file bugs or contact us is at
+
+    http://forge.ispras.ru/projects/ldv
+
+
+USING OBSOLETE GIT
+==================
+
+  In this section you may learn how to download tools if your Git version is
+  less than 1.6.6.
+
   If you have a prior to 1.6.6 version of Git, you can't use git clone
   --recursive, because the feature was only introduced in 1.6.6. Since git
   uses recursive submodules (one submodule is inside the other), it would be
@@ -69,87 +168,3 @@ GETTING LATEST SOURCES OF LDV
   Downloading sources of subprojects (submodules) is crucial. LDV-tools won't
   build without submodules.
 
-HOW TO INSTALL
-==============
-
-  Please, refer to INSTALL file for the list of prerequisites and installation
-  instructions.
-
-HOW TO USE
-==========
-
-      RUNNING
-
-  The verification process is launched by means of the ldv manager tool. If
-  you want to understand deeper how to use this tool please read its manual
-  placed here:
-    # SOURCE_DIR is a directory where the ldv tools were downloaded.
-    SOURCE_DIR/ldv-tools/ldv-manager/README
-
-  To run installed version of the ldv tools use 'tag=current' during ldv manager
-  invocation. In this case the environment variable PATH must contain a path
-  to a bin folder of installed ldv tools.
-
-  Please pay your attention. Kernel archives and extrenal drivers archives
-  should be placed directly in the TEST_DIR.
-
-      EXAMPLES
-
-  To set up environment you can do following stages:
-    # INSTALL_DIR is a directory where the ldv tools were installed.
-    export PATH=$PATH:INSTALL_DIR/bin
-    # TEST_DIR is your work directory where the ldv tools will place their
-    # temporary files
-    cd TEST_DIR
-    wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.34.tar.bz2
-
-  To verify all kernel drivers you can use:
-    ldv-manager tag=current "envs=linux-2.6.34.tar.bz2" kernel_driver=1 \
-    "drivers=drivers/usb/storage/" "rule_models=39_1"
-
-  To verify one external driver (don't forget to place it into the TEST_DIR):
-    ldv-manager tag=current "envs=linux-2.6.32.9.tar.bz2" \
-    "drivers=hdpvr-core.tar.bz2" "rule_models=39_1"
-
-      VIEW STATISTICS
-
-  To view a ldv tools statistics that contains verification results and some
-  auxiliary information you have to install the stats visualizer tool. To know
-  how to do this please see:
-    SOURCE_DIR/stats-visualizer/INSTALL
-
-  Note that also you have to set up a MySQL database:
-    - Install MySQL if it is not installed.
-    - Create your database and user with right privileges.
-    - Upload the database schema to the created database. The schema is there:
-        INSTALL_DIR/ldv-manager/results_schema.sql
-
-  Ldv tools results are uploaded to the database in conformity with following
-  instruction:
-    SOURCE_DIR/ldv-tools/ldv-manager/README
-
-  The statistics server is available trough your browser. To see it you must
-  specify database connection options in URL.
-
-      EXAMPLES
-
-  To upload results you can use:
-    cd TEST_DIR
-    # A directory 'finished' will contains archives corresponding to your
-    # ldv-manager invocation.
-    LDVDB=ldvdb LDVUSER=ldvreports ldv-upload \
-    finished/default--X--drivers-usb-storage---X--default.pax
-
-  To see results in your browser put corresponding URL in the address bar: 
-    http://localhost:8999/stats/index/name/ldvdb/user/ldvreports/password/no
-
-      TUTORIAL
-
-  More information about starting with ldv tools you can see in ./TUTORIAL file.
-
-CONTACT US
-==========
-
-  Developer site where you can file bugs or contact us is at
-
-    http://forge.ispras.ru/projects/ldv
