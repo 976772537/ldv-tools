@@ -74,9 +74,14 @@ my $regr_task_prefix = 'regr-task-';
 # The file where the results from the database will be loaded. It's relative to
 # the current working directory.
 my $task_file = 'regr-task-new';
+# A locally sorted task file, for precise diffs.
+my $task_file_sorted = "current.sorted";
 
 # The test set to be used. It's an absolute path to the test set task file.
 my $test_set;
+# A locally sorted test sets file, for precise diffs.
+my $test_set_sorted = "original.sorted";
+
 # The directory of the test set.
 my $test_set_dir;
 
@@ -94,8 +99,20 @@ get_opt();
 print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
 prepare_files_and_dirs();
 
+# We sort task files before making diff because we don't know how data will be dumped to the results file.  Perhaps, the order will be different from the one pushed t orepository, due to database collation problems (see bug #523).
+print_debug_normal("Sort task files");
+my $sort1cmd = "sort '$test_set' -o '$test_set_sorted'";
+print_debug_info("Execute the command '$sort1cmd'");
+system($sort1cmd);
+die "Sort of $test_set failed" if (check_system_call() != 0);
+
+my $sort2cmd = "sort '$task_file' -o '$task_file_sorted'";
+print_debug_info("Execute the command '$sort2cmd'");
+system($sort2cmd);
+die "Sort of $task_file failed" if (check_system_call() != 0);
+
 print_debug_trace("Perform diff/merge");
-my $cmd = "$diff_merge_tool $test_set $task_file > $diff_file";
+my $cmd = "$diff_merge_tool $test_set_sorted $task_file_sorted > $diff_file";
 print_debug_info("Execute the command '$cmd'");
 `$cmd`;
 die("There is no the diff/merge tool '$diff_merge_tool' executable in your PATH!")
