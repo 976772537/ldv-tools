@@ -1,11 +1,5 @@
-	Linux Driver Verification (LDV) 
-
-	README
-
-	http://linuxtesting.org/project/ldv/
-
-
-WHAT IS LDV?
+LDV 
+===
 
   Linux Driver Verification (LDV) program was announced in 2009 to meet 
   increased demand for large-scale verification tools applicable to high 
@@ -37,20 +31,103 @@ WHAT IS LDV?
   to provide the most precise verification.
 
 GETTING LATEST SOURCES OF LDV
+=============================
 
-You can get latest stable and unstable sources of LDV tools at development
-homepage at http://forge.ispras.ru/projects/ldv
+  LDV sources are stored in several Git repositories. To download them, you
+  currently need a Git version control system installed at your machine. Git 
+  is free software, and you can download it here http://git-scm.com/download.
+
+  You can get latest stable and unstable sources of LDV tools at development
+  homepage at http://forge.ispras.ru/projects/ldv
+ 
+  We recommend using Git of version 1.6.6 or newer. With this version getting 
+  sources is easy:
+
+    $ git clone --recursive git://forge.ispras.ru/ldv-tools.git
+     (you'll download about 200 Mb)
+
+  If you have a prior to 1.6.6 version of Git, you can't use git clone 
+  --recursive, because the feature was only introduced in 1.6.6. Since git 
+  uses recursive submodules (one submodule is inside the other), it would be 
+  tedious to make you change directories and run many commands manually. So, we 
+  supply you with some automation that can do it for you. First, add the 
+  following lines to ~/.gitconfig:
+
+   [alias]
+        subinit = !"git submodule init; git submodule update ; git \ 
+        submodule foreach 'git subinit'" 
+ 
+  Note that the name of this alias (at left-hand side of = sign) should match 
+  the one invoked at the end of this line!
+  Then clone without --recursive, and invoke the command you've just added 
+  to ~/.gitconfig in the new working directory:
+
+    $ git clone git://forge.ispras.ru/ldv-tools.git
+    $ cd ldv-tools
+    $ git subinit
+
+  Downloading sources of subprojects (submodules) is crucial. LDV-tools won't 
+  build without submodules.
 
 
-INSTALLING LDV
+HOW TO INSTALL
+==============
 
-Please, refer to INSTALL file for the list of prerequisites and installation
-instructions.
+  Please, refer to INSTALL file for the list of prerequisites and installation
+  instructions.
 
+HOW TO USE
+==========
+   
+  Running.
+
+  To run verification by means of ldv-manager read 
+  SOURCE_DIR/ldv-tools/ldv-manager/README
+
+  To run current version of ldv-tools (from PATH) using tag=current!
+  Environment variable PATH must contains path to bin folder of 
+  installed ldv-tools. 
+
+  Example:
+  export PATH=$PATH:INSTALL_DIR/bin
+  cd TEST_DIR # your work dir with temporary files
+  wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.34.tar.bz2
+  ldv-manager "envs=linux-2.6.34.tar.bz2" kernel_driver=1 \ 
+  "drivers=drivers/usb/storage/" "rule_models=39_1"
+  
+  Attension! For now, kernel archives and extrenal drivers archives should be
+  in the TEST_DIR.
+
+  Example for running with one driver:
+  ldv-manager "envs=linux-2.6.32.9.tar.bz2" "drivers=hdpvr-core.tar.bz2" \
+  "rule_models=39_1"
+
+  View statistics.
+
+  To view the statistics you need to install stats-visualizer (see 
+  SOURCE_DIR/stats-visualizer/INSTALL). 
+  It will also require a MySQL database:
+	- Install and MySQL if it is not installed.
+        - Create database and user with right privileges.
+	- Create tables INSTALL_DIR/ldv-manager/results_schema.sql
+
+  Verification results are loading to database in conformity with
+  instruction SOURCE_DIR/ldv-tools/ldv-manager/README
+
+  Exmaple:
+  LDVDB=ldvdb LDVUSER=ldvreports INSTALL_DIR/bin/ldv-upload \
+  finished/default--X--drivers-usb-storage---X--default.pax
+
+  Next,  open the stats server  (DB parameters specified in URL)
+  and view results. 
+
+  More information about starting with ldv-tools you can see 
+  in ./TUTORIAL file.
 
 CONTACT US
+==========
 
-Developer site where you can file bugs or contact us is at
+  Developer site where you can file bugs or contact us is at
 
 	http://forge.ispras.ru/projects/ldv
 
