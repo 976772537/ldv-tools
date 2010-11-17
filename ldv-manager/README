@@ -51,21 +51,18 @@ Here's how the call looks like (make sure you've installed LDV manager, and ldv-
 
 If you are checking kernel drivers, then specify the folder you want to check in `drivers` variable, AND also set `kernel_driver=1` in addition to the other options.
 
-You may also want to specify "name" variable to be able to distinguish runs by some other parameters.
-
 If you want to re-run the process for an already checked driver, you most likely will see "nothing to do" message.  To make your results out of date, you should touch the file with driver.
 
 	touch driver.tar.gz
 
 For kernel drivers there's no way to achieve this bit to erase certain folders from within work/ subdirectory.  By the way, you may erase only `finished` file from the directory, if you only want to re-package the checking results.  By erasing `checked` file, you re-run the whole check.
 
-If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you should specify tag=current.  In this case LDV_GIT_REPO may be omitted.
+If you need to run LDV-manager with currently installed tools (instead of making ldv-manager install them), you could just omit tag parameter, or specify tag=current.  In this case LDV_GIT_REPO may be omitted.
 
 If you want to select only needed in-kernel drivers for verify, you should specify environment variable CMD_FILTER=regexp. 
 
 	CMD_FILTER=".*ums-alauda.ko" \
 	ldv-manager \
-	tag=current \
 	"envs=linux-2.6.31.6.tar.bz2" \
 	kernel_driver=1 \
 	"drivers=drivers/usb/storage/" \
@@ -75,11 +72,12 @@ If you want to select only needed in-kernel drivers for verify, you should speci
 You can specify one driver for verify too.
 
 	ldv-manager \
-	tag=current \
 	"envs=linux-2.6.31.6.tar.bz2" \
 	kernel_driver=1 \
 	"drivers=drivers/usb/storage/ums-alauda.ko" \
 	"rule_models=32_7"
+
+You also can control what names would tasks be assigned in the resultant PAX archives.  This is done via LDV_TASK_NAME and LDV_TASK_DESCRIPTION env. variables.
 
 HOW TO USE DATABASE
 ===================

@@ -25,7 +25,7 @@ create table environments (
 	version VARCHAR(50) NOT NULL,
 	kind VARCHAR(20),
 	PRIMARY KEY (id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- Drivers holds drivers that were checked
 create table drivers (
@@ -34,7 +34,7 @@ create table drivers (
 	origin enum('kernel','external') not null,
 	primary key (id),
 	key (name)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- Rule-models
 create table rule_models(
@@ -42,7 +42,7 @@ create table rule_models(
 	name varchar(20),
 	description varchar(200),
 	primary key (id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- Instruments
 create table toolsets(
@@ -55,7 +55,7 @@ create table toolsets(
 	unique (version,verifier),
 	key (version),
 	key (verifier)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 create table scenarios(
 	id int(10) unsigned not null auto_increment,
@@ -64,7 +64,7 @@ create table scenarios(
 	main varchar(100) not null,
 	primary key (id),
 	foreign key (driver_id) references drivers(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
 -- LAUNCH RESULTS
@@ -81,7 +81,7 @@ create table stats(
 	description text,
 
 	primary key (id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 create table traces(
 	id int(10) unsigned not null auto_increment,
@@ -104,7 +104,7 @@ create table traces(
 	foreign key (dscv_id) references stats(id),
 	foreign key (ri_id) references stats(id),
 	foreign key (rcv_id) references stats(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 create table sources(
 	id int(10) unsigned not null auto_increment,
@@ -114,7 +114,7 @@ create table sources(
 
 	primary key (id),
 	foreign key (trace_id) references traces(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
 -- TASKS
@@ -136,7 +136,7 @@ create table tasks(
 
 
 	primary key (id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
 -- STATISTICS
@@ -153,7 +153,7 @@ create table processes(
 	primary key(trace_id, name, pattern),
 	UNIQUE (trace_id, name, pattern),
 	foreign key (trace_id) references traces(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
 -- LAUNCHES JOIN
@@ -185,7 +185,7 @@ create table launches(
 	foreign key (scenario_id) references scenarios(id),
 	foreign key (trace_id) references traces(id),
 	foreign key (task_id) references tasks(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
 -- PROBLEM DATABASE
@@ -201,7 +201,7 @@ create table problems(
 
 	PRImary key (id),
 	key (name)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 create table problems_stats(
 	stats_id int(10) unsigned not null,
@@ -210,7 +210,7 @@ create table problems_stats(
 
 	foreign key (stats_id) references stats(id) on delete cascade,
 	foreign key (problem_id) references problems(id) on delete cascade
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
 -- DATABASE PROPERTIES
@@ -222,7 +222,7 @@ create table db_properties(
         value varchar(50) not null,
         primary key(id),
         unique (name)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
 -- INSERT DATABASE PARAMETERS

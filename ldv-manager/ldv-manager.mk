@@ -9,9 +9,7 @@ Script_dir:=$(LDV_SRVHOME)/ldv-manager/
 
 # Configuration variables
 # Include config only if it exists
-ifneq ($(shell test -f config.mk && echo something),)
-include config.mk
-endif
+-include config.mk
 # Default configuration
 LDV_INSTALL_DIR?=inst
 WORK_DIR?=work
@@ -20,6 +18,10 @@ TMP_DIR?=/tmp
 
 # Special variable that denotes a "fake" tag.  If you specify this "tag", the manager will use currently installed tools available from PATH.
 Current=current
+ifeq ($(tag),)
+$(warning Using whatever LDV tools found in your PATH)
+tag=$(Current)
+endif
 
 # If verifier is specified, distpatch by it (dash is to separate it from other parts of description string)
 # TODO: Add support for more verifiers
@@ -35,7 +37,7 @@ LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
 
 # Sanity checks
 ifeq ($(LDV_GIT_REPO),)
-ifneq ($(tag),current)
+ifneq ($(tag),$(Current))
 $(error You should specify git repository in LDV_GIT_REPO)
 endif
 endif
@@ -57,7 +59,6 @@ $(error drivers variable should not contain any .. (double dot) symbols!)
 endif
 
 ifeq ($(name),)
-$(warning Variable "name" is empty, falling back to "default")
 name=default
 endif
 
@@ -136,21 +137,18 @@ $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Ldv_env=$(if $(cmdstr
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked: $(if $(cmdstream_driver),,$(call get_tag,$(1),$(delim))) $(if $(kernel_driver),,$(call get_driver_raw,$(1),$(delim)))
 	@echo $(1) $$(Driver)
 	@$$(G_TargetDir)
-	if [[ "$$(Tag)" != "$(Current)" ]] ; then \
-		export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
-	fi ;\
+	$(if $(subst $(Current),,$(Tag)), export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH; ) \
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
 	ldv task $$(Run_spec)$$(Driver) --workdir=$$(@D) --env=$$(Ldv_env) $(Kernel_driver) $(Fail_status_set)
-	#touch $$@
 
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked
 	@# Add ancillary information to reports and post it to target directory
 	@echo $(call mkize,$(1))
 	@mkdir -p $$(RESULTS_DIR)
-	$(Script_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $(name) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml
+	$(Script_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$(TMP_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml
 	$(Script_dir)package $(TMP_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).pax -s '|^$(TMP_DIR)\/*||'
 	$(if $(LDV_REMOVE_ON_SUCCESS),rm -rf $$(@D)/*,)
-	#touch $$@
+	@echo "The results of the launch reside in:           $(RESULTS_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).pax"
 endef
 
 $(foreach task,$(tasks),$(eval $(call rule_for_task,$(task))))
@@ -195,7 +193,7 @@ tags/%/installed: tags/%/fetched
 # Prepare envs for current tag
 # TODO: perform double distpatching as in previous example!
 # Prepare list of target in form "tag-v2.4/env.linux-2.6.30", that depend on actual files with kernels
-envs_tasks:=$(call cartprod,$(tags),$(env_names),/env.)
+envs_tasks:=$(call cartprod,$(tag),$(env_names),/env.)
 get_tag_fromenv=$(call sed,$(1),s|/env\..*||)
 get_env_fromenv=$(call sed,$(1),s|.*/env\.||)
 
@@ -206,12 +204,9 @@ tags/$(1): Env=$(call get_env_fromenv,$(1))
 tags/$(1): Env_file=$(2)
 tags/$(1): Tag=$(call get_tag_fromenv,$(1))
 
-tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed 
+tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed
 	( flock 200; \
-		if [[ "$$(Tag)" != "$(Current)" ]] ; then \
-			cd $(LDV_INSTALL_DIR)/$$(Tag) && \
-			export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH ; \
-		fi ; \
+		$(if $(subst $(Current),,$(Tag)),	cd $(LDV_INSTALL_DIR)/$$(Tag) && export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH;) \
 		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) ; \
 		echo "Preparing kernel $$(Env) from $$(Env_file)..." ;\
 		ldv kmanager --action=add --src=$$(abspath $$(Env_file)) --extractor=linux-vanilla --name=$$(Env) $$(silencio) \

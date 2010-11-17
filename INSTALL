@@ -16,6 +16,9 @@ MINIMAL PREREQUISITES
 	o ant 1.8.0 or greater
 	o GNU Make 3.81
 	o GCC (32-bit version) with C++ support
+	o gcc-c++
+	o glibc-devel-32bit
+	o patch
 	o GNU M4
 	o GNU Autoconf
 	o GNU Automake
@@ -24,10 +27,13 @@ MINIMAL PREREQUISITES
 	o MPFR Library, development version
 	o Flex or lex
 	o Yacc or Bison
-	o MySQL server and console client, with development headers and libaries
+	o libncurses
+	o gmp-devel
+	o MySQL (with InnoDB)server and console client, with development headers and libaries
 	o Perl modules (install via `sudo cpan Module::Name` or via packange manager):
 		- DBI
 		- File::Cat
+		- File::Find
 		- File::Copy::Recursive
 		- Text::Highlight
 		- XML::Twig
@@ -36,8 +42,12 @@ MINIMAL PREREQUISITES
 	o PAX archiver
 	o Ruby gem manager
 	o Ruby gems:
+		- gem hpricot
 		- gem activerecord
 		- gem mysql
+	o gzip
+	o tar
+	o bzip2
 
 
 ADDITIONAL PREREQUISITES
@@ -47,6 +57,10 @@ for LDV-online, statistics visualization, in addition to the prerequisites
 listed above:
 
 	o Apache 2.x
+	o Apache 2.x modules:
+                - mod_php
+	        - mod_rewrite
+	        - mod_env
 	o PHP 5.3
 	o PHP modules:
 		- Apache

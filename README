@@ -1,14 +1,8 @@
-	Linux Driver Verification (LDV) 
+LDV
+===
 
-	README
-
-	http://linuxtesting.org/project/ldv/
-
-
-WHAT IS LDV?
-
-  Linux Driver Verification (LDV) program was announced in 2009 to meet 
-  increased demand for large-scale verification tools applicable to high 
+  Linux Driver Verification (LDV) program was announced in 2009 to meet
+  increased demand for large-scale verification tools applicable to high
   profile software. The goals of the program are:
 
        o improve quality of Linux device drivers
@@ -16,41 +10,161 @@ WHAT IS LDV?
        o adopt latest research outcome to enhance quality of verification tools
 
   The quality improvement involves garnering and systematizing problems that
-  occur in device drivers and actually finding their instances (bugs) in the 
+  occur in device drivers and actually finding their instances (bugs) in the
   source code. Based on analysis of error reports to LKML, a number of
   frequently encountered problems was encapsulated into a rule database. The
-  rules are formalized, categotized, and supplied with machine-readable 
+  rules are formalized, categotized, and supplied with machine-readable
   patterns that show how to verify them.
 
-  The integrated platform aims to mediate smoothly between driver's source 
-  packages, brand new, fresh kernels from kernel.org, rule database and 
+  The integrated platform aims to mediate smoothly between driver's source
+  packages, brand new, fresh kernels from kernel.org, rule database and
   general-purpose verification tools, given that all these are constantly
   developed. This platform provides analysis of the drivers supplied in
-  automatically deployed and generated environments, which are based on 
+  automatically deployed and generated environments, which are based on
   vanilla kernel sources and rule database mentioned earlier.
 
-  The verification process is backed with open-source verification tools for C 
-  language. The modular architecture of the integrated platform, and a large 
-  amount of ready-to-check source code provides extensive basis for audit of 
-  quality of different verification tools. The tools are constantly improved 
-  (based on research, both adopted and carried on by our group) and evaluated 
+  The verification process is backed with open-source verification tools for C
+  language. The modular architecture of the integrated platform, and a large
+  amount of ready-to-check source code provides extensive basis for audit of
+  quality of different verification tools. The tools are constantly improved
+  (based on research, both adopted and carried on by our group) and evaluated
   to provide the most precise verification.
 
 GETTING LATEST SOURCES OF LDV
+=============================
 
-You can get latest stable and unstable sources of LDV tools at development
-homepage at http://forge.ispras.ru/projects/ldv
+  LDV sources are stored in several Git repositories. To download them, you
+  currently need a Git version control system installed at your machine. Git
+  is free software, and you can download it here http://git-scm.com/download.
+
+  You can get latest stable and unstable sources of LDV tools at development
+  homepage at http://forge.ispras.ru/projects/ldv.
+
+  We recommend using Git of version 1.6.6 or newer. With this version getting
+  sources is easy:
+
+    $ git clone --recursive git://forge.ispras.ru/ldv-tools.git
+     (you'll download about 200 Mb)
+
+  If your git version is lower than 1.6.6, and you can't upgrade, refer to
+  section "USING OBSOLETE GIT".
 
 
-INSTALLING LDV
+HOW TO INSTALL
+==============
 
-Please, refer to INSTALL file for the list of prerequisites and installation
-instructions.
+  Please, refer to INSTALL file for the list of prerequisites and installation
+  instructions.
 
+HOW TO USE
+==========
+
+      RUNNING
+
+  The verification process is launched by means of the ldv manager tool. If
+  you want to understand deeper how to use this tool please read its manual
+  placed here:
+    # SOURCE_DIR is a directory where the ldv tools were downloaded.
+    SOURCE_DIR/ldv-tools/ldv-manager/README
+
+  Please pay your attention. Kernel archives and extrenal drivers archives
+  should be placed directly in your working directory.
+
+
+      EXAMPLES
+
+  To set up environment you may do following stages:
+    # INSTALL_DIR is a directory where the ldv tools were installed.
+    export PATH=$PATH:INSTALL_DIR/bin
+    # TEST_DIR is your working directory where the ldv tools will place their
+    # temporary files and store results of their work
+    cd TEST_DIR
+    wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.34.tar.bz2
+
+  To verify all or some portion of kernel drivers you may use:
+    ldv-manager "envs=linux-2.6.34.tar.bz2" kernel_driver=1 \
+    "drivers=drivers/usb/storage/" "rule_models=39_1"
+
+  To verify one external driver (don't forget to place it into the TEST_DIR):
+    ldv-manager tag=current "envs=linux-2.6.32.9.tar.bz2" \
+    "drivers=hdpvr-core.tar.bz2" "rule_models=39_1"
+
+
+      VIEW RESULTS
+
+  To view verification results and some auxiliary information, you should
+  install the stats visualizer tool.  The tool is implemented as a web server,
+  and can be run by Apache and mod_php. To learn how to set it up, please, see:
+    SOURCE_DIR/stats-visualizer/INSTALL
+
+  Note that also you should set up a MySQL database:
+    - Install MySQL if it is not installed.
+    - Create your database and user with write privileges.
+    - Upload the database schema to the created database. The schema is there:
+        INSTALL_DIR/ldv-manager/results_schema.sql
+
+  LDV tools results are uploaded to the database as in the following instruction:
+    SOURCE_DIR/ldv-tools/ldv-manager/README
+
+  In a nutshell, having set the proper environment variables that specify your
+  database connection parameters (user, host, database, etc), you just run:
+    ldv-upload finished/package.pax
+
+  where package.pax is the package named after your driver.
+
+  The statistics server will be available trough your browser. To see it you must
+  specify database connection options in URL.
+
+      EXAMPLES
+
+  To upload results you can use:
+    cd TEST_DIR
+    # A directory 'finished' will contains archives corresponding to your
+    # ldv-manager invocation.
+    LDVDB=ldvdb LDVUSER=ldvreports ldv-upload \
+    finished/default--X--drivers-usb-storage---X--default.pax
+
+  To see results in your browser put corresponding URL in the address bar:
+    http://localhost:8999/stats/index/name/ldvdb/user/ldvreports/password/no
+
+      TUTORIAL
+
+  More information about starting with ldv tools you can see in ./TUTORIAL file.
 
 CONTACT US
+==========
 
-Developer site where you can file bugs or contact us is at
+  Developer site where you can file bugs or contact us is at
 
-	http://forge.ispras.ru/projects/ldv
+    http://forge.ispras.ru/projects/ldv
+
+
+USING OBSOLETE GIT
+==================
+
+  In this section you may learn how to download tools if your Git version is
+  less than 1.6.6.
+
+  If you have a prior to 1.6.6 version of Git, you can't use git clone
+  --recursive, because the feature was only introduced in 1.6.6. Since git
+  uses recursive submodules (one submodule is inside the other), it would be
+  tedious to make you change directories and run many commands manually. So, we
+  supply you with some automation that can do it for you. First, add the
+  following lines to ~/.gitconfig:
+
+   [alias]
+        subinit = !"git submodule init; git submodule update ; git \
+        submodule foreach 'git subinit'"
+
+  Note that the name of this alias (at left-hand side of = sign) should match
+  the one invoked at the end of this line!
+  Then clone without --recursive, and invoke the command you've just added
+  to ~/.gitconfig in the new working directory:
+
+    $ git clone git://forge.ispras.ru/ldv-tools.git
+    $ cd ldv-tools
+    $ git subinit
+
+  Downloading sources of subprojects (submodules) is crucial. LDV-tools won't
+  build without submodules.
 
