@@ -2,29 +2,29 @@
 
 include 'general.php';
 
-// Print error if so and finish execution.
-if (isset($this->error)) {
-  echo $this->error;
-  return;
-}
-
 // Get all infomation to be displayed.
 $results = $this->entries;
 
-print_r($results['Error trace']->errorTrace);
+// Print error if so.
+if (isset($this->error)) {
+  echo $this->error;
+}
+else {
+  print_r($results['Error trace']->errorTrace);
 
-// Print show/hide plugin for error trace visualizer log. By default it isn't shown.
-echo "<script type='text/javascript'>
-        $(document).ready(function() {
-          $('#SETVLogShowHideLink').toggle(function() {
-            $('#SETVLog').show();
-            return false;
-          } , function() {
-            $('#SETVLog').hide();
-            return false;
+  // Print show/hide plugin for error trace visualizer log. By default it isn't shown.
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('#SETVLogShowHideLink').toggle(function() {
+              $('#SETVLog').show();
+              return false;
+            } , function() {
+              $('#SETVLog').hide();
+              return false;
+            });
           });
-        });
-      </script>";
+        </script>";
+}
 
 echo "<div id='SETVLogShowHide'><a href='#' id='SETVLogShowHideLink'>Error trace visualizer log</a></div>";
 
