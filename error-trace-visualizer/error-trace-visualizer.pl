@@ -1088,9 +1088,10 @@ sub process_error_trace_blast()
             if ($element_kind eq $element_kind_location)
             {
               my ($src, $line) = @{$element_value};
-              if(defined $line) {
-		$dependencies{$src} = 1;
-	      }
+              if(defined($line))
+              {
+                $dependencies{$src} = 1;
+              }
               $files_long_name{$src} = 0;
               $src =~ /([^\/]*)$/;
               $files_short_name{$src} = $1;
