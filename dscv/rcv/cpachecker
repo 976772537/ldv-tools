@@ -10,8 +10,10 @@ exit 1;
 #======================================================================
 # PROCESS OPTIONS AND SET UP INITIAL VARIABLES
 #======================================================================
+use FindBin;
 
 BEGIN {
+	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/../../";
 	# Add the lib directory to the @INC to be able to include local modules.
 	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
 }
@@ -221,45 +223,40 @@ sub call_cpachecker
 	my $CPA_CFG; my $cpa_cfg = "$args{workdir}/cpa.cfg"; open $CPA_CFG, ">", $cpa_cfg or die;
 	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
 
-	print $CPA_CFG <<EOF;
-cfa.removeIrrelevantForErrorLocations = false
-analysis.traversal = topsort
-analysis.useRefinement = true
-cegar.refiner = cpa.symbpredabsCPA.SymbPredAbsRefiner
-cpa = cpa.art.ARTCPA
-ARTCPA.cpa = cpa.composite.CompositeCPA
-CompositeCPA.cpas = cpa.location.LocationCPA, cpa.automatonanalysis.ObserverAutomatonCPA ErrorLocationAutomaton, cpa.symbpredabsCPA.SymbPredAbsCPA
-automatonAnalysis.inputFile = $LDV_errloc_autom
-EOF
+	open ORIG_CFG, "$ENV{'LDV_HOME'}/dscv/rcv/backends/cpachecker/etc/cpa.cfg.pattern" or die "$!";
+	my @orig_lines = <ORIG_CFG>;
+	close ORIG_CFG;
+
+	my $state = 0;
+	foreach my $oline (@orig_lines) {
+		if($oline =~ /specification = .*/) {
+			$state = 1;
+			$oline = "specification = $LDV_errloc_autom\n"; 
+		}
+		vsay 'TRACE', "$oline";
+		print $CPA_CFG $oline;
+	}
 	close $CPA_CFG;
 
 	# For now, only one error location is supported by CPACHECKER
 	(scalar @{$args{errlocs}} > 1) and die;
 	my $errloc = (@{$args{errlocs}})[0];
 
+	
+	open ERRLOC, "$ENV{'LDV_HOME'}/dscv/rcv/backends/cpachecker/etc/errloc_automaton.txt" or die"$!";
+	my @errloc_lines = <ERRLOC>;
+	close ERRLOC;
+
 	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
-	print $ERRLOC_AUT <<EOF;
-OBSERVER AUTOMATON ErrorLocationAutomaton
-// This Automaton replaces the ErrorLocationCPA. It detects error locations that were defined in the sourcecode.
-
-/* The ErrorLocationCPA had 3 triggers.
- * The Trigger "(CFAEdge.CFASuccessor instanceOf CFAErrorNode)" could not be implemented in this automaton.
-  */
-
-	INITIAL STATE Init;
-
-	STATE Init :
-	  // label of the next CFA state starts with "error"
-		MATCH LABEL [$errloc]
-		// call of assert_fail without arguments
-		//|| MATCH {__assert_fail()}
-		// call of assert_fail with any (>0) number of arguments
-		//|| MATCH {__assert_fail(\$?)} 
-
-  -> ERROR;
-
-END AUTOMATON
-EOF
+	$state = 0;
+	foreach my $oeline (@errloc_lines) {
+		if($oeline =~ /(.*)CPALABEL(.*)/) {
+			$state = 1;
+		 	$oeline = "$1\[$errloc\]$2";
+		}
+		vsay 'TRACE', "$oeline";
+		print $ERRLOC_AUT $oeline;
+	}
 	close $LDV_errloc_autom;
 
 	push @cpachecker_options,
