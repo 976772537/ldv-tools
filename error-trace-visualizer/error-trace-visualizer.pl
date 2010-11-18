@@ -1049,6 +1049,12 @@ sub process_error_trace_blast()
           {
             $entity = Entity->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
 
+            # Some nodes are processed in a special way.
+            if ($entity->{'kind'} ne $element_kind)
+            {
+              print_debug_trace("The tree node kind was changed to the '" . $entity->{'kind'} . "'");
+            }
+
             # Process entities as tree.
             $entity->set_parent($parents[$#parents])
               if (@parents);

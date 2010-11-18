@@ -21,61 +21,60 @@ sub new($$)
 {
   my ($class, $data) = @ARG;
 
-  my $init = ${$data}{'engine'};	
+  my $init = ${$data}{'engine'};
   my $init_func = \&$init;
-  
+
   my $self = $init_func->($data);
   bless $self, $class;
 
-  return $self; 
+  return $self;
 }
 
 sub blast($)
 {
   my $init = shift;
-  
   # Blast has some special entities. Make them here.
   # The return block.
   if (${$init}{'kind'} eq 'Block')
   {
-	if (${${$init}{'values'}}[0] =~ /^Return\(([^\)]*)\);/)
-	{
-	  ${$init}{'kind'} = 'Return';
-	  ${${$init}{'values'}}[0] = $1;
-	}
+    if (${${$init}{'values'}}[0] =~ /^Return\((.*)\);$/)
+    {
+      ${$init}{'kind'} = 'Return';
+      ${${$init}{'values'}}[0] = $1;
+    }
   }
   # The initialization.
   elsif (${$init}{'kind'} eq 'FunctionCall')
   {
-	if (${${$init}{'values'}}[0] =~ /^__BLAST_initialize_/)
-	{
-	  ${$init}{'kind'} = 'FunctionCallInitialization';
-	}
+    if (${${$init}{'values'}}[0] =~ /^__BLAST_initialize_/)
+    {
+      ${$init}{'kind'} = 'FunctionCallInitialization';
+    }
   }
-  
+
   return $init;
 }
 
-sub ismay_have_children($) 
+sub ismay_have_children($)
 {
   my $self = shift;
 
   return defined($parent_entities{$self->{'engine'}}{$self->{'kind'}});
 }
 
-sub isparent_end($) 
+sub isparent_end($)
 {
   my $self = shift;
 
   return defined($parent_end_entities{$self->{'engine'}}{$self->{'kind'}});
 }
-  
-sub set_parent($$) 
+
+sub set_parent($$)
 {
   my ($self, $parent) = @ARG;
 
   $self->{'parent'} = $parent;
-  
+
   # Also store children to the parent.
   my @children = ();
   @children = @{$parent->{'children'}} if ($parent->{'children'});
@@ -85,28 +84,28 @@ sub set_parent($$)
   return $self;
 }
 
-sub set_post_annotations($@) 
+sub set_post_annotations($@)
 {
   my ($self, @post_annotations) = @ARG;
 
   $self->{'post annotations'} = \@post_annotations;
 
   # Change the entity kind if post annotation require this.
-  foreach my $post_annotation (@post_annotations)  
-  {  
-	if (${$post_annotation}{'kind'} eq 'LDV')
-	{
+  foreach my $post_annotation (@post_annotations)
+  {
+    if (${$post_annotation}{'kind'} eq 'LDV')
+    {
       if (${${$post_annotation}{'values'}}[0] and ${${$post_annotation}{'values'}}[0] =~ /undefined function call/)
       {
-		$self->{'kind'} = 'FunctionCallWithoutBody';
-	  }
-	}  
+        $self->{'kind'} = 'FunctionCallWithoutBody';
+      }
+    }
   }
-  
+
   return $self;
 }
 
-sub set_pre_annotations($@) 
+sub set_pre_annotations($@)
 {
   my ($self, @pre_annotations) = @ARG;
 
