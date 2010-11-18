@@ -7,3 +7,6 @@
 [submodule "kernel-rules"]
 	path = kernel-rules
 	url = git://forge.ispras.ru/kernel-rules.git
+[submodule "dscv/rcv/cil"]
+	path = dscv/rcv/cil
+	url = git://forge.ispras.ru/cil.git
