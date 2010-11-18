@@ -296,9 +296,11 @@ sub call_cpachecker
 	);
 
 	# Set memory limit.
-	# We set memory limit with Java native capabilities.  We use -Xmx and set it to the value supplied by user.  Thus, the memory limit can be overflew a bit, but in return the exception will be native.
-	my $memlimit_kb = int($memlimit / 1024);
-	$ENV{'JAVA_VM_ARGUMENTS'} .= " -Xmx${memlimit_kb}m";
+	if ($memlimit) {
+		# We set memory limit with Java native capabilities.  We use -Xmx and set it to the value supplied by user.  Thus, the memory limit can be overflew a bit, but in return the exception will be native.
+		my $memlimit_kb = int($memlimit / 1024);
+		$ENV{'JAVA_VM_ARGUMENTS'} .= " -Xmx${memlimit_kb}m";
+	}
 
 	vsay ('NORMAL',"Running CPACHECKER for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@cpachecker_options,"\n");
@@ -387,7 +389,7 @@ EOR
 sub cpachecker_quick_check
 {
 	$" = ' ';      # For error reporting
-	vsay ('INFO', "Trying to run CPAchecker without arguments to see it it works...");
+	vsay ('INFO', "Trying to run CPAchecker without arguments to see if it works...");
 	my @cpachecker_args = ($cpachecker,"-help");
 	my $CHEW_CPACHECKER_OUT;
 	my $fpid = open $CHEW_CPACHECKER_OUT,"-|";
