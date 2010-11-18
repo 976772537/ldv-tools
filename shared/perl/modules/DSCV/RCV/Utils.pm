@@ -102,10 +102,13 @@ sub cilly_file
 	chdir $info->{cwd} or Carp::confess;
 
 	# Filter out "-c" from options -- we need just preprocessing from CIL
-	my @opts = @{$info->{opts}};
-	@opts = grep {!/^-c$/} @opts;
+	my @opts = undef;
+	if($info->{opts}) {
+		@opts = @{$info->{opts}};
+		@opts = grep {!/^-c$/} @opts;
+	}
 
-	my @cil_args = ($cil_script,#"-c",
+	my @extra_args = (#"-c",
 		"$info->{i_file}",	#Input file
 		"--out", "$info->{cil_file}",	#Output file
 		# However, for cill to REALLY output the file, GCC's preprocessr at some stage should print it.  We need the following line:
@@ -119,6 +122,11 @@ sub cilly_file
 		# @opts,
 		#"-U","__LP64__"
 	);
+
+	my @cil_args = ($cil_script);
+	defined $info->{is_list} and push @cil_args,'--extrafiles';
+	push @cil_args,@extra_args;
+
 	vsay ('DEBUG',"CIL: ",@cil_args,"\n");
 	local $"=' ';
 	my ($CIL_IN,$CIL_OUT,$CIL_ERR);
@@ -217,9 +225,13 @@ sub fnamerepack
 sub ld_maker
 {
 	my %args = @_;
+
+#	foreach (keys %args) { print "DEBUG_FILES_2: $_\n"; }
+
 	my $do_preprocess = $args{preprocess};
 	$do_preprocess = 1 unless exists $args{preprocess};
 	my $do_cilly = $args{cilly} || '';
+	my $do_cilly_once = $args{cilly_once} || '';
 	my $cil_temps = $args{cil_temps} || '';
 	my $cil_path = $args{cil_path} || '';
 	my $unbasedir_ref = $args{unbasedir_ref};
@@ -321,29 +333,47 @@ sub ld_maker
 					my $cilly_dir = "$workdir/cilly";
 					mkpath($cilly_dir);
 					#my $cil_file = $new_record->{i_file}; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "$cilly_dir/$cil_file";
-					my $cil_file = fnamerepack($workdir,$unbasedir,$new_record->{i_file},
-						sub { my $cil_file = $_[0]; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "cilly/$cil_file"; return $cil_file}
-					);
-					mkpath(dirname($cil_file));
-					$new_record->{cil_file} = $cil_file;
-					my (undef, $error) = cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps);
-					my $cil_result = $? >> 8;
-					vsay ("DEBUG","CIL exit code is $cil_result\n");
-					$? and do { vsay("WARNING", "CIL ERROR!  Terminating checker.\n"); $fail = "CIL ERROR.  Output:\n$error"; return $verify->(%common_vercmd_args, already_failed=>$fail);  };
+					if($do_cilly_once) {
+						my $cil_extra_files_list = "$cilly_dir/cil_extrafiles.list";
+						vsay 'DEBUG', "Add new file to \"$cilly_dir/cil_extrafiles.list\"\n";
+						open FILE,">>",$cil_extra_files_list or die "Can' open new cillist file: $!";
+						print FILE $new_record->{'i_file'}."\n";
+						close FILE or die "Can't close cillist file: $!";
+					} else {
+						my $cil_file = fnamerepack($workdir,$unbasedir,$new_record->{i_file},
+							sub { my $cil_file = $_[0]; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "cilly/$cil_file"; return $cil_file}
+						);
+						mkpath(dirname($cil_file));
+						$new_record->{cil_file} = $cil_file;
+						my (undef, $error) = cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps);
+						my $cil_result = $? >> 8;
+						vsay ("DEBUG","CIL exit code is $cil_result\n");
+						$? and do { vsay("WARNING", "CIL ERROR!  Terminating checker.\n"); $fail = "CIL ERROR.  Output:\n$error"; return $verify->(%common_vercmd_args, already_failed=>$fail);  };
+					}
 				}else{
 					$new_record->{cil_file} = $new_record->{i_file};
 				}
 
 				$new_record->{i_file} = $new_record->{cil_file};
-
-				push @$c_files_info, $new_record;
+				
+				$do_cilly_once or push @$c_files_info, $new_record;
 			}
+		}
+		if($do_cilly_once) {
+			my $new_record = {cil_file=>"$workdir/cilly/out.cilf.c", i_file=>"$workdir/cilly/cil_extrafiles.list", cwd=>"$workdir/cilly/"};
+			my (undef, $error) = cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps, is_list=>1);
+			my $cil_result = $? >> 8;
+			vsay ("DEBUG","CIL exit code is $cil_result\n");
+			$? and do { vsay("WARNING", "CIL ERROR!  Terminating checker.\n"); $fail = "CIL ERROR.  Output:\n$error"; return $verify->(%common_vercmd_args, already_failed=>$fail);  };
+			$new_record->{i_file} = $new_record->{cil_file};
+			push @$c_files_info, $new_record;
 		}
 
 		# Call the verifier for all of the preprocessed c-files gotten at once, and and supply the additional arguments fetched from the tag record.
 
 		# Get list of files to analyze:
 		my @files = map {$_->{i_file}} @$c_files_info;
+		$do_cilly_once and @files = "$workdir/cilly/out.cilf.c";
 
 		$verify->(%common_vercmd_args, files => \@files);
 

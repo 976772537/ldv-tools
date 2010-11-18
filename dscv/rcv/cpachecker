@@ -95,7 +95,8 @@ my $check_input_file = XML::Twig->new(
 	twig_handlers => {
 		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
 		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cilly_once=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
+#		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
 	}
 );
 $check_input_file->parsefile($config->{cmdfile});
