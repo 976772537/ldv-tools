@@ -11,20 +11,20 @@ if (isset($this->error)) {
 }
 else {
   print_r($results['Error trace']->errorTrace);
-
-  // Print show/hide plugin for error trace visualizer log. By default it isn't shown.
-  echo "<script type='text/javascript'>
-          $(document).ready(function() {
-            $('#SETVLogShowHideLink').toggle(function() {
-              $('#SETVLog').show();
-              return false;
-            } , function() {
-              $('#SETVLog').hide();
-              return false;
-            });
-          });
-        </script>";
 }
+
+// Print show/hide plugin for error trace visualizer log. By default it isn't shown.
+echo "<script type='text/javascript'>
+        $(document).ready(function() {
+          $('#SETVLogShowHideLink').toggle(function() {
+            $('#SETVLog').show();
+            return false;
+          } , function() {
+            $('#SETVLog').hide();
+            return false;
+          });
+        });
+      </script>";
 
 echo "<div id='SETVLogShowHide'><a href='#' id='SETVLogShowHideLink'>Error trace visualizer log</a></div>";
 
