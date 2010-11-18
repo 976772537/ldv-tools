@@ -136,7 +136,7 @@ class Source
 	# Returns hash of sources found in the directory supplied
 	# We will attach sources based on this hash to the relevant traces
 	def self.from_dir(dirname)
-		return [] unless FileTest.directory? dirname
+		return {} unless FileTest.directory? dirname
 		file_recs = {}
 		Find.find(dirname) do |path|
 			unless FileTest.directory?(path)
