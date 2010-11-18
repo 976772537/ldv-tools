@@ -1,11 +1,12 @@
 #!/usr/bin/perl
 
 # RCV Frontend for CPAchecker tool.
-# WARNING!! CPAchecker was excluded from the current revision of our tools due to its poor support.  Its support will be severely improved, but that is not the aim of this revision.
-# Stay tuned!
 
-print STDERR "CPAchecker is not supported in this version of LDV!\n";
-exit 1;
+# Available options:
+# NO_CIL
+# CPACHECKER (defaults to cpa.sh)
+# CPACHECKER_CONFIG
+# CPACHECKER_OPTIONS
 
 #======================================================================
 # PROCESS OPTIONS AND SET UP INITIAL VARIABLES
@@ -50,19 +51,23 @@ GetOptions(%optionSpecs) or die("Unrecognized options!");
 
 # Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
-my $backend_dir = "$shared_dir/rcv/backends/cpachecker";
-my $cpachecker = "$backend_dir/scripts/cpa.sh";
-my $configs_dir = "$backend_dir/etc";
+my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
+my $configs_dir = "$shared_dir/rcv/etc/";
 my $workdir = $config->{workdir};
 
+my $cpachecker_config = $ENV{'CPACHECKER_CONFIG'};
+
+my $cil_dir = "$shared_dir/cil";
+
 -f $config->{cmdfile} or die "RCV's command file $config->{cmdfile} is not found";
--d $backend_dir or die "RCV's directory $backend_dir is not a directory";
--x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
+#-x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
 -d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+-d $configs_dir or die "CPAchecker configs directory $configs_dir is not a directory";
+!$cpachecker_config || -f $cpachecker_config or die "CPAchecker configuration '$cpachecker_config' is specified but not readable!";
 
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000);	# Default memory limit is 1Gb.  It may be overflowed, because it's set as -Xmx
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || undef;	# Do not set memory limit, let cpachecker itself handle this
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
 # Check if we launch CIL before the verifier
@@ -74,11 +79,6 @@ if ($ENV{'NO_CIL'}){
 
 # Prepare sanity checks
 my $sanity = DSCV::Sanity->new($config->{sandir});
-
-
-# Set up CPAchecker project path
-$ENV{'PATH_TO_CPACHECKER'} = $backend_dir;
-
 
 #Check if cpachecker is available
 cpachecker_quick_check();
@@ -97,8 +97,7 @@ my $check_input_file = XML::Twig->new(
 	twig_handlers => {
 		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
 		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cilly_once=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
-#		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cilly_once=>$cilly, cil_path=>$cil_dir, cil_temps=>"$workdir/cil_temps"),
 	}
 );
 $check_input_file->parsefile($config->{cmdfile});
@@ -219,49 +218,57 @@ sub call_cpachecker
 	my @cpachecker_options = ($cpachecker,@{$args{files}});
 
 	# Set default options
-	# Create a temporary config file.  Config is based on sympredabsCPA
-	my $CPA_CFG; my $cpa_cfg = "$args{workdir}/cpa.cfg"; open $CPA_CFG, ">", $cpa_cfg or die;
-	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
+	# If no config file is specified, create a temporary one
+	unless ($cpachecker_config) {
+		# Create a temporary config file.  Config is based on sympredabsCPA
+		my $CPA_CFG; my $cpa_cfg = "$args{workdir}/cpa.cfg"; open $CPA_CFG, ">", $cpa_cfg or die;
+		my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
 
-	open ORIG_CFG, "$ENV{'LDV_HOME'}/dscv/rcv/backends/cpachecker/etc/cpa.cfg.pattern" or die "$!";
-	my @orig_lines = <ORIG_CFG>;
-	close ORIG_CFG;
+		vsay 40, "copy config from $configs_dir/cpa.cfg.pattern\n";
+		open ORIG_CFG, "$configs_dir/cpa.cfg.pattern" or die "$!";
+		my @orig_lines = <ORIG_CFG>;
+		close ORIG_CFG;
 
-	my $state = 0;
-	foreach my $oline (@orig_lines) {
-		if($oline =~ /specification = .*/) {
-			$state = 1;
-			$oline = "specification = $LDV_errloc_autom\n"; 
+		my $state = 0;
+		foreach my $oline (@orig_lines) {
+			if($oline =~ /specification = .*/) {
+				$state = 1;
+				$oline = "specification = $LDV_errloc_autom\n"; 
+			}
+			vsay 'TRACE', "$oline";
+			print $CPA_CFG $oline;
 		}
-		vsay 'TRACE', "$oline";
-		print $CPA_CFG $oline;
-	}
-	close $CPA_CFG;
+		close $CPA_CFG;
 
-	# For now, only one error location is supported by CPACHECKER
-	(scalar @{$args{errlocs}} > 1) and die;
-	my $errloc = (@{$args{errlocs}})[0];
+		# For now, only one error location is supported by CPACHECKER
+		(scalar @{$args{errlocs}} > 1) and die;
+		my $errloc = (@{$args{errlocs}})[0];
 
-	
-	open ERRLOC, "$ENV{'LDV_HOME'}/dscv/rcv/backends/cpachecker/etc/errloc_automaton.txt" or die"$!";
-	my @errloc_lines = <ERRLOC>;
-	close ERRLOC;
+		
+		open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
+		my @errloc_lines = <ERRLOC>;
+		close ERRLOC;
 
-	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
-	$state = 0;
-	foreach my $oeline (@errloc_lines) {
-		if($oeline =~ /(.*)CPALABEL(.*)/) {
-			$state = 1;
-		 	$oeline = "$1\[$errloc\]$2";
+		my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
+		$state = 0;
+		foreach my $oeline (@errloc_lines) {
+			if($oeline =~ /(.*)CPALABEL(.*)/) {
+				$state = 1;
+				$oeline = "$1\[$errloc\]$2";
+			}
+			vsay 'TRACE', "$oeline";
+			print $ERRLOC_AUT $oeline;
 		}
-		vsay 'TRACE', "$oeline";
-		print $ERRLOC_AUT $oeline;
-	}
-	close $LDV_errloc_autom;
+		close $LDV_errloc_autom;
 
-	push @cpachecker_options,
-		"-config","$cpa_cfg"
-	;
+		push @cpachecker_options,
+			"-config","$cpa_cfg"
+		;
+	}else{
+		push @cpachecker_options,
+			"-config",$cpachecker_config
+		;
+	}
 
 	# Add mains and error locations
 	push @cpachecker_options, "-entryfunction",$args{main} if $args{main};

@@ -1,7 +1,7 @@
 
 # Configuration
 backends=blast
-frontends=$(backends)
+frontends=blast cpachecker
 
 # Compilation
 all: $(patsubst %,backends/%-subdir-all,$(backends))
@@ -49,6 +49,23 @@ $(rcv_install_dir)/mock: mock
 # Create subdir wrappers for backends
 all_backends=$(backends) $(test_backends)
 $(foreach backend,$(all_backends),$(eval $(call mksubdir,backends/$(backend))))
+
+# Install CPAchecker's configuration
+cpachecker_confdir=$(rcv_install_dir)/etc
+cpachecker_etcfiles= \
+		cpa.cfg.pattern \
+		errloc_automaton.txt \
+		symbpredabsCPA.properties \
+
+cpachecker_configs=$(patsubst %,$(cpachecker_confdir)/%,$(cpachecker_etcfiles))
+
+install: $(cpachecker_configs) $(cil)
+
+$(cpachecker_confdir)/%: cpachecker.config/%
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
 
 # Configuring and installing CIL
 cil_dir=cil
