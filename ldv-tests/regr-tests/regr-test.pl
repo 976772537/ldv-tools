@@ -72,6 +72,7 @@ my $launcher_working_dir = 'launcher-working-dir';
 my $ldv_loader_bin = "ldv-load.pl";
 
 # Command-line options. Use --help option to see detailed description of them.
+my $opt_check = 1;
 my $opt_diff_file;
 my $opt_diff_merge_tool;
 my $opt_help;
@@ -107,7 +108,14 @@ get_opt();
 print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
 prepare_files_and_dirs();
 
-print_debug_normal("Launch ldv-manager, obtain results, upload them to the database, load results to the new task file and compare it with the existing one");
+if ($opt_check)
+{
+  print_debug_normal("Launch ldv-manager, obtain results, upload them to the database, load results to the new task file and compare it with the existing one");
+}
+else
+{
+  print_debug_normal("Launch ldv-manager, obtain results an upload them to the database")
+}
 perform_regr_test();
 
 print_debug_normal("Make all successfully");
@@ -120,6 +128,7 @@ print_debug_normal("Make all successfully");
 sub get_opt()
 {
   unless (GetOptions(
+    'check!' => \$opt_check,
     'diff-file|o=s' => \$opt_diff_file,
     'diff-tool|t=s' => \$opt_diff_merge_tool,
     'help|h' => \$opt_help,
@@ -145,6 +154,13 @@ SYNOPSIS
   $PROGRAM_NAME [option...]
 
 OPTIONS
+
+  --no-check
+    With this option the tool launches and uploads all results to a specified
+    database but it neither cleans previous results from the database nor
+    performs checking. The option is usefull to obtain results for a
+    corresponding test set in the direct way. By default the option is disabled,
+    so the usual checking is performed.
 
   -t, --diff-tool, --merge-tool <tool>
     <tool> is a some diff/merge tool (e.g. 'diff', 'meld' and so on) with
@@ -208,24 +224,36 @@ sub perform_regr_test()
 
   print_debug_normal("Upload the obtain results to the database");
   @args = ("$tool_aux_dir/$script_upload", "--results", "$current_working_dir/$launcher_results_dir");
+  if (!$opt_check)
+  {
+    push(@args, "--no-check");
+  }
   print_debug_info("Execute the command '@args'");
   system(@args);
   die("The uploader fails") if (check_system_call());
 
-  print_debug_normal("Load results to the new task file");
-  @args = ($ldv_loader_bin, "--task", "$current_working_dir/$task_file");
-  print_debug_info("Execute the command '@args'");
-  system(@args);
-  die("The loader fails") if (check_system_call());
+  # Load results from a database and check them just for the default check mode.
+  if ($opt_check)
+  {
+    print_debug_normal("Load results to the new task file");
+    @args = ($ldv_loader_bin, "--task", "$current_working_dir/$task_file");
+    print_debug_info("Execute the command '@args'");
+    system(@args);
+    die("The loader fails") if (check_system_call());
 
-  print_debug_normal("Compare the old and the new results");
-  @args = ("$tool_aux_dir/$script_check", "--task", "$current_working_dir/$task_file", "--diff-file", "$diff_file", "--t", "$diff_merge_tool");
-  push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);
-  print_debug_info("Execute the command '@args'");
-  system(@args);
-  die("The checker fails") if (check_system_call());
+    print_debug_normal("Compare the old and the new results");
+    @args = ("$tool_aux_dir/$script_check", "--task", "$current_working_dir/$task_file", "--diff-file", "$diff_file", "--t", "$diff_merge_tool");
+    push(@args, "--test-set", "$opt_test_set") if ($opt_test_set);
+    print_debug_info("Execute the command '@args'");
+    system(@args);
+    die("The checker fails") if (check_system_call());
 
-  print_debug_normal("The result of the regression test is placed to the file '$diff_file'");
+    print_debug_normal("The result of the regression test is placed to the file '$diff_file'");
+  }
+  else
+  {
+    print_debug_normal("Results are uploaded to the specified database");
+  }
 }
 
 sub prepare_files_and_dirs()

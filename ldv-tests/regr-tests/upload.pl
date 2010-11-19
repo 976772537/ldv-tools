@@ -72,6 +72,7 @@ my $ldv_uploader_password = 'LDVDBPASSWD';
 my $mysql_bin = 'mysql';
 
 # Command-line options. Use --help option to see detailed description of them.
+my $opt_check = 1;
 my $opt_help;
 my $opt_in;
 
@@ -105,6 +106,7 @@ print_debug_normal("Make all successfully");
 sub get_opt()
 {
   unless (GetOptions(
+    'check!' => \$opt_check,
     'help|h' => \$opt_help,
     'results|c=s' => \$opt_in))
   {
@@ -136,6 +138,12 @@ SYNOPSIS
   $PROGRAM_NAME [option...]
 
 OPTIONS
+
+  --no-check
+    With this option the tool uploads all results to a specified database but
+    it does not clean previous results from the database. The option is usefull
+    to obtain results for a corresponding test set in the direct way. By default
+    the option is disabled, so results are cleaned.
 
   -h, --help
     Print this help and exit with a error.
@@ -203,19 +211,23 @@ sub prepare_files_and_dirs()
 
 sub upload_results()
 {
-  print_debug_trace("Setup the test database");
-  my $cmd = "$mysql_bin --user=$LDVUSERTEST $LDVDBTEST";
-  $cmd .= " --host=$LDVDBHOSTTEST" if ($LDVDBHOSTTEST);
-  $cmd .= " --password=$LDVDBPASSWDTEST" if ($LDVDBPASSWDTEST);
-  $cmd .= " <$ldv_results_sql";
-  print_debug_info("Execute the command '$cmd'");
-  `$cmd`;
-  die("There is no the mysql executable in your PATH!")
-    if (check_system_call() == -1);
-  # This is checked separately since mysql isn't the part of the LDV toolset but
-  # it's too important for toolset.
-  die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'")
-    if ($CHILD_ERROR >> 8);
+  # Clean previous results from a specified database just for check mode.
+  if ($opt_check)
+  {
+    print_debug_trace("Setup the test database");
+    my $cmd = "$mysql_bin --user=$LDVUSERTEST $LDVDBTEST";
+    $cmd .= " --host=$LDVDBHOSTTEST" if ($LDVDBHOSTTEST);
+    $cmd .= " --password=$LDVDBPASSWDTEST" if ($LDVDBPASSWDTEST);
+    $cmd .= " <$ldv_results_sql";
+    print_debug_info("Execute the command '$cmd'");
+    `$cmd`;
+    die("There is no the mysql executable in your PATH!")
+      if (check_system_call() == -1);
+    # This is checked separately since mysql isn't the part of the LDV toolset but
+    # it's too important for toolset.
+    die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'")
+      if ($CHILD_ERROR >> 8);
+  }
 
   foreach my $file (<$result_dir/*>)
   {
