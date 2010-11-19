@@ -104,12 +104,12 @@ print_debug_normal("Sort task files");
 my $sort1cmd = "sort '$test_set' -o '$test_set_sorted'";
 print_debug_info("Execute the command '$sort1cmd'");
 system($sort1cmd);
-die "Sort of $test_set failed" if (check_system_call() != 0);
+die("Sort of the test set file '$test_set' failed") if (check_system_call());
 
 my $sort2cmd = "sort '$task_file' -o '$task_file_sorted'";
 print_debug_info("Execute the command '$sort2cmd'");
 system($sort2cmd);
-die "Sort of $task_file failed" if (check_system_call() != 0);
+die("Sort of the task file '$task_file' failed") if (check_system_call());
 
 print_debug_trace("Perform diff/merge");
 my $cmd = "$diff_merge_tool $test_set_sorted $task_file_sorted > $diff_file";
