@@ -238,15 +238,45 @@ sub update_memory
 	return $result;
 }
 
+sub signal_to_process_group_safely
+{
+	my ($pgrp,$signal) = @_;
+	if ($watchfor eq 'tree') {
+		# We can't kill the whole process group, so we do the following trick.
+		# We send SIGSTOP to all applicable processes.  Since they could have spawned more kids between reading their PID from ps and sending signal, we repeat this step until all processes are stopped
+		my $new_kids_spawned = 1;
+		my %sent_to = ();
+		while ($new_kids_spawned) {
+			$new_kids_spawned = 0;
+			foreach_applicable_process($pgrp,$watchfor,sub { my ($pid) = @_;
+				return if $sent_to{$pid};
+				$sent_to{$pid} = 1;
+				$new_kids_spawned = 1;
+				kill SIGSTOP, $pid;
+			});
+		}
+		# Now all the controlled processes are stopped, we send them the signal we want
+		foreach_applicable_process($pgrp,$watchfor,sub { my ($pid) = @_;
+			kill $signal, $pid;
+		});
+		# Continue the proccesses, so that they can process the signal handler
+		foreach_applicable_process($pgrp,$watchfor,sub { my ($pid) = @_;
+			kill SIGCONT, $pid;
+		});
+	}else{
+		# it's still unclear to me if there won't be a delay between catching signals in different processes when a signal is sent to a whole group.
+		kill SIGSTOP, -$pgrp;
+		kill $signal, -$pgrp;
+		kill SIGCONT, -$pgrp;
+	}
+}
+
 sub kill_process_group_safely
 {
 	my ($pgrp) = @_;
-	# it's still unclear to me if there won't be a delay between catching signals in different processes when a signal is sent to a whole group.
-	kill SIGSTOP, -$pgrp or die;
-	kill SIGTERM, -$pgrp or die;
-	kill SIGCONT, -$pgrp or die;
-
-	kill SIGKILL, -$pgrp or die;
+	signal_to_process_group_safely($pgrp,SIGTERM);
+	sleep(1);
+	signal_to_process_group_safely($pgrp,SIGKILL);
 }
 
 sub update_info_by_ucmd
