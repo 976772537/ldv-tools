@@ -1,6 +1,10 @@
 
 # Configuration
+ifeq ($(no_blast),)
 backends=blast
+else
+backends=
+endif
 frontends=blast cpachecker
 
 # Compilation

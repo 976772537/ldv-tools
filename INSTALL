@@ -9,7 +9,7 @@ MINIMAL PREREQUISITES
 
 "Minimal prerequisites" are necessary for installing console tools:
 
-	o OCaml 3.10 or 3.11.0-3.11.2
+	o OCaml 3.10 or 3.11.0-3.11.2 (for BLAST verifier)
 	o Perl 5.10
 	o Ruby 1.8
 	o JDK or OpenJDK 1.6.0
@@ -107,4 +107,11 @@ your path:
 
 Here `/path/to/prefix` is what you've specified as prefix wile installing the
 above tools.
+
+You may skip installing BLAST reachability C verifier (this is useful if you
+have your own, and are not going to use the default one).  To do this, add the
+following variable when installing:
+
+	no_blast=y prefix=/path make install
+
 
