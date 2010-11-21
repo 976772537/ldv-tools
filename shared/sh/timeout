@@ -61,6 +61,9 @@ sub when_die{
 $SIG{'INT'} = \&when_die;
 $SIG{'TERM'} = \&when_die;
 $SIG{'QUIT'} = \&when_die;
+# We sleep between sending TERM and KILL to kids, so we might end up in a regular tick instead of the kill procedure!
+# Here's a block for that
+my $dying = 0;
 
 use Data::Dumper;
 
@@ -83,6 +86,8 @@ while ($status eq 'wait'){
 	# Refer to `perldoc alarm` if surprised.
 	eval {
 		local $SIG{'ALRM'} = sub {
+			# If we're dying don't return to the embracing eval, return somewhere else!
+			return if $dying;
 			# Note that this signal can only interrupt "wait" function (unless we're currently in some internals of Perl implementation of waitpid wrapper, but must of the time we spend inside the wait() call).
 			# According to signal(7), wait is a safe function, so we can call anything we want here.
 			$timeinfo = update_time($blackbox_pid,$timeinfo);
@@ -274,7 +279,11 @@ sub signal_to_process_group_safely
 sub kill_process_group_safely
 {
 	my ($pgrp) = @_;
+	# Show that we're dying, so that our timely alarm handler doesn't longjmp() control out of here
+	$dying = 1;
 	signal_to_process_group_safely($pgrp,SIGTERM);
+	# Reset alarm handler
+	$SIG{'ALRM'} = 'DEFAULT';
 	sleep(1);
 	signal_to_process_group_safely($pgrp,SIGKILL);
 }
