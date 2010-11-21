@@ -2,8 +2,8 @@
 # Resource monitoring script for limiting black-boxed processes.
 # It runs an arbitrary process and watches for memory and time consumption.
 # The main feature is that it watches not only the process spawned, but also
-# its children--as long as it doesn't emerge a new process group, which it
-# should watch for on its own.
+# its children--as long as a process doesn't detach ownership from parent (or
+# doesn't change process group; use -w).
 
 sub usage{ print STDERR <<usage_ends;
 Usage:
@@ -20,6 +20,7 @@ my $memlimit = undef;
 my $strapt = undef;
 my $output = undef;
 my $reference = undef;
+my $watchfor = 'tree';
 # Requests per seccond
 my $frequency = 10;
 
@@ -30,6 +31,7 @@ GetOptions(
 	'pattern|p=s'=>\$strpat,
 	'output|o=s'=>\$output,
 	'reference|r=s'=>\$reference,
+	'watchfor|w=s'=>\$watchfor,
 ) or usage;
 
 @ARGV or usage;
@@ -46,6 +48,7 @@ defined $blackbox_pid or die "Couldn't fork: $!";
 
 unless ($blackbox_pid){
 	# Set the process group of the blackbox process
+	# We set it even if we watch for a process tree
 	setpgrp 0,0;
 	local $" = " ";
 	exec @ARGV or die "Couldn't exec @ARGV: $!"; 
@@ -134,6 +137,61 @@ exit $box_status;
 use POSIX;
 my $ticksize;
 BEGIN { $ticksize = POSIX::sysconf(&POSIX::_SC_CLK_TCK) or die "Couldn't get ticksize";}
+
+
+# Function that traverses process tree (according to watchfor setting) and invokes the function supplied for each applicable process
+sub foreach_applicable_process
+{
+	my ($pgrp,$watchfor,$sub) = @_;
+	local $_;
+	# Depending on whether we count time for process tree or for process group, we use different command.
+	if ($watchfor eq 'tree') {
+		# Read ps output of a process tree, and read a subtree of the pid we watch for
+		# The tree will look like this:
+		# 26944 26944 kdeinit4
+		# 26944 26948  \_ klauncher
+		# 26944 12501  \_ kio_pop3
+		# 26944  1591  \_ VirtualBox
+		# 26944  1598  |   \_ VirtualBox
+		# 26944  1644  |       \_ VBoxXPCOMIPCD
+		# 26944 28333  \_ pidgin
+		# 26944 28581  \_ kio_file
+		# 26944 12496 kmail
+		my $chars = "\t \\_|";
+		my $PS_FH; open $PS_FH, "-|", qw(ps -e f -o pgrp= -o pid= -o vsz= -o ucmd=) or die "Bad open ps: $!";
+		my $state = 0;	# 0 - still haven't encounter root;	1 - reading tree; (when tree is read, we break the loop)
+		my $initial_depth = undef;	# Initial depth of the root of a tree
+		while (<$PS_FH>){
+			/^\s*([0-9]+)\s*([0-9]+)\s*([0-9]+)([ |\\_]+)(.*)/ or next;
+			#      PID                depth in process tree
+			my ($grp,$pid,$vsz,$depth_str,$cmd) = ($1,$2,$3,$4,$5);
+			if ($state == 0){
+				# Still haven't encounter root, check if it's now
+				$pid == $pgrp or next;
+				$state = 1;
+				$initial_depth = length $depth_str;
+			}else{
+				# Reading inside process tree, check if it's not over
+				length $depth_str == $initial_depth and last;
+			}
+			# Ok, this is a node in the tree we want to process
+			$sub->($pid,$grp,$cmd,$vsz);
+		}
+		close $PS_FH or die "Bad close ps: $!";
+	}else{
+		# Read ps output to get all processes within a group. Time output is not necessary, since we calculate it directly via /proc
+		my $PS_FH; open $PS_FH, "-|", qw(ps -A -o pgrp= -o pid= -o vsz= -o ucmd=) or die "Bad open ps: $!";
+		while (<$PS_FH>){
+			/^\s*([0-9]+)\s*([0-9]+)\s*([0-9]+)\s*(.*)/ or next;
+			my ($grp,$pid,$vsz,$cmd) = ($1,$2,$3);
+			$grp == $pgrp or next;
+
+			$sub->($pid,$grp,$cmd,$vsz);
+		}
+		close $PS_FH or die "Bad close ps: $!";
+	}
+}
+
 sub hires_proc_runtime
 {
 	my ($pid) = @_;
@@ -150,19 +208,13 @@ sub update_time
 	my ($pgrp, $timeinfo) = @_;
 	my %terminated = (%{$timeinfo->{current}});
 	my $result = {total => $timeinfo->{total}, finished => $timeinfo->{finished}, current => {} };
-	# Read ps output to get all processes within a group. Time output is not necessary, since we calculate it directly via /proc
-	my $PS_FH; open $PS_FH, "-|", qw(ps -A -o pgrp= -o pid=) or die "Bad open ps: $!";
-	while (<$PS_FH>){
-		/^\s*([0-9]+)\s*([0-9]+)/ or next;
-		my ($grp,$pid) = ($1,$2);
-		$grp == $pgrp or next;
 
+	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$cmd) = @_;
 		# If hires_proc_runtime doesn't return a value (the $pid died before it tried), we keep the old value of time.  The error is not greater than ualarm interval.
 		$result->{current}->{$pid} = hires_proc_runtime($pid) || $timeinfo->{current}->{$pid};
 		# Show that this process is still running by removind it from set of processes that were running in this group, but have been terminated.
 		delete $terminated{$pid} if $terminated{$pid};
-	}
-	close $PS_FH or die "Bad close ps: $!";
+	});
 
 	local $_;
 	# Add the total time of terminated processes to finished time.
@@ -177,18 +229,12 @@ sub update_time
 
 sub update_memory
 {
-	# Calculate the amount of memory consumed by the process group given 
+	# Calculate the amount of memory consumed by the process group given
 	my ($pgrp) = @_;
 	my $result = 0;
-	# Read ps output to get all processes within a group.
-	my $PS_FH; open $PS_FH, "-|", qw(ps -A -o pgrp= -o pid= -o vsz=) or die "Bad open ps: $!";
-	while (<$PS_FH>){
-		/^\s*([0-9]+)\s*([0-9]+)\s*([0-9]+)/ or next;
-		my ($grp,$pid,$mem) = ($1,$2,$3);
-		$grp == $pgrp or next;
-		$result += $mem;
-	}
-	close $PS_FH or die "Bad close ps: $!";
+	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$cmd,$vsz) = @_;
+		$result += $vsz;
+	});
 	return $result;
 }
 
@@ -203,24 +249,19 @@ sub kill_process_group_safely
 	kill SIGKILL, -$pgrp or die;
 }
 
-sub update_info_by_ucmd 
+sub update_info_by_ucmd
 {
 	my ($pgrp, $strpat) = @_;
-	my $PS_FH; open $PS_FH, "-|", qw(ps -A -o pgrp= -o pid= -o ucmd=) or die "Bad open ps: $!"; 
-	while(<$PS_FH>){
-		/^\s*([0-9]+)\s+([0-9]+)\s+(.*)/ or next;
-		my ($grp, $pid, $ucmd) = ($1, $2, $3);
-		$pgrp == $grp or next;
+	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$ucmd) = @_;
 		my $proctime = hires_proc_runtime($pid);
 		$proctime or next;
-		# Search process by pattern		
+		# Search process by pattern
 		foreach my $key(keys %{$strpat}) {
 			$ucmd =~ m/$key/ or next;
 			$strpat->{$key}->{pids}->{$pid}->{ptime} = $proctime;
 			$strpat->{$key}->{pids}->{$pid}->{ucmd} = $ucmd;
-		}	
-	}
-	close $PS_FH;
+		}
+	});
 
 	# Calculate full time for each pattern
 	foreach my $key(keys %{$strpat}) {
