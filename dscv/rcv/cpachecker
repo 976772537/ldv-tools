@@ -219,56 +219,59 @@ sub call_cpachecker
 
 	# Set default options
 	# If no config file is specified, create a temporary one
-	unless ($cpachecker_config) {
-		# Create a temporary config file.  Config is based on sympredabsCPA
-		my $CPA_CFG; my $cpa_cfg = "$args{workdir}/cpa.cfg"; open $CPA_CFG, ">", $cpa_cfg or die;
-		my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
+	my $cpa_cfg_original = $cpachecker_config || "$configs_dir/cpa.cfg.pattern";
+	my $cpa_cfg_new = "$args{workdir}/cpa.cfg";
+	# Create a temporary config file.  Config is based on our local config, or on user-defined one
+	my $CPA_CFG; open $CPA_CFG, ">", $cpa_cfg_new or die;
+	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
 
-		vsay 40, "copy config from $configs_dir/cpa.cfg.pattern\n";
-		open ORIG_CFG, "$configs_dir/cpa.cfg.pattern" or die "$!";
-		my @orig_lines = <ORIG_CFG>;
-		close ORIG_CFG;
+	vsay 40, "copy config from $configs_dir/cpa.cfg.pattern\n";
+	open ORIG_CFG, $cpa_cfg_original or die "$!";
+	my @orig_lines = <ORIG_CFG>;
+	close ORIG_CFG;
 
-		my $state = 0;
-		foreach my $oline (@orig_lines) {
-			if($oline =~ /specification = .*/) {
-				$state = 1;
-				$oline = "specification = $LDV_errloc_autom\n"; 
-			}
-			vsay 'TRACE', "$oline";
-			print $CPA_CFG $oline;
+	my $spec_state = 0;
+	foreach my $oline (@orig_lines) {
+		if($oline =~ /\bspecification\s*=\s*.*/) {
+			$spec_state = 1;
+			$oline = "#The following line was automatically replaced by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n"; 
 		}
-		close $CPA_CFG;
-
-		# For now, only one error location is supported by CPACHECKER
-		(scalar @{$args{errlocs}} > 1) and die;
-		my $errloc = (@{$args{errlocs}})[0];
-
-		
-		open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
-		my @errloc_lines = <ERRLOC>;
-		close ERRLOC;
-
-		my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
-		$state = 0;
-		foreach my $oeline (@errloc_lines) {
-			if($oeline =~ /(.*)CPALABEL(.*)/) {
-				$state = 1;
-				$oeline = "$1\[$errloc\]$2";
-			}
-			vsay 'TRACE', "$oeline";
-			print $ERRLOC_AUT $oeline;
-		}
-		close $LDV_errloc_autom;
-
-		push @cpachecker_options,
-			"-config","$cpa_cfg"
-		;
-	}else{
-		push @cpachecker_options,
-			"-config",$cpachecker_config
-		;
+		vsay 'TRACE', "$oline";
+		print $CPA_CFG $oline;
 	}
+	if ($spec_state == 0) {
+		# Automaton specification is not in the config file.  Add our own.
+		print $CPA_CFG "\n#The following line was automatically added by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n"; 
+	}
+	close $CPA_CFG;
+
+	# For now, only one error location is supported by CPACHECKER
+	(scalar @{$args{errlocs}} > 1) and die;
+	my $errloc = (@{$args{errlocs}})[0];
+
+	
+	# Copy Automaton and replace label name with the one we need
+
+	open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
+	my @errloc_lines = <ERRLOC>;
+	close ERRLOC;
+
+	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
+	my $state = 0;
+	foreach my $oeline (@errloc_lines) {
+		if($oeline =~ /(.*)CPALABEL(.*)/) {
+			$state = 1;
+			$oeline = "$1\[$errloc\]$2";
+		}
+		vsay 'TRACE', "$oeline";
+		print $ERRLOC_AUT $oeline;
+	}
+	close $LDV_errloc_autom;
+
+	# Add config option to cpachecker call line
+	push @cpachecker_options,
+		"-config","$cpa_cfg_new"
+	;
 
 	# Add mains and error locations
 	push @cpachecker_options, "-entryfunction",$args{main} if $args{main};
@@ -385,31 +388,11 @@ EOR
 
 
 
+# This subroutine used to
 # Perform CPACHECKER quick check before running any verifications
+# But it was suppressed because CPAchecker takes too much time to start.
 sub cpachecker_quick_check
 {
-	$" = ' ';      # For error reporting
-	vsay ('INFO', "Trying to run CPAchecker without arguments to see if it works...");
-	my @cpachecker_args = ($cpachecker,"-help");
-	my $CHEW_CPACHECKER_OUT;
-	my $fpid = open $CHEW_CPACHECKER_OUT,"-|";
-	defined $fpid or die "Can't fork?  Wtf";
-	if ($fpid == 0){
-		# child
-		# Run cpachecker
-		exec @cpachecker_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @cpachecker_args";
-		exit 1;
-	}
-	# Parent
-	# Ignore cpachecker's output.
-	my $wpres = Utils::hard_wait($fpid,0);
-	$wpres > 0 or die;
-	# \n to complement previous message
-	$? == 0 or die "\nINTEGRATION ERROR.  CPACHECKER test exited with non-zero return code $?.";
-	# Ok, now we can close the pipe
-	close($CHEW_CPACHECKER_OUT);
-
-	vsay ('INFO',"OK\n");
 }
 
 sub java_oom
