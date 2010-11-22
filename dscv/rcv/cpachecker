@@ -231,17 +231,26 @@ sub call_cpachecker
 	close ORIG_CFG;
 
 	my $spec_state = 0;
+	my $rifel_state = 0;
 	foreach my $oline (@orig_lines) {
 		if($oline =~ /\bspecification\s*=\s*.*/) {
 			$spec_state = 1;
-			$oline = "#The following line was automatically replaced by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n"; 
+			$oline = "#The following line was automatically replaced by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
+		}
+		if($oline =~ /\bcfa.removeIrrelevantForErrorLocations\s*=\s*.*/) {
+			$rifel_state = 1;
+			$oline = "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
 		}
 		vsay 'TRACE', "$oline";
 		print $CPA_CFG $oline;
 	}
+	# If settings aren't specified in the config, just print them
 	if ($spec_state == 0) {
 		# Automaton specification is not in the config file.  Add our own.
-		print $CPA_CFG "\n#The following line was automatically added by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n"; 
+		print $CPA_CFG "\n#The following line was automatically added by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
+	}
+	if($rifel_state == 0) {
+		print $CPA_CFG "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
 	}
 	close $CPA_CFG;
 
