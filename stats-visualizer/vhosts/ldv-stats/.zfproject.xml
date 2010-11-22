@@ -54,6 +54,7 @@
           <dbTableFile dbTableName="Launches"/>
           <dbTableFile dbTableName="Traces"/>
           <dbTableFile dbTableName="Sources"/>
+          <dbTableFile dbTableName="ToolTimeInfo"/>
         </dbTableDirectory>
         <modelFile modelName="Page"/>
         <modelFile modelName="LaunchInfo"/>
@@ -67,6 +68,7 @@
         <modelFile modelName="GeneralMapper"/>
         <modelFile modelName="ErrorTrace"/>
         <modelFile modelName="GeneralStats"/>
+        <modelFile modelName="TimeInfo"/>
       </modelsDirectory>
       <modulesDirectory enabled="false"/>
       <viewsDirectory>
