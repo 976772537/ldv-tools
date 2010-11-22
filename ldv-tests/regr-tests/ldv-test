@@ -10,6 +10,9 @@ $ENV{'LDVDBTEST'}=$ENV{'LDVDB'};
 $ENV{'LDVUSERTEST'}=$ENV{'LDVUSER'};
 $ENV{'LDVPASSWDTEST'}=$ENV{'LDVPASSWD'};
 
+my $curr_dt = `date +%F-%H-%M-%S`; chomp $curr_dt;
+$ENV{'LDV_TASK_NAME'} ||= $curr_dt;
+
 $"=' ';
 printf "Launch regression tests:
 regr-test.pl --no-check --test-set @ARGV\n";

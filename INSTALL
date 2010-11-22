@@ -88,7 +88,8 @@ before installing '6' and '7'.
      prefix=/path/to/your/installation/directory make install-verifiers
 
   3. To install the statistics server use:
-     prefix=/path/to/your/installation/directory make install-visualization
+     sudo prefix=/path/to/some/directory make install-visualization
+     (Since it will most likely require root access, install it separately)
 
   4. To install tests use:
      prefix=/path/to/your/installation/directory make install-testing

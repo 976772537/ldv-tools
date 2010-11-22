@@ -408,3 +408,10 @@ end
 # Remove temporary directory on success (keep it if something failed, we might want to examine it!)
 FileUtils.remove_dir(tmpdir)
 
+# Report address where to look for results
+puts <<EOF
+
+Results are uploaded to database.  You may view this and the other launches in that database at:
+	#{ldv_report_link}
+
+EOF

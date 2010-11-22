@@ -14,6 +14,11 @@ def ldv_db_connect
 	ActiveRecord::Base.connection()
 end
 
+def ldv_report_link
+	verifiers_add = ENV['RCV_VERIFIER'] ? 'profilename/rcv/' : ''
+  "http://localhost:8999/stats/index/#{verifiers_add}name/#{ENV['LDVDB']}/host/#{(ENV['LDVDBHOST'] || 'localhost')}/user/#{ENV['LDVUSER']}/password/#{ENV['LDVDBPASSWD'] || 'no'}"
+end
+
 ## Convenience functions for REXML
 class REXML::Element
 	# Get text of the first element statisfying xpath

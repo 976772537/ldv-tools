@@ -12,6 +12,7 @@ help for those who might want to use CPAchecker with our tools.
 Modular architecture of LDV tools makes it possible to replace one static code
 checker with another, as long as the tool can solve reachability problem for C
 language.  We call such tools "Reachability C Verifiers" (or, RCVs).
+
 Unfortunately, due to low demand on such functionality, the interface is not
 well-developed, and is prohibitively hard to develop for the people not involved
 in the project.
@@ -38,17 +39,17 @@ variables before you run the tools.  Here's the list of them:
 
 RCV_VERIFIER=cpachecker
 	Use CPAchecker as RCV.  If you don't specify it, the tools will default
-	to using BLAST.
+	to using BLAST (and fail if you don't have it installed).
 
 CPACHECKER=/path/to/cpa.sh
 	Specify location of CPAchecker cpa.sh script.  By default, it runs
-	"cpa.sh" found in PATH environment variable.
+	"cpa.sh" found in your PATH environment variable.
 
 CPACHECKER_CONFIG=config.cfg
 	If yon don't want to use the default config (which is found in
 	dscv/rcv/cpachecker.config/cpa.cfg.pattern), you may specify your own
-	through this variable.  Note that some options will be automatically
-	changed in it.
+	through this variable.  Note that it will be copied, and some options will be
+	adjusted in it!
 
 CPACHECKER_OPTIONS=
 	Additional options for CPAchecker.  You should not set "-config" option
@@ -56,9 +57,28 @@ CPACHECKER_OPTIONS=
 
 LDV_DEBUG=20
 	To see the exact command lines, with which CPAchecker is invoked, you might
-	want to increase the verbosity level.  Level of 20 is enough; you may
-	increase it up to 100.
+	want to increase the verbosity level.  Level of 20 is enough to see calls to
+	CPAchecker; you may increase it up to 100 (but you might not really want to).
+
+RCV_TIMELIMIT=900    (seconds)
+RCV_MEMLIMIT=0       (megabytes)
+	Reachability C Verifiers are run under inspection.  If they violate time- or
+	memory limit, they're terminated.  The number of violations of time and memory
+	limits is calculated and can be viewed in final statistics.
+
+	Since CPAchecker already contains memory limiting mechanism, memory limit is
+	not set by default (however, violations of Java's natively set limit are
+	tracked).  Time is limited with 15 minutes.  You can decrease, increase or
+	unset the time limit to adjust performance of your tools.
 
 It could be a good idea to add these options to a file and just use "source"
 shell command to apply them to the current environment.
+
+Launch several verification tasks on the same toolset, but with different
+configs/verifiers, don't forget to assign different descriptions to these
+launches, and check difference between checker performances in the web interface
+(stats-visualization).  If you see too much numbers, try adding "profile/rcv/"
+to the URL!
+
+Good luck in your development!
 

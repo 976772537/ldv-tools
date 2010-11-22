@@ -40,14 +40,17 @@ TUTORIAL
 
   II. VERIFY DRIVERS
 
+    Verification needs a separate directory, which it pollutes with files.
+    You'll need up to 25 Gb if you run checks on the whole kernel. So, at first,
+    create a direcory to work with the ldv tools and change to it:
+        mkdir sample
+        cd sample
+
+
     a)KERNEL OR EXTERNAL DRIVERS
 
       Now you can verify your drivers by means of the ldv manager tool. Here is
       the simple way to do this:
-        - Create a direcory to work with the ldv tools and go to it:
-            mkdir sample
-            cd sample
-
         - Obtain a kernel that contains your driver or with which your driver
           should work. For example you can download kernels from the
           http://www.kernel.org:
@@ -106,7 +109,9 @@ TUTORIAL
 
          LDV_TASK_DESCRIPTION="Testing verifier config 1"                \
          LDVDB=dbname LDVUSER=dbuser LDVDBPASSWD=dbpass LDVDBHOST=dbhost \
-         ldv-tests /prefix/ldv-tests/regr-tests/test-sets/general/regr-task-general
+         ldv-test /prefix/ldv-tests/regr-tests/test-sets/general/regr-task-general
+
+      (The path to regr-task-* should be absolute.  Sorry.)
 
 
  III. VIEW RESULTS
