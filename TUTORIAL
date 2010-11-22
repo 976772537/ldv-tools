@@ -100,6 +100,8 @@ TUTORIAL
       browser address bar:
         http://localhost:8999/stats/index/name/dnname/host/dbhost/user/dbuser/password/dbpass
 
+      ldv-upload script will also show this address at the end of uploading.
+
  IV. VERIFICATION AS WEB-SERVICE
      The ldv tools have another way to verify your drivers. You may deploy a web
      service; the same as on linuxtesting.org site:

@@ -23,12 +23,11 @@ MINIMAL PREREQUISITES
 	o GNU Autoconf
 	o GNU Automake
 	o GNU binutils
-	o GNU Multiple Precision Library (GMP), development version
+	o GNU Multiple Precision Library (GMP), development version (for BLAST)
 	o MPFR Library, development version
 	o Flex or lex
 	o Yacc or Bison
 	o libncurses
-	o gmp-devel
 	o MySQL (with InnoDB)server and console client, with development headers and libaries
 	o Perl modules (install via `sudo cpan Module::Name` or via packange manager):
 		- DBI
