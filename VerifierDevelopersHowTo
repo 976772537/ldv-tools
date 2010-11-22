@@ -16,8 +16,8 @@ Unfortunately, due to low demand on such functionality, the interface is not
 well-developed, and is prohibitively hard to develop for the people not involved
 in the project.
 
-The default shippment of LDV tools can use BLAST or CPAchecker as verifiers
-smoothly.
+However, we integrated support of BLAST and CPAchecker as verifiers into our
+tools.
 
 
 HOW TO USE CPACHECKER
@@ -30,11 +30,11 @@ them, you must use "no_blast=y" option when installing the toolset.
 
 Install the following components: install-visualization, install-testing.
 
-You most likely would want to run all drivers in a kernel with ldv-manager, or
-run a regression test set.  The only difference with default workflow (about
-which you can read in README and TUTORIAL) is that you should set some
-additional environment variables before you run the tools.  Here's the list of
-them:
+You most likely would want to run all drivers in a kernel, or run the "General"
+regression test set (this test set contains "interesting" drivers of various
+sizes).  The only difference with default workflow (about which you can read in
+README and TUTORIAL) is that you should set some additional environment
+variables before you run the tools.  Here's the list of them:
 
 RCV_VERIFIER=cpachecker
 	Use CPAchecker as RCV.  If you don't specify it, the tools will default
@@ -55,9 +55,9 @@ CPACHECKER_OPTIONS=
 	here.
 
 LDV_DEBUG=20
-	To see the exact command lines, with which you invoke CPAchecker, you
-	might want to increase the verbosity level.  Level of 20 is enough; you
-	may increase it up to 100.
+	To see the exact command lines, with which CPAchecker is invoked, you might
+	want to increase the verbosity level.  Level of 20 is enough; you may
+	increase it up to 100.
 
 It could be a good idea to add these options to a file and just use "source"
 shell command to apply them to the current environment.

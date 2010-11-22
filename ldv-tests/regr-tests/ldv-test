@@ -1,0 +1,18 @@
+#!/usr/bin/perl
+# Small wrapper to just run test sets rather than track regressions.
+
+printf "Auto-removing trash from previous launch:
+rm -rf launcher-working-dir/ launcher-results-dir/ regr-task-new regr-test.diff";
+system("rm -rf launcher-working-dir/ launcher-results-dir/ regr-task-new regr-test.diff") and die;
+
+$ENV{'LDVDBHOSTTEST'}=$ENV{'LDVDBHOST'} || 'localhost';
+$ENV{'LDVDBTEST'}=$ENV{'LDVDB'};
+$ENV{'LDVUSERTEST'}=$ENV{'LDVUSER'};
+$ENV{'LDVPASSWDTEST'}=$ENV{'LDVPASSWD'};
+
+$"=' ';
+printf "Launch regression tests:
+regr-test.pl --no-check --test-set @ARGV\n";
+
+system(qw(regr-test.pl --no-check --test-set),@ARGV) and die;
+

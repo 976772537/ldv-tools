@@ -33,7 +33,15 @@ TUTORIAL
       You can create more than one database (step 1) if you do not want to mix
       results from different launches.
 
+      Various tools find the database through environment variables.  Their
+      names are LDVDB, LDVUSER, LDVDBPASSWD and LDVDBHOST; the meanings are
+      straightforward.
+
+
   II. VERIFY DRIVERS
+
+    a)KERNEL OR EXTERNAL DRIVERS
+
       Now you can verify your drivers by means of the ldv manager tool. Here is
       the simple way to do this:
         - Create a direcory to work with the ldv tools and go to it:
@@ -81,6 +89,26 @@ TUTORIAL
       To verify drivers from a Linux kernel git repository see:
         SOURCE_DIR/ldv-git/README.
 
+
+    b)TEST SETS
+
+      LDV tools have some test sets, mainly to detect regressions.  The sets may
+      be found in ldv-tests/regr-tests/test-sets/ directory.  Three test sets
+      currently included have the following purpose:
+
+        - "Small" tests are to quickly check if the infrastructure works
+        - "General" tests are to track regressions in the Verification Tools
+        - "Big" tests are to impose a high, but artificial payload on the tools
+
+      To run test set and upload result of the tests to the database, make sure
+      you did "make install-testing" first.  Then, in a separate folder, you may
+      just run:
+
+         LDV_TASK_DESCRIPTION="Testing verifier config 1"                \
+         LDVDB=dbname LDVUSER=dbuser LDVDBPASSWD=dbpass LDVDBHOST=dbhost \
+         ldv-tests /prefix/ldv-tests/regr-tests/test-sets/general/regr-task-general
+
+
  III. VIEW RESULTS
       You will find pax archives that contain verification results in the
       directory:
@@ -101,6 +129,11 @@ TUTORIAL
         http://localhost:8999/stats/index/name/dnname/host/dbhost/user/dbuser/password/dbpass
 
       ldv-upload script will also show this address at the end of uploading.
+
+      To provide better experience, you may add descriptions to distinguish
+      different tasks from each other.  To use this, invoke ldv-upload with the
+      following env. variable:
+        LDV_TASK_DESCRIPTION="Test config 2" ldv-upload ...
 
  IV. VERIFICATION AS WEB-SERVICE
      The ldv tools have another way to verify your drivers. You may deploy a web
