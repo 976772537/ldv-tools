@@ -89,7 +89,6 @@ else
 		exit 1;
 	fi;
 	# change access for temp dir
-	chmod a+w -R $workdir;
 	if [ $? -ne 0 ]; then
 		echo "ERROR: Can't change permissions for: \"$workdir\".";
 		exit 1;
@@ -133,6 +132,12 @@ else
 			fi;
 		fi;
 	done < $LDV_ONLINE_CONF;
+	chmod a+w -R $workdir;
+	echo "Access to /lib/modules/`uname -r`/build...";
+	mkdir -p /lib/modules/`uname -r`;
+	echo "WARNING: Dir \"/lib/modules/`uname -r`/build\" can be changed during verification process.";
+	chmod a+w -R /lib/modules/`uname -r`;
+	echo " ";
 	echo "LDV node installation successfully finished.";
 	echo "------------ to start cleint use: -------------";
 	echo "$LDV_HOME/bin/ldv_client";

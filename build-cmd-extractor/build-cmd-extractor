@@ -196,47 +196,82 @@ else
 		FIND_KBUILD_FILE_OPERATION=`find $driver -regex '.*/Kbuild$' -type f`;
 		for l in $FIND_KBUILD_FILE_OPERATION; do
 			ldv_print "INFO: next Kbuild: \"$l\".";
-			if [ -n "`grep obj-m $l`" ]; then
-				CORRECT_MAKEFILE=`readlink -f $l`;
+#			if [ -n "`grep obj-m $l`" ]; then
+				CORRECT_KBUILD=`readlink -f $l`;
 				if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Kbuild file: \"$l\"."; exit 1; fi;
 				ldv_print "INFO: Correct Kbuild file is: \"$l\".";
 				break;
-			fi;
+#			fi;
 		done;
-		if [ ! -n "$CORRECT_MAKEFILE" ]; then
-			ldv_print "INFO: Kbuild not found.";
-			ldv_print "INFO: Try to find Makefile with obj-m...";
-			FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
-			for l in $FIND_MAKEFILE_FILE_OPERATION; do
-				ldv_print "INFO: next Makefile: \"$l\".";
-				if [ -n "`grep obj-m $l`" ]; then
-					CORRECT_MAKEFILE=`readlink -f $l`;
-					if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
-		        	        ldv_print "INFO: Correct Makefile is: \"$l\".";
-					break;
-				fi;
-			done;
-		fi;
-		if [ ! -n "$CORRECT_MAKEFILE" ]; then
+		ldv_print "INFO: Try to find Makefile with obj-m...";
+		FIND_MAKEFILE_FILE_OPERATION=`find $driver -regex '.*/Makefile$' -type f`;
+		for l in $FIND_MAKEFILE_FILE_OPERATION; do
+			ldv_print "INFO: next Makefile: \"$l\".";
+#			if [ -n "`grep obj-m $l`" ]; then
+				ldv_print "TRACE: CORRECT_MAKEFILE=readlink -f $l;";
+				CORRECT_MAKEFILE=`readlink -f $l`;
+				if [ $? -ne 0 ]; then ldv_print "ERROR: Can't get abs path for driver Makefile: \"$l\"."; exit 1; fi;
+		       	        ldv_print "INFO: Correct Makefile is: \"$l\".";
+				break;
+#			fi;
+		done;
+		if [ ! -n "$CORRECT_MAKEFILE" -a ! -n "$CORRECT_KBUILD" ]; then
 			ldv_print "ERROR: Can't find correct Makefile or Kbuild file.";
 			echo "Can't find correct Makefile or Kbuild file." > $statefile;
 			let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
 			echo $worktime>$statefile_data;
 			exit 1;
 		fi;
-		DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
-		if [ $? -ne 0 ]; then
-			let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
-			echo $worktime>$statefile_data;
-			ldv_print "ERROR: Can't get dirname for correct makefile: \"$DRIVER_MAKEFILE\".";
-			exit 1;
+		
+		if [ -n "$CORRECT_MAKEFILE" ]; then
+			DRIVER_MAKEFILE_DIR=`dirname $CORRECT_MAKEFILE`;
+	                if [ $? -ne 0 ]; then
+	                        let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+	                        echo $worktime>$statefile_data;
+	                        ldv_print "ERROR: Can't get dirname for correct makefile: \"$CORRECT_MAKEFILE\".";
+	                        exit 1;
+	                fi;
 		fi;
+		if [ -n "$CORRECT_KBUILD" ]; then
+			DRIVER_KBUILD_DIR=`dirname $CORRECT_KBUILD`;
+	                if [ $? -ne 0 ]; then
+	                        let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+	                        echo $worktime>$statefile_data;
+	                        ldv_print "ERROR: Can't get dirname for correct Kbuild: \"$CORRECT_KBUILD\".";
+	                        exit 1;
+	                fi;
+		fi;
+
+
+
 	fi;
 
 	ldv_print "NORMAL: Make driver."
 	if [ $KERNEL_LEVEL -eq 0 ]; then
-		ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $statefile 2>&1";
-		BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+		if [ -n "$CORRECT_KBUILD" ]; then
+			ldv_print "DEBUG: Save cmdstream file.";
+			cp $cmdfileout $cmdfileout.backup;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_KBUILD_DIR/ modules > $statefile 2>&1";
+			BUILDFILE=$cmdfileout make V=1 M=$DRIVER_KBUILD_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+			# only if it ldv-online !!!
+			if [ $? -ne 0 -a -n "$CORRECT_MAKEFILE" ]; then
+				ldv_print "DEBUG: Restore cmd stream \"$cmdfileout\" over previously Kbuild compilation.";
+				mv $cmdfileout.backup $cmdfileout;
+				ldv_print "DEBUG: Remove previous symbolic link \"/lib/modules/`uname -r`/build\".";
+				rm -f /lib/modules/`uname -r`/build; 
+				ldv_print "DEBUG: Create new symlink...";
+				ldv_print "TRACE: ln -s `readlink -f .` /lib/modules/`uname -r`/build";
+				ln -s `readlink -f .` /lib/modules/`uname -r`/build;
+				if [ $? -eq 0 ]; then								
+					ldv_print "DEBUG: BUILDFILE=$cmdfileout make -C $DRIVER_MAKEFILE_DIR V=1 > $KERNEL_COMPILE_LOG 2>$statefile;";
+					BUILDFILE=$cmdfileout make -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile;
+					# remove symlink !!!
+				fi;
+			fi;
+		else
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $statefile 2>&1";
+			BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+		fi;
 	else
 		# TODO: replace this hack!
 		# prepare kernel for external driver
