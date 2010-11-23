@@ -18,33 +18,34 @@ sub new($$)
 {
   my ($class, $data) = @ARG;
 
-  my $init = ${$data}{'engine'};	
+  my $init = ${$data}{'engine'};
   my $init_func = \&$init;
-  
+
   my $self = $init_func->($data);
   bless $self, $class;
 
-  return $self; 
+  return $self;
 }
 
 sub blast($)
 {
   my $init = shift;
-  
+
   return $init;
 }
 
-sub ispost_annotation($) 
+sub ispost_annotation($)
 {
   my $self = shift;
 
   return defined($post_annotations{$self->{'engine'}}{$self->{'kind'}});
 }
 
-sub ispre_annotation($) 
+sub ispre_annotation($)
 {
   my $self = shift;
 
   return defined($pre_annotations{$self->{'engine'}}{$self->{'kind'}});
 }
-    
+
+1;

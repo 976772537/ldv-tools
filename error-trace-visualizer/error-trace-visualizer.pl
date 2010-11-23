@@ -17,6 +17,7 @@ use Text::Highlight;
 use LDV::Utils;
 require Entity;
 require Annotation;
+require CPAchecker;
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
@@ -676,8 +677,9 @@ sub print_error_trace_cpachecker($)
 {
   my $tree_root = shift;
 
-  # At the moment the unknown stub is used.
-  print_error_trace_unknown($tree_root);
+  # Use the same trace printer as for blast since the error trace is converted
+  # to its format.
+  print_error_trace_blast($tree_root);
 }
 
 sub print_error_trace_unknown($)
@@ -788,7 +790,7 @@ sub print_error_trace_node_blast($$)
     if ($val =~ /=\s*([^\(]+)/ or $val =~ /\s*([^\(]+)/)
     {
       $func_name = $1;
-      print_debug_debug("Find the function name '$1' in '$val'");
+      print_debug_trace("Find the function name '$1' in '$val'");
 
       # Check wether function is a model function.
       if ($ldv_model_func_def{$func_name})
@@ -1149,7 +1151,7 @@ sub process_error_trace_blast()
               $files_long_name{$src} = 0;
               $src =~ /([^\/]*)$/;
               $files_short_name{$src} = $1;
-              print_debug_debug("The full name '$src' was related with the short name '$1'");
+              print_debug_trace("The full name '$src' was related with the short name '$1'");
             }
 
             $annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
@@ -1189,8 +1191,27 @@ sub process_error_trace_blast()
 
 sub process_error_trace_cpachecker()
 {
-  # At the moment the unknown stub is used.
-  return process_error_trace_unknown();
+  my @error_trace_raw = <$file_report_in>;
+  my $error_trace_converted = CPAchecker->convert_cpa_trace_to_blast(\@error_trace_raw);
+
+  # Update the error trace file with the converted trace.
+  close($file_report_in)
+    or die("Can't close the file '$opt_report_in': $ERRNO\n");
+
+  open($file_report_in, '>', "$opt_report_in")
+    or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for write: $ERRNO");
+
+  print($file_report_in @{$error_trace_converted});
+
+  close($file_report_in)
+    or die("Can't close the file '$opt_report_in': $ERRNO\n");
+
+  open($file_report_in, '<', "$opt_report_in")
+    or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for read: $ERRNO");
+
+  # Use the same trace processor as for blast since the error trace is converted
+  # to its format.
+  return process_error_trace_blast();
 }
 
 sub process_error_trace_unknown()
@@ -1237,7 +1258,7 @@ sub process_source_code_files()
           {
             $files_long_name{$full_name} = $file_name;
             $isrelated_with = $full_name;
-            print_debug_debug("The full name '$full_name' was related with the long name '$file_name'");
+            print_debug_trace("The full name '$full_name' was related with the long name '$file_name'");
           }
         }
       }
