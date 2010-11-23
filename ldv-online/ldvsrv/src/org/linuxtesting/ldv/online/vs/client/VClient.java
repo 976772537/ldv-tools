@@ -31,14 +31,9 @@ public class VClient {
 			MTask task = protocol.VSGetTask();
 			if(task == null) {
 				Logger.err("Can't get task...");
-				System.exit(1);
+				Logger.err("May be class versions in server and node not synchronized?");
 			} else if (task.getMsg().equals("NO TASKS")) {
 				Logger.info("NO tasks...");
-				try {
-					Thread.sleep(5000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}	
 			} else if (task.getMsg().equals("OK")){
 				Logger.debug("Task from user: "+task.getId());
 				Logger.info("Start verification...");
@@ -47,13 +42,18 @@ public class VClient {
 				Logger.debug("Try to send results...");
 				if(!protocol.VSSendResults(result,task.getId())) {
 					Logger.err("Can't send results...");
-					System.exit(1);
+					continue;
 				}
 				Logger.info("Results successfully sending...");
 			} else {
 				Logger.err("Unknown status...");
-				System.exit(1);				
 			}
+                        try {
+	                       Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                              e.printStackTrace();
+                        }
+
 			//break;
 		}
 	}
