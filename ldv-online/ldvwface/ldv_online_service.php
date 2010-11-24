@@ -103,6 +103,13 @@ function view_upload_driver_form() {
 	<form class='LDVOnlineForm' action="<?php print myself(); ?>" method="post" enctype="multipart/form-data">
 	<div style="margin: 10px 15px 10px 10px; text-align: left;">
 		<span style="font-style: bold; color: black; font-size: 150%;">Start Verification</span>
+
+		<br>
+                <span style="font-style: bold; color: #686868; font-size: 100%;">on x86_64 architecture<?php echo $status['timestamp']?></span>
+
+
+
+
 	</div>
 
 	<div style="margin: 10px 15px 10px 10px;">
@@ -150,7 +157,13 @@ function action_upload_driver() {
                 return;
         }
         $file_size = $_FILES['file']['size'];
-	if($file_size > WS_MAX_DRIVER_SIZE || $file_size <=0 ) {
+	if($file_size == 0) {
+                //print '<b><font color="red">Nothing to check. The downloaded file has zero size.</font></b><br>';
+                print '<b><font color="red">Incorrect archive.</font></b><br>';
+                view_upload_driver_form();
+		return;
+	}
+	if($file_size > WS_MAX_DRIVER_SIZE || $file_size <0 ) {
                 print '<b><font color="red">File size too long.</font></b><br>';
                 view_upload_driver_form();
                 return;
@@ -161,7 +174,7 @@ function action_upload_driver() {
 	WSPrintD("Content type: $content_type");
 	if( strpos($content_type,'application/x-bzip2') === false &&
 		strpos($content_type,'application/x-gzip') === false) {
-                print '<b><font color="red">Driver content type not supported.</font></b><br>';
+                print '<b><font color="red">Incorrect archive.</font></b><br>';
                 view_upload_driver_form();
                 return;
 	}*/
@@ -292,7 +305,8 @@ function view_detailed_report($trace_id, $trace_type, $number) {
 	       	</div>
         	<div style="margin: 10px 15px 10px 10px;">
 			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $trace['drivername']?></span><br>
-			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel: </strong><?php echo $trace['env']?></span>
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel: </strong><?php echo $trace['env']?></span><br>
+			<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Verification architecture: </strong>x86_64</span>
 	       	</div>
 
 		<div style="margin: 10px 15px 10px 10px;">
@@ -308,6 +322,7 @@ function view_detailed_report($trace_id, $trace_type, $number) {
 	        	<div style="margin: 10px 15px 10px 10px;">
 				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $trace['drivername']?></span><br>
 				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Kernel: </strong><?php echo $trace['env']?></span><br>
+				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Verification architecture: </strong>x86_64</span><br>
 				<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Rule: </strong><?php $rule_info = WSGetRuleInfoByLDVIdent($trace['rule']); echo $rule_info['NAME'];?></span>
 		       	</div>
 	
@@ -344,10 +359,13 @@ function view_task_status($task_id,$number) {
 
 	<div style="margin: 10px 15px 10px 10px; text-align: left;">
         	<span style="font-style: bold; color: black; font-size: 150%;">Verification Report</span>
+
         </div>
         <div style="margin: 10px 15px 10px 10px;">
+
         	<span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Driver: </strong><?php echo $status['drivername']?></span><br>
-                <span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Timestamp: </strong><?php echo $status['timestamp']?></span>
+                <span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Timestamp: </strong><?php echo $status['timestamp']?></span><br>
+                <span style="font-style: bold; color: #686868; font-size: 120%;"><strong>Verification architecture: </strong>x86_64</span>
 	</div>
         <div style="margin: 20px 40px 25px 10px;">
         You can see <b>verification verdict</b> for each rule and linux kernel. Verdict may be:
