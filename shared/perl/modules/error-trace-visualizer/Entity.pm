@@ -113,3 +113,5 @@ sub set_pre_annotations($@)
 
   return $self;
 }
+
+1;

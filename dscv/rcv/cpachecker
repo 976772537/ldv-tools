@@ -1,17 +1,20 @@
 #!/usr/bin/perl
 
 # RCV Frontend for CPAchecker tool.
-# WARNING!! CPAchecker was excluded from the current revision of our tools due to its poor support.  Its support will be severely improved, but that is not the aim of this revision.
-# Stay tuned!
 
-print STDERR "CPAchecker is not supported in this version of LDV!\n";
-exit 1;
+# Available options:
+# NO_CIL
+# CPACHECKER (defaults to cpa.sh)
+# CPACHECKER_CONFIG
+# CPACHECKER_OPTIONS
 
 #======================================================================
 # PROCESS OPTIONS AND SET UP INITIAL VARIABLES
 #======================================================================
+use FindBin;
 
 BEGIN {
+	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/../../";
 	# Add the lib directory to the @INC to be able to include local modules.
 	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
 }
@@ -48,19 +51,23 @@ GetOptions(%optionSpecs) or die("Unrecognized options!");
 
 # Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
-my $backend_dir = "$shared_dir/rcv/backends/cpachecker";
-my $cpachecker = "$backend_dir/scripts/cpa.sh";
-my $configs_dir = "$backend_dir/etc";
+my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
+my $configs_dir = "$shared_dir/rcv/etc/";
 my $workdir = $config->{workdir};
 
+my $cpachecker_config = $ENV{'CPACHECKER_CONFIG'};
+
+my $cil_dir = "$shared_dir/cil";
+
 -f $config->{cmdfile} or die "RCV's command file $config->{cmdfile} is not found";
--d $backend_dir or die "RCV's directory $backend_dir is not a directory";
--x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
+#-x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
 -d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+-d $configs_dir or die "CPAchecker configs directory $configs_dir is not a directory";
+!$cpachecker_config || -f $cpachecker_config or die "CPAchecker configuration '$cpachecker_config' is specified but not readable!";
 
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000);	# Default memory limit is 1Gb.  It may be overflowed, because it's set as -Xmx
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || undef;	# Do not set memory limit, let cpachecker itself handle this
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
 # Check if we launch CIL before the verifier
@@ -72,11 +79,6 @@ if ($ENV{'NO_CIL'}){
 
 # Prepare sanity checks
 my $sanity = DSCV::Sanity->new($config->{sandir});
-
-
-# Set up CPAchecker project path
-$ENV{'PATH_TO_CPACHECKER'} = $backend_dir;
-
 
 #Check if cpachecker is available
 cpachecker_quick_check();
@@ -95,7 +97,7 @@ my $check_input_file = XML::Twig->new(
 	twig_handlers => {
 		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
 		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cil_path=>"$backend_dir/tools/cil", cil_temps=>"$workdir/cil_temps"),
+		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cilly_once=>$cilly, cil_path=>$cil_dir, cil_temps=>"$workdir/cil_temps"),
 	}
 );
 $check_input_file->parsefile($config->{cmdfile});
@@ -115,7 +117,11 @@ sub verify_cpachecker
 	open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 	my $repT = XML::Twig::Elt->new('reports');
 
+	# Since arguments alter depending on main, we should save them to temporary.
+	my %args_template = (%args);
+
 	for my $main (@{$args{mains}}){
+		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		if ($args{already_failed}){
 			# Prepare a failure command
 			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
@@ -127,7 +133,7 @@ sub verify_cpachecker
 			XML::Twig::Elt->new('desc',{},$args{already_failed})->paste($rcvResultT);
 
 			# Calculate and output time elapsed
-			XML::Twig::Elt->new('time',{},0)->paste($rcvResultT);
+			XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
 
 			$rcvResultT->paste(last_child =>$cmdInstT);
 			$cmdInstT->paste($repT);
@@ -168,9 +174,27 @@ sub verify_cpachecker
 			XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
 
 			# Calculate and output time elapsed
-			my $time_sec = $result->{'utime'}+$result->{'stime'};
-			my $time_msec = int($time_sec * 1000);
-			XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
+			# Read file with time statistics
+			# copied from blast script
+			# TODO(time): check it
+			if ( -f "$workdir/stats_rcv.xml" && ! -z "$workdir/stats_rcv.xml" ) {
+				my %timestats;
+				open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
+				while(<STATS_FILE>) {
+					/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
+					$timestats{$1} += $2;
+				}
+				close STATS_FILE;
+				foreach(keys %timestats) {
+					my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+					$time_elt->set_att( name =>$_);
+					$time_elt->paste($rcvResultT);
+				}
+			} else {
+				my $time_elt = XML::Twig::Elt->new('time',0);
+				$time_elt->set_att( name =>"ALL");
+				$time_elt->paste($rcvResultT);
+			}
 
 			$rcvResultT->paste(last_child =>$cmdInstT);
 			$cmdInstT->paste($repT);
@@ -194,52 +218,68 @@ sub call_cpachecker
 	my @cpachecker_options = ($cpachecker,@{$args{files}});
 
 	# Set default options
-	# Create a temporary config file.  Config is based on sympredabsCPA
-	my $CPA_CFG; my $cpa_cfg = "$args{workdir}/cpa.cfg"; open $CPA_CFG, ">", $cpa_cfg or die;
+	# If no config file is specified, create a temporary one
+	my $cpa_cfg_original = $cpachecker_config || "$configs_dir/cpa.cfg.pattern";
+	my $cpa_cfg_new = "$args{workdir}/cpa.cfg";
+	# Create a temporary config file.  Config is based on our local config, or on user-defined one
+	my $CPA_CFG; open $CPA_CFG, ">", $cpa_cfg_new or die;
 	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
 
-	print $CPA_CFG <<EOF;
-cfa.removeIrrelevantForErrorLocations = false
-analysis.traversal = topsort
-analysis.useRefinement = true
-cegar.refiner = cpa.symbpredabsCPA.SymbPredAbsRefiner
-cpa = cpa.art.ARTCPA
-ARTCPA.cpa = cpa.composite.CompositeCPA
-CompositeCPA.cpas = cpa.location.LocationCPA, cpa.automatonanalysis.ObserverAutomatonCPA ErrorLocationAutomaton, cpa.symbpredabsCPA.SymbPredAbsCPA
-automatonAnalysis.inputFile = $LDV_errloc_autom
-EOF
+	vsay 40, "copy config from $configs_dir/cpa.cfg.pattern\n";
+	open ORIG_CFG, $cpa_cfg_original or die "$!";
+	my @orig_lines = <ORIG_CFG>;
+	close ORIG_CFG;
+
+	my $spec_state = 0;
+	my $rifel_state = 0;
+	foreach my $oline (@orig_lines) {
+		if($oline =~ /\bspecification\s*=\s*.*/) {
+			$spec_state = 1;
+			$oline = "#The following line was automatically replaced by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
+		}
+		if($oline =~ /\bcfa.removeIrrelevantForErrorLocations\s*=\s*.*/) {
+			$rifel_state = 1;
+			$oline = "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
+		}
+		vsay 'TRACE', "$oline";
+		print $CPA_CFG $oline;
+	}
+	# If settings aren't specified in the config, just print them
+	if ($spec_state == 0) {
+		# Automaton specification is not in the config file.  Add our own.
+		print $CPA_CFG "\n#The following line was automatically added by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
+	}
+	if($rifel_state == 0) {
+		print $CPA_CFG "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
+	}
 	close $CPA_CFG;
 
 	# For now, only one error location is supported by CPACHECKER
 	(scalar @{$args{errlocs}} > 1) and die;
 	my $errloc = (@{$args{errlocs}})[0];
 
+	
+	# Copy Automaton and replace label name with the one we need
+
+	open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
+	my @errloc_lines = <ERRLOC>;
+	close ERRLOC;
+
 	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
-	print $ERRLOC_AUT <<EOF;
-AUTOMATON ErrorLocationAutomaton
-// This Automaton replaces the ErrorLocationCPA. It detects error locations that were defined in the sourcecode.
-
-/* The ErrorLocationCPA had 3 triggers.
- * The Trigger "(CFAEdge.CFASuccessor instanceOf CFAErrorNode)" could not be implemented in this automaton.
-  */
-
-	INITIAL STATE Init;
-
-	STATE Init :
-	  // label of the next CFA state starts with "error"
-		MATCH LABEL [$errloc]
-		// call of assert_fail without arguments
-		//|| MATCH {__assert_fail()}
-		// call of assert_fail with any (>0) number of arguments
-		//|| MATCH {__assert_fail(\$?)} 
-
-  -> ERROR;
-
-EOF
+	my $state = 0;
+	foreach my $oeline (@errloc_lines) {
+		if($oeline =~ /(.*)CPALABEL(.*)/) {
+			$state = 1;
+			$oeline = "$1\[$errloc\]$2";
+		}
+		vsay 'TRACE', "$oeline";
+		print $ERRLOC_AUT $oeline;
+	}
 	close $LDV_errloc_autom;
 
+	# Add config option to cpachecker call line
 	push @cpachecker_options,
-		"-config","$cpa_cfg"
+		"-config","$cpa_cfg_new"
 	;
 
 	# Add mains and error locations
@@ -254,18 +294,25 @@ EOF
 
 	# Additional options
 	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
+	
+	# TODO rerouting like in blast
 
 	# Resources limit.  We don't set memlimit--see below
+	# TODO(time): check it
 	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
+		pattern => ".*,ALL;.*java.*,JAVA-PROC;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
+		output => "$workdir/stats_rcv.xml",
 		id_str => "DSCV_TIMEOUT ",
 		},@cpachecker_options
 	);
 
 	# Set memory limit.
-	# We set memory limit with Java native capabilities.  We use -Xmx and set it to the value supplied by user.  Thus, the memory limit can be overflew a bit, but in return the exception will be native.
-	my $memlimit_kb = int($memlimit / 1024);
-	$ENV{'JAVA_VM_ARGUMENTS'} .= " -Xmx${memlimit_kb}m";
+	if ($memlimit) {
+		# We set memory limit with Java native capabilities.  We use -Xmx and set it to the value supplied by user.  Thus, the memory limit can be overflew a bit, but in return the exception will be native.
+		my $memlimit_kb = int($memlimit / 1024);
+		$ENV{'JAVA_VM_ARGUMENTS'} .= " -Xmx${memlimit_kb}m";
+	}
 
 	vsay ('NORMAL',"Running CPACHECKER for $args{dbg_target}, entry $args{main}...\n");
 	vsay (20,@cpachecker_options,"\n");
@@ -350,31 +397,11 @@ EOR
 
 
 
+# This subroutine used to
 # Perform CPACHECKER quick check before running any verifications
+# But it was suppressed because CPAchecker takes too much time to start.
 sub cpachecker_quick_check
 {
-	$" = ' ';      # For error reporting
-	vsay ('INFO', "Trying to run CPAchecker without arguments to see it it works...");
-	my @cpachecker_args = ($cpachecker,"-help");
-	my $CHEW_CPACHECKER_OUT;
-	my $fpid = open $CHEW_CPACHECKER_OUT,"-|";
-	defined $fpid or die "Can't fork?  Wtf";
-	if ($fpid == 0){
-		# child
-		# Run cpachecker
-		exec @cpachecker_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @cpachecker_args";
-		exit 1;
-	}
-	# Parent
-	# Ignore cpachecker's output.
-	my $wpres = Utils::hard_wait($fpid,0);
-	$wpres > 0 or die;
-	# \n to complement previous message
-	$? == 0 or die "\nINTEGRATION ERROR.  CPACHECKER test exited with non-zero return code $?.";
-	# Ok, now we can close the pipe
-	close($CHEW_CPACHECKER_OUT);
-
-	vsay ('INFO',"OK\n");
 }
 
 sub java_oom

@@ -26,6 +26,10 @@ rcv/
 			Makefile
 
   cpachecker
+	cpachecker.config/
+		cpa.cfg.pattern
+		errloc_automaton.txt
+		symbpredabsCPA.properties
 	backends/cpachecker/
 		Makefile
 

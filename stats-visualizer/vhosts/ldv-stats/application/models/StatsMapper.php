@@ -41,6 +41,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'Fail' => array('table' => 'stats', 'column' => 'success', 'cond' => 'FALSE'),
     'Description' => array('table' => 'stats', 'column' => 'description'),
     'Time' => array('table' => 'processes', 'column' => 'time_average'),
+    'Time Ok' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Unknown', 'not' => true),
+    'Time Fail' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Unknown', 'not' => false),
     'Children time' => array('table' => 'processes', 'column' => 'time_average'),
     'LOC' => array('table' => 'stats', 'column' => 'loc'),
     'Problems' => array('table' => 'problems', 'column' => 'name'));
@@ -219,7 +221,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
         $verificationKey[] = $name;
 
-        // The 'Result' is just union of 'Safe', 'Unsafe' and 'Unknown' statuses
+        // The 'Result' is an union of 'Safe', 'Unsafe' and 'Unknown' statuses
         // that will be iterated below.
         if ($name == 'Result') {
           foreach ($info->results as $resultInfo) {
@@ -244,6 +246,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $tools = array();
     $toolsInfo = array();
     $isTimeNeeded = false;
+    $isOkFailTimeNeeded = false;
     $toolsTime = array();
     if (null !== $page->toolsInfo) {
       foreach ($page->toolsInfo as $info) {
@@ -275,13 +278,28 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             }
             else if ($name == 'Time' || $name == 'Children time') {
               $isTimeNeeded = true;
-              $toolsTime[$toolName][] = $name;
+              $toolsTime[$toolName][$name] = array();
+
+              // The 'Time' is an union of 'Time Ok' and 'Time Fail' time
+              // that will be iterated below.
+              if ($name == 'Time' and $toolInfo->time) {
+                foreach ($toolInfo->time as $timeInfo) {
+                  $nameTime = $timeInfo->timeName;
+                  // The real condition will be completed later.
+                  $toolsTime[$toolName][$name][$nameTime] = '';
+                  $isOkFailTimeNeeded = true;
+                }
+              }
             }
           }
         }
         $tools[$toolName] = 1;
       }
     }
+
+#print_r($tools);exit;
+#print_r($toolsInfo);exit;
+#print_r($toolsTime);exit;
 
     $launches = $this->getDbTable('Application_Model_DbTable_Launches', $this->_db);
 
@@ -547,6 +565,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       // Tool time and tool children time have the same table-column.
       $name = 'Time';
 
+      // Make general for all times actions.
       $timeTableColumn = $this->getTableColumn($this->_toolInfoNameTableColumnMapper[$name]);
       $timeGroupBy = $groupBy;
       $timeGroupBy[] = "$timeTableColumn[tableShort].name";
@@ -555,12 +574,30 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $timeOrderBy[] = "$timeTableColumn[tableShort].name";
       $timeOrderBy[] = "$timeTableColumn[tableShort].pattern";
 
+      $timeInfo = array(
+        'Tool name' => "$timeTableColumn[tableShort].name",
+        'Process pattern' => "$timeTableColumn[tableShort].pattern",
+        "$name Average" => "SUM(`$timeTableColumn[tableShort]`.`$timeTableColumn[column]`)");
+
+      // In addition obtain ok and fail time if needed.
+      if ($isOkFailTimeNeeded) {
+        $nameOkFails[] = "$name Ok";
+        $nameOkFails[] = "$name Fail";
+
+        foreach ($nameOkFails as $nameOkFail) {
+          $timeOkFailTableColumnCond = $this->_toolInfoNameTableColumnMapper[$nameOkFail];
+          $timeOkFailTableColumn = $this->getTableColumn($timeOkFailTableColumnCond);
+          $equal = '=';
+          if ($timeOkFailTableColumnCond['not']) {
+            $equal = "!$equal";
+          }
+          $timeInfo["$nameOkFail Average"] = "SUM(IF(`$timeOkFailTableColumn[tableShort]`.`$timeOkFailTableColumn[column]`$equal'$timeOkFailTableColumnCond[cond]', `$timeTableColumn[tableShort]`.`$timeTableColumn[column]`, 0))";
+        }
+      }
+
       $select = $select
         ->from(array($this->_tableMapper[$tableMain] => $tableMain),
-          array_merge($launchInfo, array(
-            'Tool name' => "$timeTableColumn[tableShort].name",
-            'Process pattern' => "$timeTableColumn[tableShort].pattern",
-            "$name Average" => "SUM(`$timeTableColumn[tableShort]`.`$timeTableColumn[column]`)")));
+          array_merge($launchInfo, $timeInfo));
 
       // Join launches with related with statistics key tables. Note that
       // traces is always joined.
@@ -612,8 +649,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $select = $select->order($order);
       }
 
-#print_r($select->assemble());
-#exit;
+#print_r($select->assemble());exit;
 
       $launchesTimeResultSet= $launches->fetchAll($select);
 
@@ -633,10 +669,15 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             // Save time just for specified kinds (either tool itself or its
             // children) in depend on a given pattern ('ALL' and !'ALL'
             // correspondingly).
-            foreach ($toolTime as $toolTimeKind) {
+            foreach (array_keys($toolTime) as $toolTimeKind) {
               $pattern = $launchesTimeRow['Process pattern'];
+
               if ($toolTimeKind == 'Time' && $pattern == 'ALL') {
                 $toolsTimes["$toolName Time"][$statsValuesStr][$patternItself]['Time'] = $launchesTimeRow['Time Average'];
+                // Also remember ok/fail time if it's needed.
+                foreach ($toolTime[$toolTimeKind] as $toolTimeOkFailKind => $toolTimeOkFailValue) {
+                  $toolsTimes["$toolName Time"][$statsValuesStr][$patternItself][$toolTimeOkFailKind] = $launchesTimeRow["$toolTimeOkFailKind Average"];
+                }
               }
               else if ($toolTimeKind == 'Children time' && $pattern != 'ALL') {
                 $toolsTimes["$toolName Time"][$statsValuesStr][$pattern][] = array('Time' => $launchesTimeRow['Time Average']);
@@ -645,8 +686,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           }
         }
       }
-#print_r($toolsTimes);
-#exit;
+#print_r($toolsTimes);exit;
     }
 
     // Merge launch, verification and problems information.
@@ -663,6 +703,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Stats']['All tool children'] = array();
     // Remember what tool has a time.
     $result['Stats']['All tool time'] = array();
+    // Remember what tool has an ok time.
+    $result['Stats']['All tool time ok'] = array();
+    // Remember what tool has a fail time.
+    $result['Stats']['All tool time fail'] = array();
     // Here the data will be placed.
     $result['Stats']['Row info'] = array();
 
@@ -721,6 +765,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             if ($pattern == $patternItself) {
               $resultPart['Tool time'][$toolsTimesName] = $time;
               $result['Stats']['All tool time'][$toolNameTime[0]] = 1;
+
+              // Don't forget to add ok/fail time for corresponding tools if needed.
+              if (array_key_exists('Time Ok', $time)) {
+                $result['Stats']['All tool time ok'][$toolNameTime[0]] = 1;
+              }
+              if (array_key_exists('Time Fail', $time)) {
+                $result['Stats']['All tool time fail'][$toolNameTime[0]] = 1;
+              }
             }
             else {
               $resultPart['Tool children time'][$toolsTimesName][$pattern] = $time[0];
@@ -738,10 +790,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $result['Stats']['Row info'][] = $resultPart;
     }
 
-#foreach ($result as $res) {
-#  echo "<br>";print_r($res);
-#}
-#exit;
+#foreach ($result as $res) {echo "<br>";print_r($res);} exit;
+
     return $result;
   }
 

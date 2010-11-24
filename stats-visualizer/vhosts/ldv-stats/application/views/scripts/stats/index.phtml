@@ -16,6 +16,8 @@ if (!isGit($results)) {
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
 
+#print_r($profilePages);exit;
+
 // Get information on all current global variables valuse to pass them for child
 // pages.
 $globals = $results['Globals'];
@@ -210,6 +212,8 @@ if ($resultsNumb) {
   $problemKeys = array_keys($results['Stats']['All tool problems']);
   $toolNames = array_keys($results['Stats']['All tool names']);
   $timeKeys = array_keys($results['Stats']['All tool time']);
+  $timeOkKeys = array_keys($results['Stats']['All tool time ok']);
+  $timeFailKeys = array_keys($results['Stats']['All tool time fail']);
   $childrenKeys = array_keys($results['Stats']['All tool children']);
 
 #print_r($results['Stats']['All tool children']);
@@ -236,9 +240,15 @@ if ($resultsNumb) {
     $tools[$toolNameInfo[0]]['Info'][] = $toolNameInfo[1];
   }
 
-  // Consider tool time as general info.
+  // Consider tool [ok/fail] time as general info.
   foreach ($timeKeys as $timeKey) {
     $tools[$timeKey]['Info'][] = 'Time';
+  }
+  foreach ($timeOkKeys as $timeOkKey) {
+    $tools[$timeOkKey]['Info'][] = 'Time Ok';
+  }
+  foreach ($timeFailKeys as $timeFailKey) {
+    $tools[$timeFailKey]['Info'][] = 'Time Fail';
   }
 
   // Bind tool children time if so to the tool info.
@@ -253,8 +263,7 @@ if ($resultsNumb) {
     $tools[$toolNameProblems[0]]['Problems'] = $results['Stats']['All tool problems'][$problemKey];
   }
 
-#print_r($tools);
-#exit;
+#print_r($tools);exit;
 
   $statVerificationKeyRowSpan = 1;
   $statToolsKeyRowSpan = 1;
@@ -627,9 +636,9 @@ if ($resultsNumb) {
           }
         }
 
-        if ($toolInfo == 'Time') {
+        if ($toolInfo == 'Time' or $toolInfo == 'Time Ok' or $toolInfo == 'Time Fail') {
           if (array_key_exists("$toolName Time", $result['Tool time'])) {
-            echo formatTime($result['Tool time']["$toolName Time"]['Time']);
+            echo formatTime($result['Tool time']["$toolName Time"][$toolInfo]);
           }
           else {
             echo '-';

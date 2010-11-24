@@ -9,7 +9,7 @@ MINIMAL PREREQUISITES
 
 "Minimal prerequisites" are necessary for installing console tools:
 
-	o OCaml 3.10 or 3.11.0-3.11.2
+	o OCaml 3.10 or 3.11.0-3.11.2 (for BLAST verifier)
 	o Perl 5.10
 	o Ruby 1.8
 	o JDK or OpenJDK 1.6.0
@@ -23,12 +23,11 @@ MINIMAL PREREQUISITES
 	o GNU Autoconf
 	o GNU Automake
 	o GNU binutils
-	o GNU Multiple Precision Library (GMP), development version
+	o GNU Multiple Precision Library (GMP), development version (for BLAST)
 	o MPFR Library, development version
 	o Flex or lex
 	o Yacc or Bison
 	o libncurses
-	o gmp-devel
 	o MySQL (with InnoDB)server and console client, with development headers and libaries
 	o Perl modules (install via `sudo cpan Module::Name` or via packange manager):
 		- DBI
@@ -89,7 +88,8 @@ before installing '6' and '7'.
      prefix=/path/to/your/installation/directory make install-verifiers
 
   3. To install the statistics server use:
-     prefix=/path/to/your/installation/directory make install-visualization
+     sudo prefix=/path/to/some/directory make install-visualization
+     (Since it will most likely require root access, install it separately)
 
   4. To install tests use:
      prefix=/path/to/your/installation/directory make install-testing
@@ -107,4 +107,11 @@ your path:
 
 Here `/path/to/prefix` is what you've specified as prefix wile installing the
 above tools.
+
+You may skip installing BLAST reachability C verifier (this is useful if you
+have your own, and are not going to use the default one).  To do this, add the
+following variable when installing:
+
+	no_blast=y prefix=/path make install
+
 

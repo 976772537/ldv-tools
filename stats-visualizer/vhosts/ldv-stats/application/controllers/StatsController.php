@@ -138,7 +138,7 @@ class StatsController extends Zend_Controller_Action
 
     $results['Error trace']->setOptions(array('errorTrace' => $errorTrace));
 
-    $this->view->entries = $results;
+    $this->view->entries = array_merge($this->view->entries, $results);
     $this->view->entries['Globals'] = $this->_globals;
     $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
   }

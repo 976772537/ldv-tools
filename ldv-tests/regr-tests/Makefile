@@ -4,6 +4,7 @@ TEST_SETS_DIR = test-sets
 
 # Scripts for regression testing.
 REGR_TEST = regr-test.pl
+REGR_TEST_WRAPPER = ldv-test
 REGR_TEST_LAUNCH = launch.pl
 REGR_TEST_UPLOAD = upload.pl
 REGR_TEST_CHECK = check.pl
@@ -40,6 +41,7 @@ install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
 	cp $(REGR_TEST) $(bindir) || exit 1;
+	cp -f $(REGR_TEST_WRAPPER) $(bindir)
 	if [ ! -d $(prefix)/$(LDV_TEST_DIR)/$(REGR_TEST_DIR) ]; then mkdir -p $(prefix)/$(LDV_TEST_DIR)/$(REGR_TEST_DIR) || exit 1; fi
 	cp $(REGR_TEST_LAUNCH) $(REGR_TEST_UPLOAD) $(REGR_TEST_CHECK) $(prefix)/$(LDV_TEST_DIR)/$(REGR_TEST_DIR) || exit 1
 	cd $(TEST_SETS_DIR) || exit 1; $(MAKE) $@ || exit 1

@@ -7,9 +7,9 @@ class Application_Model_VerificationInfo extends Application_Model_GeneralStats
 
   public function setResultOrder($order)
   {
-    $filter = new Application_Model_ResultInfo();
-    $this->_results[$order] = $filter;
-    return $filter;
+    $result = new Application_Model_ResultInfo();
+    $this->_results[$order] = $result;
+    return $result;
   }
 
   public function getResults()

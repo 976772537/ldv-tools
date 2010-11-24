@@ -195,6 +195,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
           ->select()->setIntegrityCheck(false)
           ->from(array('TOTO' => 'tools_tool_info'),
             array('Name' => 'TOO.name',
+                  'Id' => 'TOO.id',
                   'Order' => 'AU.order',
                   'Presence' => 'AU.presence'))
           ->joinLeft(array('TOO' => 'tool_info'), 'TOTO.tool_info_id=TOO.id', array())
@@ -208,9 +209,34 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
             'toolName' => $toolsToolInfoRow['Name'],
             'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
           $this->_logger->log("The tools tool information: $toolsToolInfoRow[Name]", Zend_Log::DEBUG);
+
+          // Get information on tool time.
+          if ($toolsToolInfoRow['Name'] == 'Time') {
+            $toolTimeInfo = $this->getDbTable('Application_Model_DbTable_ToolTimeInfo');
+            $toolTimeInfoResultSet = $toolTimeInfo->fetchAll($toolTimeInfo
+              ->select()->setIntegrityCheck(false)
+              ->from(array('TOTI' => 'tool_time_info'),
+                array('Name' => 'TI.name',
+                      'Order' => 'AU.order',
+                      'Presence' => 'AU.presence'))
+              ->joinLeft(array('TI' => 'time_info'), 'TOTI.time_info_id=TI.id', array())
+              ->joinLeft(array('AU' => 'aux_info'), 'TI.aux_info_id=AU.id', array())
+              ->where('tool_info_id = ?', $toolsToolInfoRow['Id'])
+              ->order('AU.order'));
+
+            foreach($toolTimeInfoResultSet as $toolTimeInfoRow) {
+              $profilePageToolInfoTime = $profilePageToolsInfoTool->setTimeOrder($toolTimeInfoRow['Order']);
+              $profilePageToolInfoTime->setOptions(array(
+                'timeName' => $toolTimeInfoRow['Name'],
+                'auxInfo' => array('auxInfoPresence' => $toolTimeInfoRow['Presence'])));
+              $this->_logger->log("The tool time information: $toolTimeInfoRow[Name]", Zend_Log::DEBUG);
+            }
+          }
         }
       }
     }
+
+#print_r($profile);exit;
 
     return $profile;
   }

@@ -17,6 +17,7 @@ use Text::Highlight;
 use LDV::Utils;
 require Entity;
 require Annotation;
+require CPAchecker;
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
@@ -56,6 +57,16 @@ sub print_error_trace($);
 # retn: nothing.
 sub print_error_trace_blast($);
 
+# Pretty print a cpachecker error trace.
+# args: the tree root node.
+# retn: nothing.
+sub print_error_trace_cpachecker($);
+
+# Pretty print an unknown engine error trace.
+# args: the error trace.
+# retn: nothing.
+sub print_error_trace_unknown($);
+
 # Pretty print a blast error trace node with all its children and corresponding indent.
 # args: the tree root node and space indent.
 # retn: nothing.
@@ -86,6 +97,16 @@ sub process_error_trace();
 # retn: the tree root node.
 sub process_error_trace_blast();
 
+# Process a cpachecker error trace.
+# args: no.
+# retn: the tree root node.
+sub process_error_trace_cpachecker();
+
+# Process an unknown error trace.
+# args: no.
+# retn: the error trace formatted a bit.
+sub process_error_trace_unknown();
+
 # Process a file containing all source code files and separate them.
 # args: no.
 # retn: nothing.
@@ -111,10 +132,10 @@ sub read_equal_src($);
 # retn: the processed ldv comment or undef if it can't be read.
 sub read_ldv_comment($);
 
-# Read the next line and process it a bit.
-# args: no.
+# Read the next line and possibly process it a bit.
+# args: a flag that says whether a processing is needed.
 # retn: a processed line or undef when no lines is rest.
-sub read_line();
+sub read_line($);
 
 # Read locals (function parameter names).
 # args: some string.
@@ -167,11 +188,20 @@ my $debug_name = 'error-trace-visualizer';
 # pathes to corresponding dependencies files.
 my %dependencies;
 
+# Engine to be used during processing and printing of an error trace.
+my $engine = '';
+
 # Engines which reports can be processed are keys and values are
 # corresponding processing subroutines.
 my %engines = (my $engine_blast = 'blast' =>
                  {'print', \&print_error_trace_blast,
-                  'process', \&process_error_trace_blast});
+                  'process', \&process_error_trace_blast}
+               , my $engine_cpachecker = 'cpachecker' =>
+                 {'print', \&print_error_trace_cpachecker,
+                  'process', \&process_error_trace_cpachecker}
+               , my $engine_unknown = 'unknown' =>
+                 {'print', \&print_error_trace_unknown,
+                  'process', \&process_error_trace_unknown});
 
 # These variables contain a current line number and a current source code file
 # if so or 0 and '' otherwise.
@@ -295,20 +325,22 @@ my $tree_root = process_error_trace();
 
 if ($opt_report_out)
 {
+  print_debug_normal("Process source code files");
   process_source_code_files();
+  print_debug_normal("Visualize trace");
   visualize_error_trace($tree_root);
 }
 
-# TODO this must be fixed!!!!!!
+# TODO this must be fixed!!!!!! Add dependency on nodes!
 if ($opt_reqs_out)
 {
-      if ($opt_engine eq $engine_blast)
-         {
-  foreach my $dep (keys(%dependencies))
+  if ($opt_engine eq $engine_blast)
   {
-    print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+    foreach my $dep (keys(%dependencies))
+    {
+      print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+    }
   }
-         }
 }
 
 print_debug_trace("Close file handlers");
@@ -383,15 +415,21 @@ sub get_opt()
     help();
   }
 
+  $engine = $opt_engine;
   unless (defined($engines{$opt_engine}))
   {
     warn("The specified static verifier engine '$opt_engine' isn't supported. Please use one of the following engines: \n");
     foreach my $engine (keys(%engines))
     {
-      warn("  - '$engine'\n");
+      if ($engine ne $engine_unknown)
+      {
+        warn("  - '$engine'\n");
+      }
     }
-    die();
+    warn("The unknown engine '$engine_unknown' will be used instead of the specified one '$opt_engine'");
+    $engine = $engine_unknown;
   }
+  print_debug_debug("The engine '$engine' handlers will be used during an error trace processing and printing");
 
   unless ($opt_report_out or $opt_reqs_out)
   {
@@ -486,9 +524,9 @@ sub print_error_trace($)
 {
   my $tree_root = shift;
 
-  print_debug_debug("Print the '$opt_engine' static verifier error trace");
-  $engines{$opt_engine}{'print'}->($tree_root);
-  print_debug_debug("'$opt_engine' static verifier error trace is printed successfully");
+  print_debug_debug("Print the '$engine' static verifier error trace");
+  $engines{$engine}{'print'}->($tree_root);
+  print_debug_debug("'$engine' static verifier error trace is printed successfully");
 }
 
 sub print_error_trace_blast($)
@@ -635,6 +673,23 @@ sub print_error_trace_blast($)
     "\n    </div>");
 }
 
+sub print_error_trace_cpachecker($)
+{
+  my $tree_root = shift;
+
+  # Use the same trace printer as for blast since the error trace is converted
+  # to its format.
+  print_error_trace_blast($tree_root);
+}
+
+sub print_error_trace_unknown($)
+{
+  my $error_trace = shift;
+
+  # Print unknown trace as it (that is keep all its spaces and newlines).
+  print($file_report_out "\n    <div id='ETVErrorTrace' style='white-space: pre;'>$error_trace\n    </div>");
+}
+
 sub print_error_trace_node_blast($$)
 {
   my $tree_node = shift;
@@ -735,7 +790,7 @@ sub print_error_trace_node_blast($$)
     if ($val =~ /=\s*([^\(]+)/ or $val =~ /\s*([^\(]+)/)
     {
       $func_name = $1;
-      print_debug_debug("Find the function name '$1' in '$val'");
+      print_debug_trace("Find the function name '$1' in '$val'");
 
       # Check wether function is a model function.
       if ($ldv_model_func_def{$func_name})
@@ -980,9 +1035,9 @@ sub print_show_hide_local($)
 
 sub process_error_trace()
 {
-  print_debug_debug("Process the '$opt_engine' static verifier error trace");
-  my $tree_root = $engines{$opt_engine}{'process'}->();
-  print_debug_debug("'$opt_engine' static verifier error trace is processed successfully");
+  print_debug_debug("Process the '$engine' static verifier error trace");
+  my $tree_root = $engines{$engine}{'process'}->();
+  print_debug_debug("'$engine' static verifier error trace is processed successfully");
 
   return $tree_root;
 }
@@ -1013,7 +1068,8 @@ sub process_error_trace_blast()
     my $element = '';
     while ($iselement_read == 0)
     {
-      my $element_part = read_line();
+      # Read line with some processing.
+      my $element_part = read_line(1);
 
       unless (defined($element_part))
       {
@@ -1095,7 +1151,7 @@ sub process_error_trace_blast()
               $files_long_name{$src} = 0;
               $src =~ /([^\/]*)$/;
               $files_short_name{$src} = $1;
-              print_debug_debug("The full name '$src' was related with the short name '$1'");
+              print_debug_trace("The full name '$src' was related with the short name '$1'");
             }
 
             $annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
@@ -1133,6 +1189,44 @@ sub process_error_trace_blast()
   return $parents[0];
 }
 
+sub process_error_trace_cpachecker()
+{
+  my @error_trace_raw = <$file_report_in>;
+  my $error_trace_converted = CPAchecker->convert_cpa_trace_to_blast(\@error_trace_raw);
+
+  # Update the error trace file with the converted trace.
+  close($file_report_in)
+    or die("Can't close the file '$opt_report_in': $ERRNO\n");
+
+  open($file_report_in, '>', "$opt_report_in")
+    or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for write: $ERRNO");
+
+  print($file_report_in @{$error_trace_converted});
+
+  close($file_report_in)
+    or die("Can't close the file '$opt_report_in': $ERRNO\n");
+
+  open($file_report_in, '<', "$opt_report_in")
+    or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for read: $ERRNO");
+
+  # Use the same trace processor as for blast since the error trace is converted
+  # to its format.
+  return process_error_trace_blast();
+}
+
+sub process_error_trace_unknown()
+{
+  my $error_trace = '';
+
+  # Read lines without any processing.
+  while (defined(my $line = read_line(0)))
+  {
+    $error_trace .= "$line";
+  }
+
+  return $error_trace;
+}
+
 sub process_source_code_files()
 {
   # Do nothing if there is no source code files.
@@ -1164,7 +1258,7 @@ sub process_source_code_files()
           {
             $files_long_name{$full_name} = $file_name;
             $isrelated_with = $full_name;
-            print_debug_debug("The full name '$full_name' was related with the long name '$file_name'");
+            print_debug_trace("The full name '$full_name' was related with the long name '$file_name'");
           }
         }
       }
@@ -1334,16 +1428,22 @@ sub read_ldv_comment($)
   return \@comments;
 }
 
-sub read_line()
+sub read_line($)
 {
+  my $is_processing = shift;
+
   # Read the next line from the input report file if so.
   return undef unless (defined(my $line = <$file_report_in>));
 
-  # Remove the end of line.
-  chomp($line);
-  # Remove all formatting spaces and tabs placed at the beginning of the line.
-  $line =~ /^[\s]*/;
-  $line = $POSTMATCH;
+  # Make processing just in case when it's needed.
+  if ($is_processing)
+  {
+    # Remove the end of line.
+    chomp($line);
+    # Remove all formatting spaces and tabs placed at the beginning of the line.
+    $line =~ /^[\s]*/;
+    $line = $POSTMATCH;
+  }
 
   # Return the processed line.
   return $line;

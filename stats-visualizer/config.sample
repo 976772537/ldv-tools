@@ -29,14 +29,14 @@
 #LDV_STATS_GROUP = www
 
 # Statistics server port (8999 is default).
-#LDV_STATS_PORT = 8999
+#LDV_STATS_PORT = 8998
 
 # Statistics server application environment. It may be either 'production' or
 # 'staging' or 'testing' or 'development' ('production' is default).
 # If you want to see errors detailed descriptions you can use 'development'
 # value for this option. 
-#LDV_STATS_APPLICATION_ENV = production
+#LDV_STATS_APPLICATION_ENV = development
 
 # The database containing profiles may be overwritten by specifing 'yes' for
 # the given option ('no' by default).
-#LDV_STATS_OVERWRITE_PROFILE_DB = no
+#LDV_STATS_OVERWRITE_PROFILE_DB = yes

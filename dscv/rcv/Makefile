@@ -1,7 +1,11 @@
 
 # Configuration
+ifeq ($(no_blast),)
 backends=blast
-frontends=$(backends)
+else
+backends=
+endif
+frontends=blast cpachecker
 
 # Compilation
 all: $(patsubst %,backends/%-subdir-all,$(backends))
@@ -49,4 +53,51 @@ $(rcv_install_dir)/mock: mock
 # Create subdir wrappers for backends
 all_backends=$(backends) $(test_backends)
 $(foreach backend,$(all_backends),$(eval $(call mksubdir,backends/$(backend))))
+
+# Install CPAchecker's configuration
+cpachecker_confdir=$(rcv_install_dir)/etc
+cpachecker_etcfiles= \
+		cpa.cfg.pattern \
+		errloc_automaton.txt \
+		symbpredabsCPA.properties \
+
+cpachecker_configs=$(patsubst %,$(cpachecker_confdir)/%,$(cpachecker_etcfiles))
+
+install: $(cpachecker_configs) $(cil)
+
+$(cpachecker_confdir)/%: cpachecker.config/%
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
+
+# Configuring and installing CIL
+cil_dir=cil
+cil_configured=$(cil_dir)/Makefile
+cil_target=$(dscv_install_dir)/cil
+
+# CIL compilation
+$(cil_configured): $(cil_dir)/Makefile.in
+	cd $(cil_dir) && ./configure
+
+.PHONY: cil
+cil: $(cil_configured)
+	$(MAKE) -C $(cil_dir)
+
+# Installation of CIL
+tools_cil=$(cil_dir)/bin/CilConfig.pm $(cil_dir)/bin/cilly $(cil_dir)/obj/x86_LINUX/cilly.asm.exe $(shell find $(cil_dir)/lib -iname '*.pm')
+cil_targets=$(tools_cil:$(cil_dir)/%=$(cil_target)/%)
+
+# For cil tools to appear, we should compile CIL
+$(tools_cil): cil
+
+$(cil_target)/%: $(cil_dir)/%
+	@mkdir -p $(@D)
+	cp -L -r -f '$(cil_dir)/$*' '$@'
+
+cil-install: $(cil_targets)
+
+
+install: cil-install
+all: cil
 
