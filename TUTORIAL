@@ -113,6 +113,9 @@ TUTORIAL
 
       (The path to regr-task-* should be absolute.  Sorry.)
 
+      You may edit regr-task-* file to withdraw some cases, which aren't
+      interesting to you.
+
 
  III. VIEW RESULTS
       You will find pax archives that contain verification results in the
