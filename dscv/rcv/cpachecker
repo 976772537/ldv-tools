@@ -128,9 +128,13 @@ sub verify_cpachecker
 			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
 			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
 
+			# HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
+			my $failmsg = $args{already_failed};
+			$failmsg =~ s/Fatal error: exception Errormsg.Error//;
+
 			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
 			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
-			XML::Twig::Elt->new('desc',{},$args{already_failed})->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$failmsg)->paste($rcvResultT);
 
 			# Calculate and output time elapsed
 			XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
@@ -334,7 +338,7 @@ sub call_cpachecker
 	# In CPAchecker trace is in the separate file.  We'll just copy it to $args{trace} at the end
 	my $trace_fname = "$outputpath/ErrorPath.txt";
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict(),java_oom()]);
+	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict(),java_oom(),cpachecker_syntax()]);
 
 	# Process output and redirect it to file
 	local $_;
@@ -420,6 +424,25 @@ sub cpachecker_verdict
 		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
 		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
 		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'CPACHECKER-detailed' => "The system is safe.  Error location is not reachable.", 'CPACHECKER'=>'yes'};
+		return undef;
+	}];
+}
+
+sub cpachecker_syntax
+{
+	my $found_syntax_error = '';
+	my $parse_errormsg = '';
+	return[10_000,sub{
+		my $l=shift;
+		$l =~ /Syntax error in line / and do { $found_syntax_error = 1;};
+		return undef unless $found_syntax_error;
+		# Ok, we're inside the syntax error;
+		if (defined $l){
+			$parse_errormsg .= "$l";
+		}else{
+			# Last line of a trace, return what we've accumulated
+			return {'CPACHECKER-detailed' => "CPAchecker couldn't parse file:\n$parse_errormsg\n", 'CPACHECKER'=>'no'};
+		}
 		return undef;
 	}];
 }

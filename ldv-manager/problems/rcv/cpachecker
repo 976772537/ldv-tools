@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+# Problem finder for BLAST tool
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/Syntax error in line / and print "Syntax_error";
+	/CIL ERROR./ and print "CIL_parse_error";
+}
+
+

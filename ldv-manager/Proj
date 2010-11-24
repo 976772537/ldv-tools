@@ -24,6 +24,7 @@ problems/
 	dscv/
 		problems
 	rcv/
+		cpachecker
 		blast
 		test
 
