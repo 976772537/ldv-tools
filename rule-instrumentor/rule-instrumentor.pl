@@ -1347,7 +1347,7 @@ sub process_cmd_cc()
     $cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
     $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
-    if (copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
+    if (!$skip_caching && copy_from_cache($cache_target,$opt_model_id,$cache_file_key)){
       # Cache hit
       print_debug_info("Got file from CACHE instead of executing '@args'");
       $status = string_from_cache($opt_model_id,"$cache_file_key-status");
