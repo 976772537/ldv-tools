@@ -1,290 +1,202 @@
 #!/usr/bin/perl -w
 #
 
-use XML::Twig;
+my $instrumnet = 'ldv-task-reporter';
+
 use FindBin;
-use File::Find;
-use File::Spec::Functions qw(splitpath catfile);
+BEGIN {
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+	$LDV_ENVS_TARGET = $ENV{'LDV_ENVS_TARGET'} || " ";
+}
 
+sub usage{ print STDERR<<usage_ends;
 
-my $deg_home = "$FindBin::Bin";
-my $tracevis = "$deg_home/../bin/error-trace-visualizer.pl";
-my $kmanager = "$deg_home/../ldv/ldv-kmanager";
+Usage:
+        $instrumnet -r reports-dir -f report-name -s state-file -o report-out
 
-# Xml nodes names.
-my $xml_cmd_basedir = 'basedir';
-my $xml_cmd_stream = 'cmdstream';
-my $xml_cmd_attr_id = 'id';
-my $xml_cmd_attr_check = 'check';
-my $xml_cmd_entry_point = 'main';
-my $xml_cmd_cc = 'cc';
-my $xml_cmd_cwd = 'cwd';
-my $xml_cmd_in = 'in';
-my $xml_cmd_ld = 'ld';
-my $xml_cmd_opt = 'opt';
-my $xml_cmd_out = 'out';
-my $xml_reports_cc = 'cc';
-my $xml_reports_ld = 'ld';
-my $xml_reports_attr_ref = 'ref';
-my $xml_reports_att_env = 'kernel';
-my $xml_reports_att_model = 'model';
-my $xml_reports_verdict = 'verdict';
-my $xml_reports = 'reports';
-my $xml_reports_build = 'build';
-my $xml_section_rcv = 'rcv';
-my $xml_rcv_att_verifier = 'verifier';
-my $xml_section_trace = 'trace';
+usage_ends
+        die;
+}
 
-my $LDV_ENVS_TARGET;
+use Getopt::Long qw(:config require_order);
 
-my $engine_cpachecker = 'cpachecker';
-my $engine_blast = 'blast';
-
-my $verdict_unknown = 'UNKNOWN';
-my $verdict_ok = 'OK';
-
-my $xml_instrument = 'ldv';
-my $xml_instrument_status = 'status';
-my $xml_instrument_time = 'time';
-my $xml_instrument_desc = 'desc';
-
-#####################################################
-# log options
-#####################################################
-my $psuffix="ldv-task-reporter";
-my $log_level=10;
-
-my $cmdfile = "";
-my $report_out = "";
-my $report_name = "";
-my $reports_dir = "";
-my $state_file = "";
-my @reports;
-
-# 0. get options.
-get_ldv_opts();
-# 1. read state file;
-open(FIL,$state_file); 
-my @states = <FIL>; 
-close(FIL);
-
-# 0.1 read all report files ant cut its to one temp report file
-my $twig_inreport = XML::Twig->new();
-$twig_inreport->set_xml_version( '1.0');
-my $twig_inroot = XML::Twig::Elt->new($xml_reports);
-$twig_inreport->set_root($twig_inroot);
-
-# 0.2 get all reports files
-@reports=get_reports();
-foreach my $file (@reports) { 
-	ldv_dprint("Grep file: \"$file\".");
-	my $ctwig=new XML::Twig();
-	$ctwig->parsefile($file);
-	my $croot=$ctwig->root;
-	my @childrens = $croot->children();
-	my @sections;
-	foreach my $section (@childrens) {
-		if ($section->name eq $xml_reports_cc || $section->name eq $xml_reports_ld || $section->name eq $xml_reports_build) {
-			hxml_cmdstream($section,$file);
-		}
-		if ($section->name eq $xml_reports_build) {
-			@sections = (@sections, $section);
-		} else {
-			@sections = ($section, @sections);
-		}
-		#$section->move($twig_inroot);
-	}
-	foreach (@sections) {
-		$_->move($twig_inroot);
-	}
+my $config = {
+        'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
+        'error-trace-visualizer' => "$ENV{'LDV_HOME'}/bin/error-trace-visualizer.pl",
+        'kernel-manager' => "$ENV{'LDV_HOME'}/ldv/ldv-kmanager",
 };
 
-$twig_inreport->set_pretty_print('indented');
-$twig_inreport->print_to_file($report_out);
-ldv_dprint("Report created successfully.");
+GetOptions(
+        'reports-dir|d=s'=>\$config->{'reports-dir'},
+        'report-name|f=s'=>\$config->{'report-name'},
+        'state-file|s=s'=>\$config->{'state-file'},
+        'report-out|o=s'=>\$config->{'report-out'},
+) or usage;
+
+use LDV::Utils;
+use File::Spec::Functions qw(splitpath catfile);
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument($instrumnet);
+
+###################################################
+# subs
+###################################################
+
+sub get_states;
+sub merge_reports;
+sub search;
+sub get_reports;
+sub hxml_cmdstream;
 
 
-#####################################################
-# xml-functions
-#####################################################
-sub denvd {
-	my $file = $File::Find::name;
-	if($file =~ s/.*csd_deg_dscv\/(\d+)$/$1/) {
-		system("mkdir -p $report_out.sources/$env/$1") and die;
-		system("cp -r $reports_dir/$env/csd_deg_dscv/$1/dscv_tempdir/dscv/ri/* $report_out.sources/$env/$1/") and die;
-	}
+
+###################################################
+# main
+###################################################
+
+my @lstates = get_states($config);
+merge_reports($config, @lstates);
+exit;
+
+use XML::Twig;
+sub merge_reports {
+	my ($config, @states) = @_;
+
+	my $twig_inreport = XML::Twig->new();
+	$twig_inreport->set_xml_version( '1.0');
+	my $twig_inroot = XML::Twig::Elt->new('reports');
+	$twig_inreport->set_root($twig_inroot);
+
+	@reports=get_reports($config);
+	foreach my $file (@reports) { 
+		vsay 'DEBUG', "Process report from file: \"$file\".\n";
+		my $twig_report = new XML::Twig();
+		$twig_report->parsefile($file);
+		my $twig_report_root=$twig_report->root;
+		my @childrens = $twig_report_root->children();
+		my @sections;
+		local $_;
+		foreach (@childrens) {
+			$_->name =~ /cc|ld|build/ and hxml_cmdstream $_, $config, $file, @states;
+			if($_->name =~ /build/) { 
+				@sections = (@sections, $_) 
+			} else {
+				 @sections = ($_, @sections);
+			}
+			$_->name =~ /cc/ and @sections = (@sections, $_);
+		}
+		$_->move($twig_inroot) foreach @sections;
+	};
+
+	$twig_inreport->set_pretty_print('indented');
+	$twig_inreport->print_to_file($config->{'report-out'});
+	vsay 'NORMAL', "Report created successfully.\n";
 }
 
 
-sub search {  push (@filelist,$File::Find::name) if(!-d); }
-sub get_reports {
-	my @local_reports=();
-	find(\&search, $reports_dir);
-	my @out_reports=();
-	foreach(@filelist) { if(/.*$report_name/) { push(@out_reports,$_); } }
-	return @out_reports;
-}
 #####################################################
 # twig  handlers
 #####################################################
 
 sub hxml_cmdstream {
-	my @state=get_state($_[1]);
-	$_[0]->set_att($xml_reports_att_env=>$state[0]);
-
-	if($_[0]->name eq $xml_reports_ld && $_[0]->has_atts && $_[0]->att($xml_cmd_attr_check) eq 'true') {
-		my $verdict_section = $_[0]->first_child($xml_reports_verdict);
+	my ($cmd, $config, $file, @states) = @_;
+	my $state = get_state($file, @states);
+	my $kernel = $state->{'env'};	
+	$cmd->set_att('kernel'=>$kernel);
+	my $kernel = $cmd->att('kernel');
+	my $verdict_section = $cmd->first_child('verdict');
+	if($cmd->name eq 'ld' && $cmd->has_atts && $cmd->att('check') eq 'true') {
+		vsay 'DEBUG', "Command have verdict: \"".$verdict_section->text."\"\n";
 		if($verdict_section && $verdict_section->text eq 'UNSAFE') {
-			my $kernel=$_[0]->att($xml_reports_att_env);
-			my $model =$_[0]->att($xml_reports_att_model);
-			my $rcv_section = $_[0]->first_child($xml_section_rcv);
-			my $engine=$rcv_section->att($xml_rcv_att_verifier);
-			my $trace_section = $_[0]->first_child($xml_section_trace);
+			my $model =$cmd->att('model');
+			my $rcv_section = $cmd->first_child('rcv');
+			my $verifier=$rcv_section->att('verifier');
+			vsay 'DEBUG', "Verifier: \"$verifier\".\n";
+			my $trace_section = $cmd->first_child('trace');
 			my $trace = $trace_section->text;
-			#
-			# 	And now we have
-			# 1. $kernel
-			# 2. $model
-			# 3. $trace
-			# 4. $engine
-			#
-			# Try to call trace visualizer 
-			#
-			if($engine eq $engine_blast) {
-				ldv_print("engine in report: ".$engine_blast);
-				my $temp_file = "$report_out.tmp";
-				# remove old temp files
-				ldv_dprint("rm -f $temp_file");
-				if(system('rm','-f',$temp_file)) {
-					ldv_wprint("Can't remove temp file: \"$temp_file\".");
-					return;
-				}
-				# call visualizer
-				if(system($tracevis,"--engine=$engine","--report=$trace","--reqs-out=$temp_file")) {
-					ldv_wprint("error-trace-visualizer failed.");
-					return;
-				}
-				if(!( -f $temp_file)) {
-					ldv_wprint("Can't find temp file.");
-					return;
-				};
-				# read temp file
-				open(FILT,$temp_file);
-				my @trace_files = <FILT>;
-				close(FILT);
-				# Save list of files specific for this trace
-				my %sources = ();
-				foreach $tfile (@trace_files) {
-					ldv_dprint("file: $tfile");
-					# if path relativ then we
-					my $work_dir_pattern = $state[2];
-					if($tfile =~ m/$work_dir_pattern\/+csd_deg_dscv\/+\d+\/+/ ) {
-						my $brelpath = $tfile;
-#						$brelpath =~ s/$work_dir_pattern\/+csd_deg_dscv\/+(\d+\/+.*)/$1/ ;
-						$brelpath =~ s/$work_dir_pattern\/+(csd_deg_dscv\/+)(\d+\/+.*)/$1$2/ ;
-						my $relpath = $brelpath;
-						$relpath =~ s/(.*)\/.*$/$1/;
-						my $target_rel_path = "$kernel/$relpath";
-						chomp($target_rel_path);
-						my $rel_path_full="$report_out.source/$target_rel_path";
+			my $temp_file = $config->{'report-out'}.'.tmp';
+			system('rm','-f',$temp_file);
+			# call visualizer
+			@etv_arg = ($config->{'error-trace-visualizer'},
+					"--engine=$verifier",
+					"--report=$trace",
+					"--reqs-out=$temp_file");
+			vsay 'TRACE', "Calling error-trace-visualizer: @etv_arg\n";
+			system(@etv_arg) and die("Error trace visualizer failed\n");
+			# read temp file
+			open(FILT,$temp_file) or die"Can't open temp file $temp_file: $!";
+			my @trace_files = <FILT>;
+			close(FILT) or die"Can't close temp file $temp_file: $!";
+			# Save list of files specific for this trace
+			my %sources = ();
+			foreach (@trace_files) {
+				vsay 'TRACE', "Process trace file: $_\n";
+				if(/$state->{'path'}\/+csd_deg_dscv\/+\d+\/+/) {
+					my $brelpath = $_;
+					$brelpath =~ s/$state->{'path'}\/+(csd_deg_dscv\/+)(\d+\/+.*)/$1$2/;
+					my $relpath = $brelpath;
+					$relpath =~ s/(.*)\/.*$/$1/;
+					my $target_rel_path = "$kernel/$relpath";
+					chomp($target_rel_path);
+					my $rel_path_full="$config->{'report-out'}.source/$target_rel_path";
 
-						ldv_dprint("mkdir -p $rel_path_full");
-						if(system('mkdir','-p',$rel_path_full)) {
-							ldv_wprint("Can't create dir:\"$rel_path_full\"");
-							return;
-						};
-						chomp($tfile);
-						ldv_dprint("cp $tfile $rel_path_full");				
-						if(system('cp',$tfile,$rel_path_full)) {
-							ldv_wprint("Can't copy file:\"$tfile\" to \"$rel_path_full\"");
-							return;
-						}
-						# Save relative file to the list
-						my (undef,undef,$copied_file) = splitpath($tfile);
-						my $r = File::Spec->catfile($target_rel_path,$copied_file);
-						$sources{$r} = 1;
+					system('mkdir','-p',$rel_path_full) and die("Can't create dir: \"$rel_path_full\": $!");
+					chomp($_);
+					system('cp',$_,$rel_path_full) and die("Can't copy file:\"$_\" to \"$rel_path_full\": $!");
+					# Save relative file to the list
+					my (undef,undef,$copied_file) = splitpath($_);
+					my $r = File::Spec->catfile($target_rel_path,$copied_file);
+					$sources{$r} = 1;
+				} else {
+					$relpath = $_;
+					if(/$state->{'path'}\/+ldv_tempdir\/+driver\/+(.*)/) {
+						$relpath =~ s/$state->{'path'}\/+ldv_tempdir\/+driver\/+(.*)/$1/;
+						$relpath =~ s/(.*)\/.*$/$1/;
 					} else {
-						ldv_dprint("work dir pattern: $work_dir_pattern");
-						$relpath = $tfile;
-						ldv_dprint("first tfile: $tfile");
-						if( $relpath =~ m/$work_dir_pattern\/+ldv_tempdir\/+driver\/+(.*)/ ) {
-							$relpath =~ s/$work_dir_pattern\/+ldv_tempdir\/+driver\/+(.*)/$1/;
-							$relpath =~ s/(.*)\/.*$/$1/;
-						} else {
-							ldv_dprint("B__BEFORE: $relpath");
-#							$relpath =~ s/.*$kernel//;
-#							if(!($relpath =~ s/.*$kernel//)) {
-#								$relpath =~ s/(.*\/+).*$/$1/;
-#							}
-							$relpath =~ s/.*$kernel//;
-							$relpath =~ s/(.*\/+).*$/$1/;
-							ldv_dprint("B__AFTER: $relpath");
-						}
-						my $target_rel_path="$kernel/$relpath";
-						chomp($target_rel_path);
-						my $rel_path_full="$report_out.source/$target_rel_path";
-						ldv_dprint("relativ full path: $rel_path_full\n");
-						ldv_dprint("mkdir -p $rel_path_full");
-						if(system('mkdir','-p',$rel_path_full)) {
-							ldv_wprint("Can't create dir:\"$rel_path_full\".");
-							return;
-						}
-#						if(!$artificial_kernel) {
-							ldv_dprint("LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel");
-							my $path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $kmanager --action=getpath --name=$kernel`;
-#						} else {
-#							ldv_dprint("Artificial kernel mode.");
-#							my $path_to_kernel=$artificial_kernel;
-#						}
-						chomp($path_to_kernel);
-						ldv_dprint("path to kernel: $tfile");
-						if(!(-d $path_to_kernel)) {
-							ldv_wprint("Can't get path for kernel.");
-							return;
-						}
-						my $kernel_file;
-						ldv_dprint("tfile: $tfile");
-						chomp($tfile);
-						if($tfile =~ m/$work_dir_pattern\/+ldv_tempdir\/+driver\/+/) {
-							$kernel_file="$tfile";
-						} elsif ( -f $tfile && $tfile =~ m/$kernel\/+/) {
-							$kernel_file = $tfile;
-							$kernel_file =~ s/.*\/+$kernel\/+(.*)/$path_to_kernel\/$1/;
-							ldv_dprint("Kernel file: $kernel_file");
-						# Small fix for GSoC: if $tfile is an absolute path, it shouldn't be appended to $path_to_kernel
-						} elsif ($tfile =~ m/^\//) {
-							$kernel_file="$tfile";
-						} else {
-							$kernel_file="$path_to_kernel/$tfile";
-						}
-						ldv_dprint("kernel file: $kernel_file");
-						chomp($kernel_file);
-						if(!(-f $kernel_file)) {
-							ldv_wprint("Can't find kernel file.");
-							return;
-						}
-						# and now copy it
-						ldv_tprint("cp $kernel_file $rel_path_full");
-						if(system('cp',$kernel_file,$rel_path_full)) {
-							ldv_wprint("Can't copy kernel file.");
-							return;
-						}
-						# Save relative file to the list
-						my (undef,undef,$copied_file) = splitpath($kernel_file);
-						my $r = File::Spec->catfile($target_rel_path,$copied_file);
-						$sources{$r} = 1;
+						$relpath =~ s/.*$kernel//;
+						$relpath =~ s/(.*\/+).*$/$1/;
 					}
+					my $target_rel_path="$kernel/$relpath";
+					chomp($target_rel_path);
+					my $rel_path_full="$config->{'report-out'}.source/$target_rel_path";
+					system('mkdir','-p',$rel_path_full) and die "Can't create dir:\"$rel_path_full\": $!";
+					$path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $config->{'kernel-manager'} --action=getpath --name=$kernel`;
+					chomp($path_to_kernel);
+					if(!(-d $path_to_kernel)) {
+						vsay 'NORMAL', "Can't get path for kernel.";
+						return;
+					}
+					my $kernel_file;
+					chomp($_);
+					if(/$state->{'path'}\/+ldv_tempdir\/+driver\/+/) {
+						$kernel_file="$_";
+					} elsif ( -f && /$kernel\/+/) {
+						$kernel_file = $_;
+						$kernel_file =~ s/.*\/+$kernel\/+(.*)/$path_to_kernel\/$1/;
+					} elsif (/^\//) {
+						$kernel_file=$_;
+					} else {
+						$kernel_file="$path_to_kernel/$_";
+					}
+					chomp($kernel_file);
+					if(!(-f $kernel_file)) {
+						vsay 'NORMAL', "Can't find kernel file.";
+						return;
+					}
+					if(system('cp',$kernel_file,$rel_path_full)) {
+						vsay 'NORMAL', "Can't copy kernel file.";
+						return;
+					}
+					# Save relative file to the list
+					my (undef,undef,$copied_file) = splitpath($kernel_file);
+					my $r = File::Spec->catfile($target_rel_path,$copied_file);
+					$sources{$r} = 1;
 				}
-				# Save source file names to the report
-				ldv_dprint("Sources gotten: ".$_[0]->att('ref')." : ".join(", ",keys %sources));
-				for my $src_fname (keys %sources){
-					XML::Twig::Elt->new('sourcefile',{},$src_fname)->paste(last_child=>$_[0]);
-				}
-			} elsif ($engine eq $engine_cpachecker) {
-				ldv_print("engine in report: ".$engine_cpachecker);
-			} else {
-				ldv_wprint("Unknown engine in report !");
-				return;
+			}
+			# Save source file names to the report
+			for my $src_fname (keys %sources){
+				XML::Twig::Elt->new('sourcefile',{},$src_fname)->paste(last_child=>$_[0]);
 			}
 		}
 	}
@@ -292,145 +204,33 @@ sub hxml_cmdstream {
 }	
 
 sub get_state {
-	foreach my $lstate (@states) {
-		if($lstate =~ m/^(.*):(.*)$/) {
-			my $path=$2;
-			my $envid=$1;
-			if($_[0] =~ m/$path/) {
-				my @state=($envid,"0",$path);	
-				return @state;
-			}	
-		}
+	my ($ident,@states) = @_;
+	foreach (@states) {
+		/^(.*):(.*)$/ or next;
+		my $path=$2;
+		my $envid=$1;
+		vsay 'TRACE', "STATES: $1, $2\n";
+		$ident =~ m/$path/ and return {env=>$envid, val=>'0', path=>$path};
 	}
 }
 
-######################################################
-# option test
-######################################################
-sub get_ldv_opts
-{
-	$log_level = $ENV{'LDV_DEBUG'};
-	$LDV_ENVS_TARGET = $ENV{'LDV_ENVS_TARGET'} || " ";
-
-	# get all options
-	foreach $opt(@ARGV)
-	{
-		if($opt =~ s/--reports-dir=(.*)/$1/)
-		{
-			$reports_dir = $opt;
-		}
-#		elsif($opt =~ s/--artificial-kernel=(.*)/$1/)
-#		{
-#			$artificial_kernel = $opt;
-#		}	
-		elsif($opt =~ s/--report-name=(.*)/$1/)
-		{
-			$report_name = $opt;
-		}
-		elsif($opt =~ s/--state-file=(.*)/$1/)
-		{
-			$state_file = $opt;
-		}
-		elsif($opt =~ s/--report-out=(.*)/$1/)
-		{
-			$report_out = $opt;
-		}
-		else
-		{
-			ldv_eprint("Unknown option:\"$opt\".");
-			exit 1;
-		}
-	}
-	# test all options
-	if(!$report_name) {
-		ldv_eprint("You must setup input report filename: \"--report-name\".");
-		print_usage();
-		exit 1;
-	}
-	if(!$state_file) {
-		ldv_eprint("You must setup file with state: \"--state-file\".");
-		print_usage();
-		exit 1;
-	} elsif(! -f $state_file) {
-		ldv_eprint("Can not find file with state: \"$state_file\".");
-		print_usage();
-		exit 1;
-	}
-	if(!$reports_dir) {
-		ldv_eprint("You must setup output reports dir in option: \"--reoports-dir\".");
-		print_usage();
-		exit 1;
-	} elsif(! -d $reports_dir) {
-		ldv_eprint("Directory with reports not exists: \"$reports_dir\".");
-		print_usage();
-		exit 1;
-	} 
-	if(!$report_out) {
-		ldv_eprint("You must setup output report file in option: \"--reoport-out\".");
-		print_usage();
-		exit 1;
-	} elsif( -f $report_out) {
-		ldv_eprint("Output report file already exists: \"$report_out\".");
-		print_usage();
-		exit 1;
-	}
+use File::Find;
+sub search {  push (@filelist,$File::Find::name) if(!-d); }
+sub get_reports {
+	my ($config) = @_;
+	my @local_reports=();
+	find(\&search, $config->{'reports-dir'});
+	my @out_reports=();
+	foreach(@filelist) { if(/.*$config->{'report-name'}/) { push(@out_reports,$_); } }
+	return @out_reports;
 }
 
-sub print_usage
-{
-	ldv_print("USAGE: $psuffix --reports-dir=reportsdir --report-out=reportfile --report-name=reportname --state-file=statefile");
+sub get_states {
+	my ($config) = @_;
+	open FILE, $config->{'state-file'} or die"Can' open state file \"$config->{'state-file'}\": $!"; 
+	my @states = <FILE>; 
+	close FILE or die"Can't close state file \"$config->{'state-file'}\": $!";
+	return @states;	
 }
 
-#######################################################
-# ldv print functions
-#######################################################
-sub ldv_print
-{
-	chomp($_[0]);
-	print "$psuffix: $_[0]\n";
-}
 
-sub ldv_wprint
-{
-	ldv_print "WARNING: $_[0]";
-}
-
-sub ldv_eprint
-{
-	ldv_print "ERROR: $_[0]";
-}
-
-sub ldv_sprint
-{
-	if($log_level>=10) {
-		ldv_print("$_[0]");
-	}
-}
-
-sub ldv_iprint
-{
-	if($log_level>=20) {
-		ldv_print("INFO: $_[0]");
-	}
-}
-
-sub ldv_dprint
-{
-	if($log_level>=30) {
-		ldv_print("DEBUG: $_[0]");
-	}
-}
-
-sub ldv_tprint
-{
-	if($log_level>=40) {
-		ldv_print("TRACE: $_[0]");
-	}
-}
-
-sub ldv_aprint
-{
-	if($log_level==100) {
-		ldv_print("$_[0]");
-	}
-}
