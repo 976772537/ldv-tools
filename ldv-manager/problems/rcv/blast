@@ -5,7 +5,7 @@ $\ = "\n";
 $, = "\n";
 while (<>){
 	chomp;
-	/exception/i and print "Exception";
+	/\bexception\b/i and print "Exception";
 	/combining structure and non-structure values/i and print "BLAST_combinig";
 	/Attempt to access a non structure value as a structure/i and print "BLAST_LLVM_nonstruct";
 	/Memory Limit Exceeded/i and print "Out_of_memory";

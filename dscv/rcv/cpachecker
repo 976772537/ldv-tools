@@ -130,7 +130,8 @@ sub verify_cpachecker
 
 			# HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
 			my $failmsg = $args{already_failed};
-			$failmsg =~ s/Fatal error: exception Errormsg.Error//;
+			$failmsg =~ s/Fatal error: exception Errormsg.Error//g;
+			$failmsg =~ s/Errormsg.Error/\n/g;
 
 			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
 			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
