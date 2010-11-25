@@ -401,7 +401,7 @@ doc.elements.each(xml_query_string) do |ld|
 		launch.status = 'finished'
 		# Because of :autosave property, recursively saves all records
 		launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-		masters.fix(launch.environment.version,launch.driver.name,(l.rule_model.nil?? "nil" : l.rule_model.name))
+		masters.fix(launch.environment.version,launch.driver.name,(launch.rule_model.nil?? "nil" : launch.rule_model.name))
 	end
 end
 
