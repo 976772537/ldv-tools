@@ -31,7 +31,7 @@ them, you must use "no_blast=y" option when installing the toolset.
 
 Install the following components: install-visualization, install-testing.
 
-You most likely would want to run all drivers in a kernel, or run the "General"
+You most likely would want to run all drivers in a kernel, or run the "general"
 regression test set (this test set contains "interesting" drivers of various
 sizes).  The only difference with default workflow (about which you can read in
 README and TUTORIAL) is that you should set some additional environment
@@ -45,11 +45,12 @@ CPACHECKER=/path/to/cpa.sh
 	Specify location of CPAchecker cpa.sh script.  By default, it runs
 	"cpa.sh" found in your PATH environment variable.
 
-CPACHECKER_CONFIG=config.cfg
+CPACHECKER_CONFIG=/path/to/config.cfg
 	If yon don't want to use the default config (which is found in
 	dscv/rcv/cpachecker.config/cpa.cfg.pattern), you may specify your own
 	through this variable.  Note that it will be copied, and some options will be
 	adjusted in it!
+	Sorry, the file name must be absolute.
 
 CPACHECKER_OPTIONS=
 	Additional options for CPAchecker.  You should not set "-config" option
