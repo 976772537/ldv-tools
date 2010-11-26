@@ -1255,6 +1255,7 @@ sub process_source_code_files()
     if ($line =~ /^$src_tag(.*)$src_tag$/)
     {
       $file_name = $1;
+      print_debug_debug("Find the file '$file_name' in source code files file");
       print_debug_trace("Try to relate file by its long name '$file_name' with some long name");
       $isrelated_with = '';
       foreach my $full_name (keys(%files_long_name))

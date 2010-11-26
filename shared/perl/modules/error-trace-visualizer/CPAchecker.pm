@@ -327,18 +327,20 @@ sub get_line()
 
 sub get_src()
 {
+  # Src is obtained just from the first line and just one time. The rest
+  # content of string is returned back.
   $src_filename = get_line();
-  if ($src_filename =~ /$format_cpa_trace/)
+  if ($src_filename =~ /^Src ([^:]+): /)
+  {
+    $src_filename = $1;
+    $::dependencies{$src_filename} = 1;
+    unget_line($POSTMATCH);
+  }
+  else
   {
     print_error("source file is not specified. writing 'none' instead");
     unget_line($src_filename);
     $src_filename = 'none';
-  }
-  else
-  {
-    $src_filename =~ /^ *(.*) *$/;
-    $src_filename = $1;
-    $::dependencies{$src_filename} = 1;
   }
 }
 
