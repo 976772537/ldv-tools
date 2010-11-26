@@ -7,5 +7,7 @@ while (<>){
 	chomp;
 	/Compile error/ and print "Compile error";
 	/Can\'t find correct Makefile or Kbuild file/ and print "No Makefile or Kbuild file";
+	/Driver have no kernel modules/ and print "No modules";
+	/Incorrect driver archive type/ and print "Incorrect archive type";
 }
 
