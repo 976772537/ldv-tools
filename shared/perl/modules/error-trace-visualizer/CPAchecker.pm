@@ -44,9 +44,9 @@ sub add_return($);
 sub cleaned_blanks_and_brackets($);
 
 # write converted to CPA-format list @current_trace to list @trace
-# args: reference to array of trace lines
+# args: whether requirements are needed, reference to array of trace lines
 # retn: reference to array of converted trace lines
-sub convert_cpa_trace_to_blast($);
+sub convert_cpa_trace_to_blast($$);
 
 # output "Location"- and "Block"-strings using print_out
 # args: some string
@@ -101,7 +101,7 @@ my $block_buffer;
 # keeps number of code line according to processing trace line
 my $curr_line_number;
 
-# keeps number of trace line to be printed in "Location .. line=__" 
+# keeps number of trace line to be printed in "Location .. line=__"
 my $curr_line_number_to_print;
 
 # keeps part of trace to be analysed
@@ -138,6 +138,9 @@ my %format_node = (
     'return edge' => 'Return Edge to (\d+)',
     'start edge' => 'Function start dummy edge'
   );
+
+# Whether requirements are needed.
+my $is_reqs;
 
 # if defined, keeps value of last accepted node type: 'block', 'declaration', 'function call', 'pred'
 my $last_block_type;
@@ -184,7 +187,7 @@ sub add_line($)
   my $curr_line = shift();
   my $tmp;
 
-  if ($curr_line =~ /^ *$format_node{'pred'} *$/) # only predicate has outer square brackets ( [] ) 
+  if ($curr_line =~ /^ *$format_node{'pred'} *$/) # only predicate has outer square brackets ( [] )
   {
     flush_block();
     $curr_line_number_to_print = $curr_line_number;
@@ -265,12 +268,13 @@ sub cleaned_blanks_and_brackets($)
   return $1;
 }
 
-sub convert_cpa_trace_to_blast($)
+sub convert_cpa_trace_to_blast($$)
 {
-  # Read the whole error trace from the argument. Skip the first argument since
-  # it's a module name.
+  # Skip the first argument since it's a module name.
+  shift;
+  my $is_reqs = shift;
+  # Read the whole error trace from the thirdargument..
   my $error_trace_ref = shift;
-  $error_trace_ref = shift;
 
   @current_trace = @{$error_trace_ref};
 
@@ -334,6 +338,7 @@ sub get_src()
   {
     $src_filename =~ /^ *(.*) *$/;
     $src_filename = $1;
+    $::dependencies{$src_filename} = 1;
   }
 }
 
