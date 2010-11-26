@@ -178,13 +178,13 @@ create table launches(
 	primary key (id),
 	UNIQUE (driver_id,toolset_id,environment_id,rule_model_id,scenario_id,task_id),
 
-	foreign key (driver_id) references drivers(id),
-	foreign key (toolset_id) references toolsets(id),
-	foreign key (environment_id) references environments(id),
-	foreign key (rule_model_id) references rule_models(id),
-	foreign key (scenario_id) references scenarios(id),
+	foreign key (driver_id) references drivers(id) on delete cascade,
+	foreign key (toolset_id) references toolsets(id) on delete cascade,
+	foreign key (environment_id) references environments(id) on delete cascade,
+	foreign key (rule_model_id) references rule_models(id) on delete cascade,
+	foreign key (scenario_id) references scenarios(id) on delete cascade,
 	foreign key (trace_id) references traces(id),
-	foreign key (task_id) references tasks(id)
+	foreign key (task_id) references tasks(id) on delete cascade
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
