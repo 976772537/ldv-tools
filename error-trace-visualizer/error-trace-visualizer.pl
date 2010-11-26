@@ -341,6 +341,13 @@ if ($opt_reqs_out)
       print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
     }
   }
+  if ($opt_engine eq $engine_cpachecker)
+  {
+    foreach my $dep (keys(%dependencies))
+    {
+      print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+    }
+  }
 }
 
 print_debug_trace("Close file handlers");

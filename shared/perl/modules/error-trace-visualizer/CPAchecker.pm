@@ -7,40 +7,40 @@ require Exporter;
 
 use English;
 use Env qw(DEBUG_VAR);
-# TODO: get options is deprecated!
-use Getopt::Long qw(GetOptions);
-Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
 ###############################################################################
 # Subroutine prototypes
 ###############################################################################
 
-# Output "Location"- and "Declaration"-strings using print_out
+# output "Location"- and "Declaration"-strings using print_out
 # args: some string
 # retn: nothing
 sub add_declaration($);
 
-# Output "Location"-, "FunctionCall"- and "Local:"-strings using print_out
+# output "Location"-, "FunctionCall"- and "Local:"-strings using print_out
 # args: some string
 # retn: nothing
 sub add_function_call($);
 
-# Print_out blast analogue of given line; shift @current_trace if necessary
+# print_out blast analogue of given line; shift @current_trace if necessary
 # args: some string
 # retn: nothing
 sub add_line($);
 
-# Output "Location"- and "Pred"-strings using print_out
+# output "Location"- and "Pred"-strings using print_out
 # args: some string
 # retn: nothing
 sub add_pred($);
 
-# Output "Location"-, "Block(Return(..);)"- and "Skip"-strings using print_out
+# output "Location"-, "Block(Return(..);)"- and "Skip"-strings using print_out
 # args: some string
 # retn: nothing
 sub add_return($);
 
+# process string: delete strating and finishing blanks and outer brackets
+# args: string to process
+# retn: processed string
 sub cleaned_blanks_and_brackets($);
 
 # write converted to CPA-format list @current_trace to list @trace
@@ -48,24 +48,24 @@ sub cleaned_blanks_and_brackets($);
 # retn: reference to array of converted trace lines
 sub convert_cpa_trace_to_blast($);
 
-# Output "Location"- and "Block"-strings using print_out
+# output "Location"- and "Block"-strings using print_out
 # args: some string
 # retn: nothing
 sub flush_block();
 
+# shift next line to process from @current_trace, increase $curr_line_number
+# args: no
+# retn: next string to process
 sub get_line();
 
-# process command-line options. To see detailed description of these options
-# run script with --help option.
-# args: no.
-# retn: nothing.
-sub __todo_deprecated_get_opt();
-
-# print help
+# if first trace line does not match cpa trace format, it is shifted as source file name ($src_filename)
 # args: no
 # retn: nothing
-sub help();
+sub get_src();
 
+# check if '(' and ')' are balanced in current string
+# args: string to check
+# retn: expression, equivalent to true/false
 sub is_balanced_brackets($);
 
 # if $DEBUG_VAR is defined, print string to STDERR
@@ -78,7 +78,7 @@ sub print_debug($);
 # retn: nothing
 sub print_error($);
 
-# print string to out stream (currently STDOUT)
+# push string to @processed_trace
 # args: some string
 # retn: nothing
 sub print_out($);
@@ -98,9 +98,10 @@ sub unget_line($);
 # if not empty string, keeps assignment sequence to be added as block node
 my $block_buffer;
 
-# keeps number of current source code line
+# keeps number of code line according to processing trace line
 my $curr_line_number;
 
+# keeps number of trace line to be printed in "Location .. line=__" 
 my $curr_line_number_to_print;
 
 # keeps part of trace to be analysed
@@ -113,55 +114,39 @@ my @processed_trace;
 # Line <number>: (N<number> -{<body>}-> N<number>)\n
 my $format_cpa_trace = 'Line (\d+): \(N(\d+) -\{(.*)\}-> N(\d+)\)\n';
 
+# keeps identifier format
 my $format_name = '[a-zA-z_]\w+';
-
-my $format_typecast = '\(.*\)';
 
 # keeps all node formats:
 #  'block': block (assignment) format: <left part>=<right part>;
-#  'declaration': variable declaration format: string that does not contain "=", followed by ";"
-#  'dummy edge': fake node in cpachecker, meaning getting inside function body
-#  'fuction call': function call format: <function name>(variables)
+#  'block return': usual return-statement: return <expression>;
+#  'declaration': declaration format: string followed by ";". must be checked after 'block' and 'function call'
+#  'fake': formats that may appear in cpa trace but have no meaning according to conversion
+#  'fuction call': function call format: currently it's string, containing identifier immediatly followed by '('
 #  'init': starting section of global variables initializing
 #  'pred': predicates (assumptions) format: [<predicate>]
+#  'return edge': means 'previous operator was return from function'
+#  'start edge': means 'there was a function call and i'm getting inside function body'
 my %format_node = (
     'block' => '((.*)=(.*);)',
     'block return' => 'return(\W.*)?;',
     'declaration' => '(.*;)',
-    #'function call' => '(.*\(.*\)) *;?',
+    'fake' => 'Label:.*|Goto:.*|while|',
     'function call' => '((.*\W)?'.$format_name.' *\(.*)',
     'init' => 'INIT GLOBAL VARS',
     'pred' => '\[(.*)\]',
-    'start edge' => 'Function start dummy edge',
     'return edge' => 'Return Edge to (\d+)',
-    'fake' => 'Label:.*|Goto:.*|while|'
+    'start edge' => 'Function start dummy edge'
   );
 
 # if defined, keeps value of last accepted node type: 'block', 'declaration', 'function call', 'pred'
 my $last_block_type;
 
-# command-line options. use --help option to get more information
-my $opt_help;
-my $opt_src = 'none';
+# keeps source filename
+my $src_filename = '';
 
+# keeps number of processing trace line
 my $trace_line_number;
-
-# TODO: main section is deprecated because of script becomes a module!
-###############################################################################
-# Main section
-###############################################################################
-
-#__todo_deprecated_get_opt();
-
-#@current_trace = <>;
-
-#print_debug("starting conversion\n");
-
-#convert_cpa_trace_to_blast();
-
-#print_debug("finishing conversion\n");
-
-#print_out(@trace);
 
 ###############################################################################
 # Subroutines
@@ -169,7 +154,7 @@ my $trace_line_number;
 
 sub add_declaration($)
 {
-  print_out('Location: id=1#1 src="'.$opt_src.'"; line='."$curr_line_number_to_print\n");
+  print_out('Location: id=1#1 src="'.$src_filename.'"; line='."$curr_line_number_to_print");
   print_out('Declaration('.shift().')'."\n");
 }
 
@@ -177,19 +162,19 @@ sub add_function_call($)
 {
   my $tmp;
 
-  print_out('Location: id=1#1 src="'.$opt_src.'"; line='."$curr_line_number_to_print\n");
-  print_out('FunctionCall('.shift().')'."\n");
+  print_out('Location: id=1#1 src="'.$src_filename.'"; line='."$curr_line_number_to_print");
+  print_out('FunctionCall('.shift().')');
 
   $tmp = shift(@current_trace);
   if (defined($tmp) and ($tmp =~ /$format_cpa_trace/) and ($3 =~ /^$format_node{'start edge'}$/))
   {
-    print_out('Locals: '."\n"); # пока не разберусь, как оно должно выглядеть, будет так
+    print_out('Locals: '); # TODO: cpa trace does not contain prototypes or smth like that. when it appears, it has to be added
   }
   else
   {
-    print_out('LDV: undefined function called: NOT_IMPLEMENTED_FUNCTION'."\n"); # пока не разберусь, как оно должно выглядеть, будет так
-    print_out('Location: id=1#1 (Artificial)'."\n");
-    print_out('Skip'."\n");
+    print_out('LDV: undefined function called: NOT_IMPLEMENTED_FUNCTION'); # it's the only reason I know of missing 'start edge'
+    print_out('Location: id=1#1 (Artificial)');
+    print_out('Skip');
     unget_line($tmp);
   }
 }
@@ -199,13 +184,13 @@ sub add_line($)
   my $curr_line = shift();
   my $tmp;
 
-  if ($curr_line =~ /^ *$format_node{'pred'} *$/) # предикат всегда предикат, ибо ни у кого нет [] по краям
+  if ($curr_line =~ /^ *$format_node{'pred'} *$/) # only predicate has outer square brackets ( [] ) 
   {
     flush_block();
     $curr_line_number_to_print = $curr_line_number;
     add_pred(cleaned_blanks_and_brackets($1));
   }
-  elsif ($curr_line =~ /^ *$format_node{'block return'} *$/) # return всегда return, ибо резервированное слово
+  elsif ($curr_line =~ /^ *$format_node{'block return'} *$/) # return <expression> is always return from function
   {
     if (defined($1))
     {
@@ -219,13 +204,13 @@ sub add_line($)
     $curr_line_number_to_print = $curr_line_number;
     add_return(cleaned_blanks_and_brackets($curr_line));
   }
-  elsif ($curr_line =~ /^ *$format_node{'function call'} *$/) # function call должен быть перед block, ибо __ = __() - это function call
+  elsif ($curr_line =~ /^ *$format_node{'function call'} *$/) # __ = __() is a function call, so it has to be before 'block'
   {
     flush_block();
     $curr_line_number_to_print = $curr_line_number;
     add_function_call(cleaned_blanks_and_brackets($curr_line));
   }
-  elsif ($curr_line =~ /^ *$format_node{'block'} *$/) # block после function call, ибо __ = __, которые не function call, суть block
+  elsif ($curr_line =~ /^ *$format_node{'block'} *$/) # __ = __() is a function call, so it has to be after 'function call'
   {
     if ($block_buffer eq '')
     {
@@ -233,7 +218,7 @@ sub add_line($)
     }
     $block_buffer .= cleaned_blanks_and_brackets($curr_line);
   }
-  elsif ($curr_line =~ /^ *$format_node{'declaration'} *$/) # пихаю в declaration всё с ";", кроме всего, что выше
+  elsif ($curr_line =~ /^ *$format_node{'declaration'} *$/) # declaration is 'everything with ";" but block or function', so it has to be after them
   {
     flush_block();
     $curr_line_number_to_print = $curr_line_number;
@@ -244,27 +229,27 @@ sub add_line($)
   }
   else
   {
-    print_error('Unknown node format on line '.$trace_line_number.': '."'".$curr_line."'".'. Node is ignored.'."\n");
+    print_error('Unknown node format on line '.$trace_line_number.': '."'".$curr_line."'".'. Node is ignored.');
   }
 }
 
 sub add_pred($)
 {
-  print_out('Location: id=1#1 src="'.$opt_src.'"; line='."$curr_line_number_to_print\n");
-  print_out('Pred('.shift().')'."\n");
+  print_out('Location: id=1#1 src="'.$src_filename.'"; line='."$curr_line_number_to_print");
+  print_out('Pred('.shift().')');
 }
 
 sub add_return($)
 {
   my $tmp;
-  print_out('Location: id=1#1 src="'.$opt_src.'"; line='."$curr_line_number_to_print\n");
-  print_out('Block(Return('.shift().');)'."\n");
-  print_out('Skip'."\n");
+  print_out('Location: id=1#1 src="'.$src_filename.'"; line='."$curr_line_number_to_print");
+  print_out('Block(Return('.shift().');)');
+  print_out('Skip');
 
   $tmp = get_line();
   unless (defined($tmp) and ($tmp =~ /$format_cpa_trace/) and ($3 =~ /^$format_node{'return edge'}$/))
   {
-    print_error('Return edge was expected on trace line '.$trace_line_number.', but found '."'".$tmp."'"."\n");
+    print_error('Return edge was expected on trace line '.$trace_line_number.', but found '."'".$tmp."'");
     unget_line($tmp);
   }
 }
@@ -295,7 +280,9 @@ sub convert_cpa_trace_to_blast($)
   $block_buffer = '';
   $trace_line_number = 0;
 
-  print_out('Location: id=1#1 src="'.$opt_src.'"; line=0'."\n");
+  get_src();
+
+  print_out('Location: id=1#1 src="'.$src_filename.'"; line=0');
 
   skip_till_entry();
 
@@ -322,8 +309,8 @@ sub flush_block()
 {
   if ("$block_buffer" ne '')
   {
-    print_out('Location: id=1#1 src="'.$opt_src.'"; line='."$curr_line_number_to_print\n");
-    print_out('Block('.$block_buffer.')'."\n");
+    print_out('Location: id=1#1 src="'.$src_filename.'"; line='."$curr_line_number_to_print");
+    print_out('Block('.$block_buffer.')');
     $block_buffer = '';
   }
 }
@@ -334,34 +321,20 @@ sub get_line()
   return shift(@current_trace);
 }
 
-sub __todo_deprecated_get_opt()
+sub get_src()
 {
-  die('Wrong argument list. Type "--help" to read information about available arguments.'."\n")
-    unless(GetOptions(
-      'help' => \$opt_help,
-      'src=s' => \$opt_src));
-
-  if ($opt_help)
+  $src_filename = get_line();
+  if ($src_filename =~ /$format_cpa_trace/)
   {
-    help();
-    die('');
+    print_error("source file is not specified. writing 'none' instead");
+    unget_line($src_filename);
+    $src_filename = 'none';
   }
-
-  unless ($opt_src)
+  else
   {
-    print_error('no source file was specified, writing "none" instead'."\n");
-    $opt_src = 'none';
+    $src_filename =~ /^ *(.*) *$/;
+    $src_filename = $1;
   }
-
-}
-
-sub __todo_deprecated_help()
-{
-  print_out("available flags are\n");
-  print_out("--help\n");
-  print_out("  print available flags\n");
-  print_out("-src\n");
-  print_out("  specify source code filename\n");
 }
 
 sub is_balanced_brackets($)
@@ -393,20 +366,18 @@ sub print_debug($)
 {
   if (defined($DEBUG_VAR))
   {
-    print STDERR shift();
+    print STDERR "DEBUG: ", shift(), "\n";
   }
 }
 
 sub print_error($)
 {
-  print STDERR shift();
+  print STDERR "ERROR: ", shift(), "\n";
 }
 
 sub print_out($)
 {
-   push(@processed_trace, shift());
-# TODO deprecated since module.
-#  print STDOUT shift();
+   push(@processed_trace, shift()."\n");
 }
 
 sub skip_till_entry()
@@ -417,9 +388,9 @@ sub skip_till_entry()
     unless (defined($current_line) and ("$current_line" =~ /$format_cpa_trace/) and ("$3" =~ /^$format_node{'init'}$/));
 
   $curr_line_number = "0";
-  print_out('Location: id=1#1 src="'.$opt_src.'"; line=0'."\n");
-  print_out('FunctionCall(__CPACHECKER_initialize())'."\n");
-  print_out('Locals:'."\n");
+  print_out('Location: id=1#1 src="'.$src_filename.'"; line=0');
+  print_out('FunctionCall(__CPACHECKER_initialize())');
+  print_out('Locals:');
 
   while (1)
   {
@@ -437,9 +408,9 @@ sub skip_till_entry()
     if ("$current_line" =~ /^$format_node{'start edge'}$/)
     {
       flush_block();
-      print_out('Location: id=1#1 src="'.$opt_src.'"; line='."0\n");
-      print_out('Block(Return(0);)'."\n");
-      print_out('Skip'."\n");
+      print_out('Location: id=1#1 src="'.$src_filename.'"; line=0');
+      print_out('Block(Return(0);)');
+      print_out('Skip');
       last;
     }
 
@@ -459,7 +430,7 @@ sub skip_till_entry()
     }
     else
     {
-      print_error('Unknown node format in initialization section ('."'".$current_line."'".') (it has to be Block or Declaration) on line '.$trace_line_number.' of trace: '.$current_line."\n");
+      print_error('Unknown node format in initialization section ('."'".$current_line."'".') (it has to be Block or Declaration) on line '.$trace_line_number.' of trace: '.$current_line);
     }
   }
 }
