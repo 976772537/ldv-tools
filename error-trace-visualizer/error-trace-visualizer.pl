@@ -186,7 +186,7 @@ my $debug_name = 'error-trace-visualizer';
 
 # Hash that keeps all dependencies required by the given error trace. Keys are
 # pathes to corresponding dependencies files.
-my %dependencies;
+our %dependencies;
 
 # Engine to be used during processing and printing of an error trace.
 my $engine = '';
@@ -335,6 +335,13 @@ if ($opt_report_out)
 if ($opt_reqs_out)
 {
   if ($opt_engine eq $engine_blast)
+  {
+    foreach my $dep (keys(%dependencies))
+    {
+      print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+    }
+  }
+  if ($opt_engine eq $engine_cpachecker)
   {
     foreach my $dep (keys(%dependencies))
     {
@@ -1192,26 +1199,30 @@ sub process_error_trace_blast()
 sub process_error_trace_cpachecker()
 {
   my @error_trace_raw = <$file_report_in>;
-  my $error_trace_converted = CPAchecker->convert_cpa_trace_to_blast(\@error_trace_raw);
+  my $error_trace_converted = CPAchecker->convert_cpa_trace_to_blast($opt_reqs_out, \@error_trace_raw);
 
-  # Update the error trace file with the converted trace.
-  close($file_report_in)
-    or die("Can't close the file '$opt_report_in': $ERRNO\n");
+  # We already gather requirements, so finish processing.
+  unless ($opt_reqs_out)
+  {
+    # Update the error trace file with the converted trace.
+    close($file_report_in)
+      or die("Can't close the file '$opt_report_in': $ERRNO\n");
 
-  open($file_report_in, '>', "$opt_report_in")
-    or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for write: $ERRNO");
+    open($file_report_in, '>', "$opt_report_in")
+      or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for write: $ERRNO");
 
-  print($file_report_in @{$error_trace_converted});
+    print($file_report_in @{$error_trace_converted});
 
-  close($file_report_in)
-    or die("Can't close the file '$opt_report_in': $ERRNO\n");
+    close($file_report_in)
+      or die("Can't close the file '$opt_report_in': $ERRNO\n");
 
-  open($file_report_in, '<', "$opt_report_in")
-    or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for read: $ERRNO");
+    open($file_report_in, '<', "$opt_report_in")
+      or die("Can't open the file '$opt_report_in' specified through the option --report-in|c for read: $ERRNO");
 
-  # Use the same trace processor as for blast since the error trace is converted
-  # to its format.
-  return process_error_trace_blast();
+    # Use the same trace processor as for blast since the error trace is converted
+    # to its format.
+    return process_error_trace_blast();
+  }
 }
 
 sub process_error_trace_unknown()
@@ -1244,6 +1255,7 @@ sub process_source_code_files()
     if ($line =~ /^$src_tag(.*)$src_tag$/)
     {
       $file_name = $1;
+      print_debug_debug("Find the file '$file_name' in source code files file");
       print_debug_trace("Try to relate file by its long name '$file_name' with some long name");
       $isrelated_with = '';
       foreach my $full_name (keys(%files_long_name))
