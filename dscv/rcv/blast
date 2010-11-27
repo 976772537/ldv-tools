@@ -101,83 +101,21 @@ sub verify_blast
 {
 	my %args = @_;
 	$args{report} or die;
-	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-	my $repT = XML::Twig::Elt->new('reports');
-
 	# Since arguments alter depending on main, we should save them to temporary.
 	my %args_template = (%args);
 
 	for my $main (@{$args{mains}}){
 		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
+
+		# Sanity check (should be performed at DSCV's site)
+		$sanity->blast_called();
+
+		# FIXME: key is transferred through env variable.  RCV should be rewritten.
+		#                                       rule_id          ld-id     main_id   where to put result
+		LDV::Utils::watcher_cmd('queue','rcv',$ENV{'rule_id'},$args{cmd_id},$main,$workdir);
 		my $result = call_blast(%args, main=>$main); 
 	
-		# Print verdict to console and to report 
-		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
-		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
-
-		my $br = $result->{'BLAST'};
-		if ($br =~ /\byes\b/i) {
-			$br='OK';
-		}elsif($br =~ /\bno\b/i){
-			$br='FAILED';
-		}else{
-			$br='FAILED';
-		}
-
-		my $bv = $result->{'BLAST-detailed'};
-		if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
-			$bv='SAFE';
-		}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
-			$bv='UNSAFE';
-		}else{
-			$bv='UNKNOWN';
-		}
-
-
-		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
-		# Confess who is responsible for that mess
-		XML::Twig::Elt->new('verifier',{},'BLAST')->paste($cmdInstT);
-
-		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
-		XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
-		XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
-
-		# Calculate and output time elapsed
-		#		my $time_sec = $result->{'utime'}+$result->{'stime'};
-		#		my $time_msec = int($time_sec * 1000);
-		#		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
-		# Read file with time statistics
-		if ( -f "$workdir/stats_rcv.xml" && ! -z "$workdir/stats_rcv.xml") {
-			my %timestats;
-				open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
-				while(<STATS_FILE>) {
-					/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
-					$timestats{$1} += $2;
-					#my $time_elt = XML::Twig::Elt->new('time',$2);
-					#$time_elt->set_att( name =>$1);
-					#$time_elt->paste($rcvResultT);
-				}
-				close STATS_FILE;
-				foreach(keys %timestats) {
-					my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
-					$time_elt->set_att( name =>$_);
-					$time_elt->paste($rcvResultT);
-				}
-		} else {
-			my $time_elt = XML::Twig::Elt->new('time',0);
-			$time_elt->set_att( name =>"ALL");
-			$time_elt->paste($rcvResultT);
-		};
-
-		$rcvResultT->paste(last_child =>$cmdInstT);
-		$cmdInstT->paste($repT);
 	}
-
-	$repT->set_pretty_print('indented');
-	$repT->print($BLAST_REPORT);
-	close $BLAST_REPORT;
 }
 
 # Call blast
@@ -315,9 +253,6 @@ sub call_blast
 
 	vsay (20,"BLAST debug trace is being written to $args{debug}\n");
 
-	# Sanity check
-	$sanity->blast_called();
-
 	# Create trace printer
 	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
@@ -377,7 +312,83 @@ Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
 =========== Launch inform ends ===========
 EOR
 
-	return $result;
+	# Ok, BLAST finished, and we now print the small XML report for it
+
+	# Assignments to port the old code
+	my $main = $args{main};
+
+	# We produce one report for each main file, because RCVs may be invoked concurrently
+	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+	my $repT = XML::Twig::Elt->new('reports');
+
+	# Print verdict to console and to report 
+	vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
+	vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
+
+	my $br = $result->{'BLAST'};
+	if ($br =~ /\byes\b/i) {
+		$br='OK';
+	}elsif($br =~ /\bno\b/i){
+		$br='FAILED';
+	}else{
+		$br='FAILED';
+	}
+
+	my $bv = $result->{'BLAST-detailed'};
+	if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
+		$bv='SAFE';
+	}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
+		$bv='UNSAFE';
+	}else{
+		$bv='UNKNOWN';
+	}
+
+
+	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+	XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+	XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+	# Confess who is responsible for that mess
+	XML::Twig::Elt->new('verifier',{},'BLAST')->paste($cmdInstT);
+
+	my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
+	XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
+	XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
+
+	# Calculate and output time elapsed
+	# Read file with time statistics
+	# TODO: this is the hack for name generation.  A more generic mechanism should superseed it later.
+	my $timestats_fname = $args{timestats};
+	if ( -f $timestats_fname && ! -z $timestats_fname) {
+		my %timestats;
+		# TODO: for fuck's sake, replace it with actual XML parsing!
+		open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
+		while(<STATS_FILE>) {
+			/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
+			$timestats{$1} += $2;
+			#my $time_elt = XML::Twig::Elt->new('time',$2);
+			#$time_elt->set_att( name =>$1);
+			#$time_elt->paste($rcvResultT);
+		}
+		close STATS_FILE;
+		foreach(keys %timestats) {
+			my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+			$time_elt->set_att( name =>$_);
+			$time_elt->paste($rcvResultT);
+		}
+	} else {
+		my $time_elt = XML::Twig::Elt->new('time',0);
+		$time_elt->set_att( name =>"ALL");
+		$time_elt->paste($rcvResultT);
+	};
+
+	$rcvResultT->paste(last_child =>$cmdInstT);
+	$cmdInstT->paste($repT);
+
+	$repT->set_pretty_print('indented');
+	$repT->print($BLAST_REPORT);
+	close $BLAST_REPORT;
+
+	#return $result;
 }
 
 

@@ -1,0 +1,109 @@
+#!/usr/bin/env ruby
+#
+# Watch for tasks to be completed in order
+#
+
+require 'fileutils'
+require 'find'
+
+# Process command arguments
+#
+# FIXME: for now this sample watcher only supports parallelization of RCV commands
+
+command = ARGV.shift
+arguments = ARGV
+address = ENV['LDV_WATCHER_SRV'] or raise "Server address not found.  Please, specify LDV_WATCHER_SRV env var!"
+
+# Main class
+# It will be an interface (for now it's just a local implementation)
+class Watcher
+
+	attr_accessor :server_address
+
+	def ensure_server_init
+		unless File.directory? server_address
+			FileUtils.mkdir_p ['','rcv'].map {|sub| File.join server_address, sub}
+		end
+	end
+
+	# initialize control structures by the given server address
+	def initialize(server_address)
+		@server_address = server_address
+		ensure_server_init
+	end
+
+	# Stop server
+	def shutdown
+		FileUtils.rm_r server_address
+	end
+
+	# Restart server: create the new state
+	def restart(_ = [])
+		shutdown
+		ensure_server_init
+	end
+
+	def rcv_query_fname(key)
+		rule_id, cmd_id, main_id = key
+		File.join server_address, 'rcv', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+	end
+
+	def queue_rcv(args)
+		rule_id, cmd_id, main_id, workdir = args[0..3]
+		query_fname = rcv_query_fname([rule_id,cmd_id,main_id])
+		# Ensure that file doesn't exist
+		File.exists? query_fname and raise "The task is already in queue (#{query_fname})"
+		# write workdir to the file
+		File.open(query_fname,'w') do |f|
+			f.puts workdir
+		end
+	end
+
+	def wait_rcv(args)
+		# This is not thread-safe, but in this prototype thread-safetyy while waiting is not very important
+		any_left = false
+		waited_for = {}
+		Find.find(File.join server_address,'rcv') do |file|
+			if file =~ /query.rule-([^.]*).cmd-([^.]*).main-([^.]*)/
+				rule_id,cmd_id,main_id = $1,$2,$3
+				# Read data
+				waited_workdir = nil
+				File.open(file,"r") { |f| waited_workdir = f.gets.chomp }
+				# Add to out
+				waited_for[ [rule_id,cmd_id,main_id] ] = { :workdir => waited_workdir }
+				# Exit
+				FileUtils.rm_f file
+				any_left = true
+				break
+			end
+		end
+		if any_left
+			waited_for.each { |k,v| $stdout.write "#{(k + [v[:workdir]]).join ","}\n" }
+			exit 0
+		else
+			# Nothing left: print nothing and exit
+			exit 5
+		end
+	end
+
+	# Add task to queue
+	def queue(args)
+		what = args.shift
+		self.send("queue_#{what}",args)
+	end
+
+	# Wait and reap one task
+	def wait(args)
+		what = args.shift
+		self.send("wait_#{what}",args)
+	end
+
+	def unpack(args)
+		puts "Fake unpack!"
+	end
+end
+
+watcher = Watcher.new(address)
+
+watcher.send command, arguments
+

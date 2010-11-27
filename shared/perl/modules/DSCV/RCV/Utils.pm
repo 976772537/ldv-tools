@@ -263,7 +263,7 @@ sub ld_maker
 		# List of error locations
 		my @errlocs = $cmdT->children_text('error');
 		# Report file (%s will be replaced with main name)
-		my $report = reports_dir($workdir)."/$target.report";
+		my $report = reports_dir($workdir)."/$target.%s.report";
 		mkpath(dirname($report));
 		# Tool debug file (to dump the trace of the tool)
 		my $debug = reports_dir($workdir)."/$target.%s.debug";
@@ -272,9 +272,12 @@ sub ld_maker
 		# Trace file (to dump the error trace)
 		my $trace = reports_dir($workdir)."/$target.%s.trace";
 		mkpath(dirname($trace));
+		# Time stats file
+		my $timestats = reports_dir($workdir)."/$target.%s.timestats.xml";
+		mkpath(dirname($timestats));
 
 		# Common arguments for the verifier command
-		my %common_vercmd_args = (cmd_id=>$cmdT->att('id'), hints=>$hintsT, mains=>\@mains, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug, dbg_target=>$target, workdir=>$workdir);
+		my %common_vercmd_args = (cmd_id=>$cmdT->att('id'), hints=>$hintsT, mains=>\@mains, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug, dbg_target=>$target, workdir=>$workdir, timestats=>$timestats);
 
 		# Informaiton about C files should be a reference, for it to be accessible from within subs
 		my $c_files_info = [];
@@ -387,7 +390,7 @@ sub args_for_main
 	my %new_args = (%args);
 
 	local $_;
-	$new_args{$_} = sprintf ($args{$_},$main) for qw(debug trace);
+	$new_args{$_} = sprintf ($args{$_},$main) for qw(debug trace main);
 	return %new_args;
 }
 

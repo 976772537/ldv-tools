@@ -574,14 +574,37 @@ for my $property (@properties){
 	mkpath($verifier_dir);
 	my $verify_Twig = XML::Twig->new( twig_handlers => { cc => $get_verifier_handler->($verifier_dir), ld=>$get_verifier_handler->($verifier_dir) });
 
+	# FIXME
+	$ENV{'rule_id'} = $property;
 	$verify_Twig->parsefile($outfile);
+}
 
-	# TODO: parallelize
+
+#=~~~~~~~======~~~~~~======~~~~~~======~~~~~~======
+#              wait for all RCV tasks
+
+
+sub wait_for_rcv
+{
+	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','rcv','all');
+	return split /,/,$rcv_id;
+}
+
+while (my ($rule_id,$cmd_id,$main_id,$path,$contents) = wait_for_rcv()){
+	# unpack the incoming package
+	LDV::Utils::watcher_cmd('unpack',$path,$contents);
+
+	# After unpacking, we have the contents of XML report of RCV, traces, debug files and time stats on the local filesystem
+	my $verifier_dir = $path;
+	my $ri_basedir_for_rule = ($mode ne 'inline')? "$ri_basedir/$rule_id" : './';
+	# Assignment to port the old code
+	my $property = $rule_id;
 
 	# Now we concatenate all reports into one file and pass that file to rule-instrumenter for it to tune that big report.
 	my $before_ri_rep_name = "$verifier_dir/report.xml";
 	my $after_ri_rep_name = "$verifier_dir/report_after_ri.xml";
-	my $BIG_REPORT; open $BIG_REPORT, ">", $before_ri_rep_name or die;
+
+	my $BIG_REPORT; open $BIG_REPORT, ">", $before_ri_rep_name or die "Can't open '$before_ri_rep_name' for writing: $!";
 
 	my $bigRepT = XML::Twig::Elt->new("reports");
 
