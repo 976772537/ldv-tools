@@ -5,6 +5,14 @@
 
 require 'fileutils'
 require 'find'
+require 'logger'
+
+# Set up logging
+$log = Logger.new(STDOUT)
+# NOTE: for compatibility we use different levels
+levels = { 0 => Logger::FATAL, 4 => Logger::ERROR, 10 => Logger::WARN, 20 => Logger::INFO, 30 => Logger::DEBUG }
+user_set_level = (ENV['LDV_DEBUG'] || '10').to_i;
+$log.level = levels[levels.keys.select{|l| l <= user_set_level}.max]
 
 # Process command arguments
 #
@@ -99,11 +107,17 @@ class Watcher
 	end
 
 	def unpack(args)
-		puts "Fake unpack!"
+		$log.warn "Fake unpack!"
 	end
 end
 
 watcher = Watcher.new(address)
 
-watcher.send command, arguments
+unless arguments.empty?
+	watcher.send command, arguments
+else
+	watcher.send command
+end
+
+$log.close
 
