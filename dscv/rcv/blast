@@ -216,7 +216,7 @@ sub call_blast
 		timelimit => $timelimit,
 		memlimit => $memlimit,
 		pattern => ".*,ALL;.*pblast\.opt.*,PBLAST.OPT;.*cvc3.*,CVC3;.*smtlibServer.*,SMTSERVER".$solver_timewatch.($ENV{'BLAST_TIMEWATCH'} ? ";".$ENV{'BLAST_TIMEWATCH'} : "") ,
-		output => "$workdir/stats_rcv.xml",
+		output => $args{timestats},
 		id_str => "DSCV_TIMEOUT ",
 		},@blast_options
 	);
