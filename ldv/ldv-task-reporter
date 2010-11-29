@@ -104,7 +104,6 @@ sub hxml_cmdstream {
 	my $state = get_state($file, @states);
 	my $kernel = $state->{'env'};	
 	$cmd->set_att('kernel'=>$kernel);
-	my $kernel = $cmd->att('kernel');
 	my $verdict_section = $cmd->first_child('verdict');
 	if($cmd->name eq 'ld' && $cmd->has_atts && $cmd->att('check') eq 'true') {
 		vsay 'DEBUG', "Command have verdict: \"".$verdict_section->text."\"\n";
