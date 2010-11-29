@@ -359,6 +359,10 @@ use LDV::Utils;
 LDV::Utils::set_verbosity($config->{verbosity});
 LDV::Utils::push_instrument('dscv');
 
+###########################
+# EXCEPTION HANDLING!
+
+eval {
 
 # Actual work.
 
@@ -742,6 +746,17 @@ close $BIG_REPORT;
 
 vsay 20,"Final report is written to $config->{report}\n";
 
+1;
+} or do {
+	vsay 4, "Fatal error.  Stopping services before reporting...\n";
+	# TODO: Fix, here's not the restart, but dropping the queue by DSCV key!
+	vsay 20, "Shutting down watcher\n";
+	LDV::Utils::watcher_cmd('shutdown');
+	die $@;
+};
+
+# EXCEPTION HANDLING!
+###########################
 
 =head1 DOCUMENTATION FOR DEVELOPERS
 
