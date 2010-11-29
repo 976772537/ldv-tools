@@ -106,8 +106,8 @@ sub hxml_cmdstream {
 	$cmd->set_att('kernel'=>$kernel);
 	my $verdict_section = $cmd->first_child('verdict');
 	if($cmd->name eq 'ld' && $cmd->has_atts && $cmd->att('check') eq 'true') {
-		vsay 'DEBUG', "Command have verdict: \"".$verdict_section->text."\"\n";
 		if($verdict_section && $verdict_section->text eq 'UNSAFE') {
+			vsay 'DEBUG', "Command have verdict: \"".$verdict_section->text."\"\n";
 			my $model =$cmd->att('model');
 			my $rcv_section = $cmd->first_child('rcv');
 			my $verifier=$rcv_section->att('verifier');
