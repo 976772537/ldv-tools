@@ -171,6 +171,7 @@ sub watcher_cmd
 	my $WATCHER; open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
 	# Read one line.  If none is printed, the line will contain undef;
 	my $line = <$WATCHER>;
+	vsay('TRACE',"Watcher says: $line\n");
 	chomp $line;
 	close $WATCHER;	# We don't need anything else
 
@@ -184,6 +185,26 @@ sub watcher_cmd
 	pop_instrument("watcher");
 
 	return ($line,$retcode);
+}
+
+sub watcher_cmd_noread
+{
+	push_instrument("watcher");
+	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	# Call watcher for the next RCV command
+	my @watcher_args = ($ldv_watcher,@_);
+	vsay('INFO',"Called watcher (output not checked): @watcher_args\n");
+	system(@watcher_args);
+	# Check return values
+	my $rv = $?;
+	my $retcode = $?>>8;
+	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	# Return code of 1 means failure.  Other codes mean useful stuff
+	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
+
+	pop_instrument("watcher");
+
+	return (undef,$retcode);
 }
 
 1;

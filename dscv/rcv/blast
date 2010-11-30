@@ -27,6 +27,7 @@ use File::Path qw(mkpath);
 
 my $config={
 	cmdfile=>'',
+	rawcmdfile=>'',
 };
 
 my %optionSpecs = ();
@@ -38,9 +39,15 @@ LDV::Utils::push_instrument('rcv-blast');
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'sanity-dir=s'} = \$config->{sandir};
+$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
+my $mode = undef;
+$config->{cmdfile} and $mode = 'cmd';
+$config->{rawcmdfile} and $mode = 'raw';
+
+defined $mode or die "You should specify either --cmdfile or --rawcmdfile option!";
 
 # Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
@@ -48,20 +55,12 @@ my $backend_dir = "$shared_dir/rcv/backends/blast";
 my $blast = "$backend_dir/bin/pblast.opt";
 my $workdir = $config->{workdir};
 
--f $config->{cmdfile} or die "BLAST's command file $config->{cmdfile} is not found";
--d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
--x $blast or die "BLAST's toplevel executable $blast is not an executable file";
--d $workdir or die "--workdir=$config->{workdir} is not a directory!";
-
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
 my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
-
-# Prepare sanity checks
-my $sanity = DSCV::Sanity->new($config->{sandir});
-
+-d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
@@ -75,19 +74,49 @@ blast_quick_check();
 #======================================================================
 use XML::Twig;
 
-# Base Dir of system being checked
-my $base_dir = undef;
-my $unbasedir = undef;
+my $sanity = undef;
 
-# Now all subroutines are initialized.  Let's start processing the cmdfile.
-my $check_input_file = XML::Twig->new(
-	twig_handlers => {
-		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
-		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_blast, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>0, archivated=>1),
-	}
-);
-$check_input_file->parsefile($config->{cmdfile});
+if ($mode eq 'cmd'){
+	# Launch of RCV frontend, process CMDfile and spawn some raw verifier tasks
+
+	!-f $config->{cmdfile} and die "BLAST's command file $config->{cmdfile} is not found";
+	-x $blast or die "BLAST's toplevel executable $blast is not an executable file";
+	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+
+	# Prepare sanity checks
+	$sanity = DSCV::Sanity->new($config->{sandir});
+
+	# Base Dir of system being checked
+	my $base_dir = undef;
+	my $unbasedir = undef;
+
+	# Now all subroutines are initialized.  Let's start processing the cmdfile.
+	my $check_input_file = XML::Twig->new(
+		twig_handlers => {
+			basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
+			cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
+			ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_blast, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>0, archivated=>1),
+		}
+	);
+	$check_input_file->parsefile($config->{cmdfile});
+}elsif ($mode eq 'raw'){
+	# Parse CMDfile for arguments, and launch RCV only
+	my %args = ();
+	!-f $config->{rawcmdfile} and die "BLAST's raw command file $config->{rawcmdfile} is not found";
+
+	# How we parse raw xml to %args hash
+	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
+
+	# in this mode work dir is passed as workdir
+	$workdir ||= $args{workdir};
+	-d $workdir or die "the workdir '$config->{workdir}' is not a directory!";
+
+	# Now we can call BLAST, finally
+	call_blast(%args);
+
+}else{
+	die "Assertion failed";
+}
 
 exit 0;
 # NO CODE AFTER THIS POINT!
@@ -110,11 +139,17 @@ sub verify_blast
 		# Sanity check (should be performed at DSCV's site)
 		$sanity->blast_called();
 
+		$args{main} = $main;
+		my $task_fname = "$config->{cmdfile}.for.$main";
+		vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
+		my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
+		Utils::hash_to_xml(\%args,'input',$TASK);
+		close $TASK;
+		vsay('INFO',"Written RCV single command to '$task_fname'\n");
 		# FIXME: key is transferred through env variable.  RCV should be rewritten.
-		#                                       rule_id          ld-id     main_id   where to put result
-		LDV::Utils::watcher_cmd('queue','rcv',$ENV{'rule_id'},$args{cmd_id},$main,$workdir);
-		my $result = call_blast(%args, main=>$main); 
-	
+		#                                       rule_id          ld-id     where to put result
+		LDV::Utils::watcher_cmd_noread('queue','rcv',$ENV{'rule_id'},$args{cmd_id},$main,$workdir,$task_fname);
+
 	}
 }
 

@@ -264,7 +264,6 @@ GetOptions(%optionSpecs) or usage("Unrecognized options!");
 # Compact rule models
 $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->{properties}})))];
 
-
 # INLINE mode preparation
 
 use File::Path qw(mkpath rmtree);
@@ -596,6 +595,8 @@ sub wait_for_rcv
 
 while (my ($rule_id,$cmd_id,$main_id,$path,$contents) = wait_for_rcv()){
 	# unpack the incoming package
+	vsay('DEBUG',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
+	vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
 	LDV::Utils::watcher_cmd('unpack',$path,$contents);
 
 	# After unpacking, we have the contents of XML report of RCV, traces, debug files and time stats on the local filesystem
@@ -624,8 +625,8 @@ while (my ($rule_id,$cmd_id,$main_id,$path,$contents) = wait_for_rcv()){
 	};
 	DSCV::RCV::Utils::foreach_report($verifier_dir,$cat_rep);
 
-        $bigRepT->set_pretty_print('indented');
-        $bigRepT->print($BIG_REPORT);
+	$bigRepT->set_pretty_print('indented');
+	$bigRepT->print($BIG_REPORT);
 	close ($BIG_REPORT);
 
 	# Now feed that BIG_REPORT to rule-instrumenter

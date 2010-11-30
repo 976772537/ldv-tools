@@ -8,7 +8,7 @@ require 'find'
 require 'logger'
 
 # Set up logging
-$log = Logger.new(STDOUT)
+$log = Logger.new(STDERR)
 # NOTE: for compatibility we use different levels
 levels = { 0 => Logger::FATAL, 4 => Logger::ERROR, 10 => Logger::WARN, 20 => Logger::INFO, 30 => Logger::DEBUG }
 user_set_level = (ENV['LDV_DEBUG'] || '10').to_i;
@@ -30,8 +30,14 @@ class Watcher
 
 	def ensure_server_init
 		unless File.directory? server_address
-			FileUtils.mkdir_p ['','rcv'].map {|sub| File.join server_address, sub}
+			['rcv'].each do |instr|
+				instr_dir = File.join server_address,instr
+				FileUtils.mkdir_p ['finished','queried','running','tasks'].map {|a| File.join instr_dir,a}
+			end
 		end
+		@rcv_running = File.join server_address,'rcv','running'
+		@rcv_queried = File.join server_address,'rcv','queried'
+		@rcv_finished = File.join server_address,'rcv','finished'
 	end
 
 	# initialize control structures by the given server address
@@ -53,45 +59,76 @@ class Watcher
 
 	def rcv_query_fname(key)
 		rule_id, cmd_id, main_id = key
-		File.join server_address, 'rcv', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+		query_fname = File.join server_address, 'rcv', 'queried', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+		task_fname = File.join server_address, 'rcv', 'tasks', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}.task"
+		finished_fname = File.join server_address, 'rcv', 'finished', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+		running_fname = File.join server_address, 'rcv', 'running', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+		[query_fname, task_fname, running_fname, finished_fname]
 	end
 
 	def queue_rcv(args)
-		rule_id, cmd_id, main_id, workdir = args[0..3]
-		query_fname = rcv_query_fname([rule_id,cmd_id,main_id])
+		rule_id, cmd_id, main_id, workdir, stuff = args[0..4]
+		query_fname,task_fname,running_fname,finished_fname = rcv_query_fname([rule_id,cmd_id,main_id])
 		# Ensure that file doesn't exist
 		File.exists? query_fname and raise "The task is already in queue (#{query_fname})"
-		# write workdir to the file
+		$log.warn "Putting task credentials to: #{query_fname}."
 		File.open(query_fname,'w') do |f|
+			# write workdir to the file
 			f.puts workdir
 		end
+
+		$log.warn "Copying task file to: #{task_fname} from #{stuff}"
+		File.open(task_fname,'w') do |f|
+			#...and write the rest of the supplied file there
+			File.open(stuff,"r").each do |line|
+				f.puts line
+			end
+		end
+
+		# Now run RCV with task file supplied
+		$log.warn "Forking process: #{['/home/pavel/tmp/ldv/dscv/rcv/blast',"--rawcmdfile=#{task_fname}"].join(" ")}..."
+		rcv_pid = fork do
+			# Spawn worker
+			FileUtils.move(query_fname,running_fname)
+			fork {Kernel.exec('/home/pavel/tmp/ldv/dscv/rcv/blast',"--rawcmdfile=#{task_fname}") }
+			Process.waitall
+			FileUtils.move(running_fname,finished_fname)
+		end
+		Process.detach rcv_pid
 	end
 
 	def wait_rcv(args)
 		# This is not thread-safe, but in this prototype thread-safetyy while waiting is not very important
-		any_left = false
-		waited_for = {}
-		Find.find(File.join server_address,'rcv') do |file|
-			if file =~ /query.rule-([^.]*).cmd-([^.]*).main-([^.]*)/
-				rule_id,cmd_id,main_id = $1,$2,$3
-				# Read data
-				waited_workdir = nil
-				File.open(file,"r") { |f| waited_workdir = f.gets.chomp }
-				# Add to out
-				waited_for[ [rule_id,cmd_id,main_id] ] = { :workdir => waited_workdir }
-				# Exit
-				FileUtils.rm_f file
-				any_left = true
-				break
+		$log.debug "Searching for files in #{@rcv_running} and #{@rcv_queried}"
+		while ! (Dir["#{@rcv_running}/*","#{@rcv_queried}/*","#{@rcv_finished}/*"].empty?)
+			$log.debug "Dirs are not empty"
+			found_any = false
+			waited_for = {}
+			Find.find(@rcv_finished) do |file|
+				$log.debug "Waited for #{file}"
+				if file =~ /query.rule-([^.]*).cmd-([^.]*).main-([^.]*)/
+					rule_id,cmd_id,main_id = $1,$2,$3
+					# Read data
+					waited_workdir = nil
+					File.open(file,"r") { |f| waited_workdir = f.gets.chomp }
+					# Add to out
+					waited_for[ [rule_id,cmd_id,main_id] ] = { :workdir => waited_workdir }
+					# Exit
+					FileUtils.rm_f file
+					found_any = true
+					break
+				end
+			end
+			if found_any
+				waited_for.each { |k,v| $stdout.write "#{(k + [v[:workdir]]).join ","}\n" }
+				exit 0
+			else
+				# Nothing found, sleep and repeat
+				Kernel.sleep 1
 			end
 		end
-		if any_left
-			waited_for.each { |k,v| $stdout.write "#{(k + [v[:workdir]]).join ","}\n" }
-			exit 0
-		else
-			# Nothing left: print nothing and exit
-			exit 5
-		end
+		# Waited for all
+		exit 5
 	end
 
 	# Add task to queue
