@@ -390,7 +390,7 @@ sub args_for_main
 	my %new_args = (%args);
 
 	local $_;
-	$new_args{$_} = sprintf ($args{$_},$main) for qw(debug trace main timestats);
+	$new_args{$_} = sprintf ($args{$_},$main) for qw(debug trace main timestats report);
 	return %new_args;
 }
 

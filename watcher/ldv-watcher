@@ -22,22 +22,82 @@ command = ARGV.shift
 arguments = ARGV
 address = ENV['LDV_WATCHER_SRV'] or raise "Server address not found.  Please, specify LDV_WATCHER_SRV env var!"
 
+# A class to easily manage nested directories
+class DirMaker
+	def initialize(root)
+		@root = root
+		@current = root
+	end
+	def push(*subdirs)
+		subdirs.map! &:to_s
+		prev = @current
+		@current = File.join(@current,subdirs)
+		begin
+			yield
+		ensure
+			@current = prev
+		end
+	end
+	def ensure(*subdirs)
+		FileUtils.mkdir_p(File.join(@current,subdirs))
+	end
+	def join(*sub)
+		sub.flatten!
+		sub.map! &:to_s
+		File.join(@current,sub)
+	end
+end
+
+def keyfilestrip(from,what)
+	from.sub(what,'').sub(/^\/*/,'').split(File::SEPARATOR)
+end
+
+class FlockPool
+	def initialize(fname)
+		FileUtils.mkdir_p(File.dirname(fname))
+		@lock_fname = fname
+		$log.debug "Checking if exists #{@lock_fname}..."
+		unless File.exists? @lock_fname
+			$log.info "Creating new pool at #{@lock_fname}"
+			FileUtils.touch @lock_fname
+			lock_and do |f|
+				f.seek(0,IO::SEEK_SET)
+				f.truncate(0)
+				f.write("0\n")
+			end
+		end
+	end
+	public; def get
+		key = nil
+		lock_and do |f|
+			key = f.gets.to_i + 1
+			f.seek(0,IO::SEEK_SET)
+			f.truncate(0)
+			f.write("#{key}\n")
+		end
+		key
+	end
+	private; def lock_and
+		begin
+			f = File.new(@lock_fname,"r+")
+			f.flock(File::LOCK_EX)
+			yield(f)
+		ensure
+			f.close unless f.nil?
+		end
+	end
+end
+
 # Main class
 # It will be an interface (for now it's just a local implementation)
 class Watcher
+# NOTE: All commands that take argument list shall have default value and accept no arguments as well!
 
 	attr_accessor :server_address
 
 	def ensure_server_init
-		unless File.directory? server_address
-			['rcv'].each do |instr|
-				instr_dir = File.join server_address,instr
-				FileUtils.mkdir_p ['finished','queried','running','tasks'].map {|a| File.join instr_dir,a}
-			end
-		end
-		@rcv_running = File.join server_address,'rcv','running'
-		@rcv_queried = File.join server_address,'rcv','queried'
-		@rcv_finished = File.join server_address,'rcv','finished'
+		@dir = DirMaker.new(server_address)
+		@key_pool = FlockPool.new(@dir.join('key_pool'))
 	end
 
 	# initialize control structures by the given server address
@@ -57,78 +117,101 @@ class Watcher
 		ensure_server_init
 	end
 
-	def rcv_query_fname(key)
-		rule_id, cmd_id, main_id = key
-		query_fname = File.join server_address, 'rcv', 'queried', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
-		task_fname = File.join server_address, 'rcv', 'tasks', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}.task"
-		finished_fname = File.join server_address, 'rcv', 'finished', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
-		running_fname = File.join server_address, 'rcv', 'running', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
-		[query_fname, task_fname, running_fname, finished_fname]
-	end
+#	def rcv_query_fname(key)
+#		rule_id, cmd_id, main_id = key
+#		query_fname = File.join server_address, 'rcv', 'queried', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+#		task_fname = File.join server_address, 'rcv', 'tasks', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}.task"
+#		finished_fname = File.join server_address, 'rcv', 'finished', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+#		running_fname = File.join server_address, 'rcv', 'running', "query.rule-#{rule_id}.cmd-#{cmd_id}.main-#{main_id}"
+#		[query_fname, task_fname, running_fname, finished_fname]
+#	end
 
 	def queue_rcv(args)
-		rule_id, cmd_id, main_id, workdir, stuff = args[0..4]
-		query_fname,task_fname,running_fname,finished_fname = rcv_query_fname([rule_id,cmd_id,main_id])
-		# Ensure that file doesn't exist
-		File.exists? query_fname and raise "The task is already in queue (#{query_fname})"
-		$log.warn "Putting task credentials to: #{query_fname}."
-		File.open(query_fname,'w') do |f|
-			# write workdir to the file
-			f.puts workdir
-		end
+		task, workdir = args [0..1]
+		key = args[2..-1]
+		$log.info "Queueing task #{task} with wd=#{workdir} and key #{key.inspect}."
+		@dir.push 'tasks' do
+			query_fname,task_fname,running_fname,finished_fname = %w(queried data running finished).map {|w| @dir.ensure(w,key); @dir.join(w,key,'task')}
+			(File.exists?(query_fname) || File.exists?(running_fname)) and raise "The task #{args.inspect} is already in queue"
+			$log.debug "Putting workdir to: #{query_fname}"
+			File.open(query_fname,'w') { |f| f.puts workdir }
+			$log.debug "Copying taskfile to: #{task_fname} from #{task}"
+			FileUtils.copy_file(task,task_fname,true)
 
-		$log.warn "Copying task file to: #{task_fname} from #{stuff}"
-		File.open(task_fname,'w') do |f|
-			#...and write the rest of the supplied file there
-			File.open(stuff,"r").each do |line|
-				f.puts line
+			# Now run RCV with task file supplied
+			$log.info "Forking process: #{[ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}"].join(" ")}..."
+			rcv_pid = fork do
+				# Spawn worker
+				FileUtils.move(query_fname,running_fname)
+				fork {Kernel.exec(ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}")}
+				Process.waitall
+				FileUtils.move(running_fname,finished_fname)
 			end
+			Process.detach rcv_pid
 		end
-
-		# Now run RCV with task file supplied
-		$log.warn "Forking process: #{['/home/pavel/tmp/ldv/dscv/rcv/blast',"--rawcmdfile=#{task_fname}"].join(" ")}..."
-		rcv_pid = fork do
-			# Spawn worker
-			FileUtils.move(query_fname,running_fname)
-			fork {Kernel.exec('/home/pavel/tmp/ldv/dscv/rcv/blast',"--rawcmdfile=#{task_fname}") }
-			Process.waitall
-			FileUtils.move(running_fname,finished_fname)
-		end
-		Process.detach rcv_pid
+		nil
 	end
 
-	def wait_rcv(args)
+	def wait(*args)
+		args.flatten!
+		what = args.shift
+		# we ignore "what" for now...
+		$log.debug "Called wait with #{args.inspect}, ignored #{what.inspect}"
 		# This is not thread-safe, but in this prototype thread-safetyy while waiting is not very important
-		$log.debug "Searching for files in #{@rcv_running} and #{@rcv_queried}"
-		while ! (Dir["#{@rcv_running}/*","#{@rcv_queried}/*","#{@rcv_finished}/*"].empty?)
-			$log.debug "Dirs are not empty"
-			found_any = false
-			waited_for = {}
-			Find.find(@rcv_finished) do |file|
-				$log.debug "Waited for #{file}"
-				if file =~ /query.rule-([^.]*).cmd-([^.]*).main-([^.]*)/
-					rule_id,cmd_id,main_id = $1,$2,$3
+		@dir.push 'tasks' do
+			running,queried,finished =  %w(running queried finished).map{ |w| @dir.join(w,args)}
+			$log.debug "Searching for files in #{running} and #{queried}"
+			def eligible(*paths)
+				paths.flatten!
+				any = false
+				paths.each do |path| ; Find.find(path) do |fname|
+					if File.file? fname
+						any = true
+						break
+					end
+				end; end
+				any
+			end
+			while eligible(running,queried,finished)
+				$log.debug "Dirs are not empty"
+				found_any = false
+				waited_for = {}
+				Find.find(finished) do |file|
+					next unless File.file? file
+					$log.debug "Waited for #{file}"
+					key = keyfilestrip(file,@dir.join('finished'))
+					$log.debug "Key is '#{key.inspect}'"
+					key.pop
+					$log.debug "Key is '#{key.inspect}'"
 					# Read data
-					waited_workdir = nil
-					File.open(file,"r") { |f| waited_workdir = f.gets.chomp }
+					waited_workdir = File.read(file).chomp
+					$log.debug "Waited workdir is '#{waited_workdir}'"
 					# Add to out
-					waited_for[ [rule_id,cmd_id,main_id] ] = { :workdir => waited_workdir }
+					waited_for[ key ] = { :workdir => waited_workdir }
 					# Exit
-					FileUtils.rm_f file
+					%w(running queried finished).map{ |w| @dir.join(w,key)}.each {|l| $log.debug "Removing #{l}"}
+					FileUtils.rm_rf(%w(running queried finished).map{ |w| @dir.join(w,key)})
 					found_any = true
 					break
 				end
+				if found_any
+					# Return list of strings, each string being
+					# 	workdir,package,key...
+					result = waited_for.to_a.map do |item|
+					  k,v = item
+						$log.debug "Writing key: #{([v[:workdir]] + [""] + k).join ","}"
+						([v[:workdir]] + [""] + k).join ","
+					end.join "\n"
+					return result
+				else
+					# Nothing found, sleep and repeat
+					Kernel.sleep 1
+				end
 			end
-			if found_any
-				waited_for.each { |k,v| $stdout.write "#{(k + [v[:workdir]]).join ","}\n" }
-				exit 0
-			else
-				# Nothing found, sleep and repeat
-				Kernel.sleep 1
-			end
+			# Waited for all
+			$log.debug "Dirs are empty, return"
+			exit 5
 		end
-		# Waited for all
-		exit 5
 	end
 
 	# Add task to queue
@@ -137,24 +220,80 @@ class Watcher
 		self.send("queue_#{what}",args)
 	end
 
-	# Wait and reap one task
-	def wait(args)
-		what = args.shift
-		self.send("wait_#{what}",args)
-	end
-
 	def unpack(args)
 		$log.warn "Fake unpack!"
+	end
+
+	def spawn(args = [])
+		@dir.ensure
+		new_key = @key_pool.get
+		File.open(@dir.join('key'),'w') { |f| f.puts(new_key) }
+		File.open(@dir.join('status'),'w') { |f| f.puts('running') }
+	end
+
+	# Get key for current args.  If the process is not watched for, generate key from the pool
+	def key(args = [])
+		$log.info "Key requested for #{args.inspect}"
+		@dir.push 'keys',args,Process.ppid do
+			fname = @dir.join 'key'
+			begin
+				$log.debug "Trying to read #{fname}..."
+				(args + [File.read(fname).chomp]).join(',')
+			rescue Errno::ENOENT => f
+				$log.debug "key file #{fname} doesn't exist, creating..."
+				spawn(args)
+				retry
+			end
+		end
+	end
+
+	# Set status for a key (barely useful for local)
+	private; def set_status(status,*_args)
+		args = _args.flatten
+		@dir.push 'keys',args do
+			fname = @dir.join('status')
+			$log.debug "Writing status '#{status}' to #{fname}..."
+			File.open(fname,'w') { |f| f.puts(status) }
+		end
+	end
+
+	private; def remove_data(*key)
+		key.flatten!
+		to_rm = []
+		to_rm += %w(queried data running finished).map {|w| @dir.join('tasks',w,key)}
+		# Last item in "key" was generated by us.
+		to_rm += [@dir.join('keys',key[0..-2],Process.ppid)]
+		to_rm.each do |dir|
+			$log.debug "Removing #{dir}"
+			FileUtils.rm_rf dir
+		end
+	end
+
+	# Doesn't accept empty args!
+	public; def success(*args)
+		$log.info "Reported success for #{args.inspect}"
+		#set_status('success',args,Process.ppid)
+		remove_data(args)
+	end
+
+	# Doesn't accept empty args!
+	public; def fail(*args)
+		$log.info "Reported failure for #{args.inspect}"
+		# set_status('fail',args)
+		remove_data(args)
 	end
 end
 
 watcher = Watcher.new(address)
 
+result = nil
 unless arguments.empty?
-	watcher.send command, arguments
+	result = watcher.send command, arguments
 else
-	watcher.send command
+	result = watcher.send command
 end
+
+puts result unless result.nil?
 
 $log.close
 

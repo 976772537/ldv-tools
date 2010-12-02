@@ -14,6 +14,7 @@ BEGIN {
 use strict;
 use Pod::Usage;
 use Getopt::Long;
+use FindBin;
 
 # Project modules
 use LDV::Utils;
@@ -28,6 +29,7 @@ use File::Path qw(mkpath);
 my $config={
 	cmdfile=>'',
 	rawcmdfile=>'',
+	watcher_key=>[],
 };
 
 my %optionSpecs = ();
@@ -40,8 +42,12 @@ $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'sanity-dir=s'} = \$config->{sandir};
 $optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
+my $watcher_keystr = '';
+$optionSpecs{'watcher-key=s'} = \$watcher_keystr;
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
+
+$config->{watcher_key} = [split /,/,$watcher_keystr];
 
 my $mode = undef;
 $config->{cmdfile} and $mode = 'cmd';
@@ -146,9 +152,10 @@ sub verify_blast
 		Utils::hash_to_xml(\%args,'input',$TASK);
 		close $TASK;
 		vsay('INFO',"Written RCV single command to '$task_fname'\n");
+		$ENV{'RCV_FRONTEND_CMD'} = $0;
 		# FIXME: key is transferred through env variable.  RCV should be rewritten.
-		#                                       rule_id          ld-id     where to put result
-		LDV::Utils::watcher_cmd_noread('queue','rcv',$ENV{'rule_id'},$args{cmd_id},$main,$workdir,$task_fname);
+		#                                            task        dir      >>>> the rest is the key to distinguis from others
+		LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main);
 
 	}
 }
