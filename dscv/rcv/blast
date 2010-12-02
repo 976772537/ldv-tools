@@ -72,7 +72,7 @@ vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 
 #Check if blast is available
-blast_quick_check();
+#blast_quick_check();
 
 
 #======================================================================
