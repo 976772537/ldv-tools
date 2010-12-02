@@ -7,6 +7,10 @@ require 'fileutils'
 require 'find'
 require 'logger'
 
+require 'rubygems'
+require 'SysVIPC'
+include SysVIPC
+
 # Set up logging
 $log = Logger.new(STDERR)
 # NOTE: for compatibility we use different levels
@@ -21,6 +25,12 @@ $log.level = levels[levels.keys.select{|l| l <= user_set_level}.max]
 command = ARGV.shift
 arguments = ARGV
 address = ENV['LDV_WATCHER_SRV'] or raise "Server address not found.  Please, specify LDV_WATCHER_SRV env var!"
+
+$config = {}
+$config[:max_rcv_pool] = (ENV['LDV_MAX_RCVS'].to_i || 1)
+$config[:max_rcv_pool] = 1 if $config[:max_rcv_pool] < 1
+# Whether we block queue call until the task is finished
+$config[:block_queue] = $config[:max_rcv_pool] == 1
 
 # A class to easily manage nested directories
 class DirMaker
@@ -98,6 +108,7 @@ class Watcher
 	def ensure_server_init
 		@dir = DirMaker.new(server_address)
 		@key_pool = FlockPool.new(@dir.join('key_pool'))
+		@rcv_pool = @dir.join('rcv_pool')
 	end
 
 	# initialize control structures by the given server address
@@ -126,6 +137,20 @@ class Watcher
 #		[query_fname, task_fname, running_fname, finished_fname]
 #	end
 
+	# Ensure that semaphore is created and initialized
+	def ensure_semaphore
+		sem_tok = ftok(@rcv_pool,0)
+		@sem = Semaphore.new(sem_tok,1, 0666 | IPC_CREAT)
+		# Initialize if a new one (we check if no operations were performed with the semaphore, in this case sem_otime will be 0, see BUGS section of semget(2)
+		stats = @sem.ipc_stat
+		$log.debug "Semaphore otime: #{stats.sem_otime}"
+		if stats.sem_otime == Time.at(0)
+			$log.info "Created semaphore #{@rcv_pool}."
+			$log.debug "Initializing semaphore #{@rcv_pool} with value #{$config[:max_rcv_pool]}."
+			@sem.setall [$config[:max_rcv_pool]]
+		end
+	end
+
 	def queue_rcv(args)
 		task, workdir = args [0..1]
 		key = args[2..-1]
@@ -139,15 +164,27 @@ class Watcher
 			FileUtils.copy_file(task,task_fname,true)
 
 			# Now run RCV with task file supplied
-			$log.info "Forking process: #{[ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}"].join(" ")}..."
+			$log.info "Forking process to run #{[ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}"].join(" ")}..."
 			rcv_pid = fork do
+				# Wait on global semaphore
+				ensure_semaphore
+				@sem.op([Sembuf.new(0, -1)])
 				# Spawn worker
+				$log.info "Running RCV with task #{task_fname} right NOW!"
 				FileUtils.move(query_fname,running_fname)
 				fork {Kernel.exec(ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}")}
 				Process.waitall
 				FileUtils.move(running_fname,finished_fname)
+				# Release global semaphore
+				@sem.op([Sembuf.new(0, +1)])
 			end
-			Process.detach rcv_pid
+			# If we block, then wait for child to finish
+			if $config[:block_queue]
+				$log.warn "Waiting for RCV call to finish..."
+				Process.waitall
+			else
+				Process.detach rcv_pid
+			end
 		end
 		nil
 	end
@@ -258,6 +295,8 @@ class Watcher
 	end
 
 	private; def remove_data(*key)
+		ensure_semaphore
+		@sem.ipc_rmid
 		key.flatten!
 		to_rm = []
 		to_rm += %w(queried data running finished).map {|w| @dir.join('tasks',w,key)}

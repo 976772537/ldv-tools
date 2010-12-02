@@ -44,6 +44,7 @@ MINIMAL PREREQUISITES
 		- gem hpricot
 		- gem activerecord
 		- gem mysql
+		- gem SysVIPC   (Warning: case-sensitive!)
 	o gzip
 	o tar
 	o bzip2
