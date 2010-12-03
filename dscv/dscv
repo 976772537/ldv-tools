@@ -362,6 +362,10 @@ LDV::Utils::push_instrument('dscv');
 # If this process is not watched for (i.e. watcher was not started, and it's a user's action that initiated the verification--i.e. inline mode), then watcher generates and returns a new key.
 # NOTE: we don't interpret this key, we just pass it to invocations of our tools
 
+# Set up watcher directory, unless already set
+$ENV{'LDV_WATCHER_SRV'} ||= "$config->{work_dir}/watcher";
+vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+
 my ($key_str,undef) = LDV::Utils::watcher_cmd('key','dscv');
 vsay ('DEBUG',"Got key string $key_str.\n");
 my @watcher_key = split /,/,$key_str;
