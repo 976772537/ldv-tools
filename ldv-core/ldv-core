@@ -144,11 +144,14 @@ sub start_next {
 					"--state-file=$command/deg.state"
 				);
 		
-				push @deg_args,"--driver-name=$config->{'driver'}" if $config->{'kernel-driver'};	
-				if(!$config->{'cmdstream'} || $config->{'kernel-driver'} ) {
-					push @deg_args,"--kernel-driver";	
-				};
-			
+				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver'}";
+
+				if($config->{'cmdstream'}) {
+                                        push @deg_args,"--kernel-driver";       
+				} else {
+                                        push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};       
+				}
+		
 				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
 				system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
 				$ENV{'WORK_DIR'} = $old_workdir;
@@ -428,10 +431,12 @@ sub prepare_driver {
 			vsay 'NORMAL', "Prepare driver...\n";
 			not -d $driverdir and make_path($driverdir);
 			my $driver_src_type = `file -b $config->{'driver'} --mime-type`;
+			chomp $driver_src_type;
+			vsay 'TRACE', "Driver source type $driver_src_type\n";
 			if($driver_src_type eq 'application/x-bzip2') {
-				`tar xvjpf $driver -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', "Can't unpack driver";
+				`tar xvjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', "Can't unpack driver";
 			} elsif($driver_src_type eq 'application/x-gzip') {
-				`tar xzjpf $driver -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', "Can't unpack driver";
+				`tar xzjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', "Can't unpack driver";
 			} else {
 				bce_ldv_report 'FAILED', "Unknown driver source type";
 			}

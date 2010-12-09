@@ -210,6 +210,7 @@ public class CmdStream {
 		addCommandsRecursive(listCmd, cmd);
 		listCmd.add(cmd);
 		//inBasedir = tempdir;
+		Logger.trace("FULLCOPY: "+fullcopy);
 		CmdStream lcmdstream = new CmdStream(listCmd,inBasedir,fullcopy,statefile,tempdir);
 		Logger.norm("Generate cmdstream for : \""+cmd.out.get(0)+"\".");
 		
@@ -284,6 +285,7 @@ public class CmdStream {
 		String newDDFullCanPath = newDriverDir.getAbsolutePath();
 		String oldDDFullCanPath = oldDriverDir.getAbsolutePath();
 		
+		Logger.trace("relocate FULLCOPY: "+fullcopy);
 		try {
 			if(fullcopy) {
 				FSOperationBase.copyDirectory(oldDriverDir, newDriverDir);
