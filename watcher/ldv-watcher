@@ -29,6 +29,8 @@ address = ENV['LDV_WATCHER_SRV'] or raise "Server address not found.  Please, sp
 $config = {}
 $config[:max_rcv_pool] = (ENV['LDV_MAX_RCVS'].to_i || 1)
 $config[:max_rcv_pool] = 1 if $config[:max_rcv_pool] < 1
+$config[:max_dscv_pool] = (ENV['LDV_MAX_DSCVS'].to_i || 1)
+$config[:max_dscv_pool] = 1 if $config[:max_dscv_pool] < 1
 # Whether we block queue call until the task is finished
 $config[:block_queue] = $config[:max_rcv_pool] == 1
 
@@ -108,7 +110,10 @@ class Watcher
 	def ensure_server_init
 		@dir = DirMaker.new(server_address)
 		@key_pool = FlockPool.new(@dir.join('key_pool'))
-		@rcv_pool = @dir.join('rcv_pool')
+		# Semaphore "file" names
+		@sem_fnames = { 'rcv' => @dir.join('rcv_pool'), 'dscv' => @dir.join('dscv_pool') }
+		# Hash of semaphore objects
+		@sem = {}
 	end
 
 	# initialize control structures by the given server address
@@ -138,23 +143,29 @@ class Watcher
 #	end
 
 	# Ensure that semaphore is created and initialized
-	def ensure_semaphore
-		sem_tok = ftok(@rcv_pool,0)
-		@sem = Semaphore.new(sem_tok,1, 0666 | IPC_CREAT)
+	def ensure_semaphore(pool)
+		pool_file = @sem_fnames[pool] or raise "Can't queue this kind of pools: #{pool}! Only #{@sem_fnames.keys.join(', ')} are supported!"
+		FileUtils.touch pool_file
+		$log.debug "Going to use semaphore #{pool_file}"
+		sem_tok = ftok(pool_file,1)
+		# WTF!  Binding doesn't support proper "exceptional" handling of ftok!
+		raise "ftok(#{pool_file},1) failed" if sem_tok == -1 || sem_tok == (2**32-1)
+		$log.debug "TOKEN: #{sem_tok} for #{pool_file}"
+		@sem[pool] = Semaphore.new(sem_tok,1, 0666 | IPC_CREAT)
 		# Initialize if a new one (we check if no operations were performed with the semaphore, in this case sem_otime will be 0, see BUGS section of semget(2)
-		stats = @sem.ipc_stat
+		stats = @sem[pool].ipc_stat
 		$log.debug "Semaphore otime: #{stats.sem_otime}"
 		if stats.sem_otime == Time.at(0)
-			$log.info "Created semaphore #{@rcv_pool}."
-			$log.debug "Initializing semaphore #{@rcv_pool} with value #{$config[:max_rcv_pool]}."
-			@sem.setall [$config[:max_rcv_pool]]
+			$log.info "Created semaphore #{pool_file}."
+			$log.debug "Initializing semaphore #{pool_file} with value #{$config["max_#{pool}_pool".to_sym]}."
+			@sem[pool].setall [$config["max_#{pool}_pool".to_sym]]
 		end
 	end
 
-	def queue_rcv(args)
+	def queue_generic(pool,args)
 		task, workdir = args [0..1]
 		key = args[2..-1]
-		$log.info "Queueing task #{task} with wd=#{workdir} and key #{key.inspect}."
+		$log.info "Queueing to pool #{pool} task #{task} with wd=#{workdir} and key #{key.inspect}."
 		@dir.push 'tasks' do
 			query_fname,task_fname,running_fname,finished_fname = %w(queried data running finished).map {|w| @dir.ensure(w,key); @dir.join(w,key,'task')}
 			(File.exists?(query_fname) || File.exists?(running_fname)) and raise "The task #{args.inspect} is already in queue"
@@ -167,20 +178,20 @@ class Watcher
 			$log.info "Forking process to run #{[ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}"].join(" ")}..."
 			rcv_pid = fork do
 				# Wait on global semaphore
-				ensure_semaphore
-				@sem.op([Sembuf.new(0, -1)])
+				ensure_semaphore(pool)
+				@sem[pool].op([Sembuf.new(0, -1)])
 				# Spawn worker
-				$log.info "Running RCV with task #{task_fname} right NOW!"
+				$log.info "Running #{pool} with task #{task_fname} right NOW!"
 				FileUtils.move(query_fname,running_fname)
 				fork {Kernel.exec(ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}")}
 				Process.waitall
 				FileUtils.move(running_fname,finished_fname)
 				# Release global semaphore
-				@sem.op([Sembuf.new(0, +1)])
+				@sem[pool].op([Sembuf.new(0, +1)])
 			end
 			# If we block, then wait for child to finish
 			if $config[:block_queue]
-				$log.warn "Waiting for RCV call to finish..."
+				$log.warn "Waiting for #{pool} call to finish..."
 				Process.waitall
 			else
 				Process.detach rcv_pid
@@ -254,7 +265,7 @@ class Watcher
 	# Add task to queue
 	def queue(args)
 		what = args.shift
-		self.send("queue_#{what}",args)
+		queue_generic(what,args)
 	end
 
 	def unpack(args)
@@ -295,8 +306,9 @@ class Watcher
 	end
 
 	private; def remove_data(*key)
-		ensure_semaphore
-		@sem.ipc_rmid
+		@sem_fnames.keys.each {|pool| ensure_semaphore pool }
+		$log.debug @sem.inspect
+		@sem.values.compact.each &:ipc_rmid
 		key.flatten!
 		to_rm = []
 		to_rm += %w(queried data running finished).map {|w| @dir.join('tasks',w,key)}
