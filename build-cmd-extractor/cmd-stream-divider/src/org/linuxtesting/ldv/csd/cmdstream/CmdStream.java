@@ -76,6 +76,18 @@ public class CmdStream {
 	public static Map<String, Command> badCmdHash= new HashMap<String, Command>();
 	private String statefile;
 
+	public static boolean isExistsLD(String cmd) {
+		Logger.trace("Called isExistsLD for command \"" + cmd + "\".");
+		if(fullCmdHash.containsKey(cmd)) {
+			Logger.trace("Command \"" + cmd + "\" exists.");
+			Command cmdl = fullCmdHash.get(cmd);
+			if(cmdl instanceof CommandLD) {
+				Logger.trace("Command \"" + cmd + "\" is LD.");
+				return true;
+			}
+		}
+		return false;
+	}
 	
 	public static synchronized boolean isExists(Command cmd) {
 		List<String> outCmds = cmd.getOut();
@@ -345,16 +357,33 @@ public class CmdStream {
 		return commandsQueue.isEmpty();
 	}
 
+	public static void setCheckAndKO(Command cmd) {
+		Logger.norm("Set check and KO for command : \"" + cmd.getId() + "\".");
+		cmd.setCheck();
+		List<String> outCmds = cmd.getOut();
+		for(int i=0; i<outCmds.size(); i++) { 
+			Logger.norm("Replace extension for file : \"" + outCmds.get(i) + "\" with \"ko\".");
+			//outCmds.get(i).replace("\\.o",".ko");
+			Logger.trace("Now out file is : \"" + outCmds.get(i) + "\".");
+		}
+	}
+
 	public synchronized void marker(String command) {
 		Logger.norm("Set check marker for command \""+command+"\".");
 		if(badCmdHash.containsKey(command)) {
 			Logger.norm("This is not full command.");
+			//setCheckAndKO(badCmdHash.get(command));
+			Logger.norm("Set check for command : \"" + command + "\".");
 			badCmdHash.get(command).setCheck();
+			
+			//badCmdHash.get(command).setCheck();
 		} else 
 		if(fullCmdHash.containsKey(command)) {
 			Logger.norm("This is full command.");
 			Command cmd = fullCmdHash.get(command);
+			Logger.norm("Set check for command : \"" + command + "\".");
 			cmd.setCheck();
+			//setCheckAndKO(cmd);
 			prepareTask(cmd);
 		}
 	}

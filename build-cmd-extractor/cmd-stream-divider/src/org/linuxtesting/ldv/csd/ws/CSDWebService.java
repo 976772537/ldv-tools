@@ -48,6 +48,11 @@ public class CSDWebService {
 	}
 	
 	@WebMethod
+	public boolean isExistsLD(String command) {
+		return cmdstream.isExistsLD(command);
+	}
+
+	@WebMethod
 	public String getCommand() {
 		String command = cmdstream.getNextCommand();
 		Logger.trace("Getting command \""+command+"\"...");
