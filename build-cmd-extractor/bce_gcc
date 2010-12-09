@@ -1,24 +1,7 @@
 #!/usr/bin/perl
 
-use FindBin;
 
-my $buildfile = $ENV{'BUILDFILE'};
-if(!$buildfile) {
-	print "bce_gcc: ERROR: BUILDFILE variable not set. Setup it and try again\n";
-	print "USAGE: BUILDFILE=path_to_buildfile bce_gcc kernel_module\n";
-	exit 1;
-};
-if(! -f $buildfile) {
-	print "bce_gcc: ERROR: BUILDFILE=\"$buildfile\" - should be an existing cmd-file.\n";
-	exit 1;
-}
-my $as_gcc = "$FindBin::Bin/../cmd-utils/as_gcc";
-if(!$as_gcc || !(-f $as_gcc)) {
-	print "bce_gcc: ERROR: Can't find as_gcc: \"$as_gcc\".\n";
-	exit 1;
-}
-#
-# serach replace .ko with .o extension
+# search and replace .ko with .o extension
 #
 my $module_file = $ARGV[0];
 if(!($module_file =~ s/\.ko$/\.o/)) 
@@ -28,45 +11,7 @@ if(!($module_file =~ s/\.ko$/\.o/))
 		exit 1;
 	}
 }
-#
-# serach out with our object file
-#
-open(FIL,$buildfile);
-my @strings = <FIL>;
-close(FIL);
-open(FIL,"> $buildfile");
-my $inld = 0;
-my $ismodule = 0;
-foreach $line (@strings)
-{
-	if($inld == 0 && ($line =~ m/<ld id="[0-9]+">/))
-	{
-		$inld = 1;
-	}  
-	elsif($inld == 1)
-	{
-		if ($line =~ m/<\/ld>/)
-		{
-			$inld = 0;
-		} 
-		elsif($ismodule ==0 && ($line =~ s/<out>$module_file<\/out>/<out check="true">$ARGV[0]<\/out>/))
-		{ 
-			$ismodule = 1;
-		}
-	}
-	print(FIL $line);
-}
-if($ismodule == 0)
-{
-	@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
-	foreach $line (@as_gcc_out)
-	{
-		$line =~ s/<out>$ARGV[0]<\/out>/<out check="true">$ARGV[0]<\/out>/;
-		print(FIL $line);
-	}
-}
-close(FIL);
 
-
-
+use SOAP::Lite service =>"$ENV{'WSDLADDR'}?wsdl";
+marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($module_file));
 

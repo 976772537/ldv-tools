@@ -319,9 +319,14 @@ else
 			BUILDFILE=$cmdfileout make V=1 $driver > $KERNEL_COMPILE_LOG 2>$statefile;
 		else 
 			ldv_print "INFO: Kernel folder compile mode.";
-			if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
-			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";
-			BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;
+#			for i in `find . -depth -type d | sed "s/\.\///g"`; do if [ "$i" != "." ]; then i="$i/"; fi;
+			for i in `find $driver -depth -type d | grep -v tmp_versions |sed "s/\.\///g"`; do if [ "$i" != "." ]; then i="$i/"; else continue; fi;
+				ldv_print "BUILDFILE=$cmdfileout make V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;";
+				BUILDFILE=$cmdfileout make V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;
+			done;
+#			if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
+#			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";
+#			BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;
 		fi;
 	fi;
 	if [ $? -ne 0 ]; then
@@ -396,15 +401,15 @@ fi;
 
 let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
 echo $worktime>$statefile_data;
-ldv_print "DEBUG: $CMD_FILTER_RUN -c $cmdfileout";
-$CMD_FILTER_RUN -c $cmdfileout;
-if [ $? -ne 0 ]; then
-	let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
-	echo $worktime>$statefile_data;
-	echo "Filter failed." >$statefile;
-	ldv_print "ERROR: Filter failed.";
-	exit 1;
-fi;
+#ldv_print "DEBUG: $CMD_FILTER_RUN -c $cmdfileout";
+#$CMD_FILTER_RUN -c $cmdfileout;
+#if [ $? -ne 0 ]; then
+#	let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
+#	echo $worktime>$statefile_data;
+#	echo "Filter failed." >$statefile;
+#	ldv_print "ERROR: Filter failed.";
+#	exit 1;
+#fi;
 ldv_print "NORMAL: Command stream is successfully extracted.";
 exit;
 

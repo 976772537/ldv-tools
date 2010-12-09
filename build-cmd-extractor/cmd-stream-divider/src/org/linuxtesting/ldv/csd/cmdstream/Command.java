@@ -24,8 +24,19 @@ public class Command {
 	protected int Id;
 	
 	private boolean check = false;
+
+	private boolean prepared = false;
+
 	private String restrict;
 	
+	public void setPrepared() {
+		this.prepared = true;
+	}
+
+	public boolean isPrepared() {
+		return prepared;
+	}
+
 	// TODO add restrict
 	public String getRestrict() {
 		return restrict;
@@ -128,6 +139,10 @@ public class Command {
 
 	public boolean isCheck() {
 		return check;
+	}
+	
+	public void setCheck() {
+		check = true;
 	}
 
 	public List<Command> getObjIn() {
