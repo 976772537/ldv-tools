@@ -374,6 +374,18 @@ my @watcher_key = split /,/,$key_str;
 # EXCEPTION HANDLING!
 eval {
 
+sub kill_watcher
+{
+	vsay 20, "Shutting down watcher\n";
+	# Report failure to the watcher (reckon we've registered a key for our process?)
+	LDV::Utils::watcher_cmd('fail',@watcher_key);
+	die $@;
+}
+
+$SIG{TERM} = \&kill_watcher;
+$SIG{INT} = \&kill_watcher;
+$SIG{QUIT} = \&kill_watcher;
+
 
 # Actual work.
 
@@ -776,10 +788,7 @@ LDV::Utils::watcher_cmd('success',@watcher_key);
 1;
 } or do {
 	vsay 4, "Fatal error.  Stopping services before reporting...\n";
-	vsay 20, "Shutting down watcher\n";
-	# Report failure to the watcher (reckon we've registered a key for our process?)
-	LDV::Utils::watcher_cmd('fail',@watcher_key);
-	die $@;
+	kill_watcher();
 };
 
 # EXCEPTION HANDLING!
