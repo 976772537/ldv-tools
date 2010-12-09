@@ -320,9 +320,15 @@ sub start_csd {
 		'--basedir=csd_deg_dscv_tempdir',
 		'--cmdfile-out=cmd_after_csd',
 		"--state-file=$config->{'csd_state'}",
-		"--tagbd=$config->{'env'}",
+#		"--tagbd=$config->{'env'}",
 	);
-	push @csd_options,"--full-copy" if not defined $config->{'kernel-driver'};
+
+	if(not defined $config->{'kernel-driver'}) {
+		push @csd_options,"--tagbd=$config->{'driverdir'}";
+		push @csd_options,"--full-copy";
+	} else {
+		push @csd_options,"--tagbd=$config->{'env'}";
+	}
 	
 	my $pid = parallel_run "@csd_options", "$config->{'ldv_tempdir'}/csd_err.log", "$config->{'ldv_tempdir'}/csd_out.log";
 
