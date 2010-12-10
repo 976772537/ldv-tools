@@ -64,6 +64,7 @@ def keyfilestrip(from,what)
 	from.sub(what,'').sub(/^\/*/,'').split(File::SEPARATOR)
 end
 
+# A pool to allow atomic operations with integers, based on flocks
 class FlockPool
 	def initialize(fname)
 		FileUtils.mkdir_p(File.dirname(fname))
@@ -79,10 +80,22 @@ class FlockPool
 			end
 		end
 	end
+	# Safely increase key value and return it
 	public; def get
 		key = nil
 		lock_and do |f|
 			key = f.gets.to_i + 1
+			f.seek(0,IO::SEEK_SET)
+			f.truncate(0)
+			f.write("#{key}\n")
+		end
+		key
+	end
+	# Safely decrease pool pointer value and return it
+	public; def decrease_and_read
+		key = nil
+		lock_and do |f|
+			key = f.gets.to_i - 1
 			f.seek(0,IO::SEEK_SET)
 			f.truncate(0)
 			f.write("#{key}\n")
@@ -109,7 +122,15 @@ class Watcher
 
 	def ensure_server_init
 		@dir = DirMaker.new(server_address)
+		@dir.ensure
+
+		# Set up reference counter (creates it unless exists)
+		@server_instances_pool = FlockPool.new(@dir.join('instance_pool'))
+
+		# Allocate pool for new key generation
 		@key_pool = FlockPool.new(@dir.join('key_pool'))
+
+		# Allocate SYSV semaphores
 		# Semaphore "file" names
 		@sem_fnames = { 'rcv' => @dir.join('rcv_pool'), 'dscv' => @dir.join('dscv_pool') }
 		# Hash of semaphore objects
@@ -282,6 +303,11 @@ class Watcher
 	# Get key for current args.  If the process is not watched for, generate key from the pool
 	def key(args = [])
 		$log.info "Key requested for #{args.inspect}"
+
+		$log.warn "Increasing reference counter..."
+		total_refs = @server_instances_pool.get
+		$log.warn "Serving #{total_refs} instances"
+
 		@dir.push 'keys',args,Process.ppid do
 			fname = @dir.join 'key'
 			begin
@@ -318,20 +344,28 @@ class Watcher
 			$log.debug "Removing #{dir}"
 			FileUtils.rm_rf dir
 		end
+		nil
+	end
+
+	# Decrease reference counter and return if there's no instances left.
+	private; def decrease_refcounter_and_check
+		references_left = @server_instances_pool.decrease_and_read
+		# handling negative numbers as well just in case...
+		references_left <= 0
 	end
 
 	# Doesn't accept empty args!
 	public; def success(*args)
 		$log.info "Reported success for #{args.inspect}"
 		#set_status('success',args,Process.ppid)
-		remove_data(args)
+		remove_data(args) if decrease_refcounter_and_check
 	end
 
 	# Doesn't accept empty args!
 	public; def fail(*args)
 		$log.info "Reported failure for #{args.inspect}"
 		# set_status('fail',args)
-		remove_data(args)
+		remove_data(args) if decrease_refcounter_and_check
 	end
 end
 
