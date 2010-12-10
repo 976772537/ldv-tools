@@ -233,6 +233,16 @@ sub wait_for_all_verified {
 	while (my @rv = wait_for_dscv){
 	        my ($path,$contents,@key) = @rv;
 	        # Discard generic part of the key returned
+		vsay 'TRACE', "CONTENTS: \"$contents\" \n";
+		vsay 'TRACE', "PATH: \"$path\" \n";
+		vsay 'TRACE', "KEY *************** : \n";
+		vsay 'TRACE', "$_\n" foreach @key;
+		vsay 'TRACE', "END ***************   \n";
+		vsay 'TRACE', "WATCHER_KEY *************** : \n";
+		vsay 'TRACE', "$_\n" foreach @{$config->{'watcher_key'}};
+		vsay 'TRACE', "WATCHER_END ***************   \n";
+
+
 	        for my $wk (@{$config->{'watcher_key'}}){
 	                my $k = shift @key;
 	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
@@ -274,21 +284,28 @@ sub scheduler_send_task {
 	vsay 'NORMAL', "Calling Domain Speicific C-Verifier\n";
 	
 	my $dscv_args = {
-		'--cmdfile'       => "$command/cmd_after_deg.xml",
-		'--rule-models'   => "$config->{'rule-models'}",
-		'--report-out'    => "$command/dscv_tempdir/report_after_dscv.xml",
-		'ENV.WORK_DIR'    => "$command/dscv_tempdir",
-		'ENV.LDV_RULE_DB' => "$config->{'ruledb'}"
+		'cmdfile'       => "$command/cmd_after_deg.xml",
+		'properties'   => "$config->{'rule-models'}",
+		'report'    => "$command/dscv_tempdir/report_after_dscv.xml",
+		'workdir'    => "$command/dscv_tempdir",
+		'ruledb' => "$config->{'ruledb'}"
 	};
 		
 	vsay 'TRACE', "Write DSCV arguments to task descriptor file \"$task_descriptor->{'task_fname'}\".\n";
         my $TASK; open $TASK, ">", $task_descriptor->{'task_fname'} or die "Can't open '$task_descriptor->{'task_fname'}': $!";
 	Utils::hash_to_xml($dscv_args, 'input', $TASK);
         close $TASK;
-	vsay 'TRACE', "Calling watcher...\n";
+
+	vsay 'TRACE', "Make work dir for task \"$command/input_task\"\n";
 	make_path("$command/task_input");
+	
+	vsay 'TRACE', "Set RCV_FRONTEND_CMD to \"$config->{'dscv'}\"\n";
+	$ENV{'RCV_FRONTEND_CMD'} = $config->{'dscv'}
+;
+	vsay 'TRACE', "Calling watcher...\n";
 	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, "$command/task_input", @{$config->{'watcher_key'}}, 'dscv', $command);
 
+	vsay 'TRACE', "Set task status to \"queued\"\n";
 	$task_descriptor->{'state'} = 'queued';
 }
 
