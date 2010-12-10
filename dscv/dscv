@@ -274,15 +274,16 @@ if($mode eq 'raw') {
 
         # in this mode work dir is passed as ENV.WORK_DIR
         #               and rule model db as ENV.RULE_MODEL_DB
-        $config->{work_dir} = $args{'ENV.WORK_DIR'};
-        $config->{rule_db_dir} = $args{'ENV.RULE_MODEL_DB'};
+        $config->{work_dir} = $args{workdir};
+        $config->{rule_db_dir} = $args{ruledb};
         -d $config->{work_dir} or die "the workdir '$config->{work_dir}' is not a directory!";
-        -d $config->{rule_db_dir} or die "the rule_db_dir '$config->{rule_db_dir}' is not a directory!";
+        -f $config->{rule_db_dir} or die "the rule_db_dir '$config->{rule_db_dir}' is not a file!";
 
         #read other options
-        $config->{report} = $args{'--report-out'};
-        $config->{properties} = $args{'--rule-models'};	
-        $config->{cmdfile} = $args{'--cmdfile'};	
+        $config->{report} = $args{report};
+        $config->{properties} = [$args{properties}];	
+        $config->{cmdfile} = $args{cmdfile};	
+        -f $config->{cmdfile} or die "the cmdfile '$config->{cmdfile}' is not a file!";
 	$mode = 'cmdfile';
 }
 
