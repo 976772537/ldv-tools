@@ -810,14 +810,16 @@ close $BIG_REPORT;
 
 vsay 20,"Final report is written to $config->{report}\n";
 
-# Report success to the watcher
-LDV::Utils::watcher_cmd('success',@watcher_key);
-
 1;
 } or do {
 	vsay 4, "Fatal error.  Stopping services before reporting...\n";
 	kill_watcher();
+	# We die in kill_watcher, no need to exit here... but just in case...
+	exit 1;
 };
+
+# Report success to the watcher
+LDV::Utils::watcher_cmd('success',@watcher_key);
 
 # EXCEPTION HANDLING!
 ###########################
