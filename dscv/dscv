@@ -39,6 +39,7 @@ use Getopt::Long;
 
 # Configuration structure
 my $config={
+	rawcmdfile=>'',
 	dir=>'./',
 };
 
@@ -60,6 +61,7 @@ $config->{property} = [];
 $config->{properties} = [];
 $optionSpecs{'rule-model=s@'} = \$config->{property};
 $optionSpecs{'rule-models=s@'} = \$config->{properties};
+$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
 
 =item B<--report-out>=report.xml
 
@@ -247,17 +249,42 @@ sub usage
 # Determine mode
 my $mode;
 my @inline_args = ();
+$config->{cmdfile} and $mode = 'cmd';
+$config->{rawcmdfile} and $mode = 'raw';
 if (grep {m/^inline$/} @ARGV){
 	$mode = 'inline';
 	# Cut last portion of ARGV into a separate array
 	my ($index) = grep { $ARGV[$_] eq 'inline' } 0..$#ARGV;
 	@inline_args = @ARGV[($index+1)..$#ARGV];
 	@ARGV = @ARGV[0..$index-1];
+} elsif( grep {m/rawcmdfile/} @ARGV) {
+	$mode = 'raw';
 }else{
 	$mode = 'cmdfile';
 }
 
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
+
+if($mode eq 'raw') {
+        -f $config->{'rawcmdfile'} or die"Command file for raw mode \"$config->{rawcmdfile}\" not exists: $!";
+        my %args = ();
+
+        # How we parse raw xml to %args hash
+        %args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
+
+        # in this mode work dir is passed as ENV.WORK_DIR
+        #               and rule model db as ENV.RULE_MODEL_DB
+        $config->{work_dir} = $args{'ENV.WORK_DIR'};
+        $config->{rule_db_dir} = $args{'ENV.RULE_MODEL_DB'};
+        -d $config->{work_dir} or die "the workdir '$config->{work_dir}' is not a directory!";
+        -d $config->{rule_db_dir} or die "the rule_db_dir '$config->{rule_db_dir}' is not a directory!";
+
+        #read other options
+        $config->{report} = $args{'--report-out'};
+        $config->{properties} = $args{'--rule-models'};	
+        $config->{cmdfile} = $args{'--cmdfile'};	
+	$mode = 'cmdfile';
+}
 
 # Do options tweaking (that doesn't require any semantical checking)
 
@@ -341,7 +368,7 @@ if ($mode eq 'inline'){
 		$config->{properties}=[$default_rule_model];
 	}
 }
-
+ 
 # Sanity check
 
 $config->{cmdfile} or usage("Work without cmdfile is not supported!\n");

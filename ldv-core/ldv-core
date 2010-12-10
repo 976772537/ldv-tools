@@ -6,6 +6,7 @@ my $instrumnet = 'ldv-core';
 use FindBin;
 use SOAP::Lite; 
 use POSIX ":sys_wait_h";
+use XML::Twig;
 
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
@@ -23,6 +24,7 @@ usage_ends
 
 
 use Cwd 'abs_path';
+use Utils;
 $ENV{'WORK_DIR'} || die"Please, specify WORK_DIR environment variable!";
 
 use Getopt::Long qw(:config require_order);
@@ -126,7 +128,7 @@ sub start_next {
 		my $csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl') };
 		my $old_workdir = $ENV{'WORK_DIR'};
 	
-		my $tasks = ();
+		my $tasks = {};
 		while(1) {
 			my $command =  eval{ return $csd->getCommand(); };
 			if($command) {
@@ -157,12 +159,11 @@ sub start_next {
 				$ENV{'WORK_DIR'} = $old_workdir;
 		
 				
-				my $task_descriptor = { 'path'=>$command, 'state'=>'wait'};
-				push @$tasks, $task_descriptor;
+				$tasks->{$command}->{state} = 'wait';
 				vsay 'TRACE', "Calling external interface to submit task\n";
 				
 			
-				scheduler_send_task($task_descriptor);		
+				scheduler_send_task($tasks->{$command}, $command);		
 					
 		
 				vsay 'NORMAL', "Wait for command...\n";
@@ -175,13 +176,11 @@ sub start_next {
 		vsay 'NORMAL', "Sleep while all tasks verified.\n";
 		# pass this stage in single machine
 		vsay 'NORMAL', "Wait for all tasks are verified...\n";
-		sleep 10 while(is_all_verified($tasks)); 
-		vsay 'NORMAL', "Collect and process reports.\n";
-		
-		foreach my $task (@$tasks) {
-			deg_create_report($task);
+		wait_for_all_verified($tasks);
+		vsay 'NORMAL', "Collect and process reports.\n";	
+		foreach my $task_path (keys @$tasks) {
+			deg_create_report($task_path);
 		}
-
 		csd_create_report($tasks);
 		bce_ldv_report('OK');
 
@@ -195,7 +194,7 @@ sub csd_create_report {
 	
 	vsay 'DEBUG', "Prepare list of DEG reports for CSD reporter \"$config->{'csd_tempdir'}/list_of_deg_reports\"...\n";
 	open DEGLIST, ">","$config->{'csd_tempdir'}/list_of_deg_reports" or die"$!";
-	print DEGLIST "$_->{'path'}/report_after_deg.xml\n" foreach @$tasks;
+	print DEGLIST "$_/report_after_deg.xml\n" foreach keys %{$tasks};
 	close DEGLIST;
 
 	vsay 'NORMAL', "Caliing CSD reporter...\n";
@@ -213,19 +212,49 @@ sub csd_create_report {
 }
 
 sub deg_create_report {
-	my ($task)  = @_;
-	vsay 'DEBUG', "Calling DEG reporter for \"$task->{'path'}\"\n";
+	my ($task_path)  = @_;
+	vsay 'DEBUG', "Calling DEG reporter for \"$task_path\"\n";
 
 	@deg_reporter_args = ($config->{'deg-reporter'},
-		"--stats-file=$task->{'path'}/deg/stats.xml",
-		"--cmdfile=$task->{'path'}/cmd_after_csd.xml",
-		"--report-in=$task->{'path'}/dscv_tempdir/report_after_dscv.xml",
-		"--report-out=$task->{'path'}/report_after_deg.xml",
-		"--state-file=$task->{'path'}/deg.state"
+		"--stats-file=$task_path/deg/stats.xml",
+		"--cmdfile=$task_path/cmd_after_csd.xml",
+		"--report-in=$task_path/dscv_tempdir/report_after_dscv.xml",
+		"--report-out=$task_path/report_after_deg.xml",
+		"--state-file=$task_path/deg.state"
 	);
 		
 	vsay 'TRACE', "LDV_DEBUG=$ENV{'LDV_DEBUG'} WORK_DIR=$ENV{'WORK_DIR'} @deg_reporter_args\n";	 
 	system(@deg_reporter_args);
+}
+
+sub wait_for_all_verified {
+	my ($tasks) = @_;
+
+	while (my @rv = wait_for_dscv){
+	        my ($path,$contents,@key) = @rv;
+	        # Discard generic part of the key returned
+	        for my $wk (@{$config->{'watcher_key'}}){
+	                my $k = shift @key;
+	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
+	        }
+	        my (undef, $command_path) = @key;
+	        # unpack the incoming package
+	        vsay 'INFO', "Successfully waited for \"$command_path\"\n";
+	        vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
+	        LDV::Utils::watcher_cmd('unpack', $path, $contents);
+		# find corrwponding task descriptor and set status to 'verified'
+	}
+
+}
+
+sub set_status_by_path {
+	foreach($tasks) {
+	}
+}
+
+sub wait_for_dscv {
+	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait','any',@{$config->{'watcher_key'}});
+	return split /,/,$dscv_id;	
 }
 
 sub is_all_verified {
@@ -236,29 +265,31 @@ sub is_all_verified {
 }
 
 sub scheduler_send_task {
-	my ($task_descriptor) = @_;
+	my ($task_descriptor, $command) = @_;
 	$task_descriptor->{'state'} eq 'wait' or return;
-	my $command = $task_descriptor->{'path'};
+	$task_descriptor->{'task_fname'} = "$command/task_descriptor";
+
 	make_path("$command/dscv_tempdir") or die"$!";
 	my $dscv_report = "$command/dscv_tempdir/report_after_dscv.xml";
 	vsay 'NORMAL', "Calling Domain Speicific C-Verifier\n";
 	
-	my @dscv_args = ($config->{'dscv'},
-		"--cmdfile=$command/cmd_after_deg.xml",
-		"--rule-models=$config->{'rule-models'}",
-		"--report-out=$command/dscv_tempdir/report_after_dscv.xml"
-	);
+	my $dscv_args = {
+		'--cmdfile'       => "$command/cmd_after_deg.xml",
+		'--rule-models'   => "$config->{'rule-models'}",
+		'--report-out'    => "$command/dscv_tempdir/report_after_dscv.xml",
+		'ENV.WORK_DIR'    => "$command/dscv_tempdir",
+		'ENV.LDV_RULE_DB' => "$config->{'ruledb'}"
+	};
 		
-	my $old_wrkdir = $ENV{'WORK_DIR'};
-	$ENV{'WORK_DIR'} = "$command/dscv_tempdir";
-	$ENV{'LDV_RULE_DB'}=$config->{'ruledb'};
-	vsay 'TRACE', "LDV_RULE_DB set to \"$config->{'ruledb'}\"\n";
-	vsay 'TRACE', "Workdir changed to $ENV{'WORK_DIR'}\n";
-	vsay 'TRACE', "@dscv_args\n";
-	system(@dscv_args) and die"$!"; # or die? 
-	$ENV{'WORK_DIR'} = $old_wrkdir;
-	vsay 'TRACE', "Restore workdir to $ENV{'WORK_DIR'}\n";
-	$task_descriptor->{'state'} = 'verified';
+	vsay 'TRACE', "Write DSCV arguments to task descriptor file \"$task_descriptor->{'task_fname'}\".\n";
+        my $TASK; open $TASK, ">", $task_descriptor->{'task_fname'} or die "Can't open '$task_descriptor->{'task_fname'}': $!";
+	Utils::hash_to_xml($dscv_args, 'input', $TASK);
+        close $TASK;
+	vsay 'TRACE', "Calling watcher...\n";
+	make_path("$command/task_input");
+	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, "$command/task_input", @{$config->{'watcher_key'}}, 'dscv', $command);
+
+	$task_descriptor->{'state'} = 'queued';
 }
 
 sub parallel_run {
@@ -349,7 +380,7 @@ sub start_csd {
 
 sub init_config {
 	vsay 'DEBUG', "Config initialization...\n";
-	
+
 	$config->{'workdir'} || die"Please, specify WORKDIR environment variable options.";
 	$config->{'workdir'} = abs_path($config->{'workdir'});
 	$config->{'rule-models'}   or die"Please, specify --rule-models options.";
@@ -396,6 +427,13 @@ sub init_config {
 	$config->{'as_gcc_pool'} = "$config->{'bce_tempdir'}/as_gcc_pool";
 	$config->{'csd_state'} = "$config->{'csd_tempdir'}/csd.state";
 	$ENV{'AS_GCC_POOL'} = $config->{'as_gcc_pool'};
+
+	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{'workdir'}/watcher";
+	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','ldv-core');
+	vsay 'DEBUG', "Got key string $key_str.\n";
+	my @watcher_key = split /,/,$key_str;
+	$config->{'watcher_key'} = \@watcher_key;
 }
 
 sub bce_create_report {
