@@ -128,6 +128,20 @@ sub start_next {
 		my $csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl') };
 		my $old_workdir = $ENV{'WORK_DIR'};
 	
+		# eval block for watcher scope
+		eval {
+
+		sub kill_watcher {
+                        vsay 20, "Shutting down watcher\n";
+                        LDV::Utils::watcher_cmd('fail', @{$config->{'watcher_key'}});
+                        kill_watcher();
+                        die"Fatal error: $@";
+		}
+
+		$SIG{TERM} = \&kill_watcher;
+		$SIG{INT} = \&kill_watcher;
+		$SIG{QUIT} = \&kill_watcher;
+
 		my $tasks = {};
 		while(1) {
 			my $command =  eval{ return $csd->getCommand(); };
@@ -158,12 +172,12 @@ sub start_next {
 				system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
 				$ENV{'WORK_DIR'} = $old_workdir;
 		
-				
-				$tasks->{$command}->{state} = 'wait';
-				vsay 'TRACE', "Calling external interface to submit task\n";
-				
+				$command =~ m/.*\/+([0-9]+)/ and my $cid=$1;	
+				$tasks->{$cid}->{state} = 'wait';
+				$tasks->{$cid}->{path} = $command;
+				vsay 'TRACE', "Calling external interface to submit task for CID=$cid\n";
 			
-				scheduler_send_task($tasks->{$command}, $command);		
+				scheduler_send_task($tasks->{$cid}, $cid);		
 					
 		
 				vsay 'NORMAL', "Wait for command...\n";
@@ -178,11 +192,22 @@ sub start_next {
 		vsay 'NORMAL', "Wait for all tasks are verified...\n";
 		wait_for_all_verified($tasks);
 		vsay 'NORMAL', "Collect and process reports.\n";	
-		foreach my $task_path (keys @$tasks) {
-			deg_create_report($task_path);
+		foreach my $ltask (values %{$tasks}) {
+			deg_create_report($ltask->{path});
 		}
 		csd_create_report($tasks);
-		bce_ldv_report('OK');
+		
+		# create 
+		vsay 'TRACE', "Try to send 'success' message to watcher...\n";
+		LDV::Utils::watcher_cmd('success', @{$config->{'watcher_key'}});
+		vsay 'TRACE', "Message 'success' was sent to watcher.\n";
+		bce_ldv_report 'OK';
+		1;
+		} or do {
+		        vsay 4, "Fatal error.  Stopping services before reporting...\n";
+			kill_watcher();
+			bce_ldv_report 'FAILED', 'exit', "Watcher exception";
+		};
 
 		exit 0;
 	}
@@ -194,7 +219,7 @@ sub csd_create_report {
 	
 	vsay 'DEBUG', "Prepare list of DEG reports for CSD reporter \"$config->{'csd_tempdir'}/list_of_deg_reports\"...\n";
 	open DEGLIST, ">","$config->{'csd_tempdir'}/list_of_deg_reports" or die"$!";
-	print DEGLIST "$_/report_after_deg.xml\n" foreach keys %{$tasks};
+	print DEGLIST "$tasks->{$_}->{path}/report_after_deg.xml\n" foreach keys %{$tasks};
 	close DEGLIST;
 
 	vsay 'NORMAL', "Caliing CSD reporter...\n";
@@ -229,32 +254,22 @@ sub deg_create_report {
 
 sub wait_for_all_verified {
 	my ($tasks) = @_;
-
-	while (my @rv = wait_for_dscv){
-	        my ($path,$contents,@key) = @rv;
-	        # Discard generic part of the key returned
-		vsay 'TRACE', "CONTENTS: \"$contents\" \n";
-		vsay 'TRACE', "PATH: \"$path\" \n";
-		vsay 'TRACE', "KEY *************** : \n";
-		vsay 'TRACE', "$_\n" foreach @key;
-		vsay 'TRACE', "END ***************   \n";
-		vsay 'TRACE', "WATCHER_KEY *************** : \n";
-		vsay 'TRACE', "$_\n" foreach @{$config->{'watcher_key'}};
-		vsay 'TRACE', "WATCHER_END ***************   \n";
-
-
+	vsay 'TRACE', "Start watcher waiting...\n";
+	while (my @rv = wait_for_dscv()){
+	        my ($path, $contents, @key) = @rv;
 	        for my $wk (@{$config->{'watcher_key'}}){
 	                my $k = shift @key;
 	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
 	        }
-	        my (undef, $command_path) = @key;
+	        my (undef, $cid) = @key;
 	        # unpack the incoming package
-	        vsay 'INFO', "Successfully waited for \"$command_path\"\n";
+	        vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
 	        vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
 	        LDV::Utils::watcher_cmd('unpack', $path, $contents);
-		# find corrwponding task descriptor and set status to 'verified'
+		# find corresponding task descriptor and set status to 'verified'
+		vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
+		$tasks->{$cid}->{state} = 'verified';
 	}
-
 }
 
 sub set_status_by_path {
@@ -263,7 +278,10 @@ sub set_status_by_path {
 }
 
 sub wait_for_dscv {
-	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait','any',@{$config->{'watcher_key'}});
+	vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'any', @{$config->{'watcher_key'}})\n";
+	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait', 'any', @{$config->{'watcher_key'}});
+#	vsay 'TRACE', "Watcher wait return \"$dscv_id\"\n";
+	$dscv_id or return;
 	return split /,/,$dscv_id;	
 }
 
@@ -275,7 +293,8 @@ sub is_all_verified {
 }
 
 sub scheduler_send_task {
-	my ($task_descriptor, $command) = @_;
+	my ($task_descriptor, $cid) = @_;
+	my $command = $task_descriptor->{'path'};
 	$task_descriptor->{'state'} eq 'wait' or return;
 	$task_descriptor->{'task_fname'} = "$command/task_descriptor";
 
@@ -284,11 +303,11 @@ sub scheduler_send_task {
 	vsay 'NORMAL', "Calling Domain Speicific C-Verifier\n";
 	
 	my $dscv_args = {
-		'cmdfile'       => "$command/cmd_after_deg.xml",
+		'cmdfile'      => "$command/cmd_after_deg.xml",
 		'properties'   => "$config->{'rule-models'}",
-		'report'    => "$command/dscv_tempdir/report_after_dscv.xml",
-		'workdir'    => "$command/dscv_tempdir",
-		'ruledb' => "$config->{'ruledb'}"
+		'report'       => "$command/dscv_tempdir/report_after_dscv.xml",
+		'workdir'      => "$command/dscv_tempdir",
+		'ruledb'       => "$config->{'ruledb'}"
 	};
 		
 	vsay 'TRACE', "Write DSCV arguments to task descriptor file \"$task_descriptor->{'task_fname'}\".\n";
@@ -303,7 +322,7 @@ sub scheduler_send_task {
 	$ENV{'RCV_FRONTEND_CMD'} = $config->{'dscv'}
 ;
 	vsay 'TRACE', "Calling watcher...\n";
-	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, "$command/task_input", @{$config->{'watcher_key'}}, 'dscv', $command);
+	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, "$command/task_input", @{$config->{'watcher_key'}}, 'dscv', $cid);
 
 	vsay 'TRACE', "Set task status to \"queued\"\n";
 	$task_descriptor->{'state'} = 'queued';
@@ -495,11 +514,11 @@ sub prepare_driver {
 			chomp $driver_src_type;
 			vsay 'TRACE', "Driver source type $driver_src_type\n";
 			if($driver_src_type eq 'application/x-bzip2') {
-				`tar xvjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', "Can't unpack driver";
+				`tar xvjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
 			} elsif($driver_src_type eq 'application/x-gzip') {
-				`tar xzjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', "Can't unpack driver";
+				`tar xzjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
 			} else {
-				bce_ldv_report 'FAILED', "Unknown driver source type";
+				bce_ldv_report 'FAILED', 'exit', "Unknown driver source type";
 			}
 		} else {
 			vsay 'NORMAL', "Copy in-kernel driver environment\n";
@@ -527,8 +546,8 @@ sub ldv_create_report {
 };
 
 sub bce_ldv_report {
-	my ($status, $msg) = @_;
+	my ($status, $action, $msg) = @_;
 	bce_create_report $status, $msg;
 	ldv_create_report;
-	exit 0;
+	defined $action and $action eq 'exit' and exit;
 }
