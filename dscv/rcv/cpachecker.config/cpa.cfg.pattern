@@ -1,3 +1,6 @@
+#
+# Cloned from test/config/symbpredabsCPA.properties
+#
 # ----------------------------------------------------------------------
 # This configuration file uses the Adjustable-Block Encoding CPA
 # for predicate abstraction with CEGAR as described in
