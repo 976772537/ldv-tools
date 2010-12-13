@@ -133,7 +133,7 @@ sub hxml_cmdstream {
 				vsay 'TRACE', "Process trace file: $_\n";
 				if(/$state->{'path'}\/+csd_deg_dscv\/+\d+\/+/) {
 					my $brelpath = $_;
-					$brelpath =~ s/$state->{'path'}\/+(csd_deg_dscv_tempdir\/+)(\d+\/+.*)/$1$2/;
+					$brelpath =~ s/$state->{'path'}\/+(csd_deg_dscv\/+)(\d+\/+.*)/$1$2/;
 					my $relpath = $brelpath;
 					$relpath =~ s/(.*)\/.*$/$1/;
 					my $target_rel_path = "$kernel/$relpath";

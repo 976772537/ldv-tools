@@ -79,7 +79,7 @@ sub deg_create_report;
 
 
 
-$ENV{'WSDLADDR'}="http://localhost:8080/csd";
+$ENV{'WSDLADDR'} = "http://localhost:8080/csd_".`date +%F-%H-%M-%S`;
 
 init_config;
 prepare_driver;
@@ -384,7 +384,7 @@ sub start_csd {
 		'-jar',
 		$config->{'csd'},
 		"--wsdladdr=$ENV{'WSDLADDR'}",
-		'--basedir=csd_deg_dscv_tempdir',
+		'--basedir=csd_deg_dscv',
 		'--cmdfile-out=cmd_after_csd',
 		"--state-file=$config->{'csd_state'}",
 #		"--tagbd=$config->{'env'}",
@@ -432,7 +432,7 @@ sub init_config {
 
 	$config->{'bce_tempdir'} = "$config->{'workdir'}/bce_tempdir";
 	$config->{'ldv_tempdir'} = "$config->{'workdir'}/ldv_tempdir";
-	$config->{'csd_tempdir'} = "$config->{'workdir'}/csd_deg_dscv_tempdir";
+	$config->{'csd_tempdir'} = "$config->{'workdir'}/csd_deg_dscv";
 	if($config->{'cmdstream'}) {
 		$config->{'cmdstream'} = abs_path($config->{'cmdstream'});
 		-f $config->{'cmdstream'} or die"Cmd stream file not exists \"$config->{'cmdstream'}\".";
