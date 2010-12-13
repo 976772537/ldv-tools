@@ -315,7 +315,7 @@ sub hxml_cmdstream_ld {
 			$driver_name =~ s/$xmlbasedir\/+//;
 			$module_name = $driver_name;
 		} elsif($kernel_driver eq $driver_external) {
-			$module_name =~ s/.*\/+csd_deg_dscv\/+driver\d+\/+//;
+			$module_name =~ s/.*\/+csd_deg_dscv\/+\d+\/+driver\/+//;
 			$indriver_name =~ s/.*\/(.*)/$1/;
 			$driver_name = $indriver_name;
 		}

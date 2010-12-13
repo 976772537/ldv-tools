@@ -363,9 +363,10 @@ public class CmdStream {
 		Logger.norm("Set check and KO for command : \"" + cmd.getId() + "\".");
 		cmd.setCheck();
 		List<String> outCmds = cmd.getOut();
-		for(int i=0; i<outCmds.size(); i++) { 
-			Logger.norm("Replace extension for file : \"" + outCmds.get(i) + "\" with \"ko\".");
-			//outCmds.get(i).replace("\\.o",".ko");
+		for(int i=0; i<outCmds.size(); i++) {
+			String outs = outCmds.get(i);
+			Logger.norm("Replace extension for file : \"" + outs + "\" with \"ko\".");
+			outCmds.set(i, outs.replaceFirst("\\.o$",".ko"));
 			Logger.trace("Now out file is : \"" + outCmds.get(i) + "\".");
 		}
 	}
@@ -376,15 +377,16 @@ public class CmdStream {
 			Logger.norm("This is not full command.");
 			//setCheckAndKO(badCmdHash.get(command));
 			Logger.norm("Set check for command : \"" + command + "\".");
-			badCmdHash.get(command).setCheck();
-			
+//			badCmdHash.get(command).setCheck();
+			setCheckAndKO(badCmdHash.get(command));			
 			//badCmdHash.get(command).setCheck();
 		} else 
 		if(fullCmdHash.containsKey(command)) {
 			Logger.norm("This is full command.");
 			Command cmd = fullCmdHash.get(command);
 			Logger.norm("Set check for command : \"" + command + "\".");
-			cmd.setCheck();
+//			cmd.setCheck();
+			setCheckAndKO(cmd);
 			//setCheckAndKO(cmd);
 			prepareTask(cmd);
 		}

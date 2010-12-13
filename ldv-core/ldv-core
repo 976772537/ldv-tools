@@ -79,7 +79,10 @@ sub deg_create_report;
 
 
 
-$ENV{'WSDLADDR'} = "http://localhost:8080/csd_".`date +%F-%H-%M-%S`;
+my $wsdl_uid=`date +%Y%H%M%S`;
+chomp $wsdl_uid;
+$ENV{'WSDLADDR'} = "http://localhost:8080/csd$wsdl_uid";
+vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
 
 init_config;
 prepare_driver;
@@ -134,7 +137,6 @@ sub start_next {
 		sub kill_watcher {
                         vsay 20, "Shutting down watcher\n";
                         LDV::Utils::watcher_cmd('fail', @{$config->{'watcher_key'}});
-                        kill_watcher();
                         die"Fatal error: $@";
 		}
 
@@ -195,13 +197,13 @@ sub start_next {
 		foreach my $ltask (values %{$tasks}) {
 			deg_create_report($ltask->{path});
 		}
-		csd_create_report($tasks);
+		my $rep_result = csd_create_report($tasks);
 		
 		# create 
 		vsay 'TRACE', "Try to send 'success' message to watcher...\n";
 		LDV::Utils::watcher_cmd('success', @{$config->{'watcher_key'}});
 		vsay 'TRACE', "Message 'success' was sent to watcher.\n";
-		bce_ldv_report 'OK';
+		bce_ldv_report $rep_result;
 		1;
 		} or do {
 		        vsay 4, "Fatal error.  Stopping services before reporting...\n";
@@ -222,7 +224,7 @@ sub csd_create_report {
 	print DEGLIST "$tasks->{$_}->{path}/report_after_deg.xml\n" foreach keys %{$tasks};
 	close DEGLIST;
 
-	vsay 'NORMAL', "Caliing CSD reporter...\n";
+	vsay 'NORMAL', "Calling CSD reporter...\n";
 	
 	my @csd_reporter_args = ($config->{'csd-reporter'},
 		"--cmdfile=$config->{'xml_after_bce'}",
@@ -233,7 +235,9 @@ sub csd_create_report {
 	);
 			
 	vsay 'TRACE', "LDV_DEBUG=$ENV{'LDV_DEBUG'} WORK_DIR=$ENV{'WORK_DIR'} @csd_reporter_args\n";	 
-	system(@csd_reporter_args);
+	-f $config->{'csd_state'} or return 'FAILED';
+	system(@csd_reporter_args) and return 'FAILED';
+	return 'OK';
 }
 
 sub deg_create_report {
@@ -272,15 +276,9 @@ sub wait_for_all_verified {
 	}
 }
 
-sub set_status_by_path {
-	foreach($tasks) {
-	}
-}
-
 sub wait_for_dscv {
 	vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'any', @{$config->{'watcher_key'}})\n";
 	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait', 'any', @{$config->{'watcher_key'}});
-#	vsay 'TRACE', "Watcher wait return \"$dscv_id\"\n";
 	$dscv_id or return;
 	return split /,/,$dscv_id;	
 }
@@ -477,10 +475,12 @@ sub bce_create_report {
 	my ($state, $msg) = @_;
 	my $report_lines;
 	if($state eq 'FAILED') {
-		open FILE, "$config->{'bce_report'}" or die"$!";
-		print FILE "<?xml version=\"1.0\"?>\n<reports>\n  <build>\n    <ststus>$state</state>\n    <time></time>\n    <desc>";
-		if( -f $config->{'bce-satate'}) {
-			open FILE_STATE, $config->{'bce-state'} or die "$!";
+		$msg ||= 'Kernel compile error';
+		vsay 'TRACE', "BCE report saved in $config->{'bce_report'}\n";
+		open FILE, ">", "$config->{'bce_report'}" or die"$!";
+		print FILE "<?xml version=\"1.0\"?>\n<reports>\n  <build>\n    <status>$state</status>\n    <time></time>\n    <desc>";
+		if( -f $config->{'bce_state'}) {
+			open FILE_STATE, $config->{'bce_state'} or die "$!";
 			print FILE "$_\n" while(<FILE_STATE>); 
 			close FILE_STATE or die "$!";
 		} else {
@@ -547,6 +547,7 @@ sub ldv_create_report {
 
 sub bce_ldv_report {
 	my ($status, $action, $msg) = @_;
+	vsay 'TRACE', "BCE and LDV report process staring...\n";
 	bce_create_report $status, $msg;
 	ldv_create_report;
 	defined $action and $action eq 'exit' and exit;
