@@ -135,6 +135,7 @@ sub start_next {
 		eval {
 
 		sub kill_watcher {
+			bce_ldv_report 'FAILED', 'exit', "Watcher exception";
                         vsay 20, "Shutting down watcher\n";
                         LDV::Utils::watcher_cmd('fail', @{$config->{'watcher_key'}});
                         die"Fatal error: $@";
@@ -208,7 +209,6 @@ sub start_next {
 		} or do {
 		        vsay 4, "Fatal error.  Stopping services before reporting...\n";
 			kill_watcher();
-			bce_ldv_report 'FAILED', 'exit', "Watcher exception";
 		};
 
 		exit 0;
