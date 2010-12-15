@@ -6,10 +6,19 @@ import org.linuxtesting.ldv.csd.utils.Logger;
 import org.w3c.dom.Node;
 
 
-public class CommandCC extends Command {
+public class CommandCC extends Command implements Cloneable {
 
+	public Command clone() {
+	    return super.clone();
+	}
+
+	
 	public CommandCC(Node item) {
 		super(item);
+		// TODO Auto-generated constructor stub
+	}
+
+	public CommandCC() {
 		// TODO Auto-generated constructor stub
 	}
 

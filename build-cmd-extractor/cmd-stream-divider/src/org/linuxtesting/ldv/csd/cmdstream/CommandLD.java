@@ -6,9 +6,14 @@ import java.util.List;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-public class CommandLD extends Command{
+public class CommandLD extends Command implements Cloneable {
 	
 	private List<String> mains = new ArrayList<String>();
+	
+	public Command clone() {
+	    return super.clone();
+	}
+
 	
 	public CommandLD(Node item) {
 		super(item);
@@ -20,6 +25,10 @@ public class CommandLD extends Command{
 		}
 	}
 	
+	public CommandLD() {
+		// TODO Auto-generated constructor stub
+	}
+
 	public void write(StringBuffer sb) {
 		sb.append(CmdStream.shift+'<'+CmdStream.tagLd+" id=\""+Id+"\">\n");
 		super.write(sb);
