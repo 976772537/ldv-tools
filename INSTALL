@@ -37,6 +37,7 @@ MINIMAL PREREQUISITES
 		- Text::Highlight
 		- XML::Twig
 		- XML::Writer
+		- SOAP::Lite
 	o CPIO archiver
 	o PAX archiver
 	o Ruby gem manager
