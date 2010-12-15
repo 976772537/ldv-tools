@@ -95,7 +95,7 @@ sub xml_to_hash
 	local $_;
 	# Copy arguments
 	$args{$_} = [$inputT->children_text($_)] for @to_array;
-	$args{$_} = [$_->copy] for grep {$_} map {$inputT->first_child($_)} @to_xml;
+	$args{$_->name} = $_->copy for grep {$_} map {$inputT->first_child($_)} @to_xml;
 	# Copy the rest into args
 	my %read = map {$_ => 1} (@to_array, @to_xml);
 	my $e;
