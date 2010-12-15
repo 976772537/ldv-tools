@@ -79,7 +79,7 @@ sub deg_create_report;
 
 
 
-my $wsdl_uid=`date +%Y%H%M%S`;
+my $wsdl_uid="$$".`date +%Y%H%M%S`;
 chomp $wsdl_uid;
 $ENV{'WSDLADDR'} = "http://localhost:8080/csd$wsdl_uid";
 vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
