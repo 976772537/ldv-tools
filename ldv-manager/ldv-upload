@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 require 'rubygems'
 require 'active_record'
 require 'find'
@@ -109,7 +109,8 @@ class Trace
 		query_target["build/time"] = 'build-cmd-extractor'
 		# Load time for each target
 		query_target.each do |query,target|
-			tag.elements.each(query) do |entry|
+			# We need query.dup because REXML of ruby 1.9 wants this string to be unfrozen.  That's a bug in ReXML.
+			tag.elements.each(query.dup) do |entry|
 				times = entry.text.split(':')
 				processe.create(:name => target, :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2])
 			end
