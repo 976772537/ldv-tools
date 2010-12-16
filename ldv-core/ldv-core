@@ -449,9 +449,9 @@ sub init_config {
 	vsay 'DEBUG', "Creating dir \"$config->{'ldv_tempdir'}\"...\n";
 	not -d $config->{'ldv_tempdir'} and  make_path("$config->{'ldv_tempdir'}");
 	vsay 'DEBUG', "Creating dir \"$config->{'bce_tempdir'}\"...\n";
-	not -d $config->{'ldv_tempdir'} and make_path("$config->{'bce_tempdir'}");
+	not -d $config->{'bce_tempdir'} and make_path("$config->{'bce_tempdir'}");
 	vsay 'DEBUG', "Creating dir \"$config->{'csd_tempdir'}\"...\n";
-	not -d $config->{'ldv_tempdir'} and make_path("$config->{'csd_tempdir'}");
+	not -d $config->{'csd_tempdir'} and make_path("$config->{'csd_tempdir'}");
 
 	$config->{'bce_report'} = "$config->{'bce_tempdir'}/report_after_bce.xml";
 	$config->{'bce_stats'} = "$config->{'bce_tempdir'}/stats.xml";
@@ -514,11 +514,14 @@ sub prepare_driver {
 			chomp $driver_src_type;
 			vsay 'TRACE', "Driver source type $driver_src_type\n";
 			if($driver_src_type eq 'application/x-bzip2') {
+				vsay 'TRACE', "Unpacking source x-bzip2\n";
 				`tar xvjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
 			} elsif($driver_src_type eq 'application/x-gzip') {
+				vsay 'TRACE', "Unpacking source x-gzip\n";
 				`tar xzjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
 			} else {
-				bce_ldv_report 'FAILED', 'exit', "Unknown driver source type";
+				vsay 'TRACE', "Incorrect driver archive: \"$driver_src_type\".\n";
+				bce_ldv_report 'FAILED', 'exit', "Incorrect driver archive type: \"$driver_src_type\".";
 			}
 		} else {
 			vsay 'NORMAL', "Copy in-kernel driver environment\n";
