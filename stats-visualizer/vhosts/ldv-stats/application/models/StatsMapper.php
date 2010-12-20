@@ -1225,4 +1225,23 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     return $result;
   }
+
+  public function updateTaskDescription($profile, $params)
+  {
+    $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+    if (!array_key_exists('value', $params)) {
+      die ("Value isn't specified");
+    }
+    $value = $params['value'];
+
+    if (!array_key_exists('taskid', $params)) {
+      die ("Task id isn't specified");
+    }
+    $taskid = $params['taskid'];
+
+    $n = $this->_db->update('tasks', array('description' => $value), "id = $taskid");
+
+    return $value;
+  }
 }

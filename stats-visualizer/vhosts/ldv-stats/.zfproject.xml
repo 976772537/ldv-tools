@@ -55,6 +55,7 @@
           <dbTableFile dbTableName="Traces"/>
           <dbTableFile dbTableName="Sources"/>
           <dbTableFile dbTableName="ToolTimeInfo"/>
+          <dbTableFile dbTableName="Tasks"/>
         </dbTableDirectory>
         <modelFile modelName="Page"/>
         <modelFile modelName="LaunchInfo"/>
@@ -90,6 +91,9 @@
           </viewControllerScriptsDirectory>
           <viewControllerScriptsDirectory forControllerName="stats">
             <viewScriptFile forActionName="comparison"/>
+          </viewControllerScriptsDirectory>
+          <viewControllerScriptsDirectory forControllerName="stats">
+            <viewScriptFile forActionName="editTaskDescription"/>
           </viewControllerScriptsDirectory>
         </viewScriptsDirectory>
         <viewHelpersDirectory/>

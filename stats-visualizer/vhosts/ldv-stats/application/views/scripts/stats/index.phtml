@@ -203,6 +203,22 @@ if ($resultsNumb) {
           });
         </script>";
 
+  // Print task description edit plugin.
+  $indicator = $this->baseUrl() . "/images/indicator.gif";
+  echo "<script type='text/javascript'>
+          taskId = '';
+          $(document).ready(function() {
+            $('.SSStatsTableTaskDescriptionEdit').editable('" . $this->url(array('action' => 'edit-task-description')) . "', {
+              indicator  : '<img src=\'$indicator\' alt=\'Saving...\' align=\'middle\'/>',
+              tooltip    : 'Click to edit...',
+              submitdata : function (value, settings) {
+                taskId = $(this).parent().children('.SSStatsTableTaskStatKeyTaskIdValue').first().text();
+                return { taskid: taskId };
+              }
+            })
+          });
+        </script>";
+
   // Get the statistics information part.
   $stats = $results['Stats']['Row info'];
 
@@ -452,11 +468,16 @@ if ($resultsNumb) {
             foreach ($statKeys as $statTaskKey) {
               if (preg_match('/^Task/', $statTaskKey)) {
                 $statTaskKeyClass = '';
+                $statTaskValueEditable = '';
+
                 if ($statTaskKey == 'Task id') {
                   $statTaskKeyClass = 'TaskId';
                 }
+                else if ($statTaskKey == 'Task description') {
+                  $statTaskValueEditable = 'SSStatsTableTaskDescriptionEdit';
+                }
 
-                echo "<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value'>" . $result['Stats key'][$statTaskKey] ."</div>";
+                echo "<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value $statTaskValueEditable'>" . $result['Stats key'][$statTaskKey] ."</div>";
               }
             }
 

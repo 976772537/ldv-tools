@@ -154,4 +154,17 @@ class StatsController extends Zend_Controller_Action
     $this->view->entries['Globals'] = $this->_globals;
     $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
   }
+
+  public function editTaskDescriptionAction()
+  {
+    // To return just a new task description prevent layout printing.
+    $this->_helper->layout->disableLayout();
+
+    $params = $this->_getAllParams();
+
+    $statsMapper = new Application_Model_StatsMapper();
+    $results = $statsMapper->updateTaskDescription($this->_profileInfo, $params);
+
+    $this->view->entries = $results;
+  }
 }
