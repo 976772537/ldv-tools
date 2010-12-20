@@ -1,0 +1,9 @@
+#!/bin/bash
+
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
+CLUSTER_HOME=$LDV_HOME/cluster
+export GEM_HOME=$CLUSTER_HOME/ruby
+export PATH=$CLUSTER_HOME:$CLUSTER_HOME/ruby-bin:$PATH
+
+nanite-agent --nanite $CLUSTER_HOME --initrb $CLUSTER_HOME/node.rb --format json "$@"
+

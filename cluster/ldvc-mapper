@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+# Mapper for Linux Driver Verification Cluster
+# The "central" nanite server that receives node status updates and forwards them to queuer.
+
+require 'rubygems'
+require 'nanite'
+
+$:.unshift File.dirname(__FILE__)
+require 'options.rb'
+
+opts_p = ClusterOptionsParser.new({})
+opts_p.do_parse
+
+EM.run do
+
+	# Monkey-patch the cluster class to pull our own selector in there
+	class Nanite::Cluster
+		Services_to_queue = [ 'dscv', 'rcv' ]
+
+		# Send information about node (those who provide ldvnode services) statuses to the queuer
+		def announce_status_info
+			statuses = nanites_providing('/ldvnode/hello').inject({}) {|r,kv| r[kv[0]]=kv[1][:status] ; r }
+			puts "Gonna announce statuses #{statuses.inspect}"
+			Nanite.push("/ldvqueue/announce", statuses, :offline_failsafe => true)
+		end
+
+		def ldv_selector(service,tags=[])
+			# Avoid recursion
+			announce_status_info unless service == "/ldvqueue/announce"
+			# Fallback to the least_loaded selector
+			least_loaded(service,tags)
+		end
+	end
+
+	# Should be called when a node is added to the cluster
+	node_add_callback = proc do |token, mapper|
+		mapper.cluster.announce_status_info
+	end
+
+	# Should be called when a node is removed from a cluster
+	node_remove_callback = proc do |token, mapper|
+		puts "Node #{token} removed!"
+		# Send information about the node removed
+		mapper.cluster.announce_status_info
+		# Nanite.push("/ldvqueue/remove", token, :offline_failsafe => true)
+		# We'll send information about not interesting nodes this way, so we use announce_status_info instead
+	end
+
+	Nanite.start_mapper({:host => 'localhost', :user => 'mapper', :pass => 'testing', :vhost => '/nanite', :log_level => 'debug', :agent_timeout => 8, :format => :json, :callbacks => {:timeout => node_remove_callback, :unregister => node_remove_callback, :register => node_add_callback }}.merge opts_p.options )
+
+end
+
+

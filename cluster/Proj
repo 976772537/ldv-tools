@@ -1,0 +1,27 @@
+
+= Cluster prototype
+
+= External interface
+	ldvc-node
+	ldvc-master
+
+ldvc-mapper
+ldvc-queue
+
+ldvc-wait-task
+
+test-simple.rb
+
+options.rb
+waiter.rb
+
+actors/
+	queue.rb
+	node.rb
+init.rb
+tester.rb
+node.rb
+
+README
+Makefile
+

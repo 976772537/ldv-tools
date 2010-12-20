@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+# Application for LDV Cluster queue management
+# Handles what nodes are available for different types of tasks, and performs the work.
+
+require 'rubygems'
+require 'nanite'
+require 'actors/queue.rb'
+$:.unshift File.dirname(__FILE__)
+require 'waiter.rb'
+
+raise "You should specify key in command line!" if ARGV.empty?
+
+EM.run do
+	waiter = Waiter.new(:host => 'localhost', :user => 'mapper', :pass => 'testing', :vhost => '/nanite', :format => :json)
+
+	rslt = waiter.wait_for ARGV.join('.')
+
+end
+
+
