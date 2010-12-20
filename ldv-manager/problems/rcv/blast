@@ -22,5 +22,6 @@ while (<>){
 	/simplemem: temporary needed outside a function/i and print "Temp outside func"; 
 	/Invalid_argument\("Predicate index is less than zero"\)/ and print "Large_int";
 	/FociInterface.SAT/ and print "Blocks_SAT";
+	/NoNewPredicatesException/ and print "NoNewPredicates";
 }
 

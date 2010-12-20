@@ -241,6 +241,22 @@ sub call_blast
 			"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
 		;
 	}
+	
+	# Filter stopsep
+	unless ($ENV{'BLAST_NOSTOPSEP'}){
+		push @blast_options,
+			"-stop-sep", # Use stop-sep instead of stop-join
+		;
+		unless ($ENV{'BLAST_MERGE'}){
+			push @blast_options,
+				"-merge","bdd", 	# Merge at equiv bdds, default
+			;
+		} else {
+			push @blast_options,
+				"-merge", $ENV{'BLAST_MERGE'},
+			;
+		}
+	}
 
 	# Rerouting functionality enabling
 	my $rerouteT = $hintsT ? $hintsT->first_child('rerouter') : undef;
@@ -366,6 +382,14 @@ sub call_blast
 	# Should be like this, but BLAST doesn't support it...
 	#my $ver4rep = `pbast.opt --version`;
 	my $ver4rep = "";
+	my $stopsep = "default stop-join"; 
+	unless ($ENV{'BLAST_NOSTOPSEP'}) {
+		if($ENV{'BLAST_MERGE'}) {
+			$stopsep = "stop-sep with merge at $ENV{'BLAST_MERGE'}";
+		} else {
+			$stopsep = "stop-sep with default merge";
+		}
+	}
 	$result->{'BLAST-detailed'} .= <<EOR ;
 
 =========== Launch information ===========
@@ -374,6 +398,8 @@ Time Limit: $tl4rep
 Memory Limit: $ml4rep
 Additional options: $ENV{'BLAST_OPTIONS'}
 Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
+@{[$ENV{'BLAST_EXP_NOLATTICE'} ? 'No lattice\n' : '']}@{[$ENV{'BLAST_ALIASES'} ? 'With aliases\n' : '']}
+Using $stopsep
 =========== Launch inform ends ===========
 EOR
 
