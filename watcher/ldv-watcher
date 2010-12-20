@@ -9,6 +9,7 @@ require 'logger'
 
 require 'rubygems'
 $:.unshift File.dirname(__FILE__)
+require 'generic.rb'
 require 'local.rb'
 require 'cluster.rb'
 
@@ -35,7 +36,7 @@ watcher = nil
 if address_local? address
 	watcher = WatcherLocal.new(address)
 else
-	watcher = WatcherRemote.new(address)
+	watcher = WatcherRemote.new(:host => address)
 end
 
 result = nil
@@ -48,6 +49,4 @@ end
 puts result unless result.nil?
 
 $log.close
-
-
 

@@ -43,6 +43,9 @@ class Ldvnode
 		end
 		puts "Job #{job_type} accepted: #{task.inspect}"
 		begin
+			# Set key (which is transferred via an environment variable)
+			ENV['LDV_SPAWN_KEY'] = task['key']
+
 			spawn_child(job_type,task)
 		ensure
 			@status_update_mutex.synchronize do

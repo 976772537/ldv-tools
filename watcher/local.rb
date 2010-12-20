@@ -4,13 +4,6 @@
 require 'SysVIPC'
 include SysVIPC
 
-$config = {}
-$config[:max_rcv_pool] = (ENV['LDV_MAX_RCVS'].to_i || 1)
-$config[:max_rcv_pool] = 1 if $config[:max_rcv_pool] < 1
-$config[:max_dscv_pool] = (ENV['LDV_MAX_DSCVS'].to_i || 1)
-$config[:max_dscv_pool] = 1 if $config[:max_dscv_pool] < 1
-# Whether we block queue call until the task is finished
-$config[:block_queue] = $config[:max_rcv_pool] == 1
 
 # A class to easily manage nested directories
 class DirMaker
@@ -93,7 +86,7 @@ end
 
 # Main class
 # It will be an interface (for now it's just a local implementation)
-class WatcherLocal
+class WatcherLocal < Watcher
 # NOTE: All commands that take argument list shall have default value and accept no arguments as well!
 
 	attr_accessor :server_address
@@ -117,7 +110,8 @@ class WatcherLocal
 
 	# initialize control structures by the given server address
 	def initialize(server_address)
-		@server_address = server_address
+		super({:host => server_address})
+		@server_address = config[:host]
 		ensure_server_init
 	end
 
@@ -156,8 +150,8 @@ class WatcherLocal
 		$log.debug "Semaphore otime: #{stats.sem_otime}"
 		if stats.sem_otime == Time.at(0)
 			$log.info "Created semaphore #{pool_file}."
-			$log.debug "Initializing semaphore #{pool_file} with value #{$config["max_#{pool}_pool".to_sym]}."
-			@sem[pool].setall [$config["max_#{pool}_pool".to_sym]]
+			$log.debug "Initializing semaphore #{pool_file} with value #{config["max_#{pool}_pool".to_sym]}."
+			@sem[pool].setall [config["max_#{pool}_pool".to_sym]]
 		end
 	end
 
@@ -189,7 +183,7 @@ class WatcherLocal
 				@sem[pool].op([Sembuf.new(0, +1)])
 			end
 			# If we block, then wait for child to finish
-			if $config[:block_queue]
+			if config[:block_queue]
 				$log.warn "Waiting for #{pool} call to finish..."
 				Process.waitall
 			else
