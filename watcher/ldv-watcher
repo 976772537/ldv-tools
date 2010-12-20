@@ -41,7 +41,7 @@ end
 
 result = nil
 unless arguments.empty?
-	result = watcher.send command, arguments
+	result = watcher.send command, *arguments
 else
 	result = watcher.send command
 end
