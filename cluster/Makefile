@@ -9,7 +9,7 @@ bindir?=$(prefix)/bin
 nanite_install_dir=$(prefix)/cluster/ruby
 ruby_bindir?=$(prefix)/cluster/ruby-bin
 
-targets=actors/node.rb actors/queue.rb init.rb ldvc-mapper ldvc-queue ldvc-wait-task node.rb waiter.rb options.rb
+targets=actors/node.rb actors/queue.rb init.rb ldvc-mapper ldvc-queue ldvc-wait-task node.rb waiter.rb options.rb sender.rb
 bintargets=ldvc-master ldvc-node
 
 cluster_targets=$(targets:%=$(install_dir)/%)

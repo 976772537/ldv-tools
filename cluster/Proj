@@ -14,6 +14,7 @@ test-simple.rb
 
 options.rb
 waiter.rb
+sender.rb
 
 actors/
 	queue.rb
