@@ -91,6 +91,9 @@
           <viewControllerScriptsDirectory forControllerName="stats">
             <viewScriptFile forActionName="comparison"/>
           </viewControllerScriptsDirectory>
+          <viewControllerScriptsDirectory forControllerName="stats">
+            <viewScriptFile forActionName="editTaskDescription"/>
+          </viewControllerScriptsDirectory>
         </viewScriptsDirectory>
         <viewHelpersDirectory/>
         <viewFiltersDirectory enabled="false"/>
