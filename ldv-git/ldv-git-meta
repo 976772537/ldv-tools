@@ -39,6 +39,23 @@ chdir $target_dir;
 # Allow user to override make program
 my $make_prog = $ENV{'MAKE'} || "make";
 
+# Filter for old commands
+vsay 'DEBUG', "Starting filter for old kernel commands for ($metadata_file)\n";
+vsay 'TRACE', "Metadata file ($metadata_file)\n";
+if(-f $metadata_file) {
+        vsay 'TRACE', "Metadata file exists\n";
+        open FILE, $metadata_file or die"Can't open metadata file ($metadata_file)";
+        my @metadata = <FILE>;
+        close FILE;
+        open FILE, ">", $metadata_file or die"Can't open new metadata file ($metadata_file)";
+        my $iswrite = 1;
+                foreach (@metadata) {
+                /^== (.*)$/ and ! -f $1 and $iswrite = 0;
+                /^== (.*)$/ and -f $1 and $iswrite = 1;
+                $iswrite and print FILE;
+        }
+        close FILE;
+}
 
 vsay 'NORMAL', "Recompiling Shadow kernel to get the newest metadata...\n";
 eval {
