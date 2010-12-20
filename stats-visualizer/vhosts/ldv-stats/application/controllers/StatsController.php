@@ -160,17 +160,11 @@ class StatsController extends Zend_Controller_Action
     // To return just a new task description prevent layout printing.
     $this->_helper->layout->disableLayout();
 
-    if ($this->_hasParam('value')) {
-      $value = $this->_getParam('value');
-    }
-    else {
-      die ("Value isn't specified");
-    }
+    $params = $this->_getAllParams();
 
     $statsMapper = new Application_Model_StatsMapper();
+    $results = $statsMapper->updateTaskDescription($this->_profileInfo, $params);
 
-   // $results = $statsMapper->getErrorTrace($this->_profileInfo, $params);
-
-    $this->view->entries = $value;
+    $this->view->entries = $results;
   }
 }
