@@ -277,8 +277,8 @@ sub wait_for_all_verified {
 }
 
 sub wait_for_dscv {
-	vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'any', @{$config->{'watcher_key'}})\n";
-	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait', 'any', @{$config->{'watcher_key'}});
+	vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'dscv', @{$config->{'watcher_key'}})\n";
+	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait', 'dscv', @{$config->{'watcher_key'}});
 	$dscv_id or return;
 	return split /,/,$dscv_id;	
 }

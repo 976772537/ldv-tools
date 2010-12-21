@@ -10,8 +10,6 @@ require 'logger'
 require 'rubygems'
 $:.unshift File.dirname(__FILE__)
 require 'generic.rb'
-require 'local.rb'
-require 'cluster.rb'
 
 # Set up logging
 $log = Logger.new(STDERR)
@@ -34,8 +32,10 @@ end
 
 watcher = nil
 if address_local? address
+	require 'local.rb'
 	watcher = WatcherLocal.new(address)
 else
+	require 'cluster.rb'
 	watcher = WatcherRemote.new(:host => address)
 end
 

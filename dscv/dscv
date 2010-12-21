@@ -640,7 +640,7 @@ for my $property (@properties){
 
 sub wait_for_rcv
 {
-	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','any',@watcher_key);
+	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','rcv',@watcher_key);
 	return split /,/,$rcv_id;
 }
 

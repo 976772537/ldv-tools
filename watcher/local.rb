@@ -256,16 +256,16 @@ class WatcherLocal < Watcher
 	end
 
 	# Add task to queue
-	def queue(args)
+	def queue(*args)
 		what = args.shift
 		queue_generic(what,args)
 	end
 
-	def unpack(args)
+	def unpack(*args)
 		$log.warn "Fake unpack!"
 	end
 
-	def spawn(args = [])
+	def spawn(*args)
 		@dir.ensure
 		new_key = @key_pool.get
 		File.open(@dir.join('key'),'w') { |f| f.puts(new_key) }
@@ -273,7 +273,7 @@ class WatcherLocal < Watcher
 	end
 
 	# Get key for current args.  If the process is not watched for, generate key from the pool
-	def key(args = [])
+	def key(*args)
 		$log.info "Key requested for #{args.inspect}"
 
 		$log.warn "Increasing reference counter..."
@@ -327,14 +327,16 @@ class WatcherLocal < Watcher
 	end
 
 	# Doesn't accept empty args!
-	public; def success(*args)
+	# type is ignored for the local watcher
+	public; def success(type,*args)
 		$log.info "Reported success for #{args.inspect}"
 		#set_status('success',args,Process.ppid)
 		remove_data(args) if decrease_refcounter_and_check
 	end
 
 	# Doesn't accept empty args!
-	public; def fail(*args)
+	# type is ignored for the local watcher
+	public; def fail(type,*args)
 		$log.info "Reported failure for #{args.inspect}"
 		# set_status('fail',args)
 		remove_data(args) if decrease_refcounter_and_check
