@@ -9,6 +9,7 @@ module Nanite
     :format => :marshal,
     :daemonize => false,
     :console => false,
+    :noconfig => true,
     :root => Dir.pwd
   }
 
@@ -105,6 +106,10 @@ module Nanite
       opts.on("--version", "Show the nanite version number") do |res|
         puts "Nanite Version #{opts.version}"
         exit
+      end
+
+      opts.on("--read-config", "Read this fucking config.yml") do |res|
+				options[:noconfig] = false
       end
     end
   end

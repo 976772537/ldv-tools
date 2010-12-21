@@ -106,7 +106,7 @@ module Nanite
     def initialize(options)
       @options = DEFAULT_OPTIONS.clone.merge(options)
       root = options[:root] || @options[:root]
-      custom_config = if root
+      custom_config = if root && !@options[:noconfig]
         file = File.expand_path(File.join(root, 'config.yml'))
         File.exists?(file) ? (YAML.load(IO.read(file)) || {}) : {}
       else
