@@ -26,14 +26,15 @@ class Waiter
 		EM.add_periodic_timer(2) do 
 			# Pop one message from a queue.  If queue is empty, the block will be enterred with nil as an argument.
 			# Then, do nothing and try again
-			mq.queue('ldv-results-queue').bind(topic, :key=>key).pop do |header, body|
+			rn = rand(10000)
+			mq.queue("ldv-results-queue-#{rn}").bind(topic, :key=>key).pop do |header, body|
 				# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
 				unless body.nil?
-					key = header.properties[:routing_key]
-					$stderr.puts "Got key: #{key}"
+					received_key = header.properties[:routing_key]
+					$stderr.puts "Got key: #{received_key}"
 					packet = serializer.load(body)
 					# TODO: Copy packet's data to a proper place
-					$stdout.puts(key.split('.').join(','))
+					$stdout.puts(received_key.split('.').join(','))
 					exit 0
 				end
 			end

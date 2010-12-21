@@ -4,8 +4,8 @@
 
 require 'rubygems'
 require 'nanite'
-require 'actors/queue.rb'
 $:.unshift File.dirname(__FILE__)
+require 'actors/queue.rb'
 require 'waiter.rb'
 
 raise "You should specify key in command line!" if ARGV.empty?

@@ -1,6 +1,9 @@
+require 'tempfile'
+require 'fileutils'
+
 class Ldvnode
 	include Nanite::Actor
-	expose :hello, :dscv, :ldv
+	expose :hello, :dscv, :ldv, :rcv
 
 	attr_accessor :status
 	# Normally, actors don't know ping time of an agent, but here we use it in result sending mechanism
@@ -13,10 +16,15 @@ class Ldvnode
 		@status = Task_availability_default.dup
 		@status_update_mutex = Mutex.new
 		puts "Setting status to #{@status} for #{self}"
+		@home = ENV['LDV_HOME'] || File.join(File.dirname(__FILE__),"..","..")
 	end
 
 	def hello(world)
 		puts "Hello, #{world.inspect}"
+	end
+
+	def rcv(task)
+		launch_child_job(:rcv,task)
 	end
 
 	def dscv(task)
@@ -48,6 +56,7 @@ class Ldvnode
 
 			spawn_child(job_type,task)
 		ensure
+			puts "Backing status"
 			@status_update_mutex.synchronize do
 				@status[job_type] += 1
 			end
@@ -86,10 +95,32 @@ class Ldvnode
 				end
 			when :dscv then
 				puts "DSCV"
-				Kernel.sleep 10
+				# Dump taskfile to a temp file
+				tmpdir = File.join(workdir,'tmp')
+				FileUtils.mkdir_p tmpdir
+				Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+					temp_file.write task['args']
+					temp_file.close
+					puts "Saved task to temporary file #{temp_file.path}"
+					puts task['args']
+
+					ENV['WORK_DIR'] = workdir
+					Kernel.system('dscv',"--rawcmdfile=#{temp_file.path}")
+				end
 			when :rcv then
-				verifier = 'qwewewq'
-				Kernel.sleep 10
+				puts "DSCV"
+				# Dump taskfile to a temp file
+				tmpdir = File.join(workdir,'tmp')
+				FileUtils.mkdir_p tmpdir
+				Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+					temp_file.write task['args']
+					temp_file.close
+					puts "Saved task to temporary file #{temp_file.path}"
+					puts task['args']
+
+					ENV['WORK_DIR'] = workdir
+					Kernel.system(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
+				end
 		end
 	end
 

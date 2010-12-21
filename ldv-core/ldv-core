@@ -320,7 +320,7 @@ sub scheduler_send_task {
 	$ENV{'RCV_FRONTEND_CMD'} = $config->{'dscv'}
 ;
 	vsay 'TRACE', "Calling watcher...\n";
-	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, "$command/task_input", @{$config->{'watcher_key'}}, 'dscv', $cid);
+	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, $dscv_args->{'workdir'}, @{$config->{'watcher_key'}}, 'dscv', $cid);
 
 	vsay 'TRACE', "Set task status to \"queued\"\n";
 	$task_descriptor->{'state'} = 'queued';

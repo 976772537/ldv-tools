@@ -193,9 +193,7 @@ class WatcherLocal < Watcher
 		nil
 	end
 
-	def wait(*args)
-		args.flatten!
-		what = args.shift
+	def wait(what,*args)
 		# we ignore "what" for now...
 		$log.debug "Called wait with #{args.inspect}, ignored #{what.inspect}"
 		# This is not thread-safe, but in this prototype thread-safetyy while waiting is not very important

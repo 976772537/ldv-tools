@@ -1,18 +1,27 @@
 class Ldvqueue
 
 	include Nanite::Actor
-	expose :queue, :redo, :announce, :remove, :result
+	expose :queue, :redo, :announce, :remove, :result, :purge_task
 
 	attr_accessor :nodes, :queued, :running, :waiter
 
 	Job_priority = %w(ldv rcv dscv)
 
+	class QueuedTasks < Hash
+		def initialize(hash = {})
+			super hash
+		end
+		def log
+			self.inject({}) {|r,pair| r[pair[0]] = pair[1].map{|task| task[:key]}; r }.inspect
+		end
+	end
+
 	def initialize
 		@status_update_mutex = Mutex.new
 		@task_update_mutex = Mutex.new
 		@nodes = {}
-		@queued = Job_priority.inject({}) {|r,j| r[j]=[]; r}
-		@running = Job_priority.inject({}) {|r,j| r[j]={}; r}
+		@queued = Job_priority.inject(QueuedTasks.new({})) {|r,j| r[j]=[]; r}
+		@running = Job_priority.inject(QueuedTasks.new({})) {|r,j| r[j]={}; r}
 
 		# Waiter -- create its own AMQP queues and use them to implement waiting
 		# Initialized after construction -- see waiter_new
@@ -23,6 +32,7 @@ class Ldvqueue
 			@task_update_mutex.synchronize do
 				# Find job_type and an available node to route job of that type to 
 				# If nothing found, find will return nils, and job and target will remain nils
+				puts "finding avail node"
 				job,target = nil,nil
 				Job_priority.find do |job_type|
 					if @queued[job_type].empty?
@@ -49,8 +59,8 @@ class Ldvqueue
 				end
 			end
 			#puts "Status: #{self.nodes.inspect}"
-			puts "Tasks: #{self.queued.inspect}"
-			#puts "Running: #{self.running.inspect}"
+			puts "Tasks: #{self.queued.log}"
+			puts "Running: #{self.running.log}"
 		end
 
 	end
@@ -115,10 +125,19 @@ class Ldvqueue
 		puts "Result gotten of #{task}"
 	end
 
+	# Development only!
+	def purge_task(task)
+		remove_task_from(task,self.queued)
+	end
+
 	def remove_task(task)
+		remove_task_from(task,self.running)
+	end
+
+	def remove_task_from(task,proper_queue)
 		# Find the node, on which the task was running, and remove it from the list
 		# FIXME: make it faster?
-		node_task_map = self.running[task[:type]]
+		node_task_map = proper_queue[task[:type]]
 		node,tasks = node_task_map.find do |node,tasks|
 			tasks.find { |queued_task| queued_task[:key] == task[:key] }
 		end
