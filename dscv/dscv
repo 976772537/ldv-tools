@@ -514,7 +514,7 @@ if ($expected_blast_runs == 0 && !$config->{force}){
 	vsay 20,"Final report is written to $config->{report}\n";
 
 	# Leave
-	exit 0;
+	goto FINALIZE;
 }
 
 # Function that copies driver
@@ -640,7 +640,7 @@ for my $property (@properties){
 
 sub wait_for_rcv
 {
-	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','rcv',@watcher_key);
+	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','rcv',@watcher_key,'#');
 	return split /,/,$rcv_id;
 }
 
@@ -818,8 +818,10 @@ vsay 20,"Final report is written to $config->{report}\n";
 	exit 1;
 };
 
+FINALIZE:
+
 # Report success to the watcher
-LDV::Utils::watcher_cmd('success',@watcher_key);
+LDV::Utils::watcher_cmd('success','dscv',@watcher_key);
 
 # EXCEPTION HANDLING!
 ###########################
