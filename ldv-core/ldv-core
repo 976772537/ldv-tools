@@ -263,8 +263,16 @@ sub deg_create_report {
 sub wait_for_all_verified {
 	my ($tasks) = @_;
 	vsay 'TRACE', "Start watcher waiting...\n";
-	while (my @rv = wait_for_dscv()){
-	        my ($path, $contents, @key) = @rv;
+	# calculate number of queued task
+	my $wait_counter = 0;
+	foreach (keys %{$tasks}) {
+		$tasks->{$_}->{state} eq 'queued' and $wait_counter++;
+	}
+	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";
+	while($wait_counter > 0) {
+		vsay 'TRACE', "Tasks for wait_for_dscv: $wait_counter\n";
+	        my ($path, $contents, @key) = wait_for_dscv() and $wait_counter--;
+		#not defined $path and die"Can't get path!";
 	        for my $wk (@{$config->{'watcher_key'}}){
 	                my $k = shift @key;
 	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
