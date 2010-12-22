@@ -21,18 +21,18 @@ class Ldvqueue
 		@task_update_mutex = Mutex.new
 		@nodes = {}
 		@queued = Job_priority.inject(QueuedTasks.new({})) {|r,j| r[j]=[]; r}
-		@running = Job_priority.inject(QueuedTasks.new({})) {|r,j| r[j]={}; r}
+		@running = Job_priority.inject({}) {|r,j| r[j]={}; r}
 
 		# Waiter -- create its own AMQP queues and use them to implement waiting
 		# Initialized after construction -- see waiter_new
 		@waiter = nil
 
 		# During a tick we'll serve exactly one job, according to the priorities
-		EM.add_periodic_timer(3) do
+		EM.add_periodic_timer(10) do
 			@task_update_mutex.synchronize do
 				# Find job_type and an available node to route job of that type to 
 				# If nothing found, find will return nils, and job and target will remain nils
-				puts "finding avail node"
+				puts "finding avail node among #{@nodes.size}"
 				job,target = nil,nil
 				Job_priority.find do |job_type|
 					if @queued[job_type].empty?
@@ -60,7 +60,7 @@ class Ldvqueue
 			end
 			#puts "Status: #{self.nodes.inspect}"
 			puts "Tasks: #{self.queued.log}"
-			puts "Running: #{self.running.log}"
+			puts "Running: #{self.running.inspect}"
 		end
 
 	end
@@ -122,7 +122,8 @@ class Ldvqueue
 		end
 		# Push result to the waiter
 		waiter.job_done(task[:key],task)
-		puts "Result gotten of #{task}"
+		puts "\n ****************************************************** \n"
+		puts "Result gotten of #{task.inspect}"
 	end
 
 	# Development only!
