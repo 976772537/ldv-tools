@@ -107,10 +107,14 @@ if(!is_exists($next_pid)) {
 
 waitpid $bce_pid, 0;
 vsay 'TRACE', "BCE successfully finished\n";
-my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
-sleep 5 while($csd->isEmpty() eq 'false');
-kill 9, $csd_pid;
 
+my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
+
+while($csd->isEmpty() eq 'false') {
+	is_exists($next_pid) or last;
+}
+
+kill 9, $csd_pid;
 waitpid $csd_pid, 0;
 waitpid $next_pid, 0;
 
