@@ -650,6 +650,10 @@ my $rcvs_consumed = 0;
 while ($rcvs_consumed < $expected_blast_runs) {
 	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$expected_blast_runs-$rcvs_consumed));
 	my @rv = wait_for_rcv();
+
+	# In cluster mode such a call would just block forever...
+	die "Tried to wait for more processes than we should!" unless @rv;
+
 	my ($path,$contents,@key) = @rv;
 	# Discard generic part of the key returned
 	for my $wk (@watcher_key){
