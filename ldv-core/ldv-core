@@ -107,10 +107,14 @@ if(!is_exists($next_pid)) {
 
 waitpid $bce_pid, 0;
 vsay 'TRACE', "BCE successfully finished\n";
-my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
-sleep 5 while($csd->isEmpty() eq 'false');
-kill 9, $csd_pid;
 
+my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
+
+while($csd->isEmpty() eq 'false') {
+	is_exists($next_pid) or last;
+}
+
+kill 9, $csd_pid;
 waitpid $csd_pid, 0;
 waitpid $next_pid, 0;
 
@@ -259,8 +263,16 @@ sub deg_create_report {
 sub wait_for_all_verified {
 	my ($tasks) = @_;
 	vsay 'TRACE', "Start watcher waiting...\n";
-	while (my @rv = wait_for_dscv()){
-	        my ($path, $contents, @key) = @rv;
+	# calculate number of queued task
+	my $wait_counter = 0;
+	foreach (keys %{$tasks}) {
+		$tasks->{$_}->{state} eq 'queued' and $wait_counter++;
+	}
+	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";
+	while($wait_counter > 0) {
+		vsay 'TRACE', "Tasks for wait_for_dscv: $wait_counter\n";
+	        my ($path, $contents, @key) = wait_for_dscv() and $wait_counter--;
+		#not defined $path and die"Can't get path!";
 	        for my $wk (@{$config->{'watcher_key'}}){
 	                my $k = shift @key;
 	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
