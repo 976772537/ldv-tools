@@ -5,7 +5,7 @@ class Ldvqueue
 
 	attr_accessor :nodes, :queued, :running, :waiter
 
-	Job_priority = %w(ldv rcv dscv)
+	Job_priority = %w(rcv dscv ldv)
 
 	class QueuedTasks < Hash
 		def initialize(hash = {})
