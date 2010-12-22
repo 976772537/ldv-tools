@@ -171,7 +171,7 @@ sub watcher_cmd
 	my $WATCHER; open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
 	# Read one line.  If none is printed, the line will contain undef;
 	my $line = <$WATCHER>;
-	vsay('TRACE',"Watcher says: $line\n");
+	vsay('DEBUG',"Watcher says: $line\n");
 	chomp $line;
 	close $WATCHER;	# We don't need anything else
 

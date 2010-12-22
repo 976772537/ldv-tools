@@ -143,7 +143,7 @@ class Ldvqueue
 			tasks.find { |queued_task| queued_task[:key] == task[:key] }
 		end
 		puts "Node: #{node.inspect}"
-		puts "Task: #{task.inspect}"
+		puts "Task: #{task[:key].inspect}"
 		# Remove this task from running tasks
 		if node 
 			tasks.reject! { |queued_task| queued_task[:key] == task[:key] } if node

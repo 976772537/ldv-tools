@@ -62,7 +62,7 @@ class Waiter
 		$stderr.puts "ROUTED RESULTS!  KEY: #{key} pay: #{payload.inspect}"
 		#topic.publish('hello,world', :routing_key => key, :mandatory => true)
 		payload ||= "no payload!"
-		self.topic.publish(serializer.dump(payload), :routing_key => key, :mandatory => true)
+		self.topic.publish(serializer.dump(payload), :routing_key => key)
 	end
 
 end

@@ -19,7 +19,6 @@ class NaniteSender
 
 			Nanite.push(target, payload, :selector => :ldv_selector)
 			EM.add_timer(1) { EM.stop }
-			#EM.stop
 		end
 	end
 
