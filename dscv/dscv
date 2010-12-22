@@ -406,7 +406,7 @@ sub kill_watcher
 {
 	vsay 20, "Shutting down watcher\n";
 	# Report failure to the watcher (reckon we've registered a key for our process?)
-	LDV::Utils::watcher_cmd('fail',@watcher_key);
+	LDV::Utils::watcher_cmd('fail','dscv',@watcher_key);
 	die $@;
 }
 
@@ -644,7 +644,12 @@ sub wait_for_rcv
 	return split /,/,$rcv_id;
 }
 
-while (my @rv = wait_for_rcv()){
+# Wait for the number of RCVs we should spawn
+my $rcvs_consumed = 0;
+
+while ($rcvs_consumed < $expected_blast_runs) {
+	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$expected_blast_runs-$rcvs_consumed));
+	my @rv = wait_for_rcv();
 	my ($path,$contents,@key) = @rv;
 	# Discard generic part of the key returned
 	for my $wk (@watcher_key){
@@ -656,6 +661,7 @@ while (my @rv = wait_for_rcv()){
 	vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
 	vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
 	LDV::Utils::watcher_cmd('unpack',$path,$contents);
+	$rcvs_consumed += 1;
 }
 
 # Ok, now all sub-commands are waited for, and their xml reports reside in our workdir
@@ -707,6 +713,7 @@ for my $rule_id (@properties){
 # Perform final sanity check
 my $blast_runs = $sanity->get('blast_calls') || 0;
 
+# Output final sanity check results
 if ($blast_runs < $expected_blast_runs) {
 	vsay ("WARNING", "SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n");
 }

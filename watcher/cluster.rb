@@ -46,6 +46,10 @@ class WatcherRemote < Watcher
 		result 'fail', type, *key
 	end
 
+	public; def unpack(*_)
+		$stderr.puts "Unpack!"
+	end
+
 	private; def mk(key)
 		key.join('.')
 	end
@@ -57,6 +61,7 @@ class WatcherRemote < Watcher
 
 	private; def result(message,type,*key)
 		task = {:key => key.join('.'), :type => type}
+		$stderr.puts "******************************\n\nSending result for task #{task.inspect}\n\n"
 		@sender.send('/ldvqueue/result', task)
 	end
 
