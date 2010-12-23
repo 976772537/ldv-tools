@@ -8,6 +8,8 @@ use vars qw(@ISA @EXPORT_OK @EXPORT);
 #@EXPORT_OK=qw(set_verbosity);
 use base qw(Exporter);
 
+use POSIX;
+
 # Stream where debug messages will be printed.
 my $debug_stream = \*STDOUT;
 
@@ -185,6 +187,58 @@ sub watcher_cmd
 	pop_instrument("watcher");
 
 	return ($line,$retcode);
+}
+
+# (number,callback,args) -- call watcher with args, read no more than number lines from stdout, and call callback on each of them.  Returns the actual number of lines read.
+sub watcher_cmd_callback
+{
+	my $max_lines = shift;
+	my $callback = shift;
+
+	push_instrument("watcher");
+	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	# Call watcher for the next RCV command
+	my @watcher_args = ($ldv_watcher,@_);
+	vsay('INFO',"Called watcher: @watcher_args\n");
+
+	my $WATCHER; my $pid = open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
+	my $lines_read = 0;
+	my $line = undef;
+	while ($lines_read < $max_lines){
+		# Read the next line
+		vsay('TRACE',"Read $lines_read lines, need to read $max_lines, reading next line...\n");
+		$line = <$WATCHER>;
+		# If it's EOF, exit without calling a callback
+		last unless defined $line;
+		chomp $line;
+		vsay('DEBUG',"Watcher says: $line\n");
+
+		# Call back
+		$lines_read ++;
+		vsay('DEBUG',"Read $lines_read lines, need to read $max_lines.\n");
+		$callback->($line);
+		vsay('TRACE',"Left callback.\n");
+	}
+	if ($lines_read >= $max_lines) {
+		vsay('DEBUG',"Killing watcher...\n");
+		# don't give the bastard a chance!
+		kill SIGKILL,$pid;
+		# Don't check the return code: we may be killing a dead process (which is unsafe, but still...)
+	}
+	vsay('DEBUG',"Closing read pipe...\n");
+	close $WATCHER;	# We don't need anything else.  This will just drop stuff in a buffer of a dead process.
+	vsay('DEBUG',"Read pipe closed.\n");
+
+	# Check return values
+	my $rv = $?;
+	my $retcode = $?>>8;
+	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	# Return code of 1 means failure.  Other codes mean useful stuff
+	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
+
+	pop_instrument("watcher");
+
+	return $lines_read;
 }
 
 sub watcher_cmd_noread

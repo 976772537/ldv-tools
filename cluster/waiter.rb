@@ -34,29 +34,22 @@ class Waiter
 		# Issue a blocking binding, and wait for a result
 		packet = nil
 		$stderr.puts "Waiting for tasks with key #{key}..."
-		wait_timer = EM.add_periodic_timer(5) do 
-			# Pop one message from a queue.  If queue is empty, the block will be enterred with nil as an argument.
-			# Then, do nothing and try again
-			$stderr.puts "Still waiting for tasks with key #{key}"
-			self.queue.bind(topic, :key=>key).pop do |header, body|
-				# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
-				unless body.nil?
-					received_key = header.properties[:routing_key]
-					$stderr.puts "**********************************************************************************"
-					$stderr.puts "Received results for task with key: #{received_key}"
-					$stderr.puts "**********************************************************************************"
-					packet = serializer.load(body)
-					# TODO: Copy packet's data to a proper place and fill in the following vars
-					path = ''
-					contents = ''
-					to_out = [path,contents] + received_key.split('.');
-					$stdout.puts(to_out.join(','))
-					#wait_timer.cancel
-					EM.stop
-				end
-			end
+		self.queue.bind(topic, :key=>key).subscribe do |header, body|
+			# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
+			received_key = header.properties[:routing_key]
+			$stderr.puts "**********************************************************************************"
+			$stderr.puts "Received results for task with key: #{received_key}"
+			$stderr.puts "**********************************************************************************"
+			$stderr.puts "Still waiting for tasks with key #{key}..."
+			packet = serializer.load(body)
+			# TODO: Copy packet's data to a proper place and fill in the following vars
+			path = ''
+			contents = ''
+			to_out = [path,contents] + received_key.split('.');
+			$stdout.sync = true
+			$stdout.puts(to_out.join(','))
+			$stdout.flush
 		end
-		packet
 	end
 
 	# Signal that a job is done.

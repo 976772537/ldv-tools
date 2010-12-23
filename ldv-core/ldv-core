@@ -268,29 +268,38 @@ sub wait_for_all_verified {
 	foreach (keys %{$tasks}) {
 		$tasks->{$_}->{state} eq 'queued' and $wait_counter++;
 	}
-	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";
-	while($wait_counter > 0) {
-		vsay 'TRACE', "Tasks for wait_for_dscv: $wait_counter\n";
-	        my ($path, $contents, @key) = wait_for_dscv() and $wait_counter--;
+
+	# Callback, which is invoked for each watcher invocation
+	my $process_dscv_result = sub {
+		# Read line (the one returned by watcher) and split it
+		my @rv = split /,/,$_[0];
+		my ($path, $contents, @key) = @rv;
+
 		#not defined $path and die"Can't get path!";
-	        for my $wk (@{$config->{'watcher_key'}}){
-	                my $k = shift @key;
-	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
-	        }
-	        my (undef, $cid) = @key;
-	        # unpack the incoming package
-	        vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
-	        vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
-	        LDV::Utils::watcher_cmd('unpack', $path, $contents);
+
+		for my $wk (@{$config->{'watcher_key'}}){
+			my $k = shift @key;
+			die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
+		}
+		my (undef, $cid) = @key;
+		# unpack the incoming package
+		vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
+		vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
+		LDV::Utils::watcher_cmd('unpack', $path, $contents);
 		# find corresponding task descriptor and set status to 'verified'
 		vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
 		$tasks->{$cid}->{state} = 'verified';
+	};
+
+	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";
+	while($wait_counter > 0) {
+		vsay 'TRACE', "Tasks for wait_for_dscv: $wait_counter\n";
+		vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'dscv', @{$config->{'watcher_key'}},'dscv','*')\n";
+		$wait_counter -= LDV::Utils::watcher_cmd_callback($wait_counter,$process_dscv_result,'wait','dscv',@{$config->{'watcher_key'}},'dscv','*');
 	}
 }
 
 sub wait_for_dscv {
-	vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'dscv', @{$config->{'watcher_key'}})\n";
-	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait', 'dscv', @{$config->{'watcher_key'}});
 	$dscv_id or return;
 	return split /,/,$dscv_id;	
 }

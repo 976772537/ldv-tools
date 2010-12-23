@@ -638,18 +638,13 @@ for my $property (@properties){
 #              wait for all RCV tasks
 
 
-sub wait_for_rcv
-{
-	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','rcv',@watcher_key,'#');
-	return split /,/,$rcv_id;
-}
-
 # Wait for the number of RCVs we should spawn
 my $rcvs_consumed = 0;
 
-while ($rcvs_consumed < $expected_blast_runs) {
-	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$expected_blast_runs-$rcvs_consumed));
-	my @rv = wait_for_rcv();
+# Callback to process one result of an RCV.  It's called synchronously.
+my $process_rcv_result = sub {
+	my @rv = split /,/,$_[0];
+	vsay('TRACE',"In callback: @rv\n");
 
 	# In cluster mode such a call would just block forever...
 	die "Tried to wait for more processes than we should!" unless @rv;
@@ -660,13 +655,19 @@ while ($rcvs_consumed < $expected_blast_runs) {
 		my $k = shift @key;
 		die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
 	}
+		vsay('DEBUG',"Done loop \n");
 	my (undef,$rule_id,undef,$cmd_id,$main_id) = @key;
 	# unpack the incoming package
 	vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
 	vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
 	LDV::Utils::watcher_cmd('unpack',$path,$contents);
-	$rcvs_consumed += 1;
+};
+
+while ($rcvs_consumed < $expected_blast_runs) {
+	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$expected_blast_runs-$rcvs_consumed));
+	$rcvs_consumed += LDV::Utils::watcher_cmd_callback($expected_blast_runs-$rcvs_consumed,$process_rcv_result,'wait','rcv',@watcher_key,'#');
 }
+
 
 # Ok, now all sub-commands are waited for, and their xml reports reside in our workdir
 
