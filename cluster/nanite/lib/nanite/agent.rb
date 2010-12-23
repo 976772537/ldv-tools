@@ -133,7 +133,7 @@ module Nanite
     def unsubscribe
       heartbeat.cancel
       amqp.queue('heartbeat').unsubscribe
-      amqp.queue(identity).unsubscribe
+      amqp.queue(identity, :durable=>true).unsubscribe
     end
     
     def disconnect
