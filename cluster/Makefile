@@ -1,6 +1,6 @@
 
 # Compilation
-all: nanite-gem-compile
+all: gem-compile
 
 # Installation
 export install_dir=$(prefix)/cluster
@@ -15,7 +15,7 @@ bintargets=ldvc-master ldvc-node
 cluster_targets=$(targets:%=$(install_dir)/%)
 cluster_bintargets=$(bintargets:%=$(bindir)/%)
 
-install: nanite-gem-install $(cluster_targets) $(cluster_bintargets)
+install: gem-install $(cluster_targets) $(cluster_bintargets)
 
 clean:
 	cd nanite && rake clean
@@ -30,12 +30,16 @@ $(bindir)/%: %
 	@chmod +x $@
 
 # Nanite
-nanite-gem-compile:
+gem-compile:
+	cd amqp && ( rm -f amqp.pre.gemspec && rake gem )
 	cd nanite && rake gem
 
-nanite-gem-install: nanite-gem-compile
+Gem_install=gem install --install-dir $(nanite_install_dir) --bindir $(ruby_bindir) --no-rdoc --no-ri
+
+gem-install: gem-compile
 	@mkdir -p $(nanite_install_dir)
-	gem install --install-dir $(nanite_install_dir) --bindir $(ruby_bindir) --no-rdoc --no-ri nanite/pkg/nanite-0.4.1.17.gem
+	$(Gem_install) nanite/pkg/nanite-0.4.1.17.gem
+	$(Gem_install) amqp/amqp-0.6.7.gem
 
 
 define mksubdir
