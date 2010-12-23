@@ -8,3 +8,5 @@ You need RabbitMQ of 1.8-2.0.  2.2 doesn't work!
 You'll also need Erlang to install RabbitMQ.
 You'll need a modified Nanite gem.
 
+Sometimes cluster controller stalls for 60 seconds (node timeout period).  Don't know why it happens
+

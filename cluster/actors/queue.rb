@@ -28,7 +28,7 @@ class Ldvqueue
 		@waiter = nil
 
 		# During a tick we'll serve exactly one job, according to the priorities
-		EM.add_periodic_timer(10) do
+		EM.add_periodic_timer(4) do
 			@task_update_mutex.synchronize do
 				# Find job_type and an available node to route job of that type to 
 				# If nothing found, find will return nils, and job and target will remain nils
@@ -111,7 +111,7 @@ class Ldvqueue
 		@status_update_mutex.synchronize do
 			remove_node node
 			puts "Node #{node} removed"
-		end
+		end if nodes[node]	# No need to remove non-worker node
 	end
 
 	def result(_task)

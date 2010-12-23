@@ -10,6 +10,7 @@ ldvc-queue
 
 ldvc-wait-task
 
+test-dscv.rb
 test-simple.rb
 
 options.rb
@@ -25,4 +26,11 @@ node.rb
 
 README
 Makefile
+
+amqp/
+	amqp.gemspec
+	lib/
+		mq.rb
+	examples/
+
 
