@@ -34,6 +34,7 @@ gem-compile:
 	cd amqp && ( rm -f amqp.pre.gemspec && rake gem )
 	cd nanite && rake gem
 
+export GEM_HOME=$(nanite_install_dir)
 Gem_install=gem install --install-dir $(nanite_install_dir) --bindir $(ruby_bindir) --no-rdoc --no-ri
 
 gem-install: gem-compile
