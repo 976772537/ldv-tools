@@ -67,6 +67,7 @@ spec = Gem::Specification.new do |s|
     "lib/ext/em.rb",
     "lib/ext/emfork.rb",
     "lib/mq.rb",
+    "lib/mq/collection.rb",
     "lib/mq/exchange.rb",
     "lib/mq/header.rb",
     "lib/mq/logger.rb",
