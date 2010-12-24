@@ -7,6 +7,7 @@ include SysVIPC
 
 # A class to easily manage nested directories
 class DirMaker
+	attr_reader :current
 	def initialize(root)
 		@root = root
 		@current = root
@@ -108,10 +109,17 @@ class WatcherLocal < Watcher
 		@sem = {}
 	end
 
+	attr_reader :nokey
+
 	# initialize control structures by the given server address
 	def initialize(server_address)
 		super({:host => server_address})
 		@server_address = config[:host]
+
+		# Make a note that we are supplied with a key, and we don't have to ask pools to give us a new one.
+		# We should do it beore ensure_server_init
+		@nokey = ! (ENV['LDV_SPAWN_KEY'].nil? || ENV['LDV_SPAWN_KEY'].empty?)
+
 		ensure_server_init
 	end
 
@@ -176,7 +184,12 @@ class WatcherLocal < Watcher
 				# Spawn worker
 				$log.info "Running #{pool} with task #{task_fname} right NOW!"
 				FileUtils.move(query_fname,running_fname)
-				fork {Kernel.exec(ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}")}
+				$log.debug "Setting key for the processes spawned: #{key.join(',')}"
+				ENV['LDV_SPAWN_KEY'] = key.join(',')
+				fork {
+					Kernel.exec(ENV['RCV_FRONTEND_CMD'],"--rawcmdfile=#{task_fname}")
+					exit 1
+				}
 				Process.waitall
 				FileUtils.move(running_fname,finished_fname)
 				# Release global semaphore
@@ -193,17 +206,47 @@ class WatcherLocal < Watcher
 		nil
 	end
 
+	# Wait for the task with key specified by args
+	# args may end with either '*' or '#'.  Asterisk means that we only search one level deeper, while sharp means that we search recursively.  If '*' or '#' is met in the other places, it's not traversed.
 	def wait(what,*args)
 		# we ignore "what" for now...
 		$log.debug "Called wait with #{args.inspect}, ignored #{what.inspect}"
+
+		# level to search in the directories for.  nil means infinite.
+		level = nil
+		case args.last
+		when '#'
+			level = nil
+			args.pop
+		when '*'
+			level = 1
+			args.pop
+		else	#it's just a text string
+			level = 0
+		end #case args.last
+
+		# Check if it's supported
+		raise "* and # are only supported as the LAST element of args to be waited!  Use cluster instead!" if args.detect {|s| s == '*' || s == '#' }
+
+		# We'll implement level limiting as traversing directories with infinite level, parsing the paths we traverse to see how many directoried deep we are.  Then, if this value exceeds the level given, we prune the rest of the traversal.
+		# And no, we're not from Bangalore.  Really...  No, seriously, take a fucking look around: does it look like a monkey code?
+		# Uh, yes, it does... nevertheless... oh, just fuck you.
+
+
 		# This is not thread-safe, but in this prototype thread-safetyy while waiting is not very important
 		@dir.push 'tasks' do
 			running,queried,finished =  %w(running queried finished).map{ |w| @dir.join(w,args)}
+
+			# Prepare stuff for level checks
+			base_level = File.split(running).length
+			level_check = proc {|path| level ? (File.split(path).length <= base_level + level + 1) : true }
+
 			$log.debug "Searching for files in #{running} and #{queried}"
-			def eligible(*paths)
+			def eligible(level_check,*paths)
 				paths.flatten!
 				any = false
 				paths.each do |path| ; Find.find(path) do |fname|
+					prune unless level_check.call(fname)
 					if File.file? fname
 						any = true
 						break
@@ -211,12 +254,18 @@ class WatcherLocal < Watcher
 				end; end
 				any
 			end
-			while eligible(running,queried,finished)
+			while eligible(level_check,running,queried,finished)
 				$log.debug "Dirs are not empty"
 				found_any = false
 				waited_for = {}
 				Find.find(finished) do |file|
+					# check if the level's not deep enough
+					$log.debug "Level check #{level} for #{file}"
+					prune unless level_check.call(file)
+					$log.debug "passed!"
+
 					next unless File.file? file
+
 					$log.debug "Waited for #{file}"
 					key = keyfilestrip(file,@dir.join('finished'))
 					$log.debug "Key is '#{key.inspect}'"
@@ -274,10 +323,15 @@ class WatcherLocal < Watcher
 	def key(*args)
 		$log.info "Key requested for #{args.inspect}"
 
+		# Increase reference counter
 		$log.warn "Increasing reference counter..."
 		total_refs = @server_instances_pool.get
 		$log.warn "Serving #{total_refs} instances"
 
+		# If key's passed from queue procedure, via an ENV variable (as in cluster mode), then return it.  Otherwise, get a new one
+		return ENV['LDV_SPAWN_KEY'] if ENV['LDV_SPAWN_KEY']
+
+		# Otherwise, we get a new key
 		@dir.push 'keys',args,Process.ppid do
 			fname = @dir.join 'key'
 			begin
