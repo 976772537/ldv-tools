@@ -30,16 +30,24 @@ $(bindir)/%: %
 	@chmod +x $@
 
 # Nanite
-gem-compile:
-	cd amqp && ( rm -f amqp.pre.gemspec && rake gem )
+gem-compile: amqp-compile nanite-compile
+
+amqp-compile:
+	cd amqp && gem build amqp.gemspec
+
+nanite-compile: amqp-install
 	cd nanite && rake gem
 
 export GEM_HOME=$(nanite_install_dir)
 Gem_install=gem install --install-dir $(nanite_install_dir) --bindir $(ruby_bindir) --no-rdoc --no-ri
 
-gem-install: gem-compile
+gem-install: nanite-install amqp-install
 	@mkdir -p $(nanite_install_dir)
+
+nanite-install: nanite-compile
 	$(Gem_install) nanite/pkg/nanite-0.4.1.17.gem
+
+amqp-install: amqp-compile
 	$(Gem_install) amqp/amqp-0.6.7.gem
 
 
