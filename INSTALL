@@ -34,6 +34,7 @@ MINIMAL PREREQUISITES
 		- File::Cat
 		- File::Find
 		- File::Copy::Recursive
+		- File::Path   (update to the newest version)
 		- Text::Highlight
 		- XML::Twig
 		- XML::Writer
