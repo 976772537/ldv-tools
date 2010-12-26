@@ -117,6 +117,8 @@ class Ldvnode
 					puts task['args']
 
 					ENV['WORK_DIR'] = workdir
+					# FIXME: this may actually differ, if user sets it up differently.
+					ENV['LDV_RULE_DB'] = File.join(@home,'kernel-rules','model-db.xml')
 					say_and_run('dscv',"--rawcmdfile=#{temp_file.path}")
 				end
 			when :rcv then

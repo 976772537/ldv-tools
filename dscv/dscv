@@ -265,25 +265,34 @@ if (grep {m/^inline$/} @ARGV){
 
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
 
+use LDV::Utils;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('dscv');
+
+
 if($mode eq 'raw') {
-        -f $config->{'rawcmdfile'} or die"Command file for raw mode \"$config->{rawcmdfile}\" not exists: $!";
-        my %args = ();
+	-f $config->{'rawcmdfile'} or die"Command file for raw mode \"$config->{rawcmdfile}\" not exists: $!";
+	my %args = ();
 
-        # How we parse raw xml to %args hash
-        %args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
+	# How we parse raw xml to %args hash
+	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
 
-        # in this mode work dir is passed as ENV.WORK_DIR
-        #               and rule model db as ENV.RULE_MODEL_DB
-        $config->{work_dir} = $args{workdir};
-        $config->{rule_db_dir} = $args{ruledb};
-        -d $config->{work_dir} or die "the workdir '$config->{work_dir}' is not a directory!";
-        -f $config->{rule_db_dir} or die "the rule_db_dir '$config->{rule_db_dir}' is not a file!";
+	# in this mode work dir is passed as ENV.WORK_DIR
+	#               and rule model db as ENV.RULE_MODEL_DB
+	$config->{work_dir} = $args{workdir};
+	$config->{rule_db_dir} = $args{ruledb};
+	-d $config->{work_dir} or die "the workdir '$config->{work_dir}' is not a directory!";
+	-f $config->{rule_db_dir} or do{
+		vsay ('WARNING', $config->{rule_db_dir}." is not a good Rule DB.  Falling back to env. var.\n");
+		$config->{rule_db_dir} = $ENV{'LDV_RULE_DB'};
+		-f $config->{rule_db_dir};
+	} or die "the rule_db_dir '$config->{rule_db_dir}' is not a file!";
 
-        #read other options
-        $config->{report} = $args{report};
-        $config->{properties} = [$args{properties}];	
-        $config->{cmdfile} = $args{cmdfile};	
-        -f $config->{cmdfile} or die "the cmdfile '$config->{cmdfile}' is not a file!";
+	#read other options
+	$config->{report} = $args{report};
+	$config->{properties} = [$args{properties}];
+	$config->{cmdfile} = $args{cmdfile};
+	-f $config->{cmdfile} or die "the cmdfile '$config->{cmdfile}' is not a file!";
 	$mode = 'cmdfile';
 }
 
@@ -381,10 +390,6 @@ unless (scalar @{$config->{properties}}){
 # Prepare working dir
 mkpath ($config->{work_dir});
 
-
-use LDV::Utils;
-LDV::Utils::set_verbosity($config->{verbosity});
-LDV::Utils::push_instrument('dscv');
 
 # Get "key" from LDV watcher (the guy who queues processes).
 # If this process is not watched for (i.e. watcher was not started, and it's a user's action that initiated the verification--i.e. inline mode), then watcher generates and returns a new key.
