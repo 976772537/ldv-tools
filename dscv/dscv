@@ -39,6 +39,7 @@ use Getopt::Long;
 
 # Configuration structure
 my $config={
+	rawcmdfile=>'',
 	dir=>'./',
 };
 
@@ -60,6 +61,7 @@ $config->{property} = [];
 $config->{properties} = [];
 $optionSpecs{'rule-model=s@'} = \$config->{property};
 $optionSpecs{'rule-models=s@'} = \$config->{properties};
+$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
 
 =item B<--report-out>=report.xml
 
@@ -247,23 +249,48 @@ sub usage
 # Determine mode
 my $mode;
 my @inline_args = ();
+$config->{cmdfile} and $mode = 'cmd';
+$config->{rawcmdfile} and $mode = 'raw';
 if (grep {m/^inline$/} @ARGV){
 	$mode = 'inline';
 	# Cut last portion of ARGV into a separate array
 	my ($index) = grep { $ARGV[$_] eq 'inline' } 0..$#ARGV;
 	@inline_args = @ARGV[($index+1)..$#ARGV];
 	@ARGV = @ARGV[0..$index-1];
+} elsif( grep {m/rawcmdfile/} @ARGV) {
+	$mode = 'raw';
 }else{
 	$mode = 'cmdfile';
 }
 
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
 
+if($mode eq 'raw') {
+        -f $config->{'rawcmdfile'} or die"Command file for raw mode \"$config->{rawcmdfile}\" not exists: $!";
+        my %args = ();
+
+        # How we parse raw xml to %args hash
+        %args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
+
+        # in this mode work dir is passed as ENV.WORK_DIR
+        #               and rule model db as ENV.RULE_MODEL_DB
+        $config->{work_dir} = $args{workdir};
+        $config->{rule_db_dir} = $args{ruledb};
+        -d $config->{work_dir} or die "the workdir '$config->{work_dir}' is not a directory!";
+        -f $config->{rule_db_dir} or die "the rule_db_dir '$config->{rule_db_dir}' is not a file!";
+
+        #read other options
+        $config->{report} = $args{report};
+        $config->{properties} = [$args{properties}];	
+        $config->{cmdfile} = $args{cmdfile};	
+        -f $config->{cmdfile} or die "the cmdfile '$config->{cmdfile}' is not a file!";
+	$mode = 'cmdfile';
+}
+
 # Do options tweaking (that doesn't require any semantical checking)
 
 # Compact rule models
 $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->{properties}})))];
-
 
 # INLINE mode preparation
 
@@ -342,7 +369,7 @@ if ($mode eq 'inline'){
 		$config->{properties}=[$default_rule_model];
 	}
 }
-
+ 
 # Sanity check
 
 $config->{cmdfile} or usage("Work without cmdfile is not supported!\n");
@@ -358,6 +385,34 @@ mkpath ($config->{work_dir});
 use LDV::Utils;
 LDV::Utils::set_verbosity($config->{verbosity});
 LDV::Utils::push_instrument('dscv');
+
+# Get "key" from LDV watcher (the guy who queues processes).
+# If this process is not watched for (i.e. watcher was not started, and it's a user's action that initiated the verification--i.e. inline mode), then watcher generates and returns a new key.
+# NOTE: we don't interpret this key, we just pass it to invocations of our tools
+
+# Set up watcher directory, unless already set
+$ENV{'LDV_WATCHER_SRV'} ||= "$config->{work_dir}/watcher";
+vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+
+my ($key_str,undef) = LDV::Utils::watcher_cmd('key','dscv');
+vsay ('DEBUG',"Got key string $key_str.\n");
+my @watcher_key = split /,/,$key_str;
+
+###########################
+# EXCEPTION HANDLING!
+eval {
+
+sub kill_watcher
+{
+	vsay 20, "Shutting down watcher\n";
+	# Report failure to the watcher (reckon we've registered a key for our process?)
+	LDV::Utils::watcher_cmd('fail',@watcher_key);
+	die $@;
+}
+
+$SIG{TERM} = \&kill_watcher;
+$SIG{INT} = \&kill_watcher;
+$SIG{QUIT} = \&kill_watcher;
 
 
 # Actual work.
@@ -564,6 +619,7 @@ for my $property (@properties){
 				"--cmdfile=$cmdfile",
 				"--workdir=$dir",
 				"--sanity-dir=$dscv_base_dir",
+				"--watcher-key=".join(",",@watcher_key,'dscv',$property),
 			);
 			vsay ('NORMAL',"Calling RCV $verifier backend for @{[$cmdT->tag]} command $id...\n");
 			vsay (20, "@rcv_args\n");
@@ -575,13 +631,48 @@ for my $property (@properties){
 	my $verify_Twig = XML::Twig->new( twig_handlers => { cc => $get_verifier_handler->($verifier_dir), ld=>$get_verifier_handler->($verifier_dir) });
 
 	$verify_Twig->parsefile($outfile);
+}
 
-	# TODO: parallelize
+
+#=~~~~~~~======~~~~~~======~~~~~~======~~~~~~======
+#              wait for all RCV tasks
+
+
+sub wait_for_rcv
+{
+	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','any',@watcher_key);
+	return split /,/,$rcv_id;
+}
+
+while (my @rv = wait_for_rcv()){
+	my ($path,$contents,@key) = @rv;
+	# Discard generic part of the key returned
+	for my $wk (@watcher_key){
+		my $k = shift @key;
+		die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
+	}
+	my (undef,$rule_id,undef,$cmd_id,$main_id) = @key;
+	# unpack the incoming package
+	vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
+	vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
+	LDV::Utils::watcher_cmd('unpack',$path,$contents);
+}
+
+# Ok, now all sub-commands are waited for, and their xml reports reside in our workdir
+
+for my $rule_id (@properties){
+
+	# After unpacking, we have the contents of XML report of RCV, traces, debug files and time stats on the local filesystem
+	my $verifier_dir = "$for_rcv_dir/$rule_id";
+	my $ri_basedir_for_rule = ($mode ne 'inline')? "$ri_basedir/$rule_id" : './';
+	# Assignment to port the old code
+	my $property = $rule_id;
 
 	# Now we concatenate all reports into one file and pass that file to rule-instrumenter for it to tune that big report.
 	my $before_ri_rep_name = "$verifier_dir/report.xml";
 	my $after_ri_rep_name = "$verifier_dir/report_after_ri.xml";
-	my $BIG_REPORT; open $BIG_REPORT, ">", $before_ri_rep_name or die;
+
+	my $BIG_REPORT; open $BIG_REPORT, ">", $before_ri_rep_name or die "Can't open '$before_ri_rep_name' for writing: $!";
 
 	my $bigRepT = XML::Twig::Elt->new("reports");
 
@@ -597,8 +688,8 @@ for my $property (@properties){
 	};
 	DSCV::RCV::Utils::foreach_report($verifier_dir,$cat_rep);
 
-        $bigRepT->set_pretty_print('indented');
-        $bigRepT->print($BIG_REPORT);
+	$bigRepT->set_pretty_print('indented');
+	$bigRepT->print($BIG_REPORT);
 	close ($BIG_REPORT);
 
 	# Now feed that BIG_REPORT to rule-instrumenter
@@ -719,6 +810,19 @@ close $BIG_REPORT;
 
 vsay 20,"Final report is written to $config->{report}\n";
 
+1;
+} or do {
+	vsay 4, "Fatal error.  Stopping services before reporting...\n";
+	kill_watcher();
+	# We die in kill_watcher, no need to exit here... but just in case...
+	exit 1;
+};
+
+# Report success to the watcher
+LDV::Utils::watcher_cmd('success',@watcher_key);
+
+# EXCEPTION HANDLING!
+###########################
 
 =head1 DOCUMENTATION FOR DEVELOPERS
 

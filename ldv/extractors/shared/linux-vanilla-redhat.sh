@@ -68,6 +68,16 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi;
 # II.
+#sed -i -e "s/^cmd_link_multi-m = \$(cmd_link_multi-y)/cmd_link_multi-m = $XGCC \$(ld_flags) \`for i in \$(link_multi_deps); do echo \\\\\`readlink -f \$\$i\\\\\`; done | xargs\` -r -o \`readlink -f \$@\` >> \`if \[ -n \"\$(BUILDFILE)\" \]; then echo \$(BUILDFILE); else echo \/dev\/null; fi\`; \$(cmd_link_multi-y)/g" $KERNEL_MAKEFILE_BUILD;
+#if [ $? -ne 0 ]; then
+#	ldv_print "ERROR: Failed patch (III. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
+#	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+#	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.build !"; fi;
+#	exit 1;
+#fi;
+
+
+
 sed -i -e "s/^cmd_link_multi-y = \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/cmd_link_multi-y = $XGCC \$(ld_flags) \`for i in \$(link_multi_deps); do echo \\\\\`readlink -f \$\$i\\\\\`; done | xargs\` -r -o \`readlink -f \$@\` >> \`if \[ -n \"\$(BUILDFILE)\" \]; then echo \$(BUILDFILE); else echo \/dev\/null; fi\`; \$(LD) \$(ld_flags) -r -o \$@ \$(link_multi_deps) \$(cmd_secanalysis)/g" $KERNEL_MAKEFILE_BUILD;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Failed patch (III. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";

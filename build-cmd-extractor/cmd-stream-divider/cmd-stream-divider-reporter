@@ -43,11 +43,12 @@ my $cmdfile = "";
 my $report_out = "";
 my $report_name = "";
 my $state_file = "";
-my $reports_dir = "";
+my $reports_list = "";
 my @reports;
 
 # 0. get options.
 get_ldv_opts();
+
 # 0.1 read all report files ant cut its to one temp report file
 
 my $twig_inreport = XML::Twig->new();
@@ -56,7 +57,7 @@ my $twig_inroot = XML::Twig::Elt->new($xml_reports);
 $twig_inreport->set_root($twig_inroot);
 
 # 0.2 get all reports files
-@reports=get_reports();
+@reports = get_reports();
 foreach my $file (@reports) { 
 	ldv_dprint("Grep file: \"$file\".");
 	my $ctwig=new XML::Twig();
@@ -92,14 +93,25 @@ ldv_dprint("Report created successfully.");
 #####################################################
 # xml-functions
 #####################################################
-sub search {  push (@filelist,$File::Find::name) if(!-d); }
 sub get_reports {
-	my @local_reports=();
-	find(\&search, $reports_dir);
-	my @out_reports=();
-	foreach(@filelist) { if(/.*$report_name/) { push(@out_reports,$_); } }
-	return @out_reports;
+	open RLIST, $reports_list or die"$!";
+	my @reports_after_deg = ();
+	while(<RLIST>) {
+		chomp $_;
+		push @reports_after_deg, $_;
+	};
+	close RLIST;
+	return @reports_after_deg;
 }
+
+#sub search {  push (@filelist,$File::Find::name) if(!-d); }
+#sub get_reports {
+#	my @local_reports=();
+#	find(\&search, $reports_dir);
+#	my @out_reports=();
+#	foreach(@filelist) { if(/.*$report_name/) { push(@out_reports,$_); } }
+#	return @out_reports;
+#}
 
 #
 # find command-tag in input report file by id
@@ -181,9 +193,9 @@ sub get_ldv_opts
 		{
 			$state_file = $opt;
 		}
-		elsif($opt =~ s/--reports-dir=(.*)/$1/)
+		elsif($opt =~ s/--report-list=(.*)/$1/)
 		{
-			$reports_dir = $opt;
+			$reports_list = $opt;
 		}
 		elsif($opt =~ s/--report-name=(.*)/$1/)
 		{
@@ -223,12 +235,12 @@ sub get_ldv_opts
 		print_usage();
 		exit 1;
 	}
-	if(!$reports_dir) {
-		ldv_eprint("You must setup output reports dir in option: \"--reoports-dir\".");
+	if(!$reports_list) {
+		ldv_eprint("You must setup DEG reports list in option: \"--reoports-list\".");
 		print_usage();
 		exit 1;
-	} elsif(! -d $reports_dir) {
-		ldv_eprint("Directory with reports not exists: \"$reports_dir\".");
+	} elsif(! -f $reports_list) {
+		ldv_eprint("File with reports list not exists: \"$reports_list\".");
 		print_usage();
 		exit 1;
 	} 

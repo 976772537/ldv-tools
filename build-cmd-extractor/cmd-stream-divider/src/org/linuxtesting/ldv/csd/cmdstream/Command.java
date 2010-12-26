@@ -12,20 +12,79 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 
-public class Command {
+public class Command implements Cloneable {
 	private List<Opt> opts = new ArrayList<Opt>();
 	private List<Command> inObj = new ArrayList<Command>();
 	protected List<String> in = new ArrayList<String>();
 	protected List<String> out = new ArrayList<String>();
 	private String cwd = null;;
 	
+	
+	
+	public void setOpts(List<Opt> opts) {
+		this.opts = opts;
+	}
+
+	public void setInObj(List<Command> inObj) {
+		this.inObj = inObj;
+	}
+
+	public void setIn(List<String> in) {
+		this.in = in;
+	}
+
+	public void setOut(List<String> out) {
+		this.out = out;
+	}
+
+	public void setCwd(String cwd) {
+		this.cwd = cwd;
+	}
+
+	public Command() {
+	}
+	
+	public Command clone() {
+	    //shallow copy
+	    try {
+	      Command clonedCmd = (Command) super.clone();
+	      clonedCmd.setCwd(new String(this.cwd));
+
+	  	  List<String> c_in = new ArrayList<String>();
+	  	  for(int i=0; i<in.size(); i++)
+	  		  c_in.add(new String(in.get(i)));
+	  	  in = c_in;
+	  	  
+	  	  List<String> c_out = new ArrayList<String>();
+	  	  for(int i=0; i<out.size(); i++)
+	  		  c_out.add(new String(out.get(i)));
+	  	  out = c_out;
+	      
+	      return clonedCmd;
+	    } catch (CloneNotSupportedException e) {
+	      return null;
+	    }
+	}
+	
+	
 	protected static int cmd_counter = 0;
 	
 	protected int Id;
 	
 	private boolean check = false;
+
+	private boolean prepared = false;
+
 	private String restrict;
 	
+	public void setPrepared() {
+		this.prepared = true;
+	}
+
+	public boolean isPrepared() {
+		return prepared;
+	}
+
 	// TODO add restrict
 	public String getRestrict() {
 		return restrict;
@@ -129,6 +188,10 @@ public class Command {
 	public boolean isCheck() {
 		return check;
 	}
+	
+	public void setCheck() {
+		check = true;
+	}
 
 	public List<Command> getObjIn() {
 		return inObj;
@@ -158,14 +221,17 @@ public class Command {
 			File infile = new File(strList.get(i));
 			if(!iscopy && infile.exists() && !FSOperationBase.CopyFile(in.get(i), newFilePlaceString))
 				return false;
-			strList.remove(i);
-			strList.add(i,newFilePlaceString);
+			strList.set(i,newFilePlaceString);
 		}
 		return true;
 	}
 
 	public int getId() {
 		return Id;
+	}
+
+	public void setId(Integer id) {
+		this.Id = id;
 	}
 	
 	

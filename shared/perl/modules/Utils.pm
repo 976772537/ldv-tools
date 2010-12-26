@@ -48,5 +48,63 @@ sub relpath
 	}
 }
 
+sub hash_to_xml
+{
+	my ($hash,$tag,$out) = @_;
+	$out ||= \*STDOUT;
+	local $_;
+
+	my $e = XML::Twig::Elt->new($tag);
+	for my $key (%$hash){
+		my $val = $hash->{$key};
+		next unless defined $val;
+		if (ref $val eq 'ARRAY'){
+			XML::Twig::Elt->new($key,{},$_)->paste(last_child => $e) for @$val;
+		}elsif(ref $val eq 'XML::Twig::Elt'){
+			$val->copy->paste(last_child => $e);
+		}elsif(ref $val eq ''){
+			XML::Twig::Elt->new($key,{},$val)->paste(last_child=>$e);
+		}else{
+			die "unsupported ref '".(ref $val)." for key $key";
+		}
+	}
+
+	$e->set_pretty_print('indented');
+	$e->print($out);
+}
+
+sub xml_to_hash
+{
+	my ($from, $opts) = @_;
+	# Process options
+	my @to_array = ();
+	my @to_xml = ();
+	if ($opts){
+		@to_array = @{$opts->{to_array}};
+		@to_xml = @{$opts->{to_xml}};
+	}
+
+	my %args = ();
+
+	# Read
+	# This is a small XML, load it directly
+	my $twig = XML::Twig->new();
+	$twig->parsefile($from);
+	my $inputT = $twig->root();
+
+	local $_;
+	# Copy arguments
+	$args{$_} = [$inputT->children_text($_)] for @to_array;
+	$args{$_->name} = $_->copy for grep {$_} map {$inputT->first_child($_)} @to_xml;
+	# Copy the rest into args
+	my %read = map {$_ => 1} (@to_array, @to_xml);
+	my $e;
+	for ($e = $inputT->first_child(); $e ; $e = $e->next_sibling()){
+		$args{$e->tag} = $e->text() unless ($read{$e->tag});
+	}
+
+	return %args;
+}
+
 1;
 

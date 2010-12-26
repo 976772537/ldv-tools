@@ -14,6 +14,7 @@ BEGIN {
 use strict;
 use Pod::Usage;
 use Getopt::Long;
+use FindBin;
 
 # Project modules
 use LDV::Utils;
@@ -27,6 +28,8 @@ use File::Path qw(mkpath);
 
 my $config={
 	cmdfile=>'',
+	rawcmdfile=>'',
+	watcher_key=>[],
 };
 
 my %optionSpecs = ();
@@ -38,9 +41,19 @@ LDV::Utils::push_instrument('rcv-blast');
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'sanity-dir=s'} = \$config->{sandir};
+$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
+my $watcher_keystr = '';
+$optionSpecs{'watcher-key=s'} = \$watcher_keystr;
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
+$config->{watcher_key} = [split /,/,$watcher_keystr];
+
+my $mode = undef;
+$config->{cmdfile} and $mode = 'cmd';
+$config->{rawcmdfile} and $mode = 'raw';
+
+defined $mode or die "You should specify either --cmdfile or --rawcmdfile option!";
 
 # Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
@@ -48,26 +61,18 @@ my $backend_dir = "$shared_dir/rcv/backends/blast";
 my $blast = "$backend_dir/bin/pblast.opt";
 my $workdir = $config->{workdir};
 
--f $config->{cmdfile} or die "BLAST's command file $config->{cmdfile} is not found";
--d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
--x $blast or die "BLAST's toplevel executable $blast is not an executable file";
--d $workdir or die "--workdir=$config->{workdir} is not a directory!";
-
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
 my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
-
-# Prepare sanity checks
-my $sanity = DSCV::Sanity->new($config->{sandir});
-
+-d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
 $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 
 #Check if blast is available
-blast_quick_check();
+#blast_quick_check();
 
 
 #======================================================================
@@ -75,19 +80,49 @@ blast_quick_check();
 #======================================================================
 use XML::Twig;
 
-# Base Dir of system being checked
-my $base_dir = undef;
-my $unbasedir = undef;
+my $sanity = undef;
 
-# Now all subroutines are initialized.  Let's start processing the cmdfile.
-my $check_input_file = XML::Twig->new(
-	twig_handlers => {
-		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
-		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_blast, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>0, archivated=>1),
-	}
-);
-$check_input_file->parsefile($config->{cmdfile});
+if ($mode eq 'cmd'){
+	# Launch of RCV frontend, process CMDfile and spawn some raw verifier tasks
+
+	!-f $config->{cmdfile} and die "BLAST's command file $config->{cmdfile} is not found";
+	-x $blast or die "BLAST's toplevel executable $blast is not an executable file";
+	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+
+	# Prepare sanity checks
+	$sanity = DSCV::Sanity->new($config->{sandir});
+
+	# Base Dir of system being checked
+	my $base_dir = undef;
+	my $unbasedir = undef;
+
+	# Now all subroutines are initialized.  Let's start processing the cmdfile.
+	my $check_input_file = XML::Twig->new(
+		twig_handlers => {
+			basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
+			cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
+			ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_blast, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>0, archivated=>1),
+		}
+	);
+	$check_input_file->parsefile($config->{cmdfile});
+}elsif ($mode eq 'raw'){
+	# Parse CMDfile for arguments, and launch RCV only
+	my %args = ();
+	!-f $config->{rawcmdfile} and die "BLAST's raw command file $config->{rawcmdfile} is not found";
+
+	# How we parse raw xml to %args hash
+	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
+
+	# in this mode work dir is passed as workdir
+	$workdir ||= $args{workdir};
+	-d $workdir or die "the workdir '$config->{workdir}' is not a directory!";
+
+	# Now we can call BLAST, finally
+	call_blast(%args);
+
+}else{
+	die "Assertion failed";
+}
 
 exit 0;
 # NO CODE AFTER THIS POINT!
@@ -101,83 +136,28 @@ sub verify_blast
 {
 	my %args = @_;
 	$args{report} or die;
-	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-	my $repT = XML::Twig::Elt->new('reports');
-
 	# Since arguments alter depending on main, we should save them to temporary.
 	my %args_template = (%args);
 
 	for my $main (@{$args{mains}}){
 		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
-		my $result = call_blast(%args, main=>$main); 
-	
-		# Print verdict to console and to report 
-		vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
-		vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
 
-		my $br = $result->{'BLAST'};
-		if ($br =~ /\byes\b/i) {
-			$br='OK';
-		}elsif($br =~ /\bno\b/i){
-			$br='FAILED';
-		}else{
-			$br='FAILED';
-		}
+		# Sanity check (should be performed at DSCV's site)
+		$sanity->blast_called();
 
-		my $bv = $result->{'BLAST-detailed'};
-		if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
-			$bv='SAFE';
-		}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
-			$bv='UNSAFE';
-		}else{
-			$bv='UNKNOWN';
-		}
+		$args{main} = $main;
+		my $task_fname = "$config->{cmdfile}.for.$main";
+		vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
+		my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
+		Utils::hash_to_xml(\%args,'input',$TASK);
+		close $TASK;
+		vsay('INFO',"Written RCV single command to '$task_fname'\n");
+		$ENV{'RCV_FRONTEND_CMD'} = $0;
+		# FIXME: key is transferred through env variable.  RCV should be rewritten.
+		#                                            task        dir      >>>> the rest is the key to distinguis from others
+		LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main);
 
-
-		my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-		XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-		XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
-		# Confess who is responsible for that mess
-		XML::Twig::Elt->new('verifier',{},'BLAST')->paste($cmdInstT);
-
-		my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
-		XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
-		XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
-
-		# Calculate and output time elapsed
-		#		my $time_sec = $result->{'utime'}+$result->{'stime'};
-		#		my $time_msec = int($time_sec * 1000);
-		#		XML::Twig::Elt->new('time',{},$time_msec)->paste($rcvResultT);
-		# Read file with time statistics
-		if ( -f "$workdir/stats_rcv.xml" && ! -z "$workdir/stats_rcv.xml") {
-			my %timestats;
-				open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
-				while(<STATS_FILE>) {
-					/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
-					$timestats{$1} += $2;
-					#my $time_elt = XML::Twig::Elt->new('time',$2);
-					#$time_elt->set_att( name =>$1);
-					#$time_elt->paste($rcvResultT);
-				}
-				close STATS_FILE;
-				foreach(keys %timestats) {
-					my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
-					$time_elt->set_att( name =>$_);
-					$time_elt->paste($rcvResultT);
-				}
-		} else {
-			my $time_elt = XML::Twig::Elt->new('time',0);
-			$time_elt->set_att( name =>"ALL");
-			$time_elt->paste($rcvResultT);
-		};
-
-		$rcvResultT->paste(last_child =>$cmdInstT);
-		$cmdInstT->paste($repT);
 	}
-
-	$repT->set_pretty_print('indented');
-	$repT->print($BLAST_REPORT);
-	close $BLAST_REPORT;
 }
 
 # Call blast
@@ -294,7 +274,7 @@ sub call_blast
 		timelimit => $timelimit,
 		memlimit => $memlimit,
 		pattern => ".*,ALL;.*pblast\.opt.*,PBLAST.OPT;.*cvc3.*,CVC3;.*smtlibServer.*,SMTSERVER".$solver_timewatch.($ENV{'BLAST_TIMEWATCH'} ? ";".$ENV{'BLAST_TIMEWATCH'} : "") ,
-		output => "$workdir/stats_rcv.xml",
+		output => $args{timestats},
 		id_str => "DSCV_TIMEOUT ",
 		},@blast_options
 	);
@@ -330,9 +310,6 @@ sub call_blast
 	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
 	vsay (20,"BLAST debug trace is being written to $args{debug}\n");
-
-	# Sanity check
-	$sanity->blast_called();
 
 	# Create trace printer
 	my $dumptrace = dumptrace($args{trace});
@@ -403,7 +380,83 @@ Using $stopsep
 =========== Launch inform ends ===========
 EOR
 
-	return $result;
+	# Ok, BLAST finished, and we now print the small XML report for it
+
+	# Assignments to port the old code
+	my $main = $args{main};
+
+	# We produce one report for each main file, because RCVs may be invoked concurrently
+	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+	my $repT = XML::Twig::Elt->new('reports');
+
+	# Print verdict to console and to report 
+	vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
+	vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
+
+	my $br = $result->{'BLAST'};
+	if ($br =~ /\byes\b/i) {
+		$br='OK';
+	}elsif($br =~ /\bno\b/i){
+		$br='FAILED';
+	}else{
+		$br='FAILED';
+	}
+
+	my $bv = $result->{'BLAST-detailed'};
+	if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
+		$bv='SAFE';
+	}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
+		$bv='UNSAFE';
+	}else{
+		$bv='UNKNOWN';
+	}
+
+
+	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+	XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+	XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+	# Confess who is responsible for that mess
+	XML::Twig::Elt->new('verifier',{},'BLAST')->paste($cmdInstT);
+
+	my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
+	XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
+	XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
+
+	# Calculate and output time elapsed
+	# Read file with time statistics
+	# TODO: this is the hack for name generation.  A more generic mechanism should superseed it later.
+	my $timestats_fname = $args{timestats};
+	if ( -f $timestats_fname && ! -z $timestats_fname) {
+		my %timestats;
+		# TODO: for fuck's sake, replace it with actual XML parsing!
+		open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
+		while(<STATS_FILE>) {
+			/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
+			$timestats{$1} += $2;
+			#my $time_elt = XML::Twig::Elt->new('time',$2);
+			#$time_elt->set_att( name =>$1);
+			#$time_elt->paste($rcvResultT);
+		}
+		close STATS_FILE;
+		foreach(keys %timestats) {
+			my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+			$time_elt->set_att( name =>$_);
+			$time_elt->paste($rcvResultT);
+		}
+	} else {
+		my $time_elt = XML::Twig::Elt->new('time',0);
+		$time_elt->set_att( name =>"ALL");
+		$time_elt->paste($rcvResultT);
+	};
+
+	$rcvResultT->paste(last_child =>$cmdInstT);
+	$cmdInstT->paste($repT);
+
+	$repT->set_pretty_print('indented');
+	$repT->print($BLAST_REPORT);
+	close $BLAST_REPORT;
+
+	#return $result;
 }
 
 

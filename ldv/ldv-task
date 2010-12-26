@@ -201,7 +201,7 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	fi;
 	ldv_print "NORMAL: Calling LDV-core.";
 	LDV_CORE_REPORT=$WORK_DIR_LOCAL/$LDV_CORE_REPORT_FILENAME;
-	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
+	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver=1; fi;
 	if [ -n "$cmdstream" ]; then stream_option="--cmdstream=$cmdstream"; else stream_option="--driver=$driver"; fi;
 	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --driver=$driver --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
 	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;

@@ -122,12 +122,30 @@ sub print_cmd
 	my $cmd = shift or die;
 	my $tcmd = XML::Twig::Elt->new($cmd->{head},{'id' => $peeked_id++});
 	local $_;
-	XML::Twig::Elt->new("out",$cmd->{out})->paste('last_child',$tcmd);
+	my $outtag = XML::Twig::Elt->new("out",$cmd->{out});
+#	$outtag->set_att('check'=>'true') if $cmd->{head} eq 'ld';
+	$outtag->paste('last_child', $tcmd);
 	XML::Twig::Elt->new("in",$_)->paste('last_child',$tcmd) for @{$cmd->{in}};
 	XML::Twig::Elt->new("cwd",getcwd())->paste('last_child',$tcmd);
-	XML::Twig::Elt->new("opt",$_)->paste('last_child',$tcmd) for @{$cmd->{opts}};
-	$tcmd->set_pretty_print('indented');
-	$tcmd->print();
+	# set autoconf mode 
+	my $isinclude=0;
+	foreach my $opt (@{$cmd->{opts}}) {
+		my $optT = XML::Twig::Elt->new("opt",$opt);
+		if ($opt eq '-include') { 
+			$isinclude=1; 
+		} elsif($isinclude == 1) { 
+			$optT->set_att('config'=>'autoconf');
+			$isinclude=0; 
+		};
+		$optT->paste('last_child', $tcmd);
+	};
+
+
+#	XML::Twig::Elt->new("opt",$_)->paste('last_child',$tcmd) for @{$cmd->{opts}};
+	my $cmdstream = XML::Twig::Elt->new('cmdstream', $tcmd);
+	$cmdstream->set_pretty_print('indented');
+	use SOAP::Lite service =>"$ENV{'WSDLADDR'}?wsdl";
+	sendCommand(SOAP::Data-> type ("string") -> name ("arg0") -> value ($cmdstream->sprint));
 }
 
 print_cmd($compile_cmd) if $compile;

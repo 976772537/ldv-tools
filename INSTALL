@@ -34,9 +34,11 @@ MINIMAL PREREQUISITES
 		- File::Cat
 		- File::Find
 		- File::Copy::Recursive
+		- File::Path   (update to the newest version)
 		- Text::Highlight
 		- XML::Twig
 		- XML::Writer
+		- SOAP::Lite
 	o CPIO archiver
 	o PAX archiver
 	o Ruby gem manager
@@ -44,6 +46,7 @@ MINIMAL PREREQUISITES
 		- gem hpricot
 		- gem activerecord
 		- gem mysql
+		- gem SysVIPC   (Warning: case-sensitive!)
 	o gzip
 	o tar
 	o bzip2

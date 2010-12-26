@@ -1,474 +1,569 @@
-#!/bin/bash
-
-#
-# env var WORK_DIR
-# ldv-core --env=envdir --driver=driver --rule-models=rules
+#!/usr/bin/perl -w
 #
 
-XML_FILENAME_AFTER_BCE="cmd_after_bce.xml";
-XML_FILENAME_AFTER_CSD="cmd_after_csd";
-XML_FILENAME_AFTER_DEG="cmd_after_deg.xml";
+my $instrumnet = 'ldv-core';
 
-DEG_STATE_FILENAME="deg.state";
-CSD_STATE_FILENAME="csd.state";
+use FindBin;
+use SOAP::Lite; 
+use POSIX ":sys_wait_h";
+use XML::Twig;
 
-DEG_REPORT_FILENAME="report_after_deg.xml";
-CSD_REPORT_FILENAME="report_after_csd.xml";
-BCE_REPORT_FILENAME="report_after_bce.xml";
-DSCV_REPORT_FILENAME="report_after_dscv.xml";
+BEGIN {
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+}
 
-DSCV_TEMPDIR_NAME="dscv_tempdir";
-CSD_TEMPDIR_NAME="csd_tempdir";
-DEG_TEMPDIR_NAME="deg_tempdir";
-BCE_TEMPDIR_NAME="bce_tempdir";
-CSD_DEG_DSCV_TEMPDIR_NAME="csd_deg_dscv";
+sub usage{ print STDERR<<usage_ends;
 
-LOG_MIRROR_TO_CONSOLE=1;
-DRIVER_DIR_NAME="driver";
-EXTRACTOR_LOG_FILENAME="unarch.log";
+Usage:
+        $instrumnet TBD
+
+usage_ends
+        die;
+}
 
 
-LDV_HOME=`readlink -f \`dirname $0\`/../`;
-LOG_PREFIX="ldv-core: ";
-USAGE_STRING="WORK_DIR=workdir ldv-core --env=kerneldir --driver=driverpath --rule-models=rulemodels";
-source $LDV_HOME/shared/sh/log.sh;
+use Cwd 'abs_path';
+use Utils;
+$ENV{'WORK_DIR'} || die"Please, specify WORK_DIR environment variable!";
 
-BCE_DIRNAME="build-cmd-extractor";
-BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
-CSD="java -ea -jar $BCE_DIR/csd.jar";
-CSD_REPORTER="$BCE_DIR/cmd-stream-divider-reporter";
+use Getopt::Long qw(:config require_order);
 
-LDV_TEMPDIR_NAME="ldv_tempdir";
+my $config = {
+        'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
+        'workdir' => $ENV{'WORK_DIR'},
+        'csd-reporter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/cmd-stream-divider-reporter",
+        'csd' => "$ENV{'LDV_HOME'}/build-cmd-extractor/csd.jar",
+        'ruledb' => "$ENV{'LDV_HOME'}/kernel-rules/model-db.xml",
+        'dscv' => "$ENV{'LDV_HOME'}/bin/dscv",
+        'ldv-core-reporter' => "$ENV{'LDV_HOME'}/ldv-core/ldv-core-reporter",
+        'bce' => "$ENV{'LDV_HOME'}/build-cmd-extractor/build-cmd-extractor",
+        'bce-reporter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/build-cmd-extractor-reporter",
+        'deg' => "$ENV{'LDV_HOME'}/drv-env-gen/drv-env-gen",
+        'deg-reporter' => "$ENV{'LDV_HOME'}/drv-env-gen/drv-env-gen-reporter",
+        'rule-instrumentor' => "$ENV{'LDV_HOME'}/rule-instrumentrule-instrumentor.pl",
+        'dscv' => "$ENV{'LDV_HOME'}/bin/dscv",
+        'timeout' => "$ENV{'LDV_HOME'}/shared/sh/timeout",
+        'rule-db' => "$ENV{'LDV_HOME'}/kernel-rules",
 
-LDV_RULE_DB_DIRNAME="kernel-rules";
-LDV_RULE_DB=$LDV_HOME/$LDV_RULE_DB_DIRNAME;
 
-LDVC_DIR="$LDV_HOME/ldv-core";
-LDVC_REPORTER="$LDVC_DIR/ldv-core-reporter";
-
-BCE_DIR="$LDV_HOME/build-cmd-extractor";
-BCE="$BCE_DIR/build-cmd-extractor";
-BCE_REPORTER="$BCE_DIR/build-cmd-extractor-reporter";
-
-STATS="$LDV_HOME/shared/sh/timeout";
-STATS_LOG_FILENAME="stats.xml";
-
-DEG_DIR="$LDV_HOME/drv-env-gen";
-DEG="$DEG_DIR/drv-env-gen";
-DEG_REPORTER="$DEG_DIR/drv-env-gen-reporter";
-
-DSCV_DIR="$LDV_HOME/bin/";
-DSCV="$DSCV_DIR/dscv";
-
-RINSTR_DIR="$LDV_HOME/rule-instrumentor";
-RINSTR="$RINSTR_DIR/rule-instrumentor.pl";
-
-KERNEL_LEVEL=0;
-
-bce_create_report() {
-	BCE_REPORT=$BCE_TEMPDIR/$BCE_REPORT_FILENAME;
-	if [ -n "$1" ]; then
-		echo "<?xml version=\"1.0\"?>" > $BCE_REPORT;
-		echo "<reports>" >> $BCE_REPORT;
-		echo "  <build>" >> $BCE_REPORT;
-		echo "    <status>$1</status>" >> $BCE_REPORT;
-		echo "    <time></time>" >> $BCE_REPORT;
-		if [ -f "$BCE_STATE" ]; then
-			BCE_ERR_DESCRIPTION=`cat $BCE_STATE`;
-		else
-			BCE_ERR_DESCRIPTION=$2;
-		fi;
-		echo "    <desc>$BCE_ERR_DESCRIPTION</desc>" >> $BCE_REPORT;
-		echo "  </build>" >> $BCE_REPORT;
-		echo "</reports>" >> $BCE_REPORT;
-	else
-		ldv_print "NORMAL: Calling Build Commmand Extractor Reporter.";
-		ldv_print "DEBUG: $BCE_REPORTER --cmdfile=$XML_AFTER_BCE --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;";
-		$BCE_REPORTER --cmdfile=$XML_AFTER_BCE --stats-file=$BCE_STATS_LOG --report-in=$CSD_REPORT --report-out=$BCE_REPORT --state-file=$BCE_STATE;
-		if [ $? -ne 0 ]; then
-		        ldv_print "ERROR: BCE reporter failed.";
-		        exit 1;
-		fi;
-	fi;
+	'DRIVER_DIR_NAME' => 'driver',
+	'EXTRACTOR_LOG_FILENAME' => 'unarch.log'
 };
 
-ldv_create_report() {
-	ldv_print "NORMAL: Calling LDV-Core Reporter.";
-	ldv_print "DEBUG: $LDVC_REPORTER --report-in=$BCE_REPORT --report-out=$reportout --state-dir=$TEMP_DIR;";
-	$LDVC_REPORTER --report-in=$BCE_REPORT --report-out=$reportout --state-dir=$TEMP_DIR;
-	if [ $? -ne 0 ]; then
-	        ldv_print "ERROR: LDV-Core reporter failed.";
-	        exit 1;
-	fi;
-};
+GetOptions(
+        'rule-models|m=s'=>\$config->{'rule-models'},
+        'report-out|o=s'=>\$config->{'report-out'},
+        'env|e=s'=>\$config->{'env'},
+        'cmd-stream|s=s'=>\$config->{'cmd-stream'},
+        'kernel-driver|k=s'=>\$config->{'kernel-driver'},
+        'driver|d=s'=>\$config->{'driver'},
+) or usage;
 
-deg_create_report() {
- 	DEG_REPORT=$DEG_TEMPDIR/$DEG_REPORT_FILENAME;
-	ldv_print "NORMAL: Calling Driver Environment Generator reporter.";
-	ldv_print "DEBUG: $DEG_REPORTER --stats-file=$DEG_STATS --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;";
-	$DEG_REPORTER --stats-file=$DEG_STATS --cmdfile=$xml_after_csd --report-in=$DSCV_REPORT --report-out=$DEG_REPORT --state-file=$DEG_STATE;
-	if [ $? -ne 0 ]; then 
-		ldv_print "ERROR: DEG reporter failed."; 
+use File::Path qw(make_path remove_tree);
+use LDV::Utils;
+use IPC::Open3;
+use File::Spec::Functions qw(splitpath catfile);
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument($instrumnet);
+
+sub init_config;
+sub bce_create_report;
+sub bce_ldv_report;
+sub start_csd;
+sub start_bce;
+sub prepare_driver;
+sub parallel_run;
+sub scheduler_send_task;
+sub deg_create_report;
+
+
+
+my $wsdl_uid="$$".`date +%Y%H%M%S`;
+chomp $wsdl_uid;
+$ENV{'WSDLADDR'} = "http://localhost:8080/csd$wsdl_uid";
+vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
+
+init_config;
+prepare_driver;
+
+my $csd_pid = start_csd;
+is_exists($csd_pid) or die"Starting CSD failed: $!";
+
+my $bce_pid = start_bce;
+if(!is_exists($bce_pid)) {
+	vsay 'TRACE', "Try to kill BCE...\n";
+	kill 9, $csd_pid;
+	waitpid $csd_pid, 0;
+}
+
+my $next_pid = start_next($csd_pid);
+if(!is_exists($next_pid)) {
+	vsay 'TRACE', "Try to kill BCE and CSD...\n";
+	kill 9, $bce_pid, $csd_pid;
+	waitpid $bce_pid, 0;
+	waitpid $csd_pid, 0;
+}
+
+waitpid $bce_pid, 0;
+vsay 'TRACE', "BCE successfully finished\n";
+
+my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
+
+while($csd->isEmpty() eq 'false') {
+	is_exists($next_pid) or last;
+}
+
+kill 9, $csd_pid;
+waitpid $csd_pid, 0;
+waitpid $next_pid, 0;
+
+
+
+sub is_exists {
+	my ($pid) = @_;
+	defined $pid or return 0;
+	return -d "/proc/$pid";
+}
+
+sub start_next {
+	my ($csd_pid) = @_; 
+	my $pid = fork;
+	#return $pid unless defined $pid;
+	unless ($pid) {
+		vsay 'NORMAL', "Connect to CSD WSDL Service...\n";
+		my $csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl') };
+		my $old_workdir = $ENV{'WORK_DIR'};
+	
+		# eval block for watcher scope
+		eval {
+
+		sub kill_watcher {
+			bce_ldv_report 'FAILED', 'exit', "Watcher exception";
+                        vsay 20, "Shutting down watcher\n";
+                        LDV::Utils::watcher_cmd('fail', @{$config->{'watcher_key'}});
+                        die"Fatal error: $@";
+		}
+
+		$SIG{TERM} = \&kill_watcher;
+		$SIG{INT} = \&kill_watcher;
+		$SIG{QUIT} = \&kill_watcher;
+
+		my $tasks = {};
+		while(1) {
+			my $command =  eval{ return $csd->getCommand(); };
+			if($command) {
+				vsay 'TRACE', "Calling external interface to submit task\n";
+				vsay 'NORMAL', "Prepared command in: $command\n";
+				vsay 'NORMAL', "Calling drv-env-gen...\n";
+				#make_path("$command/deg");
+				$ENV{'WORK_DIR'} = $command;
+				
+				my @deg_args = (
+					$config->{'deg'},
+					"--basedir=deg",
+					"--cmdfile=$command/cmd_after_csd.xml",
+					"--cmdfile-out=$command/cmd_after_deg.xml",
+					"--state-file=$command/deg.state"
+				);
 		
-	fi;
+				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver'}";
+
+				if($config->{'cmdstream'}) {
+                                        push @deg_args,"--kernel-driver";       
+				} else {
+                                        push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};       
+				}
+		
+				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
+				system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
+				$ENV{'WORK_DIR'} = $old_workdir;
+		
+				$command =~ m/.*\/+([0-9]+)/ and my $cid=$1;	
+				$tasks->{$cid}->{state} = 'wait';
+				$tasks->{$cid}->{path} = $command;
+				vsay 'TRACE', "Calling external interface to submit task for CID=$cid\n";
+			
+				scheduler_send_task($tasks->{$cid}, $cid);		
+					
+		
+				vsay 'NORMAL', "Wait for command...\n";
+			} else {
+				vsay 'TRACE', "Test for next command...\n";
+				!is_exists($csd_pid) and last;
+			}
+		}
+
+		vsay 'NORMAL', "Sleep while all tasks verified.\n";
+		# pass this stage in single machine
+		vsay 'NORMAL', "Wait for all tasks are verified...\n";
+		wait_for_all_verified($tasks);
+		vsay 'NORMAL', "Collect and process reports.\n";	
+		foreach my $ltask (values %{$tasks}) {
+			deg_create_report($ltask->{path});
+		}
+		my $rep_result = csd_create_report($tasks);
+		
+		# create 
+		vsay 'TRACE', "Try to send 'success' message to watcher...\n";
+		LDV::Utils::watcher_cmd('success', @{$config->{'watcher_key'}});
+		vsay 'TRACE', "Message 'success' was sent to watcher.\n";
+		bce_ldv_report $rep_result;
+		1;
+		} or do {
+		        vsay 4, "Fatal error.  Stopping services before reporting...\n";
+			kill_watcher();
+		};
+
+		exit 0;
+	}
+	return $pid;
+}
+
+sub csd_create_report {
+	my ($tasks) = @_;
+	
+	vsay 'DEBUG', "Prepare list of DEG reports for CSD reporter \"$config->{'csd_tempdir'}/list_of_deg_reports\"...\n";
+	open DEGLIST, ">","$config->{'csd_tempdir'}/list_of_deg_reports" or die"$!";
+	print DEGLIST "$tasks->{$_}->{path}/report_after_deg.xml\n" foreach keys %{$tasks};
+	close DEGLIST;
+
+	vsay 'NORMAL', "Calling CSD reporter...\n";
+	
+	my @csd_reporter_args = ($config->{'csd-reporter'},
+		"--cmdfile=$config->{'xml_after_bce'}",
+		'--report-name=report_after_deg.xml',
+		"--report-out=$config->{'csd_tempdir'}/report_after_csd.xml",
+		"--report-list=$config->{'csd_tempdir'}/list_of_deg_reports",
+		"--state-file=$config->{'csd_state'}"
+	);
+			
+	vsay 'TRACE', "LDV_DEBUG=$ENV{'LDV_DEBUG'} WORK_DIR=$ENV{'WORK_DIR'} @csd_reporter_args\n";	 
+	-f $config->{'csd_state'} or return 'FAILED';
+	system(@csd_reporter_args) and return 'FAILED';
+	return 'OK';
+}
+
+sub deg_create_report {
+	my ($task_path)  = @_;
+	vsay 'DEBUG', "Calling DEG reporter for \"$task_path\"\n";
+
+	@deg_reporter_args = ($config->{'deg-reporter'},
+		"--stats-file=$task_path/deg/stats.xml",
+		"--cmdfile=$task_path/cmd_after_csd.xml",
+		"--report-in=$task_path/dscv_tempdir/report_after_dscv.xml",
+		"--report-out=$task_path/report_after_deg.xml",
+		"--state-file=$task_path/deg.state"
+	);
+		
+	vsay 'TRACE', "LDV_DEBUG=$ENV{'LDV_DEBUG'} WORK_DIR=$ENV{'WORK_DIR'} @deg_reporter_args\n";	 
+	system(@deg_reporter_args);
+}
+
+sub wait_for_all_verified {
+	my ($tasks) = @_;
+	vsay 'TRACE', "Start watcher waiting...\n";
+	# calculate number of queued task
+	my $wait_counter = 0;
+	foreach (keys %{$tasks}) {
+		$tasks->{$_}->{state} eq 'queued' and $wait_counter++;
+	}
+	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";
+	while($wait_counter > 0) {
+		vsay 'TRACE', "Tasks for wait_for_dscv: $wait_counter\n";
+	        my ($path, $contents, @key) = wait_for_dscv() and $wait_counter--;
+		#not defined $path and die"Can't get path!";
+	        for my $wk (@{$config->{'watcher_key'}}){
+	                my $k = shift @key;
+	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
+	        }
+	        my (undef, $cid) = @key;
+	        # unpack the incoming package
+	        vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
+	        vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
+	        LDV::Utils::watcher_cmd('unpack', $path, $contents);
+		# find corresponding task descriptor and set status to 'verified'
+		vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
+		$tasks->{$cid}->{state} = 'verified';
+	}
+}
+
+sub wait_for_dscv {
+	vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'any', @{$config->{'watcher_key'}})\n";
+	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait', 'any', @{$config->{'watcher_key'}});
+	$dscv_id or return;
+	return split /,/,$dscv_id;	
+}
+
+sub is_all_verified {
+	my ($tasks) = @_;
+	foreach my $task (@$tasks) {
+		$task->{'state'} ne 'verified' and return 0;
+	}
+}
+
+sub scheduler_send_task {
+	my ($task_descriptor, $cid) = @_;
+	my $command = $task_descriptor->{'path'};
+	$task_descriptor->{'state'} eq 'wait' or return;
+	$task_descriptor->{'task_fname'} = "$command/task_descriptor";
+
+	make_path("$command/dscv_tempdir") or die"$!";
+	my $dscv_report = "$command/dscv_tempdir/report_after_dscv.xml";
+	vsay 'NORMAL', "Calling Domain Speicific C-Verifier\n";
+	
+	my $dscv_args = {
+		'cmdfile'      => "$command/cmd_after_deg.xml",
+		'properties'   => "$config->{'rule-models'}",
+		'report'       => "$command/dscv_tempdir/report_after_dscv.xml",
+		'workdir'      => "$command/dscv_tempdir",
+		'ruledb'       => "$config->{'ruledb'}"
+	};
+		
+	vsay 'TRACE', "Write DSCV arguments to task descriptor file \"$task_descriptor->{'task_fname'}\".\n";
+        my $TASK; open $TASK, ">", $task_descriptor->{'task_fname'} or die "Can't open '$task_descriptor->{'task_fname'}': $!";
+	Utils::hash_to_xml($dscv_args, 'input', $TASK);
+        close $TASK;
+
+	vsay 'TRACE', "Make work dir for task \"$command/input_task\"\n";
+	make_path("$command/task_input");
+	
+	vsay 'TRACE', "Set RCV_FRONTEND_CMD to \"$config->{'dscv'}\"\n";
+	$ENV{'RCV_FRONTEND_CMD'} = $config->{'dscv'}
+;
+	vsay 'TRACE', "Calling watcher...\n";
+	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, "$command/task_input", @{$config->{'watcher_key'}}, 'dscv', $cid);
+
+	vsay 'TRACE', "Set task status to \"queued\"\n";
+	$task_descriptor->{'state'} = 'queued';
+}
+
+sub parallel_run {
+        my ($args, $err, $out) = @_;
+	vsay 'TRACE', "$args\n";
+	vsay 'TRACE', "Logging stdout to file: \"$out\".\n"; 
+	vsay 'TRACE', "Logging stderr to file: \"$err\".\n"; 
+        open FILERR, ">$err" or die"$!";
+        open FILOUT, ">$out" or die"$!";
+        my $pid = open3(undef, ">&FILOUT", ">&FILERR", $args);
+        my $child_pid = fork;
+        unless ($child_pid) {
+                waitpid $pid, 0;
+                close FILERR;
+                close FILOUT;
+                exit 0;
+        }
+        return $pid;
+}
+
+
+sub start_bce {
+	vsay 'NORMAL', "Starting BCE...\n";
+	$ENV{'BUILDFILE'} = "$config->{'bce_tempdir'}/build.xml";
+	my @bce_args = ($config->{'timeout'},
+		'-p',
+		'.*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1',
+		'-o',
+		$config->{'bce_stats'},
+		$config->{'bce'},
+		"--env=$config->{'env'}",
+		"--basedir=bce_tempdir",
+		"--state=$config->{'bce_state'}",
+		"--cmdfile-out=$config->{'xml_after_bce'}",
+	);
+	if($config->{'cmdstream'}) {
+		push @bce_args, "--cmdstream=$config->{'cmdstream'}";
+		push @bce_args, '--kernel-driver';
+	} else {
+		push @bce_args, "--driver=$config->{'driverdir'}";
+		$config->{'kernel-driver'} and push @bce_args, '--kernel-driver';
+	}
+
+	my $pid = parallel_run "@bce_args", "$config->{'ldv_tempdir'}/bce_err.log", "$config->{'ldv_tempdir'}/bce_out.log";
+	
+	vsay 'NORMAL', "BCE Started\n";
+	return $pid;
+
+}
+
+
+sub start_csd {
+	vsay 'NORMAL', "Starting CSD (WSDL)...\n";
+	my @csd_options = ('java',
+		'-ea',
+		'-jar',
+		$config->{'csd'},
+		"--wsdladdr=$ENV{'WSDLADDR'}",
+		'--basedir=csd_deg_dscv',
+		'--cmdfile-out=cmd_after_csd',
+		"--state-file=$config->{'csd_state'}",
+#		"--tagbd=$config->{'env'}",
+	);
+
+	if(not defined $config->{'kernel-driver'}) {
+		push @csd_options,"--tagbd=$config->{'driverdir'}";
+		push @csd_options,"--full-copy";
+	} else {
+		push @csd_options,"--tagbd=$config->{'env'}";
+	}
+	
+	my $pid = parallel_run "@csd_options", "$config->{'ldv_tempdir'}/csd_err.log", "$config->{'ldv_tempdir'}/csd_out.log";
+
+	my $csd = undef;
+	vsay 'TRACE', "Wait for CSD service...\n";
+	while(!$csd) {
+		$csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');};
+		waitpid $pid, WNOHANG;
+		if(!$csd and !is_exists($pid)) {
+			die"CSD process is died!\n";
+		}
+		sleep 2;
+	}
+	vsay 'NORMAL', "CSD Started\n";
+	return $pid;
+
+}
+
+sub init_config {
+	vsay 'DEBUG', "Config initialization...\n";
+
+	$config->{'workdir'} || die"Please, specify WORKDIR environment variable options.";
+	$config->{'workdir'} = abs_path($config->{'workdir'});
+	$config->{'rule-models'}   or die"Please, specify --rule-models options.";
+	$config->{'report-out'}    or die"Please, specify --report-out options.";
+	$config->{'env'}           or die"Please, specify --env options.";
+#	$config->{'kernel-driver'} or die"Please, specify --kernel-driver options.";
+	$config->{'driver'}        or die"Please, specify --driver options.";
+	$config->{'env'}           = abs_path($config->{'env'});
+	$config->{'report-out'}    = abs_path($config->{'report-out'});
+	-d $config->{'env'} or die"Environmnet dir \"$config->{'env'}\" - not exists!";
+	-d $config->{'report-out'} and die"Output report file \"$config->{'report-out'}\" - already exists as dir!";
+	-f $config->{'report-out'} and die"Output report file \"$config->{'report-out'}\" - already exists as file!";
+
+	$config->{'bce_tempdir'} = "$config->{'workdir'}/bce_tempdir";
+	$config->{'ldv_tempdir'} = "$config->{'workdir'}/ldv_tempdir";
+	$config->{'csd_tempdir'} = "$config->{'workdir'}/csd_deg_dscv";
+	if($config->{'cmdstream'}) {
+		$config->{'cmdstream'} = abs_path($config->{'cmdstream'});
+		-f $config->{'cmdstream'} or die"Cmd stream file not exists \"$config->{'cmdstream'}\".";
+		$config->{'xml_after_bce'} = $config->{'$cmdstream'};
+		vsay 'INFO', "Artificial environment mode.\n";
+	} else {
+		$config->{'xml_after_bce'} = "$config->{'bce_tempdir'}/cmd_after_bce.xml";
+		if(!$config->{'kernel-driver'}) {
+			$config->{'driver'} = abs_path($config->{'driver'});
+		};
+		defined $config->{'report-out'} or die"Please, specify --report-out options.";
+	}
+	vsay 'DEBUG', "Config initialization - ok\n";
+	vsay 'DEBUG', "Creating working dirs...\n";
+
+	vsay 'DEBUG', "Creating dir \"$config->{'ldv_tempdir'}\"...\n";
+	not -d $config->{'ldv_tempdir'} and  make_path("$config->{'ldv_tempdir'}");
+	vsay 'DEBUG', "Creating dir \"$config->{'bce_tempdir'}\"...\n";
+	not -d $config->{'bce_tempdir'} and make_path("$config->{'bce_tempdir'}");
+	vsay 'DEBUG', "Creating dir \"$config->{'csd_tempdir'}\"...\n";
+	not -d $config->{'csd_tempdir'} and make_path("$config->{'csd_tempdir'}");
+
+	$config->{'bce_report'} = "$config->{'bce_tempdir'}/report_after_bce.xml";
+	$config->{'bce_stats'} = "$config->{'bce_tempdir'}/stats.xml";
+	$config->{'csd_report'} = "$config->{'csd_tempdir'}/report_after_csd+PLACE+.xml";
+	$config->{'bce_state'} = "$config->{'bce_tempdir'}/err.state";
+	$config->{'unarch_log'} = "$config->{'ldv_tempdir'}/unarch.log";
+	$config->{'as_gcc_pool'} = "$config->{'bce_tempdir'}/as_gcc_pool";
+	$config->{'csd_state'} = "$config->{'csd_tempdir'}/csd.state";
+	$ENV{'AS_GCC_POOL'} = $config->{'as_gcc_pool'};
+
+	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{'workdir'}/watcher";
+	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','ldv-core');
+	vsay 'DEBUG', "Got key string $key_str.\n";
+	my @watcher_key = split /,/,$key_str;
+	$config->{'watcher_key'} = \@watcher_key;
+}
+
+sub bce_create_report {
+	vsay 'NORMAL', "Creating BCE report...\n";
+	my ($state, $msg) = @_;
+	my $report_lines;
+	if($state eq 'FAILED') {
+		$msg ||= 'Kernel compile error';
+		vsay 'TRACE', "BCE report saved in $config->{'bce_report'}\n";
+		open FILE, ">", "$config->{'bce_report'}" or die"$!";
+		print FILE "<?xml version=\"1.0\"?>\n<reports>\n  <build>\n    <status>$state</status>\n    <time></time>\n    <desc>";
+		if( -f $config->{'bce_state'}) {
+			open FILE_STATE, $config->{'bce_state'} or die "$!";
+			print FILE "$_\n" while(<FILE_STATE>); 
+			close FILE_STATE or die "$!";
+		} else {
+			print FILE $msg;
+		}
+		print FILE "    </desc>\n  </build>\n</reports>\n";
+		close FILE or die"$!";
+	} else {
+		vsay 'DEBUG', "Calling BCE reporter...\n";
+		my @bce_reporter_args = ($config->{'bce-reporter'},
+			"--cmdfile=$config->{'xml_after_bce'}",
+			"--stats-file=$config->{'bce_stats'}",
+			"--report-in=$config->{'csd_tempdir'}/report_after_csd.xml",
+			"--report-out=$config->{'bce_report'}",
+			"--state-file=$config->{'bce_state'}"
+		);
+		vsay 'TRACE', "@bce_reporter_args\n";
+		system(@bce_reporter_args) and die"$!";
+	}
+}
+
+sub prepare_driver {
+	`touch $config->{'unarch_log'}` and die"$!";
+	my $driverdir;
+	if(!$config->{'cmdstream'}) {
+		$driverdir = "$config->{'ldv_tempdir'}/$config->{'DRIVER_DIR_NAME'}";
+		if(!$config->{'kernel-driver'}) {
+			vsay 'NORMAL', "Prepare driver...\n";
+			not -d $driverdir and make_path($driverdir);
+			my $driver_src_type = `file -b $config->{'driver'} --mime-type`;
+			chomp $driver_src_type;
+			vsay 'TRACE', "Driver source type $driver_src_type\n";
+			if($driver_src_type eq 'application/x-bzip2') {
+				vsay 'TRACE', "Unpacking source x-bzip2\n";
+				`tar xvjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
+			} elsif($driver_src_type eq 'application/x-gzip') {
+				vsay 'TRACE', "Unpacking source x-gzip\n";
+				`tar xzjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
+			} else {
+				vsay 'TRACE', "Incorrect driver archive: \"$driver_src_type\".\n";
+				bce_ldv_report 'FAILED', 'exit', "Incorrect driver archive type: \"$driver_src_type\".";
+			}
+		} else {
+			vsay 'NORMAL', "Copy in-kernel driver environment\n";
+			my @copy_args = ('cp', '-r', $config->{'env'}, $driverdir);
+			vsay 'TRACE', "@copy_args\n";
+			system(@copy_args) and die"$!";
+			$config->{'env'} = $driverdir;
+			$driverdir = $config->{'driver'};
+		}
+	}
+	$config->{'driverdir'} = $driverdir;
+}
+
+sub ldv_create_report {
+        vsay 'DEBUG', "Calling LDV core reporter...\n";
+
+	my @ldv_reporter_args = ($config->{'ldv-core-reporter'},
+		"--report-in=$config->{'bce_report'}",
+		"--report-out=$config->{'report-out'}",
+		"--state-dir=$config->{'ldv_tempdir'}"
+	);
+
+        vsay 'TRACE', "LDV_DEBUG=$ENV{'LDV_DEBUG'} WORK_DIR=$ENV{'WORK_DIR'} @ldv_reporter_args\n";
+        system(@ldv_reporter_args);
 };
 
-bce_ldv_report() {
-	#
-	# add build command extractor reports
-	#
-	bce_create_report "$1" "$2";
-	#
-	# add ldv-core reports
-	#
+sub bce_ldv_report {
+	my ($status, $action, $msg) = @_;
+	vsay 'TRACE', "BCE and LDV report process staring...\n";
+	bce_create_report $status, $msg;
 	ldv_create_report;
-};
-
-
-if [ ! -n "$WORK_DIR" ]; then
-	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
-	exit 1;
-fi;
-WORK_DIR=`readlink -f $WORK_DIR`;
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Failed to read abs-path for working dir: \"$WORK_DIR\"."
-        exit 1;
-fi;
-if [ ! -d "$WORK_DIR" ]; then
-        ldv_print "ERROR: Working directory does not exists: \"$WORK_DIR\".";
-        exit 1;
-fi;
-
-#
-# scan and test command line parameters
-#
-for arg in $@; do
-        case $arg in
-                --rule-models=*)
-                	rulemodels=`echo $arg | sed 's/--rule-models=//g'`
-			if [ ! -n "$rulemodels" ]; then
-				ldv_print "ERROR: Parameter \"--rule-models\" - is null. Setup it.";
-			        exit 1;
-			fi;
-                ;;
-		--report-out=*)
-                	rreportout=`echo $arg | sed 's/--report-out=//g'`
-			if [ ! -n "$rreportout" ]; then
-				ldv_print "ERROR: Parameter \"--report-out\" - is null. Setup it.";
-			        exit 1;
-			fi;
-			reportout=`readlink -f $rreportout`;
-			if [ $? -ne 0 ]; then
-				ldv_print "ERROR: Failed to read abs-path for out report file: \"$rreportout\"."
-			        exit 1;
-			fi;
-			if [ -d "$reportout" ]; then
-			        ldv_print "ERROR: Report file already exists as dir: \"$reportout\".";
-			        exit 1;
-			fi;
-			if [ -f "$reportout" ]; then
-			        ldv_print "ERROR: Out report file already exists: \"$reportout\".";
-			        exit 1;
-			fi;
-               	;;
-		--env=*)
-                	renv=`echo $arg | sed 's/--env=//g'`
-			if [ ! -n "$renv" ]; then
-				ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
-			        exit 1;
-			fi;
-			env=`readlink -f $renv`;
-			if [ $? -ne 0 ]; then
-				ldv_print "ERROR: Failed to read abs-path for environment dir: \"$renv\"."
-			        exit 1;
-			fi;
-			if [ ! -d "$env" ]; then
-			        ldv_print "ERROR: Environment dir not exists: \"$env\".";
-			        exit 1;
-			fi;
-                ;;
-                --cmdstream=*)
-                        rcmdstream=`echo $arg | sed 's/--cmdstream=//g'`
-                        if [ ! -n "$rcmdstream" ]; then
-                                ldv_print "ERROR: Parameter \"--cmdstream\" - is null. Setup it.";
-                                exit 1;
-                        fi;
-                ;;
-                --kernel-driver)
- 			KERNEL_LEVEL=1;	
-		;;
-                --driver=*)
-                	rdriver=`echo $arg | sed 's/--driver=//g'`
-			if [ ! -n "$rdriver" ]; then
-				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
-			        exit 1;
-			fi;
-                ;;
-                *)
-                        ldv_print "ERROR: Unknown options: '$arg'.";
-			print_usage_and_exit;
-                ;;
-        esac
-done
-
-if [ -n "$rcmdstream" ]; then
-	ldv_print "INFO: Artificial cmdstream mode.";
-        cmdstream=`echo "readlink -f $rcmdstream" | sh`;
-        if [ $? -ne 0 ]; then
-                ldv_print "ERROR: Failed to read abs-path for cmdstream file: \"$cmdstream\"."
-                exit 1;
-        fi;
-        if [ ! -f "$cmdstream" ]; then
-                ldv_print "ERROR: Cmdstream file not exists: \"$cmdstream\".";
-                exit 1;
-        fi;
-else
-	if [ $KERNEL_LEVEL -eq 0 ]; then
-		driver=`readlink -f $rdriver`;
-		if [ $? -ne 0 ]; then
-			ldv_print "ERROR: Failed to read abs-path for driver source: \"$rdriver\"."
-		        exit 1;
-		fi;
-		if [ ! -f "$driver" ]; then
-		        ldv_print "ERROR: Driver sources not exists: \"$driver\".";
-		        exit 1;
-		fi;
-	else 
-		driver=$rdriver;
-		if [ $? -ne 0 ]; then
-			ldv_print "ERROR: Can't get abs path for driver in kernel.";
-			exit 1;
-		fi;
-	fi;
-	if [ ! -n $reportout ]; then
-		ldv_print "ERROR: Please setup out report file option: \"--report-out\".";
-	fi;
-	if [ ! -n $driver ]; then
-		ldv_print "ERROR: Please setup driver in option: \"--driver\".";
-	fi;
-fi;
-
-if [ ! -n $env ]; then
-	ldv_print "ERROR: Please setup environment in option: \"--env\".";
-fi;
-
-if [ ! -n $rulemodels ]; then
-	ldv_print "ERROR: Please setup rules and models in option: \"--rulemodels\".";
-fi;
-
-BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
-mkdir $BCE_TEMPDIR;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Can't create build-cmd-extractor dir: \"$BCE_TEMPDIR\"";
-	exit 1;
-fi;
-
-TEMP_DIR=$WORK_DIR/$LDV_TEMPDIR_NAME;
-mkdir $TEMP_DIR;
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: Failed to create next working dir for bce: \"$TEMP_DIR\"."
-        exit 1;
-fi;
-
-UNARCH_LOG=$TEMP_DIR/$EXTRACTOR_LOG_FILENAME;
-touch $UNARCH_LOG;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Failed to create log for unarchiver: \"$UNARCH_LOG\".";
-	exit 1;
-fi;
-
-if [ ! -n "$cmdstream" ]; then
-	DRIVER_DIR=$TEMP_DIR/$DRIVER_DIR_NAME;
-	if [ $KERNEL_LEVEL -eq 0 ]; then
-		ldv_print "NORMAL: Prepare driver."
-		mkdir $DRIVER_DIR;
-		if [ $? -ne 0 ]; then
-		        ldv_print "ERROR: Failed to create driver dir for next instrument:\"$DRIVER_DIR\"."
-		        exit 1;
-		fi;
-		#
-		# test format for driver file and unpack driver
-		#
-		case `file -b $driver --mime-type` in
-			application/x-bzip2)
-				tar xvjpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
-			application/x-gzip)
-				tar xvzpf $driver -C $DRIVER_DIR > $UNARCH_LOG 2>&1;; 
-			*)
-				bce_ldv_report "FAILED" "Incorrect driver archive type.";
-				ldv_print "ERROR: Incorrect driver archive type";
-				exit 0;;
-		esac
-		if [ $? -ne 0 ]; then
-			bce_ldv_report "FAILED" "Failed to unpack driver archive.";
-		        ldv_print "ERROR: Failed to unpacked archive: \"$driver\".";
-	       		exit 0;
-		fi;
-	else
-		ldv_print "NORMAL: Copy in-kernel driver environment."
-		ldv_print "DEBUG: cp -r $env $DRIVER_DIR;"
-		cp -r $env $DRIVER_DIR;
-		env=$DRIVER_DIR;
-		DRIVER_DIR=$driver;
-		if [ $? -ne 0 ]; then
-			ldv_print "ERROR: Can't copy drivers source code.";
-			exit 1;
-		fi;
-	fi;
-fi;
-
-BCE_TEMPDIR=$WORK_DIR/$BCE_TEMPDIR_NAME;
-BCE_STATE=$BCE_TEMPDIR/"err.state";
-
-
-
-ldv_print "NORMAL: Calling Build Command Extractor";
-if [ -n "$cmdstream" ]; then
-	XML_AFTER_BCE=$cmdstream;
-	stream_option="--cmdstream=$cmdstream";
-	koption=--kernel-driver;
-else
-	XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
-	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
-	stream_option="--driver=$DRIVER_DIR";
-fi;
-
-BCE_STATS_LOG="$BCE_TEMPDIR/$STATS_LOG_FILENAME";
-touch $BCE_STATS_LOG;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Can't touch stats file:\"$BCE_STATS_LOG\".";
-	exit 1;
-fi;
-ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1 -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;"
-                  LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $STATS -p .*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1 -o $BCE_STATS_LOG $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE $koption $stream_option;
-
-#if [ -n "$cmdstream" ]; then
-#	XML_AFTER_BCE=$cmdstream;
-#	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --cmdstream=$cmdstream --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE;"
-#	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --cmdstream=$cmdstream --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --cmdfile-out=$XML_AFTER_BCE;
-#else 
-#	XML_AFTER_BCE=$BCE_TEMPDIR/$XML_FILENAME_AFTER_BCE;
-#	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver; fi;
-#	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env             --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;"
-#	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $BCE --env=$env --basedir=$BCE_TEMPDIR_NAME --state=$BCE_STATE --driver=$DRIVER_DIR --cmdfile-out=$XML_AFTER_BCE $koption;
-#fi;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Cmd extractor failed.";
-	bce_ldv_report "FAILED" "Build command extractor failed.";
-	exit 0;
-fi;
-#
-# FAST FIX : remove LD commands that contains <in> sections 
-#            without corresponding CC commands !!!
-#
-$LDV_HOME/ldv-core/fast_fix_cmdstream.pl $XML_AFTER_BCE;
-if [ $? -ne 0 ]; then
-	ldv_print "ERROR: Fast fix failed.";
-	bce_ldv_report "FAILED" "Fast fix for cmdstream failed.";
-	exit 0;
-fi;
-
-#
-# Try to call CSD:
-#   CSD_TEMPDIR_NAME - directory in WORK_DIR where contains:
-#     files XML_FILENAME_AFTER_CSD[index].xml
-#
-ldv_print "NORMAL: Calling Command Stream Divider.";
-#ldv_print "DEBUG:                                                                  ";
-#ldv_print "DEBUG:  Option \"--print-digraph\" shown graph for graphviz tool.       ";
-#ldv_print "DEBUG:  You can see this graph in graphical mode:                       ";
-#ldv_print "DEBUG:     - copy to FILE all in \"diraph G{...}\".                     ";
-#ldv_print "DEBUG:     - call: dot -Tpng ./FILE -o ./FILE.png & gwenview ./FILE.png ";
-#ldv_print "DEBUG:                                                                  ";
-
-CSD_TEMPDIR=$WORK_DIR/$CSD_DEG_DSCV_TEMPDIR_NAME;
-CSD_STATE=$CSD_TEMPDIR/$CSD_STATE_FILENAME;
-if [ $KERNEL_LEVEL -eq 1 ]; then
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
-else
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on --print-digraph --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$WORK_DIR $CSD --full-copy --split-on $PRINT_DIGRAPH_OPTION --cmdfile=$XML_AFTER_BCE --basedir=$CSD_DEG_DSCV_TEMPDIR_NAME --cmdfile-out=$XML_FILENAME_AFTER_CSD --state-file=$CSD_STATE;
-fi;
-if [ $? -ne 0 ]; then
-       ldv_print "ERROR: Command stream divider failed.";
-       exit 1;
-fi;
-CSD_DEG_DSCV_TEMPDIR=$WORK_DIR/$CSD_DEG_DSCV_TEMPDIR_NAME;
-if [ ! -d $CSD_DEG_DSCV_TEMPDIR ]; then
-       ldv_print "ERROR: Can't find command stream divider temp directory:\"$CSD_DEG_DSCV_TEMPDIR_NAME\".";
-       exit 1;
-fi;
-
-# 
-# Find all xml files in csd_tempdir and try to call all other instruments
-#
-for xml_after_csd in `find $CSD_DEG_DSCV_TEMPDIR -maxdepth 1 -regex ".*$XML_FILENAME_AFTER_CSD[0-9]+\.xml$" -type f`; do
-	LAST_DRIVER_DIR=`cat $xml_after_csd | grep '<basedir>' | sed 's/<basedir>//' | sed 's/<\\/basedir>//'`;
-	if [ ! -d $LAST_DRIVER_DIR ]; then
-		ldv_print "ERROR: Can't find driver dir from csd xml.";
-		exit 1;
-	fi;
-	CURRENT_TEMPDIR_NAME=`echo $xml_after_csd | sed 's/^.*'$XML_FILENAME_AFTER_CSD'\([0-9]\+\)\.xml$/\1/'`;
-	ldv_print "NORMAL: Process driver number $CURRENT_TEMPDIR_NAME.";
-	CURRENT_TEMPDIR=$CSD_DEG_DSCV_TEMPDIR/$CURRENT_TEMPDIR_NAME;
-	mkdir $CURRENT_TEMPDIR;
-	if [ $? -ne 0 ]; then
-	       ldv_print "ERROR: Can't create deg temp directory: \"$CURRENT_TEMPDIR\".";
-	       exit 1;
-	fi;
-	DEG_TEMPDIR=$CURRENT_TEMPDIR/$DEG_TEMPDIR_NAME;
-	XML_AFTER_DEG=$DEG_TEMPDIR/$XML_FILENAME_AFTER_DEG;
-	DEG_STATE=$DEG_TEMPDIR/$DEG_STATE_FILENAME;
-	DEG_STATS=$DEG_TEMPDIR/$STATS_LOG_FILENAME;
-	if [ $KERNEL_LEVEL -eq 0 ]; then module_name="--driver-name=$driver"; fi;
-#	module_name="--driver-name=$driver";
-	ldv_print "NORMAL: Calling Driver Environment Generator";
-	ldv_print "DEBUG: LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE $koption $module_name;";
-	LDV_DEBUG=$LDV_DEBUG WORK_DIR=$CURRENT_TEMPDIR $DEG --basedir=$DEG_TEMPDIR_NAME --cmdfile=$xml_after_csd --cmdfile-out=$XML_AFTER_DEG --state-file=$DEG_STATE $koption $module_name;
-	if [ $? -ne 0 ]; then
-	        ldv_print "ERROR: Drv-env-gen failed.";
-		deg_create_report;
-		continue;
-	fi;
-	if [ ! -f "$XML_AFTER_DEG" ]; then
-		ldv_print "ERROR: Cmd file after DEG not exists: \"$XML_AFTER_DEG\".";
-		deg_create_report;
-		continue;
-	fi;
-	DSCV_TEMPDIR=$CURRENT_TEMPDIR/$DSCV_TEMPDIR_NAME;
-	mkdir $DSCV_TEMPDIR;
-	if [ $? -ne 0 ]; then
-		ldv_print "ERROR: Can't create DSCV tempdir: \"$DSCV_TEMPDIR\".";
-		deg_create_report;
-		continue;
-	fi;
-	DSCV_REPORT=$DSCV_TEMPDIR/$DSCV_REPORT_FILENAME;
-	ldv_print "NORMAL: Calling Domain Speicific C-Verifier";
-	ldv_print "DEBUG: LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT";
-	LDV_RULE_DB=$LDV_RULE_DB WORK_DIR=$DSCV_TEMPDIR $DSCV --cmdfile=$XML_AFTER_DEG --rule-models=$rulemodels --report-out=$DSCV_REPORT;
-	if [ $? -ne 0 ]; then 
-		ldv_print "ERROR: DSCV failed."; 
-		exit 1;
-	fi; 
-	deg_create_report;
-
-	ldv_print "NORMAL: Driver number $CURRENT_TEMPDIR_NAME successfully verified.";
-done;
-
-#
-# add build command stream divider reports
-#
-CSD_REPORT=$CSD_TEMPDIR/$CSD_REPORT_FILENAME;
-ldv_print "NORMAL: Calling Command Stream Divider reporter.";
-ldv_print "DEBUG: $CSD_REPORTER --cmdfile=$XML_AFTER_BCE --report-name=$DEG_REPORT_FILENAME --report-out=$CSD_REPORT --state-file=$CSD_STATE --reports-dir=$CSD_DEG_DSCV_TEMPDIR;";
-$CSD_REPORTER --cmdfile=$XML_AFTER_BCE --report-name=$DEG_REPORT_FILENAME --report-out=$CSD_REPORT --state-file=$CSD_STATE --reports-dir=$CSD_DEG_DSCV_TEMPDIR;
-if [ $? -ne 0 ]; then
-        ldv_print "ERROR: CSD reporter failed.";
-        exit 1;
-fi;
-
-bce_ldv_report;
-exit;
-
-
+	defined $action and $action eq 'exit' and exit;
+}
