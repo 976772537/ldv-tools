@@ -148,8 +148,8 @@ sub limits_check
 	my $idstr = shift || "";
 	return [1000,sub {
 		my $l=shift or return undef;
-		$l=~/^${idstr}TIMEOUT (\d+)/i and return {'LIMITS'=>'Time Limit Exceeded'};
-		$l=~/^${idstr}MEM (\d+)/i and return {'LIMITS'=>'Memory Limit Exceeded'};
+		$l=~/${idstr}TIMEOUT (\d+)/i and return {'LIMITS'=>'Time Limit Exceeded'};
+		$l=~/${idstr}MEM (\d+)/i and return {'LIMITS'=>'Memory Limit Exceeded'};
 		return undef;
 	}];
 }
