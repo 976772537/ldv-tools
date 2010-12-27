@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'nanite'
+require 'optparse'
+$:.unshift File.dirname(__FILE__)
+require 'waiter.rb'
+require 'options.rb'
+
+opts_p = ClusterOptionsParser.new({})
+opts_p.do_parse
+
+EM.run do
+  Nanite.start_agent(opts_p.options)
+end
+

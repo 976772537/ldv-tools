@@ -5,5 +5,8 @@ CLUSTER_HOME=$LDV_HOME/cluster
 export GEM_HOME=$CLUSTER_HOME/ruby
 export PATH=$CLUSTER_HOME:$CLUSTER_HOME/ruby-bin:$PATH
 
-nanite-agent --nanite $CLUSTER_HOME --initrb $CLUSTER_HOME/node.rb --format json "$@"
+ldvc-node-impl --nanite $CLUSTER_HOME --initrb $CLUSTER_HOME/node.rb --format json "$@"
+
+#nanite-agent --nanite $CLUSTER_HOME --initrb $CLUSTER_HOME/node.rb --format json "$@"
+
 

@@ -20,6 +20,7 @@ class WatcherRemote < Watcher
 		split_spawn_key
 
 		@sender = NaniteSender.new(opts)
+		$log.warn "sender init opts #{opts.inspect}"
 		@waiter = File.join($cluster_dir,'ldvc-wait-task')
 	end
 

@@ -52,6 +52,21 @@ class ClusterOptionsParser
 		end
 
 		opts.parse!
+		get_opts_from_env!
+		set_env_for_opts!
+	end
+
+	Opts_env = { :host => 'LDV_WATCHER_SRV', :vhost => 'LDV_CLUSTER_VHOST', :user=>'LDV_CLUSTER_USER', :pass => 'LDV_CLUSTER_PASS', :format => 'LDV_CLUSTER_FORMAT'  } 
+	Opts_sym = [ :format ]
+
+	def get_opts_from_env!
+		Opts_env.each {|key,env| options[key] = ENV[env] if ENV[env]}
+		Opts_sym.each {|key|  options[key] = options[key].to_sym if options[key] }
+	end
+	def set_env_for_opts!
+		Opts_env.each {|key,env|$log.warn "SET ENV : #{env} = #{options[key].inspect}!" if $log}
+		Opts_env.each {|key,env|ENV[env] = options[key].to_s if options[key]}
+		$log.warn "SET ENV!" if $log
 	end
 end
 

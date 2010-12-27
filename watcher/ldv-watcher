@@ -22,8 +22,6 @@ $log.level = levels[levels.keys.select{|l| l <= user_set_level}.max]
 #
 # FIXME: for now this sample watcher only supports parallelization of RCV commands
 
-command = ARGV.shift
-arguments = ARGV
 address = ENV['LDV_WATCHER_SRV'] or raise "Server address not found.  Please, specify LDV_WATCHER_SRV env var!"
 
 def address_local? addr
@@ -32,11 +30,22 @@ end
 
 watcher = nil
 if address_local? address
+	command = ARGV.shift
+	arguments = ARGV
 	require 'local.rb'
 	watcher = WatcherLocal.new(address)
 else
 	require 'cluster.rb'
-	watcher = WatcherRemote.new(:host => address)
+	$:.unshift File.join(File.dirname(__FILE__),"..","cluster")
+	require 'options.rb'
+
+	opts_p = ClusterOptionsParser.new({})
+	opts_p.do_parse
+
+	command = ARGV.shift
+	arguments = ARGV
+
+	watcher = WatcherRemote.new({:host => address}.merge opts_p.options)
 end
 
 result = nil
