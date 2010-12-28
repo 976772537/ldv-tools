@@ -36,6 +36,10 @@ def keyfilestrip(from,what)
 	from.sub(what,'').sub(/^\/*/,'').split(File::SEPARATOR)
 end
 
+def file_depth(fname)
+	fname.count(File::SEPARATOR)
+end
+
 # A pool to allow atomic operations with integers, based on flocks
 class FlockPool
 	def initialize(fname)
@@ -238,16 +242,18 @@ class WatcherLocal < Watcher
 			running,queried,finished =  %w(running queried finished).map{ |w| @dir.join(w,args)}
 
 			# Prepare stuff for level checks
-			base_level = File.split(running).length
-			level_check = proc {|path| level ? (File.split(path).length <= base_level + level + 1) : true }
+			base_level = file_depth(running)
+			level_check = proc {|path| level ? (file_depth(path) <= base_level + level + 1) : true }
+			#$log.warn "Args: level=#{level.inspect} path=#{path.inspect} split=#{File.split(path).inspect} length=#{file_depth(path)} rhs=#{(level? (base_level + level + 1):nil).inspect}";
 
 			$log.debug "Searching for files in #{running} and #{queried}"
 			def eligible(level_check,*paths)
 				paths.flatten!
 				any = false
 				paths.each do |path| ; Find.find(path) do |fname|
-					prune unless level_check.call(fname)
+					Find.prune unless level_check.call(fname)
 					if File.file? fname
+						$log.debug "Eligible file: #{fname}"
 						any = true
 						break
 					end
@@ -259,14 +265,14 @@ class WatcherLocal < Watcher
 				found_any = false
 				waited_for = {}
 				Find.find(finished) do |file|
-					# check if the level's not deep enough
-					$log.debug "Level check #{level} for #{file}"
-					prune unless level_check.call(file)
-					$log.debug "passed!"
-
 					next unless File.file? file
 
-					$log.debug "Waited for #{file}"
+					# check if the level's not deep enough
+					#$log.debug "Level check #{level} for #{file}"
+					Find.prune unless level_check.call(file)
+					#$log.debug "passed!"
+
+					$log.warn "ACKED #{file} when LEVEL IS #{level.inspect} for #{args.inspect}"; 
 					key = keyfilestrip(file,@dir.join('finished'))
 					$log.debug "Key is '#{key.inspect}'"
 					key.pop
