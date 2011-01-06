@@ -72,22 +72,14 @@ if (!$stdin){
 sub cmd_for_driver
 {
 	my ($meta,$main_c_file,$OUT_FH,@c_files) = @_;
-# Form first variant of XML cmdstream by mere concatenation.
-# This stream is piped from a child process, which we specifically fork for that.
-# Parent process will rewrite it and print to stdout
-my $CMD1; my $writer_pid = open $CMD1, "-|";
-defined $writer_pid or die;
+	# Form first variant of XML cmdstream by mere concatenation.
 
-if (!$writer_pid){
-	# Write first variant of cmdstream (to STDOUT, which is piped to CMD1)
-	print "<cmdstream>\n";
-	for my $c_file (@c_files){
-		print $meta->{$c_file};
-	}
-	print "</cmdstream>\n";
-	close $CMD1;
-	exit 0;
-}else{
+	# raw XML
+	local $_;
+	my $rawxml = "<cmdstream>\n".
+		join('',map{$meta->{$_}} @c_files).
+		"</cmdstream>\n";
+
 	# Read and process the first variant of cmdstream
 	# (for now, we just print it to output to check if it's ok.)
 	print $OUT_FH '<?xml version="1.0"?>',"\n";
@@ -131,8 +123,7 @@ if (!$writer_pid){
 		# Print resultant stream
 		$streamT->set_pretty_print('indented');
 		$streamT->print($OUT_FH);
-	}})->parse($CMD1);
-}
+	}})->parse($rawxml);
 }
 
 exit 0;
