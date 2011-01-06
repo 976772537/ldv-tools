@@ -61,22 +61,11 @@ my %optionSpecs = ();
 
 =item B<--shadow=/path/to/shadow>
 
-Directory in which shadow kernel resides (or should be created if it's the first run).  By default it's in C<~/.ldv/git/shadows/cwd>, where C<cwd> is the current path.
+Directory in which shadow kernel resides (or should be created if it's the first run).  By default it's in C<~/.ldv/ldv/envs/<index>/shadows>, where C<cwd> is the current path.
 
 =cut
 
-sub getShadowDir {
-	my $shadow;
-        open( FILE, "$ENV{'LDV_HOME'}/ldv/ldv-kmanager --action=getpath-by-dir --src=".getcwd()." --extractor=ldv-git-vanilla|" );  
-        while( <FILE> ) { $shadow = $_; } 
-        close( FILE );
-	chomp($shadow);
-	return $shadow;
-};
-
-my $shadow_dir = getShadowDir();
-my $shadow_kernel_dir = catdir($shadow_dir,'shadows');
-$optionSpecs{'shadowdir=s'} = \$shadow_dir;
+# see LDVGIT_BASE for actual setting up of shadow dir
 
 =item B<--force-full>
 
@@ -125,7 +114,7 @@ $optionSpecs{'filter=s'} = \$filter;
 
 =item B<--no-cache>
 
-Disable caching functionality.  LDV-GIT uses LDV tools caching capabilities (if available).  It stores one cache per repository commit.  You may try to use this option if your files seem not to change.  You can also wipe the cache (it's stores inside ont of the directories inside of the C<LDBGIT_BASE>.
+Disable caching functionality.  LDV-GIT uses LDV tools caching capabilities (if available).  It stores one cache per repository commit.  You may try to use this option if your files seem not to change.  You can also wipe the cache (it's stores inside ont of the directories inside of the C<LDVGIT_BASE>.
 
 =cut
 my $cache = 1;
@@ -269,11 +258,27 @@ if (@ARGV){
 
 The location of the LDV-GIT working directory.  For each repository you run checks in, up to 40Gb will be required. NOTE that checking several commits in one repository requires much smaller fraction of this amount of space.
 
-Default value is C<~/.ldv/git>.
+Default value is C<~/.ldv/>.
 
 =cut
 $ENV{'LDVGIT_BASE'} ||= catdir(($ENV{HOME} || $ENV{LOGDIR}),"/.ldv/git");
+$ENV{'LDV_ENVS_TARGET'} = $ENV{'LDVGIT_BASE'};
 vsay 'TRACE', "Variable LDVGIT_BASE: \"$ENV{'LDVGIT_BASE'}\"\n";
+
+# Derive shadow dir out of this one, if necessary
+sub getShadowDir {
+	my $shadow;
+	vsay ("DEBUG","$ENV{'LDV_HOME'}/ldv/ldv-kmanager","--action=getpath-by-dir","--src=".getcwd(),"--extractor=ldv-git-vanilla|" );
+	open( FILE, "-|", "$ENV{'LDV_HOME'}/ldv/ldv-kmanager","--action=getpath-by-dir","--src=".getcwd(),"--extractor=ldv-git-vanilla|" ) or die "Can't get shadow dir location";
+	while( <FILE> ) { $shadow = $_; }
+	close( FILE );
+	chomp($shadow);
+	return $shadow;
+};
+
+my $shadow_dir = getShadowDir();
+my $shadow_kernel_dir = catdir($shadow_dir,'shadows');
+$optionSpecs{'shadowdir=s'} = \$shadow_dir;
 
 =item B<LDVGIT_STAT_SRV>
 
