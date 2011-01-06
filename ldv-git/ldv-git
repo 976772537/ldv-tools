@@ -663,6 +663,7 @@ for my $driver (keys %$full_drivers){
 	my $pwd_save = cwd();
 	eval {
 		chdir $driver_work_dir;
+		vsay('DEBUG',"Working in $driver_work_dir\n");
 		# Save finished packs, just in case
 		-d "finished/" and system("mv finished/* old_finished");
 		# Remove temporary files for drivers that were succesfully checked
@@ -683,6 +684,7 @@ for my $driver (keys %$full_drivers){
 		# Set up to not cache files with mains
 		$ENV{'RI_CACHE_MODE'} = "git" if $cache;
 		# Launch check
+		vsay('NORMAL',qw/ldv-manager tag=current/,"envs=$shadow_kernel_dir",qw/drivers=commands.xml cmdstream_driver=1/,"rule_models=".join(" ",@rules),"\n");
 		system(qw/ldv-manager tag=current/,"envs=$shadow_kernel_dir",qw/drivers=commands.xml cmdstream_driver=1/,"rule_models=".join(" ",@rules)) and die "Code: $?";
 		# Upload results
 		for my $results_pax (<finished/*.pax>){

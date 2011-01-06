@@ -55,7 +55,7 @@ GetOptions(
         'rule-models|m=s'=>\$config->{'rule-models'},
         'report-out|o=s'=>\$config->{'report-out'},
         'env|e=s'=>\$config->{'env'},
-        'cmd-stream|s=s'=>\$config->{'cmd-stream'},
+        'cmdstream|s=s'=>\$config->{'cmdstream'},
         'kernel-driver|k=s'=>\$config->{'kernel-driver'},
         'driver|d=s'=>\$config->{'driver'},
 ) or usage;
@@ -81,6 +81,7 @@ sub deg_create_report;
 
 my $wsdl_uid="$$".`date +%Y%H%M%S`;
 chomp $wsdl_uid;
+# FIXME: if port 8080 is already in use, we're fucked
 $ENV{'WSDLADDR'} = "http://localhost:8080/csd$wsdl_uid";
 vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
 
@@ -433,7 +434,7 @@ sub init_config {
 	$config->{'report-out'}    or die"Please, specify --report-out options.";
 	$config->{'env'}           or die"Please, specify --env options.";
 #	$config->{'kernel-driver'} or die"Please, specify --kernel-driver options.";
-	$config->{'driver'}        or die"Please, specify --driver options.";
+	#$config->{'driver'} is checked only out of cmdstream mode
 	$config->{'env'}           = abs_path($config->{'env'});
 	$config->{'report-out'}    = abs_path($config->{'report-out'});
 	-d $config->{'env'} or die"Environmnet dir \"$config->{'env'}\" - not exists!";
@@ -449,6 +450,7 @@ sub init_config {
 		$config->{'xml_after_bce'} = $config->{'$cmdstream'};
 		vsay 'INFO', "Artificial environment mode.\n";
 	} else {
+		$config->{'driver'}        or die"Please, specify --driver options.";
 		$config->{'xml_after_bce'} = "$config->{'bce_tempdir'}/cmd_after_bce.xml";
 		if(!$config->{'kernel-driver'}) {
 			$config->{'driver'} = abs_path($config->{'driver'});
