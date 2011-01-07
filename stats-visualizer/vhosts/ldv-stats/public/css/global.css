@@ -170,6 +170,7 @@ body
 {
   font-size: 8pt;
   text-align: left;
+  white-space: nowrap;
 }
 
 .SSStatsTableTaskStatKeyValue

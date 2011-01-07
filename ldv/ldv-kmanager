@@ -142,7 +142,7 @@ case $action in
 				exit;
 			fi;
 		done		
-		ldv_print "ERROR: Can't find descriptor.";
+		ldv_print "ERROR: Can't find descriptor in '$LDV_DESCRIPTIONS_DIR'.";
 		exit 1;
 	;;
 	add)

@@ -120,15 +120,19 @@ while ($status eq 'wait'){
                 exit 0;
 	}else{
 		# Check if limits are exhausted (they should be updated by signal handler).
+		# First kill, then print the script's verdict, so that it's less likely to mingle with the output of the process being controlled.
 		if (defined $timelimit && $timeinfo->{total} > $timelimit){
-			print STDERR "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
 			kill_process_group_safely($blackbox_pid);
+			# have some sleep for output to be flushed
+			sleep(1);
+			print STDERR "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
 			print_uinfo($uinfo,$fulltime);
 			exit 0;
 		}
 		if (defined $memlimit && $meminfo > $memlimit){
-			print STDERR "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
 			kill_process_group_safely($blackbox_pid);
+			sleep(1);
+			print STDERR "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
 			print_uinfo($uinfo,$fulltime);
 			exit 0;
 		}
@@ -282,7 +286,7 @@ sub kill_process_group_safely
 	# Show that we're dying, so that our timely alarm handler doesn't longjmp() control out of here
 	$dying = 1;
 	signal_to_process_group_safely($pgrp,SIGTERM);
-	# Reset alarm handler
+	# Reset alarm handler (we need it for sleep to work)
 	$SIG{'ALRM'} = 'DEFAULT';
 	sleep(1);
 	signal_to_process_group_safely($pgrp,SIGKILL);

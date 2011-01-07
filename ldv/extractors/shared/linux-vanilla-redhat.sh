@@ -119,7 +119,7 @@ fi;
 #
 # patch it...
 #
-sed -i -e "s/^\s\+\$(filter-out FORCE,\$^)/\$(filter-out FORCE,\$^); BUILDFILE=\$(BUILDFILE) $BCE_XGCC \`readlink -f \$@\`/g" $KERNEL_MAKEFILE_MODPOST;
+sed -i -e "s/\\(^\s\+\\(-o \$@ \\)\?\$(filter-out FORCE,\$^)\\)/\\1; BUILDFILE=\$(BUILDFILE) $BCE_XGCC \`readlink -f \$@\`/g" $KERNEL_MAKEFILE_MODPOST;
 if [ $? -ne 0 ]; then
 	ldv_print "ERROR: Failed patch (I. stage) Makefile: \"$KERNEL_MAKEFILE_BUILD\".";
 	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;

@@ -34,6 +34,7 @@ MINIMAL PREREQUISITES
 		- File::Cat
 		- File::Find
 		- File::Copy::Recursive
+		- File::Path   (update to the newest version)
 		- Text::Highlight
 		- XML::Twig
 		- XML::Writer
@@ -70,9 +71,24 @@ listed above:
 	o Markdown code formatter
 
 LDV-GIT ADDITIONAL PREREQUISITES
-	
+
 	o Graph.pm Perl module
 	o `perldoc` Perl util
+
+
+CONFIGURING EXISTSING SOFTWARE
+
+Not only LDV requires the software described to be installed.  You also should
+ensure that it's tweaked correctly.
+
+
+MySQL
+
+Extend "maximal packet size".  LDV uploads source files to database, and they
+may get huge.  10Mb is enough; just add the following lines to /etc/my.cnf:
+	[mysqld]
+	max_allowed_packet = 10M
+
 
 INSTALLING LDV
 

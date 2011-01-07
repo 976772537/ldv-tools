@@ -130,7 +130,8 @@ sub verify_cpachecker
 
 			# HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
 			my $failmsg = $args{already_failed};
-			$failmsg =~ s/Fatal error: exception Errormsg.Error//;
+			$failmsg =~ s/Fatal error: exception Errormsg.Error//g;
+			$failmsg =~ s/Errormsg.Error/\n/g;
 
 			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
 			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
@@ -143,9 +144,9 @@ sub verify_cpachecker
 			$cmdInstT->paste($repT);
 		}else{
 			# OK, need to call CPAchecker
-			my $result = call_cpachecker(%args, main=>$main); 
-	
-			# Print verdict to console and to report 
+			my $result = call_cpachecker(%args, main=>$main);
+
+			# Print verdict to console and to report
 			vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
 			vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
 
@@ -167,6 +168,24 @@ sub verify_cpachecker
 				$br='OK';
 			}else{
 				$br='FAILED';
+			}
+
+			# Write source files to trace. This is needed since cpachecker
+			# doesn't provide good location and just print links to lines of a
+			# preprocessed cill file. At least add this file to trace.
+			# I can't secure that there is a trace for each unsafe verdict so check it.
+			if ($bv eq 'UNSAFE' and -f $args{trace}) {
+				open(TRACE_FILE, '<', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
+				my @cpachecker_trace = <TRACE_FILE>;
+				close TRACE_FILE;
+				open(TRACE_FILE, '>', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
+				my @cpachecker_src_files = @{$args{files}};
+				my $cpachecker_src_file = shift(@cpachecker_src_files);
+				print TRACE_FILE "Src $cpachecker_src_file: ";
+				foreach (@cpachecker_trace) {
+					print TRACE_FILE $_;
+				}
+				close TRACE_FILE;
 			}
 
 			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
@@ -262,7 +281,7 @@ sub call_cpachecker
 	(scalar @{$args{errlocs}} > 1) and die;
 	my $errloc = (@{$args{errlocs}})[0];
 
-	
+
 	# Copy Automaton and replace label name with the one we need
 
 	open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
@@ -298,7 +317,7 @@ sub call_cpachecker
 
 	# Additional options
 	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
-	
+
 	# TODO rerouting like in blast
 
 	# Resources limit.  We don't set memlimit--see below

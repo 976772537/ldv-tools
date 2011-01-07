@@ -990,7 +990,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $tasksKernels[$taskId][$kernelName] = 1;
     }
     foreach ($tasksKernels as $taskKernels) {
-      // Use additional part of key when task con
+      // Use additional part of key when task contain more then one kernel.
       if (count($taskKernels) > 1) {
         // At the moment use the whole addons but may be it won't be so in future.
         $launchInfoAdditional = $launchInfoForComparisonPossible;
@@ -1036,10 +1036,17 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     foreach (array_keys($statsCmp) as $taskId) {
       $statsCmp[$taskId][$deleted] = array();
     }
-
+#print_r($statsCmp);exit;
     // Match tasks launches with each other. The first task id is used as the
-    // referenced one. For matching use the special regexp.
-    $statsCmpMatchPattern = '/^([^_;]+)[^;]+;([^;]+);ldv_main(\d+)/';
+    // referenced one. For matching use the special regexp. Don't forget to add
+    // additional kernel matching if this is needed!
+    $statsCmpMatchPattern = '';
+    if (count($launchInfoAdditional)) {
+      $statsCmpMatchPattern .= '([^;]+);';
+    }
+    //$statsCmpMatchPattern .= '([^_;]+)[^;]+;([^;]+);ldv_main(\d+)';
+    $statsCmpMatchPattern .= '([^_;]*)[^;]*;([^;]*);(ldv_main)?(\d*)';
+    $statsCmpMatchPattern = "/^$statsCmpMatchPattern/";
     $statsCmpMatch = array();
     $taskIdCmpRef = $taskIds[0];
     foreach (array_slice($taskIds, 1) as $taskIdCmp) {
@@ -1217,5 +1224,24 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 #print_r($result);exit;
 
     return $result;
+  }
+
+  public function updateTaskDescription($profile, $params)
+  {
+    $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+    if (!array_key_exists('value', $params)) {
+      die ("Value isn't specified");
+    }
+    $value = $params['value'];
+
+    if (!array_key_exists('taskid', $params)) {
+      die ("Task id isn't specified");
+    }
+    $taskid = $params['taskid'];
+
+    $n = $this->_db->update('tasks', array('description' => $value), "id = $taskid");
+
+    return $value;
   }
 }

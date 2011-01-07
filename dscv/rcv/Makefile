@@ -59,7 +59,6 @@ cpachecker_confdir=$(rcv_install_dir)/etc
 cpachecker_etcfiles= \
 		cpa.cfg.pattern \
 		errloc_automaton.txt \
-		symbpredabsCPA.properties \
 
 cpachecker_configs=$(patsubst %,$(cpachecker_confdir)/%,$(cpachecker_etcfiles))
 

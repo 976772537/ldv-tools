@@ -17,5 +17,8 @@ $"=' ';
 printf "Launch regression tests:
 regr-test.pl --no-check --test-set @ARGV\n";
 
-system(qw(regr-test.pl --no-check --test-set),@ARGV) and die;
+$ENV{'LDV_DEBUG'} ||= '20';
+my $call = join (" ", map {"'$_'"} @ARGV);
+
+system("regr-test.pl --no-check --test-set $call 2>&1 | tee -a test_logs") and die;
 

@@ -98,6 +98,8 @@ class Stats < ActiveRecord::Base
 
 	# Calculate and apply problems for this trace
 	def calc_problems(scripts_dir)
+		# Ruby 1.9 doesn't want nonexisting paths in Find.find!
+		return nil unless FileTest.exists? scripts_dir
 		Find.find(scripts_dir) do |file|
 			if !FileTest.directory?(file) && FileTest.executable?(file)
 				# Run the script and get its output
