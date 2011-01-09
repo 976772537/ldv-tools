@@ -16,6 +16,7 @@ test-simple.rb
 options.rb
 waiter.rb
 sender.rb
+queue.rb
 
 actors/
 	queue.rb
@@ -27,9 +28,17 @@ node.rb
 README
 Makefile
 
+rspec/
+	queue_spec.rb
+
+nanite/
+	lib/nanite/
+		agent.rb
+
 amqp/
 	amqp.gemspec
 	lib/
+		amqp.rb
 		mq.rb
 	examples/
 

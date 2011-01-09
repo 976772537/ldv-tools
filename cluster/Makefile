@@ -9,13 +9,17 @@ bindir?=$(prefix)/bin
 nanite_install_dir=$(prefix)/cluster/ruby
 ruby_bindir?=$(prefix)/cluster/ruby-bin
 
-targets=actors/node.rb actors/queue.rb init.rb ldvc-mapper ldvc-queue ldvc-wait-task node.rb waiter.rb options.rb sender.rb ldvc-node-impl
+targets=actors/node.rb actors/queue.rb init.rb ldvc-mapper ldvc-queue ldvc-wait-task node.rb waiter.rb options.rb sender.rb ldvc-node-impl queue.rb
 bintargets=ldvc-master ldvc-node
 
 cluster_targets=$(targets:%=$(install_dir)/%)
 cluster_bintargets=$(bintargets:%=$(bindir)/%)
 
 install: gem-install $(cluster_targets) $(cluster_bintargets)
+
+install-tests:
+	@mkdir -p $(install_dir)/rspec
+	cp rspec/*.rb $(install_dir)/rspec
 
 clean:
 	cd nanite && rake clean

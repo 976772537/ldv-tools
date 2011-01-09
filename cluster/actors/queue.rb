@@ -78,7 +78,7 @@ class Ldvqueue
 				enqueue_task(task[:type],task,where)
 			end
 		else
-			puts "Badly formed task #{_task.inspect}!"
+			raise "Badly formed task #{_task.inspect}!"
 		end
 	end
 
@@ -179,7 +179,7 @@ class Ldvqueue
 	Task_keys = %w(type args workdir key env).sort.freeze
 	# Check if task is correct
 	def self.task_correct?(task)
-		task.keys.sort == Task_keys
+		task.keys.map(&:to_s).sort == Task_keys
 	end
 
 	# Make hash "symbol->data" from "string->data"

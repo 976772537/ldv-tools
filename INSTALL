@@ -75,6 +75,12 @@ LDV-GIT ADDITIONAL PREREQUISITES
 	o Graph.pm Perl module
 	o `perldoc` Perl util
 
+CLUSTER PREREQUISITES
+
+	o sudo gem install rake
+	o sudo gem install rspec
+
+
 
 CONFIGURING EXISTSING SOFTWARE
 
@@ -88,7 +94,6 @@ Extend "maximal packet size".  LDV uploads source files to database, and they
 may get huge.  10Mb is enough; just add the following lines to /etc/my.cnf:
 	[mysqld]
 	max_allowed_packet = 10M
-
 
 INSTALLING LDV
 
