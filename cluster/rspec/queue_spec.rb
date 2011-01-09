@@ -42,29 +42,37 @@ end
 
 OPTS = {:log_level => :warn}
 
-describe "Queue" do
+shared_examples_for "a nanite agent" do 
 	context "with unreachable host" do
 		it "should tell that" do
-			expect { em_for(2) {start_queue(OPTS.merge :host => 'some.unknown.host')}}.to raise_error(EventMachine::ConnectionError)
+			expect { em_for(2) {factory.call(OPTS.merge :host => 'some.unknown.host')}}.to raise_error(EventMachine::ConnectionError)
 		end
 	end
 	context "with unreachable virtual host", :amqp_binding_sucks => true do
 		it "should tell that" do
-			expect { em_for(2) {start_queue(OPTS.merge :host => 'localhost', :vhost=>vhost_bad)}}.to raise_error
+			expect { em_for(2) {factory.call(OPTS.merge :host => 'localhost', :vhost=>vhost_bad)}}.to raise_error
 		end
 	end
 	context "with wrong password" do
 		it "should throw on srartup", :amqp_binding_sucks => true do
-			expect { em_for(2) {start_queue(OPTS.merge :host => 'localhost', :user=>'ldv', :password => 'qweiojwqejiorewjoiew', :log_level => :debug)}}.to raise_error
+			expect { em_for(2) {factory.call(OPTS.merge :host => 'localhost', :user=>'ldv', :password => 'qweiojwqejiorewjoiew', :log_level => :debug)}}.to raise_error
 		end
+	end
+	context "with correct AMQP credentials" do
+		it "should not throw on srartup" do
+			expect { em_for(1) {factory.call(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :password => '12345'}))}}.to_not raise_error
+		end
+	end
+	
+end
+
+describe "Queue" do
+	it_should_behave_like "a nanite agent" do
+		let(:factory) { lambda { |arg| start_queue arg } }
 	end
 	context "with correct AMQP credentials" do
 		def mk_queue(opts = {},&blk)
 			start_queue(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :password => '12345'}).merge opts ) {|a| blk.call(a) if blk}
-		end
-
-		it "should not throw on srartup" do
-			expect { em_for(1) {mk_queue}}.to_not raise_error
 		end
 
 		it "should not queue a nil task"  do
@@ -219,6 +227,11 @@ describe "Queue" do
 		end
 
 	end
+end
+
+require 'sender.rb'
+
+describe "Sender" do
 end
 
 

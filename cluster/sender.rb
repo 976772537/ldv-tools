@@ -14,7 +14,7 @@ class NaniteSender
 
 	def send(target,payload)
 		EM.run do
-			agent = Nanite::Agent.new({:host => 'localhost', :user => 'mapper', :pass => 'testing', :vhost => '/nanite', :format => :json, :initrb => File.join(@options[:root],'tester.rb')}.merge self.options)
+			agent = Nanite::Agent.new({:format => :json, :initrb => File.join(@options[:root],'tester.rb')}.merge self.options)
 			agent.run
 
 			Nanite.push(target, payload, :selector => :ldv_selector)
