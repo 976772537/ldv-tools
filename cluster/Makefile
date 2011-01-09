@@ -15,7 +15,8 @@ bintargets=ldvc-master ldvc-node
 cluster_targets=$(targets:%=$(install_dir)/%)
 cluster_bintargets=$(bintargets:%=$(bindir)/%)
 
-install: gem-install $(cluster_targets) $(cluster_bintargets)
+install: $(cluster_targets) $(cluster_bintargets)
+install: gem-install
 
 install-tests:
 	@mkdir -p $(install_dir)/rspec

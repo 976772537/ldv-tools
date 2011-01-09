@@ -91,6 +91,7 @@ class Ldvqueue
 		queue(_task,:first)
 	end
 
+	# Announce statuses.  Keys MUST be strings, not syms!
 	def announce(statuses)
 		return unless statuses	#If something weird happened
 		@status_update_mutex.synchronize do
