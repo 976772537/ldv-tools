@@ -112,7 +112,7 @@ describe "Queue" do
 			Nanite.stub(:push) do |str,task,opts|
 				str.should == '/ldvnode/dscv'
 				task.should == symbolize(stub_task)
-				opts.should contain_subhash :target => 'stub_node'
+				opts.should contain_subhash :target => 'stub_node' 
 			end
 			Nanite.should_receive(:push)
 
@@ -123,20 +123,97 @@ describe "Queue" do
 			end; end
 		end
 
-		it "should send one task when several are queued", :focus => true do
+		it "should send one task when several are queued" do
 			mk_task = proc do |i|
 				{'type'=>'dscv','args'=>'b','workdir'=>'c','key'=>"#{i}",'env'=>[]}
 			end
 			Nanite.stub(:push) do |str,task,opts|
 				str.should == '/ldvnode/dscv'
 				task.should == symbolize(mk_task.call(task[:key].to_i))
-				opts.should contain_subhash :target => 'stub_node'
+				opts.should contain_subhash :target => 'stub_node' 
 			end
 			Nanite.should_receive(:push)
 
 			# 6 is 4+50%, where 4 is the period of sending queued tasks
 			em_for(6) do; mk_queue do |q|
 				q.announce('stub_node'=>{'dscv'=>1,'ldv'=>1,'rcv'=>1})
+				(1..10).each {|n| q.queue(mk_task.call(n))}
+			end; end
+		end
+
+		it "should redo task on the relevant request" do
+			# Subject to race condition fails!
+			mk_task = proc do |i|
+				{'type'=>'dscv','args'=>'b','workdir'=>'c','key'=>"#{i}",'env'=>[]}
+			end
+			Nanite.stub(:push) do |str,task,opts|
+				str.should == '/ldvnode/dscv'
+				# We should push 1st task two times: we redo
+				task.should == symbolize(mk_task.call(1))
+				opts.should contain_subhash :target => 'stub_node' 
+			end
+			Nanite.should_receive(:push).exactly(2).times
+
+			# 10 is 8+2sec%, where 8 is two periods of sending queued tasks
+			em_for(10) do; mk_queue do |q|
+				q.announce('stub_node'=>{'dscv'=>1,'ldv'=>1,'rcv'=>1})
+				(1..10).each {|n| q.queue(mk_task.call(n))}
+				# We can't just Kernel.sleep here, since this test and the SUT run in the same eventmachine instance
+				EM.add_timer(5) do 
+					q.announce('stub_node'=>{'dscv'=>1,'ldv'=>1,'rcv'=>1})
+					q.redo(mk_task.call(1))
+				end
+			end; end
+		end
+
+		it "should remove tasks of node when removing a node, and requeue them subsequently" do
+			# Subject to race condition fails!
+			mk_task = proc do |i|
+				{'type'=>'dscv','args'=>'b','workdir'=>'c','key'=>"#{i}",'env'=>[]}
+			end
+			was = false
+			Nanite.stub(:push) do |str,task,opts|
+				str.should == '/ldvnode/dscv'
+				# We should push 1st task two times: we redo
+				task.should == symbolize(mk_task.call(1))
+				if was
+					opts.should contain_subhash :target => 'new_node' 
+				else
+					was = true
+					opts.should contain_subhash :target => 'stub_node' 
+				end
+			end
+			Nanite.should_receive(:push).exactly(2).times
+
+			# 10 is 8+2sec%, where 8 is two periods of sending queued tasks
+			em_for(10) do; mk_queue do |q|
+				q.announce('stub_node'=>{'dscv'=>1,'ldv'=>1,'rcv'=>1})
+				(1..10).each {|n| q.queue(mk_task.call(n))}
+				# We can't just Kernel.sleep here, since this test and the SUT run in the same eventmachine instance
+				EM.add_timer(5) do 
+					q.announce('new_node'=>{'dscv'=>1,'ldv'=>1,'rcv'=>1})
+				end
+			end; end
+		end
+
+		it "should send one task when several are queued with several nodes" do
+			mk_task = proc do |i|
+				{'type'=>'dscv','args'=>'b','workdir'=>'c','key'=>"#{i}",'env'=>[]}
+			end
+			nodes_employed = {}
+			Nanite.stub(:push) do |str,task,opts|
+				str.should == '/ldvnode/dscv'
+				task.should == symbolize(mk_task.call(task[:key].to_i))
+				opts[:target].should_not be_nil
+				nodes_employed[opts[:target]].should be_nil
+				nodes_employed[opts[:target]] = true
+				puts nodes_employed.inspect
+			end
+			Nanite.should_receive(:push).exactly(2).times
+
+			# 10 is 8+2, where 8 is two periods of sending queued tasks
+			em_for(10) do; mk_queue do |q|
+				q.announce('node_1'=>{'dscv'=>1,'ldv'=>1,'rcv'=>1},'node_2'=>{'dscv'=>1,'ldv'=>1,'rcv'=>1})
 				(1..10).each {|n| q.queue(mk_task.call(n))}
 			end; end
 		end
