@@ -6,6 +6,7 @@ RSpec.configure do |c|
 	#c.filter_run :focus => true
 	# Exclude tests which are known to fail due to a badly implmented AMQP binding
 	c.filter_run_excluding :amqp_binding_sucks => true
+	c.filter_run_excluding :lack_of_rspec_knowledge => true
 end
 
 # If a hash contains keys and values as in the expected one
@@ -231,9 +232,73 @@ end
 
 require 'sender.rb'
 
+require 'json'
+
 describe "Sender" do
 	it_should_behave_like "a nanite agent" do
 		let(:factory) { lambda { |arg| NaniteSender.new arg } }
+	end
+
+	context "with correct AMQP credentials" do
+		def mk_sender(opts = {},&blk)
+			sender = NaniteSender.new(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :password => '12345'}).merge opts)
+			blk.call(sender) if blk
+		end
+
+		it "should queue a sample packet", :lack_of_rspec_knowledge => true  do
+			task = {'type'=>'dscv','args'=>'b','workdir'=>'c','key'=>"sample.key",'env'=>[]}
+      amq = mock("AMQueue", :queue => mock("queue", :subscribe => {}, :publish => {}), :fanout => mock("fanout", :publish => nil))
+      MQ.stub!(:new).and_return(amq)
+			amq.fanout.stub(:publish) do |_content|
+				_content.should_not be_nil
+				packet = JSON.load _content
+				# Pushed will be the object of nanite::push
+				if packet.class == Nanite::Push
+					puts packet.payload.inspect
+					packet.payload.should == task
+					packet.type.should == '/sample/target'
+				end
+			end
+			em_for(10) do; mk_sender do |s|
+				s.send('/sample/target',task)
+			end; end
+		end
+
+		it "should not choke if many senders are launched" do
+			mk_task = proc do |i|
+				task = {'type'=>'dscv','args'=>'b','workdir'=>'c','key'=>"#{i}",'env'=>[]}
+			end
+			packets_sent = {}
+      amq = mock("AMQueue", :queue => mock("queue", :subscribe => {}, :publish => {}), :fanout => mock("fanout", :publish => nil))
+      MQ.stub!(:new).and_return(amq)
+			amq.fanout.stub(:publish) do |_content|
+				_content.should_not be_nil
+				packet = JSON.load _content
+				# Pushed will be the object of nanite::push
+				if packet.class == Nanite::Push
+					packet.payload.should_not be_nil
+					packet.payload['key'].should_not be_nil
+					key = packet.payload['key'].to_i
+
+					# Conversion to int should not fail
+					key.should_not == 0
+					packets_sent[key].should be_nil
+					packets_sent[key] = true
+
+					packet.payload.should == mk_task[key]
+					packet.type.should == '/sample/target'
+				end
+			end
+			expect do 
+			em_for(10) do; 
+				(1..10).each do |i|
+					mk_sender do |s|
+						s.send('/sample/target',mk_task[i])
+					end
+				end
+			end
+			end.to change{packets_sent.keys.length}.from(0).to(10)
+		end
 	end
 end
 
