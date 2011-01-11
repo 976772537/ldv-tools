@@ -447,7 +447,7 @@ sub init_config {
 	if($config->{'cmdstream'}) {
 		$config->{'cmdstream'} = abs_path($config->{'cmdstream'});
 		-f $config->{'cmdstream'} or die"Cmd stream file not exists \"$config->{'cmdstream'}\".";
-		$config->{'xml_after_bce'} = $config->{'$cmdstream'};
+		$config->{'xml_after_bce'} = $config->{'cmdstream'};
 		vsay 'INFO', "Artificial environment mode.\n";
 	} else {
 		$config->{'driver'}        or die"Please, specify --driver options.";

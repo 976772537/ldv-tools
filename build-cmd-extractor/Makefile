@@ -4,6 +4,7 @@ LDV_BUILD_CMD_EXTRACTOR_REPORTER_BIN = build-cmd-extractor-reporter
 LDV_BUILD_CMD_STREAM_DIVIDER_BIN = $(LDV_BUILD_CMD_STREAM_DIVIDER_DIR)/dist/csd.jar
 LDV_BUILD_CMD_EXTRACTOR_SCRIPT = build-cmd-extractor
 LDV_BUILD_CMD_EXTRACTOR_GCC_SCRIPT = bce_gcc
+LDV_BUILD_CMD_EXTRACTOR_CMD_REROUTER_BIN = reroute-stream 
 LDV_BUILD_CMD_STREAM_DIVIDER_REPORTER_BIN = $(LDV_BUILD_CMD_STREAM_DIVIDER_DIR)/cmd-stream-divider-reporter
 
 # Top level hierarchy
@@ -27,6 +28,7 @@ install:
 	cp $(srcdir)/$(LDV_BUILD_CMD_STREAM_DIVIDER_BIN) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 	cp $(srcdir)/$(LDV_BUILD_CMD_STREAM_DIVIDER_REPORTER_BIN) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_REPORTER_BIN) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
+	cp $(srcdir)/$(LDV_BUILD_CMD_EXTRACTOR_CMD_REROUTER_BIN) $(prefix)/$(LDV_BUILD_CMD_EXTRACTOR_DIR)
 	cp $(srcdir)/cmd-stream-mod.pl $(prefix)/build-cmd-extractor/cmd-stream-mod.pl
 
 clean:
