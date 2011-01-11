@@ -213,7 +213,8 @@ if ($resultsNumb) {
               tooltip    : 'Click to edit...',
               submitdata : function (value, settings) {
                 taskId = $(this).parent().children('.SSStatsTableTaskStatKeyTaskIdValue').first().text();
-                return { taskid: taskId };
+                taskName = $(this).parent().children('.SSStatsTableTaskStatKeyTaskNameValue').first().text();
+                return { taskid: taskId, taskname: taskName };
               }
             })
           });
@@ -472,6 +473,9 @@ if ($resultsNumb) {
 
                 if ($statTaskKey == 'Task id') {
                   $statTaskKeyClass = 'TaskId';
+                }
+                else if ($statTaskKey == 'Task name') {
+                  $statTaskKeyClass = 'TaskName';
                 }
                 else if ($statTaskKey == 'Task description') {
                   $statTaskValueEditable = 'SSStatsTableTaskDescriptionEdit';
