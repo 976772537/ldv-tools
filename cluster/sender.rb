@@ -10,13 +10,14 @@ class NaniteSender
 		@options = opts.dup
 		@options[:ping_time] = 1
 		@options[:root] = File.dirname(__FILE__)
+		EM.run do
+			agent = Nanite::Agent.new({:format => :json, :initrb => File.join(@options[:root],'tester.rb')}.merge self.options)
+			agent.run
+		end
 	end
 
 	def send(target,payload)
 		EM.run do
-			agent = Nanite::Agent.new({:format => :json, :initrb => File.join(@options[:root],'tester.rb')}.merge self.options)
-			agent.run
-
 			Nanite.push(target, payload, :selector => :ldv_selector)
 			EM.add_timer(2) { EM.stop }
 		end

@@ -232,6 +232,9 @@ end
 require 'sender.rb'
 
 describe "Sender" do
+	it_should_behave_like "a nanite agent" do
+		let(:factory) { lambda { |arg| NaniteSender.new arg } }
+	end
 end
 
 

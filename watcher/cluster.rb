@@ -19,9 +19,15 @@ class WatcherRemote < Watcher
 		config[:spawn_key] ||= ENV['LDV_SPAWN_KEY']
 		split_spawn_key
 
-		@sender = NaniteSender.new(opts)
-		$log.warn "sender init opts #{opts.inspect}"
 		@waiter = File.join($cluster_dir,'ldvc-wait-task')
+	end
+
+	def sender
+		unless @sender
+			@sender = NaniteSender.new(opts)
+			$log.warn "sender init opts #{opts.inspect}"
+		end
+		@sender
 	end
 
 	public; def key(_)
@@ -36,7 +42,7 @@ class WatcherRemote < Watcher
 	public; def queue(what,task_fname,workdir,*key)
 		$log.info "Queueing #{what} task with #{task_fname} and wd #{workdir}"
 		payload = { :type => what, :args => IO.read(task_fname), :key => mk(key), :env => [], :workdir => workdir }
-		@sender.send('/ldvqueue/queue', payload)
+		sender.send('/ldvqueue/queue', payload)
 	end
 
 	public; def success(type,*key)
@@ -63,7 +69,7 @@ class WatcherRemote < Watcher
 	private; def result(message,type,*key)
 		task = {:key => key.join('.'), :type => type}
 		$stderr.puts "******************************\n\nSending result for task #{task.inspect}\n\n"
-		@sender.send('/ldvqueue/result', task)
+		sender.send('/ldvqueue/result', task)
 	end
 
 end
