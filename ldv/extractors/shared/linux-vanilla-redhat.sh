@@ -33,7 +33,7 @@ else
 	fi;
 fi;
 ldv_print "NORMAL: Kernel configure command is: \"$KERNEL_CONFIG_OPTIONS\"";
-$KERNEL_CONFIG_OPTIONS;
+eval $KERNEL_CONFIG_OPTIONS;
 if [ $? -ne 0 ]; then
         ldv_print "ERROR: command \"$KERNEL_CONFIG_OPTIONS\" failed."
         exit 1;

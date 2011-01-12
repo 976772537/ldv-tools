@@ -41,7 +41,7 @@ fi;
 #   i am set default allmodconfig
 #
 if [ -n "$LDVGIT_CONFIG_CMD" ]; then
-	$LDVGIT_CONFIG_CMD;
+	eval $LDVGIT_CONFIG_CMD;
 else 
 	make allyesconfig;
 fi;
