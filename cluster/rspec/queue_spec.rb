@@ -255,7 +255,6 @@ describe "Sender" do
 				packet = JSON.load _content
 				# Pushed will be the object of nanite::push
 				if packet.class == Nanite::Push
-					puts packet.payload.inspect
 					packet.payload.should == task
 					packet.type.should == '/sample/target'
 				end
@@ -307,7 +306,7 @@ end
 require 'waiter.rb'
 require 'json'
 
-describe "Waiter" do
+describe "Waiter",:focus=>true do
 	it_should_behave_like "a nanite agent" do
 		let(:factory) { lambda { |arg| start_queue arg } }
 	end
@@ -315,7 +314,6 @@ describe "Waiter" do
 		WAITER_OPTS = {:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :pass => '12345'}
 		def mk_waiter(opts = {},&blk)
 			waiter = Waiter.new(OPTS.merge(WAITER_OPTS).merge opts)
-			puts (OPTS.merge(WAITER_OPTS).merge opts).inspect
 			blk.call(waiter) if blk
 		end
 
@@ -344,7 +342,7 @@ describe "Waiter" do
 			end; end.to change {got_packet}.from(false).to(true)
 		end
 
-		it "should delay job on job_done call if no consumer is attached",:focus=>true do
+		it "should delay job on job_done call if no consumer is attached" do
 			got_packet = false
 			expect do em_for(14) do
 				sample_task = {'task'=>'sample.key', 'status' => 'finished'}
@@ -363,6 +361,150 @@ describe "Waiter" do
 					w.job_done('sample.key',sample_task)
 				end
 			end; end.to change {got_packet}.from(false).to(true)
+		end
+
+		it "should properly wait for a packet with concrete key" do
+			em_for(14) do
+				sample_task = {'task'=>'concrete.key', 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					EM.add_timer(11) do
+						mmm = w.mq
+						exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+						exchange.publish(JSON.dump(sample_task), :routing_key => 'concrete.key')
+					end
+					# Set up a trigger that changes before the above AMQP sending fires.  Then check that wait returns after the trigger changes.
+					too_early = true
+					EM.add_timer(10) do
+						too_early = false
+					end
+					# Set up a hook to stdout, and check if we dumped the key correctly
+					$stdout.stub(:puts) do |key_str|
+						# FIXME: first two fields should be filled with information transfer data
+						key_str.should == ',,concrete,key'
+						too_early.should be_false
+					end
+					# Check if we did a flush
+					$stdout.should_receive :flush
+					# Launch function under test
+					w.wait_for('concrete.key')
+				end
+			end
+		end
+
+		it "should not wait if no packet with a proper key is sent" do
+			em_for(10) do
+				sample_task = {'task'=>'wtf', 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					EM.add_timer(5) do
+						mmm = w.mq
+						exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+						exchange.publish(JSON.dump(sample_task), :routing_key => 'concrete.key.is.bad')
+					end
+					$stdout.should_not_receive(:puts)
+					# Launch function under test (should not wait)
+					w.wait_for('concrete.key')
+				end
+			end
+		end
+
+		it "should properly wait for a packet with a sharp-ending key" do
+			em_for(14) do
+				key = 'dscv.task.15'
+				sample_task = {'task'=>key, 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					EM.add_timer(7) do
+						mmm = w.mq
+						exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+						exchange.publish(JSON.dump(sample_task), :routing_key => key)
+					end
+					# Set up a trigger that changes before the above AMQP sending fires.  Then check that wait returns after the trigger changes.
+					too_early = true
+					EM.add_timer(6) do
+						too_early = false
+					end
+					# Set up a hook to stdout, and check if we dumped the key correctly
+					$stdout.stub(:puts) do |key_str|
+						# FIXME: first two fields should be filled with information transfer data
+						key_str.should == ',,dscv,task,15'
+						too_early.should be_false
+					end
+					# Check if we did a flush
+					$stdout.should_receive :flush
+					# Launch function under test
+					w.wait_for('dscv.#')
+				end
+			end
+		end
+
+		it "should not wait for a non-matching packet with a sharp-ending key" do
+			em_for(14) do
+				key = 'dscv.task.15.rcv.22'
+				sample_task = {'task'=>key, 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					EM.add_timer(7) do
+						mmm = w.mq
+						exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+						exchange.publish(JSON.dump(sample_task), :routing_key => key)
+					end
+					# Launch function under test
+					$stdout.should_not_receive(:puts)
+					# Launch function under test (should not wait)
+					w.wait_for('dscv.task.16.#')
+				end
+			end
+		end
+
+		it "should properly wait for a packet with a asterisk-ending key" do
+			em_for(14) do
+				key = 'asterisk.task.with.100'
+				sample_task = {'task'=>key, 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					EM.add_timer(7) do
+						mmm = w.mq
+						exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+						exchange.publish(JSON.dump(sample_task), :routing_key => key)
+					end
+					# Set up a trigger that changes before the above AMQP sending fires.  Then check that wait returns after the trigger changes.
+					too_early = true
+					EM.add_timer(6) do
+						too_early = false
+					end
+					# Set up a hook to stdout, and check if we dumped the key correctly
+					$stdout.stub(:puts) do |key_str|
+						# FIXME: first two fields should be filled with information transfer data
+						key_str.should == ',,asterisk,task,with,100'
+						too_early.should be_false
+					end
+					# Check if we did a flush
+					$stdout.should_receive :flush
+					# Launch function under test
+					w.wait_for('asterisk.task.with.*')
+				end
+			end
+		end
+
+		it "should not wait for a non-matching packet with a asterisk-ending key" do
+			em_for(14) do
+				key = 'asterisk.task.with'
+				sample_task = {'task'=>key, 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					EM.add_timer(7) do
+						mmm = w.mq
+						exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+						exchange.publish(JSON.dump(sample_task), :routing_key => key)
+					end
+					# Launch function under test
+					$stdout.should_not_receive(:puts)
+					# Launch function under test (should not wait)
+					w.wait_for('asterisk.task.with.*')
+				end
+			end
 		end
 	end
 end
