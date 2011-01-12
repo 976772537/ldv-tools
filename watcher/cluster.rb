@@ -2,6 +2,7 @@
 # Include Cluster's command send capabilities
 $cluster_dir = File.dirname(__FILE__),'..','cluster'
 require File.join($cluster_dir,'sender.rb')
+require File.join($cluster_dir,'waiter.rb')
 
 class WatcherRemote < Watcher
 	REMOTE_OPTS = {
@@ -19,7 +20,7 @@ class WatcherRemote < Watcher
 		config[:spawn_key] ||= ENV['LDV_SPAWN_KEY']
 		split_spawn_key
 
-		@waiter = File.join($cluster_dir,'ldvc-wait-task')
+		@waiter = Waiter.new(REMOTE_OPTS.merge(opts))
 	end
 
 	def sender
@@ -36,7 +37,7 @@ class WatcherRemote < Watcher
 
 	public; def wait(type,*key)
 		$log.info "Waiting for #{type} with keys #{key.inspect}"
-		Kernel.exec @waiter,*key
+		@waiter.wait_for(key,join('.'))
 	end
 
 	public; def queue(what,task_fname,workdir,*key)

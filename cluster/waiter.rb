@@ -1,15 +1,24 @@
 
+# Waiter is a class which implements synchronous waits with aid of AMQP
+# Its core is an AMQP's "topic exchange".  To signal that a job is done, initialize a waiter instance and invoke +job_done+ method with a routing key and a payload.
+# To wait for such signals, invoke +wait_for+ with a routing key, which can contain AMQP wildcards.
+#
+# AMQP is used in the following way: +wait_for+ creates temporal queues and establishes a binding with a central exchange (ldv-wait-for-results).  Then, +job_done+ merely publishes it to the exchange.
+# If at the moment of publication, no queue with a proper binding is connected to the exchange, the job is kept in the local array, and the waiter wakes up each 5 seconds, and tries to send the requests again.
+# Note that +job_done+ won't block in this case, but will just add a packet to a local array and ensure that the eventmachine-based timer is started.  In any case, +job_done+ should be called at master's site, not at node's site.
+
 class Waiter
 
 	include Nanite::AMQPHelper
 
 	attr_accessor :options, :serializer, :mq
 
+	DEFAULT_OPTS = { :format => :json }.freeze
 	# Create a new waiter instance.  Options is a hash:
 	# 	:host, :port, :vhost, :user, :pass => AMQP connection parameters
 	# 	:format => ruby serialization format
 	def initialize(opts = {})
-		@options = opts.dup
+		@options = DEFAULT_OPTS.merge opts
 		@serializer = Nanite::Serializer.new(@options[:format])
 
 		@mq = start_amqp(@options)
