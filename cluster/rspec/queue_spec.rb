@@ -40,6 +40,7 @@ Kernel.system("
 #{ctl} set_permissions -p #{vhost} ldv '.*' '.*' '.*'
 ")
 end
+restart.call
 
 OPTS = {:log_level => :warn}
 
@@ -56,12 +57,12 @@ shared_examples_for "a nanite agent" do
 	end
 	context "with wrong password" do
 		it "should throw on srartup", :amqp_binding_sucks => true do
-			expect { em_for(2) {factory.call(OPTS.merge :host => 'localhost', :user=>'ldv', :password => 'qweiojwqejiorewjoiew', :log_level => :debug)}}.to raise_error
+			expect { em_for(2) {factory.call(OPTS.merge :host => 'localhost', :user=>'ldv', :pass => 'qweiojwqejiorewjoiew', :log_level => :debug)}}.to raise_error
 		end
 	end
 	context "with correct AMQP credentials" do
 		it "should not throw on srartup" do
-			expect { em_for(1) {factory.call(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :password => '12345'}))}}.to_not raise_error
+			expect { em_for(1) {factory.call(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :pass => '12345'}))}}.to_not raise_error
 		end
 	end
 	
@@ -73,7 +74,7 @@ describe "Queue" do
 	end
 	context "with correct AMQP credentials" do
 		def mk_queue(opts = {},&blk)
-			start_queue(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :password => '12345'}).merge opts ) {|a| blk.call(a) if blk}
+			start_queue(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :pass => '12345'}).merge opts ) {|a| blk.call(a) if blk}
 		end
 
 		it "should not queue a nil task"  do
@@ -241,7 +242,7 @@ describe "Sender" do
 
 	context "with correct AMQP credentials" do
 		def mk_sender(opts = {},&blk)
-			sender = NaniteSender.new(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :password => '12345'}).merge opts)
+			sender = NaniteSender.new(OPTS.merge({:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :pass => '12345'}).merge opts)
 			blk.call(sender) if blk
 		end
 
@@ -302,4 +303,67 @@ describe "Sender" do
 	end
 end
 
+# Tests for waiter
+require 'waiter.rb'
+require 'json'
+
+describe "Waiter" do
+	it_should_behave_like "a nanite agent" do
+		let(:factory) { lambda { |arg| start_queue arg } }
+	end
+	context "with correct AMQP credentials" do
+		WAITER_OPTS = {:host => 'localhost', :vhost => '/rspecldvc', :user => 'ldv', :pass => '12345'}
+		def mk_waiter(opts = {},&blk)
+			waiter = Waiter.new(OPTS.merge(WAITER_OPTS).merge opts)
+			puts (OPTS.merge(WAITER_OPTS).merge opts).inspect
+			blk.call(waiter) if blk
+		end
+
+		it "should initialize correctly" do
+			em_for(2) do
+				mk_waiter
+			end
+		end
+
+		it "should send job to AMQP on job_done call" do
+			got_packet = false
+			expect do em_for(12) do
+				sample_task = {'task'=>'sample.key', 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					mmm = w.mq
+					exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+					mmm.queue('sample_wait_que1', :auto_delete => true).bind(exchange, :key => '#').subscribe do |head,body|
+						packet = JSON.load body
+						packet.should == sample_task
+						got_packet = true
+					end
+					# Call the funciton under test
+					w.job_done('sample.key',sample_task)
+				end
+			end; end.to change {got_packet}.from(false).to(true)
+		end
+
+		it "should delay job on job_done call if no consumer is attached",:focus=>true do
+			got_packet = false
+			expect do em_for(14) do
+				sample_task = {'task'=>'sample.key', 'status' => 'finished'}
+				mk_waiter do |w|
+					# Subscribe to exchange
+					EM.add_timer(7) do
+						mmm = w.mq
+						exchange = mmm.topic('ldv-wait-for-results', :durable => true)
+						mmm.queue('sample_wait_que1', :auto_delete => true).bind(exchange, :key => '#').subscribe do |head,body|
+							packet = JSON.load body
+							packet.should == sample_task
+							got_packet = true
+						end
+					end
+					# Call the funciton under test
+					w.job_done('sample.key',sample_task)
+				end
+			end; end.to change {got_packet}.from(false).to(true)
+		end
+	end
+end
 
