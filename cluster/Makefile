@@ -16,7 +16,10 @@ cluster_targets=$(targets:%=$(install_dir)/%)
 cluster_bintargets=$(bintargets:%=$(bindir)/%)
 
 install: $(cluster_targets) $(cluster_bintargets)
+
+ifndef NO_GEMS
 install: gem-install
+endif
 
 install-tests:
 	@mkdir -p $(install_dir)/rspec
@@ -44,7 +47,10 @@ nanite-compile: amqp-install
 	cd nanite && rake gem
 
 export GEM_HOME=$(nanite_install_dir)
-Gem_install=gem install --install-dir $(nanite_install_dir) --bindir $(ruby_bindir) --no-rdoc --no-ri
+ifndef GEM_DOC
+no_rdoc=--no-rdoc
+endif
+Gem_install=gem install --install-dir $(nanite_install_dir) --bindir $(ruby_bindir) $(no_rdoc) --no-ri
 
 gem-install: nanite-install amqp-install
 	@mkdir -p $(nanite_install_dir)
