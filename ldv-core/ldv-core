@@ -7,6 +7,7 @@ use FindBin;
 use SOAP::Lite; 
 use POSIX ":sys_wait_h";
 use XML::Twig;
+use IO::Socket::INET;
 
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
@@ -76,13 +77,12 @@ sub prepare_driver;
 sub parallel_run;
 sub scheduler_send_task;
 sub deg_create_report;
-
+sub find_unused_port;
 
 
 my $wsdl_uid="$$".`date +%Y%H%M%S`;
 chomp $wsdl_uid;
-# FIXME: if port 8080 is already in use, we're fucked
-$ENV{'WSDLADDR'} = "http://localhost:8080/csd$wsdl_uid";
+$ENV{'WSDLADDR'} = "http://localhost:".find_unused_port()."/csd$wsdl_uid";
 vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
 
 init_config;
@@ -568,4 +568,14 @@ sub bce_ldv_report {
 	bce_create_report $status, $msg;
 	ldv_create_report;
 	defined $action and $action eq 'exit' and exit;
+}
+
+sub find_unused_port {
+        for($testport = 8080; $testport<8090; $testport++) {
+                vsay 'DEBUG', "Test port: \"$testport\".\n";
+                $testsocket = new IO::Socket::INET(LocalPort => $testport) and close $testsocket and return $testport;
+                vsay 'DEBUG', "Failed to capture the port: \"$testport\": $!\n";
+                vsay 'DEBUG', "Try next port...\n";
+        }
+        die"Can't find free ports from 8080 to 8090!";
 }
