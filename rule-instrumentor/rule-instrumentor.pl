@@ -253,6 +253,9 @@ my $llvm_c_backend_suffix = '.cbe.c';
 # Options to be passed to llvm linker.
 my @llvm_linker_opts = ('-f');
 
+# Suffix of llvm preprocessed files.
+my $llvm_preprocessed_suffix = '.p';
+
 # The commands log file designatures.
 my $log_cmds_aspect = 'mode=aspect';
 my $log_cmds_cc = 'cc';
@@ -1297,18 +1300,28 @@ sub process_cmd_cc()
     $cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The target file cache key is '$cache_file_key'");
 
+    # Get target preprocessed file cache key.
+    my $preprocessed_cache_target = "${$cmd{'ins'}}[0]$llvm_preprocessed_suffix";
+    my $preprocessed_cache_file_key = $preprocessed_cache_target;
+    $preprocessed_cache_file_key =~ s/^$opt_basedir//;
+    print_debug_debug("The target file cache key is '$preprocessed_cache_file_key'");
+
     # Understand whether cache must be skipped.
     my $skip_caching = $skip_cache_without_restrict && !$cmd{'restrict-main'};
 
     if (!$skip_caching && copy_from_cache($cache_target, $opt_model_id, $cache_file_key))
     {
       # Cache hit.
-      print_debug_info("Got file from CACHE instead of executing '@args'");
+      print_debug_info("Got file from cache instead of executing '@args'");
       $status = string_from_cache($opt_model_id, "$cache_file_key-status");
       chomp($status);
       print_debug_trace("The cached status is '$status'");
       $desc = [split('\n', string_from_cache($opt_model_id, "$cache_file_key-desc"))];
       print_debug_trace("The cached description is '@$desc'");
+
+      # Copy the preprocessed file from cache.
+      copy_from_cache($preprocessed_cache_target, $opt_model_id, $preprocessed_cache_file_key);
+
       # Return on failure.
       return ($status, $desc) if ($status);
     }
@@ -1359,6 +1372,10 @@ sub process_cmd_cc()
       # Save the result to cache.
       save_to_cache($cache_target, $opt_model_id, $cache_file_key)
         unless ($skip_caching);
+
+      # Save the preprocessed file needed for further visualization.
+      save_to_cache($preprocessed_cache_target, $opt_model_id, $preprocessed_cache_file_key)
+        unless ($skip_caching);
     }
 
     $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
@@ -1395,17 +1412,24 @@ sub process_cmd_cc()
     $cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
     $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
-    print_debug_debug("The target file cache key is '$cache_file_key'");
+    print_debug_debug("The preprocessed target file cache key is '$cache_file_key'");
 
     if (!$skip_caching && copy_from_cache($cache_target, $opt_model_id, $cache_file_key))
     {
       # Cache hit.
-      print_debug_info("Got file from CACHE instead of executing '@args'");
+      print_debug_info("Got file from cache instead of executing '@args'");
       $status = string_from_cache($opt_model_id, "$cache_file_key-status");
       chomp $status;
       print_debug_trace("The cached status is '$status'");
       $desc = [split('\n', string_from_cache($opt_model_id, "$cache_file_key-desc"))];
       print_debug_trace("The cached description is '@$desc'");
+
+      # Copy the preprocessed file from cache if this wasn't done earlier.
+      if (! -f $preprocessed_cache_target)
+      {
+        copy_from_cache($preprocessed_cache_target, $opt_model_id, $preprocessed_cache_file_key);
+      }
+
       # Return on failure.
       return ($status, $desc) if ($status);
     }
@@ -1420,9 +1444,16 @@ sub process_cmd_cc()
       ($status, $desc) = exec_status_and_desc(@args);
       return ($status, $desc) if ($status);
 
-      # Save the information obtained to cache (even if it's a failure!)
-      string_to_cache($status,$opt_model_id,"$cache_file_key-status");
-      string_to_cache(join("\n",@$desc),$opt_model_id,"$cache_file_key-desc");
+      if (!$skip_caching)
+      {
+        print_debug_trace("Save the information obtained to cache (even if it's a failure!)");
+        string_to_cache($status, $opt_model_id, "$cache_file_key-status");
+        string_to_cache(join("\n", @$desc), $opt_model_id, "$cache_file_key-desc");
+      }
+      else
+      {
+        print_debug_info("Didn't cache file with main due to --skip-norestrict");
+      }
 
       # Unset special environments variables.
       delete($ENV{$ldv_quiet});
@@ -1441,8 +1472,13 @@ sub process_cmd_cc()
       $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
       print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'");
 
-      # Save the result to cache
-      save_to_cache($cache_target,$opt_model_id,$cache_file_key);
+      # Save the result to cache.
+      save_to_cache($cache_target, $opt_model_id, $cache_file_key)
+        unless ($skip_caching);
+
+      # Save the preprocessed file needed for further visualization.
+      save_to_cache($preprocessed_cache_target, $opt_model_id, $preprocessed_cache_file_key)
+        unless ($skip_caching);
     }
 
     unless (LDV::Utils::check_verbosity('DEBUG'))
@@ -1919,7 +1955,7 @@ sub process_cmds()
           if (copy_from_cache($target_file, $opt_model_id, $cache_file_key))
           {
             # Cache hit.
-            print_debug_info("Got file '$in_file$common_c_suffix' from CACHE");
+            print_debug_info("Got file '$in_file$common_c_suffix' from cache");
           }
           else
           {
