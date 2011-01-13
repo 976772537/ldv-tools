@@ -6,84 +6,19 @@ def say_and_run(*args)
 	Kernel.system *args
 end
 
-class Ldvnode
-	include Nanite::Actor
-	expose :hello, :dscv, :ldv, :rcv
+require 'open3'
+def say_and_open3(*args)
+	$stderr.write "Running: #{args.inspect}\n"
+	Open3.popen3(*args) do |a,b,c|
+		yield a,b,c
+	end
+end
 
-	attr_accessor :status
-	# Normally, actors don't know ping time of an agent, but here we use it in result sending mechanism
-	attr_accessor :ping_time
-
-	Task_availability_default = { :ldv => 1, :dscv => 1, :rcv => 1 }
-
-	def initialize
-		puts "Setting status..."
-		@status = Task_availability_default.dup
-		@status_update_mutex = Mutex.new
-		puts "Setting status to #{@status} for #{self}"
-		@home = ENV['LDV_HOME'] || File.join(File.dirname(__FILE__),"..","..")
+class RealSpawner
+	def initialize(ldv_home)
+		@home = ldv_home
 	end
 
-	def hello(world)
-		puts "Hello, #{world.inspect}"
-	end
-
-	def rcv(task)
-		launch_child_job(:rcv,task)
-	end
-
-	def dscv(task)
-		launch_child_job(:dscv,task)
-	end
-
-	def ldv(task)
-		launch_child_job(:ldv,task)
-	end
-
-	protected
-
-	def launch_child_job(job_type,task)
-		puts "Job #{job_type} accepted: #{task.inspect}."
-		# Whether we descided to send job back (local for closures created below)
-		send_job_back = false
-
-		child_op = proc do
-			# Update local status
-			@status_update_mutex.synchronize do
-				if @status[job_type] > 0
-					@status[job_type] -= 1
-				else
-					send_job_back = true
-				end
-			end
-			unless send_job_back
-				# Set key (which is transferred via an environment variable)
-				ENV['LDV_SPAWN_KEY'] = task['key']
-				spawn_child(job_type,task)
-			end
-		end
-
-		callback_op = proc do
-			if send_job_back
-				# If the job's to be sent back, don't touch statuses, just send
-				puts "A #{job_type} job rejected, sending back: #{task.inspect}"
-				Nanite.push("/ldvqueue/redo", task)
-			else
-				@status_update_mutex.synchronize do
-					@status[job_type] += 1
-				end
-			end
-		end
-
-		EM.defer child_op, callback_op
-
-		puts "The #{job_type} will run in the background, and will send results!"
-	end
-
-	Child_jobs = { :ldv => {:cmd=>'ldv-manager'},
-		:dscv => {:cmd => 'dscv', :taskfile=>true},
-		:rcv => {:cmd => 'dscv', :taskfile=>true},
-	}
 	def spawn_child(job_type,task)
 		# Set up environment variables for child processes
 		task['env'].each { |var,val| ENV[var] = val.to_s }
@@ -138,6 +73,132 @@ class Ldvnode
 				end
 		end
 	end
+end
+
+class Player
+	def initialize(ldv_home,fname)
+		@home = ldv_home
+		@scenarios = {}
+		File.new(fname).each do |line|
+			if md = /([^:]*): (.*)/.match(line)
+				key,args_str = md[1],md[2]
+				args = args_str.split(" ")
+				@scenarios[key] ||= []
+				@scenarios[key] << args
+			end
+		end
+		@watcher = File.join(@home,'watcher','ldv-watcher')
+	end
+
+	def spawn_child(job_type,task)
+		spawn_key = ENV['LDV_SPAWN_KEY']
+		scenario = @scenarios[spawn_key]
+		raise "Scenario for key \"#{spawn_key}\" is not found" unless scenario
+		$stderr.puts "KEY #{spawn_key.inspect} going to execute preset scenario: #{scenario.inspect}"
+		scenario.each do |args|
+			# Our sleep will block this Eventmachine thread, but that's what the usual workflow does too
+			Kernel.sleep 2
+			if args[0] == 'wait'
+				# Since waiters usually wait for only one packet, we assume that it's the case in our scenarios, and terminate waiter if a line is read
+				say_and_open3(@watcher,*args) do |cin, cout, cerr|
+					cout.readline
+				end
+			else
+				say_and_run(@watcher,*args)
+			end
+		end
+	end
+end
+
+class Ldvnode
+	include Nanite::Actor
+	expose :hello, :dscv, :ldv, :rcv
+
+	attr_accessor :status
+	# Normally, actors don't know ping time of an agent, but here we use it in result sending mechanism
+	attr_accessor :ping_time
+
+	# Function to spawn child.  Substitute with scenario player if you want to run integration tests
+	attr_accessor :spawner
+
+	Task_availability_default = { :ldv => 1, :dscv => 1, :rcv => 1 }
+
+	def initialize
+		puts "Setting status..."
+		@status = Task_availability_default.dup
+		@status_update_mutex = Mutex.new
+		puts "Setting status to #{@status} for #{self}"
+		@home = ENV['LDV_HOME'] || File.join(File.dirname(__FILE__),"..","..")
+
+		if fname = ENV['LDV_PLAY']
+			@spawner = Player.new(@home,fname)
+		else
+			# run regression tests
+			@spawner = RealSpawner.new(@home)
+		end
+	end
+
+	def hello(world)
+		puts "Hello, #{world.inspect}"
+	end
+
+	def rcv(task)
+		launch_child_job(:rcv,task)
+	end
+
+	def dscv(task)
+		launch_child_job(:dscv,task)
+	end
+
+	def ldv(task)
+		launch_child_job(:ldv,task)
+	end
+
+	protected
+
+	def launch_child_job(job_type,task)
+		puts "Job #{job_type} accepted: #{task.inspect}."
+		# Whether we descided to send job back (local for closures created below)
+		send_job_back = false
+
+		child_op = proc do
+			# Update local status
+			@status_update_mutex.synchronize do
+				if @status[job_type] > 0
+					@status[job_type] -= 1
+				else
+					send_job_back = true
+				end
+			end
+			unless send_job_back
+				# Set key (which is transferred via an environment variable)
+				ENV['LDV_SPAWN_KEY'] = task['key']
+				spawner.spawn_child job_type,task
+			end
+		end
+
+		callback_op = proc do
+			if send_job_back
+				# If the job's to be sent back, don't touch statuses, just send
+				puts "A #{job_type} job rejected, sending back: #{task.inspect}"
+				Nanite.push("/ldvqueue/redo", task)
+			else
+				puts "The #{job_type} job completed, result should have been sent: #{task.inspect}"
+				@status_update_mutex.synchronize do
+					@status[job_type] += 1
+				end
+			end
+		end
+
+		EM.defer child_op, callback_op
+
+		puts "The #{job_type} will run in the background, and will send results!"
+	end
+
+	Child_jobs = { :ldv => {:cmd=>'ldv-manager'},
+		:dscv => {:cmd => 'dscv', :taskfile=>true},
+		:rcv => {:cmd => 'dscv', :taskfile=>true},
+	}
 
 end
 
