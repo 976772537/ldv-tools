@@ -139,7 +139,9 @@ class Ldvqueue
 	def remove_task_from(task,proper_queue)
 		# Find the node, on which the task was running, and remove it from the list
 		# FIXME: make it faster?
+
 		node_task_map = proper_queue[task[:type]]
+		raise "Task type (#{task[:type]}) is not supported!" unless node_task_map
 		node,tasks = node_task_map.find do |node,tasks|
 			tasks.find { |queued_task| queued_task[:key] == task[:key] }
 		end

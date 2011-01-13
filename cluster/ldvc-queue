@@ -5,13 +5,15 @@
 
 require 'rubygems'
 require 'nanite'
+$:.unshift File.dirname(__FILE__)
 require 'options.rb'
+require 'queue.rb'
 
 opts_p = ClusterOptionsParser.new({})
 opts_p.do_parse
 
 EM.run do
-	start_queue
+	start_queue opts_p.options
 end
 
 

@@ -11,16 +11,18 @@ class WatcherRemote < Watcher
 		:vhost => '/ldv',
 		:spawn_key => nil
 	}
-	attr_accessor :spawn_key
+	attr_accessor :spawn_key, :opts
 	public; def initialize(_opts = {})
-		opts = _opts.dup
-		super(REMOTE_OPTS.merge(opts))
+		@opts = _opts.dup
+		super(REMOTE_OPTS.merge(@opts))
 
 		$log.debug "External key is #{ENV['LDV_SPAWN_KEY']}"
 		config[:spawn_key] ||= ENV['LDV_SPAWN_KEY']
 		split_spawn_key
+	end
 
-		@waiter = Waiter.new(REMOTE_OPTS.merge(opts))
+	def waiter
+		@waiter ||= Waiter.new(REMOTE_OPTS.merge(opts))
 	end
 
 	def sender
@@ -37,13 +39,13 @@ class WatcherRemote < Watcher
 
 	public; def wait(type,*key)
 		$log.info "Waiting for #{type} with keys #{key.inspect}"
-		@waiter.wait_for(key,join('.'))
+		EM.run { waiter.wait_for(key.join('.')) }
 	end
 
 	public; def queue(what,task_fname,workdir,*key)
 		$log.info "Queueing #{what} task with #{task_fname} and wd #{workdir}"
 		payload = { :type => what, :args => IO.read(task_fname), :key => mk(key), :env => [], :workdir => workdir }
-		sender.send('/ldvqueue/queue', payload)
+		EM.run { sender.send('/ldvqueue/queue', payload)}
 	end
 
 	public; def success(type,*key)
@@ -70,7 +72,7 @@ class WatcherRemote < Watcher
 	private; def result(message,type,*key)
 		task = {:key => key.join('.'), :type => type}
 		$stderr.puts "******************************\n\nSending result for task #{task.inspect}\n\n"
-		sender.send('/ldvqueue/result', task)
+		EM.run { sender.send('/ldvqueue/result', task) }
 	end
 
 end
