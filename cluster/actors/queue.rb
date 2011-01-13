@@ -33,6 +33,7 @@ class Ldvqueue
 				# Find job_type and an available node to route job of that type to 
 				# If nothing found, find will return nils, and job and target will remain nils
 				puts "finding avail node among #{@nodes.size}"
+				puts "I have the following nodes: #{@nodes.inspect}"
 				job,target = nil,nil
 				Job_priority.find do |job_type|
 					if @queued[job_type].empty?
