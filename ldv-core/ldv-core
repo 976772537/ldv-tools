@@ -207,7 +207,7 @@ sub start_next {
 		
 		# create 
 		vsay 'TRACE', "Try to send 'success' message to watcher...\n";
-		LDV::Utils::watcher_cmd('success', @{$config->{'watcher_key'}});
+		LDV::Utils::watcher_cmd('success', 'ldv', @{$config->{'watcher_key'}});
 		vsay 'TRACE', "Message 'success' was sent to watcher.\n";
 		bce_ldv_report $rep_result;
 		1;
@@ -487,7 +487,7 @@ sub init_config {
 
 	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{'workdir'}/watcher";
 	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
-	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','ldv-core');
+	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','ldv');
 	vsay 'DEBUG', "Got key string $key_str.\n";
 	my @watcher_key = split /,/,$key_str;
 	$config->{'watcher_key'} = \@watcher_key;
