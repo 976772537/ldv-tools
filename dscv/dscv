@@ -514,7 +514,7 @@ if ($expected_blast_runs == 0 && !$config->{force}){
 	vsay 20,"Final report is written to $config->{report}\n";
 
 	# Leave
-	exit 0;
+	goto FINALIZE;
 }
 
 # Function that copies driver
@@ -818,6 +818,7 @@ vsay 20,"Final report is written to $config->{report}\n";
 	exit 1;
 };
 
+FINALIZE:
 # Report success to the watcher
 LDV::Utils::watcher_cmd('success',@watcher_key);
 
