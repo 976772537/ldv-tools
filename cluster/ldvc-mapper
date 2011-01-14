@@ -49,6 +49,9 @@ EM.run do
 
 	Nanite.start_mapper({:host => 'localhost', :user => 'mapper', :vhost => '/nanite', :log_level => 'debug', :agent_timeout => 60, :format => :json, :callbacks => {:timeout => node_remove_callback, :unregister => node_remove_callback, :register => node_add_callback }}.merge opts_p.options )
 
+	# Deadlock may happen if no event triggers announcement of statuses to ldvqueue, but there are free nodes available.  Adding timer to solve this.
+	EM.add_periodic_timer(20) { Nanite.mapper.cluster.announce_status_info }
+
 end
 
 
