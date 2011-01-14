@@ -19,7 +19,7 @@ EM.run do
 
 		# Send information about node (those who provide ldvnode services) statuses to the queuer
 		def announce_status_info
-			puts "Number of avvailable nodes: #{nanites_providing('/ldvnode/hello')}"
+			puts "Number of available nodes: #{nanites_providing('/ldvnode/hello').length}"
 			statuses = nanites_providing('/ldvnode/hello').inject({}) {|r,kv| r[kv[0]]=kv[1][:status] ; r }
 			puts "Gonna announce statuses #{statuses.inspect}"
 			Nanite.push("/ldvqueue/announce", statuses, :offline_failsafe => true)

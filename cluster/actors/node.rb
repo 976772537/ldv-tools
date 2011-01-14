@@ -14,12 +14,25 @@ def say_and_open3(*args)
 	end
 end
 
+def select_read(streams)
+	begin
+		r = select(streams,nil,nil,1)
+	end while not r
+	streams.inject(nil) do |r,s|
+		begin
+			(r)?(r):([s,s.readline])
+		rescue EOFError
+			nil
+		end
+	end
+end
+
 class RealSpawner
 	def initialize(ldv_home)
 		@home = ldv_home
 	end
 
-	def spawn_child(job_type,task)
+	def spawn_child(job_type,task,spawn_key)
 		# Set up environment variables for child processes
 		task['env'].each { |var,val| ENV[var] = val.to_s }
 		task['env'].each { |var,val| puts "Env: #{var} = '#{val.to_s}'" }
@@ -36,6 +49,8 @@ class RealSpawner
 				# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
 				puts "Creating #{workdir}"
 				Dir.chdir(FileUtils.mkdir_p(workdir)) do
+					# FIXME: replace with execve equivalent: possible race condition here
+					ENV['LDV_SPAWN_KEY'] = spawn_key
 					unless say_and_run('ldv-manager')
 						$stderr.puts "Failed to run ldv-manager..."
 					end
@@ -51,9 +66,11 @@ class RealSpawner
 					puts "Saved task to temporary file #{temp_file.path}"
 					puts task['args']
 
+					# FIXME: replace ENV assignments with execve equivalent: possible race condition here
 					ENV['WORK_DIR'] = workdir
 					# FIXME: this may actually differ, if user sets it up differently.
 					ENV['LDV_RULE_DB'] = File.join(@home,'kernel-rules','model-db.xml')
+					ENV['LDV_SPAWN_KEY'] = spawn_key
 					say_and_run('dscv',"--rawcmdfile=#{temp_file.path}")
 				end
 			when :rcv then
@@ -67,8 +84,10 @@ class RealSpawner
 					puts "Saved task to temporary file #{temp_file.path}"
 					puts task['args']
 
+					# FIXME: replace ENV assignments with execve equivalent: possible race condition here
 					ENV['DSCV_HOME'] = @home
 					ENV['WORK_DIR'] = workdir
+					ENV['LDV_SPAWN_KEY'] = spawn_key
 					say_and_run(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
 				end
 		end
@@ -88,24 +107,69 @@ class Player
 			end
 		end
 		@watcher = File.join(@home,'watcher','ldv-watcher')
+
+		@env_mutex=Mutex.new
 	end
 
-	def spawn_child(job_type,task)
-		spawn_key = ENV['LDV_SPAWN_KEY']
+	def env_say_and_run(env,*args)
+		#@env_mutex.synchronize do
+			env.each {|k,v| ENV[k]=v }
+			say_and_run(*args)
+		#end
+	end
+
+	def env_say_and_open3(env,*args,&block)
+		#@env_mutex.synchronize do
+			env.each {|k,v| ENV[k]=v }
+			say_and_open3(*args,&block)
+		#end
+	end
+
+	def spawn_child(job_type,task,spawn_key)
+		call_env = { 'LDV_SPAWN_KEY' => spawn_key }
 		scenario = @scenarios[spawn_key]
 		raise "Scenario for key \"#{spawn_key}\" is not found" unless scenario
 		$stderr.puts "KEY #{spawn_key.inspect} going to execute preset scenario: #{scenario.inspect}"
+
+		wait_by_args = {}
+
 		scenario.each do |args|
 			# Our sleep will block this Eventmachine thread, but that's what the usual workflow does too
-			Kernel.sleep 2
+			#Kernel.sleep 2
 			if args[0] == 'wait'
 				# Since waiters usually wait for only one packet, we assume that it's the case in our scenarios, and terminate waiter if a line is read
-				say_and_open3(@watcher,*args) do |cin, cout, cerr|
-					cout.readline
-				end
+				wait_by_args[args] ||= 0
+				wait_by_args[args] += 1
 			else
-				say_and_run(@watcher,*args)
+				env_say_and_run(call_env,@watcher,*args)
 			end
+		end
+		# Do our postponed waits
+		puts "POSTPONED WAITING for #{wait_by_args.inspect}!"
+		wait_by_args.each do |args, lines|
+			to_read = lines
+			while to_read > 0
+				env_say_and_open3(call_env,@watcher,*args) do |cin, cout, cerr|
+					while to_read > 0
+						puts "FAKE WAITING for #{args.inspect}, #{to_read} more to go (test failed on hangup)"
+						r = select([cout,cerr],nil,nil,1)
+						begin
+							$stderr.puts cerr.read_nonblock 10000
+						rescue EOFError
+							nil
+						end
+						if line = cout.readline
+							to_read -= 1
+							puts "FAKE WAIT RETURNS #{line.inspect}, #{to_read} left"
+						end
+					end
+					cin.close
+					cout.close
+					cerr.close
+				end
+				Kernel.sleep 1
+			end
+			$stderr.puts "FAKE WAITING for #{args.inspect} FINISHED!"
 		end
 	end
 end
@@ -171,9 +235,7 @@ class Ldvnode
 				end
 			end
 			unless send_job_back
-				# Set key (which is transferred via an environment variable)
-				ENV['LDV_SPAWN_KEY'] = task['key']
-				spawner.spawn_child job_type,task
+				spawner.spawn_child job_type,task,task['key']
 			end
 		end
 
