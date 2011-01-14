@@ -25,6 +25,7 @@
         <formFile formName="Profiles"/>
         <formFile formName="ProfileEdit"/>
         <formFile formName="TasksComparison"/>
+        <formFile formName="PrintCSV"/>
       </formsDirectory>
       <layoutsDirectory enabled="false"/>
       <modelsDirectory>
