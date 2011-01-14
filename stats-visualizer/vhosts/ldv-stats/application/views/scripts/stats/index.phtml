@@ -43,9 +43,13 @@ global $dataCSV, $dataCSVIndex;
 $dataCSV = array();
 $dataCSVIndex = 1;
 
+global $dataMarker;
+$dataMarker = '__DATA__';
+
 function printData($format, $data, $opt = 0) {
   if ($opt != 2) {
-    echo sprintf($format, $data);
+    global $dataMarker;
+    echo preg_replace("/$dataMarker/", $data, $format);
   }
 
   if ($opt != 1) {
@@ -507,7 +511,7 @@ if ($resultsNumb) {
                   $statTaskValueEditable = 'SSStatsTableTaskDescriptionEdit';
                 }
 
-                printData("<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value $statTaskValueEditable'>%s</div>", $result['Stats key'][$statTaskKey], 1);
+                printData("<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value $statTaskValueEditable'>$dataMarker</div>", $result['Stats key'][$statTaskKey], 1);
               }
             }
 
@@ -535,16 +539,16 @@ if ($resultsNumb) {
       else if ($value == '__EMPTY' or $value != $prevStatKey[$statKey]) {
         // For null rule name print auxiliary name instead of nothing.
         if ($value == '__NULL' and $statKey == 'Rule name') {
-          printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>%s</td>", 'Fail before RI');
+          printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$dataMarker</td>", 'Fail before RI');
         }
         // For git profile generate links to the rule description.
         else if (isGit($results) and $statKey == 'Rule name') {
           $global = new Zend_Session_Namespace();
           if (array_key_exists($value, $global->models)) {
-            printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>%s</a></td>", $global->models[$value]['short']);
+            printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>$dataMarker</a></td>", $global->models[$value]['short']);
           }
           else {
-            printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>%s</td>", $value);
+            printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$dataMarker</td>", $value);
           }
         }
         else if (array_key_exists($statKey, $profilePages)) {
@@ -560,7 +564,7 @@ if ($resultsNumb) {
               'default',
               true)
             . "'>"
-            . '%s'
+            . $dataMarker
             . "</a></td>", $value);
 
         }
@@ -569,7 +573,7 @@ if ($resultsNumb) {
           if ($valueToPrint == '__EMPTY' and $statKey == 'Entry point') {
             $valueToPrint = 'No entry point';
           }
-          printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>%s</td>", $valueToPrint);
+          printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$dataMarker</td>", $valueToPrint);
         }
 
         $statKeysValues[$statKey] = $value;
@@ -618,7 +622,7 @@ if ($resultsNumb) {
       $value = $result['Verification info'][$verificationKey];
       if ($verificationKey == 'Error trace') {
         if ($isErrorTracePresent) {
-          echo "<a href='"
+          printData("<a href='"
             . $this->url(
               array_merge(
                 $globals,
@@ -630,10 +634,10 @@ if ($resultsNumb) {
                 $statKeysValues),
               'default',
               true)
-            . "'>...</a>";
+            . "'>$dataMarker</a>", '...');
         }
         else {
-          printData('%s', '-');
+          printData($dataMarker, '-');
         }
       }
       else if (array_key_exists($verificationKey, $profilePages)) {
@@ -650,11 +654,11 @@ if ($resultsNumb) {
             'default',
             true)
           . "'>"
-          . '%s'
+          . $dataMarker
           . "</a>", $value);
       }
       else {
-        printData('%s', $value);
+        printData($dataMarker, $value);
       }
       echo "</td>";
     }
@@ -686,10 +690,10 @@ if ($resultsNumb) {
 
         if ($toolInfo == 'Time' or $toolInfo == 'Time Ok' or $toolInfo == 'Time Fail') {
           if (array_key_exists("$toolName Time", $result['Tool time'])) {
-            printData('%s', formatTime($result['Tool time']["$toolName Time"][$toolInfo]));
+            printData($dataMarker, formatTime($result['Tool time']["$toolName Time"][$toolInfo]));
           }
           else {
-            printData('%s', '-');
+            printData($dataMarker, '-');
           }
         }
         else {
@@ -710,20 +714,20 @@ if ($resultsNumb) {
               . "'>";
 
             if ($toolInfo == 'LOC') {
-              printData('%s', formatLoc($value));
+              printData($dataMarker, formatLoc($value));
             }
             else {
-              printData('%s', $value);
+              printData($dataMarker, $value);
             }
 
             echo "</a>";
           }
           else {
             if ($toolInfo == 'LOC') {
-              printData('%s', formatLoc($value));
+              printData($dataMarker, formatLoc($value));
             }
             else {
-              printData('%s', $value);
+              printData($dataMarker, $value);
             }
           }
         }
@@ -743,7 +747,7 @@ if ($resultsNumb) {
           foreach ($result['Tool children time']["$toolName Time"] as $pattern => $time) {
             // If a given tool has a particular child.
             if ($toolChild == $pattern) {
-              printData("    <td class='SSAlignRight SSNoWrap'>%s</td>", formatTime($time['Time']));
+              printData("    <td class='SSAlignRight SSNoWrap'>$dataMarker</td>", formatTime($time['Time']));
               $isHasChild = true;
               break;
             }
@@ -752,7 +756,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasChild) {
-          printData("<td class='SSAlignRight'>%s</td>", '-');
+          printData("<td class='SSAlignRight'>$dataMarker</td>", '-');
         }
       }
 
@@ -779,12 +783,12 @@ if ($resultsNumb) {
                     'default',
                     true)
                   . "'>"
-                  . '%s'
+                  . $dataMarker
                   . "</a>", $value);
 
               }
               else {
-                printData('%s', $value);
+                printData($dataMarker, $value);
               }
               echo "</td>";
               $isHasProblem = true;
@@ -794,7 +798,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasProblem) {
-          printData("<td class='SSAlignRight'>%s</td>", '-');
+          printData("<td class='SSAlignRight'>$dataMarker</td>", '-');
         }
       }
     }
