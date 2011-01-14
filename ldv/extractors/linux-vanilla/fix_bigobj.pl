@@ -186,7 +186,7 @@ sub patch_main_makefile {
 	open (FILE,">".$kernel_info->{'makefile'}) or die("Can't open main makefile for patching: $!");
 	my $state = 1;
 	foreach (@string) {
-		/^\s*KBUILD_CFLAGS \+= -DCC_HAVE_ASM_GOTO\s*$/ and next;
+		# /^\s*KBUILD_CFLAGS \+= -DCC_HAVE_ASM_GOTO\s*$/ and next; - moved to model_db.xml
 		/^\s*cmd_vmlinux__ \?= \$\(LD\) \$\(LDFLAGS\) \$\(LDFLAGS_vmlinux\) -o \$@\s*\\\s*$/ and next;
 		/^\s*-T \$\(vmlinux-lds\) \$\(vmlinux-init\)\s*\\\s*$/ and next;
 		/^\s*--start-group \$\(vmlinux-main\) --end-group\s*\\\s*$/ and $_="\tcmd_vmlinux__ ?=  touch \$@ \\\n";
