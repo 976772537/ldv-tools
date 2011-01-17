@@ -261,9 +261,7 @@ my $log_cmds_aspect = 'mode=aspect';
 my $log_cmds_cc = 'cc';
 my $log_cmds_desc_begin = '^^^^^&&&&&';
 my $log_cmds_desc_end = '&&&&&^^^^^';
-my $log_cmds_desc_fail_default = 'I failed :( (the default message)';
 my $log_cmds_desc_ld_cc_separator = '&&&&&&&&&&';
-my $log_cmds_desc_ok_default = 'I was successfully executed :) (the default message)';
 my $log_cmds_fail = 'fail';
 my $log_cmds_ld = 'ld';
 my $log_cmds_ok = 'ok';
@@ -1250,19 +1248,6 @@ sub print_cmd_log($)
     unless (defined($log{'entries'}));
   die("The command execution description isn't specified in the command log")
     unless (defined($log{'desc'}));
-
-  # Use the default description if no was specified by some reason.
-  unless (@{$log{'desc'}})
-  {
-    if ($log{'status'} eq $log_cmds_ok)
-    {
-      push(@{$log{'desc'}}, $log_cmds_desc_ok_default);
-    }
-    else
-    {
-      push(@{$log{'desc'}}, $log_cmds_desc_fail_default);
-    }
-  }
 
   # We put description in the special quotes since it may contain undefined
   # number of lines and undefined symbols.
