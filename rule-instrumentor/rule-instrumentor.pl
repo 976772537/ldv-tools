@@ -71,15 +71,10 @@ sub get_opt();
 # retn: nothing.
 sub help();
 
-# Interpret a long error description and make the short one.
-# args: an array of long error description lines.
-# retn: an array of short error description lines.
-sub interpret_failure(@);
-
-# Join together cc error descriptions placing separators between them.
-# args: an array of references to cc error descriptions.
+# Join together error descriptions placing separators between them.
+# args: an array of references to error descriptions.
 # retn: a reference to a joined description.
-sub join_cc_error_desc(@);
+sub join_error_desc(@);
 
 # Obtain needed files and dirs and check their presence.
 # args: no.
@@ -261,9 +256,7 @@ my $log_cmds_aspect = 'mode=aspect';
 my $log_cmds_cc = 'cc';
 my $log_cmds_desc_begin = '^^^^^&&&&&';
 my $log_cmds_desc_end = '&&&&&^^^^^';
-my $log_cmds_desc_fail_default = 'I failed :( (the default message)';
 my $log_cmds_desc_ld_cc_separator = '&&&&&&&&&&';
-my $log_cmds_desc_ok_default = 'I was successfully executed :) (the default message)';
 my $log_cmds_fail = 'fail';
 my $log_cmds_ld = 'ld';
 my $log_cmds_ok = 'ok';
@@ -612,10 +605,6 @@ sub exec_status_and_desc(@)
 
   my @desc = <$file_temp_read>;
   print_debug_debug("The command execution full description is '@desc'");
-
-  print_debug_trace("Try to understand what kind of failure takes place");
-  @desc = interpret_failure(@desc);
-  print_debug_debug("The command execution short description is '@desc'");
 
   close($file_temp_read)
     or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");
@@ -999,23 +988,35 @@ EOM
   exit($error_syntax);
 }
 
-sub interpret_failure(@)
+sub join_error_desc(@)
 {
-  my @desc = @ARG;
-
-  # This is an auxiliary function and i think that i'll never use it!
-
-  return @desc;
-}
-
-sub join_cc_error_desc(@)
-{
-  my @cc_error_descs = @ARG;
+  my @error_descs = @ARG;
   my @joined_desc = ();
+  my $is_first = 1;
 
-  foreach my $cc_error_desc (@cc_error_descs)
+  foreach my $error_desc (@error_descs)
   {
-    push(@joined_desc, "\n$log_cmds_desc_ld_cc_separator\n", @{$cc_error_desc}, "\n$log_cmds_desc_ld_cc_separator\n");
+    if ($is_first)
+    {
+      push(@joined_desc, @{$error_desc});
+      $is_first = 0;
+    }
+    else
+    {
+      my $is_empty = 1;
+
+      foreach my $error_desc_str (@{$error_desc})
+      {
+        unless ($error_desc_str =~ /^\s+$/)
+        {
+          $is_empty = 0;
+          last;
+        }
+      }
+
+      push(@joined_desc, "\n$log_cmds_desc_ld_cc_separator\n", @{$error_desc})
+        if (!$is_empty);
+    }
   }
 
   return \@joined_desc;
@@ -1251,22 +1252,14 @@ sub print_cmd_log($)
   die("The command execution description isn't specified in the command log")
     unless (defined($log{'desc'}));
 
-  # Use the default description if no was specified by some reason.
-  unless (@{$log{'desc'}})
-  {
-    if ($log{'status'} eq $log_cmds_ok)
-    {
-      push(@{$log{'desc'}}, $log_cmds_desc_ok_default);
-    }
-    else
-    {
-      push(@{$log{'desc'}}, $log_cmds_desc_fail_default);
-    }
-  }
-
   # We put description in the special quotes since it may contain undefined
   # number of lines and undefined symbols.
-  print($file_cmds_log "$log{'cmd'}:$log{'status'}:$log{'time'}:$log{'id'}:$log{'check'}:@{$log{'entries'}}:\n${log_cmds_desc_begin}\n@{$log{'desc'}}\n${log_cmds_desc_end}\n");
+  print($file_cmds_log "$log{'cmd'}:$log{'status'}:$log{'time'}:$log{'id'}:$log{'check'}:@{$log{'entries'}}:\n${log_cmds_desc_begin}\n");
+  foreach my $str (@{$log{'desc'}})
+  {
+    print($file_cmds_log $str);
+  }
+  print($file_cmds_log "\n${log_cmds_desc_end}\n");
 }
 
 sub process_cmd_cc()
@@ -1497,11 +1490,7 @@ sub process_cmd_cc()
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
 
-    # Create artificial empty description.
-    my @desc = ();
-
-    # Status is ok, description is empty.
-    return (0, \@desc);
+    return (0, $desc);
   }
 
   # At the moment just the aspect mode is presented here.
@@ -2050,7 +2039,7 @@ sub process_cmds()
           {
             print_debug_debug("Some ld command input files aren't processed successfully");
             # Mark that the output file isn't generated successfully.
-            $cmds_status_fail{$out_text} = join_cc_error_desc(@cc_error_desc);
+            $cmds_status_fail{$out_text} = join_error_desc(@cc_error_desc);
             my %log = (
                 'cmd' => $log_cmds_ld # The ld command was executed.
               , 'status' => $log_cmds_fail # The ld command failed.
@@ -2112,7 +2101,7 @@ sub process_cmds()
         else
         {
           $status_log = $log_cmds_ok;
-          $cmds_status_ok{$out_text} = $id_attr;
+          $cmds_status_ok{$out_text} = $desc;
         }
 
         my %log = (
@@ -2157,6 +2146,13 @@ sub process_cmds()
             my @desc = ("The input file '$in_text' required by the ld command wasn't processed");
             push(@cc_error_desc, \@desc);
           }
+          # I.e. when ld input file was processed without errors but may be with
+          # some useful warnings.
+          else
+          {
+            print_debug_trace("The required by ld file '$in_text' was processed successfully");
+            push(@cc_error_desc, $cmds_status_ok{$in_text});
+          }
         }
 
         # Process command just when inputs are ok.
@@ -2170,18 +2166,22 @@ sub process_cmds()
         {
           print_debug_debug("All ld command input files are processed successfully");
           my $status_log;
+          my $desc_log;
+
+          $desc_log = join_error_desc(@cc_error_desc, @{$desc});
+
           # 0 status is good.
           if ($status)
           {
             $status_log = $log_cmds_fail;
             # Mark that the output file isn't generated successfully.
-            $cmds_status_fail{$out_text} = $desc;
+            $cmds_status_fail{$out_text} = $desc_log;
           }
           else
           {
             $status_log = $log_cmds_ok;
             # Just mark that the output file is generated successfully.
-            $cmds_status_ok{$out_text} = $id_attr;
+            $cmds_status_ok{$out_text} = $desc_log;
           }
 
           my %log = (
@@ -2191,7 +2191,7 @@ sub process_cmds()
             , 'id' => $id_attr # The ld command id.
             , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
             , 'entries' => \@entry_points # The ld command entry points.
-            , 'desc' => $desc # There is an execution specific description.
+            , 'desc' => $desc_log # There is an execution specific description.
           );
           print_cmd_log(\%log);
         }
@@ -2199,7 +2199,7 @@ sub process_cmds()
         {
           print_debug_debug("Some ld command input files aren't processed successfully");
           # Mark that the output file isn't generated successfully.
-          $cmds_status_fail{$out_text} = join_cc_error_desc(@cc_error_desc);
+          $cmds_status_fail{$out_text} = join_error_desc(@cc_error_desc);
 
           my %log = (
               'cmd' => $log_cmds_ld # The ld command was executed.
@@ -2292,8 +2292,11 @@ sub process_report()
         unless (defined(my $desc_cur = <$file_cmds_log>));
       last if ($desc_cur =~ /^\Q$log_cmds_desc_end\E/);
 
+      # Skip useless lines.
+      next if ($desc_cur =~ /^\s+$/);
+
       # Concatenate with the previous partial description.
-      $cmd_desc = "$cmd_desc$desc_cur\n";
+      $cmd_desc = "$cmd_desc$desc_cur";
     }
 
     print_debug_debug("The commmand log id is '$cmd_id'");
