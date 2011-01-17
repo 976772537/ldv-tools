@@ -42,30 +42,10 @@ function isGit($info) {
 
 // Print data from some array to the screen in the CSV format.
 function printCSV($data) {
-  $outStream = fopen("php://output", 'w');
-
-//  $isOnce = true;
-
   foreach ($data as $row) {
-/*
-    $keysVals['keys'] = array();
-    $keysVals['vals'] = array();
-
-    array_walk_recursive($row, create_function('$val, $key, $obj', 'array_push($obj[\'keys\'], $key); array_push($obj[\'vals\'], $val);'), &$keysVals);
-
-    if ($isOnce) {
-      fputcsv($outStream, $keysVals['keys'], ';');
-      echo "<br>";
-      $isOnce = false;
-    }
-
-    fputcsv($outStream, $keysVals['vals'], ';');
-*/
-    fputcsv($outStream, $row, ';');
+    echo implode(';', $row);
     echo "<br>";
   }
-
-  fclose($outStream);
 }
 
 // Print information on a current database connection.
