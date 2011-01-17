@@ -79,18 +79,34 @@ sub scheduler_send_task;
 sub deg_create_report;
 sub find_unused_port;
 
+#########################################################
+#             MAIN 					#
+#########################################################
 
+# Generate unique number for CSD Server name 
 my $wsdl_uid="$$".`date +%Y%H%M%S`;
 chomp $wsdl_uid;
+
+# Find free port and generate adress for starting CSD Server
 $ENV{'WSDLADDR'} = "http://localhost:".find_unused_port()."/csd$wsdl_uid";
 vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
 
+# Initialize config (create dirs, files and etc)
 init_config;
+
+# Prepare driver and kernel for work with Build Command Extractor
+# (Unpack driver and kernel, copy ...)
 prepare_driver;
 
+#
+# Process 1: Starting Command Stream Divider server 
+#
 my $csd_pid = start_csd;
 is_exists($csd_pid) or die"Starting CSD failed: $!";
 
+#
+# Process 2: Starting Build Command Extractor
+#
 my $bce_pid = start_bce;
 if(!is_exists($bce_pid)) {
 	vsay 'TRACE', "Try to kill BCE...\n";
@@ -98,6 +114,10 @@ if(!is_exists($bce_pid)) {
 	waitpid $csd_pid, 0;
 }
 
+#
+# Procss 3: Process for getting, preparing and sending to DSCV commands 
+#           from CSD. Also generate reports.
+#
 my $next_pid = start_next($csd_pid);
 if(!is_exists($next_pid)) {
 	vsay 'TRACE', "Try to kill BCE and CSD...\n";
@@ -106,27 +126,51 @@ if(!is_exists($next_pid)) {
 	waitpid $csd_pid, 0;
 }
 
+#
+# Wait while BCE not finished
+#
 waitpid $bce_pid, 0;
 vsay 'TRACE', "BCE successfully finished\n";
 
+#
+# Try to connect to CSD and white while verification process is finished.
+# There are two ways to determine it:
+#
+#   1. - stack with commands is empty and bce finished (see before).
+#        (BCE is dead and new commands are not received to CSD cmd stack.)
+#  
+#   2. - Verification process already finished (failed) and stack is not empty. 
+#
 my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
-
 while($csd->isEmpty() eq 'false') {
 	is_exists($next_pid) or last;
 }
 
+#
+# kill CSD
+#
 kill 9, $csd_pid;
 waitpid $csd_pid, 0;
+
+#
+# Wait until verification process finished her works. Verification
+# process guaranteed to terminate if CSD is dead.
+#
 waitpid $next_pid, 0;
 
 
-
+#
+# check if process is exisst in /proc
+#
 sub is_exists {
 	my ($pid) = @_;
 	defined $pid or return 0;
 	return -d "/proc/$pid";
 }
 
+#
+# Verification process starter
+#
 sub start_next {
 	my ($csd_pid) = @_; 
 	my $pid = fork;
@@ -221,6 +265,9 @@ sub start_next {
 	return $pid;
 }
 
+#
+# Create report after Command Stream Divider 
+#
 sub csd_create_report {
 	my ($tasks) = @_;
 	
@@ -245,6 +292,9 @@ sub csd_create_report {
 	return 'OK';
 }
 
+#
+# Create reports for Driver Environment Generator
+#
 sub deg_create_report {
 	my ($task_path)  = @_;
 	vsay 'DEBUG', "Calling DEG reporter for \"$task_path\"\n";
@@ -261,14 +311,27 @@ sub deg_create_report {
 	system(@deg_reporter_args);
 }
 
+#
+# Wait until all queued to DSCV tasks are verified.
+# For all tasks (The number of tasks is calculated before cycle):
+#  --->
+#  |   1. wait queued task
+#  |   2. unpack by watcher
+#  |<--
+#
 sub wait_for_all_verified {
 	my ($tasks) = @_;
 	vsay 'TRACE', "Start watcher waiting...\n";
+
 	# calculate number of queued task
 	my $wait_counter = 0;
 	foreach (keys %{$tasks}) {
 		$tasks->{$_}->{state} eq 'queued' and $wait_counter++;
 	}
+
+	#
+	# waiting for all tasks
+	#
 	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";
 	while($wait_counter > 0) {
 		vsay 'TRACE', "Tasks for wait_for_dscv: $wait_counter\n";
@@ -279,10 +342,12 @@ sub wait_for_all_verified {
 	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
 	        }
 	        my (undef, $cid) = @key;
+
 	        # unpack the incoming package
 	        vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
 	        vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
 	        LDV::Utils::watcher_cmd('unpack', $path, $contents);
+
 		# find corresponding task descriptor and set status to 'verified'
 		vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
 		$tasks->{$cid}->{state} = 'verified';
@@ -296,13 +361,9 @@ sub wait_for_dscv {
 	return split /,/,$dscv_id;	
 }
 
-sub is_all_verified {
-	my ($tasks) = @_;
-	foreach my $task (@$tasks) {
-		$task->{'state'} ne 'verified' and return 0;
-	}
-}
-
+#
+# Prepare task descriptor for DSCV and queue task.
+#
 sub scheduler_send_task {
 	my ($task_descriptor, $cid) = @_;
 	my $command = $task_descriptor->{'path'};
@@ -357,7 +418,9 @@ sub parallel_run {
         return $pid;
 }
 
-
+#
+# Build Command Extractor starter
+#
 sub start_bce {
 	vsay 'NORMAL', "Starting BCE...\n";
 	$ENV{'BUILDFILE'} = "$config->{'bce_tempdir'}/build.xml";
@@ -387,7 +450,9 @@ sub start_bce {
 
 }
 
-
+#
+# Command Stream Divider starter
+#
 sub start_csd {
 	vsay 'NORMAL', "Starting CSD (WSDL)...\n";
 	my @csd_options = ('java',
@@ -570,6 +635,9 @@ sub bce_ldv_report {
 	defined $action and $action eq 'exit' and exit;
 }
 
+#
+# Find unused port for CSD server
+#
 sub find_unused_port {
         for($testport = 8080; $testport<8090; $testport++) {
                 vsay 'DEBUG', "Test port: \"$testport\".\n";
