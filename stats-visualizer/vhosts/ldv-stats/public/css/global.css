@@ -288,6 +288,11 @@ body
   text-align: right;
 }
 
+.SSAlignLeft
+{
+  text-align: left;
+}
+
 /* Statistics comparison action menu style. */
 #SCActionMenuShowHide
 {

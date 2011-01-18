@@ -639,6 +639,9 @@ if ($resultsNumb) {
           printData('-', '');
         }
       }
+      else if (!$value) {
+        printData('-', '');
+      }
       else if (array_key_exists($verificationKey, $profilePages)) {
         printData("<a href='"
           . $this->url(
@@ -679,8 +682,8 @@ if ($resultsNumb) {
         if ($toolInfo == 'Description') {
           // Inspect whether there is some description at all.
           $value = $result['Tools info']["$toolName $toolInfo"];
-          if ($value == '') {
-            echo "<div>";
+          if (!$value) {
+            echo "<div class='SSAlignLeft'>";
           }
           else {
             echo "<div class='SSStatsTableDescription'>";
@@ -698,7 +701,10 @@ if ($resultsNumb) {
         }
         else {
           $value = $result['Tools info']["$toolName $toolInfo"];
-          if (array_key_exists("$toolName $toolInfo", $profilePages)) {
+          if (!$value and $toolInfo != 'LOC') {
+            printData('-', '');
+          }
+          else if (array_key_exists("$toolName $toolInfo", $profilePages)) {
             echo "<a href='"
               . $this->url(
                 array_merge(
