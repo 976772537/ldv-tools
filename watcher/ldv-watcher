@@ -233,35 +233,37 @@ class Watcher
 			def eligible(*paths)
 				paths.flatten!
 				any = false
-				paths.each do |path| ; Find.find(path) do |fname|
+				paths.each do |path| ; if File.exists? path ;  Find.find(path) do |fname|
 					if File.file? fname
 						any = true
 						break
 					end
-				end; end
+				end; end; end
 				any
 			end
 			while eligible(running,queried,finished)
 				$log.debug "Dirs are not empty"
 				found_any = false
 				waited_for = {}
-				Find.find(finished) do |file|
-					next unless File.file? file
-					$log.debug "Waited for #{file}"
-					key = keyfilestrip(file,@dir.join('finished'))
-					$log.debug "Key is '#{key.inspect}'"
-					key.pop
-					$log.debug "Key is '#{key.inspect}'"
-					# Read data
-					waited_workdir = File.read(file).chomp
-					$log.debug "Waited workdir is '#{waited_workdir}'"
-					# Add to out
-					waited_for[ key ] = { :workdir => waited_workdir }
-					# Exit
-					%w(running queried finished).map{ |w| @dir.join(w,key)}.each {|l| $log.debug "Removing #{l}"}
-					FileUtils.rm_rf(%w(running queried finished).map{ |w| @dir.join(w,key)})
-					found_any = true
-					break
+				if File.exists? finished
+					Find.find(finished) do |file|
+						next unless File.file? file
+						$log.debug "Waited for #{file}"
+						key = keyfilestrip(file,@dir.join('finished'))
+						$log.debug "Key is '#{key.inspect}'"
+						key.pop
+						$log.debug "Key is '#{key.inspect}'"
+						# Read data
+						waited_workdir = File.read(file).chomp
+						$log.debug "Waited workdir is '#{waited_workdir}'"
+						# Add to out
+						waited_for[ key ] = { :workdir => waited_workdir }
+						# Exit
+						%w(running queried finished).map{ |w| @dir.join(w,key)}.each {|l| $log.debug "Removing #{l}"}
+						FileUtils.rm_rf(%w(running queried finished).map{ |w| @dir.join(w,key)})
+						found_any = true
+						break
+					end
 				end
 				if found_any
 					# Return list of strings, each string being
