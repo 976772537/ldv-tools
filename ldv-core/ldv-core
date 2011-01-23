@@ -456,7 +456,7 @@ sub start_bce {
 sub start_csd {
 	vsay 'NORMAL', "Starting CSD (WSDL)...\n";
 	my @csd_options = ('java',
-		'-ea',
+		'-Xmx100M',
 		'-jar',
 		$config->{'csd'},
 		"--wsdladdr=$ENV{'WSDLADDR'}",
