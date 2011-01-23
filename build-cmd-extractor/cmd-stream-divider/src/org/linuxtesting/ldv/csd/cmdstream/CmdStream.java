@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import javax.naming.NamingException;
@@ -49,8 +49,7 @@ public class CmdStream {
 			.synchronizedList(new ArrayList<Command>());
 	private static List<Command> badlist = Collections
 			.synchronizedList(new ArrayList<Command>());
-	private final static BlockingQueue<Command> commandsQueue = new ArrayBlockingQueue<Command>(
-			400000);
+	private final static BlockingQueue<Command> commandsQueue = new LinkedBlockingQueue<Command>();
 
 	public CmdStream(List<Command> cmdList, String basedir, boolean fullcopy,
 			String statefile, String tempdir) {
