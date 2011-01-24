@@ -10,6 +10,19 @@ require 'fileutils'
 ENV['LDV_SRVHOME'] ||= File.expand_path("../",File.dirname(__FILE__))
 manhome = File.join(ENV['LDV_SRVHOME'],"ldv-manager")
 
+# Due to a huge size of a log, it's not useful to print warnings as they appear.  Instead, we just save them here.
+warnings = []
+
+print_warnings = proc do
+	unless warnings.empty?
+		$stderr.puts "\nWARNINGS (#{warnings.length}):"
+		warnings.each {|w| $stderr.puts w }
+		$stderr.puts ""
+	end
+end
+
+Kernel.trap('INT', print_warnings)
+
 require File.join(manhome,"upload_utils.rb")
 ldv_db_connect
 
@@ -320,7 +333,13 @@ doc.elements.each(xml_query_string) do |ld|
 		# Now sources are matched with traces inside the XML file
 		unless (source_files = ld.elements.collect("sourcefile") {|tag| tag.text}).empty?
 			# We use +clone+ to keep records in sources[] array unsaved.  If we didn't use clone, records in sources[] array would be re-saved by the subsequent calls, and each source file would end up being assigned to only one trace
-			source_files.each {|fname| trace.sources << sources[fname].clone }
+			source_files.each do |fname|
+				if sources[fname]
+					trace.sources << sources[fname].clone
+				else
+					warnings << "Can't find source '#{fname}' referred from <sourcefile> tag in id=#{ld.attributes['ref']}."
+				end
+			end
 		else
 			$stderr.write "No <sourcefile> tags for ld #{ld.attributes['ref']}!  Adding all sources to this trace...\n"
 			# See above about usage of +clone+
@@ -408,6 +427,8 @@ end
 
 # Remove temporary directory on success (keep it if something failed, we might want to examine it!)
 FileUtils.remove_dir(tmpdir)
+
+print_warnings.call
 
 # Report address where to look for results
 puts <<EOF
