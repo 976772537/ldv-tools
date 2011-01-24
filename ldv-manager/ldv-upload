@@ -168,6 +168,17 @@ class Source
 	end
 end
 
+def simplify_path(path)
+	if path =~ /^\//
+		#Path is absolute, just return result
+		File.expand_path path
+	else
+		# Path is relative, expand as absolute and strip
+		abs_ish = File.expand_path path, "/"
+		abs_ish.sub(/^\//,'')
+	end
+end
+
 class Launch
 	def self.init_global_params(a)
 		@@driver_origin = a[:driver_origin]
@@ -333,7 +344,9 @@ doc.elements.each(xml_query_string) do |ld|
 		# Now sources are matched with traces inside the XML file
 		unless (source_files = ld.elements.collect("sourcefile") {|tag| tag.text}).empty?
 			# We use +clone+ to keep records in sources[] array unsaved.  If we didn't use clone, records in sources[] array would be re-saved by the subsequent calls, and each source file would end up being assigned to only one trace
-			source_files.each do |fname|
+			source_files.each do |fname_raw|
+				# File name may not be simplified (like "path/to/../relative/file.h"), so we need to simplify it.  See bug #704.
+				fname = simplify_path fname_raw
 				if sources[fname]
 					trace.sources << sources[fname].clone
 				else
