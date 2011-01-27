@@ -238,6 +238,23 @@ if ($action eq 'plan'){
 	$actions->{verification} = '';
 }
 
+=item B<drop-cache>
+
+Clears cache for the current commit and the current set of rules (see C<--rule>).
+
+For this purpose, if a special rule "all" is among the rules you've specified, then the cache for all rules is cleared.  This is useful when you've checked some rules beyond the default ones.
+
+=cut
+push @actions_allowed,'drop-cache';
+if ($action eq 'drop-cache'){
+	$actions->{check_db} = '';
+	$actions->{status} = '';
+	$actions->{plan} = '';
+	$actions->{metadata} = '';
+	$actions->{verification} = '';
+	$actions->{clear_cache} = 'current';
+}
+
 =back
 
 =cut
@@ -462,6 +479,35 @@ my $stats_url = form_task($ENV{'LDVGIT_STAT_SRV'},toshow_commits($commit,@partia
 # Rules to verify
 @rules = @rules_default unless @rules;
 @rules = split(/,/,join(',',@rules));
+
+#======================================================================
+# Clear cache (if necessary)
+sub clean_cache_for
+{
+	my ($commit,@rules) = @_;
+	# Detect if we should clear caches for all rules
+	my $clear_for_all_rules = grep { /^all$/i } @rules;
+	@rules = ('all') if $clear_for_all_rules;
+
+	vsay('NORMAL', sprintf("Clearing cache for commit $commit, rules: %s\n",join(', ',@rules)));
+	my $commits_cache = catfile($cache_base,"cache-$commit");
+	if ($clear_for_all_rules){
+		rmtree($commits_cache) or warn "Couldn't remove folder $commits_cache: $!";
+	}else{
+		for my $rule (@rules){
+			my $rules_cache = catfile($commits_cache,$rule);
+			rmtree($rules_cache) or warn "Couldn't remove folder $rules_cache: $!";
+		}
+	}
+}
+if (defined $actions->{clear_cache}){
+	if ($actions->{clear_cache} eq 'current'){
+		# Clear only current cache for the rules specified
+		clean_cache_for($commit,@rules);
+	}else{
+		die "Assertion failed: clear_cache is unknown ('$action->{clear_cache}')";
+	}
+}
 
 #======================================================================
 # Handle runs that pretend full
