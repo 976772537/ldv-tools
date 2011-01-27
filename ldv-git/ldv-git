@@ -255,6 +255,23 @@ if ($action eq 'drop-cache'){
 	$actions->{clear_cache} = 'current';
 }
 
+=item B<drop-older-caches>
+
+Clears caches for the commits older than the current one, keeping the current one's cache intact.  Clears caches for the set of rules specified by C<--rule>.
+
+For this purpose, if a special rule "all" is among the rules you've specified, then the cache for all rules is cleared.  This is useful when you've checked some rules beyond the default ones.
+
+=cut
+push @actions_allowed,'drop-older-caches';
+if ($action eq 'drop-older-caches'){
+	$actions->{check_db} = '';
+	$actions->{status} = '';
+	$actions->{plan} = '';
+	$actions->{metadata} = '';
+	$actions->{verification} = '';
+	$actions->{clear_cache} = 'older';
+}
+
 =back
 
 =cut
@@ -485,6 +502,7 @@ my $stats_url = form_task($ENV{'LDVGIT_STAT_SRV'},toshow_commits($commit,@partia
 sub clean_cache_for
 {
 	my ($commit,@rules) = @_;
+	local $_;
 	# Detect if we should clear caches for all rules
 	my $clear_for_all_rules = grep { /^all$/i } @rules;
 	@rules = ('all') if $clear_for_all_rules;
@@ -492,11 +510,19 @@ sub clean_cache_for
 	vsay('NORMAL', sprintf("Clearing cache for commit $commit, rules: %s\n",join(', ',@rules)));
 	my $commits_cache = catfile($cache_base,"cache-$commit");
 	if ($clear_for_all_rules){
-		rmtree($commits_cache) or warn "Couldn't remove folder $commits_cache: $!";
+		if (-e $commits_cache){
+			rmtree($commits_cache) or die "Couldn't remove folder $commits_cache: $!";
+		}else{
+			vsay('INFO', "No folder '$commits_cache' found, skipping.\n");
+		}
 	}else{
 		for my $rule (@rules){
 			my $rules_cache = catfile($commits_cache,$rule);
-			rmtree($rules_cache) or warn "Couldn't remove folder $rules_cache: $!";
+			if (-e $rules_cache){
+				rmtree($rules_cache) or die "Couldn't remove folder $rules_cache: $!";
+			}else{
+				vsay('INFO', "No folder '$rules_cache' found, skipping.\n");
+			}
 		}
 	}
 }
@@ -504,6 +530,13 @@ if (defined $actions->{clear_cache}){
 	if ($actions->{clear_cache} eq 'current'){
 		# Clear only current cache for the rules specified
 		clean_cache_for($commit,@rules);
+	}elsif ($actions->{clear_cache} eq 'older'){
+		# Clear caches for older commits
+		my @commits_to_clean = @partials;
+		# Ensure that we don't clear current commit's cache
+		shift @commits_to_clean if $commits_to_clean[0] eq $commit;
+
+		clean_cache_for($_,@rules) for @commits_to_clean;
 	}else{
 		die "Assertion failed: clear_cache is unknown ('$action->{clear_cache}')";
 	}
@@ -815,7 +848,8 @@ sub previous_commits
 	$_ = undef;
 RET:
 	close $GIT_REVS;
-	return (@other_ancestors,$_);
+	return (@other_ancestors,$_) if $_;
+	return (@other_ancestors);
 }
 
 # List of commits to show in browser, given the commit itself and the list of its ancestors, as given by previous_commits subroutine
