@@ -23,10 +23,19 @@ ldv_print "NORMAL: Kernel version is: $k_kernelversion";
 # if options not set =>
 #   i am set default allmodconfig
 #
-if [ ! -n "$DSCR_OPTIONS" ]; then KERNEL_CONFIG_OPTIONS="allyesconfig"; else KERNEL_CONFIG_OPTIONS=$DSCR_OPTIONS; fi;
-make $KERNEL_CONFIG_OPTIONS;
+if [ -n "$LDVGIT_CONFIG_CMD" ]; then
+        KERNEL_CONFIG_OPTIONS=$LDVGIT_CONFIG_CMD;
+else
+	if [ ! -n "$DSCR_OPTIONS" ]; then 
+		KERNEL_CONFIG_OPTIONS="make allyesconfig"; 
+	else 
+		KERNEL_CONFIG_OPTIONS="make $DSCR_OPTIONS"; 
+	fi;
+fi;
+ldv_print "NORMAL: Kernel configure command is: \"$KERNEL_CONFIG_OPTIONS\"";
+eval $KERNEL_CONFIG_OPTIONS;
 if [ $? -ne 0 ]; then
-        ldv_print "ERROR: make allyesconfig failed."
+        ldv_print "ERROR: command \"$KERNEL_CONFIG_OPTIONS\" failed."
         exit 1;
 fi;
 make init;

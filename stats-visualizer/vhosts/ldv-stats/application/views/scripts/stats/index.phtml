@@ -5,12 +5,19 @@ include 'general.php';
 // Get all infomation to be displayed.
 $results = $this->entries;
 
+// Get the statistics information part.
+$stats = $results['Stats']['Row info'];
+
 // Don't use comparison for git mode.
 if (!isGit($results)) {
-  // Print form for the tasks comparison.
-  $this->form->setAction($this->url());
-  echo $this->form;
+  // Print the form for the tasks comparison.
+  $this->formTasksComparison->setAction($this->url());
+  echo $this->formTasksComparison;
 }
+
+// Print the form for the tasks comparison.
+$this->formPrintCSV->setAction($this->url());
+echo $this->formPrintCSV;
 
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
@@ -31,7 +38,26 @@ if ($page == 'Result') {
   $page = 'Total';
 }
 
-$resultsNumb = count($results['Stats']['Row info']);
+// Stats data converted to CSV format.
+global $dataCSV, $dataCSVIndex;
+$dataCSV = array();
+$dataCSVIndex = 1;
+
+function printData($str, $data) {
+  if ($str !== null) {
+    echo $str;
+  }
+
+  if ($data !== null) {
+    global $dataCSV, $dataCSVIndex;
+    if (!array_key_exists($dataCSVIndex, $dataCSV)) {
+      $dataCSV[$dataCSVIndex] = array();
+    }
+    array_push($dataCSV[$dataCSVIndex], $data);
+  }
+}
+
+$resultsNumb = count($stats);
 echo "<div id='SSStatsTableTitle'>Statistics for the page '$page' (" . $resultsNumb . " rows)</div>";
 
 // Print general statistics table if so.
@@ -213,14 +239,12 @@ if ($resultsNumb) {
               tooltip    : 'Click to edit...',
               submitdata : function (value, settings) {
                 taskId = $(this).parent().children('.SSStatsTableTaskStatKeyTaskIdValue').first().text();
-                return { taskid: taskId };
+                taskName = $(this).parent().children('.SSStatsTableTaskStatKeyTaskNameValue').first().text();
+                return { taskid: taskId, taskname: taskName };
               }
             })
           });
         </script>";
-
-  // Get the statistics information part.
-  $stats = $results['Stats']['Row info'];
 
   $statKeys = array_keys($stats[0]['Stats key']);
   $verificationKeys = array_keys($stats[0]['Verification info']);
@@ -295,7 +319,7 @@ if ($resultsNumb) {
 
   echo "<table id='SSStatsTable' border='1'>
           <tr id='SSStatsTableHeaderFirstRow'>";
-  echo "    <td id='SSStatsTableHeaderRowCounter' rowspan='$statVerificationKeyRowSpan'>#</td>";
+  printData("    <td id='SSStatsTableHeaderRowCounter' rowspan='$statVerificationKeyRowSpan'>#</td>", '#');
   $isTaskPrinted = false;
   foreach ($statKeys as $statKey) {
     // Merge all task information to the one column.
@@ -305,9 +329,10 @@ if ($resultsNumb) {
         if (!isGit($results)) {
           $taskColSpan = 2;
         }
-        echo "    <td class='SSStatsTableHeaderTaskStatKey' rowspan='$statVerificationKeyRowSpan' colspan='$taskColSpan'>Task</td>";
+        printData("    <td class='SSStatsTableHeaderTaskStatKey' rowspan='$statVerificationKeyRowSpan' colspan='$taskColSpan'>Task</td>", null);
         $isTaskPrinted = true;
       }
+      printData(null, $statKey);
     }
     else {
       // Make more human readable name for statistics key part.
@@ -319,7 +344,7 @@ if ($resultsNumb) {
         $statKeyPrint = 'Rule';
       }
 
-      echo "    <td class='SSStatsTableHeaderStatKeys' rowspan='$statVerificationKeyRowSpan'>$statKeyPrint</td>";
+      printData("    <td class='SSStatsTableHeaderStatKeys' rowspan='$statVerificationKeyRowSpan'>$statKeyPrint</td>", $statKeyPrint);
     }
   }
   foreach ($verificationKeys as $verificationKey) {
@@ -329,22 +354,22 @@ if ($resultsNumb) {
     if ($verificationKey == 'Result') {
       $verificationKey = 'Total';
     }
-    echo "    <td class='SSStatsTableHeaderVerificationInfo' rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>";
+    printData("    <td class='SSStatsTableHeaderVerificationInfo' rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>", $verificationKey);
   }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
-    echo "    <td class='SSStatsTableHeaderTools' colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>";
+    printData("    <td class='SSStatsTableHeaderTools' colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>", null);
   }
   echo "  </tr>";
   echo "<tr id='SSStatsTableHeaderSecondRow'>";
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
-      echo "    <td class='SSStatsTableHeaderToolInfo' rowspan='$statToolsKeyRowSpan'>$toolInfo</td>";
+      printData("    <td class='SSStatsTableHeaderToolInfo' rowspan='$statToolsKeyRowSpan'>$toolInfo</td>", $toolInfo);
     }
     if ($childrenNumb = count($toolInfoTimeProblems['Children time'])) {
-      echo "    <td class='SSStatsTableHeaderToolChildren' colspan='$childrenNumb'>Children time</td>";
+      printData("    <td class='SSStatsTableHeaderToolChildren' colspan='$childrenNumb'>Children time</td>", null);
     }
     if ($problemsNumb = count($toolInfoTimeProblems['Problems'])) {
-      echo "    <td class='SSStatsTableHeaderToolProblems' colspan='$problemsNumb'>Problems</td>";
+      printData("    <td class='SSStatsTableHeaderToolProblems' colspan='$problemsNumb'>Problems</td>", null);
     }
   }
   echo "  </tr>";
@@ -352,10 +377,10 @@ if ($resultsNumb) {
     echo "<tr id='SSStatsTableHeaderThirdRow'>";
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
-        echo "    <td class='SSStatsTableHeaderToolChild'>$toolChild</td>";
+        printData("    <td class='SSStatsTableHeaderToolChild'>$toolChild</td>", $toolChild);
       }
       foreach (array_keys($toolInfoTimeProblems['Problems']) as $toolProblem) {
-        echo "    <td class='SSStatsTableHeaderToolProblem'>$toolProblem</td>";
+        printData("    <td class='SSStatsTableHeaderToolProblem'>$toolProblem</td>", $toolProblem);
       }
     }
     echo "  </tr>";
@@ -410,8 +435,9 @@ if ($resultsNumb) {
   // Iterate over all results.
   $i = 1;
   foreach ($stats as $result) {
+    $dataCSVIndex++;
     echo "  <tr class='SSStatsTableRow' align='center'>";
-    echo "    <td>$i</td>";
+    printData("    <td>$i</td>", $i);
     $i++;
     $statKeysValues = array();
     $isTaskColumnPrinted = false;
@@ -448,6 +474,8 @@ if ($resultsNumb) {
           $taskKeyValue = '__NULL';
         }
 
+        printData(null, $value);
+
         // All task information is grouped by task key.
         if ($taskKeyValue != $prevStatKey[$taskKey]) {
           if (!$isTaskColumnPrinted) {
@@ -473,11 +501,14 @@ if ($resultsNumb) {
                 if ($statTaskKey == 'Task id') {
                   $statTaskKeyClass = 'TaskId';
                 }
+                else if ($statTaskKey == 'Task name') {
+                  $statTaskKeyClass = 'TaskName';
+                }
                 else if ($statTaskKey == 'Task description') {
                   $statTaskValueEditable = 'SSStatsTableTaskDescriptionEdit';
                 }
 
-                echo "<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value $statTaskValueEditable'>" . $result['Stats key'][$statTaskKey] ."</div>";
+                printData("<div class='SSStatsTableTaskStatKey$statTaskKeyClass $statKeyClass'>$statTaskKey</div><div class='SSStatsTableTaskStatKey${statTaskKeyClass}Value $statTaskValueEditable'>" . $result['Stats key'][$statTaskKey] . "</div>", null);
               }
             }
 
@@ -505,20 +536,21 @@ if ($resultsNumb) {
       else if ($value == '__EMPTY' or $value != $prevStatKey[$statKey]) {
         // For null rule name print auxiliary name instead of nothing.
         if ($value == '__NULL' and $statKey == 'Rule name') {
-          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>Fail before RI</td>";
+          printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>Fail before RI</td>", '');
         }
         // For git profile generate links to the rule description.
         else if (isGit($results) and $statKey == 'Rule name') {
           $global = new Zend_Session_Namespace();
           if (array_key_exists($value, $global->models)) {
-            echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>". $global->models[$value]['short'] . "</a></td>";
+            $model = $global->models[$value]['short'];
+            printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "' title='" . $global->models[$value]['long'] . "' nowrap><a href='http://linuxtesting.org/ldv/online?action=show_rule&rule_id=" . $global->models[$value]['rule id'] . "'>$model</a></td>", $model);
           }
           else {
-            echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$value</td>";
+            printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$value</td>", $value);
           }
         }
         else if (array_key_exists($statKey, $profilePages)) {
-          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'><a href='"
+          printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'><a href='"
             . $this->url(
               array_merge(
                 $globals,
@@ -531,18 +563,15 @@ if ($resultsNumb) {
               true)
             . "'>"
             . $value
-            . "</a></td>";
+            . "</a></td>", $value);
 
         }
         else {
-          if (!array_key_exists($value, $nextNode)) {
-            print_r($nextNode);exit;
-          }
           $valueToPrint = $value;
           if ($valueToPrint == '__EMPTY' and $statKey == 'Entry point') {
             $valueToPrint = 'No entry point';
           }
-          echo "<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$valueToPrint</td>";
+          printData("<td class='SSStatsTableStatKeys $statKeyClass' rowspan='" . countLeaves($nextNode[$value]) . "'>$valueToPrint</td>", $valueToPrint);
         }
 
         $statKeysValues[$statKey] = $value;
@@ -564,6 +593,7 @@ if ($resultsNumb) {
       else {
         $statKeysValues[$statKey] = $value;
         $nextNode = &$nextNode[$value];
+        printData(null, $value);
       }
     }
 
@@ -591,7 +621,7 @@ if ($resultsNumb) {
       $value = $result['Verification info'][$verificationKey];
       if ($verificationKey == 'Error trace') {
         if ($isErrorTracePresent) {
-          echo "<a href='"
+          printData("<a href='"
             . $this->url(
               array_merge(
                 $globals,
@@ -603,14 +633,17 @@ if ($resultsNumb) {
                 $statKeysValues),
               'default',
               true)
-            . "'>...</a>";
+            . "'>...</a>", '');
         }
         else {
-          echo "-";
+          printData('-', '');
         }
       }
+      else if (!$value) {
+        printData('-', '');
+      }
       else if (array_key_exists($verificationKey, $profilePages)) {
-        echo "<a href='"
+        printData("<a href='"
           . $this->url(
             array_merge(
               $globals,
@@ -624,10 +657,10 @@ if ($resultsNumb) {
             true)
           . "'>"
           . $value
-          . "</a>";
+          . "</a>", $value);
       }
       else {
-        echo "$value";
+        printData($value, $value);
       }
       echo "</td>";
     }
@@ -649,8 +682,8 @@ if ($resultsNumb) {
         if ($toolInfo == 'Description') {
           // Inspect whether there is some description at all.
           $value = $result['Tools info']["$toolName $toolInfo"];
-          if ($value == '') {
-            echo "<div>";
+          if (!$value) {
+            echo "<div class='SSAlignLeft'>";
           }
           else {
             echo "<div class='SSStatsTableDescription'>";
@@ -659,15 +692,19 @@ if ($resultsNumb) {
 
         if ($toolInfo == 'Time' or $toolInfo == 'Time Ok' or $toolInfo == 'Time Fail') {
           if (array_key_exists("$toolName Time", $result['Tool time'])) {
-            echo formatTime($result['Tool time']["$toolName Time"][$toolInfo]);
+            $time = $result['Tool time']["$toolName Time"][$toolInfo];
+            printData(formatTime($time), $time);
           }
           else {
-            echo '-';
+            printData('-', '');
           }
         }
         else {
           $value = $result['Tools info']["$toolName $toolInfo"];
-          if (array_key_exists("$toolName $toolInfo", $profilePages)) {
+          if (!$value and $toolInfo != 'LOC') {
+            printData('-', '');
+          }
+          else if (array_key_exists("$toolName $toolInfo", $profilePages)) {
             echo "<a href='"
               . $this->url(
                 array_merge(
@@ -683,20 +720,20 @@ if ($resultsNumb) {
               . "'>";
 
             if ($toolInfo == 'LOC') {
-              echo formatLoc($value);
+              printData(formatLoc($value), $value);
             }
             else {
-              echo $value;
+              printData($value, $value);
             }
 
             echo "</a>";
           }
           else {
             if ($toolInfo == 'LOC') {
-              echo formatLoc($value);
+              printData(formatLoc($value), $value);
             }
             else {
-              echo $value;
+              printData($value, $value);
             }
           }
         }
@@ -716,7 +753,8 @@ if ($resultsNumb) {
           foreach ($result['Tool children time']["$toolName Time"] as $pattern => $time) {
             // If a given tool has a particular child.
             if ($toolChild == $pattern) {
-              echo "    <td class='SSAlignRight SSNoWrap'>" . formatTime($time['Time']) . "</td>";
+              $time = $time['Time'];
+              printData("    <td class='SSAlignRight SSNoWrap'>" . formatTime($time) . "</td>", $time);
               $isHasChild = true;
               break;
             }
@@ -725,7 +763,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasChild) {
-          echo "<td class='SSAlignRight'>-</td>";
+          printData("<td class='SSAlignRight'>-</td>", '');
         }
       }
 
@@ -739,7 +777,7 @@ if ($resultsNumb) {
               echo "    <td class='SSAlignRight'>";
               $value = $resultProblem['Problem number'];
               if (array_key_exists("$toolName Problems", $profilePages)) {
-                echo "<a href='"
+                printData("<a href='"
                   . $this->url(
                     array_merge(
                       $globals,
@@ -753,11 +791,11 @@ if ($resultsNumb) {
                     true)
                   . "'>"
                   . $value
-                  . "</a>";
+                  . "</a>", $value);
 
               }
               else {
-                echo "$value";
+                printData($value, $value);
               }
               echo "</td>";
               $isHasProblem = true;
@@ -767,7 +805,7 @@ if ($resultsNumb) {
 
         // In any case generate cell to fill the whole table correctly.
         if (!$isHasProblem) {
-          echo "<td class='SSAlignRight'>-</td>";
+          printData("<td class='SSAlignRight'>-</td>", '');
         }
       }
     }
@@ -778,5 +816,14 @@ if ($resultsNumb) {
 }
 
 printInfo($results);
+
+// Print CSV if it's needed.
+if (array_key_exists('Format', $results)) {
+  if ($results['Format'] == 'CSV') {
+    echo '<p>';
+    printCSV($dataCSV);
+    echo '</p>';
+  }
+}
 
 ?>

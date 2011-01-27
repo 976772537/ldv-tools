@@ -39,6 +39,7 @@ MINIMAL PREREQUISITES
 		- XML::Twig
 		- XML::Writer
 		- SOAP::Lite
+		- IO::Socket::INET;
 	o CPIO archiver
 	o PAX archiver
 	o Ruby gem manager

@@ -1231,16 +1231,26 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     if (!array_key_exists('value', $params)) {
-      die ("Value isn't specified");
+      die("Value isn't specified");
     }
     $value = $params['value'];
 
     if (!array_key_exists('taskid', $params)) {
-      die ("Task id isn't specified");
+      die("Task id isn't specified");
     }
-    $taskid = $params['taskid'];
+    $taskId = $params['taskid'];
 
-    $n = $this->_db->update('tasks', array('description' => $value), "id = $taskid");
+    if (!array_key_exists('taskname', $params)) {
+      die("Task name isn't specified");
+    }
+    $taskName = $params['taskname'];
+
+    if ($taskId)
+      $this->_db->update('tasks', array('description' => $value), "id = $taskId");
+    else if ($taskName)
+      $this->_db->update('tasks', array('description' => $value), "name = '$taskName'");
+    else
+      die("Neither task id nor task name is specified");
 
     return $value;
   }

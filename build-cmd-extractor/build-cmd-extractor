@@ -29,6 +29,9 @@ BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
 CMD_FILTER_NAME="cmd-stream-mod.pl"
 CMD_FILTER_RUN=$BCE_DIR/$CMD_FILTER_NAME;
 
+CMD_REROUTER="reroute-stream";
+CMD_REROUTER_RUN=$BCE_DIR/$CMD_REROUTER;
+
 #if [ $# -eq 5 -o $# -eq 4 ]; then print_usage_and_exit; fi;
 if [ ! -n "$WORK_DIR" ]; then
 	ldv_print "ERROR: Please, setup WORK_DIR variable before running ldv-core.";
@@ -397,6 +400,9 @@ if [ ! -n "$cmdstream" ]; then
 		ldv_print "ERROR: Driver have no kernel modules.";
 		exit 1;
 	fi;
+else
+	ldv_print "WASDLADDR=$WSDLADDR $CMD_REROUTER_RUN $cmdstream;";
+	$CMD_REROUTER_RUN $cmdstream;
 fi;
 
 let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;

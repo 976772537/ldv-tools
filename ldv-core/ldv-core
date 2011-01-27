@@ -7,6 +7,7 @@ use FindBin;
 use SOAP::Lite; 
 use POSIX ":sys_wait_h";
 use XML::Twig;
+use IO::Socket::INET;
 
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
@@ -33,6 +34,7 @@ my $config = {
         'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
         'workdir' => $ENV{'WORK_DIR'},
         'csd-reporter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/cmd-stream-divider-reporter",
+        'is-empty' => "$ENV{'LDV_HOME'}/build-cmd-extractor/is_empty.pl",
         'csd' => "$ENV{'LDV_HOME'}/build-cmd-extractor/csd.jar",
         'ruledb' => "$ENV{'LDV_HOME'}/kernel-rules/model-db.xml",
         'dscv' => "$ENV{'LDV_HOME'}/bin/dscv",
@@ -76,21 +78,36 @@ sub prepare_driver;
 sub parallel_run;
 sub scheduler_send_task;
 sub deg_create_report;
+sub find_unused_port;
 
+#########################################################
+#             MAIN 					#
+#########################################################
 
-
+# Generate unique number for CSD Server name 
 my $wsdl_uid="$$".`date +%Y%H%M%S`;
 chomp $wsdl_uid;
-# FIXME: if port 8080 is already in use, we're fucked
-$ENV{'WSDLADDR'} = "http://localhost:8080/csd$wsdl_uid";
+
+# Find free port and generate adress for starting CSD Server
+$ENV{'WSDLADDR'} = "http://localhost:".find_unused_port()."/csd$wsdl_uid";
 vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
 
+# Initialize config (create dirs, files and etc)
 init_config;
+
+# Prepare driver and kernel for work with Build Command Extractor
+# (Unpack driver and kernel, copy ...)
 prepare_driver;
 
+#
+# Process 1: Starting Command Stream Divider server 
+#
 my $csd_pid = start_csd;
 is_exists($csd_pid) or die"Starting CSD failed: $!";
 
+#
+# Process 2: Starting Build Command Extractor
+#
 my $bce_pid = start_bce;
 if(!is_exists($bce_pid)) {
 	vsay 'TRACE', "Try to kill BCE...\n";
@@ -98,6 +115,10 @@ if(!is_exists($bce_pid)) {
 	waitpid $csd_pid, 0;
 }
 
+#
+# Procss 3: Process for getting, preparing and sending to DSCV commands 
+#           from CSD. Also generate reports.
+#
 my $next_pid = start_next($csd_pid);
 if(!is_exists($next_pid)) {
 	vsay 'TRACE', "Try to kill BCE and CSD...\n";
@@ -106,27 +127,55 @@ if(!is_exists($next_pid)) {
 	waitpid $csd_pid, 0;
 }
 
+#
+# Wait while BCE not finished
+#
 waitpid $bce_pid, 0;
 vsay 'TRACE', "BCE successfully finished\n";
 
+#
+# Try to connect to CSD and white while verification process is finished.
+# There are two ways to determine it:
+#
+#   1. - stack with commands is empty and bce finished (see before).
+#        (BCE is dead and new commands are not received to CSD cmd stack.)
+#  
+#   2. - Verification process already finished (failed) and stack is not empty. 
+#
 my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
 
-while($csd->isEmpty() eq 'false') {
+# mem leak
+#while($csd->isEmpty() eq 'false') {
+while(system($config->{'is-empty'})) {
 	is_exists($next_pid) or last;
+	sleep 1;
 }
 
+#
+# kill CSD
+#
 kill 9, $csd_pid;
 waitpid $csd_pid, 0;
+
+#
+# Wait until verification process finished her works. Verification
+# process guaranteed to terminate if CSD is dead.
+#
 waitpid $next_pid, 0;
 
 
-
+#
+# check if process is exisst in /proc
+#
 sub is_exists {
 	my ($pid) = @_;
 	defined $pid or return 0;
 	return -d "/proc/$pid";
 }
 
+#
+# Verification process starter
+#
 sub start_next {
 	my ($csd_pid) = @_; 
 	my $pid = fork;
@@ -221,6 +270,9 @@ sub start_next {
 	return $pid;
 }
 
+#
+# Create report after Command Stream Divider 
+#
 sub csd_create_report {
 	my ($tasks) = @_;
 	
@@ -245,6 +297,9 @@ sub csd_create_report {
 	return 'OK';
 }
 
+#
+# Create reports for Driver Environment Generator
+#
 sub deg_create_report {
 	my ($task_path)  = @_;
 	vsay 'DEBUG', "Calling DEG reporter for \"$task_path\"\n";
@@ -261,9 +316,18 @@ sub deg_create_report {
 	system(@deg_reporter_args);
 }
 
+#
+# Wait until all queued to DSCV tasks are verified.
+# For all tasks (The number of tasks is calculated before cycle):
+#  --->
+#  |   1. wait queued task
+#  |   2. unpack by watcher
+#  |<--
+#
 sub wait_for_all_verified {
 	my ($tasks) = @_;
 	vsay 'TRACE', "Start watcher waiting...\n";
+
 	# calculate number of queued task
 	my $wait_counter = 0;
 	foreach (keys %{$tasks}) {
@@ -305,13 +369,9 @@ sub wait_for_dscv {
 	return split /,/,$dscv_id;	
 }
 
-sub is_all_verified {
-	my ($tasks) = @_;
-	foreach my $task (@$tasks) {
-		$task->{'state'} ne 'verified' and return 0;
-	}
-}
-
+#
+# Prepare task descriptor for DSCV and queue task.
+#
 sub scheduler_send_task {
 	my ($task_descriptor, $cid) = @_;
 	my $command = $task_descriptor->{'path'};
@@ -366,7 +426,9 @@ sub parallel_run {
         return $pid;
 }
 
-
+#
+# Build Command Extractor starter
+#
 sub start_bce {
 	vsay 'NORMAL', "Starting BCE...\n";
 	$ENV{'BUILDFILE'} = "$config->{'bce_tempdir'}/build.xml";
@@ -396,11 +458,13 @@ sub start_bce {
 
 }
 
-
+#
+# Command Stream Divider starter
+#
 sub start_csd {
 	vsay 'NORMAL', "Starting CSD (WSDL)...\n";
 	my @csd_options = ('java',
-		'-ea',
+		'-Xmx256M',
 		'-jar',
 		$config->{'csd'},
 		"--wsdladdr=$ENV{'WSDLADDR'}",
@@ -456,7 +520,7 @@ sub init_config {
 	if($config->{'cmdstream'}) {
 		$config->{'cmdstream'} = abs_path($config->{'cmdstream'});
 		-f $config->{'cmdstream'} or die"Cmd stream file not exists \"$config->{'cmdstream'}\".";
-		$config->{'xml_after_bce'} = $config->{'$cmdstream'};
+		$config->{'xml_after_bce'} = $config->{'cmdstream'};
 		vsay 'INFO', "Artificial environment mode.\n";
 	} else {
 		$config->{'driver'}        or die"Please, specify --driver options.";
@@ -577,4 +641,17 @@ sub bce_ldv_report {
 	bce_create_report $status, $msg;
 	ldv_create_report;
 	defined $action and $action eq 'exit' and exit;
+}
+
+#
+# Find unused port for CSD server
+#
+sub find_unused_port {
+        for($testport = 8080; $testport<8090; $testport++) {
+                vsay 'DEBUG', "Test port: \"$testport\".\n";
+                $testsocket = new IO::Socket::INET(LocalPort => $testport) and close $testsocket and return $testport;
+                vsay 'DEBUG', "Failed to capture the port: \"$testport\": $!\n";
+                vsay 'DEBUG', "Try next port...\n";
+        }
+        die"Can't find free ports from 8080 to 8090!";
 }

@@ -40,6 +40,14 @@ function isGit($info) {
   return (returnProfile($info) == 'git');
 }
 
+// Print data from some array to the screen in the CSV format.
+function printCSV($data) {
+  foreach ($data as $row) {
+    echo implode(';', $row);
+    echo "<br>";
+  }
+}
+
 // Print information on a current database connection.
 function printDbInfo($dbConnectionOptions) {
   echo "<div class='SSInfoHeader'>Current database connection options</div>";

@@ -1,0 +1,23 @@
+#!/usr/bin/perl -w
+
+use XML::Twig;
+use SOAP::Lite;
+
+my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
+
+sub xml_cmdstream;
+
+my $twig_handlers = {   "cmdstream/cc"      => \&xml_cmdstream,
+                        "cmdstream/ld"      => \&xml_cmdstream };
+my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
+
+$twig_inreport->parsefile($ARGV[0]);
+exit;
+
+sub xml_cmdstream {
+       	my $cmdstream = XML::Twig::Elt->new('cmdstream');
+	$_[1]->move($cmdstream);
+	$cmdstream->set_pretty_print('indented');
+	$cmdstream->print();
+	$csd->sendCommand(SOAP::Data-> type ("string") -> name ("arg0") -> value ($cmdstream->sprint));
+}

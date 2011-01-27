@@ -166,14 +166,14 @@ body
   display: none;
 }
 
-.SSStatsTableTaskStatKey
+.SSStatsTableTaskStatKey, .SSStatsTableTaskStatTaskNameKey
 {
   font-size: 8pt;
   text-align: left;
   white-space: nowrap;
 }
 
-.SSStatsTableTaskStatKeyValue
+.SSStatsTableTaskStatKeyValue, .SSStatsTableTaskStatKeyTaskNameValue
 {
   font-weight: bold;
   padding: 0px 0px 0px 5px;
@@ -286,6 +286,11 @@ body
 .SSAlignRight
 {
   text-align: right;
+}
+
+.SSAlignLeft
+{
+  text-align: left;
 }
 
 /* Statistics comparison action menu style. */

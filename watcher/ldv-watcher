@@ -59,6 +59,17 @@ else
 	$stderr.puts "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
 end
 
+# Log command to a special file
+# NOTE: thread-unsafe!  Too lazy to fix though
+if ENV['LDV_TEST_WAITER_FNAME']
+	cmd_args = [command] + arguments
+	ENV['LDV_SPAWN_KEY'] ||= ''
+	# Quick hack: we just replace commas with dots, it's not the best solution...
+	File.open(ENV['LDV_TEST_WAITER_FNAME'],"a") {|f| f.puts "#{ENV['LDV_SPAWN_KEY'].gsub(/,/,'.')}: #{cmd_args.join(" ")}" }
+else
+	$stderr.puts "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
+end
+
 result = nil
 unless arguments.empty?
 	result = watcher.send command, *arguments

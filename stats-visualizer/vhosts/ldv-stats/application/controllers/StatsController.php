@@ -54,19 +54,29 @@ class StatsController extends Zend_Controller_Action
     // and so on.
     $params = $this->_getAllParams();
 
+    $submit = '';
+    if (array_key_exists('submit', $params)) {
+      $submit = $params['submit'];
+    }
+
     $statsMapper = new Application_Model_StatsMapper();
     $this->view->entries = $statsMapper->getPageStats($this->_profileInfo, $params);
     $this->view->entries['Globals'] = $this->_globals;
     $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
     $this->view->entries['Profile pages'] = $this->_profileInfo->getPageNames();
 
-    // Make a form for the tasks comparison.
+    if ($submit == 'Print CSV') {
+      $this->view->entries['Format'] = 'CSV';
+    }
+
     $request = $this->getRequest();
-    $form = new Application_Form_TasksComparison();
+
+    // Make a form for the tasks comparison.
+    $formTasksComparison = new Application_Form_TasksComparison();
 
     if ($this->getRequest()->isPost()) {
-      if ($form->isValid($request->getPost())) {
-        $taskIdsStr = $form->getValue('SSTaskIds');
+      if ($formTasksComparison->isValid($request->getPost())) {
+        $taskIdsStr = $formTasksComparison->getValue('SSTaskIds');
         // Replace commas with usual spaces.
         $taskIdsStr = preg_replace('/,/', ' ', $taskIdsStr);
 
@@ -82,7 +92,22 @@ class StatsController extends Zend_Controller_Action
       }
     }
 
-    $this->view->form = $form;
+    $this->view->formTasksComparison = $formTasksComparison;
+
+    // Make a form for the csv export.
+    $formPrintCSV = new Application_Form_PrintCSV();
+
+    if ($this->getRequest()->isPost()) {
+      if ($formPrintCSV->isValid($request->getPost())) {
+        return $this->_helper->redirector->gotoSimple(
+          'index'
+          , 'stats'
+          , null
+          , $params);
+      }
+    }
+
+    $this->view->formPrintCSV = $formPrintCSV;
   }
 
   public function errortraceAction()
