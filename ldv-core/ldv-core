@@ -34,6 +34,7 @@ my $config = {
         'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
         'workdir' => $ENV{'WORK_DIR'},
         'csd-reporter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/cmd-stream-divider-reporter",
+        'is-empty' => "$ENV{'LDV_HOME'}/build-cmd-extractor/is_empty.pl",
         'csd' => "$ENV{'LDV_HOME'}/build-cmd-extractor/csd.jar",
         'ruledb' => "$ENV{'LDV_HOME'}/kernel-rules/model-db.xml",
         'dscv' => "$ENV{'LDV_HOME'}/bin/dscv",
@@ -142,7 +143,10 @@ vsay 'TRACE', "BCE successfully finished\n";
 #   2. - Verification process already finished (failed) and stack is not empty. 
 #
 my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
-while($csd->isEmpty() eq 'false') {
+
+# mem leak
+#while($csd->isEmpty() eq 'false') {
+while(system($config->{'is-empty'})) {
 	is_exists($next_pid) or last;
 	sleep 1;
 }
