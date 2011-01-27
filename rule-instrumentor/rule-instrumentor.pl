@@ -1297,7 +1297,7 @@ sub process_cmd_cc()
     my $preprocessed_cache_target = "${$cmd{'ins'}}[0]$llvm_preprocessed_suffix";
     my $preprocessed_cache_file_key = $preprocessed_cache_target;
     $preprocessed_cache_file_key =~ s/^$opt_basedir//;
-    print_debug_debug("The target file cache key is '$preprocessed_cache_file_key'");
+    print_debug_debug("The preprocessed target file cache key is '$preprocessed_cache_file_key'");
 
     # Understand whether cache must be skipped.
     my $skip_caching = $skip_cache_without_restrict && !$cmd{'restrict-main'};
@@ -1405,7 +1405,7 @@ sub process_cmd_cc()
     $cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
     $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
-    print_debug_debug("The preprocessed target file cache key is '$cache_file_key'");
+    print_debug_debug("The target file cache key is '$cache_file_key'");
 
     if (!$skip_caching && copy_from_cache($cache_target, $opt_model_id, $cache_file_key))
     {
@@ -1417,7 +1417,8 @@ sub process_cmd_cc()
       $desc = [split('\n', string_from_cache($opt_model_id, "$cache_file_key-desc"))];
       print_debug_trace("The cached description is '@$desc'");
 
-      # Copy the preprocessed file from cache if this wasn't done earlier.
+      # Copy the preprocessed file from cache if this wasn't done earlier by 
+      # some reason.
       if (! -f $preprocessed_cache_target)
       {
         copy_from_cache($preprocessed_cache_target, $opt_model_id, $preprocessed_cache_file_key);
