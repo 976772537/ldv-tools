@@ -307,9 +307,9 @@ class Watcher
 	def key(args = [])
 		$log.info "Key requested for #{args.inspect}"
 
-		$log.warn "Increasing reference counter..."
+		$log.info "Increasing reference counter..."
 		total_refs = @server_instances_pool.get
-		$log.warn "Serving #{total_refs} instances"
+		$log.info "Serving #{total_refs} instances"
 
 		@dir.push 'keys',args,Process.ppid do
 			fname = @dir.join 'key'
@@ -382,7 +382,7 @@ if ENV['LDV_TEST_WAITER_FNAME']
 	# Quick hack: we just replace commas with dots, it's not the best solution...
 	File.open(ENV['LDV_TEST_WAITER_FNAME'],"a") {|f| f.puts "#{ENV['LDV_SPAWN_KEY'].gsub(/,/,'.')}: #{cmd_args.join(" ")}" }
 else
-	$stderr.puts "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
+	$log.debug "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
 end
 
 result = nil
