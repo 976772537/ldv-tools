@@ -2,10 +2,11 @@ package org.linuxtesting.ldv.csd;
 
 import java.io.File;
 import java.io.IOException;
+import javax.xml.ws.Endpoint;
 
 import org.linuxtesting.ldv.csd.cmdstream.CmdStream;
 import org.linuxtesting.ldv.csd.utils.Logger;
-import org.linuxtesting.ldv.csd.ws.CSDWebServiceRunner;
+import org.linuxtesting.ldv.csd.ws.CSDWebService;
 
 public class CSD {
 	
@@ -31,11 +32,10 @@ public class CSD {
 			CmdStream cmdstream = new CmdStream(WORK_DIR+"/"+basedir,tagbd, fullcopy,statefile);
 			
 			// Create web service
-			CSDWebServiceRunner csdWSRunner  = new CSDWebServiceRunner(cmdstream, wsdlAddr);
-		
+                        CSDWebService ws = new CSDWebService(cmdstream);
+                        
 			// Start web service
-			Thread csdService = new Thread(csdWSRunner);
-			csdService.start();
+			Endpoint.publish(wsdlAddr, ws);
 	}
 	
 	private static boolean getOpts(String[] args) {
