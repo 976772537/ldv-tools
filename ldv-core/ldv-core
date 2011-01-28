@@ -35,6 +35,7 @@ my $config = {
         'workdir' => $ENV{'WORK_DIR'},
         'csd-reporter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/cmd-stream-divider-reporter",
         'is-empty' => "$ENV{'LDV_HOME'}/build-cmd-extractor/is_empty.pl",
+        'patchmod' => "$ENV{'LDV_HOME'}/ldv-core/patchmod.pl",
         'csd' => "$ENV{'LDV_HOME'}/build-cmd-extractor/csd.jar",
         'ruledb' => "$ENV{'LDV_HOME'}/kernel-rules/model-db.xml",
         'dscv' => "$ENV{'LDV_HOME'}/bin/dscv",
@@ -500,6 +501,9 @@ sub init_config {
 
 	$config->{'workdir'} || die"Please, specify WORKDIR environment variable options.";
 	$config->{'workdir'} = abs_path($config->{'workdir'});
+	
+	# path to file with path targets
+	$config->{'pout'} = "$config->{'workdir'}/patchmod.xml";
 	$config->{'rule-models'}   or die"Please, specify --rule-models options.";
 	$config->{'report-out'}    or die"Please, specify --report-out options.";
 	$config->{'env'}           or die"Please, specify --env options.";
@@ -591,6 +595,7 @@ sub prepare_driver {
 	my $driverdir;
 	if(!$config->{'cmdstream'}) {
 		$driverdir = "$config->{'ldv_tempdir'}/$config->{'DRIVER_DIR_NAME'}";
+
 		if(!$config->{'kernel-driver'}) {
 			vsay 'NORMAL', "Prepare driver...\n";
 			not -d $driverdir and make_path($driverdir);
@@ -607,6 +612,40 @@ sub prepare_driver {
 				vsay 'TRACE', "Incorrect driver archive: \"$driver_src_type\".\n";
 				bce_ldv_report 'FAILED', 'exit', "Incorrect driver archive type: \"$driver_src_type\".";
 			}
+		} elsif (-f $config->{'driver'}) {
+			vsay 'NORMAL', "starting pathmod...\n";
+	                # test for patch
+                        # 1. get path to kernel: 
+                        # my $path_to_kernel = `LDV_ENVS_TARGET=$ENV{'LDV_ENVS_TARGET'} $config->{'kernel-manager'} --action=getpath --name=$config->{'env'}`;
+
+			vsay 'NORMAL', "Copy in-kernel driver environment\n";
+			my @copy_args = ('cp', '-r', $config->{'env'}, $driverdir);
+			vsay 'TRACE', "@copy_args\n";
+			system(@copy_args) and die"$!";
+			$config->{'env'} = $driverdir;
+			$driverdir = $config->{'driver'};
+
+        	        vsay 'DEBUG', "Path to kernel is: \"$config->{'env'}\"\n";
+                        my @patchmod_args = ("$config->{patchmod}",
+                                 "--kernel=$config->{'env'}",
+                                 "--patch=$config->{driver}",
+                                 "--out=$config->{pout}");
+                        vsay 'DEBUG', "Start patchmod script!\n";
+                        vsay 'TRACE', "@patchmod_args\n";
+                        system("@patchmod_args") and die"Patchmod script failed!";
+                        if(-f $config->{pout}) {
+                              open FILE, $config->{pout} or die"Can't open pathmod output file \"$config->{pout} : $!\"";
+                                 while(<FILE>) {
+                                      /  <target> (.*)<\/target>/ or next;
+                                      $driverdir = $1;
+                                      #$config->{ptarget} = $1;
+                                       last;
+                                 }
+                              close FILE;
+                              vsay 'DEBUG', "Targets from patchmod: $driverdir\n";
+                         } else {
+				die"Error during patch processing...";
+			 }
 		} else {
 			vsay 'NORMAL', "Copy in-kernel driver environment\n";
 			my @copy_args = ('cp', '-r', $config->{'env'}, $driverdir);
