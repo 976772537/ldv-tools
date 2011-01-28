@@ -177,12 +177,17 @@ class Ldvnode
 	attr_accessor :spawner
 
 	Task_availability_default = { :ldv => 1, :dscv => 1, :rcv => 1 }
+	Task_availability_initial = { :ldv => ENV['LDV_NODE_LDVS'], :dscv => ENV['LDV_NODE_DSCVS'], :rcv => ENV['LDV_NODE_RCVS'] }
 
 	def initialize
 		puts "Setting status..."
 		@status = Task_availability_default.dup
+		# Merge statuses for environment
+		Task_availability_initial.each { |task,val_s| if val_s ; @status[task] = val_s.to_i ; end }
+
 		@status_update_mutex = Mutex.new
 		puts "Setting status to #{@status} for #{self}"
+
 		@home = ENV['LDV_HOME'] || File.join(File.dirname(__FILE__),"..","..")
 
 		if fname = ENV['LDV_PLAY']
