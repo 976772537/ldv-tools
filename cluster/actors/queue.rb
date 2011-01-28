@@ -180,7 +180,7 @@ class Ldvqueue
 		puts "Node #{node} added to the pool"
 	end
 
-	Task_keys = %w(type args workdir key env).sort.freeze
+	Task_keys = %w(type args workdir key env parent_machine).sort.freeze
 	# Check if task is correct
 	def self.task_correct?(task)
 		task.keys.map(&:to_s).sort == Task_keys

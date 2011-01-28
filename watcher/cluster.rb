@@ -3,6 +3,10 @@
 $cluster_dir = File.dirname(__FILE__),'..','cluster'
 require File.join($cluster_dir,'sender.rb')
 require File.join($cluster_dir,'waiter.rb')
+require File.join($cluster_dir,'utils.rb')
+
+# For current user name
+require 'etc'
 
 class WatcherRemote < Watcher
 	REMOTE_OPTS = {
@@ -13,8 +17,8 @@ class WatcherRemote < Watcher
 	}
 	attr_accessor :spawn_key, :opts
 	public; def initialize(_opts = {})
-		@opts = _opts.dup
-		super(REMOTE_OPTS.merge(@opts))
+		@opts = REMOTE_OPTS.merge(_opts.dup)
+		super(@opts)
 
 		$log.debug "External key is #{ENV['LDV_SPAWN_KEY']}"
 		config[:spawn_key] ||= ENV['LDV_SPAWN_KEY']
@@ -44,7 +48,13 @@ class WatcherRemote < Watcher
 
 	public; def queue(what,task_fname,workdir,*key)
 		$log.info "Queueing #{what} task with #{task_fname} and wd #{workdir}"
-		payload = { :type => what, :args => IO.read(task_fname), :key => mk(key), :env => [], :workdir => workdir }
+		# The local IP is the IP as seen by AMQP host
+		this_machine_info = {
+			:host => local_ip(self.opts[:host]),
+			:sshuser => Etc.getlogin,
+		}
+		payload = { :type => what, :args => (ENV['LDV_NOREAD_TASKS'] ? 'intentionally empty' : IO.read(task_fname)), :key => mk(key), :env => [], :workdir => workdir, :parent_machine => this_machine_info  }
+		#payload = { :type => what, :args => IO.read(task_fname), :key => mk(key), :env => [], :workdir => workdir, :parent_machine => this_machine_info  }
 		EM.run { sender.send('/ldvqueue/queue', payload)}
 	end
 

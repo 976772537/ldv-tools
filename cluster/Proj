@@ -17,6 +17,7 @@ options.rb
 waiter.rb
 sender.rb
 queue.rb
+utils.rb
 
 actors/
 	queue.rb

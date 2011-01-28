@@ -1,6 +1,9 @@
 require 'tempfile'
 require 'fileutils'
 
+$:.unshift File.dirname(__FILE__)
+require 'utils.rb'
+
 def say_and_run(*args)
 	$stderr.write "Running: #{args.inspect}\n"
 	Kernel.system *args
@@ -11,19 +14,6 @@ def say_and_open3(*args)
 	$stderr.write "Running: #{args.inspect}\n"
 	Open3.popen3(*args) do |a,b,c|
 		yield a,b,c
-	end
-end
-
-def select_read(streams)
-	begin
-		r = select(streams,nil,nil,1)
-	end while not r
-	streams.inject(nil) do |r,s|
-		begin
-			(r)?(r):([s,s.readline])
-		rescue EOFError
-			nil
-		end
 	end
 end
 
@@ -126,7 +116,8 @@ class Player
 	end
 
 	def spawn_child(job_type,task,spawn_key)
-		call_env = { 'LDV_SPAWN_KEY' => spawn_key }
+		#call_env = { 'LDV_SPAWN_KEY' => spawn_key }
+		call_env = { 'LDV_SPAWN_KEY' => spawn_key, 'LDV_NOREAD_TASKS' => 'aaa' }
 		scenario = @scenarios[spawn_key]
 		raise "Scenario for key \"#{spawn_key}\" is not found" unless scenario
 		$stderr.puts "KEY #{spawn_key.inspect} going to execute preset scenario: #{scenario.inspect}"
