@@ -14,10 +14,11 @@ usage_ends
 }
 # We use require_order because we don't want to process options of the command we run
 use Getopt::Long qw(:config require_order);
+use Time::HiRes qw( gettimeofday ); 
 
 my $timelimit = undef;
 my $memlimit = undef;
-my $strapt = undef;
+my $strpat = undef;
 my $output = undef;
 my $reference = undef;
 my $watchfor = 'tree';
@@ -92,7 +93,7 @@ while ($status eq 'wait'){
 			# According to signal(7), wait is a safe function, so we can call anything we want here.
 			$timeinfo = update_time($blackbox_pid,$timeinfo);
 			$meminfo = update_memory($blackbox_pid,$meminfo);
-			$fulltime = update_info_by_ucmd($blackbox_pid,$uinfo);
+			$fulltime = update_info_by_ucmd($blackbox_pid,$uinfo,$timeinfo);
 			die "Assume waitpid return 0\n";
 		};
 		ualarm $uwait;
@@ -294,7 +295,7 @@ sub kill_process_group_safely
 
 sub update_info_by_ucmd
 {
-	my ($pgrp, $strpat) = @_;
+	my ($pgrp, $strpat, $timeinfo) = @_;
 	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$ucmd) = @_;
 		my $proctime = hires_proc_runtime($pid);
 		$proctime or next;
@@ -308,10 +309,30 @@ sub update_info_by_ucmd
 
 	# Calculate full time for each pattern
 	foreach my $key(keys %{$strpat}) {
+		if($strpat->{$key}->{ptime}) {
+			$strpat->{$key}->{oldtime} = $strpat->{$key}->{ptime};
+		} else {
+			$strpat->{$key}->{oldtime} = 0;
+		};
+
 		$strpat->{$key}->{ptime} = 0;
 		foreach (keys %{$strpat->{$key}->{pids}}) {
 			$strpat->{$key}->{ptime} += $strpat->{$key}->{pids}->{$_}->{ptime};
 		}
+	
+		if($strpat->{$key}->{oldtime} == $strpat->{$key}->{ptime}) {
+			if(defined $strpat->{$key}->{start_relax}) {
+				my $time_relax = gettimeofday()*1000 - $strpat->{$key}->{start_relax};
+				defined $ENV{'RELAXTIME'} and $timelimit and $time_relax > $ENV{'RELAXTIME'} and $timeinfo->{total} = $timelimit+1;
+#				print "$key: RELAXTIME: $time_relax, $ENV{'RELAXTIME'}, $timeinfo->{total}, $timelimit\n";
+			} else {
+				$strpat->{$key}->{start_relax} = gettimeofday()*1000;	
+			}
+		} else {
+			$strpat->{$key}->{start_relax} = undef;
+		}
+#		print "$strpat->{$key}->{ptime}\n";
+#		print "$strpat->{$key}->{oldtime}\n";
 	}	
 }
 
@@ -344,13 +365,14 @@ sub __print_uinfo
 sub print_uinfo
 {
 	my ($strpat) = @_;
-	#foreach my $key( keys %{$strpat}) {
-	#	%{$strpat->{$key}->{pids}} or next;
-	#	print "NAME: \"".$strpat->{$key}->{name}."\" matched with pattern \"".$key."\", full time for pattern: ".1000*$strpat->{$key}->{ptime}." milliseconds\n";
-	#	foreach (keys %{$strpat->{$key}->{pids}}) {
-	#		print "\tpid: $_, time: ".1000*$strpat->{$key}->{pids}->{$_}->{ptime}." milliseconds, user command: \"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\"\n";
-	#	}
-	#}
+	foreach my $key( keys %{$strpat}) {
+#		print "$strpat->{$key}->{ptime}\n";
+#		%{$strpat->{$key}->{pids}} or next;
+#		print "NAME: \"".$strpat->{$key}->{name}."\" matched with pattern \"".$key."\", full time for pattern: ".1000*$strpat->{$key}->{ptime}." milliseconds\n";
+#		foreach (keys %{$strpat->{$key}->{pids}}) {
+#			print "\tpid: $_, time: ".1000*$strpat->{$key}->{pids}->{$_}->{ptime}." milliseconds, user command: \"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\"\n";
+#		}
+	}
 	__print_uinfo($strpat);
 }
 
