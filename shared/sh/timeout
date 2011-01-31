@@ -81,7 +81,7 @@ my $ticksinfo = 0;
 my $fulltime = 0;
 
 if(!$ticklimit && $timelimit) {
-	$ticklimit = 10*$timelimit/$uwait;
+	$ticklimit = 100*$timelimit/$frequency;
 }
  
 my $status = 'wait';
@@ -336,10 +336,11 @@ sub update_info_by_ucmd
 		}
 	
 		if($strpat->{$key}->{oldtime} == $strpat->{$key}->{ptime}) {
-			$strpat->{$key}->{ticks}++ and $max_ticks<$strpat->{$key}->{ticks} and $max_ticks = $strpat->{$key}->{ticks};
+			%{$strpat->{$key}->{pids}} == 0 or $strpat->{$key}->{ticks}++; 
 		} else {
 			$strpat->{$key}->{ticks} = 0;
 		}
+		$max_ticks<$strpat->{$key}->{ticks} and $max_ticks = $strpat->{$key}->{ticks};
 	}	
 	return $max_ticks;
 }
