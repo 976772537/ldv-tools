@@ -18,7 +18,9 @@ static const struct file_operations misc_fops = {
 
 static int misc_open(struct inode * inode, struct file * file)
 {
-	int is_locked = mutex_is_locked(&i_mutex);
+	int is_locked;
+	mutex_lock(&i_mutex);
+	is_locked = mutex_is_locked(&i_mutex);
 	if(is_locked) {
 		mutex_unlock(&i_mutex);
 	} else {
