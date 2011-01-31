@@ -259,8 +259,6 @@ public class MainGenerator {
 		sb.append("\n/* "+ldvCommentTag+ldvTag_FUNCTION_MAIN+" Main function for LDV verifier. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_main"+ctx.id+"(void) {\n\n\n");
 		ctx.incIndent();
-		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Initialize LDV model. */");
-		sb.append("\n" + ctx.getIndent() + "ldv_initialize();\n");		
 		ctx.fw.write(sb.toString());
 	}
 
@@ -269,6 +267,8 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_FUNCTION_CALL_SECTION+" */");
 		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");
 		sb.append("\n" + ctx.getIndent() + "/*============================= FUNCTION CALL SECTION       =============================*/");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Initialize LDV model. */");
+		sb.append("\n" + ctx.getIndent() + "ldv_initialize();\n");		
 		ctx.fw.write(sb.toString());
 	}
 
