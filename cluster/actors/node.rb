@@ -139,21 +139,42 @@ class Player
 		puts "POSTPONED WAITING for #{wait_by_args.inspect}!"
 		wait_by_args.each do |args, lines|
 			to_read = lines
+			attempts = 1
+			tl = 10
 			while to_read > 0
 				env_say_and_open3(call_env,@watcher,*args) do |cin, cout, cerr|
 					while to_read > 0
 						puts "FAKE WAITING for #{args.inspect}, #{to_read} more to go (test failed on hangup)"
-						r = select([cout,cerr],nil,nil,1)
-						begin
-							$stderr.puts cerr.read_nonblock 10000
-						rescue EOFError
-							nil
+						r = select([cout,cerr],nil,nil,tl)
+						# nanosleep to let it flush output
+						Kernel.sleep(0.1)
+							# Try again if select has timed out
+							unless r
+								if attempts % 3
+									$stderr.puts "I've been waiting for #{args.inspect} for #{attempts*tl} seconds.  Is it ok?"
+									attempts += 1
+								end
+								next
+							end
+						if r[0].include? cerr
+							begin
+								$stderr.puts cerr.read_nonblock 10000
+							rescue EOFError
+								nil
+							end
 						end
-						if line = cout.readline
-							to_read -= 1
-							puts "FAKE WAIT RETURNS #{line.inspect}, #{to_read} left"
+						if r[0].include? cout
+							begin
+								if line = cout.readline
+									to_read -= 1
+									puts "FAKE WAIT RETURNS #{line.inspect}, #{to_read} left"
+								end
+							rescue EOFError
+								raise "Unexpected termination"
+							end
 						end
 					end
+					puts "FAKE WAIT TERM #{args.inspect}"
 					cin.close
 					cout.close
 					cerr.close
