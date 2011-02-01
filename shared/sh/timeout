@@ -313,7 +313,7 @@ sub update_info_by_ucmd
 
 	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$ucmd) = @_;
 		my $proctime = hires_proc_runtime($pid);
-		$proctime or next;
+		#$proctime or next;
 		# Search process by pattern
 		foreach my $key(keys %{$strpat}) {
 			$ucmd =~ m/$key/ or next;
