@@ -150,7 +150,7 @@ sub limits_check
 		my $l=shift or return undef;
 		$l=~/${idstr}TIMEOUT (\d+)/i and return {'LIMITS'=>'Time Limit Exceeded'};
 		$l=~/${idstr}MEM (\d+)/i and return {'LIMITS'=>'Memory Limit Exceeded'};
-		$l=~/${idstr}TICKS (\d+)/i and return {'LIMITS'=>'Ticks Limit Exceeded'};
+		$l=~/${idstr}HANGUP (\d+)/i and return {'LIMITS'=>'Hangup Detected'};
 		return undef;
 	}];
 }
