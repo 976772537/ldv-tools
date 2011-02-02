@@ -6,6 +6,7 @@ require 'open3'
 require 'logger'
 require 'rexml/document'
 require 'fileutils'
+require 'optparse'
 
 ENV['LDV_SRVHOME'] ||= File.expand_path("../",File.dirname(__FILE__))
 manhome = File.join(ENV['LDV_SRVHOME'],"ldv-manager")
@@ -247,20 +248,36 @@ class Launch
 
 end
 
-#Unpack and load document
-tmpdir=`mktemp -d`.chomp
-paxname = ARGV[0] or raise "Specify the package name, please"
-paxname = File.expand_path(paxname)
-Dir.chdir(tmpdir) do |dir|
-	# Unpack to temporary dir
-	Kernel.system("pax","-r","-f",paxname) or raise "pax didn't work."
-end
-$stderr.write "Unpacked to: #{tmpdir}\n"
-# Get report name
-filenames = Dir.glob(File.join(tmpdir,'*.report.xml'))
-raise "Only one report in the archive given should match *.report.xml pattern!  These found: #{filenames.join(",")}" if filenames.size != 1
+options = {}
 
-filename = filenames[0]
+OptionParser.new do |opts|
+	opts.banner = "Usage: #{$0} [--xml report.xml] archive.pax"
+	opts.define_head "Task uploader from LDV PAX archive with results to a database"
+
+	opts.on "--xml FILE", "XML file name to be used as report" do |xml_fname|
+		options[:xml_fname] = xml_fname
+	end
+
+end.parse!
+
+# Unpack and load document (if necessary)
+if options[:xml_fname]
+	filename = options[:xml_fname]
+else
+	tmpdir=`mktemp -d`.chomp
+	paxname = ARGV[0] or raise "Specify the package name, please"
+	paxname = File.expand_path(paxname)
+	Dir.chdir(tmpdir) do |dir|
+		# Unpack to temporary dir
+		Kernel.system("pax","-r","-f",paxname) or raise "pax didn't work."
+	end
+	$stderr.write "Unpacked to: #{tmpdir}\n"
+# Get report name
+	filenames = Dir.glob(File.join(tmpdir,'*.report.xml'))
+	raise "Only one report in the archive given should match *.report.xml pattern!  These found: #{filenames.join(",")}" if filenames.size != 1
+
+	filename = filenames[0]
+end
 
 # Load document
 doc = REXML::Document.new File.new(filename)
