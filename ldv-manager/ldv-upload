@@ -60,7 +60,7 @@ class Task
 			rescue ArgumentError
 				task_timestamp = nil
 			end
-		elsif tt = tag.elements["timestamp"]
+		elsif tt = tag.element("timestamp")
 			task_timestamp ||= Task.process_timestamp_tag(tt)
 		else
 			task_timestamp = nil
@@ -85,7 +85,7 @@ class Task
 			raise "Couldn't find or create task for task_name=#{task_name}" unless task
 			# Of course, we should re-create the other fields
 			task.username = (tag/"username")
-			task.timestamp = Task.process_timestamp_tag(tag.elements["timestamp"])
+			task.timestamp = Task.process_timestamp_tag(tag.element("timestamp"))
 			task.description = task_description
 			task.driver_spec = (tag/"driver")
 			task.driver_spec_origin = (tag/"driver_origin")
@@ -132,18 +132,38 @@ class Trace
 	end
 end
 
-class Stats
-	def self.from_xml(entry,do_nulls)
-		return nil if do_nulls && !entry
+class StatsStreamFactory
+	def initialize(tag_name)
+		@stats = Stats.new
+		@tag_name = tag_name
+	end
 
-		st = Stats.new
-		st.success = (entry/"status") == 'OK'
-		st.loc = (entry/"loc").to_i || 0
-		entry.elements.each("time") do |tag|
-			if tag.attributes['name'] == 'ALL' then st.time=tag.text.to_i else st.time=0 end
+	def read s
+		ass {s.start_of? @tag_name}
+		s.read
+		while !s.end_of? @tag_name do
+			if s.start_of? 'status'
+				@stats.success = s.consume_contents == 'OK'
+			elsif s.start_of? 'loc'
+				@stats.loc = s.consume_contents.to_i || 0
+			elsif s.start_of? 'time'
+				if s['name'] == 'ALL'
+					@stats.time = (Stats.split_time(s.consume_contents))[2].to_i
+				else
+					s.next
+				end
+			elsif s.start_of? 'desc'
+				@stats.description = (s.consume_contents || '')
+			else
+				warnings << "unknown tag under stats, line #{s.line_number}"
+				s.next
+			end
 		end
-		st.description = (entry/"desc")
-		st
+		s.read
+		true
+	end
+	def yield
+		@stats
 	end
 end
 
@@ -180,7 +200,8 @@ def simplify_path(path)
 	end
 end
 
-class Launch
+class LaunchStreamFactory
+
 	def self.init_global_params(a)
 		@@driver_origin = a[:driver_origin]
 		@@driver_name = a[:driver_name]
@@ -189,46 +210,60 @@ class Launch
 		@@task = a[:task]
 	end
 
-	def self.init_from_xml(ld,launch=nil)
-		launch ||= Launch.new
-
-		# Get parameters from XML
-		kernel_name = ld.attributes['kernel']
-		kernel = Environment.find_or_create_by_version(kernel_name)
-
-		local_driver_name = ld.attributes['driver_name'] || @@driver_name
-		raise "Driver name is empty for ld #{ld.attributes['id']}!" if local_driver_name.nil? || local_driver_name.empty?
-		driver = Driver.find_or_create(:name=>local_driver_name,:origin=>@@driver_origin)
-
-		rule_model_name = ld.attributes['model']
-		if rule_model_name && !rule_model_name.empty?
-			rule_model = Rule_Model.find_or_create_by_name(rule_model_name)
-		else
-			rule_model = nil
-		end
-
-		if ld.attributes['module_name'] || ld.attributes['main']
-			# If we have only "module_name" it may be a module, in which no names were found.  We should add this to the database anyway, but just insert an empty string instead of main name.
-			main_name = ld.attributes['main'] || ''
-			# If we have only "main", but no "module name" specified, we fail!
-			# FIXME just like the main above if it's necessary
-			module_name = ld.attributes['module_name'] or raise "module_name attribute is empty for ld #{ld.attributes['ref']}.  Fix ldv-upload or reporter!"
-			scenario = Scenario.find_or_create(:driver_id=>driver.id,:executable=>module_name,:main=>main_name)
-		else
-			scenario = nil
-		end
-
-		toolset = Toolset.find_or_create_by_version_and_verifier(@@git_tag,@@global_verifier)
-
-		# Update launch with the parameters gotten
-		launch.driver = driver
-		launch.environment = kernel
-		launch.toolset = toolset
-		launch.rule_model = rule_model
-		launch.scenario = scenario
-		launch.task = @@task
-		launch
+	def initialize
+		@launch ||= Launch.new
 	end
+
+	# Peek XML stream +s+, and if it's applicable to initializing a field of the launch, read until the end of it and do the proper initialization.  The stream should point to the beginning or ending of <ld> tag itself, or to the beginning of one of its children.
+	# Returns if it has advanced the parser
+	def read s
+		if s.node_type == XML::Reader::TYPE_ELEMENT && s.name == 'ld'
+			# Read attributes from the tag itself
+
+			@kernel_name = s['kernel']
+			@kernel = Environment.find_or_create_by_version(@kernel_name)
+
+			@local_driver_name = s['driver_name'] || @@driver_name
+			raise "Driver name is empty for ld #{ld.attributes['id']}!" if @local_driver_name.nil? || @local_driver_name.empty?
+			@driver = Driver.find_or_create(:name=>@local_driver_name,:origin=>@@driver_origin)
+
+			@rule_model_name = s['model']
+			if @rule_model_name && !@rule_model_name.empty?
+				@rule_model = Rule_Model.find_or_create_by_name(@rule_model_name)
+			else
+				@rule_model = nil
+			end
+
+			if s['module_name'] || s['main']
+				# If we have only "module_name" it may be a module, in which no names were found.  We should add this to the database anyway, but just insert an empty string instead of main name.
+				main_name = s['main'] || ''
+				# If we have only "main", but no "module name" specified, we fail!
+				# FIXME just like the main above if it's necessary
+				module_name = s['module_name'] or raise "module_name attribute is empty for ld #{s['ref']}.  Fix ldv-upload or reporter!"
+				scenario = Scenario.find_or_create(:driver_id=>@driver.id,:executable=>module_name,:main=>main_name)
+			else
+				scenario = nil
+			end
+
+			@@toolset ||= Toolset.find_or_create_by_version_and_verifier(@@git_tag,@@global_verifier)
+
+			# Do not advance reader!  In this case it will be advanced by the outer process
+		end
+		false
+	end
+
+	def yield
+		# Update launch with the parameters gotten
+		@launch.driver = @driver
+		@launch.environment = @kernel
+		@launch.toolset = @@toolset
+		@launch.rule_model = @rule_model
+		@launch.scenario = @scenario
+		@launch.task = @@task
+		@launch
+	end
+
+	attr_reader :kernel_name, :local_driver_name, :rule_model_name
 
 	# Parse current LD tag and select from database the relevant master launches.  Master launches are those with no scenario or trace identifiers; they're used in "LDV online" to check if the launch is running or have already finished.
 	# The block can "reject" current launch--i.e. if the block is true (for an _unsaved_ launch record it takes), then the function returns no launches.
@@ -279,10 +314,25 @@ else
 	filename = filenames[0]
 end
 
-# Load document
-doc = REXML::Document.new File.new(filename)
+require 'xml'
 
-launch_info_tag = doc.elements["reports/launch_info"]
+begin
+
+# Initialize document parser
+docs = XML::Reader.file filename
+# FIXME: temporal poring feature
+doc = docs
+
+docs.read
+#asseq XML::Reader::TYPE_XML_DECLARATION, docs.node_type
+asseq 'reports', docs.name
+
+# In sake of simplicity we require the first element to be "launch_info"
+docs.read
+asseq 'launch_info', docs.name
+
+# read the whole <launch_info> and skip it in the stream
+launch_info_tag = docs.consume
 
 driver_name = launch_info_tag.field("driver")
 driver_origin = launch_info_tag.field("driver_origin")
@@ -292,20 +342,23 @@ git_tag = launch_info_tag.field("tag")
 global_verifier = launch_info_tag.field("globalverifier")
 
 # Create current task unless it's already added
-task = Task.from_xml(launch_info_tag.elements["task"])
+puts launch_info_tag.element("task")
+task = Task.from_xml(launch_info_tag.element("task"))
 
 # Fetch dources (due to not very beautiful structure of the output reports, the sources are fetched beforehand).
-sources_dir = File.join(tmpdir,"sources/")
 sources={}
 sources_for_kernel={}
-unless sources_dir.empty?
-	# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
-	# We do not descend into sources firecotry and we don't try to separate the files there, as they aren't made for this purpose.
-	sources = Source.from_dir(File.join(sources_dir))
+# Sources may not have been unpacked in some modes
+if tmpdir
+	sources_dir = File.join(tmpdir,"sources/")
+	unless sources_dir.empty?
+		# If sources dir is not empty, then we ignore its value and fetch source code files from sources/ dir of the unpacked package
+		# We do not descend into sources firecotry and we don't try to separate the files there, as they aren't made for this purpose.
+		sources = Source.from_dir(File.join(sources_dir))
+	end
+	# Traces will be taken from this folder
+	traces_dir = File.join(tmpdir,"traces")
 end
-
-# Traces will be taken from this folder
-traces_dir = File.join(tmpdir,"traces")
 
 # Records, for which master status is already set up
 class MasterStats
@@ -322,36 +375,92 @@ class MasterStats
 end
 masters = MasterStats.new
 
-Launch.init_global_params(:driver_name => driver_name, :driver_origin=>driver_origin, :git_tag => git_tag, :global_verifier => global_verifier, :task => task)
+LaunchStreamFactory.init_global_params(:driver_name => driver_name, :driver_origin=>driver_origin, :git_tag => git_tag, :global_verifier => global_verifier, :task => task)
 
-xml_query_string = "reports/ld"
-# You can use LDV_MODFILTER environment variable to filter modules you're going to load.
-if mod_filter = ENV['LDV_MODFILTER']
-	xml_query_string = "reports/ld[@module_name=\"#{mod_filter}\"]"
-end
+module_filter = ENV['LDV_MODFILTER']
 
-doc.elements.each(xml_query_string) do |ld|
-	puts "Uploading ld #{ld.attributes['ref'] || 'UNKNOWN! ref is not set!'}..."
-	launch = Launch.init_from_xml(ld)
-	#Get status, and if it's "failed" skip the rest
-	status = (ld.field("ldv_status") || "OK").downcase
-	if status == "failed"
-		launch.scenario = nil
+builds = {}
 
-		launch = launch.load_on_duplicate_key
+while not docs.end_of? 'reports' do
+	# This should read one of the children of 'reports' tag
+	asseq XML::Reader::TYPE_ELEMENT, docs.node_type
 
-		launch.status = status
-		launch.trace = nil
-
-		# Because of :autosave property, recursively saves all records
-		launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-		masters.fix(kernel_name,local_driver_name,rule_model_name)
+	# Skip nodes we're not interested in...
+	if docs.name == 'ld'
+		# Skip the module if necessary
+		if module_filter && docs['module_name'] != module_filter
+			next
+		end
+	elsif docs.start_of? 'build'
+		# Memorize information about the encountered builds
+		stats_reader = StatsStreamFactory.new('build')
+		stats_reader.read docs
+		builds[docs['kernel']] = stats_reader.yield
+		next
+	else
+		# Just skip non-ld nodes
+		$stderr.puts "Skipping #{docs.name}"
+		docs.consume
 		next
 	end
 
+	# Upload LD node
+	ld_ref = docs['ref']
+	ld_kernel = docs['kernel']
+	puts "Uploading ld #{ld_ref || 'UNKNOWN! ref is not set!'}..."
+
+	# Handler for common launch routines
+	launch_loader = LaunchStreamFactory.new
+	# Load attributes of <ld> into launch
+	launch_loader.read docs
+
+	# LD's trace
 	trace = Trace.new
-	#verdict
-	verdict = (ld/"verdict" || 'unknown').downcase
+	# LD's verdict
+	verdict = 'unknown'
+	# LD's status (see ldv_statuses in ldv-manager)
+	status = 'ok'
+	# LD's source file refereces
+	source_files = []
+	# LD's trace file name
+	trace_fname = nil
+	# LD's verifier used
+	verifier = nil
+
+	docs.read
+	# Read the whole tag
+	while not docs.end_of? 'ld' do
+		# Consume an element of a generic launch, if applicable
+		launch_loader.read docs and next
+
+		# Check the current tag
+		if docs.start_of? "ldv_status"
+			status = docs.consume_contents.downcase
+		elsif docs.start_of? "verdict"
+			verdict = docs.consume_contents.downcase
+		elsif docs.start_of? "sourcefile"
+			source_files << docs.consume_contents
+		elsif docs.start_of? "trace"
+			trace_fname = docs.consume_contents
+		elsif docs.start_of? "verifier"
+			verifier = docs.consume_contents
+		elsif which = docs.start_of_these?(Trace.tools.values)
+			# Read RCV's verifier
+			verifier = docs['verifier'] || verifier
+			# Read stats of this tool
+			stats_reader = StatsStreamFactory.new(which)
+			stats_reader.read docs
+			trace.send("#{Trace.tools.invert[which]}=",stats_reader.yield)
+			# Note that unspecified traces will be null, just like we need that
+		else
+			warnings << "unknown tag under LD=#{ld_ref}: #{docs.name}"
+			docs.next
+			next
+		end
+	end
+	docs.read
+
+	#Imbue verdict into the trace
 	unsafe = verdict=="unsafe"
 	trace.result=verdict
 	trace.result='unknown' if verdict.empty?
@@ -359,7 +468,7 @@ doc.elements.each(xml_query_string) do |ld|
 	if unsafe
 		# Get sources
 		# Now sources are matched with traces inside the XML file
-		unless (source_files = ld.elements.collect("sourcefile") {|tag| tag.text}).empty?
+		unless source_files.empty?
 			# We use +clone+ to keep records in sources[] array unsaved.  If we didn't use clone, records in sources[] array would be re-saved by the subsequent calls, and each source file would end up being assigned to only one trace
 			source_files.each do |fname_raw|
 				# File name may not be simplified (like "path/to/../relative/file.h"), so we need to simplify it.  See bug #704.
@@ -367,28 +476,21 @@ doc.elements.each(xml_query_string) do |ld|
 				if sources[fname]
 					trace.sources << sources[fname].clone
 				else
-					warnings << "Can't find source '#{fname}' referred from <sourcefile> tag in id=#{ld.attributes['ref']}."
+					warnings << "Can't find source '#{fname}' referred from <sourcefile> tag in id=#{ld_ref}."
 				end
 			end
 		else
-			$stderr.write "No <sourcefile> tags for ld #{ld.attributes['ref']}!  Adding all sources to this trace...\n"
+			warnings << "No <sourcefile> tags for ld #{ld_ref}!  Adding all sources to this trace...\n"
 			# See above about usage of +clone+
 			sources.values.each {|src| trace.sources << src.clone }
 		end
 
-		# Get trace itself
-		if trace_fname = ld/"trace"
+		# Get trace itself (we check for traces_dir as we may be in the mode that doesn't have any files)
+		if trace_fname && traces_dir
 			trace_abs_fname=File.join(traces_dir,trace_fname)
 			puts "Trying to find trace in #{trace_fname}"
 			trace.error_trace = IO.read(trace_abs_fname) if File.exists?(trace_abs_fname)
 		end
-	end
-	# We assume that if there's no report for a tool, it should not be loaded
-	do_nulls = true
-	# Load stats from XML
-	Trace.tools.each do |dbname,tag|
-		stats = Stats.from_xml(ld.elements[tag],do_nulls)
-		trace.send("#{dbname}=",stats)
 	end
 
 	# Run scripts that check for problems
@@ -399,15 +501,12 @@ doc.elements.each(xml_query_string) do |ld|
 	end
 
 	# Build is handled in a special way (because it's an attribute of the whole task, not just this launch)
-	build = Stats.from_xml(doc.elements["reports/build[@kernel=\"#{ld.attributes["kernel"]}\"]"],false)
+	build = builds[ld_kernel] or raise "Where's the <build> info for kenrel #{ld_kernel}, as in LD=#{ld_ref}?"
 	trace.build = build
-	# We should also get verifier from RCV, if it was run
-	ld.elements.inject("rcv",false) do |seen, rcv_tag|
-		raise "Two <rcv> tags in ld #{ld.attributes['ref']}?" if seen
-		trace.verifier = rcv_tag.attributes['verifier']
-		true	#Return that we've seen this element; this will make the next iteration fail
-	end
-	# Assign a primary key
+	trace.verifier = verifier
+
+	# Compose the launch record
+	launch = launch_loader.yield
 	launch = launch.load_on_duplicate_key
 	launch.trace = trace
 	launch.status = "finished"
@@ -415,8 +514,11 @@ doc.elements.each(xml_query_string) do |ld|
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 
-	launch.trace.time_from_xml(ld)
+	## FIXME: uncomment and port
+	#launch.trace.time_from_xml(ld)
 end
+
+exit 0
 
 # Report build errors
 # A build error is a <build> command with FAILED status.
@@ -458,7 +560,6 @@ end
 # Remove temporary directory on success (keep it if something failed, we might want to examine it!)
 FileUtils.remove_dir(tmpdir)
 
-print_warnings.call
 
 # Report address where to look for results
 puts <<EOF
@@ -467,3 +568,9 @@ Results are uploaded to database.  You may view this and the other launches in t
 	#{ldv_report_link}
 
 EOF
+
+ensure
+
+print_warnings.call
+
+end

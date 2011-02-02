@@ -114,6 +114,11 @@ class Stats < ActiveRecord::Base
 			end
 		end
 	end
+
+	# 0 - ???, 1 - detailed, 2 - average
+	def self.split_time timestr
+		timestr.split(':')
+	end
 end
 
 class Source < ActiveRecord::Base
