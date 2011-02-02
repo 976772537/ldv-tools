@@ -293,6 +293,10 @@ OptionParser.new do |opts|
 		options[:xml_fname] = xml_fname
 	end
 
+	opts.on "--debug", "Debug output" do |xml_fname|
+		$debug = true
+	end
+
 end.parse!
 
 # Unpack and load document (if necessary)
@@ -399,7 +403,7 @@ while not docs.end_of? 'reports' do
 		next
 	else
 		# Just skip non-ld nodes
-		$stderr.puts "Skipping #{docs.name}"
+		$stderr.puts "Skipping #{docs.name}" if $debug
 		docs.consume
 		next
 	end
@@ -453,7 +457,8 @@ while not docs.end_of? 'reports' do
 			trace.send("#{Trace.tools.invert[which]}=",stats_reader.yield)
 			# Note that unspecified traces will be null, just like we need that
 		else
-			warnings << "unknown tag under LD=#{ld_ref}: #{docs.name}"
+			# FIXME: hack to suppress wtf
+			warnings << "unknown tag under LD=#{ld_ref}: #{docs.name}" unless docs.name == 'model-kind'
 			docs.next
 			next
 		end
@@ -572,5 +577,8 @@ EOF
 ensure
 
 print_warnings.call
+
+# Report address where to look for results
+puts "ERROR in results upload.  Or see: #{ldv_report_link}"
 
 end

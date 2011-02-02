@@ -47,7 +47,7 @@ def asseq(a,b)
 	raise "Assertion failed: #{a.inspect} != #{b.inspect}!" unless a == b
 end
 def stats p
-	$stderr.puts sprintf("%d %d %p %p %p",p.depth,p.node_type,p.name,p.empty_element?,p.value)
+	$stderr.puts sprintf("%d %d %p %p %p",p.depth,p.node_type,p.name,p.empty_element?,p.value) if $debug
 end
 # monkey-patch xml nodes for compatibility
 require 'xml'
