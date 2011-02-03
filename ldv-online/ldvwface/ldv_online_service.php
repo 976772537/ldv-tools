@@ -1,6 +1,6 @@
 <?php
-print '<div id="ldv_layer">';
 require_once("ldv/include/include.php");
+print '<div id="ldv_layer">';
 
 function html($text)
 {
