@@ -240,9 +240,9 @@ class LaunchStreamFactory
 				# If we have only "main", but no "module name" specified, we fail!
 				# FIXME just like the main above if it's necessary
 				module_name = s['module_name'] or raise "module_name attribute is empty for ld #{s['ref']}.  Fix ldv-upload or reporter!"
-				scenario = Scenario.find_or_create(:driver_id=>@driver.id,:executable=>module_name,:main=>main_name)
+				@scenario = Scenario.find_or_create(:driver_id=>@driver.id,:executable=>module_name,:main=>main_name)
 			else
-				scenario = nil
+				@scenario = nil
 			end
 
 			@@toolset ||= Toolset.find_or_create_by_version_and_verifier(@@git_tag,@@global_verifier)
