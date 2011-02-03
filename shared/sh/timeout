@@ -17,6 +17,7 @@ use Getopt::Long qw(:config require_order);
 use Time::HiRes qw( gettimeofday ); 
 
 my $timelimit = undef;
+my $hanguplimit = undef;
 my $ticklimit = undef;
 my $memlimit = undef;
 my $strpat = undef;
@@ -28,7 +29,7 @@ my $frequency = 10;
 
 GetOptions(
 	'timelimit|t=i'=>\$timelimit,
-	'ticklimit|f=i'=>\$ticklimit,
+	'hanguplimit|h=i'=>\$hanguplimit,
 	'memlimit|m=i'=>\$memlimit,
 	'frequency|x=i'=>\$frequency,
 	'pattern|p=s'=>\$strpat,
@@ -80,8 +81,17 @@ my $meminfo = 0;
 my $ticksinfo = 0;
 my $fulltime = 0;
 
+#
+# Default ticklimit - empirical relationship
+#
+if(!$hanguplimit && $timelimit) {
+	$ticklimit = 10*$timelimit*$frequency;
+} elsif($hanguplimit) {
+	$ticklimit = $hanguplimit*$frequency;
+}
+
 if(!$ticklimit && $timelimit) {
-	$ticklimit = 100*$timelimit/$frequency;
+	$ticklimit = 10*$timelimit*$frequency;
 }
  
 my $status = 'wait';
@@ -139,7 +149,7 @@ while ($status eq 'wait'){
 		if (defined $ticklimit && $ticksinfo > $ticklimit) {
 			kill_process_group_safely($blackbox_pid);
 			sleep(1);
-			print STDERR "$ENV{'TIMEOUT_IDSTR'}TICKS $ticksinfo\n";
+			print STDERR "$ENV{'TIMEOUT_IDSTR'}HANGUP ".ceil($ticksinfo/$frequency)."\n";
 			print_uinfo($uinfo);
 			exit 0;
 		}
@@ -380,5 +390,6 @@ sub get_patterns
 		my ($pattern, $name) = split(/,/,$_);
 		$patterns{$pattern} = {name=>$name, ptime=>0, pids=>{}};
 	}
+	%patterns == 0 and $patterns{'.*'} = {name=>'ALL', prtime=>0, pids=>{}};
 	return {%patterns};
 }
