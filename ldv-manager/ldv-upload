@@ -219,7 +219,7 @@ class LaunchStreamFactory
 
 	def initialize(can_load_build = false)
 		@launch ||= Launch.new
-		@load_build = can_load_build
+		@can_load_build = can_load_build
 	end
 
 	# Peek XML stream +s+, and if it's applicable to initializing a field of the launch, read until the end of it and do the proper initialization.  The stream should point to the beginning or ending of <ld> tag itself, or to the beginning of one of its children.
@@ -232,8 +232,6 @@ class LaunchStreamFactory
 
 		if s.start_of_these? ['ld'] + (@can_load_build ? ['build'] : [])
 			@kernel_name = s['kernel']
-			puts "kern name #{@kernel_name}"
-			#raise unless @kernel_name
 			@kernel = Environment.find_or_create_by_version(@kernel_name)
 
 			@local_driver_name = s['driver_name'] || @@driver_name
@@ -362,7 +360,6 @@ git_tag = launch_info_tag.field("tag")
 global_verifier = launch_info_tag.field("globalverifier")
 
 # Create current task unless it's already added
-puts launch_info_tag.element("task")
 task = Task.from_xml(launch_info_tag.element("task"))
 
 # Fetch dources (due to not very beautiful structure of the output reports, the sources are fetched beforehand).
@@ -593,7 +590,7 @@ end
 if $online
 	# Update status of special tasks that have driver, kernel and rule set, but don't have any model
 	# Let's track already processed items to save db queries
-	puts "Setting up master launches..."
+	puts "Setting up master launches (online mode only)..."
 	potential_master.each do |pl|
 		# We select all relevant launches but reject them on the basis of if they're already "fixed" in masters table--i.e. were uploaded as failed
 		launches = pl.master_launches { |l| masters.lookup(l.environment.version,l.driver.name,(l.rule_model.nil?? "nil" : l.rule_model.name)) }
