@@ -224,16 +224,20 @@ class LaunchStreamFactory
 	# Peek XML stream +s+, and if it's applicable to initializing a field of the launch, read until the end of it and do the proper initialization.  The stream should point to the beginning or ending of <ld> tag itself, or to the beginning of one of its children.
 	# Returns if it has advanced the parser
 	def read s
-		if s.node_type == XML::Reader::TYPE_ELEMENT && s.name == 'ld'
-			# Read attributes from the tag itself
+		# Load generic information
+		@@toolset ||= Toolset.find_or_create_by_version_and_verifier(@@git_tag,@@global_verifier)
 
+		# Load tag-related information
+
+		if s.start_of_these? 'ld','build'
 			@kernel_name = s['kernel']
 			@kernel = Environment.find_or_create_by_version(@kernel_name)
 
 			@local_driver_name = s['driver_name'] || @@driver_name
 			raise "Driver name is empty for ld #{ld.attributes['id']}!" if @local_driver_name.nil? || @local_driver_name.empty?
 			@driver = Driver.find_or_create(:name=>@local_driver_name,:origin=>@@driver_origin)
-
+		end
+		if s.start_of? 'ld'
 			@rule_model_name = s['model']
 			if @rule_model_name && !@rule_model_name.empty?
 				@rule_model = Rule_Model.find_or_create_by_name(@rule_model_name)
@@ -251,9 +255,6 @@ class LaunchStreamFactory
 			else
 				@scenario = nil
 			end
-
-			@@toolset ||= Toolset.find_or_create_by_version_and_verifier(@@git_tag,@@global_verifier)
-
 			# Do not advance reader!  In this case it will be advanced by the outer process
 		end
 		false
@@ -403,9 +404,33 @@ while not docs.end_of? 'reports' do
 			next
 		end
 	elsif docs.start_of? 'build'
+
+		# Create a pseudo-launch for this build (we should read headers at once.  We will only need this fake launch in case of build failure, but we don't know if the build described is a failed one)
+		failed_build_launch_loader = LaunchStreamFactory.new
+		# Load attributes of <ld> into launch
+		failed_build_launch_loader.read docs
+
 		# Memorize information about the encountered builds
 		stats_reader = StatsStreamFactory.new('build')
 		stats_reader.read docs
+		build_rec = stats_reader.yield
+		unless build_rec.success
+			launch = failed_build_launch_loader.yield
+
+			# Don't forget to calculate problems for failed build since there is no ld for failed builds.
+			build_rec.calc_problems(File.join(manhome, "problems", "build"))
+			trace = Trace.new
+			trace.result='unknown'
+			trace.build = build_rec
+			launch.trace = trace
+			launch.status = 'finished'
+
+			launch = launch.load_on_duplicate_key
+
+			# Because of :autosave property, recursively saves all records
+			launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+			# TODO: upload time of a failed build!
+		end
 		builds[docs['kernel']] = stats_reader.yield
 		next
 	else
@@ -532,29 +557,6 @@ while not docs.end_of? 'reports' do
 end
 
 exit 0
-
-# Report build errors
-# A build error is a <build> command with FAILED status.
-doc.elements.each('reports/build')  do |build_fail_tag|
-	next unless (build_fail_tag/"status").downcase == "failed"
-	launch = Launch.init_from_xml(build_fail_tag)
-
-	# Create a pseudo-trace
-	build = Stats.from_xml(build_fail_tag,false)
-	# Don't forget to calculate problems for failed build since there is no ld for failed builds.
-	build.calc_problems(File.join(manhome, "problems", "build"))
-	trace = Trace.new
-	trace.result='unknown'
-	trace.build = build
-	launch.trace = trace
-	launch.status = 'finished'
-
-	launch = launch.load_on_duplicate_key
-
-	# Because of :autosave property, recursively saves all records
-	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-	# TODO: upload time of a failed build!
-end
 
 # Update status of special tasks that have driver, kernel and rule set, but don't have any model
 # Let's track already processed items to save db queries
