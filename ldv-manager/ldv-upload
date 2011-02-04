@@ -305,6 +305,10 @@ OptionParser.new do |opts|
 		options[:xml_fname] = xml_fname
 	end
 
+	opts.on "--online", "Adjust \"Master\" launches after processing (LDV-online mode)" do
+		$online = true
+	end
+
 	opts.on "--debug", "Debug output" do |xml_fname|
 		$debug = true
 	end
@@ -583,20 +587,22 @@ while not docs.end_of? 'reports' do
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 
 	# Save this launch as a potential master launch.  We'll update master launches at the end of processing, to avoid flipping statuses to "finished" and back to "failed"
-	potential_master << launch_loader
+	potential_master << launch_loader if $online
 end
 
-# Update status of special tasks that have driver, kernel and rule set, but don't have any model
-# Let's track already processed items to save db queries
-puts "Setting up master launches..."
-potential_master.each do |pl|
-	# We select all relevant launches but reject them on the basis of if they're already "fixed" in masters table--i.e. were uploaded as failed
-	launches = pl.master_launches { |l| masters.lookup(l.environment.version,l.driver.name,(l.rule_model.nil?? "nil" : l.rule_model.name)) }
-	launches.each do |launch|
-		launch.status = 'finished'
-		# Because of :autosave property, recursively saves all records
-		launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-		masters.fix(launch.environment.version,launch.driver.name,(launch.rule_model.nil?? "nil" : launch.rule_model.name))
+if $online
+	# Update status of special tasks that have driver, kernel and rule set, but don't have any model
+	# Let's track already processed items to save db queries
+	puts "Setting up master launches..."
+	potential_master.each do |pl|
+		# We select all relevant launches but reject them on the basis of if they're already "fixed" in masters table--i.e. were uploaded as failed
+		launches = pl.master_launches { |l| masters.lookup(l.environment.version,l.driver.name,(l.rule_model.nil?? "nil" : l.rule_model.name)) }
+		launches.each do |launch|
+			launch.status = 'finished'
+			# Because of :autosave property, recursively saves all records
+			launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+			masters.fix(launch.environment.version,launch.driver.name,(launch.rule_model.nil?? "nil" : launch.rule_model.name))
+		end
 	end
 end
 
