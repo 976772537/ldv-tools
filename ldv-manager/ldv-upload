@@ -399,6 +399,9 @@ builds = {}
 
 potential_master = []
 
+# Do not report warnings if these tags are encountered in <ld> tags
+tags_to_ignore = %w(model-kind in out cwd opt)
+
 while not docs.end_of? 'reports' do
 	# This should read one of the children of 'reports' tag
 	asseq XML::Reader::TYPE_ELEMENT, docs.node_type
@@ -501,7 +504,7 @@ while not docs.end_of? 'reports' do
 			# Note that unspecified traces will be null, just like we need that
 		else
 			# FIXME: hack to suppress wtf
-			warnings << "unknown tag under LD=#{ld_ref}: #{docs.name}" unless docs.name == 'model-kind'
+			warnings << "unknown tag under LD=#{ld_ref}: #{docs.name}" unless tags_to_ignore.include? docs.name
 			docs.next
 			next
 		end
