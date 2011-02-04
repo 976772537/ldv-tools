@@ -136,6 +136,7 @@ class StatsStreamFactory
 	def initialize(tag_name)
 		@stats = Stats.new
 		@tag_name = tag_name
+		@detailed_times = []
 	end
 
 	def read s
@@ -147,11 +148,16 @@ class StatsStreamFactory
 			elsif s.start_of? 'loc'
 				@stats.loc = s.consume_contents.to_i || 0
 			elsif s.start_of? 'time'
-				if s['name'] == 'ALL'
-					@stats.time = (Stats.split_time(s.consume_contents))[2].to_i
-				else
-					s.next
+				pattern = s['name']
+				time_values = s.consume_contents
+				# Set time for the whole trace
+				if pattern == 'ALL'
+					@stats.time = time_values[2].to_i
 				end
+				# set the detailed time values
+				target = @tag_name
+				target = 'build-cmd-extractor' if target == 'build'
+				@detailed_times << { :name => target, :pattern => pattern, :time_detailed => time_values[1], :time_average => time_values[2]}
 			elsif s.start_of? 'desc'
 				@stats.description = (s.consume_contents || '')
 			else
@@ -162,6 +168,7 @@ class StatsStreamFactory
 		s.read
 		true
 	end
+	attr_reader :detailed_times
 	def yield
 		@stats
 	end
@@ -431,6 +438,7 @@ while not docs.end_of? 'reports' do
 	# LD's verifier used
 	verifier = nil
 
+
 	docs.read
 	# Read the whole tag
 	while not docs.end_of? 'ld' do
@@ -455,6 +463,9 @@ while not docs.end_of? 'reports' do
 			stats_reader = StatsStreamFactory.new(which)
 			stats_reader.read docs
 			trace.send("#{Trace.tools.invert[which]}=",stats_reader.yield)
+			stats_reader.detailed_times.each do |spec|
+				trace.processe << Processe.new(spec)
+			end
 			# Note that unspecified traces will be null, just like we need that
 		else
 			# FIXME: hack to suppress wtf
@@ -518,9 +529,6 @@ while not docs.end_of? 'reports' do
 
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
-
-	## FIXME: uncomment and port
-	#launch.trace.time_from_xml(ld)
 end
 
 exit 0
