@@ -35,6 +35,8 @@ MINIMAL PREREQUISITES
 		- File::Find
 		- File::Copy::Recursive
 		- File::Path   (update to the newest version)
+		- File::MimeInfo;
+		- File::Basename
 		- Text::Highlight
 		- XML::Twig
 		- XML::Writer
