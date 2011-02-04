@@ -93,7 +93,6 @@ sub write_outfile {
 	$content .= "    <backup-folder>$config->{backup}</backup-folder>\n";
 	$content .= "    <files>\n";
         foreach $file (keys %{$config->{files}}) {
-                print "----> Starting backup files in patch $file\n";
                 foreach $backup_file (keys %{$config->{files}->{$file}->{files}}) {
 			$content .= "      <file>$backup_file</file>\n";
 		};
@@ -116,6 +115,8 @@ sub apply_patches {
 	print "\n************ staring apply patches ************\n";
 	foreach $file (keys %{$config->{files}}) {
 		print "----> Apply patch: $file\n";
+		my $patch_args="cd $config->{kernel} && patch -p1 < $file";
+		print "$patch_args\n";
 		system("cd $config->{kernel} && patch -p1 < $file");
 	}
 }

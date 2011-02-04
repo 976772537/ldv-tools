@@ -8,6 +8,9 @@ use SOAP::Lite;
 use POSIX ":sys_wait_h";
 use XML::Twig;
 use IO::Socket::INET;
+use File::MimeInfo;
+use File::Basename;
+
 
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
@@ -80,6 +83,11 @@ sub parallel_run;
 sub scheduler_send_task;
 sub deg_create_report;
 sub find_unused_port;
+sub verbose_system;
+sub prepare_driver_source;
+sub prepare_patch;
+sub detect_dir_source;
+sub detect_type;
 
 #########################################################
 #             MAIN 					#
@@ -218,7 +226,9 @@ sub start_next {
 					"--state-file=$command/deg.state"
 				);
 		
-				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver'}";
+				if(!$config->{'kernel-driver'} && !$config->{ptarget}) {
+				 	push @deg_args,"--driver-name=$config->{'driver'}";
+				};
 
 				if($config->{'cmdstream'}) {
                                         push @deg_args,"--kernel-driver";       
@@ -444,8 +454,12 @@ sub start_bce {
 	if($config->{'cmdstream'}) {
 		push @bce_args, "--cmdstream=$config->{'cmdstream'}";
 		push @bce_args, '--kernel-driver';
+	} elsif($config->{ptarget}) {
+		$config->{ptarget} =~ s/ /&/g;
+		push @bce_args, "--driver=\"$config->{ptarget}\""; 
+		push @bce_args, '--kernel-driver';
 	} else {
-		push @bce_args, "--driver=$config->{'driverdir'}";
+		push @bce_args, "--driver=$config->{'driver'}";
 		$config->{'kernel-driver'} and push @bce_args, '--kernel-driver';
 	}
 
@@ -472,11 +486,11 @@ sub start_csd {
 #		"--tagbd=$config->{'env'}",
 	);
 
-	if(not defined $config->{'kernel-driver'}) {
-		push @csd_options,"--tagbd=$config->{'driverdir'}";
-		push @csd_options,"--full-copy";
-	} else {
+	if($config->{'kernel-driver'} || $config->{ptarget}) {
 		push @csd_options,"--tagbd=$config->{'env'}";
+	} else {
+		push @csd_options,"--tagbd=$config->{'driver'}";
+		push @csd_options,"--full-copy";
 	}
 	
 	my $pid = parallel_run "@csd_options", "$config->{'ldv_tempdir'}/csd_err.log", "$config->{'ldv_tempdir'}/csd_out.log";
@@ -549,6 +563,9 @@ sub init_config {
 	$config->{'as_gcc_pool'} = "$config->{'bce_tempdir'}/as_gcc_pool";
 	$config->{'csd_state'} = "$config->{'csd_tempdir'}/csd.state";
 	$ENV{'AS_GCC_POOL'} = $config->{'as_gcc_pool'};
+	$config->{'driverdir'} = "$config->{'ldv_tempdir'}/$config->{'DRIVER_DIR_NAME'}";
+	$config->{'DRIVER_UNPACK_NAME'} = 'driver_unpacked';
+	$config->{'driver_unpacked'} = "$config->{'ldv_tempdir'}/$config->{'DRIVER_UNPACK_NAME'}";
 
 	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{'workdir'}/watcher";
 	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
@@ -590,72 +607,194 @@ sub bce_create_report {
 	}
 }
 
+sub detect_type {
+	vsay 'TRACE', "Detecting source type for \"$_[0]\"...\n";
+  	my $mime_type = mimetype($_[0]);
+	if(!$mime_type) {
+		vsay 'TRACE', "Can't detect source type for \"$_[0]\"\n";
+		ldv_report_and_exit("Can't detect source type for \"$_[0]\"\n");
+	};
+	vsay 'TRACE', "Source type for \"$_[0]\" is - \"$mime_type\"\n";
+	return $mime_type;
+}
+
 sub prepare_driver {
 	`touch $config->{'unarch_log'}` and die"$!";
-	my $driverdir;
+
+	#
+	# 	Detect  input source type
+	# 
+
+	#  If it no prepared cmdstream from ldv-git.... 
 	if(!$config->{'cmdstream'}) {
-		$driverdir = "$config->{'ldv_tempdir'}/$config->{'DRIVER_DIR_NAME'}";
+
+		#
+		# Only for no internal kernel drivers...
+		#      It may be:
+		#  	- ARCHIVE: detect archive type and unpack...
+		# 		+ application/x-bzip2 
+		# 		+ application/x-gzip 
+		# 	- OTHER:
+		# 		+ detect it..
+		#
+
 
 		if(!$config->{'kernel-driver'}) {
-			vsay 'NORMAL', "Prepare driver...\n";
-			not -d $driverdir and make_path($driverdir);
-			my $driver_src_type = `file -b $config->{'driver'} --mime-type`;
-			chomp $driver_src_type;
-			vsay 'TRACE', "Driver source type $driver_src_type\n";
-			if($driver_src_type eq 'application/x-bzip2') {
-				vsay 'TRACE', "Unpacking source x-bzip2\n";
-				`tar xvjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
-			} elsif($driver_src_type eq 'application/x-gzip') {
-				vsay 'TRACE', "Unpacking source x-gzip\n";
-				`tar xzjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
-			} else {
-				vsay 'TRACE', "Incorrect driver archive: \"$driver_src_type\".\n";
-				bce_ldv_report 'FAILED', 'exit', "Incorrect driver archive type: \"$driver_src_type\".";
+			my $type = detect_type($config->{'driver'});
+			
+			vsay 'DEBUG', "First source detection stage...\n";
+			#  I. If source - is archive - then unpack it and get type again...
+			if(unpack_if_archive($type, $config->{'driver'}, $config->{'driver_unpacked'}, $config->{'unarch_log'})) {
+				$config->{'driver'} = $config->{'driver_unpacked'};
+				$type = detect_type($config->{'driver'});
 			}
-		} elsif (-f $config->{'driver'}) {
-			vsay 'NORMAL', "starting pathmod...\n";
-	                # test for patch
-                        # 1. get path to kernel: 
-                        # my $path_to_kernel = `LDV_ENVS_TARGET=$ENV{'LDV_ENVS_TARGET'} $config->{'kernel-manager'} --action=getpath --name=$config->{'env'}`;
 
-			vsay 'NORMAL', "Copy in-kernel driver environment\n";
-			my @copy_args = ('cp', '-r', $config->{'env'}, $driverdir);
-			vsay 'TRACE', "@copy_args\n";
-			system(@copy_args) and die"$!";
-			$config->{'env'} = $driverdir;
-			$driverdir = $config->{'driver'};
+			vsay 'DEBUG', "Second source detection stage...\n";
+			# II. Detect - source type and corresponding action...
+			if($type eq 'inode/directory') {
 
-        	        vsay 'DEBUG', "Path to kernel is: \"$config->{'env'}\"\n";
-                        my @patchmod_args = ("$config->{patchmod}",
-                                 "--kernel=$config->{'env'}",
-                                 "--patch=$config->{driver}",
-                                 "--out=$config->{pout}");
-                        vsay 'DEBUG', "Start patchmod script!\n";
-                        vsay 'TRACE', "@patchmod_args\n";
-                        system("@patchmod_args") and die"Patchmod script failed!";
-                        if(-f $config->{pout}) {
-                              open FILE, $config->{pout} or die"Can't open pathmod output file \"$config->{pout} : $!\"";
-                                 while(<FILE>) {
-                                      /  <target> (.*)<\/target>/ or next;
-                                      $driverdir = $1;
-                                      #$config->{ptarget} = $1;
-                                       last;
-                                 }
-                              close FILE;
-                              vsay 'DEBUG', "Targets from patchmod: $driverdir\n";
-                         } else {
-				die"Error during patch processing...";
-			 }
+				# detect - is it patch or driver or nothing...
+			
+				vsay 'DEBUG', "Dir source detection stage...\n";
+				my $dir_type = detect_dir_source($config->{'driver'});
+				if($dir_type eq 'driver') {
+					prepare_driver_source();
+				} elsif($dir_type eq 'patch') {
+					prepare_patch();
+				}
+			} elsif($type eq 'text/x-patch') {
+
+				# actions for single patch
+				prepare_patch();
+			} elsif($type eq 'text/plain') {
+
+				# Text/plain may be patch too. Try to detect it...
+				if(is_contains_patch($config->{'driver'})) {
+					prepare_patch();
+				} else {
+					ldv_report_and_exit("File \"$config->{'driver'}\" - is not a patch");
+				}
+			} else {
+				ldv_report_and_exit("Source tipe not supported");
+			}
 		} else {
 			vsay 'NORMAL', "Copy in-kernel driver environment\n";
-			my @copy_args = ('cp', '-r', $config->{'env'}, $driverdir);
-			vsay 'TRACE', "@copy_args\n";
-			system(@copy_args) and die"$!";
-			$config->{'env'} = $driverdir;
-			$driverdir = $config->{'driver'};
+			my @copy_args = ('cp', '-r', $config->{'env'}, $config->{'driverdir'});
+			verbose_system("@copy_args") and ldv_report_and_exit("$!");
+			$config->{'env'} = $config->{'driverdir'};
+			$config->{'driverdir'} = $config->{'driver'};
 		}
 	}
-	$config->{'driverdir'} = $driverdir;
+}
+
+
+sub detect_dir_source {
+	my ($dir) = @_;
+	-d $dir or ldv_create_report("It is not dir \"$dir\"");
+	my $files = findFiles($dir);
+	$patch_counter = 0;
+	foreach $file (@$files) {
+		my $basename = basename($file);
+		if($basename eq 'Makefile' || $basename eq 'Kbuild') {
+			return 'driver';
+		};
+		my $type = detect_type($file);
+		$type eq 'text/x-patch' and ++$patch_counter and next;
+		$type eq 'text/plain' and is_contains_patch and ++$patch_counter and next;
+	}
+	$patch_counter == scalar(@{$files}) and return 'patch';
+	ldv_report_and_exit("Can't detect source type in dir \"$dir\"");
+}
+
+sub is_contains_patch {
+	my ($file) = @_;
+	-f $file or ldv_create_report("It is not file \"$file\"");
+
+	# heuristics for detect that file is patch
+	return 1;
+}
+
+sub prepare_driver_source {
+	vsay 'NORMAL', "Prepare driver...\n";
+}
+
+sub prepare_patch {
+	print "CONFIG:".$config->{'env'}."\n";
+	vsay 'NORMAL', "Starting patchmod...\n";
+
+	vsay 'NORMAL', "Copy in-kernel driver environment\n";
+	my @copy_args = ('cp', '-r', $config->{'env'}, $config->{'driverdir'});
+
+	verbose_system("@copy_args") and ldv_report_and_exit("$!");
+
+	$config->{'env'} = $config->{'driverdir'};
+	$config->{'driverdir'} = $config->{'driver'};
+
+        vsay 'DEBUG', "Path to kernel is: \"$config->{'env'}\"\n";
+	my @patchmod_args = ("$config->{patchmod}",
+		"--kernel=$config->{'env'}",
+		"--patch=$config->{driver}",
+		"--out=$config->{pout}");
+
+	vsay 'DEBUG', "Start patchmod script!\n";
+        verbose_system("@patchmod_args") and ldv_report_and_exit("Pathcmod script failed!");
+
+	if(-f $config->{pout}) {
+		open FILE, $config->{pout} or ldv_report_and_exit("Can't open pathmod output file \"$config->{pout} : $!\"");
+		while(<FILE>) {
+			/  <target> (.*)<\/target>/ or next;
+			$config->{ptarget} = $1;
+			last;
+		}
+		close FILE;
+		vsay 'DEBUG', "Targets from patchmod: \"$config->{'driverdir'}\"\n";
+	} else {
+		ldv_report_and_exit("Error during patch processing...");
+	}
+}
+
+sub unpack_if_archive {
+	my ($type, $file, $outdir, $logfile) = @_;
+
+	# I. If source - is archive - then unpack it...
+	if($type eq 'application/x-bzip-compressed-tar') {
+		not -d $outdir and make_path($outdir);
+		vsay 'TRACE', "Unpacking source x-bzip2\n";
+		verbose_system("tar xvjpf $file -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
+		return 1;
+	} elsif ($type eq 'application/x-compressed-tar') {
+		not -d $outdir and make_path($outdir);
+		vsay 'TRACE', "Unpacking source gzip\n";
+		verbose_system("tar xvzpf $file -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
+		return 1;
+	};
+}
+
+sub verbose_system {
+        my ($args) = @_;
+        vsay 'TRACE', "Command: \"$args\"\n" and return system("$args");
+}
+
+#
+# Function for creating small reports without calling
+# ldv-core-reporter. It needs for internal problems
+# of ldv-core script.
+# For examle - when ldv-core can't detect source type.
+#
+sub ldv_report_and_exit {
+        vsay 'DEBUG', "Creating small report for LDV...\n";
+	my $report_text = "<?xml version=\"1.0\"?>\n";
+	$report_text .= "  <reports>\n";
+	$report_text .= "    <build kernel=\"$config->{'env'}\">\n";
+	$report_text .= "      <status>FAILED</status>\n";
+	$report_text .= "      <time></time>\n";
+	$report_text .= "      <desc>$_[0]</desc>\n";
+	$report_text .= "    </build>\n";
+	$report_text .= "  </reports>\n";  
+	open FILE, '>', $config->{'report-out'} or die"Can't create report file \"$config->{'report-out'}\":$!";
+	print FILE $report_text;
+	close FILE or die"Can't close report file \"$config->{'report-out'}\":$!";
+	exit;
 }
 
 sub ldv_create_report {
@@ -691,3 +830,24 @@ sub find_unused_port {
         }
         die"Can't find free ports from 8080 to 8090!";
 }
+
+sub findFiles {
+        my @files = ();
+        findFilesRec($_[0], \@files);
+        return \@files;
+};
+
+sub findFilesRec {
+        my ($dir, $files) = @_;
+        opendir DIR, $dir or die"Can't open dir!";
+        my @lfiles = readdir DIR;
+        foreach (@lfiles) {
+                /^\.$/ and next;
+                /^\.\.$/ and next;
+                -d "$dir/$_" and findFilesRec("$dir/$_", $files) and next;
+                push @$files, "$dir/$_";
+        }
+        close DIR;
+        return 1;
+}
+

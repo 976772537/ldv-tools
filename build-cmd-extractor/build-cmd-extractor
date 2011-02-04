@@ -318,6 +318,8 @@ else
 		is_single_driver=`echo $driver | grep -E '\.(o|ko)$'`;
 		if [ -n "$is_single_driver" ]; then
 			ldv_print "INFO: Single driver compile mode.";
+			ldv_print "DEBUG: Replace \"&\" symbols with whitespaces. It needs for more than one targets!";
+			driver=`echo $driver | tr '&' ' '`;
 			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $driver > $KERNEL_COMPILE_LOG 2>$statefile;";
 			BUILDFILE=$cmdfileout make V=1 $driver > $KERNEL_COMPILE_LOG 2>$statefile;
 		else 
