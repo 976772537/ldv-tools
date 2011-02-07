@@ -132,11 +132,37 @@ sub write_outfile {
 sub apply_patches {
 	my ($config) = @_;
 	vsay 'NORMAL', "\n************ starting apply patches ************\n";
+
+	
 	foreach $file (keys %{$config->{files}}) {
-		vsay 'DEBUG', "----> Apply patch: $file\n";
-		my $patch_args="cd $config->{kernel} && patch -p1 < $file";
-		vsay 'TRACE', "$patch_args\n";
-		system("cd $config->{kernel} && patch -p1 < $file");
+		print "PATH: $file\n";
+		print "    : $config->{files}->{$file}->{number}\n";
+	}
+
+	# apply pacthes without order and get max number
+	my $max_number = 0;
+	foreach $file (keys %{$config->{files}}) {
+		if($config->{files}->{$file}->{number} == 0) {
+			vsay 'DEBUG', "----> Apply patch: $file\n";
+			my $patch_args="cd $config->{kernel} && patch -p1 < $file";
+			vsay 'TRACE', "$patch_args\n";
+			system("cd $config->{kernel} && patch -p1 < $file");
+		} else {
+			$max_number<$config->{files}->{$file}->{number} and $max_number = $config->{files}->{$file}->{number};
+		}
+	}
+	$max_number == 0 and return;
+
+	# apply patches with order
+	for (my $curnum = 1; $curnum<=$max_number; $curnum++) {
+		foreach $file (keys %{$config->{files}}) {
+			if($config->{files}->{$file}->{number} == $curnum) {
+				vsay 'DEBUG', "----> Apply patch: $file\n";
+				my $patch_args="cd $config->{kernel} && patch -p1 < $file";
+				vsay 'TRACE', "$patch_args\n";
+				system("cd $config->{kernel} && patch -p1 < $file");
+			}
+		}
 	}
 }
 
@@ -163,7 +189,11 @@ sub create_backup {
 
 sub read_patches {
 	my ($config) = @_;
-	$config->{files}->{$_}->{files} = read_patch_file($_) foreach keys %{$config->{files}};
+	foreach $file (keys %{$config->{files}}) {
+		my ($files, $number) = read_patch_file($file);
+		$config->{files}->{$file}->{files} = $files;
+		$config->{files}->{$file}->{number} = $number;
+	}
 }
 
 sub read_patch_file {
@@ -176,7 +206,9 @@ sub read_patch_file {
 	my $vector = undef;
 	my $bfile = undef;
 	my $content = undef;
+	my $number = 0;
 	foreach (@lines) {
+		/Subject:\s*\[PATCH\s+(\d+)\s*\/\s*(\d+)\s*\]/ and $number = $1 and next;
 		/^--$/ and last;
 		if(/diff --git (.*) (.*)/) {
 			$bfile = $2;
@@ -189,7 +221,7 @@ sub read_patch_file {
 			$files->{$vector}->{content} = "$files->{$vector}->{content}$_";
 		}
 	}
-	return $files;
+	return ($files, $number);
 }
 
 sub report_and_exit {
