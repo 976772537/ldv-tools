@@ -19,7 +19,8 @@ sub report_and_exit;
 my $instrumnet = 'patchmod.pl';
 
 BEGIN {
-        $ENV{'LDV_SCRIPTS_HOME'} ||= "$FindBin::Bin";
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
 }
 
 
@@ -40,6 +41,7 @@ usage_ends
 use Getopt::Long qw(:config require_order);
 
 my $config = {
+	'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL'
 };
 
 GetOptions(
@@ -48,6 +50,10 @@ GetOptions(
         'kernel|k=s'=>\$config->{kernel},
         'out|o=s'=>\$config->{out},
 ) or usage;
+
+use LDV::Utils;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument($instrumnet);
 
 ############################################################
 #                   MAIN                                   #
@@ -69,13 +75,13 @@ sub parse_targets {
 	my ($config) = @_;
 	my @targets = ();
 	$config->{targets} = \@targets;
-	print "\n************ Find targets, config options and etc ************\n";
+	vsay 'NORMAL', "\n************ Find targets, config options and etc ************\n";
 	foreach $file (keys %{$config->{files}}) {
-		print "----> Find targets and config options in patch $file\n";
+		vsay 'DEBUG', "----> Find targets and config options in patch $file\n";
 		foreach $backup_file (keys %{$config->{files}->{$file}->{files}}) {
 			my @fcontent = split  /\n/,$config->{files}->{$file}->{files}->{$backup_file}->{content};
 			$backup_file =~ /.*Makefile$/ or next;
-			print "      Parse targets in Makefile: $backup_file\n";
+			vsay 'TRACE', "      Parse targets in Makefile: $backup_file\n";
 			foreach (@fcontent) {
 				/^(.*)-\$\(CONFIG_(.*)\)\s+\+?= (.*)\.o/ or next;
 				
@@ -83,7 +89,7 @@ sub parse_targets {
 				my $dir = dirname($backup_file)."\n";
 				chomp $dir;
 				my $target = "$dir\/$3\.ko";
-				print "      TARGET: $target\n";
+				vsay 'TRACE', "      TARGET: $target\n";
 				push @targets, $target;
 			}
 		}
@@ -115,7 +121,8 @@ sub write_outfile {
 	$content .= " $_" foreach @{$config->{targets}};
 	$content .= "</target>\n";
 	$content .= "</patchmod>\n";
-	#print "\n$content\n";
+
+	# write to file
 	open FILE, ">", $config->{out} or die"Can't open out file $config->{out}: $!";
 	print FILE $content;
 	close FILE or die"Can't close out file!";
@@ -124,11 +131,11 @@ sub write_outfile {
 
 sub apply_patches {
 	my ($config) = @_;
-	print "\n************ starting apply patches ************\n";
+	vsay 'NORMAL', "\n************ starting apply patches ************\n";
 	foreach $file (keys %{$config->{files}}) {
-		print "----> Apply patch: $file\n";
+		vsay 'DEBUG', "----> Apply patch: $file\n";
 		my $patch_args="cd $config->{kernel} && patch -p1 < $file";
-		print "$patch_args\n";
+		vsay 'TRACE', "$patch_args\n";
 		system("cd $config->{kernel} && patch -p1 < $file");
 	}
 }
@@ -136,14 +143,14 @@ sub apply_patches {
 
 sub create_backup {
 	my ($config) = @_;
-	print "\n************ create backup copies  ************\n";
+	vsay 'NORMAL', "\n************ create backup copies  ************\n";
 	foreach $file (keys %{$config->{files}}) {
-		print "----> Starting backup files in patch $file\n";
+		vsay 'DEBUG', "----> Starting backup files in patch $file\n";
 		foreach $backup_file (keys %{$config->{files}->{$file}->{files}}) {
 			my $orig = "$config->{kernel}/$backup_file";
 			! -f $orig and next;
 			my $backup = "$config->{backup}/$backup_file";
-			print  "      backup file: $orig\n";
+			vsay 'TRACE', "      backup file: $orig\n";
 			# first - create full path
 			$bpath = dirname($backup);
 			if(! -d $bpath) {
@@ -225,7 +232,7 @@ sub init_config {
 		$config->{patch} = abs_path($config->{patch});
 		$config->{files}->{$config->{patch}}->{ex} = 1;
 	} else {
-		print "Unknown patch type \"$config->{patch}\". It must be file or dir";
+		vsay 'NORMAL', "Unknown patch type \"$config->{patch}\". It must be file or dir";
 	};
 
 	if(! -d $outdir) {
