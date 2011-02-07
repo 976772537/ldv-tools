@@ -996,6 +996,12 @@ sub join_error_desc(@)
 
   foreach my $error_desc (@error_descs)
   {
+    if (ref($error_desc) ne 'ARRAY')
+    {
+      print_debug_warning("Description '$error_desc' isn't stored as an array reference");
+      next;
+    }
+    
     if ($is_first)
     {
       push(@joined_desc, @{$error_desc});
@@ -2169,7 +2175,7 @@ sub process_cmds()
           my $status_log;
           my $desc_log;
 
-          $desc_log = join_error_desc(@cc_error_desc, @{$desc});
+          $desc_log = join_error_desc(@cc_error_desc, $desc);
 
           # 0 status is good.
           if ($status)

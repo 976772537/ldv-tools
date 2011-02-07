@@ -441,6 +441,7 @@ my @full_ancestors = map {s/$stamps_base\/full-//; $_} <$stamps_base/full-*>;
 my @incremental_ancestors = map {s/$stamps_base\/incremental-//; $_} <$stamps_base/incremental-*>;
 my @incomplete_ancestors = map {s/$stamps_base\/started-//; $_} <$stamps_base/started-*>;
 my %ancestors = ((map {$_ => 'full'} @full_ancestors), (map {$_ => 'incremental'} @incremental_ancestors));
+my %all_ancestors = ((map {$_ => 'incomplete'} @incomplete_ancestors), (%ancestors));
 
 #======================================================================
 # Execute "list" action here.
@@ -532,7 +533,8 @@ if (defined $actions->{clear_cache}){
 		clean_cache_for($commit,@rules);
 	}elsif ($actions->{clear_cache} eq 'older'){
 		# Clear caches for older commits
-		my @commits_to_clean = @partials;
+		local $_;
+		my @commits_to_clean = grep {$all_ancestors{$_}} git_all_commits('HEAD');
 		# Ensure that we don't clear current commit's cache
 		shift @commits_to_clean if $commits_to_clean[0] eq $commit;
 
@@ -884,12 +886,13 @@ sub git_modified
 	return $files;
 }
 
-# Get ALL commits in the repository
+# Get ALL commits in the repository before the specified one (or ALL commits if omitted).  Note that --all and HEAD are different!
 sub git_all_commits
 {
+	my $before = shift || '--all';
 	my @commits = ();
 
-	my $GIT_REVS; open $GIT_REVS, "-|", qw(git rev-list --all) or die "Can't launch git-rev-list: $!";
+	my $GIT_REVS; open $GIT_REVS, "-|", qw(git rev-list),$before or die "Can't launch git-rev-list: $!";
 	while (<$GIT_REVS>){
 		chomp;
 		push @commits,$_;

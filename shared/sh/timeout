@@ -14,10 +14,13 @@ usage_ends
 }
 # We use require_order because we don't want to process options of the command we run
 use Getopt::Long qw(:config require_order);
+use Time::HiRes qw( gettimeofday ); 
 
 my $timelimit = undef;
+my $hanguplimit = undef;
+my $ticklimit = undef;
 my $memlimit = undef;
-my $strapt = undef;
+my $strpat = undef;
 my $output = undef;
 my $reference = undef;
 my $watchfor = 'tree';
@@ -26,6 +29,7 @@ my $frequency = 10;
 
 GetOptions(
 	'timelimit|t=i'=>\$timelimit,
+	'hanguplimit|h=i'=>\$hanguplimit,
 	'memlimit|m=i'=>\$memlimit,
 	'frequency|x=i'=>\$frequency,
 	'pattern|p=s'=>\$strpat,
@@ -74,9 +78,22 @@ use Time::HiRes qw( ualarm );
 my $timeinfo = { total => 0, finished => 0, current => {} };
 # For this -- update_memory
 my $meminfo = 0;
-
+my $ticksinfo = 0;
 my $fulltime = 0;
 
+#
+# Default ticklimit - empirical relationship
+#
+if(!$hanguplimit && $timelimit) {
+	$ticklimit = 10*$timelimit*$frequency;
+} elsif($hanguplimit) {
+	$ticklimit = $hanguplimit*$frequency;
+}
+
+if(!$ticklimit && $timelimit) {
+	$ticklimit = 10*$timelimit*$frequency;
+}
+ 
 my $status = 'wait';
 my $box_status = 0;
 while ($status eq 'wait'){
@@ -92,7 +109,7 @@ while ($status eq 'wait'){
 			# According to signal(7), wait is a safe function, so we can call anything we want here.
 			$timeinfo = update_time($blackbox_pid,$timeinfo);
 			$meminfo = update_memory($blackbox_pid,$meminfo);
-			$fulltime = update_info_by_ucmd($blackbox_pid,$uinfo);
+			$ticksinfo = update_info_by_ucmd($blackbox_pid,$uinfo);
 			die "Assume waitpid return 0\n";
 		};
 		ualarm $uwait;
@@ -115,7 +132,7 @@ while ($status eq 'wait'){
 		$status = 'exit'
 	}elsif ($arrived == -1){
 		# Something happened!
-		print_uinfo($uinfo,$fulltime);
+		print_uinfo($uinfo);
                 print "ldv-timeout: WARNING: Wait($blackbox_pid) failed: $child_errno\n";
                 exit 0;
 	}else{
@@ -126,20 +143,27 @@ while ($status eq 'wait'){
 			# have some sleep for output to be flushed
 			sleep(1);
 			print STDERR "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
-			print_uinfo($uinfo,$fulltime);
+			print_uinfo($uinfo);
+			exit 0;
+		}
+		if (defined $ticklimit && $ticksinfo > $ticklimit) {
+			kill_process_group_safely($blackbox_pid);
+			sleep(1);
+			print STDERR "$ENV{'TIMEOUT_IDSTR'}HANGUP ".ceil($ticksinfo/$frequency)."\n";
+			print_uinfo($uinfo);
 			exit 0;
 		}
 		if (defined $memlimit && $meminfo > $memlimit){
 			kill_process_group_safely($blackbox_pid);
 			sleep(1);
 			print STDERR "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
-			print_uinfo($uinfo,$fulltime);
+			print_uinfo($uinfo);
 			exit 0;
 		}
 	}
 }
 
-print_uinfo($uinfo,$fulltime);
+print_uinfo($uinfo);
 exit $box_status;
 
 #-----------------------------------------------
@@ -295,9 +319,11 @@ sub kill_process_group_safely
 sub update_info_by_ucmd
 {
 	my ($pgrp, $strpat) = @_;
+	my $max_ticks = 0;
+
 	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$ucmd) = @_;
 		my $proctime = hires_proc_runtime($pid);
-		$proctime or next;
+		#$proctime or next;
 		# Search process by pattern
 		foreach my $key(keys %{$strpat}) {
 			$ucmd =~ m/$key/ or next;
@@ -308,11 +334,25 @@ sub update_info_by_ucmd
 
 	# Calculate full time for each pattern
 	foreach my $key(keys %{$strpat}) {
+		if($strpat->{$key}->{ptime}) {
+			$strpat->{$key}->{oldtime} = $strpat->{$key}->{ptime};
+		} else {
+			$strpat->{$key}->{oldtime} = 0;
+		};
+
 		$strpat->{$key}->{ptime} = 0;
 		foreach (keys %{$strpat->{$key}->{pids}}) {
 			$strpat->{$key}->{ptime} += $strpat->{$key}->{pids}->{$_}->{ptime};
 		}
+	
+		if($strpat->{$key}->{oldtime} == $strpat->{$key}->{ptime}) {
+			%{$strpat->{$key}->{pids}} == 0 or $strpat->{$key}->{ticks}++; 
+		} else {
+			$strpat->{$key}->{ticks} = 0;
+		}
+		$max_ticks<$strpat->{$key}->{ticks} and $max_ticks = $strpat->{$key}->{ticks};
 	}	
+	return $max_ticks;
 }
 
 
@@ -324,7 +364,7 @@ sub update_info_by_ucmd
 #       It needs for rule-instrumentor, that execute aspectator two time for
 #       one cc command. 
 #
-sub __print_uinfo
+sub print_uinfo
 {		
 	defined $output and (open(FIL,">>", $output) or die "Can't open output file: $!\n");
 	my ($strpat) = @_;
@@ -341,19 +381,6 @@ sub __print_uinfo
 	defined $output and close FIL;
 }
 
-sub print_uinfo
-{
-	my ($strpat) = @_;
-	#foreach my $key( keys %{$strpat}) {
-	#	%{$strpat->{$key}->{pids}} or next;
-	#	print "NAME: \"".$strpat->{$key}->{name}."\" matched with pattern \"".$key."\", full time for pattern: ".1000*$strpat->{$key}->{ptime}." milliseconds\n";
-	#	foreach (keys %{$strpat->{$key}->{pids}}) {
-	#		print "\tpid: $_, time: ".1000*$strpat->{$key}->{pids}->{$_}->{ptime}." milliseconds, user command: \"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\"\n";
-	#	}
-	#}
-	__print_uinfo($strpat);
-}
-
 sub get_patterns
 {
 	my ($patterns_in_string) = @_;
@@ -363,5 +390,6 @@ sub get_patterns
 		my ($pattern, $name) = split(/,/,$_);
 		$patterns{$pattern} = {name=>$name, ptime=>0, pids=>{}};
 	}
+	%patterns == 0 and $patterns{'.*'} = {name=>'ALL', prtime=>0, pids=>{}};
 	return {%patterns};
 }

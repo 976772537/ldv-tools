@@ -121,7 +121,7 @@ public class VClient {
 				config.getLDVInstalledDir()+"/bin; LDV_DEBUG="+Logger.logLevel+" LDV_TASK_ID="+task.getParentId()+
 				" LDVDB="+config.getStatsDBName()+" LDVUSER="+config.getStatsDBUser()+
 				" LDVDBPASSWD="+config.getStatsDBPass()+" LDVDBHOST="+config.getStatsDBHost()+
-				" ldv_statuses=1 ldv-upload "+paxFileString+" 2>&1";
+				" ldv_statuses=1 ldv-upload --online "+paxFileString+" 2>&1";
 				runCommand(config.getWorkDir() +"/start", startString);	
 				// remove it
 				Logger.debug("Delete pax file: "+paxFileString);
