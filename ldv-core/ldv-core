@@ -725,11 +725,11 @@ sub prepare_driver {
 				ldv_report_and_exit("Source tipe not supported");
 			}
 		} else {
-			vsay 'NORMAL', "Copy in-kernel driver environment\n";
-			my @copy_args = ('cp', '-r', $config->{'env'}, $config->{'driverdir'});
-			verbose_system("@copy_args") and ldv_report_and_exit("$!");
-			$config->{'env'} = $config->{'driverdir'};
-			$config->{'driverdir'} = $config->{'driver'};
+			# vsay 'NORMAL', "Copy in-kernel driver environment\n";
+			# my @copy_args = ('cp', '-r', $config->{'env'}, $config->{'driverdir'});
+			# verbose_system("@copy_args") and ldv_report_and_exit("$!");
+			# $config->{'env'} = $config->{'driverdir'};
+			# $config->{'driverdir'} = $config->{'driver'};
 		}
 	}
 }

@@ -33,11 +33,6 @@ usage_ends
         die;
 }
 
-
-#
-#  BCE will be called with patch mode!
-#
-
 use Getopt::Long qw(:config require_order);
 
 my $config = {
@@ -80,17 +75,19 @@ sub parse_targets {
 		vsay 'DEBUG', "----> Find targets and config options in patch $file\n";
 		foreach $backup_file (keys %{$config->{files}->{$file}->{files}}) {
 			my @fcontent = split  /\n/,$config->{files}->{$file}->{files}->{$backup_file}->{content};
-			$backup_file =~ /.*Makefile$/ or next;
-			vsay 'TRACE', "      Parse targets in Makefile: $backup_file\n";
+			$backup_file =~ /.*Makefile$/ or $backup_file =~ /.*Kbuild$/ or next;
+			vsay 'TRACE', "      Parse targets in Makefile or Kbuild: $backup_file\n";
 			foreach (@fcontent) {
-				/^(.*)-\$\(CONFIG_(.*)\)\s+\+?= (.*)\.o/ or next;
-				
-				# get file dirname 
-				my $dir = dirname($backup_file)."\n";
-				chomp $dir;
-				my $target = "$dir\/$3\.ko";
-				vsay 'TRACE', "      TARGET: $target\n";
-				push @targets, $target;
+				if(/^(.+)\$\(CONFIG_(.*)\)\s*\+?=\s*(.*)\.o/) {
+					# get file dirname 
+					my $dir = dirname($backup_file)."\n";
+					chomp $dir;
+					my $target = "$dir\/$3\.ko";
+					vsay 'TRACE', "      TARGET: $target\n";
+					push @targets, $target;
+				} else {
+					# TODO: Kbuild
+				}
 			}
 		}
 	}	
@@ -133,12 +130,6 @@ sub apply_patches {
 	my ($config) = @_;
 	vsay 'NORMAL', "\n************ starting apply patches ************\n";
 
-	
-	foreach $file (keys %{$config->{files}}) {
-		print "PATH: $file\n";
-		print "    : $config->{files}->{$file}->{number}\n";
-	}
-
 	# apply pacthes without order and get max number
 	my $max_number = 0;
 	foreach $file (keys %{$config->{files}}) {
@@ -146,6 +137,11 @@ sub apply_patches {
 			vsay 'DEBUG', "----> Apply patch: $file\n";
 			my $patch_args="cd $config->{kernel} && patch -p1 < $file";
 			vsay 'TRACE', "$patch_args\n";
+
+			foreach (keys %{$config->{files}->{$file}->{files}}) {
+				$config->{files}->{$file}->{files}->{$_}->{mode} eq 'new' and system("cd $config->{kernel} && rm -fr $_");
+			}
+
 			system("cd $config->{kernel} && patch -p1 < $file");
 		} else {
 			$max_number<$config->{files}->{$file}->{number} and $max_number = $config->{files}->{$file}->{number};
@@ -160,12 +156,17 @@ sub apply_patches {
 				vsay 'DEBUG', "----> Apply patch: $file\n";
 				my $patch_args="cd $config->{kernel} && patch -p1 < $file";
 				vsay 'TRACE', "$patch_args\n";
+
+
+				foreach (keys %{$config->{files}->{$file}->{files}}) {
+					$config->{files}->{$file}->{files}->{$_}->{mode} eq 'new' and system("cd $config->{kernel} && rm -fr $_");
+				}
+
 				system("cd $config->{kernel} && patch -p1 < $file");
 			}
 		}
 	}
 }
-
 
 sub create_backup {
 	my ($config) = @_;
@@ -215,6 +216,9 @@ sub read_patch_file {
 			$vector = $1;
 			$vector =~ s/a\/(.*)/$1/;
 			$files->{$vector}->{content} = "";
+			$files->{$vector}->{mode} = 'diff';
+		} elsif (/new file mode.*/ and defined $vector) {
+			$files->{$vector}->{mode} = 'new';
 		} elsif (defined $vector) {
 			/^\+\+\+ $bfile/ and next;
 			s/^\+(.*)/$1/ or next;
