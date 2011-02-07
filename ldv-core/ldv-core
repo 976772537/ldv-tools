@@ -125,7 +125,7 @@ if(!is_exists($bce_pid)) {
 }
 
 #
-# Procss 3: Process for getting, preparing and sending to DSCV commands 
+# Process 3: Process for getting, preparing and sending to DSCV commands 
 #           from CSD. Also generate reports.
 #
 my $next_pid = start_next($csd_pid);
@@ -521,6 +521,7 @@ sub init_config {
 	$config->{'rule-models'}   or die"Please, specify --rule-models options.";
 	$config->{'report-out'}    or die"Please, specify --report-out options.";
 	$config->{'env'}           or die"Please, specify --env options.";
+	$config->{'backup'}->{'patch'}->{'folder'} = "$config->{'env'}/ldv_backup/backup_before_patch";
 #	$config->{'kernel-driver'} or die"Please, specify --kernel-driver options.";
 	#$config->{'driver'} is checked only out of cmdstream mode
 	$config->{'env'}           = abs_path($config->{'env'});
@@ -618,14 +619,60 @@ sub detect_type {
 	return $mime_type;
 }
 
+sub restore_kernel {
+	# if backup folder after patcg applying exists then
+	# restore files from it...
+	vsay 'TRACE', "Starting restore kernel...\n";
+	foreach my $backup_type (keys %{$config->{'backup'}}) {
+		-d $config->{'backup'}->{$backup_type}->{'folder'} or next;
+		copy_backup($config->{'backup'}->{$backup_type}->{'folder'}, $config->{'env'});
+
+		# remove backup folder
+		vsay 'TRACE', "Remove backup folder \"$config->{'backup'}->{$backup_type}->{'folder'}\"\n";
+		verbose_system("rm -fr $config->{'backup'}->{$backup_type}->{'folder'}") and warn "Can't remove backup folder \"$config->{'backup'}->{$backup_type}->{'folder'}\": $!";
+	};
+}
+
+#
+# $source and $dest must be an absolute path
+#
+sub copy_backup {
+	my ($source, $dest) = @_;
+
+	vsay 'TRACE', "Copy files from backup folder \"$source\" to \"$dest\"\n.";
+	-d $source or ldv_report_and_exit("Source backup source dir \"$source\" not exists..");
+	-d $source or ldv_report_and_exit("Destination dir \"$dest\" for restore not exists.");
+
+	my $files = findFiles($source);
+	foreach my $src (@$files) {
+		
+		# prepare destination path
+		my $dst = $src;
+		$dst =~ s/$source\/+(.*)/$dest\/$1/;
+		
+		# create destination dirs if it needs
+		my $dst_dir = dirname($dst);
+		if(! -d $dst_dir) {
+			make_path($dst_dir) or ldv_report_and_exit("Can't create dir \"$dst_dir\" for copy backup:$!"); 
+		}
+		
+		# copy backup file to destination dir
+		verbose_system("cp $src $dst") and ldv_report_and_exit("Can't copy backup file \"$src\" to \"$dst\":$!\n");
+	};
+}
+
 sub prepare_driver {
-	`touch $config->{'unarch_log'}` and die"$!";
 
 	#
-	# 	Detect  input source type
+	#  Restore kernel files from backup, if it exists
+	#
+	restore_kernel();
+
+	#
+	#  Detect  input source type
 	# 
 
-	#  If it no prepared cmdstream from ldv-git.... 
+	#  no prepared cmdstream from ldv-git.... 
 	if(!$config->{'cmdstream'}) {
 
 		#
@@ -688,6 +735,14 @@ sub prepare_driver {
 }
 
 
+#
+# Get all files in dir, determine mime-types
+# and return detected type of dir
+# it may be:
+#   - dir with external driver (dri contains Makefile or Kbuild)
+#   - dir with patch (all files - text/plain or text/x-patch)
+#   - Unknwon => exit from ldv-core with corresponding report
+#
 sub detect_dir_source {
 	my ($dir) = @_;
 	-d $dir or ldv_create_report("It is not dir \"$dir\"");
@@ -706,11 +761,15 @@ sub detect_dir_source {
 	ldv_report_and_exit("Can't detect source type in dir \"$dir\"");
 }
 
+#
+# Some operation for patch detection in files 
+# with "text/plain" mime type
+#
 sub is_contains_patch {
 	my ($file) = @_;
 	-f $file or ldv_create_report("It is not file \"$file\"");
-
-	# heuristics for detect that file is patch
+	# TODO:
+	#   heuristics for detect that file is patch
 	return 1;
 }
 
@@ -722,17 +781,18 @@ sub prepare_patch {
 	print "CONFIG:".$config->{'env'}."\n";
 	vsay 'NORMAL', "Starting patchmod...\n";
 
-	vsay 'NORMAL', "Copy in-kernel driver environment\n";
-	my @copy_args = ('cp', '-r', $config->{'env'}, $config->{'driverdir'});
+#	vsay 'NORMAL', "Copy in-kernel driver environment\n";
+#	my @copy_args = ('cp', '-r', $config->{'env'}, $config->{'driverdir'});
 
-	verbose_system("@copy_args") and ldv_report_and_exit("$!");
+#	verbose_system("@copy_args") and ldv_report_and_exit("$!");
 
-	$config->{'env'} = $config->{'driverdir'};
-	$config->{'driverdir'} = $config->{'driver'};
+#	$config->{'env'} = $config->{'driverdir'};
+#	$config->{'driverdir'} = $config->{'driver'};
 
         vsay 'DEBUG', "Path to kernel is: \"$config->{'env'}\"\n";
 	my @patchmod_args = ("$config->{patchmod}",
 		"--kernel=$config->{'env'}",
+		"--backup=$config->{'backup'}->{'patch'}->{'folder'}",
 		"--patch=$config->{driver}",
 		"--out=$config->{pout}");
 
@@ -755,6 +815,7 @@ sub prepare_patch {
 
 sub unpack_if_archive {
 	my ($type, $file, $outdir, $logfile) = @_;
+	`touch $config->{'unarch_log'}` and die"$!";
 
 	# I. If source - is archive - then unpack it...
 	if($type eq 'application/x-bzip-compressed-tar') {

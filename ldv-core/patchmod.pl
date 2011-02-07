@@ -8,6 +8,13 @@ use File::Basename;
 use File::Copy;
 
 sub init_config;
+sub read_patches;
+sub parse_targets;
+sub create_backup;
+sub apply_patches;
+sub write_outfile;
+sub report_and_exit;
+
 
 my $instrumnet = 'patchmod.pl';
 
@@ -19,7 +26,7 @@ BEGIN {
 sub usage{ print STDERR<<usage_ends;
 
 Usage:
-        $instrumnet TBD
+        $instrumnet --patch=/path/to/patch --backup=/path/to/dir/for/backup --kernel=/path/to/kernel/source/root --out=/path/to/file/for/report
 
 usage_ends
         die;
@@ -37,6 +44,7 @@ my $config = {
 
 GetOptions(
         'patch|p=s'=>\$config->{patch},
+        'backup|b=s'=>\$config->{backup},
         'kernel|k=s'=>\$config->{kernel},
         'out|o=s'=>\$config->{out},
 ) or usage;
@@ -86,6 +94,10 @@ sub write_outfile {
 	my ($config) = @_;
 	my $content = "<?xml version=\"1.0\"?>\n";
 	$content .= "<patchmod>\n";
+	
+	# create result message
+	$content .= "  <result>OK</result>\n";
+	$content .= "  <desc>All stages successfully finfished</desc>\n";
 
 	# write all backup files
 	$content .= "  <backup>\n";
@@ -112,7 +124,7 @@ sub write_outfile {
 
 sub apply_patches {
 	my ($config) = @_;
-	print "\n************ staring apply patches ************\n";
+	print "\n************ starting apply patches ************\n";
 	foreach $file (keys %{$config->{files}}) {
 		print "----> Apply patch: $file\n";
 		my $patch_args="cd $config->{kernel} && patch -p1 < $file";
@@ -173,6 +185,22 @@ sub read_patch_file {
 	return $files;
 }
 
+sub report_and_exit {
+        my ($config, $msg) = @_;
+        my $content = "<?xml version=\"1.0\"?>\n";
+        $content .= "<patchmod>\n";
+
+        # write all backup files
+        $content .= "  <result>FAILED</result>\n";
+        $content .= "  <desc>$msg</desc>\n";
+	$content .= "</patchmod>\n";
+
+        open FILE, ">", $config->{out} or die"Can't open out file $config->{out}: $!";
+        print FILE $content;
+        close FILE or die"Can't close out file!";
+	exit;
+}
+
 sub init_config {
 	my ($config) = @_;
 
@@ -217,7 +245,7 @@ sub init_config {
 	# 2. If first true - then copy all files from
 	#    backup to kernel and remove backup!
 	#
-	$config->{backup} = "$config->{kernel}/ldv_backup/backup_before_patch";
+	$config->{backup} or $config->{backup} = "$config->{kernel}/ldv_backup/backup_before_patch";
 	if(! -d $config->{backup}) {
 		make_path($config->{backup}) or die"Can't create backup folder";
 	} else {
