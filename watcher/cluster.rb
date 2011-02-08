@@ -50,11 +50,11 @@ class WatcherRemote < Watcher
 		$log.info "Queueing #{what} task with #{task_fname} and wd #{workdir}"
 		# The local IP is the IP as seen by AMQP host
 		this_machine_info = {
-			:host => local_ip(self.opts[:host]),
+			:host => local_ip(ENV['LDV_ABROAD'] || self.opts[:host]),
 			:sshuser => Etc.getlogin,
+			:root => '/tmp/cluster/wd',
 		}
 		payload = { :type => what, :args => (ENV['LDV_NOREAD_TASKS'] ? 'intentionally empty' : IO.read(task_fname)), :key => mk(key), :env => [], :workdir => workdir, :parent_machine => this_machine_info  }
-		#payload = { :type => what, :args => IO.read(task_fname), :key => mk(key), :env => [], :workdir => workdir, :parent_machine => this_machine_info  }
 		EM.run { sender.send('/ldvqueue/queue', payload)}
 	end
 

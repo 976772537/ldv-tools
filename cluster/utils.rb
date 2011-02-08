@@ -13,6 +13,13 @@ ensure
   Socket.do_not_reverse_lookup = orig
 end
 
+def ip_localhost?(ip)
+	# First IP may be external, but the second will be definitely local
+	route_ip = local_ip(local_ip(ip))
+	$stderr.puts "LOCAL IP of #{ip}: #{route_ip}"
+	(route_ip =~ /^127\./) || (route_ip == 'localhost') || (route_ip == ENV['LDV_LOCAL_IP'])
+end
+
 def select_read(streams)
 	begin
 		r = select(streams,nil,nil,1)

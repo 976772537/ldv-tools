@@ -1,5 +1,10 @@
 require 'tempfile'
 require 'fileutils'
+require 'rubygems'
+require 'nanite'
+
+$:.unshift File.dirname(__FILE__)
+require 'utils.rb'
 
 $:.unshift File.dirname(__FILE__)
 require 'utils.rb'
@@ -17,7 +22,76 @@ def say_and_open3(*args)
 	end
 end
 
-class RealSpawner
+class Spawner
+	LOCAL_MOUNTS = File.join("mnt","local")
+	SSH_MOUNTS = File.join("mnt","ssh")
+
+	# FIXME: Check if +directory+ is already a mountpoint
+	def self.mounted dir
+		$stderr.puts "Check if #{dir} is mounted..."
+		result = `mount`.match "on #{dir}"
+		$stderr.puts "Check if #{dir} is mounted... #{result}"
+		result
+	end
+
+	# Returns the local mountpoint of a mirror of the remote directory +dir+ on the host specified.
+	# If it's not mounted, creates a mount at the +dir+
+	def ensure_mount(key,user,host,dir)
+		mount_target = File.expand_path File.join(SSH_MOUNTS,dir)
+		$stderr.puts "abspath is #{mount_target}"
+		unless Spawner.mounted mount_target
+			FileUtils.mkdir_p(mount_target)
+			sshed = say_and_run("sshfs","#{user}@#{host}:#{dir}",mount_target)
+			unless sshed
+				raise "SSHFSing failed.  Did you install SSHFS?  Is the host reachable?"
+			end
+		end
+		mount_target
+	end
+
+	def ensure_workdir(key,workdir,root)
+		# get workdir relevant to root
+		# We mount all workdirs of the same root into one (because we can't change union-mount on-line)
+		rel_workdir = workdir.sub(root,'')
+		workdir_mount = File.join(LOCAL_MOUNTS,root)
+		workdir_target = File.join(workdir_mount,rel_workdir)
+
+		# Cleanup and re-create local workdir.  Note that workdir mountpoint remains intact.
+		puts "Removing #{workdir_target}"
+		FileUtils.rm_rf(workdir_target)
+		FileUtils.mkdir_p(workdir_target)
+
+		workdir_mount
+	end
+
+	def prepare_mounts(key,user,host,root,workdir,&block)
+		sshdir = ensure_mount(key,user,host,root)
+		workdir = ensure_workdir(key,workdir,root)
+
+		# --Try to umount previously created dir, if mounted.  If the command fails, that's OK
+		# Do not umount! The union is shared across several tasks
+		#say_and_run("fusermount","-u",root)
+
+		unless Spawner.mounted root
+			# Create a mountpoint unless it exists
+			FileUtils.mkdir_p root
+
+			# Do the union-mount and report failure unless succeeded
+			# If remote host is actually a local host, tham means that we shouldn't mount, as it won'r work, and, most likely, it's planned to be like this.
+			unless ip_localhost? host
+				unioned = say_and_run("unionfs","#{workdir}=RW:#{sshdir}=RW",root)
+				unless unioned
+					raise "UNION failed.  Did you install unionfs-fuse?  Are all the folders created properly?"
+				end
+			end
+		end
+
+		# Finally, do what's necessary
+		Dir.chdir root, &block
+	end
+end
+
+class RealSpawner < Spawner
 	def initialize(ldv_home)
 		@home = ldv_home
 	end
@@ -30,61 +104,64 @@ class RealSpawner
 		# Workdir
 		workdir = task['workdir']
 
-		# Run job-specific targets
-		# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
-		# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
-		case job_type
-			when :ldv then
-				puts "LDV"
-				# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
-				puts "Creating #{workdir}"
-				Dir.chdir(FileUtils.mkdir_p(workdir)) do
-					# FIXME: replace with execve equivalent: possible race condition here
-					ENV['LDV_SPAWN_KEY'] = spawn_key
-					unless say_and_run('ldv-manager')
-						$stderr.puts "Failed to run ldv-manager..."
+		prepare_mounts task['key'],task['parent_machine']['sshuser'],task['parent_machine']['host'],task['parent_machine']['root'],task['workdir'] do
+
+			# Run job-specific targets
+			# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
+			# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
+			case job_type
+				when :ldv then
+					puts "LDV"
+					# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
+					puts "Creating #{workdir}"
+					Dir.chdir(FileUtils.mkdir_p(workdir)) do
+						# FIXME: replace with execve equivalent: possible race condition here
+						ENV['LDV_SPAWN_KEY'] = spawn_key
+						unless say_and_run('ldv-manager')
+							$stderr.puts "Failed to run ldv-manager..."
+						end
 					end
-				end
-			when :dscv then
-				puts "DSCV"
-				# Dump taskfile to a temp file
-				tmpdir = File.join(workdir,'tmp')
-				FileUtils.mkdir_p tmpdir
-				Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
-					temp_file.write task['args']
-					temp_file.close
-					puts "Saved task to temporary file #{temp_file.path}"
-					puts task['args']
+				when :dscv then
+					puts "DSCV"
+					# Dump taskfile to a temp file
+					tmpdir = File.join(workdir,'tmp')
+					FileUtils.mkdir_p tmpdir
+					Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+						temp_file.write task['args']
+						temp_file.close
+						puts "Saved task to temporary file #{temp_file.path}"
+						puts task['args']
 
-					# FIXME: replace ENV assignments with execve equivalent: possible race condition here
-					ENV['WORK_DIR'] = workdir
-					# FIXME: this may actually differ, if user sets it up differently.
-					ENV['LDV_RULE_DB'] = File.join(@home,'kernel-rules','model-db.xml')
-					ENV['LDV_SPAWN_KEY'] = spawn_key
-					say_and_run('dscv',"--rawcmdfile=#{temp_file.path}")
-				end
-			when :rcv then
-				puts "DSCV"
-				# Dump taskfile to a temp file
-				tmpdir = File.join(workdir,'tmp')
-				FileUtils.mkdir_p tmpdir
-				Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
-					temp_file.write task['args']
-					temp_file.close
-					puts "Saved task to temporary file #{temp_file.path}"
-					puts task['args']
+						# FIXME: replace ENV assignments with execve equivalent: possible race condition here
+						ENV['WORK_DIR'] = workdir
+						# FIXME: this may actually differ, if user sets it up differently.
+						ENV['LDV_RULE_DB'] = File.join(@home,'kernel-rules','model-db.xml')
+						ENV['LDV_SPAWN_KEY'] = spawn_key
+						say_and_run('dscv',"--rawcmdfile=#{temp_file.path}")
+					end
+				when :rcv then
+					puts "DSCV"
+					# Dump taskfile to a temp file
+					tmpdir = File.join(workdir,'tmp')
+					FileUtils.mkdir_p tmpdir
+					Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+						temp_file.write task['args']
+						temp_file.close
+						puts "Saved task to temporary file #{temp_file.path}"
+						puts task['args']
 
-					# FIXME: replace ENV assignments with execve equivalent: possible race condition here
-					ENV['DSCV_HOME'] = @home
-					ENV['WORK_DIR'] = workdir
-					ENV['LDV_SPAWN_KEY'] = spawn_key
-					say_and_run(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
-				end
+						# FIXME: replace ENV assignments with execve equivalent: possible race condition here
+						ENV['DSCV_HOME'] = @home
+						ENV['WORK_DIR'] = workdir
+						ENV['LDV_SPAWN_KEY'] = spawn_key
+						say_and_run(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
+					end
+			end
 		end
 	end
 end
 
-class Player
+class Player < Spawner
 	def initialize(ldv_home,fname)
 		@home = ldv_home
 		@scenarios = {}
@@ -116,13 +193,18 @@ class Player
 	end
 
 	def spawn_child(job_type,task,spawn_key)
-		#call_env = { 'LDV_SPAWN_KEY' => spawn_key }
+		# LDV_NOREAD_TASKS instructs watcher not to try to pack tasks for queue tasks.  It should be non-empty for the scenario player
 		call_env = { 'LDV_SPAWN_KEY' => spawn_key, 'LDV_NOREAD_TASKS' => 'aaa' }
 		scenario = @scenarios[spawn_key]
 		raise "Scenario for key \"#{spawn_key}\" is not found" unless scenario
 		$stderr.puts "KEY #{spawn_key.inspect} going to execute preset scenario: #{scenario.inspect}"
 
 		wait_by_args = {}
+
+		prepare_mounts task['key'],task['parent_machine']['sshuser'],task['parent_machine']['host'],task['parent_machine']['root'],task['workdir']  do
+			$stderr.puts "MOUNTS ARE OKAY!\n--------------"
+		end
+		$stderr.puts "END MOUNT"
 
 		scenario.each do |args|
 			# Our sleep will block this Eventmachine thread, but that's what the usual workflow does too
