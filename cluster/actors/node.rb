@@ -26,12 +26,14 @@ class Spawner
 	LOCAL_MOUNTS = File.join("mnt","local")
 	SSH_MOUNTS = File.join("mnt","ssh")
 
-	# FIXME: Check if +directory+ is already a mountpoint
+	# Check if +directory+ is already a mountpoint
+	# FIXME: bad code!
 	def self.mounted dir
-		$stderr.puts "Check if #{dir} is mounted..."
-		result = `mount`.match "on #{dir}"
-		$stderr.puts "Check if #{dir} is mounted... #{result}"
-		result
+		$stderr.write "Check if #{dir} is mounted..."
+		r = Kernel.system("mountpoint",dir)
+		raise "Your system doesn't have 'mountpoint' command!  Report this to the developers!" if r.nil?
+		$stderr.puts r
+		r
 	end
 
 	# Returns the local mountpoint of a mirror of the remote directory +dir+ on the host specified.
@@ -39,9 +41,10 @@ class Spawner
 	def ensure_mount(key,user,host,dir)
 		mount_target = File.expand_path File.join(SSH_MOUNTS,dir)
 		$stderr.puts "abspath is #{mount_target}"
-		unless Spawner.mounted mount_target
+		unless Spawner.mounted mount_target or ip_localhost? host
 			FileUtils.mkdir_p(mount_target)
-			sshed = say_and_run("sshfs","#{user}@#{host}:#{dir}",mount_target)
+			# We user "read-only" to mount from SSH as our workflow doesn't allow writes this way.  Perhaps, after debugging, we'll discard this option.
+			sshed = say_and_run("sshfs","-o","ro","#{user}@#{host}:#{dir}",mount_target)
 			unless sshed
 				raise "SSHFSing failed.  Did you install SSHFS?  Is the host reachable?"
 			end
@@ -49,37 +52,36 @@ class Spawner
 		mount_target
 	end
 
-	def ensure_workdir(key,workdir,root)
+	def ensure_workdir(key,host,_,root)
 		# get workdir relevant to root
 		# We mount all workdirs of the same root into one (because we can't change union-mount on-line)
-		rel_workdir = workdir.sub(root,'')
-		workdir_mount = File.join(LOCAL_MOUNTS,root)
-		workdir_target = File.join(workdir_mount,rel_workdir)
+		workdir_target = File.join(LOCAL_MOUNTS,root)
 
-		# Cleanup and re-create local workdir.  Note that workdir mountpoint remains intact.
-		puts "Removing #{workdir_target}"
-		FileUtils.rm_rf(workdir_target)
-		FileUtils.mkdir_p(workdir_target)
+		unless ip_localhost?(host)
+			# Cleanup and re-create local workdir.  Note that workdir mountpoint remains intact.
+			FileUtils.mkdir_p(workdir_target)
+		end
 
-		workdir_mount
+		workdir_target
 	end
 
 	def prepare_mounts(key,user,host,root,workdir,&block)
+		# We do this check regardless of whether root is mounted, since there's a FIXME bug in the way we use sshfs
 		sshdir = ensure_mount(key,user,host,root)
-		workdir = ensure_workdir(key,workdir,root)
 
-		# --Try to umount previously created dir, if mounted.  If the command fails, that's OK
-		# Do not umount! The union is shared across several tasks
-		#say_and_run("fusermount","-u",root)
+		unless Spawner.mounted root or ip_localhost? host
+			workdir = ensure_workdir(key,host,workdir,root)
+			# --Try to umount previously created dir, if mounted.  If the command fails, that's OK
+			# Do not umount! The union is shared across several tasks
+			#say_and_run("fusermount","-u",root)
 
-		unless Spawner.mounted root
 			# Create a mountpoint unless it exists
 			FileUtils.mkdir_p root
 
 			# Do the union-mount and report failure unless succeeded
-			# If remote host is actually a local host, tham means that we shouldn't mount, as it won'r work, and, most likely, it's planned to be like this.
+			# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
 			unless ip_localhost? host
-				unioned = say_and_run("unionfs","#{workdir}=RW:#{sshdir}=RW",root)
+				unioned = say_and_run("unionfs","-o","cow","#{workdir}=RW:#{sshdir}=RO",root)
 				unless unioned
 					raise "UNION failed.  Did you install unionfs-fuse?  Are all the folders created properly?"
 				end

@@ -17,7 +17,9 @@ def ip_localhost?(ip)
 	# First IP may be external, but the second will be definitely local
 	route_ip = local_ip(local_ip(ip))
 	$stderr.puts "LOCAL IP of #{ip}: #{route_ip}"
-	(route_ip =~ /^127\./) || (route_ip == 'localhost') || (route_ip == ENV['LDV_LOCAL_IP'])
+	result = (route_ip =~ /^127\./) || (route_ip == 'localhost') || (route_ip == ENV['LDV_LOCAL_IP'])
+	$stderr.puts "LOCAL IP of #{ip}? #{result}"
+	result
 end
 
 def select_read(streams)
