@@ -33,6 +33,7 @@ install: all
 	@$(call test_prefix)
 	if [ ! -d $(prefix)/$(SMALL_TEST_DIR) ]; then mkdir -p $(prefix)/$(SMALL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR_DRV}/*.tar.bz2 $(prefix)/$(SMALL_TEST_DIR) || exit 1;
+	cp -r ${TMP_DIR_DRV}/*.diff $(prefix)/$(SMALL_TEST_DIR) || exit 1;
 	cp -r ${TMP_DIR_KERN}/*.tar.bz2 $(prefix)/$(SMALL_TEST_DIR) || exit 1;
 	cp $(TEST_TASK) $(prefix)/$(SMALL_TEST_DIR) || exit 1;	
 	cp regr-test-small-* $(prefix)/$(SMALL_TEST_DIR) || exit 1;	
