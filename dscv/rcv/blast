@@ -483,6 +483,7 @@ EOR
 	$cmdInstT->paste($repT);
 
 	$repT->set_pretty_print('indented');
+	vsay('DEBUG',"Writing report to '$args{report}'\n");
 	$repT->print($BLAST_REPORT);
 	close $BLAST_REPORT;
 

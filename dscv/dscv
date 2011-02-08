@@ -528,6 +528,7 @@ my $copy_driver = sub
 {
 	my $to = shift or die;
 	defined $driver_dir or die;
+	vsay('DEBUG',"Copying driver from '$driver_dir' to '$to'...\n");
 	dircopy($driver_dir,$to) or die $!;
 };
 
@@ -694,6 +695,7 @@ for my $rule_id (@properties){
 
 	my $cat_rep=sub{
 		my ($report_file) = @_;
+		vsay('DEBUG',"Chewing RCV report '$report_file'...\n");
 		XML::Twig->new(
 			twig_roots=> {'reports' => sub {
 				my ($twig,$repT) = @_;

@@ -190,6 +190,7 @@ sub cc_maker
 		# Write the list to o-file
 		mkpath(dirname($o_file));
 
+		vsay ('DEBUG', "Saving cc command to '$o_file'\n");
 		my $children_FH; open $children_FH,">",$o_file or die "Dead while trying to open $o_file for writing";
 		$cmdT->print($children_FH);
 		close $children_FH;
