@@ -605,7 +605,7 @@ sub prepare_driver {
 				`tar xvjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
 			} elsif($driver_src_type eq 'application/x-gzip') {
 				vsay 'TRACE', "Unpacking source x-gzip\n";
-				`tar xzjpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
+				`tar xvzpf $config->{'driver'} -C $driverdir > $config->{'unarch_log'} 2>&1` and bce_ldv_report 'FAILED', 'exit', "Can't unpack driver";
 			} else {
 				vsay 'TRACE', "Incorrect driver archive: \"$driver_src_type\".\n";
 				bce_ldv_report 'FAILED', 'exit', "Incorrect driver archive type: \"$driver_src_type\".";

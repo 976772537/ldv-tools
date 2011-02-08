@@ -238,6 +238,40 @@ if ($action eq 'plan'){
 	$actions->{verification} = '';
 }
 
+=item B<drop-cache>
+
+Clears cache for the current commit and the current set of rules (see C<--rule>).
+
+For this purpose, if a special rule "all" is among the rules you've specified, then the cache for all rules is cleared.  This is useful when you've checked some rules beyond the default ones.
+
+=cut
+push @actions_allowed,'drop-cache';
+if ($action eq 'drop-cache'){
+	$actions->{check_db} = '';
+	$actions->{status} = '';
+	$actions->{plan} = '';
+	$actions->{metadata} = '';
+	$actions->{verification} = '';
+	$actions->{clear_cache} = 'current';
+}
+
+=item B<drop-older-caches>
+
+Clears caches for the commits older than the current one, keeping the current one's cache intact.  Clears caches for the set of rules specified by C<--rule>.
+
+For this purpose, if a special rule "all" is among the rules you've specified, then the cache for all rules is cleared.  This is useful when you've checked some rules beyond the default ones.
+
+=cut
+push @actions_allowed,'drop-older-caches';
+if ($action eq 'drop-older-caches'){
+	$actions->{check_db} = '';
+	$actions->{status} = '';
+	$actions->{plan} = '';
+	$actions->{metadata} = '';
+	$actions->{verification} = '';
+	$actions->{clear_cache} = 'older';
+}
+
 =back
 
 =cut
@@ -407,6 +441,7 @@ my @full_ancestors = map {s/$stamps_base\/full-//; $_} <$stamps_base/full-*>;
 my @incremental_ancestors = map {s/$stamps_base\/incremental-//; $_} <$stamps_base/incremental-*>;
 my @incomplete_ancestors = map {s/$stamps_base\/started-//; $_} <$stamps_base/started-*>;
 my %ancestors = ((map {$_ => 'full'} @full_ancestors), (map {$_ => 'incremental'} @incremental_ancestors));
+my %all_ancestors = ((map {$_ => 'incomplete'} @incomplete_ancestors), (%ancestors));
 
 #======================================================================
 # Execute "list" action here.
@@ -462,6 +497,52 @@ my $stats_url = form_task($ENV{'LDVGIT_STAT_SRV'},toshow_commits($commit,@partia
 # Rules to verify
 @rules = @rules_default unless @rules;
 @rules = split(/,/,join(',',@rules));
+
+#======================================================================
+# Clear cache (if necessary)
+sub clean_cache_for
+{
+	my ($commit,@rules) = @_;
+	local $_;
+	# Detect if we should clear caches for all rules
+	my $clear_for_all_rules = grep { /^all$/i } @rules;
+	@rules = ('all') if $clear_for_all_rules;
+
+	vsay('NORMAL', sprintf("Clearing cache for commit $commit, rules: %s\n",join(', ',@rules)));
+	my $commits_cache = catfile($cache_base,"cache-$commit");
+	if ($clear_for_all_rules){
+		if (-e $commits_cache){
+			rmtree($commits_cache) or die "Couldn't remove folder $commits_cache: $!";
+		}else{
+			vsay('INFO', "No folder '$commits_cache' found, skipping.\n");
+		}
+	}else{
+		for my $rule (@rules){
+			my $rules_cache = catfile($commits_cache,$rule);
+			if (-e $rules_cache){
+				rmtree($rules_cache) or die "Couldn't remove folder $rules_cache: $!";
+			}else{
+				vsay('INFO', "No folder '$rules_cache' found, skipping.\n");
+			}
+		}
+	}
+}
+if (defined $actions->{clear_cache}){
+	if ($actions->{clear_cache} eq 'current'){
+		# Clear only current cache for the rules specified
+		clean_cache_for($commit,@rules);
+	}elsif ($actions->{clear_cache} eq 'older'){
+		# Clear caches for older commits
+		local $_;
+		my @commits_to_clean = grep {$all_ancestors{$_}} git_all_commits('HEAD');
+		# Ensure that we don't clear current commit's cache
+		shift @commits_to_clean if $commits_to_clean[0] eq $commit;
+
+		clean_cache_for($_,@rules) for @commits_to_clean;
+	}else{
+		die "Assertion failed: clear_cache is unknown ('$action->{clear_cache}')";
+	}
+}
 
 #======================================================================
 # Handle runs that pretend full
@@ -769,7 +850,8 @@ sub previous_commits
 	$_ = undef;
 RET:
 	close $GIT_REVS;
-	return (@other_ancestors,$_);
+	return (@other_ancestors,$_) if $_;
+	return (@other_ancestors);
 }
 
 # List of commits to show in browser, given the commit itself and the list of its ancestors, as given by previous_commits subroutine
@@ -804,12 +886,13 @@ sub git_modified
 	return $files;
 }
 
-# Get ALL commits in the repository
+# Get ALL commits in the repository before the specified one (or ALL commits if omitted).  Note that --all and HEAD are different!
 sub git_all_commits
 {
+	my $before = shift || '--all';
 	my @commits = ();
 
-	my $GIT_REVS; open $GIT_REVS, "-|", qw(git rev-list --all) or die "Can't launch git-rev-list: $!";
+	my $GIT_REVS; open $GIT_REVS, "-|", qw(git rev-list),$before or die "Can't launch git-rev-list: $!";
 	while (<$GIT_REVS>){
 		chomp;
 		push @commits,$_;
