@@ -450,13 +450,15 @@ public class MainGenerator {
 	private static void generateSequenceInf(GeneratorContext ctx, SequenceParams sp) throws IOException {
 		//check that all sequences are fully completed
 		ctx.fw.write("\n" + ctx.getIndent() 
-				+ "while(" + NONDET_INT + "()");
+				+ "while(  " + NONDET_INT + "()");
 		ctx.incIndent();
 		if(sp.isStatefull()) {
 			for(TokenStruct token : ctx.structTokens) {
 				if(token.hasInnerTokens() && token.isSorted()) {
-					ctx.fw.write("\n" + ctx.getIndent() 
-							+ "|| !(" + token.getCompletionCheckStr(ctx.getIndent()) + ")");				
+					String str = token.getCompletionCheckStr();
+					if(str!=null && !str.trim().isEmpty()) {
+						ctx.fw.write("\n" + ctx.getIndent() + "|| !(" +  str + ")");
+					}
 				}
 			}
 		}

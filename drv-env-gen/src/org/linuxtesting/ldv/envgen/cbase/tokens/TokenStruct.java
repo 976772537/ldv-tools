@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.parsers.Item;
 import org.linuxtesting.ldv.envgen.cbase.parsers.PatternSorter;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserStruct.NameAndType;
@@ -85,14 +86,20 @@ public class TokenStruct extends ContainerToken<TokenFunctionDecl> {
 		return buf.toString();
 	}
 
-	public String getCompletionCheckStr(String indent) {
+	public String getCompletionCheckStr() {
 		Set<String> s = new HashSet<String>();
 		StringBuffer buf = new StringBuffer();
+		boolean first = true;
 		for(Item<TokenFunctionDecl> t : sortedItems) {
 			String itemCheck = t.getCompletionCheckStr(getId());
-			assert itemCheck!=null && !itemCheck.isEmpty();
-			if(s.add(itemCheck)) {
-				buf.append(indent + itemCheck + "\n");				
+			Logger.trace("itemCheck=" + itemCheck);
+			//ignore empty checks
+			if(itemCheck!=null && !itemCheck.trim().isEmpty() && s.add(itemCheck)) {
+				if(!first) {
+					buf.append(" || ");					
+				}
+				buf.append(itemCheck);				
+				first = false;
 			}
 		}
 		return buf.toString();
