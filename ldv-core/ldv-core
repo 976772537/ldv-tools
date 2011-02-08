@@ -726,7 +726,7 @@ sub prepare_driver {
 					ldv_report_and_exit("File \"$config->{'driver'}\" - is not a patch");
 				}
 			} else {
-				ldv_report_and_exit("Source tipe not supported");
+				ldv_report_and_exit("Source type \"$type\" not supported");
 			}
 		} else {
 			# vsay 'NORMAL', "Copy in-kernel driver environment\n";
