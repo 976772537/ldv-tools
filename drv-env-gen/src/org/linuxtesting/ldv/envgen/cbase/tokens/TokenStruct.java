@@ -85,6 +85,19 @@ public class TokenStruct extends ContainerToken<TokenFunctionDecl> {
 		return buf.toString();
 	}
 
+	public String getCompletionCheckStr(String indent) {
+		Set<String> s = new HashSet<String>();
+		StringBuffer buf = new StringBuffer();
+		for(Item<TokenFunctionDecl> t : sortedItems) {
+			String itemCheck = t.getCompletionCheckStr(getId());
+			assert itemCheck!=null && !itemCheck.isEmpty();
+			if(s.add(itemCheck)) {
+				buf.append(indent + itemCheck + "\n");				
+			}
+		}
+		return buf.toString();
+	}
+	
 	public String getId() {
 		return name + "_" + type;
 	}
