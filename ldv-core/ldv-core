@@ -8,7 +8,7 @@ use SOAP::Lite;
 use POSIX ":sys_wait_h";
 use XML::Twig;
 use IO::Socket::INET;
-use File::MimeInfo;
+#use File::MimeInfo;
 use File::Basename;
 
 
@@ -610,7 +610,8 @@ sub bce_create_report {
 
 sub detect_type {
 	vsay 'TRACE', "Detecting source type for \"$_[0]\"...\n";
-  	my $mime_type = mimetype($_[0]);
+#  	my $mime_type = mimetype($_[0]);
+  	my $mime_type = `file -b --mime-type $_[0]`;
 	if(!$mime_type) {
 		vsay 'TRACE', "Can't detect source type for \"$_[0]\"\n";
 		ldv_report_and_exit("Can't detect source type for \"$_[0]\"\n");
@@ -698,7 +699,8 @@ sub prepare_driver {
 
 			vsay 'DEBUG', "Second source detection stage...\n";
 			# II. Detect - source type and corresponding action...
-			if($type eq 'inode/directory') {
+			#if($type eq 'inode/directory') {
+			if($type eq 'application/x-directory') {
 
 				# detect - is it patch or driver or nothing...
 			
@@ -709,10 +711,12 @@ sub prepare_driver {
 				} elsif($dir_type eq 'patch') {
 					prepare_patch();
 				}
-			} elsif($type eq 'text/x-patch') {
+			#} elsif($type eq 'text/x-patch') {
+			} elsif($type eq 'text/x-diff') {
 
 				# actions for single patch
 				prepare_patch();
+			#} elsif($type eq 'text/plain') {
 			} elsif($type eq 'text/plain') {
 
 				# Text/plain may be patch too. Try to detect it...
@@ -754,7 +758,7 @@ sub detect_dir_source {
 			return 'driver';
 		};
 		my $type = detect_type($file);
-		$type eq 'text/x-patch' and ++$patch_counter and next;
+		$type eq 'text/x-diff' and ++$patch_counter and next;
 		$type eq 'text/plain' and is_contains_patch and ++$patch_counter and next;
 	}
 	$patch_counter == scalar(@{$files}) and return 'patch';
@@ -818,12 +822,14 @@ sub unpack_if_archive {
 	`touch $config->{'unarch_log'}` and die"$!";
 
 	# I. If source - is archive - then unpack it...
-	if($type eq 'application/x-bzip-compressed-tar') {
+	#if($type eq 'application/x-bzip-compressed-tar') {
+	if($type eq 'application/x-bzip2') {
 		not -d $outdir and make_path($outdir);
 		vsay 'TRACE', "Unpacking source x-bzip2\n";
 		verbose_system("tar xvjpf $file -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
 		return 1;
-	} elsif ($type eq 'application/x-compressed-tar') {
+	#} elsif ($type eq 'application/x-compressed-tar') {
+	} elsif ($type eq 'application/x-gzip') {
 		not -d $outdir and make_path($outdir);
 		vsay 'TRACE', "Unpacking source gzip\n";
 		verbose_system("tar xvzpf $file -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
