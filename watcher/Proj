@@ -16,5 +16,6 @@ cluster.rb
 	test-simple.rb
 	sender.rb
 	options.rb
+	utils.rb
 
 

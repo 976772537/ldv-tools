@@ -403,6 +403,18 @@ my ($key_str,undef) = LDV::Utils::watcher_cmd('key','dscv');
 vsay ('DEBUG',"Got key string $key_str.\n");
 my @watcher_key = split /,/,$key_str;
 
+# We should pack files for the parent task to process afterwards.  Use these functions
+my @files_for_parent = ();
+sub for_parent
+{
+	push @files_for_parent,@_;
+}
+
+sub files_for_parent
+{
+	return @files_for_parent;
+}
+
 ###########################
 # EXCEPTION HANDLING!
 eval {
@@ -840,7 +852,7 @@ vsay 20,"Final report is written to $config->{report}\n";
 FINALIZE:
 
 # Report success to the watcher
-LDV::Utils::watcher_cmd('success','dscv',@watcher_key);
+LDV::Utils::watcher_cmd('success','dscv',@watcher_key,'@@',files_for_parent());
 
 # EXCEPTION HANDLING!
 ###########################

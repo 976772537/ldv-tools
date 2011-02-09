@@ -74,11 +74,20 @@ $ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
 #Check if blast is available
 #blast_quick_check();
 
-
 #======================================================================
 # PREPARE CMDFILE TRAVERSERS AND RUN THEM
 #======================================================================
 use XML::Twig;
+
+#==== 
+# We should pack files for the parent task to process afterwards.  Use these functions
+my %files_for_parent = ();
+sub for_parent
+{ local $_; $files_for_parent{$_} = 1 for @_; }
+sub files_for_parent
+{ return keys %files_for_parent; }
+#==== 
+
 
 my $sanity = undef;
 
@@ -148,7 +157,7 @@ if ($mode eq 'cmd'){
 	};
 
 	# Report success to the watcher
-	LDV::Utils::watcher_cmd('success','rcv',@watcher_key);
+	LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',files_for_parent());
 
 }else{
 	die "Assertion failed";
@@ -486,6 +495,10 @@ EOR
 	vsay('DEBUG',"Writing report to '$args{report}'\n");
 	$repT->print($BLAST_REPORT);
 	close $BLAST_REPORT;
+
+	# Mark files that should be sent to parent
+	# You may skip this step if you're not going to run cluster
+	for_parent($args{report},$args{trace},$args{debug});
 
 	#return $result;
 }

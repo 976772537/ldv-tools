@@ -38,7 +38,8 @@ end
 
 # Program run helpers
 
-def say_and_run(*args)
+def say_and_run(*args_)
+	args = args_.flatten
 	$stderr.write "Running: #{args.inspect}\n"
 	Kernel.system *args
 end

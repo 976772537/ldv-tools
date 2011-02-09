@@ -60,12 +60,18 @@ class WatcherRemote < Watcher
 		EM.run { sender.send('/ldvqueue/queue', payload)}
 	end
 
-	public; def success(type,*key)
-		result 'success', type, *key
+	KEY_FILE_SEP = '@@'
+	# Successful task completion
+	# Following double dash are the files to send to parent
+	public; def success(type,*key__files)
+		key = key__files.take_while {|v| v != KEY_FILE_SEP}
+		files = key__files.slice( (key.length+1)..(key__files.length-1) ) || []
+		$log.debug "Success.  Key: #{key.inspect}, files: #{files.inspect}, kf: #{key__files.inspect}"
+		result 'success', type, key, files
 	end
 
 	public; def fail(type,*key)
-		result 'fail', type, *key
+		result 'fail', type, key
 	end
 
 	public; def unpack(*_)
@@ -81,10 +87,28 @@ class WatcherRemote < Watcher
 		self.spawn_key = config[:spawn_key].split('.')
 	end
 
-	private; def result(message,type,*key)
+	private; def result(message,type,key,files = [])
+		# Package files
+		send_files "#{key.join('.')}-to-parent.pax",files
+		# Send task
 		task = {:key => key.join('.'), :type => type}
 		$stderr.puts "******************************\n\nSending result for task #{task.inspect}\n\n"
 		EM.run { sender.send('/ldvqueue/result', task) }
+	end
+
+	# Sends files to +ENV['LDV_FILESRV']+ as destination for SCP
+	# TODO: fix this env var (or not? or set it up in the cluster node spawn operation?)
+	private; def send_files package_name, files
+		$log.warn "name: #{package_name.inspect}, fi: #{files.inspect}"
+		return true if files.empty?
+		# TODO : fix /tmp here
+		archive_name = File.join("/tmp",package_name)
+		# Expand file names to absolute, so that the archive would unpack at the receiver's site easily
+		expanded_files = files.map {|fname| File.expand_path fname }
+		say_and_run(%w(pax -w -x cpio),expanded_files,"-f",archive_name)
+		# Copy the resultant archive to the server
+		raise "LDV_FILESRV is not set!  Can't sent anything anywhere!" unless ENV['LDV_FILESRV']
+		say_and_run("scp",archive_name,ENV['LDV_FILESRV'])
 	end
 
 end
