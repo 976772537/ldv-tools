@@ -226,7 +226,7 @@ sub start_next {
 					"--state-file=$command/deg.state"
 				);
 		
-				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver'}";
+				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver_name'}";
 
 				if($config->{'cmdstream'}) {
                                         push @deg_args,"--kernel-driver";       
