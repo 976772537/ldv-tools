@@ -9,19 +9,6 @@ require 'utils.rb'
 $:.unshift File.dirname(__FILE__)
 require 'utils.rb'
 
-def say_and_run(*args)
-	$stderr.write "Running: #{args.inspect}\n"
-	Kernel.system *args
-end
-
-require 'open3'
-def say_and_open3(*args)
-	$stderr.write "Running: #{args.inspect}\n"
-	Open3.popen3(*args) do |a,b,c|
-		yield a,b,c
-	end
-end
-
 class Spawner
 	LOCAL_MOUNTS = File.join("mnt","local")
 	SSH_MOUNTS = File.join("mnt","ssh")
@@ -65,7 +52,8 @@ class Spawner
 		workdir_target
 	end
 
-	def prepare_mounts(key,user,host,root,workdir,&block)
+	# Prepares mounts and returns the mountpoint.  Previously it accepted a block and yielded it in the changed dir, but chdir is a global setting, not a local one...
+	def prepare_mounts(key,user,host,root,workdir)
 		# We do this check regardless of whether root is mounted, since there's a FIXME bug in the way we use sshfs
 		sshdir = ensure_mount(key,user,host,root)
 
@@ -88,8 +76,7 @@ class Spawner
 			end
 		end
 
-		# Finally, do what's necessary
-		Dir.chdir root, &block
+		root
 	end
 end
 
@@ -106,58 +93,67 @@ class RealSpawner < Spawner
 		# Workdir
 		workdir = task['workdir']
 
-		prepare_mounts task['key'],task['parent_machine']['sshuser'],task['parent_machine']['host'],task['parent_machine']['root'],task['workdir'] do
+		task_root = prepare_mounts task['key'],task['parent_machine']['sshuser'],task['parent_machine']['host'],task['parent_machine']['root'],task['workdir']
 
-			# Run job-specific targets
-			# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
-			# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
-			case job_type
-				when :ldv then
-					puts "LDV"
-					# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
-					puts "Creating #{workdir}"
-					Dir.chdir(FileUtils.mkdir_p(workdir)) do
-						# FIXME: replace with execve equivalent: possible race condition here
-						ENV['LDV_SPAWN_KEY'] = spawn_key
-						unless say_and_run('ldv-manager')
-							$stderr.puts "Failed to run ldv-manager..."
-						end
+		# Run job-specific targets
+		# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
+		# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
+		case job_type
+		when :ldv then
+			puts "LDV"
+			# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
+			puts "Creating #{workdir}"
+			Dir.chdir(FileUtils.mkdir_p(workdir)) do
+				child = fork do
+					ENV['LDV_SPAWN_KEY'] = spawn_key
+					unless say_and_exec('ldv-manager')
+						$stderr.puts "Failed to run ldv-manager..."
 					end
-				when :dscv then
-					puts "DSCV"
-					# Dump taskfile to a temp file
-					tmpdir = File.join(workdir,'tmp')
-					FileUtils.mkdir_p tmpdir
-					Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
-						temp_file.write task['args']
-						temp_file.close
-						puts "Saved task to temporary file #{temp_file.path}"
-						puts task['args']
+				end
+				Process.wait child
+			end
+		when :dscv then
+			puts "DSCV"
+			# Dump taskfile to a temp file
+			tmpdir = File.join(workdir,'tmp')
+			FileUtils.mkdir_p tmpdir
+			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+				temp_file.write task['args']
+				temp_file.close
+				puts "Saved task to temporary file #{temp_file.path}"
+				puts task['args']
 
-						# FIXME: replace ENV assignments with execve equivalent: possible race condition here
-						ENV['WORK_DIR'] = workdir
-						# FIXME: this may actually differ, if user sets it up differently.
-						ENV['LDV_RULE_DB'] = File.join(@home,'kernel-rules','model-db.xml')
-						ENV['LDV_SPAWN_KEY'] = spawn_key
-						say_and_run('dscv',"--rawcmdfile=#{temp_file.path}")
+				child = fork do
+					ENV['WORK_DIR'] = workdir
+					# FIXME: this may actually differ, if user sets it up differently.
+					ENV['LDV_RULE_DB'] = File.join(@home,'kernel-rules','model-db.xml')
+					ENV['LDV_SPAWN_KEY'] = spawn_key
+					Dir.chdir task_root do
+						say_and_exec('dscv',"--rawcmdfile=#{temp_file.path}")
 					end
-				when :rcv then
-					puts "DSCV"
-					# Dump taskfile to a temp file
-					tmpdir = File.join(workdir,'tmp')
-					FileUtils.mkdir_p tmpdir
-					Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
-						temp_file.write task['args']
-						temp_file.close
-						puts "Saved task to temporary file #{temp_file.path}"
-						puts task['args']
+				end
+				Process.wait child
+			end
+		when :rcv then
+			puts "DSCV"
+			# Dump taskfile to a temp file
+			tmpdir = File.join(workdir,'tmp')
+			FileUtils.mkdir_p tmpdir
+			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+				temp_file.write task['args']
+				temp_file.close
+				puts "Saved task to temporary file #{temp_file.path}"
+				puts task['args']
 
-						# FIXME: replace ENV assignments with execve equivalent: possible race condition here
-						ENV['DSCV_HOME'] = @home
-						ENV['WORK_DIR'] = workdir
-						ENV['LDV_SPAWN_KEY'] = spawn_key
-						say_and_run(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
+				child = fork do
+					ENV['DSCV_HOME'] = @home
+					ENV['WORK_DIR'] = workdir
+					ENV['LDV_SPAWN_KEY'] = spawn_key
+					Dir.chdir task_root do
+						say_and_exec(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
 					end
+				end
+				Process.wait child
 			end
 		end
 	end

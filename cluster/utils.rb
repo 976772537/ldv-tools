@@ -36,3 +36,23 @@ def select_read(streams)
 end
 
 
+# Program run helpers
+
+def say_and_run(*args)
+	$stderr.write "Running: #{args.inspect}\n"
+	Kernel.system *args
+end
+
+def say_and_exec(*args)
+	$stderr.write "Running (exec): #{args.inspect}\n"
+	Kernel.exec *args
+end
+
+require 'open3'
+def say_and_open3(*args)
+	$stderr.write "Running: #{args.inspect}\n"
+	Open3.popen3(*args) do |a,b,c|
+		yield a,b,c
+	end
+end
+
