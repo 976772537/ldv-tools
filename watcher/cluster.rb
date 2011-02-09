@@ -74,8 +74,13 @@ class WatcherRemote < Watcher
 		result 'fail', type, key
 	end
 
-	public; def unpack(*_)
-		$stderr.puts "Unpack!"
+	public; def unpack(path,contents)
+		#$stderr.puts "Unpack!"
+		# We ignore +path+ since it's hardcoded in the archive
+		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
+		# FIXME: during development we ignore the error in unpacking
+		say_and_run(%w(pax -r -O -f),contents)
+		$log.warn "Unpacking finished!"
 	end
 
 	private; def mk(key)

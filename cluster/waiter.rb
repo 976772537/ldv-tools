@@ -7,6 +7,8 @@
 # If at the moment of publication, no queue with a proper binding is connected to the exchange, the job is kept in the local array, and the waiter wakes up each 5 seconds, and tries to send the requests again.
 # Note that +job_done+ won't block in this case, but will just add a packet to a local array and ensure that the eventmachine-based timer is started.  In any case, +job_done+ should be called at master's site, not at node's site.
 
+require 'fileutils'
+
 class Waiter
 
 	include Nanite::AMQPHelper
@@ -51,9 +53,19 @@ class Waiter
 			$stderr.puts "**********************************************************************************"
 			$stderr.puts "Still waiting for tasks with key #{key}..."
 			packet = serializer.load(body)
-			# TODO: Copy packet's data to a proper place and fill in the following vars
+			# Copy packet's data to a proper place and fill in the following vars
+			# NOTE: this should be in sync with watcher's cluster interface
+			package_name = "#{received_key}-to-parent.pax"
+			# TODO: replace "/tmp" with something more sane
+			package_dir = "/tmp/incoming"
+			FileUtils.mkdir_p package_dir
+			contents = File.join package_dir,package_name
+			say_and_run("scp","#{ENV['LDV_FILESRV']}/#{package_name}",contents)
+
+			# ! It so happens that we ignore path--paths are recorded in the package
 			path = ''
-			contents = ''
+
+			# Print info and flush
 			to_out = [path,contents] + received_key.split('.');
 			$stdout.sync = true
 			$stdout.puts(to_out.join(','))
