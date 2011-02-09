@@ -323,8 +323,14 @@ class Ldvnode
 
 	def launch_child_job(job_type,task)
 		puts "Job #{job_type} accepted: #{task.inspect}."
-		# Whether we descided to send job back (local for closures created below)
-		send_job_back = false
+		# We spawn a job and asynchronously call the callback after it finishes.  The callback should read its status
+		# 	:finished - the job successfully finished (or failed, and made it clear)
+		# 	:exception - the job has thrown an exception in ruby code
+		# 	:rejected - this node can't afford this task due to its capabilities
+		job_status = :finished
+		# Ruby threads used in EventMachine, just silently die if they encounter an exception.  We should at least save the backtrace
+		child_backtrace = nil
+		child_exception = nil
 
 		child_op = proc do
 			# Update local status
@@ -332,21 +338,36 @@ class Ldvnode
 				if @status[job_type] > 0
 					@status[job_type] -= 1
 				else
-					send_job_back = true
+					job_status = :rejected
 				end
 			end
-			unless send_job_back
-				spawner.spawn_child job_type,task,task['key']
+			unless job_status == :rejected
+				begin
+					spawner.spawn_child job_type,task,task['key']
+					job_status = :finished
+				rescue => e
+					child_exception = e
+					job_status = :exception
+					child_backtrace = "#{e.message}\n#{e.backtrace.join("\n")}\n"
+				end
 			end
 		end
 
 		callback_op = proc do
-			if send_job_back
+			case job_status
+			when :rejected
 				# If the job's to be sent back, don't touch statuses, just send
 				puts "A #{job_type} job rejected, sending back: #{task.inspect}"
 				Nanite.push("/ldvqueue/redo", task)
-			else
+			when :finished
 				puts "The #{job_type} job completed, result should have been sent: #{task.inspect}"
+				@status_update_mutex.synchronize do
+					@status[job_type] += 1
+				end
+			when :exception
+				$stderr.puts "Exception happened when processing #{task['key']}!  Job will be sent back."
+				$stderr.puts child_backtrace
+				Nanite.push("/ldvqueue/redo", task)
 				@status_update_mutex.synchronize do
 					@status[job_type] += 1
 				end
