@@ -348,7 +348,8 @@ sub call_blast
 	}
 
 	my $result = {%{$verdictor->result()}};
-	$result->{'BLAST-detailed'} .= $result->{'LIMITS'};
+	# Post limits and verdict on different lines!
+	$result->{'BLAST-detailed'} = join "\n",(grep {$_} ($result->{'BLAST-detailed'},$result->{'LIMITS'}));
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
