@@ -108,23 +108,23 @@ public class PatternSorter {
 		List<FuncInfo> mainPtrs = new ArrayList<FuncInfo>();
 		mainPtrs.add(new FuncInfo(
 				"open",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"probe",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"connect",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"read",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"write",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		mainPtrs.add(new FuncInfo(
 				"close",
@@ -135,7 +135,7 @@ public class PatternSorter {
 		List<FuncInfo> usbPtrs = new ArrayList<FuncInfo>();
 		usbPtrs.add(new FuncInfo(
 				"probe",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		usbPtrs.add(new FuncInfo(
 				"suspend", null));
@@ -158,15 +158,15 @@ public class PatternSorter {
 		List<FuncInfo> filePtrs = new ArrayList<FuncInfo>();
 		filePtrs.add(new FuncInfo(
 				"open",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		filePtrs.add(new FuncInfo(
 				"read",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		filePtrs.add(new FuncInfo(
 				"write",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar < 0) \n\t\t\tgoto $check_label;"));
 		filePtrs.add(new FuncInfo(
 				"llseek", null));
@@ -177,7 +177,7 @@ public class PatternSorter {
 		List<FuncInfo> scsiPtrs = new ArrayList<FuncInfo>();
 		scsiPtrs.add(new FuncInfo(
 				"probe",
-				"\n\t\t$retvar = $fcall; \n\t\tcheck_return_value($retvar);\n" +
+				"\n\t\t$retvar = $fcall; \n\t\tldv_check_return_value($retvar);\n" +
 				"\t\tif($retvar) \n\t\t\tgoto $check_label;"));
 		scsiPtrs.add(new FuncInfo(
 				"suspend", null));

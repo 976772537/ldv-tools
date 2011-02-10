@@ -242,9 +242,9 @@ public class MainGenerator {
 		if(ctx.p.isInit())
 			sb.append("#include <linux/slab.h>");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
-		sb.append("\n" + ctx.getIndent() + "void check_final_state(void);\n");
+		sb.append("\n" + ctx.getIndent() + "void ldv_check_final_state(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
-		sb.append("\n" + ctx.getIndent() + "void check_return_value(int res);\n");
+		sb.append("\n" + ctx.getIndent() + "void ldv_check_return_value(int res);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Initializes the model. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_initialize(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
@@ -277,7 +277,7 @@ public class MainGenerator {
 		Logger.trace("Start appending end section...");
 		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
-		sb.append("\n" + ctx.getIndent() + getCheckFinalLabel() + ": check_final_state();\n");
+		sb.append("\n" + ctx.getIndent() + getCheckFinalLabel() + ": ldv_check_final_state();\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");		
 		ctx.fw.write(sb.toString());
 	}
