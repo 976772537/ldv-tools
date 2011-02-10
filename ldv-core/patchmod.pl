@@ -91,6 +91,7 @@ sub parse_targets {
 			}
 		}
 	}	
+	@targets or report_and_exit($config, "Can't find target.");
 }
 
 sub write_outfile {
@@ -142,7 +143,7 @@ sub apply_patches {
 				$config->{files}->{$file}->{files}->{$_}->{mode} eq 'new' and system("cd $config->{kernel} && rm -fr $_");
 			}
 
-			system("cd $config->{kernel} && patch -p1 < $file");
+			system("cd $config->{kernel} && patch -p1 < $file") and report_and_exit($config, "Error during applying patch: \"$file\".");
 		} else {
 			$max_number<$config->{files}->{$file}->{number} and $max_number = $config->{files}->{$file}->{number};
 		}
@@ -162,7 +163,7 @@ sub apply_patches {
 					$config->{files}->{$file}->{files}->{$_}->{mode} eq 'new' and system("cd $config->{kernel} && rm -fr $_");
 				}
 
-				system("cd $config->{kernel} && patch -p1 < $file");
+				system("cd $config->{kernel} && patch -p1 < $file") and report_and_exit($config, "Error during applying patch: \"$file\".");
 			}
 		}
 	}

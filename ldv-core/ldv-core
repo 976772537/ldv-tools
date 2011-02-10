@@ -774,7 +774,12 @@ sub is_contains_patch {
 	-f $file or ldv_create_report("It is not file \"$file\"");
 	# TODO:
 	#   heuristics for detect that file is patch
-	return 1;
+	open FILE, $file or ldv_report_and_exit("Can't open file \"$file\" for patch detection");
+	my @lines = <FILE>;
+	close FILE or ldv_report_and_exit("Can't close file \"$file\" after patch detection");
+	foreach (@lines) {
+		/diff --git.*/ and return 1;
+	};
 }
 
 sub prepare_driver_source {
@@ -805,10 +810,19 @@ sub prepare_patch {
 
 	if(-f $config->{pout}) {
 		open FILE, $config->{pout} or ldv_report_and_exit("Can't open pathmod output file \"$config->{pout} : $!\"");
+		my $state = 'OK';
 		while(<FILE>) {
-			/  <target> (.*)<\/target>/ or next;
-			$config->{ptarget} = $1;
-			last;
+			if(/  <result>(.*)<\/result>/) {
+				$state = $1;
+				next;
+			}
+			if($state eq 'OK') {
+				/  <target> (.*)<\/target>/ or next;
+				$config->{ptarget} = $1;
+				last;
+			} elsif($state eq 'FAILED') {
+				/  <desc>(.*)<\/desc>/ and ldv_report_and_exit($1);
+			}
 		}
 		close FILE;
 		vsay 'DEBUG', "Targets from patchmod: \"$config->{'driverdir'}\"\n";
