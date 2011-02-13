@@ -167,9 +167,9 @@ class WatcherLocal < Watcher
 		end
 	end
 
-	def queue_generic(pool,args)
-		task, workdir = args [0..1]
-		key = args[2..-1]
+	def queue_generic(pool,task,workdir,*key__files)
+		# Extract the "key" part, and forget about "files" part: it's only for cluster processing
+		key,files = separate_args key__files
 		$log.info "Queueing to pool #{pool} task #{task} with wd=#{workdir} and key #{key.inspect}."
 		@dir.push 'tasks' do
 			query_fname,task_fname,running_fname,finished_fname = %w(queried data running finished).map {|w| @dir.ensure(w,key); @dir.join(w,key,'task')}
@@ -311,11 +311,12 @@ class WatcherLocal < Watcher
 	# Add task to queue
 	def queue(*args)
 		what = args.shift
-		queue_generic(what,args)
+		queue_generic(what,*args)
 	end
 
 	def unpack(*args)
 		$log.warn "Fake unpack!"
+		return nil # Suppress printing
 	end
 
 	def spawn(*args)
@@ -386,7 +387,8 @@ class WatcherLocal < Watcher
 
 	# Doesn't accept empty args!
 	# type is ignored for the local watcher
-	public; def success(type,*args)
+	public; def success(type,*key__files)
+		args, files = separate_args key__files
 		$log.info "Reported success for #{args.inspect}"
 		#set_status('success',args,Process.ppid)
 		remove_data(args) if decrease_refcounter_and_check
@@ -394,7 +396,8 @@ class WatcherLocal < Watcher
 
 	# Doesn't accept empty args!
 	# type is ignored for the local watcher
-	public; def fail(type,*args)
+	public; def fail(type,*key__files)
+		args, files = separate_args key__files
 		$log.info "Reported failure for #{args.inspect}"
 		# set_status('fail',args)
 		remove_data(args) if decrease_refcounter_and_check

@@ -19,5 +19,15 @@ class Watcher
 		@config[:block_queue] = @config[:max_rcv_pool] == 1 if @config[:block_queue].nil?
 	end
 
+	# Separator between key elements and files (when queueing and sending results)
+	KEY_FILE_SEP = '@@'
+
+	# Separates key and files argument list into two arrays
+	private; def separate_args(key__files)
+		key = key__files.take_while {|v| v != KEY_FILE_SEP}
+		files = key__files.slice( (key.length+1)..(key__files.length-1) ) || []
+		[key, files]
+	end
+
 end
 

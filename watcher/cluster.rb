@@ -46,16 +46,6 @@ class WatcherRemote < Watcher
 		EM.run { waiter.wait_for(key.join('.')) }
 	end
 
-	# Separator between key elements and files
-	KEY_FILE_SEP = '@@'
-
-	# Separates key and files argument list into two arrays
-	private; def separate_args(key__files)
-		key = key__files.take_while {|v| v != KEY_FILE_SEP}
-		files = key__files.slice( (key.length+1)..(key__files.length-1) ) || []
-		[key, files]
-	end
-
 	public; def queue(what,task_fname,workdir,*key__files)
 		key, files = separate_args key__files
 		$log.info "Queueing #{what} task with #{task_fname} and wd #{workdir}"
@@ -83,7 +73,9 @@ class WatcherRemote < Watcher
 		result 'success', type, key, files
 	end
 
-	public; def fail(type,*key)
+	public; def fail(type,*key__files)
+		key, files = separate_args key__files
+		$log.debug "FAIL!.  Key: #{key.inspect}, files: #{files.inspect}, kf: #{key__files.inspect}"
 		result 'fail', type, key
 	end
 
@@ -91,10 +83,15 @@ class WatcherRemote < Watcher
 		#$stderr.puts "Unpack!"
 		# We ignore +path+ since it's hardcoded in the archive
 		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
+
+		# First, print archive contents to notify the user what files we have here
+		say_and_run(%w(pax -O -f),contents)
+
 		# FIXME: during development we ignore the error in unpacking
 		# NOTE: Currently, the package is transferred to the local machine in @waiter.  Should make a better mechanism for that.
 		say_and_run(%w(pax -r -O -f),contents)
 		$log.warn "Unpacking finished!"
+		return nil # Suppress printing
 	end
 
 	private; def mk(key)
