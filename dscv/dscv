@@ -403,17 +403,17 @@ my ($key_str,undef) = LDV::Utils::watcher_cmd('key','dscv');
 vsay ('DEBUG',"Got key string $key_str.\n");
 my @watcher_key = split /,/,$key_str;
 
+#====
 # We should pack files for the parent task to process afterwards.  Use these functions
-my @files_for_parent = ();
+use File::Spec::Functions qw(rel2abs);
+my %files_for_parent = ();
 sub for_parent
-{
-	push @files_for_parent,@_;
-}
-
+{ local $_; $files_for_parent{rel2abs($_)} = 1 for @_; }
+sub not_for_parent
+{ local $_; $files_for_parent{rel2abs($_)} = 0 for @_; }
 sub files_for_parent
-{
-	return @files_for_parent;
-}
+{ local $_; return (grep {$files_for_parent{$_}} keys %files_for_parent); }
+#====
 
 ###########################
 # EXCEPTION HANDLING!
@@ -678,7 +678,9 @@ my $process_rcv_result = sub {
 	# unpack the incoming package
 	vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
 	vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
-	LDV::Utils::watcher_cmd('unpack',$path,$contents);
+	my ($files,undef) = LDV::Utils::watcher_cmd_readall('unpack',$path,$contents);
+	local $_;
+	for_parent($_) for @$files;
 };
 
 while ($rcvs_consumed < $expected_blast_runs) {
@@ -715,6 +717,7 @@ for my $rule_id (@properties){
 				$_->copy->paste($bigRepT) for $repT->children;
 			}}
 		)->parsefile($report_file);
+		not_for_parent($report_file)
 	};
 	DSCV::RCV::Utils::foreach_report($verifier_dir,$cat_rep);
 
@@ -732,6 +735,7 @@ for my $rule_id (@properties){
 	vsay ('NORMAL',"Calling rule-instrumenter to fix up report for rule $property...\n");
 	vsay (20, "@rule_instr_report\n");
 	system @rule_instr_report and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_report";
+	for_parent($after_ri_rep_name);
 }
 
 # Perform final sanity check
@@ -759,7 +763,11 @@ for my $property (@properties){
 			$_->copy->paste($reportsT) for $rule_repT->children;
 		}}
 	)->parsefile($after_ri_rep_name);
+
+	not_for_parent($after_ri_rep_name);
 }
+# Mark the resultant report as that for parent.
+for_parent($config->{report});
 
 # Add <dscv> tag to the report
 sub add_dscv_info

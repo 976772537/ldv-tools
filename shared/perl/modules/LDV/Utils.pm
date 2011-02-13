@@ -163,6 +163,34 @@ sub check_system_call
 
 # Invokes command for LDV watched 
 my $ldv_watcher = undef;
+sub watcher_cmd_readall
+{
+	push_instrument("watcher");
+	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	# Call watcher for the next RCV command
+	my @watcher_args = ($ldv_watcher,@_);
+	vsay('INFO',"Called watcher: @watcher_args\n");
+	my $WATCHER; open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
+	# Read one line.  If none is printed, the line will contain undef;
+	local $_;
+	my @lines = <$WATCHER>;
+	local $"=",";
+	vsay('TRACE',"Watcher says: @lines\n") if @lines;
+	chomp for @lines;
+	close $WATCHER;	# We don't need anything else
+
+	# Check return values
+	my $rv = $?;
+	my $retcode = $?>>8;
+	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	# Return code of 1 means failure.  Other codes mean useful stuff
+	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
+
+	pop_instrument("watcher");
+
+	return ([@lines],$retcode);
+}
+
 sub watcher_cmd
 {
 	push_instrument("watcher");
