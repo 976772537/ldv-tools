@@ -46,8 +46,23 @@ class WatcherRemote < Watcher
 		EM.run { waiter.wait_for(key.join('.')) }
 	end
 
-	public; def queue(what,task_fname,workdir,*key)
+	# Separator between key elements and files
+	KEY_FILE_SEP = '@@'
+
+	# Separates key and files argument list into two arrays
+	private; def separate_args(key__files)
+		key = key__files.take_while {|v| v != KEY_FILE_SEP}
+		files = key__files.slice( (key.length+1)..(key__files.length-1) ) || []
+		[key, files]
+	end
+
+	public; def queue(what,task_fname,workdir,*key__files)
+		key, files = separate_args key__files
 		$log.info "Queueing #{what} task with #{task_fname} and wd #{workdir}"
+
+		$log.warn "Packing files #{files.inspect}"
+		send_files "#{key.join('.')}-from-parent.pax",files
+
 		# The local IP is the IP as seen by AMQP host
 		this_machine_info = {
 			# For prototyping reasons, we'll fix this
@@ -60,12 +75,10 @@ class WatcherRemote < Watcher
 		EM.run { sender.send('/ldvqueue/queue', payload)}
 	end
 
-	KEY_FILE_SEP = '@@'
 	# Successful task completion
 	# Following double dash are the files to send to parent
 	public; def success(type,*key__files)
-		key = key__files.take_while {|v| v != KEY_FILE_SEP}
-		files = key__files.slice( (key.length+1)..(key__files.length-1) ) || []
+		key, files = separate_args key__files
 		$log.debug "Success.  Key: #{key.inspect}, files: #{files.inspect}, kf: #{key__files.inspect}"
 		result 'success', type, key, files
 	end
@@ -79,6 +92,7 @@ class WatcherRemote < Watcher
 		# We ignore +path+ since it's hardcoded in the archive
 		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
 		# FIXME: during development we ignore the error in unpacking
+		# NOTE: Currently, the package is transferred to the local machine in @waiter.  Should make a better mechanism for that.
 		say_and_run(%w(pax -r -O -f),contents)
 		$log.warn "Unpacking finished!"
 	end

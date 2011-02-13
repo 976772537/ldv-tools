@@ -184,6 +184,10 @@ sub verify_blast
 		# Sanity check (should be performed at DSCV's site)
 		$sanity->blast_called();
 
+		# Prepare files for child
+		# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
+		my @files_for_child = (@{$args{files}});
+
 		$args{main} = $main;
 		my $task_fname = "$config->{cmdfile}.for.$main";
 		vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
@@ -194,7 +198,7 @@ sub verify_blast
 		$ENV{'RCV_FRONTEND_CMD'} = $0;
 		# FIXME: key is transferred through env variable.  RCV should be rewritten.
 		#                                            task        dir      >>>> the rest is the key to distinguis from others
-		LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main);
+		LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',@files_for_child);
 
 	}
 }
@@ -206,6 +210,7 @@ use IO::Compress::Gzip qw($GzipError);
 sub call_blast
 {
 	my %args = @_;
+	DSCV::RCV::Utils::ensure_args_folders(%args);
 	# Options that will be passed to the blast tool
 	my @blast_options = ("pblast.opt",@{$args{files}});
 	# Set default options

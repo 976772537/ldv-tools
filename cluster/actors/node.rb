@@ -95,6 +95,15 @@ class RealSpawner < Spawner
 
 		task_root = prepare_mounts task['key'],task['parent_machine']['sshuser'],task['parent_machine']['host'],task['parent_machine']['root'],task['workdir']
 
+		package_name = "#{spawn_key}-from-parent.pax"
+		# TODO: replace "/tmp" with something more sane
+		package_dir = "/tmp/incoming"
+		FileUtils.mkdir_p package_dir
+		contents = File.join package_dir,package_name
+		say_and_run("scp","#{ENV['LDV_FILESRV']}/#{package_name}",contents)
+		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup (paths are absolute, so the data'll be unpacked to the correct place)
+		say_and_run(%w(pax -r -O -f),contents)
+
 		# Run job-specific targets
 		# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
 		# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
