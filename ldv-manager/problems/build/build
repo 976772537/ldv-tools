@@ -11,7 +11,8 @@ while (<>){
 	/Incorrect driver archive type/ and print "Incorrect archive type";
 	/Can't detect source type in dir \".*\"/ and print "Can't detect source type in dir";
 	/Can't find target\./ and print "Can not find target";
-	/Error during applying patch:.*/ and print "Error during applying patch";
+	/Couldn't apply patch/ and print "Error during applying patch";
 	/.* - is not a patch/ and print "It is not patch";
+	/No rule to make target/ and print "Not configured";
 }
 
