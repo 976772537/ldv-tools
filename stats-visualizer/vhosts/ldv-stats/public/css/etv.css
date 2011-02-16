@@ -299,6 +299,14 @@
   font-weight: normal;
 }
 
+.ETVFunctionStackOverflow
+{
+  color: #FFD1B7;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: normal;
+}
+
 .ETVFunctionFormalParamName
 {
   color: #A1884F;
