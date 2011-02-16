@@ -268,26 +268,27 @@ my %show_hide_global = (
   , 3 => {'class', my $entity_class_func_call = 'ETVFunctionCall', 'name', 'Function calls', 'main', 0, 'show', 1}
   , 4 => {'class', my $entity_class_func_call_init = 'ETVFunctionCallInitialization', 'name', 'Initialization function calls', 'main', 0, 'show', 0}
   , 5 => {'class', my $entity_class_func_call_without_body = 'ETVFunctionCallWithoutBody', 'name', 'Function without body calls', 'main', 0, 'show', 1}
-  , 6 => {'class', my $entity_class_func_body = 'ETVFunctionBody', 'name', 'Function bodies', 'main', 1, 'show', 1}
-  , 7 => {'class', my $entity_class_func_body_init = 'ETVFunctionInitializationBody', 'name', 'Initialization function bodies', 'main', 0, 'show', 0}
-  , 8 => {'class', my $entity_class_block = 'ETVBlock', 'name', 'Blocks', 'main', 1, 'show', 1}
-  , 9 => {'class', my $entity_class_return = 'ETVReturn', 'name', 'Returns', 'main', 0, 'show', 1}
-  , 10 => {'class', my $entity_class_return_val = 'ETVReturnValue', 'name', 'Return values', 'main', 0, 'show', 1}
-  , 11 => {'class', my $entity_class_assert = 'ETVAssert', 'name', 'Asserts', 'main', 0, 'show', 1}
-  , 12 => {'class', my $entity_class_assert_cond = 'ETVAssertCondition', 'name', 'Assert conditions', 'main', 0, 'show', 1}
-  , 13 => {'class', my $entity_class_ident = 'ETVIdentation', 'name', 'Identation', 'main', 0, 'show', 1}
-  , 14 => {'class', my $entity_class_driver_env_init = 'ETVDriverEnvInit', 'name', 'Driver environment initialization', 'main', 0, 'show', 0}
-  , 15 => {'class', my $entity_class_driver_env_func_call = 'ETVDriverEnvFunctionCall', 'name', 'Driver environment function calls', 'main', 0, 'show', 1}
-  , 16 => {'class', my $entity_class_driver_env_func_body = 'ETVDriverEnvFunctionBody', 'name', 'Driver environment function bodies', 'main', 0, 'show', 1}
-  , 17 => {'class', my $entity_class_model_assert = 'ETVModelAssert', 'name', 'Model asserts', 'main', 0, 'show', 1}
-  , 18 => {'class', my $entity_class_model_change_state = 'ETVModelChangeState', 'name', 'Model state changes', 'main', 0, 'show', 1}
-  , 19 => {'class', my $entity_class_model_return = 'ETVModelReturn', 'name', 'Model returns', 'main', 0, 'show', 1}
-  , 20 => {'class', my $entity_class_model_func_call = 'ETVModelFuncCall', 'name', 'Model function calls', 'main', 0, 'show', 1}
-  , 21 => {'class', my $entity_class_model_func_body = 'ETVModelFuncBody', 'name', 'Model function bodies', 'main', 0, 'show', 0}
-  , 22 => {'class', my $entity_class_model_func_func_call = 'ETVModelFuncFuncCall', 'name', 'Model function function calls', 'main', 0, 'show', 1}
-  , 23 => {'class', my $entity_class_model_func_func_body = 'ETVModelFuncFuncBody', 'name', 'Model function function bodies', 'main', 0, 'show', 1}
-  , 24 => {'class', my $entity_class_model_other = 'ETVModelOther', 'name', 'Model others', 'main', 0, 'show', 1}
-  , 25 => {'class', my $entity_class_intellectual_func_body = 'ETVIntellectualFuncBody', 'name', my $entity_class_intellectual_func_body_name = 'Function bodies without model function calls', 'main', 0, 'show', 0}
+  , 6 => {'class', my $entity_class_func_stack_overflow = 'ETVFunctionStackOverflow', 'name', 'Function stack overflows', 'main', 0, 'show', 1}
+  , 7 => {'class', my $entity_class_func_body = 'ETVFunctionBody', 'name', 'Function bodies', 'main', 1, 'show', 1}
+  , 8 => {'class', my $entity_class_func_body_init = 'ETVFunctionInitializationBody', 'name', 'Initialization function bodies', 'main', 0, 'show', 0}
+  , 9 => {'class', my $entity_class_block = 'ETVBlock', 'name', 'Blocks', 'main', 1, 'show', 1}
+  , 10 => {'class', my $entity_class_return = 'ETVReturn', 'name', 'Returns', 'main', 0, 'show', 1}
+  , 11 => {'class', my $entity_class_return_val = 'ETVReturnValue', 'name', 'Return values', 'main', 0, 'show', 1}
+  , 12 => {'class', my $entity_class_assert = 'ETVAssert', 'name', 'Asserts', 'main', 0, 'show', 1}
+  , 13 => {'class', my $entity_class_assert_cond = 'ETVAssertCondition', 'name', 'Assert conditions', 'main', 0, 'show', 1}
+  , 14 => {'class', my $entity_class_ident = 'ETVIdentation', 'name', 'Identation', 'main', 0, 'show', 1}
+  , 15 => {'class', my $entity_class_driver_env_init = 'ETVDriverEnvInit', 'name', 'Driver environment initialization', 'main', 0, 'show', 0}
+  , 16 => {'class', my $entity_class_driver_env_func_call = 'ETVDriverEnvFunctionCall', 'name', 'Driver environment function calls', 'main', 0, 'show', 1}
+  , 17 => {'class', my $entity_class_driver_env_func_body = 'ETVDriverEnvFunctionBody', 'name', 'Driver environment function bodies', 'main', 0, 'show', 1}
+  , 18 => {'class', my $entity_class_model_assert = 'ETVModelAssert', 'name', 'Model asserts', 'main', 0, 'show', 1}
+  , 19 => {'class', my $entity_class_model_change_state = 'ETVModelChangeState', 'name', 'Model state changes', 'main', 0, 'show', 1}
+  , 20 => {'class', my $entity_class_model_return = 'ETVModelReturn', 'name', 'Model returns', 'main', 0, 'show', 1}
+  , 21 => {'class', my $entity_class_model_func_call = 'ETVModelFuncCall', 'name', 'Model function calls', 'main', 0, 'show', 1}
+  , 22 => {'class', my $entity_class_model_func_body = 'ETVModelFuncBody', 'name', 'Model function bodies', 'main', 0, 'show', 0}
+  , 23 => {'class', my $entity_class_model_func_func_call = 'ETVModelFuncFuncCall', 'name', 'Model function function calls', 'main', 0, 'show', 1}
+  , 24 => {'class', my $entity_class_model_func_func_body = 'ETVModelFuncFuncBody', 'name', 'Model function function bodies', 'main', 0, 'show', 1}
+  , 25 => {'class', my $entity_class_model_other = 'ETVModelOther', 'name', 'Model others', 'main', 0, 'show', 1}
+  , 26 => {'class', my $entity_class_intellectual_func_body = 'ETVIntellectualFuncBody', 'name', my $entity_class_intellectual_func_body_name = 'Function bodies without model function calls', 'main', 0, 'show', 0}
   );
 
 # The number of indentation spaces.
@@ -893,6 +894,13 @@ sub print_error_trace_node_blast($$)
     print_spaces($indent);
     print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function body is undefined. */ };</div>");
   }
+  elsif ($tree_node->{'kind'} eq 'FunctionStackOverflow')
+  {
+    $class = $entity_class_func_stack_overflow unless ($class);
+    print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
+    print_spaces($indent);
+    print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function call is skipped due to stack overflow. */ };</div>");
+  }
   elsif ($tree_node->{'kind'} eq 'Block')
   {
     # Split expressions joined together into one block.
@@ -1121,10 +1129,18 @@ sub process_error_trace_blast()
             # Process entities as tree.
             $entity->set_parent($parents[$#parents])
               if (@parents);
-            push(@parents, $entity)
-              if ($entity->ismay_have_children());
-            pop(@parents)
-              if ($entity->isparent_end());
+              
+            if ($entity->ismay_have_children())
+            {
+              push(@parents, $entity);
+              print_debug_trace("Increase the parent stack because of entity may have children");
+            }
+            
+            if ($entity->isparent_end())
+            {
+              pop(@parents);
+              print_debug_trace("Decrease the parent stack due to entity kind");
+            }
 
             # Add pre annotations.
             $entity->set_pre_annotations(@pre_annotations);
@@ -1171,8 +1187,11 @@ sub process_error_trace_blast()
               $entity->set_post_annotations(($annotation));
 
               # Update parents since post annotation may change the entity kind.
-              pop(@parents)
-                if ($entity->isparent_end());
+              if ($entity->isparent_end())
+              {
+                pop(@parents);
+                print_debug_trace("Decrease the parent stack due to post annotation");
+              }
             }
           }
         }
