@@ -6,6 +6,7 @@ use FindBin;
 use File::Path qw(make_path remove_tree);
 use File::Basename;
 use File::Copy;
+use IPC::Open3;
 
 sub init_config;
 sub read_patches;
@@ -78,7 +79,7 @@ sub parse_targets {
 			$backup_file =~ /.*Makefile$/ or $backup_file =~ /.*Kbuild$/ or next;
 			vsay 'TRACE', "      Parse targets in Makefile or Kbuild: $backup_file\n";
 			foreach (@fcontent) {
-				if(/^(.+)\$\(CONFIG_(.*)\)\s*\+?=\s*(.*)\.o/) {
+				if(/^(.+)\$\(CONFIG_(.*)\)\s*\+?=\s*(.*)\.o/ or /^(obj-)(m)\s*\+?=\s*(.*)\.o/) {
 					# get file dirname 
 					my $dir = dirname($backup_file)."\n";
 					chomp $dir;
@@ -136,14 +137,14 @@ sub apply_patches {
 	foreach $file (keys %{$config->{files}}) {
 		if($config->{files}->{$file}->{number} == 0) {
 			vsay 'DEBUG', "----> Apply patch: $file\n";
-			my $patch_args="cd $config->{kernel} && patch -p1 < $file";
-			vsay 'TRACE', "$patch_args\n";
+			#my $patch_args="cd $config->{kernel} && patch -p1 < $file";
+			#vsay 'TRACE', "$patch_args\n";
 
 			foreach (keys %{$config->{files}->{$file}->{files}}) {
 				$config->{files}->{$file}->{files}->{$_}->{mode} eq 'new' and system("cd $config->{kernel} && rm -fr $_");
 			}
 
-			system("cd $config->{kernel} && patch -p1 < $file") and report_and_exit($config, "Error during applying patch: \"$file\".");
+			apply_one_patch($config, $file);
 		} else {
 			$max_number<$config->{files}->{$file}->{number} and $max_number = $config->{files}->{$file}->{number};
 		}
@@ -155,15 +156,16 @@ sub apply_patches {
 		foreach $file (keys %{$config->{files}}) {
 			if($config->{files}->{$file}->{number} == $curnum) {
 				vsay 'DEBUG', "----> Apply patch: $file\n";
-				my $patch_args="cd $config->{kernel} && patch -p1 < $file";
-				vsay 'TRACE', "$patch_args\n";
+				#my $patch_args="cd $config->{kernel} && patch -p1 < $file";
+				#vsay 'TRACE', "$patch_args\n";
 
 
 				foreach (keys %{$config->{files}->{$file}->{files}}) {
 					$config->{files}->{$file}->{files}->{$_}->{mode} eq 'new' and system("cd $config->{kernel} && rm -fr $_");
 				}
 
-				system("cd $config->{kernel} && patch -p1 < $file") and report_and_exit($config, "Error during applying patch: \"$file\".");
+				#system($patch_args) and report_and_exit($config, "Error during applying patch: \"$file\".");
+				apply_one_patch($config, $file);
 			}
 		}
 	}
@@ -212,9 +214,10 @@ sub read_patch_file {
 	foreach (@lines) {
 		/Subject:\s*\[PATCH\s+(\d+)\s*\/\s*(\d+)\s*\]/ and $number = $1 and next;
 		/^--$/ and last;
-		if(/diff --git (.*) (.*)/) {
-			$bfile = $2;
-			$vector = $1;
+		if(/^diff .*/) {
+			@targets = split / /,$_;
+			$bfile = $targets[@targets-1];
+			$vector = $targets[@targets-2];
 			$vector =~ s/a\/(.*)/$1/;
 			$files->{$vector}->{content} = "";
 			$files->{$vector}->{mode} = 'diff';
@@ -247,6 +250,12 @@ sub report_and_exit {
 
 sub init_config {
 	my ($config) = @_;
+
+	$ENV{'WORK_DIR'} || die"Please, specify WORK_DIR environment variable!";
+
+	$config->{'workdir'} = abs_path($ENV{'WORK_DIR'});
+	$config->{'patch_err'} = "$config->{'workdir'}/patch_err.log";
+	$config->{'patch_out'} = "$config->{'workdir'}/patch_out.log";
 
 	# test all options
 	defined $config->{patch} or die"Please, specify path to file or dir with patch!";
@@ -318,5 +327,60 @@ sub findFilesRec {
 	return 1;
 }
 
+sub apply_one_patch {
+	my ($config, $patch) = (@_);
+	my $patch_args="cd $config->{kernel} && patch -p1 < $patch";
+	if(parallel_run($patch_args, $config->{'patch_err'}, $config->{'patch_out'})) {
+		open FILE, $config->{'patch_err'} or die"Can't open file with patch applying error: \"$config->{'patch_err'}\":$!";
+		@patch_err_msg = <FILE>;
+		close FILE or warn"Can't close file with patch applying error:$!";
+		report_and_exit("Error during applying patch: \"$file\"\n@patch_err_msg");
+	};
+	
+	# parse output file and get rej's 
+	if (-f $config->{'patch_out'} and -s $config->{'patch_out'} > 0) {
+		open FILE, $config->{'patch_out'} or die"Can't open output patch file:$!";
+		my @lines = <FILE>;
+		close FILE or warn"Can't close patch out file:$!";
 
+		my $patch_msg = "";
+		my $state = 'SUCCESS';
+		foreach (@lines) {
+			if(/.*FAILED -- saving rejects to file (.*)/) {
+				$state = 'FAILED';
+				open FILE, "$config->{'kernel'}/$1" or die"Can't open reject file: \"$1\":$!";
+				my @rej_lines = <FILE>;
+				close FILE or warn "Can't close reject file \"$1\": $!";
+				local $"='';
+				$patch_msg.="$_\n******* REJ FILE $1 *******\n@rej_lines\n*******************\n";
+			} else {
+				$patch_msg.=$_;
+			}
+		}
+		#my $patch_for_user = $patch;  $patch_for_user =~ s/^.*\/driver_upacked
+		my $patch_for_user = $patch;
+		if (-f $config->{patch}){
+			$patch_for_user = basename($config->{patch});
+		}else{
+			$patch_for_user =~ s/$config->{patch}\/+(.*)/$1/;
+		}
+		$patch_msg="\n\n Couldn't apply patch $patch_for_user: see rejected chunks above.\n\n".$patch_msg;
+		report_and_exit($config, $patch_msg) if $state eq 'FAILED';
+	}
+}
 
+sub parallel_run {
+        my ($args, $err, $out) = @_;
+        vsay 'TRACE', "$args\n";
+        vsay 'TRACE', "Logging stdout to file: \"$out\".\n";
+        vsay 'TRACE', "Logging stderr to file: \"$err\".\n";
+        open FILERR, ">$err" or die"$!";
+        open FILOUT, ">$out" or die"$!";
+        my $pid = open3(undef, ">&FILOUT", ">&FILERR", $args);
+        waitpid $pid, 0;
+        close FILERR;
+        close FILOUT;
+	if( -f $err and -s $err>0) {
+		return 1;
+	}
+}

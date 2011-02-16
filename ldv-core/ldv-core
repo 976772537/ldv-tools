@@ -586,7 +586,13 @@ sub bce_create_report {
 		print FILE "<?xml version=\"1.0\"?>\n<reports>\n  <build>\n    <status>$state</status>\n    <time></time>\n    <desc>";
 		if( -f $config->{'bce_state'}) {
 			open FILE_STATE, $config->{'bce_state'} or die "$!";
-			print FILE "$_\n" while(<FILE_STATE>); 
+			my $state = '';
+			while(<FILE_STATE>){
+				print FILE "$_";
+				# When in patch mode, the following error is shown if configuration is insufficient for this driver to compile.  Print the relevant message in this case.
+				/No rule to make target/ and $state="Compile error.  Maybe the driver the patch introduces is not turned on on make allmodconfig?\n";
+			}
+			print FILE $state;
 			close FILE_STATE or die "$!";
 		} else {
 			print FILE $msg;
@@ -720,7 +726,7 @@ sub prepare_driver {
 			} elsif($type eq 'text/plain') {
 
 				# Text/plain may be patch too. Try to detect it...
-				if(is_contains_patch($config->{'driver'})) {
+				if(is_contains_patch($config->{'driver'}) == 1) {
 					prepare_patch();
 				} else {
 					ldv_report_and_exit("File \"$config->{'driver'}\" - is not a patch");
@@ -759,7 +765,7 @@ sub detect_dir_source {
 		};
 		my $type = detect_type($file);
 		$type eq 'text/x-diff' and ++$patch_counter and next;
-		$type eq 'text/plain' and is_contains_patch and ++$patch_counter and next;
+		$type eq 'text/plain' and is_contains_patch == 1 and ++$patch_counter and next;
 	}
 	$patch_counter == scalar(@{$files}) and return 'patch';
 	ldv_report_and_exit("Can't detect source type in dir \"$dir\"");
@@ -778,8 +784,9 @@ sub is_contains_patch {
 	my @lines = <FILE>;
 	close FILE or ldv_report_and_exit("Can't close file \"$file\" after patch detection");
 	foreach (@lines) {
-		/diff --git.*/ and return 1;
+		/^diff .*/ and return 1;
 	};
+	return 0;
 }
 
 sub prepare_driver_source {
@@ -811,17 +818,26 @@ sub prepare_patch {
 	if(-f $config->{pout}) {
 		open FILE, $config->{pout} or ldv_report_and_exit("Can't open pathmod output file \"$config->{pout} : $!\"");
 		my $state = 'OK';
+		my $patch_msg="";
 		while(<FILE>) {
 			if(/  <result>(.*)<\/result>/) {
 				$state = $1;
 				next;
-			}
+			} 
 			if($state eq 'OK') {
 				/  <target> (.*)<\/target>/ or next;
 				$config->{ptarget} = $1;
 				last;
 			} elsif($state eq 'FAILED') {
 				/  <desc>(.*)<\/desc>/ and ldv_report_and_exit($1);
+				if(/  <desc>(.*)/) {
+					$patch_msg.=$1;
+				} elsif(/(.*)<\/desc>/) {
+					$patch_msg.=$1;
+					ldv_report_and_exit($patch_msg);
+				} else {
+					$patch_msg.=$_;
+				}
 			}
 		}
 		close FILE;
@@ -833,7 +849,7 @@ sub prepare_patch {
 
 sub unpack_if_archive {
 	my ($type, $file, $outdir, $logfile) = @_;
-	`touch $config->{'unarch_log'}` and die"$!";
+	verbose_system("touch $config->{'unarch_log'}") and die"$!";
 
 	# I. If source - is archive - then unpack it...
 	#if($type eq 'application/x-bzip-compressed-tar') {
@@ -864,17 +880,34 @@ sub verbose_system {
 #
 sub ldv_report_and_exit {
         vsay 'DEBUG', "Creating small report for LDV...\n";
-	my $report_text = "<?xml version=\"1.0\"?>\n";
-	$report_text .= "  <reports>\n";
-	$report_text .= "    <build kernel=\"$config->{'env'}\">\n";
-	$report_text .= "      <status>FAILED</status>\n";
-	$report_text .= "      <time></time>\n";
-	$report_text .= "      <desc>$_[0]</desc>\n";
-	$report_text .= "    </build>\n";
-	$report_text .= "  </reports>\n";  
-	open FILE, '>', $config->{'report-out'} or die"Can't create report file \"$config->{'report-out'}\":$!";
-	print FILE $report_text;
-	close FILE or die"Can't close report file \"$config->{'report-out'}\":$!";
+
+        my $xmlRep = XML::Twig->new();
+        $xmlRep->set_xml_version( '1.0');
+        my $reportsT = XML::Twig::Elt->new('reports');
+        $xmlRep->set_root($reportsT);
+
+	my $buildT = XML::Twig::Elt->new('build');
+	$buildT->set_att('kernel' =>$config->{'env'});
+	XML::Twig::Elt->new('status', "FAILED")->paste('last_child', $buildT);
+	XML::Twig::Elt->new('time')->paste('last_child', $buildT);
+	XML::Twig::Elt->new('desc', $_[0])->paste('last_child', $buildT);
+	$buildT->paste('last_child', $reportsT); 
+	$buildT->set_pretty_print('indented');
+
+        $xmlRep->set_pretty_print('indented');
+        $xmlRep->print_to_file($config->{'report-out'});
+
+#	my $report_text = "<?xml version=\"1.0\"?>\n";
+#	$report_text .= "  <reports>\n";
+#	$report_text .= "    <build kernel=\"$config->{'env'}\">\n";
+#	$report_text .= "      <status>FAILED</status>\n";
+#	$report_text .= "      <time></time>\n";
+#	$report_text .= "      <desc>$_[0]</desc>\n";
+#	$report_text .= "    </build>\n";
+#	$report_text .= "  </reports>\n";  
+#	open FILE, '>', $config->{'report-out'} or die"Can't create report file \"$config->{'report-out'}\":$!";
+#	print FILE $report_text;
+#	close FILE or die"Can't close report file \"$config->{'report-out'}\":$!";
 	exit;
 }
 
