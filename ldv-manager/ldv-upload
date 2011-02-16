@@ -115,21 +115,6 @@ class Trace
 	def save(validate=true)
 		ActiveRecord::Base.silence { super(validate) }
 	end
-
-	# Load time statistics for this trace
-	def time_from_xml(tag)
-		# Tag query-target hash to make code DRY
-		query_target = Trace.tools.inject({}) {|hash,kv| hash["#{kv[1]}/time"] = kv[1]; hash }
-		query_target["build/time"] = 'build-cmd-extractor'
-		# Load time for each target
-		query_target.each do |query,target|
-			# We need query.dup because REXML of ruby 1.9 wants this string to be unfrozen.  That's a bug in ReXML.
-			tag.elements.each(query.dup) do |entry|
-				times = entry.text.split(':')
-				processe.create(:name => target, :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2])
-			end
-		end
-	end
 end
 
 class StatsStreamFactory
@@ -149,15 +134,19 @@ class StatsStreamFactory
 				@stats.loc = s.consume_contents.to_i || 0
 			elsif s.start_of? 'time'
 				pattern = s['name']
-				time_values = s.consume_contents
-				# Set time for the whole trace
-				if pattern == 'ALL'
-					@stats.time = time_values[2].to_i
+				time_values_string = s.consume_contents
+				# Time stats may be not defined at all, skip them then
+				if time_values_string
+					time_values = Stats.split_time time_values_string
+					# Set time for the whole trace
+					if pattern == 'ALL'
+						@stats.time = time_values[2].to_i
+					end
+					# set the detailed time values
+					target = @tag_name
+					target = 'build-cmd-extractor' if target == 'build'
+					@detailed_times << { :name => target, :pattern => pattern, :time_detailed => time_values[1], :time_average => time_values[2]}
 				end
-				# set the detailed time values
-				target = @tag_name
-				target = 'build-cmd-extractor' if target == 'build'
-				@detailed_times << { :name => target, :pattern => pattern, :time_detailed => time_values[1], :time_average => time_values[2]}
 			elsif s.start_of? 'desc'
 				@stats.description = (s.consume_contents || '')
 			else
