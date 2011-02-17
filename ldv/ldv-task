@@ -24,7 +24,7 @@ LDV_REPORTER=$LDV_DIR/ldv-task-reporter;
 ARTIFICIAL_LDV_WORK_DIRNAME=artificial_env;
 
 KERNEL_LEVEL=0;
-
+export LDV_DEBUG=100
 #
 # scan and test command line parameters
 #
