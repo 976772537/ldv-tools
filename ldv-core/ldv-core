@@ -767,6 +767,7 @@ sub detect_dir_source {
 		$type eq 'text/x-diff' and ++$patch_counter and next;
 		$type eq 'text/plain' and is_contains_patch($file) == 1 and ++$patch_counter and next;
 	}
+	scalar(@{$files}) == 0 and ldv_report_and_exit("Dir with driver is empty.");
 	$patch_counter == scalar(@{$files}) and return 'patch';
 	ldv_report_and_exit("Can't detect source type in dir \"$dir\"");
 }
@@ -869,7 +870,8 @@ sub unpack_if_archive {
 
 sub verbose_system {
         my ($args) = @_;
-        vsay 'TRACE', "Command: \"$args\"\n" and return system("$args");
+        vsay 'TRACE', "Command: \"$args\"\n";
+	return system("$args");
 }
 
 #
