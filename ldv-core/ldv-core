@@ -765,7 +765,7 @@ sub detect_dir_source {
 		};
 		my $type = detect_type($file);
 		$type eq 'text/x-diff' and ++$patch_counter and next;
-		$type eq 'text/plain' and is_contains_patch == 1 and ++$patch_counter and next;
+		$type eq 'text/plain' and is_contains_patch($file) == 1 and ++$patch_counter and next;
 	}
 	$patch_counter == scalar(@{$files}) and return 'patch';
 	ldv_report_and_exit("Can't detect source type in dir \"$dir\"");
