@@ -388,8 +388,8 @@ sub call_cpachecker
 	my $result = {%{$verdictor->result()}};
 	# Don't set it up--it should be set by CPAchecker
 	# $result->{'CPACHECKER'} = "yes";
-	# Add limits
-	$result->{'CPACHECKER-detailed'} .= $result->{'LIMITS'};
+	# Post limits and verdict on different lines!
+	$result->{'CPACHECKER-detailed'} = join "\n",(grep {$_} ($result->{'CPACHECKER-detailed'},$result->{'LIMITS'}));
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};

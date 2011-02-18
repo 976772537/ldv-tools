@@ -18,6 +18,7 @@ mandir = ${prefix}/man
 SMALL_TEST_DIR = ldv-tests/regr-tests/test-sets/small/
 TMP_DIR_DRV = __install_drivers
 TMP_DIR_KERN = __install_kernels
+PREPARED_DIR_DRV = prepared_drivers
 
 # Compilation
 all: 
@@ -33,6 +34,8 @@ install: all
 	@$(call test_prefix)
 	if [ ! -d $(prefix)/$(SMALL_TEST_DIR) ]; then mkdir -p $(prefix)/$(SMALL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR_DRV}/*.tar.bz2 $(prefix)/$(SMALL_TEST_DIR) || exit 1;
+	cp -r ${PREPARED_DIR_DRV}/*.patch $(prefix)/$(SMALL_TEST_DIR) || exit 1;
+	cp -r ${PREPARED_DIR_DRV}/*.diff $(prefix)/$(SMALL_TEST_DIR) || exit 1;
 	cp -r ${TMP_DIR_KERN}/*.tar.bz2 $(prefix)/$(SMALL_TEST_DIR) || exit 1;
 	cp $(TEST_TASK) $(prefix)/$(SMALL_TEST_DIR) || exit 1;	
 	cp regr-test-small-* $(prefix)/$(SMALL_TEST_DIR) || exit 1;	

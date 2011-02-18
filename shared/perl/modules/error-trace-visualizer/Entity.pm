@@ -14,7 +14,7 @@ require Annotation;
 my $engine_blast = 'blast';
 
 my %parent_entities = ($engine_blast => {'FunctionCall' => 1, 'FunctionCallInitialization' => 1});
-my %parent_end_entities = ($engine_blast => {'Return' => 1, 'FunctionCallWithoutBody' => 1});
+my %parent_end_entities = ($engine_blast => {'Return' => 1, 'FunctionCallWithoutBody' => 1, 'FunctionStackOverflow' => 1});
 
 
 sub new($$)
@@ -26,7 +26,7 @@ sub new($$)
 
   my $self = $init_func->($data);
   bless $self, $class;
-
+  
   return $self;
 }
 
@@ -66,7 +66,18 @@ sub isparent_end($)
 {
   my $self = shift;
 
-  return defined($parent_end_entities{$self->{'engine'}}{$self->{'kind'}});
+  # To prevent multiple parent ends that are made for multiple post annotations
+  # specify whether entity was already ended and check it.
+  unless ($self->{'entity was ended'})
+    {
+      if ($parent_end_entities{$self->{'engine'}}{$self->{'kind'}})
+        {
+          $self->{'entity was ended'} = 1;
+          return 1;
+        }
+    }
+
+  return 0;
 }
 
 sub set_parent($$)
@@ -98,6 +109,11 @@ sub set_post_annotations($@)
       if (${${$post_annotation}{'values'}}[0] and ${${$post_annotation}{'values'}}[0] =~ /undefined function call/)
       {
         $self->{'kind'} = 'FunctionCallWithoutBody';
+      }
+      
+      if (${${$post_annotation}{'values'}}[0] and ${${$post_annotation}{'values'}}[0] =~ /skipping call to function due to stack overflow/)
+      {
+        $self->{'kind'} = 'FunctionStackOverflow';
       }
     }
   }

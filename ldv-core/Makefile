@@ -1,6 +1,7 @@
 LDV_CORE_DIR = ldv-core
 LDV_CORE_SCRIPT = ldv-core
 LDV_CORE_REPORTER = ldv-core-reporter
+LDV_CORE_PATCHMOD = patchmod.pl
 LDV_FAST_FIX_CMDSTREAM = fast_fix_cmdstream.pl
 
 # Top level hierarchy
@@ -21,6 +22,7 @@ install:
 	cp $(srcdir)/$(LDV_CORE_SCRIPT) $(prefix)/$(LDV_CORE_DIR)
 	cp $(srcdir)/$(LDV_CORE_REPORTER) $(prefix)/$(LDV_CORE_DIR)
 	cp $(srcdir)/$(LDV_FAST_FIX_CMDSTREAM) $(prefix)/$(LDV_CORE_DIR)
+	cp $(srcdir)/$(LDV_CORE_PATCHMOD) $(prefix)/$(LDV_CORE_DIR)
 
 clean:
 	@echo "cleaning - ok"

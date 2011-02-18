@@ -7,7 +7,7 @@ use strict;
 
 my ($c,$i,$e,$o) = @ARGV;
 do { print STDERR "LDV: Not a driver, analysis skipped.\n"; goto CLEANUP; } unless $c =~ /^drivers\//;
-defined $o or die "Usage fail";
+defined $o or die ("Meta1 usage fail, cmdline is ".join(" ", @ARGV));
 
 sub included_files
 # In:  preprocessed C file.
@@ -42,6 +42,12 @@ sub functions_called
 # Out: Functions that were called in this file.  The list includes calls of internal functions
 {
 	my ($rtl_file,$c_file) = @_;
+
+	# Let's try to find the proper RTL file.  Different GCC versions put it into the different folders.
+	# If the file specified in the command line does not exist
+	unless (-f $rtl_file){
+		($rtl_file) = <$c_file.*.expand>;
+	}
 
 	# If a file doesn't emit any function, then rtl file may not be emitted as well.
 	return () unless -f $rtl_file;
