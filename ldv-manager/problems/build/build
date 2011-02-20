@@ -12,7 +12,8 @@ while (<>){
 	/Can't detect source type in dir \".*\"/ and print "Can't detect source type in dir";
 	/Can't find target\./ and print "Can not find target";
 	/Couldn't apply patch/ and print "Error during applying patch";
-	/.* - is not a patch/ and print "It is not patch";
+	/.* - is not a patch or driver archive/ and print "It is not patch or driver archive";
 	/No rule to make target/ and print "Not configured";
+	/Source type ".*" not supported/ and print "Incorrect source type";
 }
 

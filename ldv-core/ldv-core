@@ -729,7 +729,7 @@ sub prepare_driver {
 				if(is_contains_patch($config->{'driver'}) == 1) {
 					prepare_patch();
 				} else {
-					ldv_report_and_exit("File \"$config->{'driver'}\" - is not a patch");
+					ldv_report_and_exit("File \"$config->{'driver'}\" - is not a patch or driver archive");
 				}
 			} else {
 				ldv_report_and_exit("Source type \"$type\" not supported");
