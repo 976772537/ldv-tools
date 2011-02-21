@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 # Resource monitoring script for limiting black-boxed processes.
 # It runs an arbitrary process and watches for memory and time consumption.
 # The main feature is that it watches not only the process spawned, but also
@@ -43,6 +43,9 @@ GetOptions(
 my $uinfo = get_patterns($strpat);
 
 my $uwait = int (1_000_000 / $frequency);
+
+# String to identify thes script's prints in the output
+my $id_str = $ENV{'TIMEOUT_IDSTR'} || '';
 
 use strict;
 
@@ -117,6 +120,7 @@ while ($status eq 'wait'){
 		ualarm 0;
 		die "Assume waitpid return $arrived\n";
 	};
+	#print STDERR Dumper($uinfo);
 	$child_errno = $!;
 	$child_retv = $?;
 	my $arrived = -1;
@@ -142,21 +146,21 @@ while ($status eq 'wait'){
 			kill_process_group_safely($blackbox_pid);
 			# have some sleep for output to be flushed
 			sleep(1);
-			print STDERR "$ENV{'TIMEOUT_IDSTR'}TIMEOUT $timeinfo->{total} CPU\n";
+			print STDERR "${id_str}TIMEOUT $timeinfo->{total} CPU\n";
 			print_uinfo($uinfo);
 			exit 0;
 		}
 		if (defined $ticklimit && $ticksinfo > $ticklimit) {
 			kill_process_group_safely($blackbox_pid);
 			sleep(1);
-			print STDERR "$ENV{'TIMEOUT_IDSTR'}HANGUP ".ceil($ticksinfo/$frequency)."\n";
+			print STDERR "${id_str}HANGUP ".ceil($ticksinfo/$frequency)."\n";
 			print_uinfo($uinfo);
 			exit 0;
 		}
 		if (defined $memlimit && $meminfo > $memlimit){
 			kill_process_group_safely($blackbox_pid);
 			sleep(1);
-			print STDERR "$ENV{'TIMEOUT_IDSTR'}MEM $timeinfo->{total}\n";
+			print STDERR "${id_str}MEM $timeinfo->{total}\n";
 			print_uinfo($uinfo);
 			exit 0;
 		}
@@ -315,37 +319,58 @@ sub update_info_by_ucmd
 	my ($pgrp, $strpat) = @_;
 	my $max_ticks = 0;
 
+	local $_;
+
+	# PIDs that are currently alive
+	my %alive = ();
+
+	# Collect times and commands of the processes that satisfy the patterns given to the $strpat
 	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$ucmd) = @_;
-		my ($proctime,undef) = hires_proc_runtime($pid);
-		#$proctime or next;
 		# Search process by pattern
 		foreach my $key(keys %{$strpat}) {
 			$ucmd =~ m/$key/ or next;
-			$strpat->{$key}->{pids}->{$pid}->{ptime} = $proctime;
-			$strpat->{$key}->{pids}->{$pid}->{ucmd} = $ucmd;
+			# Calculate proctime only for the matching processes
+			my ($proctime,undef) = hires_proc_runtime($pid);
+			# If PID is dead, just don't set %alive for it making time info intact.  Its time info will be reconciled later.
+			if ($proctime){
+				$strpat->{$key}->{pids}->{$pid}->{ptime} = $proctime;
+				$strpat->{$key}->{pids}->{$pid}->{ucmd} = $ucmd;
+				$alive{$pid} = 1;
+			}
 		}
 	});
 
 	# Calculate full time for each pattern
-	foreach my $key(keys %{$strpat}) {
-		if($strpat->{$key}->{ptime}) {
-			$strpat->{$key}->{oldtime} = $strpat->{$key}->{ptime};
-		} else {
-			$strpat->{$key}->{oldtime} = 0;
-		};
+	for my $key(keys %{$strpat}) {
+		my $sk = $strpat->{$key};
+		my $oldtime = $strpat->{$key}->{ptime} || 0;
 
-		$strpat->{$key}->{ptime} = 0;
-		foreach (keys %{$strpat->{$key}->{pids}}) {
-			$strpat->{$key}->{ptime} += $strpat->{$key}->{pids}->{$_}->{ptime};
+		# ptime is a sum, and term_time is a total time of terminated PIDs
+		# Increase the time of dead pids, and recalculate runtime of alive pids.
+		my $term_time = $sk->{term_time} || 0;
+		my $ptime = 0;
+		for my $pid (keys %{$sk->{pids}}) {
+			unless (exists $alive{$pid}) {
+				#print STDERR Dumper($strpat);
+				$term_time += ($sk->{pids}->{$pid}->{ptime} || 0);
+				#print STDERR "WOOOOHOOOO, delete $pid for $key, time bonus is $sk->{pids}->{$pid}->{ptime}!\n";
+				delete $sk->{pids}->{$pid};
+			}else{
+				$ptime += $sk->{pids}->{$pid}->{ptime};
+			}
 		}
-	
-		if($strpat->{$key}->{oldtime} == $strpat->{$key}->{ptime}) {
-			%{$strpat->{$key}->{pids}} == 0 or $strpat->{$key}->{ticks}++; 
+		$sk->{ptime} = $ptime;
+		$sk->{term_time} = $term_time;
+		#print STDERR "WOOOO;HOOOO, term time for $key is $term_time!\n";
+
+		if($oldtime == $ptime) {
+			$sk->{ticks} ||= 0;
+			scalar keys %{$sk->{pids}} == 0 or $sk->{ticks}++;
 		} else {
-			$strpat->{$key}->{ticks} = 0;
+			$sk->{ticks} = 0;
 		}
-		$max_ticks<$strpat->{$key}->{ticks} and $max_ticks = $strpat->{$key}->{ticks};
-	}	
+		$max_ticks<$sk->{ticks} and $max_ticks = $sk->{ticks};
+	}
 	return $max_ticks;
 }
 
@@ -359,18 +384,17 @@ sub update_info_by_ucmd
 #       one cc command. 
 #
 sub print_uinfo
-{		
+{
 	defined $output and (open(FIL,">>", $output) or die "Can't open output file: $!\n");
 	my ($strpat) = @_;
 	my $reftext="";
 	defined $reference and $reftext="ref=\"$reference\"";
 	foreach my $key( keys %{$strpat}) {
-		%{$strpat->{$key}->{pids}} or next;
+		my $sp = $strpat->{$key};
+
+		scalar keys %{$sp->{pids}} or $sp->{term_time} or next;
 		defined $output or next;
-		print(FIL "<time ".$reftext." name=\"".$strpat->{$key}->{name}."\">".sprintf("%.0f", 1000*$strpat->{$key}->{ptime})."</time>\n");
-		#foreach (keys %{$strpat->{$key}->{pids}}) {
-		#	print FIL "<time ".$reftext." name=\"".$strpat->{$key}->{pids}->{$_}->{ucmd}."\">".1000*$strpat->{$key}->{pids}->{$_}->{ptime}."</time>\n";
-		#}
+		print(FIL "<time ".$reftext." name=\"".$sp->{name}."\">".sprintf("%.0f", 1000*($sp->{ptime} + $sp->{term_time}))."</time>\n");
 	}
 	defined $output and close FIL;
 }
@@ -384,6 +408,6 @@ sub get_patterns
 		my ($pattern, $name) = split(/,/,$_);
 		$patterns{$pattern} = {name=>$name, ptime=>0, pids=>{}};
 	}
-	%patterns == 0 and $patterns{'.*'} = {name=>'ALL', prtime=>0, pids=>{}};
+	scalar keys %patterns == 0 and $patterns{'.*'} = {name=>'ALL', prtime=>0, pids=>{}};
 	return {%patterns};
 }
