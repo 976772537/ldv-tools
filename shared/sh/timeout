@@ -232,32 +232,26 @@ sub hires_proc_runtime
 	# Since we invoke this function quite often, process may decease betweem ps invocation and attempt to access its /proc entry.  So, we return undef and handle it in the caller.  That's also the reason of error redirection to void.
 	return undef unless $stat;
 	# Parse proc stats--14th is utime, and it's expressed in ticks.
-	my (undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,$utime_ticks,$stime_ticks) = split /\s+/,$stat;
-	return ($utime_ticks + $stime_ticks)/$ticksize;
+	my (undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef,$utime_ticks,$stime_ticks,$cum_utime_ticks,$cum_stime_ticks) = split /\s+/,$stat;
+	return (($utime_ticks + $stime_ticks)/$ticksize, ($cum_utime_ticks + $cum_stime_ticks)/$ticksize);
 }
 sub update_time
 {
 	# Calculate the CPU+SYS time consumed by processes in the process group.  Updates special timeinfo structure fur future calculations
 	my ($pgrp, $timeinfo) = @_;
-	my %terminated = (%{$timeinfo->{current}});
-	my $result = {total => $timeinfo->{total}, finished => $timeinfo->{finished}, current => {} };
+
+	# For one process, cumulative time is its runtime plus runtime of its dead children.  Therefore, if we sum up cumulative times for all the eligible processes, we'll get the total runtime of the black box
+	my $cumulative_time = 0;
 
 	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$cmd) = @_;
 		# If hires_proc_runtime doesn't return a value (the $pid died before it tried), we keep the old value of time.  The error is not greater than ualarm interval.
-		$result->{current}->{$pid} = hires_proc_runtime($pid) || $timeinfo->{current}->{$pid};
-		# Show that this process is still running by removind it from set of processes that were running in this group, but have been terminated.
-		delete $terminated{$pid} if $terminated{$pid};
+		my ($pid_time,$pid_cum_time) = hires_proc_runtime($pid);
+		if (defined $pid_time){
+			$cumulative_time += $pid_time + $pid_cum_time;
+		}
 	});
 
-	local $_;
-	# Add the total time of terminated processes to finished time.
-	$result->{finished}+=$_ for values %terminated;
-
-	# Recalculate total time
-	$result->{total}=$result->{finished};
-	$result->{total}+=$_ for values %{$result->{current}};
-
-	return $result;
+	return {total => $cumulative_time};
 }
 
 sub update_memory
@@ -322,7 +316,7 @@ sub update_info_by_ucmd
 	my $max_ticks = 0;
 
 	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$ucmd) = @_;
-		my $proctime = hires_proc_runtime($pid);
+		my ($proctime,undef) = hires_proc_runtime($pid);
 		#$proctime or next;
 		# Search process by pattern
 		foreach my $key(keys %{$strpat}) {
