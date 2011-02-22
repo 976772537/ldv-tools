@@ -45,4 +45,9 @@ public class OrderedItem<T extends Token> extends Item<T> {
 		isLast = b;		
 	}
 
+	@Override
+	public String getCompletionCheckStr(String id) {
+		return groupcnt + id + " == 0";
+	}
+
 }

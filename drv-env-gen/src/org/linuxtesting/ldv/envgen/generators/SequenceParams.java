@@ -64,7 +64,7 @@ public class SequenceParams extends EnvParams {
 
 	@Override
 	public String getStringId() {
-		return "seq" + "_" + length + (check?"_withcheck":"") + (stateful?"_stateful":"");
+		return "sequence" + "_" + length + (check?"_withcheck":"") + (stateful?"_stateful":"");
 	}
 	
 	
