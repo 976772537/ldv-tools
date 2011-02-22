@@ -32,12 +32,12 @@ import org.linuxtesting.ldv.envgen.generators.fungen.GenerateOptions;
 
 /**
  *
- * Было сделано изменение в паттерне поиска параметров функций
- * - там была проблема с определением параметра "void __user* var"
- *  почему-то тип параметра парсился, как void.
- *  Исправление еще не протестировано.
+ * Changed on Nov 2010: iceberg
+ * Pattern for search function parameters was changed to resolve the 
+ * issue with "void __user* var". It was recognized as void.
  *
- * @author iceberg
+ * @author Alexander Strakh
+ * @author Vadim Mutilin
  *
  */
 public class MainGenerator {
@@ -423,6 +423,7 @@ public class MainGenerator {
 			generatePlainBody(ctx);
 		} else if(ctx.p instanceof SequenceParams) {
 			SequenceParams sp = (SequenceParams)ctx.p;
+			//generate declarations for state counters
 			if(sp.isStatefull()) {
 				for(TokenStruct token : ctx.structTokens) {
 					if(token.hasInnerTokens() && token.isSorted() && sp.isStatefull()) {
@@ -447,7 +448,22 @@ public class MainGenerator {
 	}
 
 	private static void generateSequenceInf(GeneratorContext ctx, SequenceParams sp) throws IOException {
-		ctx.fw.write("\n" + ctx.getIndent() + "while(" + NONDET_INT + "()) {\n");
+		//check that all sequences are fully completed
+		ctx.fw.write("\n" + ctx.getIndent() 
+				+ "while(  " + NONDET_INT + "()");
+		ctx.incIndent();
+		if(sp.isStatefull()) {
+			for(TokenStruct token : ctx.structTokens) {
+				if(token.hasInnerTokens() && token.isSorted()) {
+					String str = token.getCompletionCheckStr();
+					if(str!=null && !str.trim().isEmpty()) {
+						ctx.fw.write("\n" + ctx.getIndent() + "|| !(" +  str + ")");
+					}
+				}
+			}
+		}
+		ctx.decIndent();
+		ctx.fw.write("\n" + ctx.getIndent() + ") {\n");
 		ctx.incIndent();
 		generateSequenceOne(ctx, sp);
 		ctx.decIndent();

@@ -28,4 +28,9 @@ public class UnorderedItem<T extends Token> extends Item<T> {
 		return "";
 	}
 
+	@Override
+	public String getCompletionCheckStr(String id) {
+		return "";
+	}
+
 }

@@ -1,4 +1,5 @@
-/** 
+/**
+ideal verdict is unsafe, second call to open fails
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

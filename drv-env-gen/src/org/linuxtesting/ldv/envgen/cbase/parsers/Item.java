@@ -21,4 +21,8 @@ public abstract class Item<T extends Token> {
 	public abstract String getPreconditionStrEnd(String id);
 	public abstract String getUpdateStr(String id);
 	public abstract String getDeclarationStr(String id);
+
+	//checks that sequence defined by structure is fully executed
+	//counter == 0 
+	public abstract String getCompletionCheckStr(String id);
 }
