@@ -18,6 +18,7 @@ use Time::HiRes qw( gettimeofday );
 
 my $timelimit = undef;
 my $hanguplimit = undef;
+my $allow_hangups = '';
 my $ticklimit = undef;
 my $memlimit = undef;
 my $strpat = undef;
@@ -26,16 +27,20 @@ my $reference = undef;
 my $watchfor = 'tree';
 # Requests per seccond
 my $frequency = 10;
+# if we debug
+my $debug = '';
 
 GetOptions(
 	'timelimit|t=i'=>\$timelimit,
 	'hanguplimit|h=i'=>\$hanguplimit,
+	'allow-hangups!'=>\$allow_hangups,
 	'memlimit|m=i'=>\$memlimit,
 	'frequency|x=i'=>\$frequency,
 	'pattern|p=s'=>\$strpat,
 	'output|o=s'=>\$output,
 	'reference|r=s'=>\$reference,
 	'watchfor|w=s'=>\$watchfor,
+	'debug!'=>\$debug,
 ) or usage;
 
 @ARGV or usage;
@@ -81,22 +86,17 @@ use Time::HiRes qw( ualarm );
 my $timeinfo = { total => 0, finished => 0, current => {} };
 # For this -- update_memory
 my $meminfo = 0;
-my $ticksinfo = 0;
 my $fulltime = 0;
 
-#
-# Default ticklimit - empirical relationship
+# Default ticklimit - limit of number of timeout script wakeups (ticks) before we decide that the controlling processes are hang up (if they haven't done any useful work).  We use ticks instead of real time seconds because the whole stack may be paused with SIGSTOP, and should not die in this case.
 #
 if(!$hanguplimit && $timelimit) {
-	$ticklimit = 10*$timelimit*$frequency;
+	# If unspecified, then wait for the same time the timelimit is set up
+	$ticklimit = $timelimit*$frequency;
 } elsif($hanguplimit) {
 	$ticklimit = $hanguplimit*$frequency;
 }
 
-if(!$ticklimit && $timelimit) {
-	$ticklimit = 10*$timelimit*$frequency;
-}
- 
 my $status = 'wait';
 my $box_status = 0;
 while ($status eq 'wait'){
@@ -112,7 +112,7 @@ while ($status eq 'wait'){
 			# According to signal(7), wait is a safe function, so we can call anything we want here.
 			$timeinfo = update_time($blackbox_pid,$timeinfo);
 			$meminfo = update_memory($blackbox_pid,$meminfo);
-			$ticksinfo = update_info_by_ucmd($blackbox_pid,$uinfo);
+			update_info_by_ucmd($blackbox_pid,$uinfo);
 			die "Assume waitpid return 0\n";
 		};
 		ualarm $uwait;
@@ -120,7 +120,8 @@ while ($status eq 'wait'){
 		ualarm 0;
 		die "Assume waitpid return $arrived\n";
 	};
-	#print STDERR Dumper($uinfo);
+	print STDERR Dumper($uinfo) if $debug;
+	print STDERR Dumper($timeinfo) if $debug;
 	$child_errno = $!;
 	$child_retv = $?;
 	my $arrived = -1;
@@ -137,8 +138,8 @@ while ($status eq 'wait'){
 	}elsif ($arrived == -1){
 		# Something happened!
 		print_uinfo($uinfo);
-                print "ldv-timeout: WARNING: Wait($blackbox_pid) failed: $child_errno\n";
-                exit 0;
+		print "ldv-timeout: WARNING: Wait($blackbox_pid) failed: $child_errno\n";
+		exit 0;
 	}else{
 		# Check if limits are exhausted (they should be updated by signal handler).
 		# First kill, then print the script's verdict, so that it's less likely to mingle with the output of the process being controlled.
@@ -150,10 +151,11 @@ while ($status eq 'wait'){
 			print_uinfo($uinfo);
 			exit 0;
 		}
-		if (defined $ticklimit && $ticksinfo > $ticklimit) {
+		# Sometimes the controlling process may inherently hang up.  Then we don't interrupt it.
+		if (defined $ticklimit && !$allow_hangups && $timeinfo->{ticks_stale} > $ticklimit) {
 			kill_process_group_safely($blackbox_pid);
 			sleep(1);
-			print STDERR "${id_str}HANGUP ".ceil($ticksinfo/$frequency)."\n";
+			print STDERR "${id_str}HANGUP ".ceil($timeinfo->{ticks_stale}/$frequency)."\n";
 			print_uinfo($uinfo);
 			exit 0;
 		}
@@ -255,7 +257,14 @@ sub update_time
 		}
 	});
 
-	return {total => $cumulative_time};
+	my $result = {prev_total => $timeinfo->{total}, total => $cumulative_time, ticks_stale => ($timeinfo->{ticks_stale} || 0)};
+
+	# If the time didn't change, increase number of ticks the processes controlled are in a stale state.
+	if ($timeinfo->{total} == $cumulative_time) {
+		$result->{ticks_stale} ++;
+	}
+
+	return $result;
 }
 
 sub update_memory
@@ -317,7 +326,6 @@ sub kill_process_group_safely
 sub update_info_by_ucmd
 {
 	my ($pgrp, $strpat) = @_;
-	my $max_ticks = 0;
 
 	local $_;
 
@@ -328,14 +336,25 @@ sub update_info_by_ucmd
 	foreach_applicable_process($pgrp,$watchfor,sub { my ($pid,$grp,$ucmd) = @_;
 		# Search process by pattern
 		foreach my $key(keys %{$strpat}) {
-			$ucmd =~ m/$key/ or next;
-			# Calculate proctime only for the matching processes
-			my ($proctime,undef) = hires_proc_runtime($pid);
-			# If PID is dead, just don't set %alive for it making time info intact.  Its time info will be reconciled later.
-			if ($proctime){
-				$strpat->{$key}->{pids}->{$pid}->{ptime} = $proctime;
-				$strpat->{$key}->{pids}->{$pid}->{ucmd} = $ucmd;
-				$alive{$pid} = 1;
+			# NOTE that one pattern may match only one of these: either children or not children.  That's used to avoid confusion
+			if ($ucmd =~ m/$key/) {
+				# Calculate proctime only for the matching processes
+				my ($proctime,$kidstime) = hires_proc_runtime($pid);
+				# If PID is dead, just don't set %alive for it making time info intact.  Its time info will be reconciled later.
+				if ($proctime){
+					$strpat->{$key}->{pids}->{$pid}->{ptime} = $proctime;
+					$strpat->{$key}->{pids}->{$pid}->{ucmd} = $ucmd;
+					$alive{$pid} = 1;
+				}
+			}elsif(($key =~ /^CHILD/) && ("CHILD:$ucmd" =~ m/$key/)){
+				# Calculate proctime only for the matching processes
+				my ($proctime,$kidstime) = hires_proc_runtime($pid);
+				# If PID is dead, just don't set %alive for it making time info intact.  Its time info will be reconciled later.
+				if ($kidstime){
+					$strpat->{$key}->{pids}->{$pid}->{ptime} = $kidstime;
+					$strpat->{$key}->{pids}->{$pid}->{ucmd} = "CHILD:$ucmd";
+					$alive{$pid} = 1;
+				}
 			}
 		}
 	});
@@ -351,9 +370,7 @@ sub update_info_by_ucmd
 		my $ptime = 0;
 		for my $pid (keys %{$sk->{pids}}) {
 			unless (exists $alive{$pid}) {
-				#print STDERR Dumper($strpat);
 				$term_time += ($sk->{pids}->{$pid}->{ptime} || 0);
-				#print STDERR "WOOOOHOOOO, delete $pid for $key, time bonus is $sk->{pids}->{$pid}->{ptime}!\n";
 				delete $sk->{pids}->{$pid};
 			}else{
 				$ptime += $sk->{pids}->{$pid}->{ptime};
@@ -361,17 +378,8 @@ sub update_info_by_ucmd
 		}
 		$sk->{ptime} = $ptime;
 		$sk->{term_time} = $term_time;
-		#print STDERR "WOOOO;HOOOO, term time for $key is $term_time!\n";
-
-		if($oldtime == $ptime) {
-			$sk->{ticks} ||= 0;
-			scalar keys %{$sk->{pids}} == 0 or $sk->{ticks}++;
-		} else {
-			$sk->{ticks} = 0;
-		}
-		$max_ticks<$sk->{ticks} and $max_ticks = $sk->{ticks};
 	}
-	return $max_ticks;
+	return undef;
 }
 
 
@@ -389,12 +397,18 @@ sub print_uinfo
 	my ($strpat) = @_;
 	my $reftext="";
 	defined $reference and $reftext="ref=\"$reference\"";
+	# Sum up times for equal names
+	my %name_val = ();
 	foreach my $key( keys %{$strpat}) {
 		my $sp = $strpat->{$key};
 
 		scalar keys %{$sp->{pids}} or $sp->{term_time} or next;
 		defined $output or next;
-		print(FIL "<time ".$reftext." name=\"".$sp->{name}."\">".sprintf("%.0f", 1000*($sp->{ptime} + $sp->{term_time}))."</time>\n");
+		$name_val{$sp->{name}} ||= 0;
+		$name_val{$sp->{name}}  += ($sp->{ptime} + $sp->{term_time});
+	}
+	for my $name (keys %name_val){
+		print(FIL "<time ".$reftext." name=\"".$name."\">".sprintf("%.0f", 1000*$name_val{$name})."</time>\n");
 	}
 	defined $output and close FIL;
 }
@@ -402,12 +416,15 @@ sub print_uinfo
 sub get_patterns
 {
 	my ($patterns_in_string) = @_;
-	my @splitted_patterns = split(/;/,$patterns_in_string);
-	my %patterns = ();
-	foreach (@splitted_patterns) {
-		my ($pattern, $name) = split(/,/,$_);
-		$patterns{$pattern} = {name=>$name, ptime=>0, pids=>{}};
+	if ($patterns_in_string){
+		my @splitted_patterns = split(/;/,$patterns_in_string);
+		my %patterns = ();
+		foreach (@splitted_patterns) {
+			my ($pattern, $name) = split(/,/,$_);
+			$patterns{$pattern} = {name=>$name, ptime=>0, pids=>{}};
+		}
+		return {%patterns};
+	}else{
+		return {'.*' => {name=>'ALL', prtime=>0, pids=>{}}};
 	}
-	scalar keys %patterns == 0 and $patterns{'.*'} = {name=>'ALL', prtime=>0, pids=>{}};
-	return {%patterns};
 }

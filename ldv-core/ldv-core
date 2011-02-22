@@ -440,7 +440,8 @@ sub start_bce {
 	$ENV{'BUILDFILE'} = "$config->{'bce_tempdir'}/build.xml";
 	my @bce_args = ($config->{'timeout'},
 		'-p',
-		'.*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1',
+		'.*,ALL\;CHILD:.*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1',
+		'--allow-hangups',
 		'-o',
 		$config->{'bce_stats'},
 		$config->{'bce'},
