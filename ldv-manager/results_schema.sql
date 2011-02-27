@@ -106,6 +106,9 @@ create table launches(
 
 	status enum('queued','running','failed','finished') not null,
 
+-- For backwards compatibility: reference to the relevant trace.  DO NOT use this field in the newer code.
+	trace_id int(10) unsigned,
+
 	primary key (id),
 	UNIQUE (driver_id,toolset_id,environment_id,rule_model_id,scenario_id,task_id),
 
@@ -123,11 +126,6 @@ create table launches(
 create table traces(
 	id int(10) unsigned not null auto_increment,
 	launch_id int(10) unsigned not null,
--- 	build_id int(10) unsigned not null,
--- 	maingen_id int(10) unsigned,
--- 	dscv_id int(10) unsigned,
--- 	ri_id int(10) unsigned,
--- 	rcv_id int(10) unsigned,
 
 	result enum('safe','unsafe','unknown') not null default 'unknown',
 -- Error trace if error is found
@@ -137,14 +135,15 @@ create table traces(
 
 	primary key (id),
 
-	foreign key (launch_id) references launches(id) on delete cascade
+	foreign key (launch_id) references launches(id) on delete cascade,
 
--- Constraints on other tables
--- 	foreign key (build_id) references stats(id) on delete set null,
--- 	foreign key (maingen_id) references stats(id) on delete set null,
--- 	foreign key (dscv_id) references stats(id) on delete set null,
--- 	foreign key (ri_id) references stats(id) on delete set null,
--- 	foreign key (rcv_id) references stats(id) on delete set null
+-- Links to relevant stats for backward compatibility.  DO NOT use in the new code!
+	build_id int(10) unsigned,
+	maingen_id int(10) unsigned,
+	dscv_id int(10) unsigned,
+	ri_id int(10) unsigned,
+	rcv_id int(10) unsigned
+
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 create table sources(
