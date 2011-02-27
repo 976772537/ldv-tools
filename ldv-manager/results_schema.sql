@@ -235,4 +235,4 @@ create table db_properties(
 -- ----------------------------
 -- INSERT DATABASE PARAMETERS
 -- ----------------------------
-insert into db_properties (name, value) values ("version","1");
+insert into db_properties (name, value) values ("version","3");
