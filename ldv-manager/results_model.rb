@@ -65,6 +65,13 @@ end
 
 class Trace < ActiveRecord::Base
 	belongs_to :launch, :autosave => true
+	# Backward compatibility: add trace_id to the parent launch record
+	def after_save
+		unless $no_backwards_compatibility
+			self.launch.trace_id = self.id
+			self.launch.save(false)
+		end
+	end
 
 	param_for_has_one :build, :class_name => 'Stats'
 	param_for_has_one :maingen, :class_name => 'Stats'
@@ -128,6 +135,20 @@ class Stats < ActiveRecord::Base
 	# 0 - ???, 1 - detailed, 2 - average
 	def self.split_time timestr
 		timestr.split(':')
+	end
+
+	# Backward compatibility: add kind_id (where kind may be build, maingen, etc) to the parent trace record
+	# Do not rely on these ids in the newer code!
+	belongs_to :trace
+	def after_save
+		unless $no_backwards_compatibility
+			old_ptr = self.trace.send("#{self.kind}_id")
+			# update parent record if this one is bad
+			if old_ptr != self.id
+				self.trace.send("#{self.kind}_id=",self.id)
+				self.trace.save(false)
+			end
+		end
 	end
 end
 
