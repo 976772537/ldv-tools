@@ -86,9 +86,13 @@ class RealSpawner < Spawner
 	end
 
 	def spawn_child(job_type,task,spawn_key)
-		# Set up environment variables for child processes
-		task['env'].each { |var,val| ENV[var] = val.to_s }
-		task['env'].each { |var,val| puts "Env: #{var} = '#{val.to_s}'" }
+		# We don't set environment variables at once, because it would alter global environment, which is not thread-safe (for forked children).  Thus, we just create a proc, and call it in all the forked kids (to collect all the common code that sets ENV in one place).
+		set_common_env = proc do
+			ENV['LDV_SPAWN_KEY'] = spawn_key
+			# LDV_WATCHER_SRV is set in wrapper script that call set_env_from_opts in options.rb
+			task['env'].each { |var,val| ENV[var] = val.to_s }
+			task['env'].each { |var,val| puts "Env: #{var} = '#{val.to_s}'" }
+		end
 
 		# Workdir
 		workdir = task['workdir']
@@ -114,7 +118,8 @@ class RealSpawner < Spawner
 			puts "Creating #{workdir}"
 			Dir.chdir(FileUtils.mkdir_p(workdir)) do
 				child = fork do
-					ENV['LDV_SPAWN_KEY'] = spawn_key
+					set_common_env.call
+					# NOTE that we do not set WORK_DIR here, since it may affect ldv-manager.
 					unless say_and_exec('ldv-manager')
 						$stderr.puts "Failed to run ldv-manager..."
 					end
@@ -133,10 +138,9 @@ class RealSpawner < Spawner
 				puts task['args']
 
 				child = fork do
+					set_common_env.call
 					ENV['WORK_DIR'] = workdir
-					# FIXME: this may actually differ, if user sets it up differently.
-					ENV['LDV_RULE_DB'] = File.join(@home,'kernel-rules','model-db.xml')
-					ENV['LDV_SPAWN_KEY'] = spawn_key
+					ENV['LDV_RULE_DB'] ||= File.join(@home,'kernel-rules','model-db.xml')
 					Dir.chdir task_root do
 						say_and_exec('dscv',"--rawcmdfile=#{temp_file.path}")
 					end
@@ -155,9 +159,9 @@ class RealSpawner < Spawner
 				puts task['args']
 
 				child = fork do
+					set_common_env.call
 					ENV['DSCV_HOME'] = @home
 					ENV['WORK_DIR'] = workdir
-					ENV['LDV_SPAWN_KEY'] = spawn_key
 					Dir.chdir task_root do
 						say_and_exec(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
 					end
