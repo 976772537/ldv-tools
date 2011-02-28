@@ -314,7 +314,7 @@ sub call_blast
 	# Create trace printer
 	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'})]);
+	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),ocaml_detect()]);
 
 	# Process output and redirect it to file
 	local $_;
@@ -349,7 +349,7 @@ sub call_blast
 
 	my $result = {%{$verdictor->result()}};
 	# Post limits and verdict on different lines!
-	$result->{'BLAST-detailed'} = join "\n",(grep {$_} ($result->{'BLAST-detailed'},$result->{'LIMITS'}));
+	$result->{'BLAST-detailed'} = join "\n",(grep {$_} ($result->{'BLAST-detailed'},$result->{'LIMITS'},$result->{'OCAML'}));
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
@@ -512,6 +512,22 @@ sub dumptrace
 			}
 			print $current_fh $line;
 		}
+		return undef;
+	}];
+}
+
+# OCaml error detector
+sub ocaml_detect
+{
+	return [1_000,sub {
+
+		my ($line) = @_;
+		!defined $line and return undef;
+
+		if ($line =~ /(Fatal error: out of memory.)/){
+			return {'OCAML'=>"OCaml exception: $1"};
+		}
+
 		return undef;
 	}];
 }
