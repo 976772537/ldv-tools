@@ -296,6 +296,10 @@ OptionParser.new do |opts|
 		$online = true
 	end
 
+	opts.on "--no-backwards-compat", "Do not assign keys build_id, maingen_id, dscv_id, rcv_id and trace_id" do
+		$no_backwards_compatibility = true
+	end
+
 	opts.on "--debug", "Debug output" do |xml_fname|
 		$debug = true
 	end
@@ -421,6 +425,8 @@ while not docs.end_of? 'reports' do
 			trace = Trace.new
 			trace.result='unknown'
 			trace.build = build_rec
+			# Remove older trace if it was there
+			launch.trace.delete if launch.trace
 			launch.trace = trace
 			launch.status = 'finished'
 
@@ -509,6 +515,8 @@ while not docs.end_of? 'reports' do
 		launch = launch.load_on_duplicate_key
 
 		launch.status = status
+		# Delete the trace previously assigned to the launch, before adding the new one
+		launch.trace.delete if launch.trace
 		launch.trace = nil
 
 		# Because of :autosave property, recursively saves all records
@@ -559,13 +567,17 @@ while not docs.end_of? 'reports' do
 	end
 
 	# Build is handled in a special way (because it's an attribute of the whole task, not just this launch)
-	build = builds[ld_kernel] or raise "Where's the <build> info for kenrel #{ld_kernel}, as in LD=#{ld_ref}?"
+	build = builds[ld_kernel].clone or raise "Where's the <build> info for kenrel #{ld_kernel}, as in LD=#{ld_ref}?"
 	trace.build = build
 	trace.verifier = verifier
 
 	# Compose the launch record
 	launch = launch_loader.yield
 	launch = launch.load_on_duplicate_key
+
+	# Delete the trace previously assigned to the launch, before adding the new one
+	launch.trace.delete if launch.trace
+
 	launch.trace = trace
 	launch.status = "finished"
 
