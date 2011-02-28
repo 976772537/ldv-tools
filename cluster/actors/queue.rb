@@ -16,6 +16,8 @@ class Ldvqueue
 		end
 	end
 
+	DEFAULT_OPTIONS = { :route_time => 5 }
+
 	def initialize
 		@status_update_mutex = Mutex.new
 		@task_update_mutex = Mutex.new
@@ -27,44 +29,59 @@ class Ldvqueue
 		# Initialized after construction -- see waiter_new
 		@waiter = nil
 
+		# Imbue the default configuration
+		reconfigure DEFAULT_OPTIONS
+	end
+
+	# Reconfigures the queue with the options given.  Used for hot reconfiguration or just to configure it, since initialize doesn't accept any options.
+	def reconfigure(opts = {})
+		# Restart route timer
 		# During a tick we'll serve exactly one job, according to the priorities
-		EM.add_periodic_timer(4) do
-			@task_update_mutex.synchronize do
-				# Find job_type and an available node to route job of that type to 
-				# If nothing found, find will return nils, and job and target will remain nils
-				puts "finding avail node among #{@nodes.size}"
-				puts "I have the following nodes: #{@nodes.inspect}"
-				job,target = nil,nil
-				Job_priority.find do |job_type|
-					if @queued[job_type].empty?
-						false	#try job of next type
+		if route_timer_interval = opts[:route_time].to_i
+			puts "Reconfigure: route timer is #{route_timer_interval}"
+			@route_timer.cancel if @route_timer
+			@route_timer = EM.add_periodic_timer(route_timer_interval) { route_task }
+		end
+	end
+
+
+	# Fetch task from task queue, selects node to route it to, and pushes it to the cluster
+	def route_task
+		@task_update_mutex.synchronize do
+			# Find job_type and an available node to route job of that type to 
+			# If nothing found, find will return nils, and job and target will remain nils
+			puts "Cluster status: #{@nodes.size}"
+			puts "I have the following nodes: #{@nodes.inspect}"
+			job,target = nil,nil
+			Job_priority.find do |job_type|
+				if @queued[job_type].empty?
+					false	#try job of next type
+				else
+																									 # you may set this to -1 for debug
+					node, availability = @nodes.find {|k,v| v[job_type] > 0}
+					if node
+						availability[job_type] -= 1
+						# return job
+						job,target = job_type,node
 					else
-						                                         # you may set this to -1 for debug
-						node, availability = @nodes.find {|k,v| v[job_type] > 0}
-						if node
-							availability[job_type] -= 1
-							# return job
-							job,target = job_type,node
-						else
-							false
-						end
+						false
 					end
 				end
-				if target
-					puts "Routing #{job} to #{target}"
-					task = @queued[job].shift
-					@running[job][target] ||= []
-					@running[job][target] << task
-					puts task.inspect
-					Nanite.push("/ldvnode/#{job}", task, :target => target)
-				end
 			end
-			#puts "Status: #{self.nodes.inspect}"
-			puts "Tasks: #{self.queued.log}"
-			puts "Running: #{self.running.inspect}"
+			if target
+				puts "Routing #{job} to #{target}"
+				task = @queued[job].shift
+				@running[job][target] ||= []
+				@running[job][target] << task
+				puts task.inspect
+				Nanite.push("/ldvnode/#{job}", task, :target => target)
+			end
 		end
-
+		#puts "Status: #{self.nodes.inspect}"
+		puts "Tasks: #{self.queued.log}"
+		puts "Running: #{self.running.inspect}"
 	end
+
 
 	# Adds tasks to queue.  The payload should be a hash with the following attributes:
 	# 	:type => dscv, rcv or ldv

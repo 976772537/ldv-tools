@@ -25,6 +25,10 @@ class ClusterOptionsParser
 			opts.on("--ping-time PINGTIME", "Specify how often the agents contacts the mapper") do |ping|
 				options[:ping_time] = ping
 			end
+
+			opts.on("--route-time ROUTE_TIME", "Specify how often the queue attempts to route a task") do |route_time|
+				options[:route_time] = route_time
+			end
 			
 			opts.on("--actors-dir DIR", "Path to directory containing actors (NANITE_ROOT/actors by default)") do |dir|
 				options[:actors_dir] = dir
