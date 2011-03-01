@@ -247,6 +247,8 @@ class Ldvqueue
 		@namespaces = {}
 	end
 
+	NAMESPACE_KEY = :global
+
 	# Assign global information to the task
 	def assign_namespace_data(task)
 		key = task[:key]
@@ -260,16 +262,16 @@ class Ldvqueue
 			belongs = (key[0,namespace_key.length] == namespace_key)
 			# Assign data if necessary
 			if belongs
-				task[:global] = data
+				task[NAMESPACE_KEY] = data
 				data_found = true
 				break
 			end
 		end
 
 		# If data are not found in the local table, then create a new namespace!
-		unless data_found
-			puts "Namespace data for #{key} are not found.  Creating a new namespace with #{task[:global].inspect}."
-			task[:global] = add_to_namespace(key,task[:global])
+		if !data_found && task[NAMESPACE_KEY]
+			puts "Namespace data for #{key} are not found.  Creating a new namespace with #{task[NAMESPACE_KEY].inspect}."
+			task[NAMESPACE_KEY] = add_to_namespace(key,task[NAMESPACE_KEY])
 		end
 	end
 
