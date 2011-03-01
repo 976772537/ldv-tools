@@ -97,7 +97,7 @@ class RealSpawner < Spawner
 		# Workdir
 		workdir = task['workdir']
 
-		task_root = prepare_mounts task['key'],task['parent_machine']['sshuser'],task['parent_machine']['host'],task['parent_machine']['root'],task['workdir']
+		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
 
 		package_name = "#{spawn_key}-from-parent.pax"
 		# TODO: replace "/tmp" with something more sane
@@ -212,7 +212,7 @@ class Player < Spawner
 
 		wait_by_args = {}
 
-		prepare_mounts task['key'],task['parent_machine']['sshuser'],task['parent_machine']['host'],task['parent_machine']['root'],task['workdir']  do
+		prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']  do
 			$stderr.puts "MOUNTS ARE OKAY!\n--------------"
 		end
 		$stderr.puts "END MOUNT"

@@ -54,14 +54,14 @@ class WatcherRemote < Watcher
 		send_files "#{key.join('.')}-from-parent.pax",files
 
 		# The local IP is the IP as seen by AMQP host
-		this_machine_info = {
-			# For prototyping reasons, we'll fix this
-			#:host => local_ip(ENV['LDV_ABROAD'] || self.opts[:host]),
-			:host => 'shved',
-			:sshuser => 'pavel',
-			:root => '/mnt/cluster/work',
-		}
-		payload = { :type => what, :args => (ENV['LDV_NOREAD_TASKS'] ? 'intentionally empty' : IO.read(task_fname)), :key => mk(key), :env => [], :workdir => workdir, :parent_machine => this_machine_info  }
+#		this_machine_info = {
+#			# For prototyping reasons, we'll fix this
+#			#:host => local_ip(ENV['LDV_ABROAD'] || self.opts[:host]),
+#			:host => 'shved',
+#			:sshuser => 'pavel',
+#			:root => '/mnt/cluster/work',
+#		}
+		payload = { :type => what, :args => (ENV['LDV_NOREAD_TASKS'] ? 'intentionally empty' : IO.read(task_fname)), :key => mk(key), :env => [], :workdir => workdir }
 		EM.run { sender.send('/ldvqueue/queue', payload)}
 	end
 

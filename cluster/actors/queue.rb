@@ -29,6 +29,9 @@ class Ldvqueue
 		# Initialized after construction -- see waiter_new
 		@waiter = nil
 
+		# Namespace
+		initialize_namespace
+
 		# Imbue the default configuration
 		reconfigure DEFAULT_OPTIONS
 	end
@@ -92,9 +95,15 @@ class Ldvqueue
 		puts "Queueing #{_task.inspect}..."
 		if Ldvqueue.task_correct? _task
 			task = Ldvqueue.symbolize(_task)
+
+			# Add information specific to the task's namespace for a node to read
+			assign_namespace_data(task)
+
+			# Push the task into queue
 			@task_update_mutex.synchronize do
 				enqueue_task(task[:type],task,where)
 			end
+
 		else
 			raise "Badly formed task #{_task.inspect}!"
 		end
@@ -197,10 +206,19 @@ class Ldvqueue
 		puts "Node #{node} added to the pool"
 	end
 
-	Task_keys = %w(type args workdir key env parent_machine).sort.freeze
+	# must - keys that every task should have
+	# may  - keys that some tasks might have
+	# Other keys are prohibited!
+	Task_keys = {'type' => :must, 'args' => :must, 'workdir' => :must, 'key' => :must, 'env'=>:must, 'global' => :may}
 	# Check if task is correct
 	def self.task_correct?(task)
-		task.keys.map(&:to_s).sort == Task_keys
+		task.keys.each do |item|
+			raise unless Task_keys[item]
+		end
+		Task_keys.each do |item,req|
+			return false if req == :must && !task[item]
+		end
+		return true
 	end
 
 	# Make hash "symbol->data" from "string->data"
@@ -217,9 +235,52 @@ class Ldvqueue
 		end
 	end
 
+	## Namespaces
+	#
+	# Namespaces is a mechanism for storing global data for certain tasks.
+	# A namespace is an array of strings.  If it's a prefix of a task's key, the task is said to belong to the namespace.
+	#
+	# For tasks that belong to a namespace a special hash under ":global" key is attached to the tasks sent to nodes.  This information from nodes themselves is discarded.
+
+	# Initializes namespace data
+	def initialize_namespace
+		@namespaces = {}
+	end
+
+	# Assign global information to the task
+	def assign_namespace_data(task)
+		key = task[:key]
+
+		# If we have found the global data for the given key
+		data_found = false
+
+		# We could use a sophisticated algorithm for this, but we'll just do it quick-and-dirty
+		@namespaces.each do |namespace_key, data|
+			# Determine if task's key belongs to the namespace
+			belongs = (key[0,namespace_key.length] == namespace_key)
+			# Assign data if necessary
+			if belongs
+				task[:global] = data
+				data_found = true
+				break
+			end
+		end
+
+		# If data are not found in the local table, then create a new namespace!
+		unless data_found
+			puts "Namespace data for #{key} are not found.  Creating a new namespace with #{task[:global].inspect}."
+			task[:global] = add_to_namespace(key,task[:global])
+		end
+	end
+
+	# Adds data under namespace_key to the namespace table
+	def add_to_namespace(namespace_key,data)
+		@namespaces[namespace_key] = data
+		data
+	end
 
 	## Waiter
-	
+
 	def init_waiter(opts = {})
 		@waiter = Waiter.new(opts)
 	end
