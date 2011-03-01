@@ -1,6 +1,6 @@
 # RSpec for LDV cluster queue
 
-require 'queue.rb'
+require '../queue.rb'
 
 RSpec.configure do |c|
 	#c.filter_run :focus => true
@@ -306,7 +306,7 @@ end
 require 'waiter.rb'
 require 'json'
 
-describe "Waiter",:focus=>true do
+describe "Waiter" do
 	it_should_behave_like "a nanite agent" do
 		let(:factory) { lambda { |arg| start_queue arg } }
 	end
@@ -381,7 +381,7 @@ describe "Waiter",:focus=>true do
 					# Set up a hook to stdout, and check if we dumped the key correctly
 					$stdout.stub(:puts) do |key_str|
 						# FIXME: first two fields should be filled with information transfer data
-						key_str.should == ',,concrete,key'
+						key_str.should match /,[^,]*,concrete,key/
 						too_early.should be_false
 					end
 					# Check if we did a flush
@@ -428,7 +428,7 @@ describe "Waiter",:focus=>true do
 					# Set up a hook to stdout, and check if we dumped the key correctly
 					$stdout.stub(:puts) do |key_str|
 						# FIXME: first two fields should be filled with information transfer data
-						key_str.should == ',,dscv,task,15'
+						key_str.should match /,[^,]*,dscv,task,15/
 						too_early.should be_false
 					end
 					# Check if we did a flush
@@ -476,8 +476,7 @@ describe "Waiter",:focus=>true do
 					end
 					# Set up a hook to stdout, and check if we dumped the key correctly
 					$stdout.stub(:puts) do |key_str|
-						# FIXME: first two fields should be filled with information transfer data
-						key_str.should == ',,asterisk,task,with,100'
+						key_str.should match /,[^,]*,asterisk,task,with,100/
 						too_early.should be_false
 					end
 					# Check if we did a flush
