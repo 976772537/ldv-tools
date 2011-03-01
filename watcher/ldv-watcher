@@ -35,8 +35,8 @@ if address_local? address
 	require 'local.rb'
 	watcher = WatcherLocal.new(address)
 else
-	require 'cluster.rb'
 	$:.unshift File.join(File.dirname(__FILE__),"..","cluster")
+	require 'cluster-watcher.rb'
 	require 'options.rb'
 
 	opts_p = ClusterOptionsParser.new({})

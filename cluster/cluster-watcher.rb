@@ -1,6 +1,6 @@
 
 # Include Cluster's command send capabilities
-$cluster_dir = File.dirname(__FILE__),'..','cluster'
+$cluster_dir = File.dirname(__FILE__)
 require File.join($cluster_dir,'sender.rb')
 require File.join($cluster_dir,'waiter.rb')
 require File.join($cluster_dir,'utils.rb')

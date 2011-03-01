@@ -20,6 +20,8 @@ sender.rb
 queue.rb
 utils.rb
 
+cluster-watcher.rb
+
 actors/
 	queue.rb
 	node.rb
