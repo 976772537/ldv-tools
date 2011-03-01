@@ -115,21 +115,6 @@ class Trace
 	def save(validate=true)
 		ActiveRecord::Base.silence { super(validate) }
 	end
-
-	# Load time statistics for this trace
-	def time_from_xml(tag)
-		# Tag query-target hash to make code DRY
-		query_target = Trace.tools.inject({}) {|hash,kv| hash["#{kv[1]}/time"] = kv[1]; hash }
-		query_target["build/time"] = 'build-cmd-extractor'
-		# Load time for each target
-		query_target.each do |query,target|
-			# We need query.dup because REXML of ruby 1.9 wants this string to be unfrozen.  That's a bug in ReXML.
-			tag.elements.each(query.dup) do |entry|
-				times = entry.text.split(':')
-				processe.create(:name => target, :pattern => entry.attributes['name'], :time_detailed => times[1], :time_average => times[2])
-			end
-		end
-	end
 end
 
 class StatsStreamFactory
@@ -149,15 +134,19 @@ class StatsStreamFactory
 				@stats.loc = s.consume_contents.to_i || 0
 			elsif s.start_of? 'time'
 				pattern = s['name']
-				time_values = s.consume_contents
-				# Set time for the whole trace
-				if pattern == 'ALL'
-					@stats.time = time_values[2].to_i
+				time_values_string = s.consume_contents
+				# Time stats may be not defined at all, skip them then
+				if time_values_string
+					time_values = Stats.split_time time_values_string
+					# Set time for the whole trace
+					if pattern == 'ALL'
+						@stats.time = time_values[2].to_i
+					end
+					# set the detailed time values
+					target = @tag_name
+					target = 'build-cmd-extractor' if target == 'build'
+					@detailed_times << { :name => target, :pattern => pattern, :time_detailed => time_values[1], :time_average => time_values[2]}
 				end
-				# set the detailed time values
-				target = @tag_name
-				target = 'build-cmd-extractor' if target == 'build'
-				@detailed_times << { :name => target, :pattern => pattern, :time_detailed => time_values[1], :time_average => time_values[2]}
 			elsif s.start_of? 'desc'
 				@stats.description = (s.consume_contents || '')
 			else
@@ -307,6 +296,10 @@ OptionParser.new do |opts|
 		$online = true
 	end
 
+	opts.on "--no-backwards-compat", "Do not assign keys build_id, maingen_id, dscv_id, rcv_id and trace_id" do
+		$no_backwards_compatibility = true
+	end
+
 	opts.on "--debug", "Debug output" do |xml_fname|
 		$debug = true
 	end
@@ -432,6 +425,8 @@ while not docs.end_of? 'reports' do
 			trace = Trace.new
 			trace.result='unknown'
 			trace.build = build_rec
+			# Remove older trace if it was there
+			launch.trace.delete if launch.trace
 			launch.trace = trace
 			launch.status = 'finished'
 
@@ -520,6 +515,8 @@ while not docs.end_of? 'reports' do
 		launch = launch.load_on_duplicate_key
 
 		launch.status = status
+		# Delete the trace previously assigned to the launch, before adding the new one
+		launch.trace.delete if launch.trace
 		launch.trace = nil
 
 		# Because of :autosave property, recursively saves all records
@@ -570,13 +567,17 @@ while not docs.end_of? 'reports' do
 	end
 
 	# Build is handled in a special way (because it's an attribute of the whole task, not just this launch)
-	build = builds[ld_kernel] or raise "Where's the <build> info for kenrel #{ld_kernel}, as in LD=#{ld_ref}?"
+	build = builds[ld_kernel].clone or raise "Where's the <build> info for kenrel #{ld_kernel}, as in LD=#{ld_ref}?"
 	trace.build = build
 	trace.verifier = verifier
 
 	# Compose the launch record
 	launch = launch_loader.yield
 	launch = launch.load_on_duplicate_key
+
+	# Delete the trace previously assigned to the launch, before adding the new one
+	launch.trace.delete if launch.trace
+
 	launch.trace = trace
 	launch.status = "finished"
 

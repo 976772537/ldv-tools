@@ -32,12 +32,12 @@ import org.linuxtesting.ldv.envgen.generators.fungen.GenerateOptions;
 
 /**
  *
- * Было сделано изменение в паттерне поиска параметров функций
- * - там была проблема с определением параметра "void __user* var"
- *  почему-то тип параметра парсился, как void.
- *  Исправление еще не протестировано.
+ * Changed on Nov 2010: iceberg
+ * Pattern for search function parameters was changed to resolve the 
+ * issue with "void __user* var". It was recognized as void.
  *
- * @author iceberg
+ * @author Alexander Strakh
+ * @author Vadim Mutilin
  *
  */
 public class MainGenerator {
@@ -242,9 +242,9 @@ public class MainGenerator {
 		if(ctx.p.isInit())
 			sb.append("#include <linux/slab.h>");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
-		sb.append("\n" + ctx.getIndent() + "void check_final_state(void);\n");
+		sb.append("\n" + ctx.getIndent() + "void ldv_check_final_state(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
-		sb.append("\n" + ctx.getIndent() + "void check_return_value(int res);\n");
+		sb.append("\n" + ctx.getIndent() + "void ldv_check_return_value(int res);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Initializes the model. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_initialize(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
@@ -277,7 +277,7 @@ public class MainGenerator {
 		Logger.trace("Start appending end section...");
 		Logger.trace("Start appending \"FUNCTION CALL SECTION\"...");			
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_CALL+" Checks that all resources and locks are correctly released before the driver will be unloaded. */");
-		sb.append("\n" + ctx.getIndent() + getCheckFinalLabel() + ": check_final_state();\n");
+		sb.append("\n" + ctx.getIndent() + getCheckFinalLabel() + ": ldv_check_final_state();\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_END+ldvTag_FUNCTION_CALL_SECTION+" */");		
 		ctx.fw.write(sb.toString());
 	}
@@ -423,6 +423,7 @@ public class MainGenerator {
 			generatePlainBody(ctx);
 		} else if(ctx.p instanceof SequenceParams) {
 			SequenceParams sp = (SequenceParams)ctx.p;
+			//generate declarations for state counters
 			if(sp.isStatefull()) {
 				for(TokenStruct token : ctx.structTokens) {
 					if(token.hasInnerTokens() && token.isSorted() && sp.isStatefull()) {
@@ -447,7 +448,22 @@ public class MainGenerator {
 	}
 
 	private static void generateSequenceInf(GeneratorContext ctx, SequenceParams sp) throws IOException {
-		ctx.fw.write("\n" + ctx.getIndent() + "while(" + NONDET_INT + "()) {\n");
+		//check that all sequences are fully completed
+		ctx.fw.write("\n" + ctx.getIndent() 
+				+ "while(  " + NONDET_INT + "()");
+		ctx.incIndent();
+		if(sp.isStatefull()) {
+			for(TokenStruct token : ctx.structTokens) {
+				if(token.hasInnerTokens() && token.isSorted()) {
+					String str = token.getCompletionCheckStr();
+					if(str!=null && !str.trim().isEmpty()) {
+						ctx.fw.write("\n" + ctx.getIndent() + "|| !(" +  str + ")");
+					}
+				}
+			}
+		}
+		ctx.decIndent();
+		ctx.fw.write("\n" + ctx.getIndent() + ") {\n");
 		ctx.incIndent();
 		generateSequenceOne(ctx, sp);
 		ctx.decIndent();

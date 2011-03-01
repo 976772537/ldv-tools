@@ -845,6 +845,8 @@ function WSGetDetailedBuildError($launch_id) {
                 $lines[$i]= preg_replace('/:\swarning:/',': <strong><font color="#CCCC00">warning: </font></strong>', $lines[$i]);
                 $lines[$i]= preg_replace('/:\serror:/',': <strong><font color="red">error: </font></strong>', $lines[$i]);
                 $lines[$i]= preg_replace('/:\snote:/',': <strong><font color="green">note: </font></strong>', $lines[$i]);
+                $lines[$i]= preg_replace('/:\snote:/',': <strong><font color="green">note: </font></strong>', $lines[$i]);
+                $lines[$i]= preg_replace('/(Couldn\'t apply patch .*?:)/',': <strong><font color="red">$1</font></strong>', $lines[$i]);
 		$trace['error_trace'] .= sprintf ("<span unselectable=\"on\" style=\"color: #222233; font-family: monospace; background-color:#D0D0DD; -moz-user-select: none; -khtml-user-select: none; -webkit-user-select: none;\">%5d </span>   ", $i); 
 		$trace['error_trace'] .=  $lines[$i].'<BR>';
 	}

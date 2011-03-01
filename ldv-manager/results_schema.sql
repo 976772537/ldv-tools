@@ -6,13 +6,13 @@
 
 drop table if exists db_properties ;
 drop table if exists processes ;
-drop table if exists launches;
-drop table if exists tasks;
 drop table if exists sources;
 drop table if exists problems_stats;
 drop table if exists problems;
-drop table if exists traces;
 drop table if exists stats;
+drop table if exists traces;
+drop table if exists launches;
+drop table if exists tasks;
 drop table if exists scenarios;
 drop table if exists toolsets;
 drop table if exists rule_models;
@@ -67,56 +67,6 @@ create table scenarios(
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
--- LAUNCH RESULTS
--- ----------------------------
-
-create table stats(
-	id int(10) unsigned not null auto_increment,
-	success boolean not null default false,
--- Runtime in milliseconds (non-cumulative)
-	time int(10) not null default 0,
--- Lines of code analyzed
-	loc int(10) not null default 0,
--- Description of an error
-	description text,
-
-	primary key (id)
-) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
-
-create table traces(
-	id int(10) unsigned not null auto_increment,
-	build_id int(10) unsigned not null,
-	maingen_id int(10) unsigned,
-	dscv_id int(10) unsigned,
-	ri_id int(10) unsigned,
-	rcv_id int(10) unsigned,
-
-	result enum('safe','unsafe','unknown') not null default 'unknown',
--- Error trace if error is found
-	error_trace mediumtext,
--- RCV backend used in this measurement
-	verifier varchar(100),
-
-	primary key (id),
-
-	foreign key (build_id) references stats(id),
-	foreign key (maingen_id) references stats(id),
-	foreign key (dscv_id) references stats(id),
-	foreign key (ri_id) references stats(id),
-	foreign key (rcv_id) references stats(id)
-) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
-
-create table sources(
-	id int(10) unsigned not null auto_increment,
-	trace_id int(10) unsigned not null,
-	name varchar(255) not null,
-	contents mediumblob,
-
-	primary key (id),
-	foreign key (trace_id) references traces(id)
-) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
-
--- ----------------------------
 -- TASKS
 -- ----------------------------
 
@@ -139,23 +89,6 @@ create table tasks(
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 -- ----------------------------
--- STATISTICS
--- ----------------------------
-
-create table processes(
-	trace_id int(10) unsigned not null,
-	name varchar(50) not null,
-	pattern varchar(50) not null,
-
-	time_average int(10) unsigned not null default 0, 
-	time_detailed int(10) unsigned not null default 0, 
-
-	primary key(trace_id, name, pattern),
-	UNIQUE (trace_id, name, pattern),
-	foreign key (trace_id) references traces(id)
-) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
-
--- ----------------------------
 -- LAUNCHES JOIN
 -- ----------------------------
 
@@ -169,11 +102,12 @@ create table launches(
 -- Can be NULL if the driver failed to build
 	scenario_id int(10) unsigned,
 
-	trace_id int(10) unsigned,
-
 	task_id int(10) unsigned,
 
 	status enum('queued','running','failed','finished') not null,
+
+-- For backwards compatibility: reference to the relevant trace.  DO NOT use this field in the newer code.
+	trace_id int(10) unsigned,
 
 	primary key (id),
 	UNIQUE (driver_id,toolset_id,environment_id,rule_model_id,scenario_id,task_id),
@@ -183,9 +117,83 @@ create table launches(
 	foreign key (environment_id) references environments(id) on delete cascade,
 	foreign key (rule_model_id) references rule_models(id) on delete cascade,
 	foreign key (scenario_id) references scenarios(id) on delete cascade,
-	foreign key (trace_id) references traces(id),
 	foreign key (task_id) references tasks(id) on delete cascade
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+-- ----------------------------
+-- LAUNCH RESULTS
+-- ----------------------------
+create table traces(
+	id int(10) unsigned not null auto_increment,
+	launch_id int(10) unsigned not null,
+
+	result enum('safe','unsafe','unknown') not null default 'unknown',
+-- Error trace if error is found
+	error_trace mediumtext,
+-- RCV backend used in this measurement
+	verifier varchar(100),
+
+	primary key (id),
+
+	foreign key (launch_id) references launches(id) on delete cascade,
+
+-- Links to relevant stats for backward compatibility.  DO NOT use in the new code!
+	build_id int(10) unsigned,
+	maingen_id int(10) unsigned,
+	dscv_id int(10) unsigned,
+	ri_id int(10) unsigned,
+	rcv_id int(10) unsigned
+
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+create table sources(
+	id int(10) unsigned not null auto_increment,
+	trace_id int(10) unsigned not null,
+	name varchar(255) not null,
+	contents mediumblob,
+
+	primary key (id),
+	foreign key (trace_id) references traces(id) on delete cascade
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+-- ----------------------------
+-- STATISTICS
+-- ----------------------------
+
+create table stats(
+	id int(10) unsigned not null auto_increment,
+	trace_id int(10) unsigned not null,
+	kind enum ('build','maingen','dscv','ri','rcv') not null,
+	success boolean not null default false,
+-- Runtime in milliseconds (non-cumulative)
+	time int(10) not null default 0,
+-- Lines of code analyzed
+	loc int(10) not null default 0,
+-- Description of an error
+	description text,
+
+	primary key (id),
+	unique (trace_id,kind),
+-- key k_trace (trace_id),
+	foreign key (trace_id) references traces(id) on delete cascade
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+create table processes(
+	trace_id int(10) unsigned not null,
+	name varchar(50) not null,
+	pattern varchar(50) not null,
+
+	time_average int(10) unsigned not null default 0, 
+	time_detailed int(10) unsigned not null default 0, 
+
+	primary key(trace_id, name, pattern),
+	UNIQUE (trace_id, name, pattern),
+	key k_trace (trace_id),
+	foreign key (trace_id) references traces(id) on delete cascade
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+
+
 
 -- ----------------------------
 -- PROBLEM DATABASE
@@ -227,4 +235,4 @@ create table db_properties(
 -- ----------------------------
 -- INSERT DATABASE PARAMETERS
 -- ----------------------------
-insert into db_properties (name, value) values ("version","1");
+insert into db_properties (name, value) values ("version","3");

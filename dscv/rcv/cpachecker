@@ -324,7 +324,7 @@ sub call_cpachecker
 	# TODO(time): check it
 	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
-		pattern => ".*,ALL;.*java.*,JAVA-PROC;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
+		pattern => ".*,ALL;CHILD:.*,ALL;.*java.*,JAVA-PROC;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
 		output => "$workdir/stats_rcv.xml",
 		id_str => "DSCV_TIMEOUT ",
 		},@cpachecker_options
@@ -388,8 +388,8 @@ sub call_cpachecker
 	my $result = {%{$verdictor->result()}};
 	# Don't set it up--it should be set by CPAchecker
 	# $result->{'CPACHECKER'} = "yes";
-	# Add limits
-	$result->{'CPACHECKER-detailed'} .= $result->{'LIMITS'};
+	# Post limits and verdict on different lines!
+	$result->{'CPACHECKER-detailed'} = join "\n",(grep {$_} ($result->{'CPACHECKER-detailed'},$result->{'LIMITS'}));
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};

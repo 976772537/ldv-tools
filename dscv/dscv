@@ -271,10 +271,9 @@ LDV::Utils::push_instrument('dscv');
 
 
 if($mode eq 'raw') {
-	-f $config->{'rawcmdfile'} or die"Command file for raw mode \"$config->{rawcmdfile}\" not exists: $!";
+	-f $config->{'rawcmdfile'} or die "Command file for raw mode '$config->{rawcmdfile}' does not exists: $!";
 	my %args = ();
 
-	# How we parse raw xml to %args hash
 	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
 
 	# in this mode work dir is passed as ENV.WORK_DIR
@@ -287,6 +286,8 @@ if($mode eq 'raw') {
 		$config->{rule_db_dir} = $ENV{'LDV_RULE_DB'};
 		-f $config->{rule_db_dir};
 	} or die "the rule_db_dir '$config->{rule_db_dir}' is not a file!";
+	# Setting work_dir is important for Rule Instrumentor
+	$ENV{'WORK_DIR'} = $config->{work_dir};
 
 	#read other options
 	$config->{report} = $args{report};

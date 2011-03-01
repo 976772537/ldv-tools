@@ -24,5 +24,6 @@ while (<>){
 	/Invalid_argument\("Predicate index is less than zero"\)/ and print "Large_int";
 	/FociInterface.SAT/ and print "Blocks_SAT";
 	/NoNewPredicatesException/ and print "NoNewPredicates";
+	/Fatal error: out of memory./ and print "Ocaml_OOM";
 }
 

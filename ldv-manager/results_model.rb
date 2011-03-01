@@ -34,7 +34,7 @@ class Launch < ActiveRecord::Base
 	end
 
 	belongs_to :task, :autosave => true
-	belongs_to :trace, :autosave => true
+	has_one :trace, :autosave => true
 	validates_associated :task, :trace
 
 	validate :trace_vs_status
@@ -53,14 +53,31 @@ class Processe < ActiveRecord::Base
 	belongs_to :trace
 end
 
-class Trace < ActiveRecord::Base
-	has_one :launch
+# Add a special has_one association, which, in addition to foreign key, takes a special parameter "kind" into account.  This "kind" in the child table should be equal to association name, both when creating and when fetching records.
+def param_for_has_one assoc, params = {}
+	has_one assoc, params.merge({:conditions => {:kind => assoc.to_sym}})
+	alias_method "#{assoc}_activerecord".to_sym, "#{assoc}=".to_sym
+	define_method "#{assoc}=" do |new_entry|
+		new_entry.kind = assoc.to_s
+		self.send "#{assoc}_activerecord".to_sym, new_entry
+	end
+end
 
-	belongs_to :build, :class_name => 'Stats', :autosave => true
-	belongs_to :maingen, :class_name => 'Stats', :autosave => true
-	belongs_to :dscv, :class_name => 'Stats', :autosave => true
-	belongs_to :ri, :class_name => 'Stats', :autosave => true
-	belongs_to :rcv, :class_name => 'Stats', :autosave => true
+class Trace < ActiveRecord::Base
+	belongs_to :launch, :autosave => true
+	# Backward compatibility: add trace_id to the parent launch record
+	def after_save
+		unless $no_backwards_compatibility
+			self.launch.trace_id = self.id
+			self.launch.save(false)
+		end
+	end
+
+	param_for_has_one :build, :class_name => 'Stats'
+	param_for_has_one :maingen, :class_name => 'Stats'
+	param_for_has_one :dscv, :class_name => 'Stats'
+	param_for_has_one :ri, :class_name => 'Stats'
+	param_for_has_one :rcv, :class_name => 'Stats'
 
 	has_many :sources, :autosave => true, :uniq => true
 	has_many :processe, :autosave => true
@@ -84,8 +101,8 @@ class Trace < ActiveRecord::Base
 
 		 # The following chains are forbidden: failed->ok and failed->nil
 		 pairs.each do |pre,post|
-			  pre_success,post_success = [pre,post].map{|x|  !trace.send(x).nil? && trace.send(x).success? }
-			  trace.errors.add post,"is ok, but the calling tool, #{pre.to_s}, failed!" if !pre_success && post_success
+				pre_success,post_success = [pre,post].map{|x|  !trace.send(x).nil? && trace.send(x).success? }
+				trace.errors.add post,"is ok, but the calling tool, #{pre.to_s}, failed!" if !pre_success && post_success
 		 end
 	end
 
@@ -118,6 +135,20 @@ class Stats < ActiveRecord::Base
 	# 0 - ???, 1 - detailed, 2 - average
 	def self.split_time timestr
 		timestr.split(':')
+	end
+
+	# Backward compatibility: add kind_id (where kind may be build, maingen, etc) to the parent trace record
+	# Do not rely on these ids in the newer code!
+	belongs_to :trace
+	def after_save
+		unless $no_backwards_compatibility
+			old_ptr = self.trace.send("#{self.kind}_id")
+			# update parent record if this one is bad
+			if old_ptr != self.id
+				self.trace.send("#{self.kind}_id=",self.id)
+				self.trace.save(false)
+			end
+		end
 	end
 end
 

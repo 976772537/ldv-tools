@@ -1,6 +1,6 @@
 <?php
-print '<div id="ldv_layer">';
 require_once("ldv/include/include.php");
+print '<div id="ldv_layer">';
 
 function html($text)
 {
@@ -113,27 +113,40 @@ function view_upload_driver_form() {
 	</div>
 
 	<div style="margin: 10px 15px 10px 10px;">
-        <h4>1.  Ensure that drivers satisfy the following requirements:</h4>
+	<h4>  Upload driver and wait for results</h4>
+               <p>
+                        <label><br />
+                        <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
+                </p>
+                <p class="submit">
+                        <input type="submit" name="submit" id="wp-submit" class="button-primary" value="Start Verification" tabindex="100" />
+                </p>
+                        <input type='hidden' name="action" value="upload_driver">
+
+        <h4>  Ensure that drivers satisfy the following requirements:</h4>
                 <ul>
-                <li> The driver is archived using gzip or bzip2 and has one of the following extensions: .tar.bz2, tar.gz, .tgz</li>
-                <li> Archive should contain:</li>
-                        o Makefile (written to be compiled with the kernel)<br>
-                                + obj-m is mandatory<br>
-                        o Sources needed by Makefile<br>
-                <li> Archive should not contain generated files left from builds</li>
+                        <li>
+                        Driver as archive:
+                        <ul>
+                                <li> The driver is archived using gzip or bzip2 and has one of the following extensions: .tar.bz2, tar.gz, .tgz</li>
+                                <li> Archive should contain:</li>
+                                        o Makefile (written to be compiled with the kernel)<br>
+                                                + obj-m is mandatory<br>
+                                        o Sources needed by Makefile<br>
+                                <li> Archive should not contain generated files left from builds</li>
+                        </ul>
+                        </li>
+                        <li>
+                        Driver as patches:
+                        <ul>
+                                <li> The driver is archived using gzip or bzip2 and has one of the following extensions: .tar.bz2, tar.gz, .tgz</li>
+                                <li> Archive should contain only patches.</li>
+                                <li> Also you can upload one patch-file.</li>
+                        </ul>
+                        </li>
                 </ul>
-        <h4>2. Upload driver. </h4>
-        <h4>3. Wait for results.</h4>
         </ul>
 	</div>
-	        <p>
-	                <label><br />
-	                <input type="file" name="file" id="user_login" class="input" value="" size="50" tabindex="10" /></label>
-	        </p>
-	        <p class="submit">
-	                <input type="submit" name="submit" id="wp-submit" class="button-primary" value="Start Verification" tabindex="100" />
-	        </p>
-		    	<input type='hidden' name="action" value="upload_driver">
 	</form>
 	<?php
 }
