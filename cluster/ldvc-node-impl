@@ -6,9 +6,14 @@ require 'optparse'
 $:.unshift File.dirname(__FILE__)
 require 'waiter.rb'
 require 'options.rb'
+require 'utils.rb'
 
 opts_p = ClusterOptionsParser.new({})
 opts_p.do_parse
+
+# Initialize loggers
+Logging.ldv_logging_init opts_p.options
+
 
 EM.run do
   Nanite.start_agent(opts_p.options)

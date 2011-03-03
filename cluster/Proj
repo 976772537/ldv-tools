@@ -19,6 +19,8 @@ waiter.rb
 sender.rb
 queue.rb
 utils.rb
+utils/
+	logging.rb
 
 cluster-watcher.rb
 

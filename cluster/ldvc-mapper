@@ -7,9 +7,13 @@ require 'nanite'
 
 $:.unshift File.dirname(__FILE__)
 require 'options.rb'
+require 'utils.rb'
 
 opts_p = ClusterOptionsParser.new({})
 opts_p.do_parse
+
+# Initialize loggers
+Logging.ldv_logging_init opts_p.options
 
 EM.run do
 

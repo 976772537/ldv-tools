@@ -1,4 +1,5 @@
 require 'socket'
+require 'utils/logging.rb'
 
 # Get local IP of the interface, through which the request to the host supplied is routed to.
 # If the host is not specified, uses 'google.com'
