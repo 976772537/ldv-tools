@@ -37,6 +37,11 @@ class ClusterOptionsParser
 			opts.on("--result-time RESULT_TIME", "How ofter AMQP waiter tries to deliever pending results") do |time|
 				options[:result_send_time] = time
 			end
+
+			opts.on("--play-scenario FILENAME", "Instead of doing actual work, just respond to events as written in watcher log in FILENAME") do |fname|
+				options[:play_scenario] = fname
+			end
+			
 			
 			opts.on("--actors-dir DIR", "Path to directory containing actors (NANITE_ROOT/actors by default)") do |dir|
 				options[:actors_dir] = dir

@@ -14,8 +14,17 @@ opts_p.do_parse
 # Initialize loggers
 Logging.ldv_logging_init opts_p.options
 
-
 EM.run do
-  Nanite.start_agent(opts_p.options)
+  #Nanite.start_agent(opts_p.options)
+	agent = Nanite::Agent.new( {:format => :json, :log_level=>'debug'}.merge opts_p.options)
+	agent.run
+
+	# Initialize logger for node as nanite
+	# (start re-assigns this logger, so we should do it afterwards)
+	Nanite::Log.init_with_logger Logging.logger['Nanite']
+
+	node = agent.registry.actors['ldvnode']
+	# Invoke reconfiguration at once, since there's no way to do it through constructor in Nanite
+	node.reconfigure(opts_p.options)
 end
 

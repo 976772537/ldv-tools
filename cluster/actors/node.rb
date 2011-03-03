@@ -14,12 +14,11 @@ class Spawner
 	SSH_MOUNTS = File.join("mnt","ssh")
 
 	# Check if +directory+ is already a mountpoint
-	# FIXME: bad code!
 	def self.mounted dir
 		$stderr.write "Check if #{dir} is mounted..."
 		r = Kernel.system("mountpoint",dir)
 		raise "Your system doesn't have 'mountpoint' command!  Report this to the developers!" if r.nil?
-		$stderr.puts r
+		Logging.logger['Node'].debug r
 		r
 	end
 
@@ -27,13 +26,20 @@ class Spawner
 	# If it's not mounted, creates a mount at the +dir+
 	def ensure_mount(key,user,host,dir)
 		mount_target = File.expand_path File.join(SSH_MOUNTS,dir)
-		$stderr.puts "abspath is #{mount_target}"
-		unless Spawner.mounted mount_target or ip_localhost? host
+		@nlog.trace "Ensuring mount in #{mount_target}"
+
+		already_mounted = Spawner.mounted mount_target
+		@nlog.debug "Already mounted? #{already_mounted}"
+		on_localhost = ip_localhost? host
+		@nlog.debug "Is #{host} localhost? #{on_localhost}"
+		unless already_mounted or on_localhost
 			FileUtils.mkdir_p(mount_target)
 			# We user "read-only" to mount from SSH as our workflow doesn't allow writes this way.  Perhaps, after debugging, we'll discard this option.
-			sshed = say_and_run("sshfs","-o","ro","#{user}@#{host}:#{dir}",mount_target)
+			@nlog.trace "Mounting remote filesystem"
+			ssh_args = ["sshfs","-o","ro","#{user}@#{host}:#{dir}",mount_target]
+			sshed = say_and_run(ssh_args)
 			unless sshed
-				raise "SSHFSing failed.  Did you install SSHFS?  Is the host reachable?"
+				raise "SSHFSing failed #{args.inspect}.  Did you install SSHFS?  Is the host reachable?"
 			end
 		end
 		mount_target
@@ -54,14 +60,12 @@ class Spawner
 
 	# Prepares mounts and returns the mountpoint.  Previously it accepted a block and yielded it in the changed dir, but chdir is a global setting, not a local one...
 	def prepare_mounts(key,user,host,root,workdir)
+		@nlog.trace "call prepare_mounts: #{[key,user,host,root,workdir].inspect}"
 		# We do this check regardless of whether root is mounted, since there's a FIXME bug in the way we use sshfs
 		sshdir = ensure_mount(key,user,host,root)
 
 		unless Spawner.mounted root or ip_localhost? host
 			workdir = ensure_workdir(key,host,workdir,root)
-			# --Try to umount previously created dir, if mounted.  If the command fails, that's OK
-			# Do not umount! The union is shared across several tasks
-			#say_and_run("fusermount","-u",root)
 
 			# Create a mountpoint unless it exists
 			FileUtils.mkdir_p root
@@ -69,10 +73,13 @@ class Spawner
 			# Do the union-mount and report failure unless succeeded
 			# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
 			unless ip_localhost? host
-				unioned = say_and_run("unionfs","-o","cow","#{workdir}=RW:#{sshdir}=RO",root)
+				unionfs_args = ["unionfs","-o","cow","#{workdir}=RW:#{sshdir}=RO",root]
+				unioned = say_and_run(unionfs_args)
 				unless unioned
-					raise "UNION failed.  Did you install unionfs-fuse?  Are all the folders created properly?"
+					raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"
 				end
+			else
+				@nlog.trace "Host #{host} is local, do not make a unionfs-mount"
 			end
 		end
 
@@ -83,6 +90,7 @@ end
 class RealSpawner < Spawner
 	def initialize(ldv_home)
 		@home = ldv_home
+		@nlog = Logging.logger['Node']
 	end
 
 	def spawn_child(job_type,task,spawn_key)
@@ -172,6 +180,10 @@ class RealSpawner < Spawner
 	end
 end
 
+# The scenario player reads text file, in which each line is of format
+#     key: action arguments
+# If it's requested to spawn a task with the key given, it executes watcher commands from this file in the order of their appearance, making a small pause between them.
+# TODO: refactor its code... but anyway, you'll not use it in production, even for testing purposes.  Debugging won't be performed on the cluster, and checking if your AMQP setting is OK works well with any output.
 class Player < Spawner
 	def initialize(ldv_home,fname)
 		@home = ldv_home
@@ -189,18 +201,16 @@ class Player < Spawner
 		@env_mutex=Mutex.new
 	end
 
+	# Not thread-safe, but whatever
 	def env_say_and_run(env,*args)
-		#@env_mutex.synchronize do
-			env.each {|k,v| ENV[k]=v }
-			say_and_run(*args)
-		#end
+		env.each {|k,v| ENV[k]=v }
+		say_and_run(*args)
 	end
 
+	# Not thread-safe, but whatever
 	def env_say_and_open3(env,*args,&block)
-		#@env_mutex.synchronize do
-			env.each {|k,v| ENV[k]=v }
-			say_and_open3(*args,&block)
-		#end
+		env.each {|k,v| ENV[k]=v }
+		say_and_open3(*args,&block)
 	end
 
 	def spawn_child(job_type,task,spawn_key)
@@ -212,10 +222,8 @@ class Player < Spawner
 
 		wait_by_args = {}
 
-		prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']  do
-			$stderr.puts "MOUNTS ARE OKAY!\n--------------"
-		end
-		$stderr.puts "END MOUNT"
+		prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
+		$stderr.puts "MOUNTS ARE OKAY!\n--------------"
 
 		scenario.each do |args|
 			# Our sleep will block this Eventmachine thread, but that's what the usual workflow does too
@@ -291,26 +299,72 @@ class Ldvnode
 	attr_accessor :spawner
 
 	Task_availability_default = { :ldv => 1, :dscv => 1, :rcv => 1 }
-	Task_availability_initial = { :ldv => ENV['LDV_NODE_LDVS'], :dscv => ENV['LDV_NODE_DSCVS'], :rcv => ENV['LDV_NODE_RCVS'] }
+	Task_availability_zero    = { :ldv => 0, :dscv => 0, :rcv => 0 }
+
+	DEFAULT_OPTS = {:availability => Task_availability_default }
 
 	def initialize
-		puts "Setting status..."
-		@status = Task_availability_default.dup
-		# Merge statuses for environment
-		Task_availability_initial.each { |task,val_s| if val_s ; @status[task] = val_s.to_i ; end }
+		# Set zero availability initially.  Nonzero availability will be set in reconfigure, which is necessary to pass options to the actor, as nanite doesn't support that
+		@status = Task_availability_zero.dup
 
 		@status_update_mutex = Mutex.new
-		puts "Setting status to #{@status} for #{self}"
 
+		# NOTE that we should reconfigure at once, since we should announce the initial status
+		reconfigure DEFAULT_OPTS
+	end
+
+	# Reconfigures the actor with the new config
+	def reconfigure(opts)
+		@opts = opts.dup
+
+		# Set up loggers
+		@nlog = Logging.logger['Node']
+
+		# set up LDV_HOME
 		@home = ENV['LDV_HOME'] || File.join(File.dirname(__FILE__),"..","..")
+		@nlog.debug "LDV_HOME is #{@home}"
 
-		if fname = ENV['LDV_PLAY']
+		# Initialize task spawner.
+		# Should be performed before availability is relinquished!
+		if fname = opts[:play_scenario]
+			# Scenario will be played
 			@spawner = Player.new(@home,fname)
 		else
-			# run regression tests
+			# Real tasks will be run!
 			@spawner = RealSpawner.new(@home)
 		end
+
+		# Merge options from command line and environment
+		availability = { :ldv => ENV['LDV_NODE_LDVS'], :dscv => ENV['LDV_NODE_DSCVS'], :rcv => ENV['LDV_NODE_RCVS'] }
+		(@opts[:availability] || Task_availability_default).each do |k,v|
+			availability[k]=v unless availability[k]
+		end
+		# Start publishing statuses
+		@status_update_mutex.synchronize do
+			@nlog.info "Setting status to #{availability.inspect}"
+			availability.each { |task,val_s| if val_s ; @status[task] = val_s.to_i ; end }
+		end
+
+		# Set up ping timer for user display
+		if opts[:ping_time]
+			@show_status.cancel if @show_status
+			@show_status = EM.add_periodic_timer(opts[:ping_time].to_i) { @nlog.info "Current status: #{status_for_cluster.inspect}"}
+		end
+		# TODO Force status announce after reconfiguration
 	end
+
+	# Logger for this particular job on the node
+	def wlog(key)
+		Logging.logger["Node::#{key}"]
+	end
+
+	# Return status for this node for cluster controller.  Based on this, the decision where to route tasks will be made
+	def status_for_cluster
+		st = status
+		@nlog.debug "Announcing status #{st.inspect}"
+		st
+	end
+
 
 	def hello(world)
 		puts "Hello, #{world.inspect}"
@@ -331,7 +385,8 @@ class Ldvnode
 	protected
 
 	def launch_child_job(job_type,task)
-		puts "Job #{job_type} accepted: #{task.inspect}."
+		@nlog.debug "Incoming #{job_type} with key #{task['key']}"
+		@nlog.trace "Task gotten: #{task.inspect}"
 		# We spawn a job and asynchronously call the callback after it finishes.  The callback should read its status
 		# 	:finished - the job successfully finished (or failed, and made it clear)
 		# 	:exception - the job has thrown an exception in ruby code
@@ -342,6 +397,7 @@ class Ldvnode
 		child_exception = nil
 
 		child_op = proc do
+			@nlog.trace "EventMachine spawns child!"
 			# Update local status
 			@status_update_mutex.synchronize do
 				if @status[job_type] > 0
@@ -352,6 +408,7 @@ class Ldvnode
 			end
 			unless job_status == :rejected
 				begin
+					@nlog.debug "Launching #{job_type} with key #{task['key']}"
 					spawner.spawn_child job_type,task,task['key']
 					job_status = :finished
 				rescue => e
@@ -363,35 +420,34 @@ class Ldvnode
 		end
 
 		callback_op = proc do
+			@nlog.trace "EventMachine calls child back!"
 			case job_status
 			when :rejected
 				# If the job's to be sent back, don't touch statuses, just send
-				puts "A #{job_type} job rejected, sending back: #{task.inspect}"
+				@nlog.debug "The #{job_type} job with key #{task['key']} rejected!"
 				Nanite.push("/ldvqueue/redo", task)
+				@nlog.trace "A #{job_type} job with key #{task['key']} reject sent."
 			when :finished
-				puts "The #{job_type} job completed, result should have been sent: #{task.inspect}"
+				@nlog.debug "The #{job_type} job with key #{task['key']} finished!"
 				@status_update_mutex.synchronize do
 					@status[job_type] += 1
 				end
 			when :exception
-				$stderr.puts "Exception happened when processing #{task['key']}!  Job will be sent back."
-				$stderr.puts child_backtrace
+				@nlog.error "Exception happened when processing #{task['key']}!  Job will be sent back."
+				# We do not try to split and make this look beautiful, because... because it's a fucking exception! 
+				@nlog.error child_backtrace
 				Nanite.push("/ldvqueue/redo", task)
 				@status_update_mutex.synchronize do
 					@status[job_type] += 1
 				end
 			end
+			@nlog.trace "EventMachine ends child!"
 		end
 
 		EM.defer child_op, callback_op
 
-		puts "The #{job_type} will run in the background, and will send results!"
+		@nlog.trace "Defer #{job_type} with key #{task['key']} to EventMachine's background."
 	end
-
-	Child_jobs = { :ldv => {:cmd=>'ldv-manager'},
-		:dscv => {:cmd => 'dscv', :taskfile=>true},
-		:rcv => {:cmd => 'dscv', :taskfile=>true},
-	}
 
 end
 

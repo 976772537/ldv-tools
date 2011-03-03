@@ -30,8 +30,11 @@ module Logging
 			appenders.file(destination,{:layout => layout}.merge(opts))
 		end
 	end
+	@@opts = {}
 	def self.ldv_logging_init(_opts)
 		opts = LOGGING_OPTS_DEFAULTS.merge _opts
+		# Save options
+		@@opts = opts.dup
 
 		# Init LDV-specific logging levels
 		init :trace, :debug, :info, :warn, :error, :fatal
@@ -47,8 +50,34 @@ module Logging
 			mkappender(opts[:master_status], :level=>:warn),
 			mkappender(opts[:all_verbose],   :level=>:all)
 		)
-		# Node logger is TODO
 
+		# Node main loggers
+		logger['Node'].add_appenders (
+			mkappender(opts[:node_status], :level=>:info),
+			mkappender(opts[:node_verbose], :level=>:all)
+		)
+		# Log for nanite-related node events
+		logger['Nanite'].add_appenders (
+			mkappender(opts[:node_verbose], :level=>:all)
+		)
+		# Consolidate all node loggers
+		consolidate 'Node'
+	end
+
+	# Yield a logger for a node task with the key given
+	# FIXME: DO NOT CALL THIS TWICE!
+	def self.logger_for key
+		l = logger["Node::#{key}"]
+		l.additive = true	# copy to the consolidated logger
+		l.add_appenders(
+			# Per-node logging file output
+			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}.trace"), :level=>:all),
+			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}"),       :level=>:info)
+			# Consolidated log for all nodes
+			# automaded--due to additivity
+			#mkappender(@@opts[:work_consolidated],       :level=>:info)
+		)
+		l
 	end
 end
 
