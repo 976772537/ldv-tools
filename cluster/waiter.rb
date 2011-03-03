@@ -8,6 +8,7 @@
 # Note that +job_done+ won't block in this case, but will just add a packet to a local array and ensure that the eventmachine-based timer is started.  In any case, +job_done+ should be called at master's site, not at node's site.
 
 require 'fileutils'
+require 'logger'
 
 class Waiter
 
@@ -28,6 +29,14 @@ class Waiter
 		@stash_lock = Mutex.new
 		# Set up a callback for messages that aren't consumed by any waiters -- we should stash them
 		set_noroute_callback
+
+		# Logging proxy: should work both with cluster's sophisticated logging and without it
+		if defined? Logging
+			@log = Logging.logger['Task']
+		else
+			@log = Logging.logger.new(STDERR)
+			@log.level = Logger::WARN
+		end
 	end
 
 	def topic
@@ -44,14 +53,11 @@ class Waiter
 	def wait_for(key) 
 		# Issue a blocking binding, and wait for a result
 		packet = nil
-		$stderr.puts "Waiting for tasks with key #{key}..."
+		@log.warn "Waiting for tasks with key #{key}..."
 		self.queue.bind(topic, :key=>key).subscribe do |header, body|
 			# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
 			received_key = header.properties[:routing_key]
-			$stderr.puts "**********************************************************************************"
-			$stderr.puts "Received results for task with key: #{received_key}"
-			$stderr.puts "**********************************************************************************"
-			$stderr.puts "Still waiting for tasks with key #{key}..."
+			@log.warn "Received results for key: #{received_key}"
 			packet = serializer.load(body)
 			# Copy packet's data to a proper place and fill in the following vars
 			# NOTE: this should be in sync with watcher's cluster interface
@@ -75,7 +81,7 @@ class Waiter
 
 	# Signal that a job is done.
 	def job_done(key,payload)
-		$stderr.puts "Trying to send a result message to key #{key}..."
+		@log.debug "Trying to send a result message to key #{key}..."
 		self.topic.publish(serializer.dump(payload), :routing_key => key, :mandatory => true)
 	end
 
@@ -86,10 +92,10 @@ class Waiter
       if msg.reply_text == 'NO_ROUTE'
 				key = msg.routing_key
 				payload = serializer.load(msg.original_body)
-				puts "Broker returned a message to #{key} with code #{msg.reply_code} (#{msg.reply_text})"
+				@log.debug "Broker returned a message to #{key} with code #{msg.reply_code} (#{msg.reply_text})"
 				stash_request key,payload
 			else
-				puts "ERROR? Broker returned a message to #{key} with code #{msg.reply_code} (#{msg.reply_text})"
+				@log.error "Broker returned a message to #{key} with code #{msg.reply_code} (#{msg.reply_text})"
 			end
     }
 	end
@@ -105,7 +111,7 @@ class Waiter
 	# Start loop that tries to send stashed events
 	def ensure_stash_loop_runs
 		# ||= make us sure that loop is run only once
-		@stash_loop ||= EM.add_periodic_timer(5) do
+		@stash_loop ||= EM.add_periodic_timer(@options[:result_send_time] || 5) do
 			# We should clone our stash, and make the original one empty.  Messages about failed delieveries will start coming asynchronously even before we finish sending
 			retry_packages = []
 			@stash_lock.synchronize do
@@ -114,7 +120,7 @@ class Waiter
 			end
 			retry_packages.each do |req|
 				self.topic.publish(serializer.dump(req[:payload]), :routing_key => req[:key], :mandatory => true)
-				$stderr.puts "Trying to send a result message to key #{req[:key]}..."
+				@log.debug "Trying to send a result message to key #{req[:key]}..."
 			end
 			# The undelievered messages will be stashed (see ensure_ as soon as the relevant async messages arrive
 		end
