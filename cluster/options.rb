@@ -73,7 +73,7 @@ class ClusterOptionsParser
 		set_env_for_opts!
 	end
 
-	Opts_env = { :host => 'LDV_WATCHER_SRV', :vhost => 'LDV_CLUSTER_VHOST', :user=>'LDV_CLUSTER_USER', :pass => 'LDV_CLUSTER_PASS', :format => 'LDV_CLUSTER_FORMAT'  } 
+	Opts_env = { :host => 'LDV_WATCHER_SRV', :vhost => 'LDV_CLUSTER_VHOST', :user=>'LDV_CLUSTER_USER', :pass => 'LDV_CLUSTER_PASS', :format => 'LDV_CLUSTER_FORMAT', :filesrv => 'LDV_FILESRV', :namespace_root => 'LDV_NAMESPACE_ROOT' }
 	Opts_sym = [ :format ]
 
 	def get_opts_from_env!

@@ -49,6 +49,10 @@ class Waiter
 		@queue ||= mq.queue("ldv-results-queue-#{@rn}", :exclusive => true, :auto_delete => true)
 	end
 
+	def packer
+		@pakcker ||= Packer.new(@options[:namespace_root],@options[:filesrv])
+	end
+
 	# Waits for the key specified.  The key is an AMQP topic exchange key
 	def wait_for(key) 
 		# Issue a blocking binding, and wait for a result
@@ -60,13 +64,7 @@ class Waiter
 			@log.warn "Received results for key: #{received_key}"
 			packet = serializer.load(body)
 			# Copy packet's data to a proper place and fill in the following vars
-			# NOTE: this should be in sync with watcher's cluster interface
-			package_name = "#{received_key}-to-parent.pax"
-			# TODO: replace "/tmp" with something more sane
-			package_dir = "/tmp/incoming"
-			FileUtils.mkdir_p package_dir
-			contents = File.join package_dir,package_name
-			say_and_run("scp","#{ENV['LDV_FILESRV']}/#{package_name}",contents)
+			contents = packer.download received_key, :to_parent
 
 			# ! It so happens that we ignore path--paths are recorded in the package
 			path = ''

@@ -5,9 +5,7 @@ require 'nanite'
 
 $:.unshift File.dirname(__FILE__)
 require 'utils.rb'
-
-$:.unshift File.dirname(__FILE__)
-require 'utils.rb'
+require 'packer.rb'
 
 class Spawner
 	LOCAL_MOUNTS = File.join("mnt","local")
@@ -98,6 +96,12 @@ class RealSpawner < Spawner
 		set_common_env = proc do
 			ENV['LDV_SPAWN_KEY'] = spawn_key
 			# LDV_WATCHER_SRV is set in wrapper script that call set_env_from_opts in options.rb
+
+			# Set information for packer that will read it when watcher is invoked from a child process
+			ENV['LDV_FILESRV'] = task['global']['filesrv']
+			ENV['LDV_NAMESPACE_ROOT'] = task['global']['root']
+
+			# Set environment specified in the task
 			task['env'].each { |var,val| ENV[var] = val.to_s }
 			task['env'].each { |var,val| puts "Env: #{var} = '#{val.to_s}'" }
 		end
@@ -107,14 +111,8 @@ class RealSpawner < Spawner
 
 		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
 
-		package_name = "#{spawn_key}-from-parent.pax"
-		# TODO: replace "/tmp" with something more sane
-		package_dir = "/tmp/incoming"
-		FileUtils.mkdir_p package_dir
-		contents = File.join package_dir,package_name
-		say_and_run("scp","#{ENV['LDV_FILESRV']}/#{package_name}",contents)
-		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup (paths are absolute, so the data'll be unpacked to the correct place)
-		say_and_run(%w(pax -r -O -f),contents)
+		@packer = Packer.new(task['global']['root'],task['global']['filesrv'])
+		@packer.download_and_unpack spawn_key,:from_parent
 
 		# Run job-specific targets
 		# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once

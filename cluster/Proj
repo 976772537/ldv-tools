@@ -18,6 +18,7 @@ options.rb
 waiter.rb
 sender.rb
 queue.rb
+packer.rb
 utils.rb
 utils/
 	logging.rb
