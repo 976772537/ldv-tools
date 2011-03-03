@@ -4,7 +4,6 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 CLUSTER_HOME=$LDV_HOME/cluster
 export GEM_HOME=$CLUSTER_HOME/ruby
 export PATH=$CLUSTER_HOME:$CLUSTER_HOME/ruby-bin:$PATH
-echo $PATH
 
 ldvc-mapper --nanite $CLUSTER_HOME "$@" &
 # If initialization failed, give mapper some time to spit an error

@@ -23,9 +23,9 @@ EM.run do
 
 		# Send information about node (those who provide ldvnode services) statuses to the queuer
 		def announce_status_info
-			puts "Number of available nodes: #{nanites_providing('/ldvnode/hello').length}"
+			Nanite::Log.debug "Number of available nodes: #{nanites_providing('/ldvnode/hello').length}"
 			statuses = nanites_providing('/ldvnode/hello').inject({}) {|r,kv| r[kv[0]]=kv[1][:status] ; r }
-			puts "Gonna announce statuses #{statuses.inspect}"
+			Nanite::Log.trace "Gonna announce statuses #{statuses.inspect}"
 			Nanite.push("/ldvqueue/announce", statuses, :offline_failsafe => true)
 		end
 
@@ -44,7 +44,7 @@ EM.run do
 
 	# Should be called when a node is removed from a cluster
 	node_remove_callback = proc do |token, mapper|
-		puts "Node #{token} removed!"
+		Nanite::Log.info "Node #{token} removed!"
 		# Send information about the node removed
 		mapper.cluster.announce_status_info
 		Nanite.push("/ldvqueue/remove", token, :offline_failsafe => true)
@@ -53,8 +53,12 @@ EM.run do
 
 	Nanite.start_mapper({:host => 'localhost', :user => 'mapper', :vhost => '/nanite', :log_level => 'debug', :agent_timeout => 60, :format => :json, :callbacks => {:timeout => node_remove_callback, :unregister => node_remove_callback, :register => node_add_callback }}.merge opts_p.options )
 
+	# Initialize logger for mapper
+	# (start_mapper re-assigns this logger, so we should do it afterwards)
+	Nanite::Log.init_with_logger Logging.logger['Cluster']
+
 	# Deadlock may happen if no event triggers announcement of statuses to ldvqueue, but there are free nodes available.  Adding timer to solve this.
-	EM.add_periodic_timer(20) { Nanite.mapper.cluster.announce_status_info }
+	EM.add_periodic_timer(opts_p.options[:announce_time] || 20) { Nanite.mapper.cluster.announce_status_info }
 
 end
 

@@ -29,6 +29,14 @@ class ClusterOptionsParser
 			opts.on("--route-time ROUTE_TIME", "Specify how often the queue attempts to route a task") do |route_time|
 				options[:route_time] = route_time
 			end
+
+			opts.on("--announce-time ANN_TIME", "Specify how often the cluster controller announces statuses of the node to the scheduler") do |ann_time|
+				options[:announce_time] = ann_time
+			end
+
+			opts.on("--result-time RESULT_TIME", "How ofter AMQP waiter tries to deliever pending results") do |time|
+				options[:result_send_time] = time
+			end
 			
 			opts.on("--actors-dir DIR", "Path to directory containing actors (NANITE_ROOT/actors by default)") do |dir|
 				options[:actors_dir] = dir
