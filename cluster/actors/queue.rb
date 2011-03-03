@@ -51,9 +51,9 @@ class Ldvqueue
 			@route_timer.cancel if @route_timer
 			@route_timer = EM.add_periodic_timer(route_timer_interval) { route_task }
 
-			# Add timely loggers
+			# Add timely loggers (each 5 queue iterations print node statuses)
 			@nodestat_timer.cancel if @nodestat_timer
-			EM.add_periodic_timer(route_timer_interval*10) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
+			EM.add_periodic_timer(route_timer_interval*5) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
 		end
 
 	end
@@ -71,7 +71,7 @@ class Ldvqueue
 					false	#try job of next type
 				else
 					# Cluster info log
-					@qlog.info "Node status: #{node_availability_info.or "<none>"}"
+					@qlog.debug "Node status: #{node_availability_info.or "<none>"}"
 					@qlog.trace "A #{job_type} found for queueing..."
 																										 # you may set this to -1 for debug
 					node, availability = @nodes.find {|k,v| v[job_type] > 0}
@@ -97,6 +97,7 @@ class Ldvqueue
 
 				# Since queued and running is a hash of hashes, we use jobs[1] instead of jobs
 				@qlog.info "Queued: #{queued.inject(0){|sum,jobs| jobs[1].length+sum}}; running: #{running.inject(0){|sum,jobs| jobs[1].length+sum}}"
+				@qlog.info "Node status: #{node_availability_info.or "<none>"}"
 				@qlog.debug "Keys left in queue: #{queued.log}"
 			end
 		end
@@ -145,11 +146,11 @@ class Ldvqueue
 	# Announce statuses.  Keys MUST be strings, not syms!
 	def announce(statuses)
 		return unless statuses	#If something weird happened
-		@qlog.info "Node status: #{node_availability_info.or "<none>"} (announce)"
 		@status_update_mutex.synchronize do
 			@clog.debug "Announced: #{statuses.inspect}"
 			new_nodes = statuses.keys - @nodes.keys
 			nodes_to_remove = @nodes.keys - statuses.keys
+			@qlog.info "Node status: #{node_availability_info.or "<none>"} (announce)" unless new_nodes.empty? && nodes_to_remove.empty?
 
 			# Invoke special handlers for nodes being removed
 			nodes_to_remove.each { |node| remove_node node }
