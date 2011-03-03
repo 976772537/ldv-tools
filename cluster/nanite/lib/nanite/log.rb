@@ -30,7 +30,12 @@ module Nanite
         @logger.formatter = Nanite::Log::Formatter.new
         Log.level = :info
       end
-      
+
+      # Use Nanite::Logger.init_with_logger when you want to set up the logger object (not path) manually.
+      def init_with_logger(logger)
+        @logger = logger
+      end
+
       # Sets the level for the Logger by symbol or by command line argument.
       # Throws an ArgumentError if you feed it a bogus log level (that is not
       # one of :debug, :info, :warn, :error, :fatal or the corresponding strings or a valid Logger level)
