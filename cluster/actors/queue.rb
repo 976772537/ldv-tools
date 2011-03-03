@@ -72,6 +72,7 @@ class Ldvqueue
 				else
 					# Cluster info log
 					@qlog.info "Node status: #{node_availability_info.or "<none>"}"
+					@qlog.trace "A #{job_type} found for queueing..."
 																										 # you may set this to -1 for debug
 					node, availability = @nodes.find {|k,v| v[job_type] > 0}
 					if node
@@ -79,22 +80,25 @@ class Ldvqueue
 						# return job
 						job,target = job_type,node
 					else
+						@qlog.trace "No nodes were found to queue a #{job_type} job!"
 						false
 					end
 				end
 			end
 			if target
-				puts "Routing #{job} to #{target}"
 				task = @queued[job].shift
 				@running[job][target] ||= []
 				@running[job][target] << task
-				puts task.inspect
+
+				@qlog.debug "Routing #{job} with key #{task[:key]} to #{target}."
+				@qlog.trace "Routed task: #{task.inspect}"
+
 				Nanite.push("/ldvnode/#{job}", task, :target => target)
+
+				@qlog.info "Queued: #{queued.inject(0){|sum,jobs| jobs.length+sum}}; running: #{queued.inject(0){|sum,jobs| jobs.length+sum}}"
+				@qlog.debug "Keys left in queue: #{queued.log}"
 			end
 		end
-		#puts "Status: #{self.nodes.inspect}"
-		puts "Tasks: #{self.queued.log}"
-		puts "Running: #{self.running.inspect}"
 	end
 
 
@@ -252,7 +256,7 @@ class Ldvqueue
 	# The example is : ".DR ..R L..", where L,D and R stand for LDV, DSCV and RCV.
 	def node_availability_info
 		@nodes.values.inject([]) do |str_arr, node|
-			str_arr.push(NODE_PRETTY.inject(""){|str,kv| puts kv.inspect; str.concat(node[kv[0]] > 0 ? kv[1] : '.')})
+			str_arr.push(NODE_PRETTY.inject(""){|str,kv| str.concat(node[kv[0]] > 0 ? kv[1] : '.')})
 		end.join(" ")
 	end
 
