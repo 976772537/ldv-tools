@@ -95,7 +95,8 @@ class Ldvqueue
 
 				Nanite.push("/ldvnode/#{job}", task, :target => target)
 
-				@qlog.info "Queued: #{queued.inject(0){|sum,jobs| jobs.length+sum}}; running: #{queued.inject(0){|sum,jobs| jobs.length+sum}}"
+				# Since queued and running is a hash of hashes, we use jobs[1] instead of jobs
+				@qlog.info "Queued: #{queued.inject(0){|sum,jobs| jobs[1].length+sum}}; running: #{running.inject(0){|sum,jobs| jobs[1].length+sum}}"
 				@qlog.debug "Keys left in queue: #{queued.log}"
 			end
 		end
@@ -108,7 +109,13 @@ class Ldvqueue
 	# 	:workdir => working directory for this task
 	# 	:key => a string with a key for this task
 	def queue(_task, where = :last)
-		puts "Queueing #{_task.inspect}..."
+		@qlog.info "Incoming task: #{_task['key']}" if where
+		do_queue(_task,where)
+	end
+
+	def do_queue(_task, where = :last)
+		@qlog.debug "Add to queue: #{_task['key']}"
+		@qlog.trace "Queueing task #{_task.inspect}"
 		if Ldvqueue.task_correct? _task
 			task = Ldvqueue.symbolize(_task)
 
@@ -126,19 +133,21 @@ class Ldvqueue
 	end
 
 	def redo(_task)
-		puts "Node rejected task #{_task}!"
+		@qlog.debug "Reject task: #{_task['key']}!"
+		@qlog.trace "Reject task: #{_task}!"
 		# Remove from registry of running tasks
 		task = Ldvqueue.symbolize _task
 		remove_task(task)
 		# put task into the beginning of the queue
-		queue(_task,:first)
+		do_queue(_task,:first)
 	end
 
 	# Announce statuses.  Keys MUST be strings, not syms!
 	def announce(statuses)
 		return unless statuses	#If something weird happened
+		@qlog.info "Node status: #{node_availability_info.or "<none>"} (announce)"
 		@status_update_mutex.synchronize do
-			puts "Announced: #{statuses.inspect}"
+			@clog.debug "Announced: #{statuses.inspect}"
 			new_nodes = statuses.keys - @nodes.keys
 			nodes_to_remove = @nodes.keys - statuses.keys
 
@@ -154,7 +163,7 @@ class Ldvqueue
 	def remove(node)
 		@status_update_mutex.synchronize do
 			remove_node node
-			puts "Node #{node} removed"
+			@clog.warn "Node #{node} was shut down or stalled!"
 		end if nodes[node]	# No need to remove non-worker node
 	end
 
@@ -166,8 +175,8 @@ class Ldvqueue
 		end
 		# Push result to the waiter
 		waiter.job_done(task[:key],task)
-		puts "\n ****************************************************** \n"
-		puts "Result gotten of #{task.inspect}"
+		@qlog.info "Task finished: #{task[:key]}"
+		@qlog.trace "Result gotten of #{task.inspect}"
 	end
 
 	# Development only!
@@ -188,13 +197,13 @@ class Ldvqueue
 		node,tasks = node_task_map.find do |node,tasks|
 			tasks.find { |queued_task| queued_task[:key] == task[:key] }
 		end
-		puts "Node: #{node.inspect}"
-		puts "Task: #{task[:key].inspect}"
+		@qlog.trace "remove_task_from Node: #{node.inspect}"
+		@qlog.trace "remove_task_from Task: #{task[:key].inspect}"
 		# Remove this task from running tasks
-		if node 
+		if node
 			tasks.reject! { |queued_task| queued_task[:key] == task[:key] } if node
 			# If there's no tasks left, delete node from the registry
-			puts tasks.inspect
+			@qlog.trace "remove_task_from: tasks left #{tasks.inspect}"
 			node_task_map.delete node if tasks.empty?
 		end
 	end
@@ -213,13 +222,13 @@ class Ldvqueue
 				v.delete node_key
 			end
 		end
-		puts "Tasks for #{node_key} requeued"
+		@qlog.debug "Tasks for #{node_key} requeued"
 	end
 
 	# Adds node to a pool of available
 	def add_node(node,status)
 		nodes[node]=status
-		puts "Node #{node} added to the pool"
+		@qlog.info "New node #{node} connected!"
 	end
 
 	# must - keys that every task should have
@@ -295,7 +304,7 @@ class Ldvqueue
 
 		# If data are not found in the local table, then create a new namespace!
 		if !data_found && task[NAMESPACE_KEY]
-			puts "Namespace data for #{key} are not found.  Creating a new namespace with #{task[NAMESPACE_KEY].inspect}."
+			@qlog.warn "Namespace data for #{key} are not found.  Creating a new namespace with #{task[NAMESPACE_KEY].inspect}."
 			task[NAMESPACE_KEY] = add_to_namespace(key,task[NAMESPACE_KEY])
 		end
 	end
