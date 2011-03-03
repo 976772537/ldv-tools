@@ -36,6 +36,15 @@ def select_read(streams)
 	end
 end
 
+# Perl-like "if string is empty then another value"
+# For more info see http://coldattic.info/shvedsky/pro/blogs/a-foo-walks-into-a-bar/posts/51
+
+class String
+	def or str
+		(self == '')? str : self
+	end
+end
+
 
 # Program run helpers
 

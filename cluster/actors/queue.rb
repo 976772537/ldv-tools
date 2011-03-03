@@ -38,29 +38,41 @@ class Ldvqueue
 
 	# Reconfigures the queue with the options given.  Used for hot reconfiguration or just to configure it, since initialize doesn't accept any options.
 	def reconfigure(opts = {})
+		# Initialize loggers (they might have been reconfigured as well).  NOTE that loggers should be the first to initialize, since all the information on how well the reinitialization went goes there
+		# Queue logger
+		@qlog = Logging.logger['Task']
+		# Cluster logger
+		@clog = Logging.logger['Cluster']
+
 		# Restart route timer
 		# During a tick we'll serve exactly one job, according to the priorities
 		if route_timer_interval = opts[:route_time].to_i
-			puts "Reconfigure: route timer is #{route_timer_interval}"
+			@qlog.debug "Reconfigure: route timer is #{route_timer_interval}"
 			@route_timer.cancel if @route_timer
 			@route_timer = EM.add_periodic_timer(route_timer_interval) { route_task }
+
+			# Add timely loggers
+			@nodestat_timer.cancel if @nodestat_timer
+			EM.add_periodic_timer(route_timer_interval*10) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
 		end
+
 	end
 
 
 	# Fetch task from task queue, selects node to route it to, and pushes it to the cluster
 	def route_task
 		@task_update_mutex.synchronize do
-			# Find job_type and an available node to route job of that type to 
+
+			# Find job_type and an available node to route job of that type to
 			# If nothing found, find will return nils, and job and target will remain nils
-			puts "Cluster status: #{@nodes.size}"
-			puts "I have the following nodes: #{@nodes.inspect}"
 			job,target = nil,nil
 			Job_priority.find do |job_type|
 				if @queued[job_type].empty?
 					false	#try job of next type
 				else
-																									 # you may set this to -1 for debug
+					# Cluster info log
+					@qlog.info "Node status: #{node_availability_info.or "<none>"}"
+																										 # you may set this to -1 for debug
 					node, availability = @nodes.find {|k,v| v[job_type] > 0}
 					if node
 						availability[job_type] -= 1
@@ -233,6 +245,15 @@ class Ldvqueue
 		else
 			self.queued[type].unshift task
 		end
+	end
+
+	NODE_PRETTY = [['ldv','L'],['dscv','D'],['rcv','R']]
+	# Print a nice string about availability of services on nodes.
+	# The example is : ".DR ..R L..", where L,D and R stand for LDV, DSCV and RCV.
+	def node_availability_info
+		@nodes.values.inject([]) do |str_arr, node|
+			str_arr.push(NODE_PRETTY.inject(""){|str,kv| puts kv.inspect; str.concat(node[kv[0]] > 0 ? kv[1] : '.')})
+		end.join(" ")
 	end
 
 	## Namespaces
