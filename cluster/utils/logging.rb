@@ -52,21 +52,26 @@ module Logging
 		)
 
 		# Node main loggers
-		logger['Node'].add_appenders (
+		logger['Node'].add_appenders(
 			mkappender(opts[:node_status], :level=>:info),
 			mkappender(opts[:node_verbose], :level=>:all)
 		)
 		# Log for nanite-related node events
-		logger['Nanite'].add_appenders (
+		logger['Nanite'].add_appenders(
 			mkappender(opts[:node_verbose], :level=>:all)
 		)
 		# Consolidate all node loggers
 		consolidate 'Node'
 	end
 
+	# Hask key -> logger
+	@@key_logger = {}
 	# Yield a logger for a node task with the key given
-	# FIXME: DO NOT CALL THIS TWICE!
 	def self.logger_for key
+		@@key_logger[key] ||= new_logger_for(key)
+	end
+
+	def self.new_logger_for key
 		l = logger["Node::#{key}"]
 		l.additive = true	# copy to the consolidated logger
 		l.add_appenders(

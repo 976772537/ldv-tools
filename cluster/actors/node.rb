@@ -119,23 +119,23 @@ class RealSpawner < Spawner
 		# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
 		case job_type
 		when :ldv then
-			puts "LDV"
 			# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
-			puts "Creating #{workdir}"
-			Dir.chdir(FileUtils.mkdir_p(workdir)) do
-				child = fork do
-					set_common_env.call
-					# NOTE that we do not set WORK_DIR here, since it may affect ldv-manager.
-					unless say_and_exec('ldv-manager')
-						$stderr.puts "Failed to run ldv-manager..."
-					end
-				end
-				Process.wait child
+			@nlog.trace "Creating #{workdir} for LDV"
+			# We should create logger outside of chdir, since it may contain relative paths
+			ldv_logger = Logging.logger_for(task['key'])
+			fork_callback = proc do
+				# NOTE that we do not set WORK_DIR here, since it may affect ldv-manager.
+				set_common_env.call
+				Dir.chdir workdir
 			end
+			unless retcode = run_and_log(ldv_logger,'ldv-manager', :fork_callback => fork_callback)
+				@nlog.error "Failed to run ldv-manager for key #{task['key']}."
+			end
+			@nlog.info "Child LDV exit with code #{retcode}"
 		when :dscv then
-			puts "DSCV"
 			# Dump taskfile to a temp file
 			tmpdir = File.join(workdir,'tmp')
+			@nlog.trace "Creating #{tmpdir} for DSCV"
 			FileUtils.mkdir_p tmpdir
 			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
 				temp_file.write task['args']
@@ -143,20 +143,21 @@ class RealSpawner < Spawner
 				puts "Saved task to temporary file #{temp_file.path}"
 				puts task['args']
 
-				child = fork do
+				fork_callback = proc do
 					set_common_env.call
 					ENV['WORK_DIR'] = workdir
 					ENV['LDV_RULE_DB'] ||= File.join(@home,'kernel-rules','model-db.xml')
-					Dir.chdir task_root do
-						say_and_exec('dscv',"--rawcmdfile=#{temp_file.path}")
-					end
+					Dir.chdir task_root
 				end
-				Process.wait child
+				unless retcode = run_and_log(Logging.logger_for(task['key']),'dscv',"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
+					@nlog.error "Failed to run DSCV for key #{task['key']}."
+				end
+				@nlog.info "Child DSCV exit with code #{retcode}"
 			end
 		when :rcv then
-			puts "DSCV"
 			# Dump taskfile to a temp file
 			tmpdir = File.join(workdir,'tmp')
+			@nlog.trace "Creating #{tmpdir} for RCV"
 			FileUtils.mkdir_p tmpdir
 			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
 				temp_file.write task['args']
@@ -164,15 +165,16 @@ class RealSpawner < Spawner
 				puts "Saved task to temporary file #{temp_file.path}"
 				puts task['args']
 
-				child = fork do
+				fork_callback = proc do
 					set_common_env.call
 					ENV['DSCV_HOME'] = @home
 					ENV['WORK_DIR'] = workdir
-					Dir.chdir task_root do
-						say_and_exec(File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}")
-					end
+					Dir.chdir task_root
 				end
-				Process.wait child
+				unless retcode = run_and_log(Logging.logger_for(task['key']),File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
+					@nlog.error "Failed to run RCV for key #{task['key']}."
+				end
+				@nlog.info "Child RCV exit with code #{retcode}"
 			end
 		end
 	end

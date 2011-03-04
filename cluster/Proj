@@ -22,6 +22,7 @@ packer.rb
 utils.rb
 utils/
 	logging.rb
+	open3.rb
 
 cluster-watcher.rb
 
