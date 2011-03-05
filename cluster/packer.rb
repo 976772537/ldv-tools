@@ -53,7 +53,7 @@ class Packer
 		expanded_files = files.map {|fname| File.expand_path fname }
 
 		@log.warn "Send results package #{package_name}"
-		say_and_run(%w(pax -w -x cpio),expanded_files,"-f",archive_name)
+		say_and_run(%w(pax -O -w -x cpio),expanded_files,"-f",archive_name)
 		# Copy the resultant archive to the server
 		raise "LDV_FILESRV is not set!  Can't sent anything anywhere!" unless filesrv
 		say_and_run("scp",archive_name,filesrv)
