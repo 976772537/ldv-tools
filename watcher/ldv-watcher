@@ -45,7 +45,8 @@ else
 	command = ARGV.shift
 	arguments = ARGV
 
-	$stderr.puts "New watcher: #{({:host => address}.merge opts_p.options).inspect}"
+	# Comment out due to lack of proper logging here
+	#$stderr.puts "New watcher: #{({:host => address}.merge opts_p.options).inspect}"
 	watcher = WatcherRemote.new({:host => address}.merge opts_p.options)
 end
 
@@ -56,7 +57,8 @@ if ENV['LDV_TEST_WAITER_FNAME']
 	# Quick hack: we just replace commas with dots, it's not the best solution...
 	File.open(ENV['LDV_TEST_WAITER_FNAME'],"a") {|f| f.puts "#{(ENV['LDV_SPAWN_KEY']||"<none>").gsub(/,/,'.')}: #{cmd_args.join(" ")}" }
 else
-	$stderr.puts "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
+	## comment out due to lack of proper logging here
+	#$stderr.puts "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
 end
 
 # Log command to a special file
