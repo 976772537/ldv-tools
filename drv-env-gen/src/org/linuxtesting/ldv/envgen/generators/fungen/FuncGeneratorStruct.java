@@ -1,18 +1,24 @@
 package org.linuxtesting.ldv.envgen.generators.fungen;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
-import org.linuxtesting.ldv.envgen.generators.MainGenerator;
+import org.linuxtesting.ldv.envgen.group.GroupKey;
+import org.linuxtesting.ldv.envgen.group.GroupInfo;
+import org.linuxtesting.ldv.envgen.group.Groups;
+import org.linuxtesting.ldv.envgen.group.Var;
 
 
 public class FuncGeneratorStruct implements FuncGenerator {
 
 	private TokenFunctionDecl token;
+	private Map<GroupKey, GroupInfo> theGroups = new HashMap<GroupKey, GroupInfo>();
 	
 	@Override
 	public List<String> generateVarInit() {
@@ -22,25 +28,8 @@ public class FuncGeneratorStruct implements FuncGenerator {
 		Iterator<String> replacementParamsIterator =  replacementParams.iterator();
 		while(replacementParamsIterator.hasNext()) {
 			String replacementParam = replacementParamsIterator.next();
-			String initializedParam = null;
-			/* проверяем - может ли это быть указатель? */
-			int indexOfPointer = replacementParam.indexOf('*');
-			if(indexOfPointer!=-1) {
-				int replaceIndex = replacementParam.indexOf("$var");
-				assert replaceIndex!=-1;
-				try {
-					if((indexOfPointer+1)==replaceIndex || (indexOfPointer<replaceIndex &&
-							replacementParam.substring(indexOfPointer+1, replaceIndex).trim().length()==0)) {
-						if(replacementParam.charAt(indexOfPointer-1)!='(') {
-							String pointerType = replacementParam.substring(0,indexOfPointer+1);
-							initializedParam = getVarName(paramCnt) +" = ("+pointerType+")kmalloc(1,GFP_KERNEL);";
-						}
-					} //else
-				} catch(Exception e) {
-					Logger.debug("DEBUG ===============================================");
-					Logger.debug("rparam :" + replacementParam);
-				}
-			}
+			Var v = Groups.getVar(theGroups, replacementParam, paramCnt, token);
+			String initializedParam = v.getVarInit();
 			paramCnt++;
 			if(initializedParam != null)
 				initParamsList.add(initializedParam);
@@ -63,10 +52,8 @@ public class FuncGeneratorStruct implements FuncGenerator {
 			String replacementParam = replacementParamsIterator.next().trim();
 			if(!replacementParam.equals("...")) {
 				if(!replacementParam.equals("void")) {
-					if(replacementParam.contains("const") && init)
-						paramsList.add(replacementParam.replaceAll("\\$var", getVarName(paramCnt))+"= " + MainGenerator.NONDET_INT + "();");
-					else
-						paramsList.add(replacementParam.replaceAll("\\$var", getVarName(paramCnt))+";");
+					Var v = Groups.getVar(theGroups, replacementParam, paramCnt, token);
+					paramsList.add(v.getVarDeclare(init));
 				}
 			}
 			paramCnt++;
@@ -114,8 +101,9 @@ public class FuncGeneratorStruct implements FuncGenerator {
 				Logger.err("Using default template");
 				checkString = FuncGenerator.SIMPLE_CALL;
 			}
+			Var v = Groups.getVar(theGroups, token.getRetType(), token);
 			checkString = checkString.replaceAll("\\$retvar", 
-					Matcher.quoteReplacement(getRetName()));
+					Matcher.quoteReplacement(v.getVarName()));
 		}
 
 		if(check_label!=null) {
@@ -133,8 +121,9 @@ public class FuncGeneratorStruct implements FuncGenerator {
 				Matcher.quoteReplacement(indent));
 		
 		for(int i=0; i<token.getReplacementParams().size(); i++) {
+			Var v = Groups.getVar(theGroups, token.getReplacementParams().get(i), i, token);
 			checkString = checkString.replaceAll("\\$p" + i, 
-					Matcher.quoteReplacement(getVarName(i)));
+					Matcher.quoteReplacement(v.getVarName()));
 		}
 		return checkString;
 	}
@@ -142,7 +131,9 @@ public class FuncGeneratorStruct implements FuncGenerator {
 	@Override
 	public String generateRetDecl() {
 		assert token.getTestString()!=null && !token.getRetType().contains("void");
-		return token.getRetType() + " " + getRetName() + ";";
+		Var var = Groups.getVar(theGroups, token.getRetType(), token);
+		return var.getVarDeclare(false); 
+		//return token.getRetType() + " " + getRetName() + ";";
 	}
 	
 	private String genFuncCallExpr() {
@@ -154,7 +145,8 @@ public class FuncGeneratorStruct implements FuncGenerator {
 			String replacementParam = replacementParamsIterator.next().trim();
 			if(!replacementParam.equals("...")) {
 				if(!replacementParam.equals("void")) {
-					ifunCall.append(" " + getVarName(paramCnt));
+					Var v = Groups.getVar(theGroups, replacementParam, paramCnt, token);
+					ifunCall.append(" " + v.getVarName());
 					if(replacementParamsIterator.hasNext())
 						ifunCall.append(',');
 				}
@@ -163,13 +155,5 @@ public class FuncGeneratorStruct implements FuncGenerator {
 		}
 		ifunCall.append(")");
 		return ifunCall.toString();
-	}
-
-	private String getVarName(int paramCnt) {
-		return "var_"+ token.getId() + "_p" + paramCnt;
-	}
-
-	private String getRetName() {
-		return "res_" + token.getId();
 	}
 }
