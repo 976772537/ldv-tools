@@ -4,7 +4,7 @@ public class GroupKey {
 	String key;
 	
 	public GroupKey(String replacementParam) {
-		assert key!=null;
+		assert replacementParam!=null;
 		this.key = replacementParam.replaceAll("\\$var", "").trim();
 	}
 
@@ -15,11 +15,27 @@ public class GroupKey {
 
 	@Override
 	public int hashCode() {
-		return key.hashCode();
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((key == null) ? 0 : key.hashCode());
+		return result;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		return key.equals(obj);
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		GroupKey other = (GroupKey) obj;
+		if (key == null) {
+			if (other.key != null)
+				return false;
+		} else if (!key.equals(other.key))
+			return false;
+		return true;
 	}
+
 }

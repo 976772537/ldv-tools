@@ -4,7 +4,6 @@ import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 public class VarInfo {
 	boolean retvar;
-	
 	String replacementParam; 
 	int index; 
 	TokenFunctionDecl token;
@@ -42,8 +41,10 @@ public class VarInfo {
 
 	@Override
 	public String toString() {
-		return "VarInfo [index=" + index + ", replacementParam="
-				+ replacementParam + "]";
+		return "VarInfo [index=" + index 
+				+ ", replacementParam=" + replacementParam 
+				+ ", retvar=" + retvar 
+				+ "]";
 	}
 
 	public boolean isReturnVar() {

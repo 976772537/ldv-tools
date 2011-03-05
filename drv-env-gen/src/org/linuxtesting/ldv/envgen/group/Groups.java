@@ -1,28 +1,51 @@
 package org.linuxtesting.ldv.envgen.group;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 public class Groups {
+
+	private Map<GroupKey, GroupInfo> theGroups = new HashMap<GroupKey, GroupInfo>();
+	private HashSet<Var> declared = new HashSet<Var>();
+	private HashSet<Var> initialized = new HashSet<Var>();
 	
-	public static Var getVar(Map<GroupKey, GroupInfo> theGroups,
-			String retType, TokenFunctionDecl token) {
+	public Var getVar(String retType, TokenFunctionDecl token) {
 		VarInfo info = new VarInfo(token.getRetType(), token);
-		return getVar(theGroups, info);
+		return getVar(info);
 	}
 
-	private static Var getVar(Map<GroupKey, GroupInfo> theGroups, VarInfo info) {
+	public boolean isDeclared(Var v) {
+		return declared.contains(v);
+	}
+	
+	public boolean isInitialized(Var v) {
+		return initialized.contains(v);
+	}
+	
+	public void addDeclared(Var v) {
+		declared.add(v);
+	}
+	
+	public void addInitialized(Var v) {
+		initialized.add(v);
+	}
+	
+	private Var getVar(VarInfo info) {
 		Var resvar;
 		Logger.trace("Create info " + info);
 		if(info.mayBeGrouped()) {
 			GroupKey k = info.getGroupKey();
 			Logger.trace("key=" + k);
 			GroupInfo g;
+			Logger.trace("theGroups=" + theGroups);
 			if(!theGroups.containsKey(k)) {
 				Logger.trace("creating group");
 				g = new GroupInfo(info);
+				theGroups.put(k, g);
 			} else {
 				Logger.trace("existing group");
 				g = theGroups.get(k);				
@@ -37,11 +60,8 @@ public class Groups {
 		return resvar;
 	}
 
-	public static Var getVar(Map<GroupKey, GroupInfo> theGroups,
-			String replacementParam, int paramCnt, TokenFunctionDecl token) {
+	public Var getVar(String replacementParam, int paramCnt, TokenFunctionDecl token) {
 		VarInfo info = new VarInfo(replacementParam, paramCnt, token);
-		return getVar(theGroups, info);
+		return getVar(info);
 	}
-
-
 }

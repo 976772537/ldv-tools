@@ -7,14 +7,22 @@ public abstract class Var {
 	
 	public abstract String getVarName();
 	public abstract String getReplacementParam();
+
+	public abstract int hashCode();
+	public abstract boolean equals(Object obj);
 	
 	public String getVarDeclare(boolean init) {
 		String replacementParam = getReplacementParam();
-		if(replacementParam.contains("const") && init)
-			return replacementParam.replaceAll("\\$var", getVarName())
-			+"= " + MainGenerator.NONDET_INT + "();";
-		else
-			return replacementParam.replaceAll("\\$var", getVarName())+";";
+		String res;
+		if(replacementParam.contains("const") && init) {
+			res = replacementParam.replaceAll("\\$var", getVarName())
+					+"= " + MainGenerator.NONDET_INT + "();";
+		} else {
+			res = replacementParam.replaceAll("\\$var", getVarName())+";";
+		}
+		Logger.trace("generated declare=" + res);
+		
+		return res;
 	}
 	
 	public String getVarInit() {
@@ -38,6 +46,7 @@ public abstract class Var {
 				Logger.debug("rparam :" + replacementParam);
 			}
 		}
+		Logger.trace("generated init=" + initializedParam);
 		return initializedParam;
 	}
 }

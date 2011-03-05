@@ -29,4 +29,20 @@ public class SimpleVar extends Var {
 	private String getRetName() {
 		return "res_" + info.token.getId();
 	}
+
+	@Override
+	public String toString() {
+		return "SimpleVar [info=" + info + "]";
+	}
+
+	@Override
+	public int hashCode() {
+		return System.identityHashCode(this);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return this==obj;
+	}
+	
 }

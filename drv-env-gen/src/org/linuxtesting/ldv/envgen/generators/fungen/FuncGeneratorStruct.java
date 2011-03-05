@@ -1,16 +1,12 @@
 package org.linuxtesting.ldv.envgen.generators.fungen;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
-import org.linuxtesting.ldv.envgen.group.GroupKey;
-import org.linuxtesting.ldv.envgen.group.GroupInfo;
 import org.linuxtesting.ldv.envgen.group.Groups;
 import org.linuxtesting.ldv.envgen.group.Var;
 
@@ -18,7 +14,7 @@ import org.linuxtesting.ldv.envgen.group.Var;
 public class FuncGeneratorStruct implements FuncGenerator {
 
 	private TokenFunctionDecl token;
-	private Map<GroupKey, GroupInfo> theGroups = new HashMap<GroupKey, GroupInfo>();
+	private Groups theGroups = new Groups();
 	
 	@Override
 	public List<String> generateVarInit() {
@@ -28,11 +24,17 @@ public class FuncGeneratorStruct implements FuncGenerator {
 		Iterator<String> replacementParamsIterator =  replacementParams.iterator();
 		while(replacementParamsIterator.hasNext()) {
 			String replacementParam = replacementParamsIterator.next();
-			Var v = Groups.getVar(theGroups, replacementParam, paramCnt, token);
+			Var v = theGroups.getVar(replacementParam, paramCnt, token);
 			String initializedParam = v.getVarInit();
 			paramCnt++;
-			if(initializedParam != null)
-				initParamsList.add(initializedParam);
+			if(initializedParam != null) {
+				if(!theGroups.isInitialized(v)) {
+					initParamsList.add(initializedParam);
+					theGroups.addInitialized(v);
+				} else {
+					Logger.debug("variable is already declared v=" +v);
+				}
+			}
 		}
 		return initParamsList;
 	}
@@ -52,8 +54,13 @@ public class FuncGeneratorStruct implements FuncGenerator {
 			String replacementParam = replacementParamsIterator.next().trim();
 			if(!replacementParam.equals("...")) {
 				if(!replacementParam.equals("void")) {
-					Var v = Groups.getVar(theGroups, replacementParam, paramCnt, token);
-					paramsList.add(v.getVarDeclare(init));
+					Var v = theGroups.getVar(replacementParam, paramCnt, token);
+					if(!theGroups.isDeclared(v)) {
+						paramsList.add(v.getVarDeclare(init));
+						theGroups.addDeclared(v);
+					} else {
+						Logger.debug("variable is already declared v=" +v);
+					}
 				}
 			}
 			paramCnt++;
@@ -101,7 +108,7 @@ public class FuncGeneratorStruct implements FuncGenerator {
 				Logger.err("Using default template");
 				checkString = FuncGenerator.SIMPLE_CALL;
 			}
-			Var v = Groups.getVar(theGroups, token.getRetType(), token);
+			Var v = theGroups.getVar(token.getRetType(), token);
 			checkString = checkString.replaceAll("\\$retvar", 
 					Matcher.quoteReplacement(v.getVarName()));
 		}
@@ -121,7 +128,7 @@ public class FuncGeneratorStruct implements FuncGenerator {
 				Matcher.quoteReplacement(indent));
 		
 		for(int i=0; i<token.getReplacementParams().size(); i++) {
-			Var v = Groups.getVar(theGroups, token.getReplacementParams().get(i), i, token);
+			Var v = theGroups.getVar(token.getReplacementParams().get(i), i, token);
 			checkString = checkString.replaceAll("\\$p" + i, 
 					Matcher.quoteReplacement(v.getVarName()));
 		}
@@ -131,8 +138,16 @@ public class FuncGeneratorStruct implements FuncGenerator {
 	@Override
 	public String generateRetDecl() {
 		assert token.getTestString()!=null && !token.getRetType().contains("void");
-		Var var = Groups.getVar(theGroups, token.getRetType(), token);
-		return var.getVarDeclare(false); 
+		String res;
+		Var var = theGroups.getVar(token.getRetType(), token);
+		if(!theGroups.isDeclared(var)) {
+			res = var.getVarDeclare(false);
+			theGroups.addDeclared(var);
+		} else {
+			Logger.debug("variable is already declared v=" + var);
+			res = "";
+		}
+		return res; 
 		//return token.getRetType() + " " + getRetName() + ";";
 	}
 	
@@ -145,7 +160,7 @@ public class FuncGeneratorStruct implements FuncGenerator {
 			String replacementParam = replacementParamsIterator.next().trim();
 			if(!replacementParam.equals("...")) {
 				if(!replacementParam.equals("void")) {
-					Var v = Groups.getVar(theGroups, replacementParam, paramCnt, token);
+					Var v = theGroups.getVar(replacementParam, paramCnt, token);
 					ifunCall.append(" " + v.getVarName());
 					if(replacementParamsIterator.hasNext())
 						ifunCall.append(',');

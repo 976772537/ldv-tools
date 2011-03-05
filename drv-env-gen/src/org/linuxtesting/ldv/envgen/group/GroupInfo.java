@@ -14,4 +14,13 @@ public class GroupInfo {
 	public String getVarName() {
 		return "var_group" + id;
 	}
+
+	@Override
+	public String toString() {
+		return "GroupInfo [id=" + id + "]";
+	}
+
+	public int getId() {
+		return id;
+	}
 }
