@@ -31,13 +31,14 @@ module Logging
 		end
 	end
 	@@opts = {}
+	Levels = %w(trace debug info normal warn error fatal)
 	def self.ldv_logging_init(_opts)
 		opts = LOGGING_OPTS_DEFAULTS.merge _opts
 		# Save options
 		@@opts = opts.dup
 
 		# Init LDV-specific logging levels
-		init :trace, :debug, :info, :warn, :error, :fatal
+		Logging.init(Levels.map{|l| l.to_sym})
 
 		# Task logger is responsible for displaying tasks information
 		logger['Task'].add_appenders(
@@ -77,7 +78,7 @@ module Logging
 		l.add_appenders(
 			# Per-node logging file output
 			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}.trace"), :level=>:all),
-			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}"),       :level=>:info)
+			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}"),       :level=>:normal)
 			# Consolidated log for all nodes
 			# automaded--due to additivity
 			#mkappender(@@opts[:work_consolidated],       :level=>:info)

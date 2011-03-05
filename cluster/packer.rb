@@ -27,16 +27,23 @@ class Packer
 		local_pack
 	end
 
+	# Unpacks archive specified by file name
+	# NOTE Paths are absolute, so the data will be unpacked to the correct place.
+	def unpack(archive)
+		# Trace log level doesn't work here... I don't know why...
+		@log.add(1, "Unpacking #{archive}")
+		say_and_run(%w(pax -r -O -f),archive)
+	end
+
 	# Downloads package for the key given and unpacks it
 	def download_and_unpack(key,destination)
 		download key,destination
 
 		FileUtils.mkdir_p dir
 		local_pack = File.join dir,name_for(key,destination)
-		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup.
-		# NOTE Paths are absolute, so the data will be unpacked to the correct place.
 		@log.info "Unpacking package for #{key}"
-		say_and_run(%w(pax -r -O -f),local_pack)
+		unpack(local_pack)
+		@log.info "Unpack finished"
 	end
 
 	# Sends files to parent of key, and posts them to the file server via SCP

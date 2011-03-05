@@ -17,6 +17,7 @@ class NaniteSender
 
 	def send(target,payload)
 		Nanite.push(target, payload, :selector => :ldv_selector)
+		#$stderr.puts "Pushed #{payload.inspect}.  Dying in 3 seconds"
 		EM.add_timer(3) { EM.stop }
 	end
 

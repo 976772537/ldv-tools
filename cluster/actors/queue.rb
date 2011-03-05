@@ -53,7 +53,9 @@ class Ldvqueue
 
 			# Add timely loggers (each 5 queue iterations print node statuses)
 			@nodestat_timer.cancel if @nodestat_timer
-			EM.add_periodic_timer(route_timer_interval*5) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
+			@nodestat_timer = EM.add_periodic_timer(route_timer_interval*10) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
+			@queuestat_timer.cancel if @queuestat_timer
+			@queuestat_timer = EM.add_periodic_timer(route_timer_interval*10) { @qlog.debug "Queue status: #{@queued.log}" }
 		end
 
 	end
@@ -90,7 +92,7 @@ class Ldvqueue
 				@running[job][target] ||= []
 				@running[job][target] << task
 
-				@qlog.debug "Routing #{job} with key #{task[:key]} to #{target}."
+				@qlog.info "Routing #{job} with key #{task[:key]} to #{target}."
 				@qlog.trace "Routed task: #{task.inspect}"
 
 				Nanite.push("/ldvnode/#{job}", task, :target => target)

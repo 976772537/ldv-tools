@@ -84,17 +84,14 @@ class WatcherRemote < Watcher
 	end
 
 	public; def unpack(path,contents)
-		#$stderr.puts "Unpack!"
 		# We ignore +path+ since it's hardcoded in the archive
 		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
 
 		# First, print archive contents to notify the user what files we have here
-		say_and_run(%w(pax -O -f),contents)
+		say_and_run(%w(pax -O -f),contents, :no_capture_stdout => true)
 
 		# FIXME: during development we ignore the error in unpacking
-		# NOTE: Currently, the package is transferred to the local machine in @waiter.  Should make a better mechanism for that.
-		say_and_run(%w(pax -r -O -f),contents)
-		$log.warn "Unpacking finished!"
+		packer.unpack contents
 		return nil # Suppress printing
 	end
 

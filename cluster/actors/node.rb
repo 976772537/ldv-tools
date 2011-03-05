@@ -13,8 +13,8 @@ class Spawner
 
 	# Check if +directory+ is already a mountpoint
 	def self.mounted dir
-		$stderr.write "Check if #{dir} is mounted..."
-		r = Kernel.system("mountpoint",dir)
+		Logging.logger['Node'].trace "Check if #{dir} is mounted..."
+		r = say_and_run("mountpoint",dir)
 		raise "Your system doesn't have 'mountpoint' command!  Report this to the developers!" if r.nil?
 		Logging.logger['Node'].debug r
 		r
@@ -103,7 +103,7 @@ class RealSpawner < Spawner
 
 			# Set environment specified in the task
 			task['env'].each { |var,val| ENV[var] = val.to_s }
-			task['env'].each { |var,val| puts "Env: #{var} = '#{val.to_s}'" }
+			task['env'].each { |var,val| @nlog.debug "Set env: #{var} = '#{val.to_s}'" }
 		end
 
 		# Workdir
@@ -112,6 +112,7 @@ class RealSpawner < Spawner
 		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
 
 		@packer = Packer.new(task['global']['root'],task['global']['filesrv'])
+		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup.
 		@packer.download_and_unpack spawn_key,:from_parent
 
 		# Run job-specific targets
@@ -140,8 +141,8 @@ class RealSpawner < Spawner
 			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
 				temp_file.write task['args']
 				temp_file.close
-				puts "Saved task to temporary file #{temp_file.path}"
-				puts task['args']
+				@nlog.debug "Saved task to temporary file #{temp_file.path}"
+				@nlog.trace task['args']
 
 				fork_callback = proc do
 					set_common_env.call
@@ -162,8 +163,8 @@ class RealSpawner < Spawner
 			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
 				temp_file.write task['args']
 				temp_file.close
-				puts "Saved task to temporary file #{temp_file.path}"
-				puts task['args']
+				@nlog.debug "Saved task to temporary file #{temp_file.path}"
+				@nlog.trace task['args']
 
 				fork_callback = proc do
 					set_common_env.call
