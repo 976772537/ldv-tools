@@ -84,6 +84,11 @@ end
 
 def say_and_run(*args_)
 	args = args_.flatten
+	if Hash === args.last
+		opts = args.pop
+	else
+		opts = {}
+	end
 	# FIXME : set up logger in a more documented way
 	lgr = Logging.logger['Node']
 	lgr.debug "Running: #{args.inspect}"
@@ -91,8 +96,16 @@ def say_and_run(*args_)
 		line = cerr.readline
 		lgr.debug line.chomp
 	end
-	cout_handler = proc do |pid,cout|
-	  lgr.info cout.readline.chomp
+	# Do not capture stdout if we're told not to
+	if opts[:no_capture_stdout]
+		cout_handler = proc do |pid,cout|
+			# We should reap the contents of a stream anyway, or we'll loop forever
+			cout.readline
+		end
+	else
+		cout_handler = proc do |pid,cout|
+			lgr.info cout.readline.chomp
+		end
 	end
 
 	retcode = open3_callbacks(cout_handler,cerr_handler,*args)
@@ -103,17 +116,51 @@ end
 def run_and_log(logger,*args_)
 	args = args_.flatten
 	logger.info "Running: #{args.inspect}"
+	# Error handler reads from stderr stream of the process spawned.  LDV tools (hopefully) write information about their work there in the following format:
+	#   tool: SEVERITY: message
+	#   tool: SEVERITY: message
+	#
+	# etc.  Messages that don't comply are treated as errors by default.
+	# We strip severity from these messages and print them to our logger with the same severity.
 	cerr_handler = proc do |pid,cerr|
-		line = cerr.readline
-	  logger.debug line.chomp
+		line = cerr.readline.chomp
+		if md = /([^:].*): ([A-Z]*): (.*)/.match(line)
+			severity = md[2].downcase
+			fixed_line = "#{md[1]}: #{md[3]}"
+			logger.send(severity,fixed_line)
+		else
+			# It's a strange line, print as error
+			logger.error line.chomp
+		end
 	end
+	# Some tools in LDV print something to STDOUT.  This includes ldv-manager (wich is, essentially, makefile) and, perhaps, other tools.  We assign "Info" severity to these messages
 	cout_handler = proc do |pid,cout|
-	  logger.info cout.readline.chomp
+		#logger.info cout.readline.chomp
+		line = cout.readline
+		if md = /([^:].*): ([A-Z]*): (.*)/.match(line)
+			severity = md[2].downcase
+			if Logging::Levels.include? severity
+				fixed_line = "#{md[1]}: #{md[3]}"
+				logger.send(severity,fixed_line)
+				return
+			end
+			# Unknown severity; perhaps, this line is not about logging?
+		end
+
+		# It's a strange line, print as error
+		logger.error line.chomp
 	end
+	#cerr_handler = proc do |pid,cerr|
+		#line = cerr.readline
+		#logger.debug line.chomp
+	#end
+	#cout_handler = proc do |pid,cout|
+		#logger.info cout.readline.chomp
+	#end
 
 	retcode = open3_callbacks(cout_handler,cerr_handler,*args)
 
-	logger.info "Finished with code #{retcode}"
+	logger.debug "Finished #{args.inspect} with code #{retcode}"
 
 	retcode
 end
