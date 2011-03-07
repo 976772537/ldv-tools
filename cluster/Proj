@@ -4,10 +4,12 @@
 = External interface
 	ldvc-node
 	ldvc-master
+	ldvc-task
 
 ldvc-mapper
 ldvc-queue
 ldvc-node-impl
+ldvc-task-impl
 
 ldvc-wait-task
 
@@ -29,9 +31,11 @@ cluster-watcher.rb
 actors/
 	queue.rb
 	node.rb
+	nodeui.rb
 init.rb
 tester.rb
 node.rb
+ui.rb
 
 README
 Makefile

@@ -77,6 +77,21 @@ class Waiter
 		end
 	end
 
+	# Calls the block supplied when the result is received.  The key is an AMQP topic exchange key.
+	def wait_async(key)
+		# Issue a blocking binding, and wait for a result
+		packet = nil
+		@log.warn "Waiting for tasks with key #{key}..."
+		self.queue.bind(topic, :key=>key).subscribe do |header, body|
+			# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
+			received_key = header.properties[:routing_key]
+			@log.warn "Received results for key: #{received_key}"
+			packet = serializer.load(body)
+
+			yield received_key, packet
+		end
+	end
+
 	# Signal that a job is done.
 	def job_done(key,payload)
 		@log.debug "Trying to send a result message to key #{key}..."

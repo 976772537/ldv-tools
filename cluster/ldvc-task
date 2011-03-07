@@ -1,0 +1,11 @@
+#!/bin/bash
+# User-interface for the cluster
+
+LDV_HOME=`readlink -f \`dirname $0\`/../`;
+export CLUSTER_HOME=$LDV_HOME/cluster
+export GEM_HOME=$CLUSTER_HOME/ruby
+export PATH=$CLUSTER_HOME:$CLUSTER_HOME/ruby-bin:$PATH
+
+# Threadpool is necessary for spawning child processes.  Keep that number as at least "the number of children you're going to run plus one"
+exec ldvc-task-impl --nanite $CLUSTER_HOME --format json "$@"
+

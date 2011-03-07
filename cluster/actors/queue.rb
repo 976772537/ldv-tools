@@ -1,7 +1,7 @@
 class Ldvqueue
 
 	include Nanite::Actor
-	expose :queue, :redo, :announce, :remove, :result, :purge_task
+	expose :queue, :redo, :announce, :remove, :result, :purge_task, :get_unique_key
 
 	attr_accessor :nodes, :queued, :running, :waiter
 
@@ -60,6 +60,26 @@ class Ldvqueue
 
 	end
 
+	# Given a key prefix, returns a number to this key
+	def get_unique_key(key_info)
+		key_skel = key_info['key']
+		reply_to = key_info['reply_to']
+
+		@qlog.debug "Unique key requested for #{key_skel}"
+		# EventMachine calls handlers synchronously, so no mutex here.
+		@key_pool ||= {}
+		# FIXME: read this from file
+		@key_pool[key_skel] ||= 100
+		new_key = @key_pool[key_skel] += 1
+		new_key_str = "#{key_skel}.#{new_key}"
+
+		@qlog.info "Unique key requested for #{key_skel}.  Sending: #{new_key_str}"
+
+		new_key_str
+
+		# Launch the task on the node given
+		#Nanite.push('/nodeui/take_unique_key',"#{key_skel}.#{new_key}",:target=>reply_to)
+	end
 
 	# Fetch task from task queue, selects node to route it to, and pushes it to the cluster
 	def route_task

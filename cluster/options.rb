@@ -42,6 +42,26 @@ class ClusterOptionsParser
 				options[:play_scenario] = fname
 			end
 			
+			opts.on("--key KEY", "Launch task in the namespace specified") do |val|
+				options[:key] = val
+			end
+
+			opts.on("--workdir DIR", "Working directory for cluster.  Will be shared across the cloud.") do |val|
+				options[:workdir] = val
+			end
+
+			opts.on("--ssh-user DIR", "SSH user for mounting SSHFS over the cloud") do |val|
+				options[:sshuser] = val
+			end
+
+			opts.on("--ssh-host DIR", "SSH host for mounting SSHFS over the cloud") do |val|
+				options[:sshhost] = val
+			end
+
+			opts.on("--file-server user@host:/folder", "SSH file server to exchange files in the cloud.  Auth by key.") do |val|
+				options[:filesrv] = val
+			end
+
 			
 			opts.on("--actors-dir DIR", "Path to directory containing actors (NANITE_ROOT/actors by default)") do |dir|
 				options[:actors_dir] = dir

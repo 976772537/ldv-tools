@@ -31,8 +31,11 @@ module Logging
 		end
 	end
 	@@opts = {}
+	def self.opts
+		@@opts
+	end
 	Levels = %w(trace debug info normal warn error fatal)
-	def self.ldv_logging_init(_opts)
+	def self.ldv_logging_smallinit(_opts)
 		opts = LOGGING_OPTS_DEFAULTS.merge _opts
 		# Save options
 		@@opts = opts.dup
@@ -40,6 +43,14 @@ module Logging
 		# Init LDV-specific logging levels
 		Logging.init(Levels.map{|l| l.to_sym})
 
+		# Create a generic logger
+		logger['Generic'].add_appenders(
+			mkappender(:stdout, :level=>:info)
+		)
+	end
+
+	def self.ldv_logging_init(_opts)
+		ldv_logging_smallinit _opts
 		# Task logger is responsible for displaying tasks information
 		logger['Task'].add_appenders(
 			mkappender(opts[:master_status], :level=>:info),
@@ -59,7 +70,8 @@ module Logging
 		)
 		# Log for nanite-related node events
 		logger['Nanite'].add_appenders(
-			mkappender(opts[:node_verbose], :level=>:all)
+			mkappender(opts[:node_verbose], :level=>:all),
+			mkappender(opts[:node_status], :level=>:error)
 		)
 		# Consolidate all node loggers
 		consolidate 'Node'
