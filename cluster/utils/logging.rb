@@ -74,7 +74,7 @@ module Logging
 			mkappender(opts[:node_status], :level=>:error)
 		)
 		# Consolidate all node loggers
-		consolidate 'Node'
+		#consolidate 'Node'
 	end
 
 	# Hask key -> logger
@@ -84,18 +84,31 @@ module Logging
 		@@key_logger[key] ||= new_logger_for(key)
 	end
 
+	# Hash key -> appender -- for cleanup
+	@@key_appenders = {}
 	def self.new_logger_for key
 		l = logger["Node::#{key}"]
 		l.additive = true	# copy to the consolidated logger
-		l.add_appenders(
+		@@key_appenders[key] = [
 			# Per-node logging file output
 			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}.trace"), :level=>:all),
 			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}"),       :level=>:normal)
-			# Consolidated log for all nodes
-			# automaded--due to additivity
-			#mkappender(@@opts[:work_consolidated],       :level=>:info)
-		)
+		]
+		#reopen appenders if necessary (they may have been closed_
+		@@key_appenders[key].each{|a| a.reopen if a.closed?}
+		# Add appenders and merge them with consolidated appenders
+		l.add_appenders(@@key_appenders[key][0],@@key_appenders[key][1])#,
+			# Consolidated logs for all nodes somehow works as is...
+			#mkappender(opts[:node_status], :level=>:info),
+			#mkappender(opts[:node_verbose], :level=>:all)
+		#)
 		l
+	end
+
+	def self.cleanup_for key
+		if appenders = @@key_appenders[key]
+			appenders.each {|a| a.close }
+		end
 	end
 end
 

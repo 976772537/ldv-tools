@@ -119,17 +119,22 @@ class RealSpawner < Spawner
 		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup.
 		@packer.download_and_unpack spawn_key,:from_parent
 
+		# Local logger for the current task.
+		# We store its name to close it afterwards, as it consumes open filehandlers, and we may run out of their limit
+		local_logger = Logging.logger_for(task['key'])
+
 		# Run job-specific targets
 		# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
 		# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
-		case job_type
+		begin; case job_type
 		when :ldv then
 			# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
 			@nlog.trace "Creating #{workdir} for LDV"
 			# We should create logger outside of chdir, since it may contain relative paths
-			ldv_logger = Logging.logger_for(task['key'])
+			ldv_logger = local_logger
 			# PAX with results; created by ldv-manager
-			result_pax = File.join(local_tmpdir,"result.pax")
+			# It's important for the filename to be key-specific, as results from a previous launch may get sent
+			result_pax = File.join(local_tmpdir,"result.#{task['key']}.pax")
 
 			fork_callback = proc do
 				# NOTE that we do not set WORK_DIR here, since it may affect ldv-manager.
@@ -162,7 +167,7 @@ class RealSpawner < Spawner
 					ENV['LDV_RULE_DB'] ||= File.join(@home,'kernel-rules','model-db.xml')
 					Dir.chdir task_root
 				end
-				unless retcode = run_and_log(Logging.logger_for(task['key']),'dscv',"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
+				unless retcode = run_and_log(local_logger,'dscv',"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
 					@nlog.error "Failed to run DSCV for key #{task['key']}."
 				end
 				@nlog.info "Child DSCV exit with code #{retcode}"
@@ -184,11 +189,13 @@ class RealSpawner < Spawner
 					ENV['WORK_DIR'] = workdir
 					Dir.chdir task_root
 				end
-				unless retcode = run_and_log(Logging.logger_for(task['key']),File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
+				unless retcode = run_and_log(local_logger,File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
 					@nlog.error "Failed to run RCV for key #{task['key']}."
 				end
 				@nlog.info "Child RCV exit with code #{retcode}"
 			end
+		end; ensure
+			Logging.cleanup_for task['key'] if task['key']
 		end
 	end
 end
