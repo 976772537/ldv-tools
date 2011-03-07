@@ -57,11 +57,11 @@ class Waiter
 	def wait_for(key) 
 		# Issue a blocking binding, and wait for a result
 		packet = nil
-		@log.warn "Waiting for tasks with key #{key}..."
+		@log.info "Waiting for tasks with key #{key}..."
 		self.queue.bind(topic, :key=>key).subscribe do |header, body|
 			# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
 			received_key = header.properties[:routing_key]
-			@log.warn "Received results for key: #{received_key}"
+			@log.info "Received results for key: #{received_key}"
 			packet = serializer.load(body)
 			# Copy packet's data to a proper place and fill in the following vars
 			contents = packer.download received_key, :to_parent
@@ -81,11 +81,11 @@ class Waiter
 	def wait_async(key)
 		# Issue a blocking binding, and wait for a result
 		packet = nil
-		@log.warn "Waiting for tasks with key #{key}..."
+		@log.info "Waiting for tasks with key #{key}..."
 		self.queue.bind(topic, :key=>key).subscribe do |header, body|
 			# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
 			received_key = header.properties[:routing_key]
-			@log.warn "Received results for key: #{received_key}"
+			@log.info "Received results for key: #{received_key}"
 			packet = serializer.load(body)
 
 			yield received_key, packet
