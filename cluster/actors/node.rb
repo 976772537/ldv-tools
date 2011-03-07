@@ -111,7 +111,7 @@ class RealSpawner < Spawner
 
 		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
 
-		@packer = Packer.new(task['global']['root'],task['global']['filesrv'])
+		@packer = Packer.new(File.join(task['global']['root'],'incoming'),task['global']['filesrv'])
 		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup.
 		@packer.download_and_unpack spawn_key,:from_parent
 

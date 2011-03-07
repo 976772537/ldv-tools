@@ -30,7 +30,7 @@ class WatcherRemote < Watcher
 		@waiter ||= Waiter.new(REMOTE_OPTS.merge(opts))
 	end
 	def packer
-		@packer ||= Packer.new(opts[:namespace_root],opts[:filesrv])
+		@packer ||= Packer.new(File.join(opts[:namespace_root],'incoming'),opts[:filesrv])
 	end
 
 	def sender

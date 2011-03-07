@@ -50,7 +50,7 @@ class Waiter
 	end
 
 	def packer
-		@pakcker ||= Packer.new(@options[:namespace_root],@options[:filesrv])
+		@pakcker ||= Packer.new(File.join(@options[:namespace_root],'incoming'),@options[:filesrv])
 	end
 
 	# Waits for the key specified.  The key is an AMQP topic exchange key

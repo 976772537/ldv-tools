@@ -8,7 +8,7 @@ require File.join(File.dirname(__FILE__),'utils.rb')
 class Packer
 	# Create new packer.  Inits with namespace root dir.
 	def initialize(namespace_workdir,filesrv)
-		@dir = File.join namespace_workdir, 'incoming'
+		@dir = namespace_workdir
 		@log = Logging.logger['Node']
 		@filesrv = filesrv
 	end
