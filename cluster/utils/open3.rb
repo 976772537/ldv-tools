@@ -29,17 +29,13 @@ module MyOpen3
 		cmop = cmd.dup.push opts 
 		pid = fork{
 			# child
-			fork{
-				# grandchild
-				STDIN.reopen(opts[:in])
-				STDOUT.reopen(opts[:out])
-				STDERR.reopen(opts[:err])
+			STDIN.reopen(opts[:in])
+			STDOUT.reopen(opts[:out])
+			STDERR.reopen(opts[:err])
 
-				opts[:fork_callback].call if opts[:fork_callback]
+			opts[:fork_callback].call if opts[:fork_callback]
 
-				exec(*cmd)
-			}
-			exit!(0)
+			exec(*cmd)
 		}
 		wait_thr = Process.detach(pid)
 		# Save PID in thread to comply to Ruby1.9-like api.  Crazy, huh?

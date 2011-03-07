@@ -75,7 +75,6 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 				end
 			end
 		end
-		# FIXME: in stupid Ruby 1.8 we can't get exit status of the process... shit.
 		code = thr.value
 	end
 	# Return code, either nil if something bad happened, or the actual return code if we were successful
