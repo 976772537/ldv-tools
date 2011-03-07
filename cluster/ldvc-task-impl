@@ -78,6 +78,9 @@ EM.run do
 			Nanite.push('/nodeui/take_unique_key',res.values.first)
 		end
 	end
+
+	# We fall into the infinite event loop, which is terminated upon receiving results in take_unique_key.
+	# Good luck!
 end
 
 

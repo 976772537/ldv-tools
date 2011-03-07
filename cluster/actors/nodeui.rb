@@ -38,6 +38,7 @@ class Nodeui
 	end
 
 	attr_accessor :packer
+	MAX_ATTEMPTS = 10
 	# Gets unique key from node, and launches a task with this key
 	def take_unique_key(key)
 		@log.info "Received key: #{key}"
@@ -65,13 +66,25 @@ class Nodeui
 
 		# Asynchronously wait for the task to finish
 		Waiter.new(opts).wait_async key do |received_key,_|
-			@log.info "Task #{received_key.inspect} has finished!"
-			package = packer.download received_key, :to_parent
+			@log.info "Task #{received_key.inspect} has finished!  Still, results may not have been uploaded.  Waiting for some time."
+			attempts = 0
+			begin
+				if attempts > 0
+					@log.info "Package is not yet ready"
+					Kernel.sleep(5)
+				end
+				attempts += 1
+				package = packer.download received_key, :to_parent
+			end while !package && attempts < MAX_ATTEMPTS
 
-			# Copy package to the current folder
-			target_fname = File.basename(package)
-			FileUtils.cp package, target_fname
-			@log.info "Your results are stored in #{target_fname}"
+			unless package
+				@log.error "Maximal number of attempts reached, package is still not downloaded.  Something bad happened."
+			else
+				# We do not need to copy package to the current folder--as we have initalized packer to use cwd as the working one
+				@log.info "Your results are stored in #{package}"
+				# Gracefully exit
+				EM.stop_event_loop
+			end
 		end
 	end
 

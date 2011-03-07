@@ -111,6 +111,10 @@ class RealSpawner < Spawner
 
 		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
 
+		# Tempdir for local computation; will be wiped in this method (at least) or when clearing namespace data (at worst)
+		local_tmpdir = File.join(task['global']['root'],'tmp')
+		FileUtils.mkdir_p local_tmpdir
+
 		@packer = Packer.new(File.join(task['global']['root'],'incoming'),task['global']['filesrv'])
 		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup.
 		@packer.download_and_unpack spawn_key,:from_parent
@@ -124,15 +128,23 @@ class RealSpawner < Spawner
 			@nlog.trace "Creating #{workdir} for LDV"
 			# We should create logger outside of chdir, since it may contain relative paths
 			ldv_logger = Logging.logger_for(task['key'])
+			# PAX with results; created by ldv-manager
+			result_pax = File.join(local_tmpdir,"result.pax")
+
 			fork_callback = proc do
 				# NOTE that we do not set WORK_DIR here, since it may affect ldv-manager.
 				set_common_env.call
+				# Instruct LDV-manager to copy results to the file we specified, not just store a weirdly-named file in the results dir
+				ENV['LDV_COPY_RESULTS_TO'] = result_pax
 				Dir.chdir workdir
 			end
 			unless retcode = run_and_log(ldv_logger,'ldv-manager', :fork_callback => fork_callback)
 				@nlog.error "Failed to run ldv-manager for key #{task['key']}."
 			end
 			@nlog.info "Child LDV exit with code #{retcode}"
+			# Results are copied to result_pax, send them
+			@packer.send_files [task['key']], :to_parent, [result_pax], :no_package => true
+			@nlog.info "LDV package with results is sent!"
 		when :dscv then
 			# Dump taskfile to a temp file
 			tmpdir = File.join(workdir,'tmp')

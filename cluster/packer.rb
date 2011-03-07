@@ -16,15 +16,20 @@ class Packer
 	attr_accessor :dir,:filesrv
 
 	# Downloads package to the special local folder
-	# Returns local file with package
+	# Returns local file with package or nil if there is a download error
 	def download(key,destination)
 		@log.info "Downloading package for #{key}"
 
 		FileUtils.mkdir_p dir
 		local_pack = File.join dir,name_for(key,destination)
-		say_and_run("scp","#{filesrv}/#{name_for(key,destination)}",local_pack)
+		retcode = say_and_run("scp","#{filesrv}/#{name_for(key,destination)}",local_pack)
+		@log.debug "scp retcode: #{retcode.inspect}"
 
-		local_pack
+		if retcode && retcode == 0
+			local_pack
+		else
+			nil
+		end
 	end
 
 	# Unpacks archive specified by file name
@@ -37,7 +42,7 @@ class Packer
 
 	# Downloads package for the key given and unpacks it
 	def download_and_unpack(key,destination)
-		download key,destination
+		download key,destination or return
 
 		FileUtils.mkdir_p dir
 		local_pack = File.join dir,name_for(key,destination)
@@ -53,22 +58,30 @@ class Packer
 		@log.debug "call send_files: name: #{package_name.inspect}, fi: #{files.inspect}"
 		return true if files.empty?
 
+		# The files supplied are to be packed and sent
 		archive_name = File.join(dir,package_name)
 		FileUtils.mkdir_p File.dirname archive_name
 
-		if rewrite = opts[:rewrite]
-			expanded_files = files
-			rewrite_paths = rewrite
-		else
-			# By default -- expand file names to absolute, so that the archive would unpack at the receiver's site easily
-			expanded_files = files.map {|fname| File.expand_path fname }
-			rewrite_paths = nil
-		end
+		unless opts[:no_package]
+			if rewrite = opts[:rewrite]
+				expanded_files = files
+				rewrite_paths = rewrite
+			else
+				# By default -- expand file names to absolute, so that the archive would unpack at the receiver's site easily
+				expanded_files = files.map {|fname| File.expand_path fname }
+				rewrite_paths = nil
+			end
 
-		@log.warn "Send results package #{package_name}"
-		pax_args = [%w(pax -O -w -x cpio),expanded_files,"-f",archive_name]
-		pax_args.push('-s',rewrite_paths) if rewrite_paths
-		say_and_run(*pax_args)
+			@log.info "Send results package #{package_name}"
+			pax_args = [%w(pax -O -w -x cpio),expanded_files,"-f",archive_name]
+			pax_args.push('-s',rewrite_paths) if rewrite_paths
+			say_and_run(*pax_args)
+		else
+			# The file supplied (there should be only one) is a package itself to be sent
+			raise "In no_package mode there should only be one package (not #{files.size}: #{files.inspect})" unless files.size == 1
+			@log.debug "no_package mode. Copying from #{files[0]} to #{archive_name}"
+			FileUtils.cp files[0], archive_name
+		end
 		# Copy the resultant archive to the server
 		raise "LDV_FILESRV is not set!  Can't sent anything anywhere!" unless filesrv
 		say_and_run("scp",archive_name,filesrv)
