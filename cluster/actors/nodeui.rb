@@ -55,7 +55,7 @@ class Nodeui
 			:workdir=> opts[:workdir],
 			:key => key,
 			:env => opts[:env],
-			:global => {:sshuser=>opts[:sshuser], :host => opts[:sshhost], :root => opts[:workdir], :filesrv=>opts[:filesrv]}
+			:global => {:sshuser=>opts[:sshuser], :host => opts[:sshhost], :root => opts[:workdir], :filesrv=>opts[:filesrv], :env => opts[:env]}
 		}
 		@log.debug "Task prepared, here it is: #{task.inspect}.  Sending."
 		initialize_death_clock('/ldvqueue/queue')

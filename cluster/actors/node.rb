@@ -111,7 +111,10 @@ class RealSpawner < Spawner
 			# Set information about where to place files
 			ENV['LDV_FILES_TMPDIR'] = local_tmpdir
 
-			# Set environment specified in the task
+			# Set global environemnt in the namespace
+			task['global']['env'].each { |var,val| ENV[var] = val.to_s }
+			task['global']['env'].each { |var,val| @nlog.debug "Set global env: #{var} = '#{val.to_s}'" }
+			# Set environment specified in the task (overrides that of namespace)
 			task['env'].each { |var,val| ENV[var] = val.to_s }
 			task['env'].each { |var,val| @nlog.debug "Set env: #{var} = '#{val.to_s}'" }
 		end
