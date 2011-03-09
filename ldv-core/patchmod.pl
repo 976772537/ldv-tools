@@ -364,7 +364,7 @@ sub apply_one_patch {
 		}else{
 			$patch_for_user =~ s/$config->{patch}\/+(.*)/$1/;
 		}
-		$patch_msg="\n\n Couldn't apply patch $patch_for_user: see rejected chunks above.\n\n".$patch_msg;
+		$patch_msg="\n\n Couldn't apply patch $patch_for_user: see the rejected chunks below.\nPerhaps, the patch simply does not fit this kernel version?\n\n".$patch_msg;
 		report_and_exit($config, $patch_msg) if $state eq 'FAILED';
 	}
 }

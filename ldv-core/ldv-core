@@ -730,7 +730,9 @@ sub prepare_driver {
 				if(is_contains_patch($config->{'driver'}) == 1) {
 					prepare_patch();
 				} else {
-					ldv_report_and_exit("File \"$config->{'driver'}\" - is not a patch or driver archive");
+					# We do not want to embarass user with our long irrelevant paths...
+					my $filename_to_report = basename($config->{'driver'});
+					ldv_report_and_exit("File \"$filename_to_report\" - is not a patch or driver archive");
 				}
 			} else {
 				ldv_report_and_exit("Source type \"$type\" not supported");
