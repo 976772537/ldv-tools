@@ -56,31 +56,39 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 		pid = thr[:pid]
 		# Close input at once, as we don't use it
 		cin.close_write
-		# If the End-Of-File is reached on some of the streams, then the process might have already ended
-		while !cout.eof? || !cerr.eof?
-			r = select([cout,cerr],nil,nil,10)
+		# If the End-Of-File is reached on all of the streams, then the process might have already ended
+		non_eof_streams = [cerr,cout]
+		while non_eof_streams.length > 0
+			timeout = 4
+			r = select(non_eof_streams,nil,nil,timeout)
+			# If nothing happened during a timeout, issue a warning and try again
+			unless r
+				next
+			end
 			#puts r.inspect
 			if r[0].include? cerr
 				begin
 					cerr_callback[pid,cerr]
 				rescue EOFError
-					#did_eof = true
+					non_eof_streams.delete_if {|s| s==cerr}
 				end
 			end
 			if r[0].include? cout
 				begin
 					cout_callback[pid,cout]
 				rescue EOFError
-					#did_eof = true
+					non_eof_streams.delete_if {|s| s==cout}
 				end
 			end
 		end
+		# Reap process status
 		code = thr.value
 	end
 	# Return code, either nil if something bad happened, or the actual return code if we were successful
 	return code
 end
 
+# Say_and_run that uses open3 to write proper logs
 def say_and_run(*args_)
 	args = args_.flatten
 	if Hash === args.last
