@@ -28,6 +28,8 @@ module MyOpen3
 		# Backport: merge opts and cmd
 		cmop = cmd.dup.push opts 
 		pid = fork{
+			# Since we inherited all filehandlers, we should close those that belong to the parent
+			parent_io.each {|io| io.close}
 			# child
 			STDIN.reopen(opts[:in])
 			STDOUT.reopen(opts[:out])
