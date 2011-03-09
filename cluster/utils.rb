@@ -172,6 +172,13 @@ def run_and_log(logger,*args_)
 	retcode
 end
 
+# Sometimes open3 version of say_and_run doesn't work (because child doesn't close handlers, for instance).  This version won't log output, but will work, at least
+def say_and_run_FIXME(*_args)
+	args = _args.flatten
+	$stderr.puts "Running: #{args.inspect}"
+	Kernel.system *args
+end
+
 def say_and_exec(*args)
 	Logging.logger['Node'].debug "Running (exec): #{args.inspect}"
 	Kernel.exec *args

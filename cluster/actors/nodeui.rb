@@ -67,6 +67,11 @@ class Nodeui
 		# Asynchronously wait for the task to finish
 		Waiter.new(opts).wait_async key do |received_key,_|
 			@log.info "Task #{received_key.inspect} has finished!  Still, results may not have been uploaded.  Waiting for some time."
+
+			# Because we can't get return codes reliably, we can't iterate and just wait instead.
+			@log.warn "FIXME: wait for 1 minute before downloading your pack!"
+			Kernel.sleep(60)
+
 			attempts = 0
 			begin
 				if attempts > 0

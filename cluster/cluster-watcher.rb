@@ -30,7 +30,9 @@ class WatcherRemote < Watcher
 		@waiter ||= Waiter.new(REMOTE_OPTS.merge(opts))
 	end
 	def packer
-		@packer ||= Packer.new(File.join(opts[:namespace_root],'incoming'),opts[:filesrv])
+		# Use directory set up from env
+		#FileUtils.mkdir_p File.join('incoming') 
+		@packer ||= Packer.new(ENV['LDV_FILES_TMPDIR'],opts[:filesrv])
 	end
 
 	def sender
@@ -80,7 +82,7 @@ class WatcherRemote < Watcher
 		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
 
 		# First, print archive contents to notify the user what files we have here
-		say_and_run(%w(pax -O -f),contents, :no_capture_stdout => true)
+		say_and_run_FIXME(%w(pax -O -f),contents)# FIXME, :no_capture_stdout => true)
 
 		# FIXME: during development we ignore the error in unpacking
 		packer.unpack contents

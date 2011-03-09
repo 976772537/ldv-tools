@@ -34,8 +34,9 @@ class Spawner
 			FileUtils.mkdir_p(mount_target)
 			# We user "read-only" to mount from SSH as our workflow doesn't allow writes this way.  Perhaps, after debugging, we'll discard this option.
 			@nlog.trace "Mounting remote filesystem"
+
 			ssh_args = ["sshfs","-o","ro","#{user}@#{host}:#{dir}",mount_target]
-			sshed = say_and_run(ssh_args)
+			sshed = say_and_run_FIXME(*ssh_args)
 			unless sshed
 				raise "SSHFSing failed #{args.inspect}.  Did you install SSHFS?  Is the host reachable?"
 			end
@@ -72,7 +73,7 @@ class Spawner
 			# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
 			unless ip_localhost? host
 				unionfs_args = ["unionfs","-o","cow","#{workdir}=RW:#{sshdir}=RO",root]
-				unioned = say_and_run(unionfs_args)
+				unioned = say_and_run_FIXME(*unionfs_args)
 				unless unioned
 					raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"
 				end
@@ -92,6 +93,11 @@ class RealSpawner < Spawner
 	end
 
 	def spawn_child(job_type,task,spawn_key)
+		# Tempdir for local computation; will be wiped in this method (at least) or when clearing namespace data (at worst)
+		local_tmpdir = File.expand_path File.join('tmp',task['global']['root'])
+		FileUtils.mkdir_p local_tmpdir
+		@nlog.info "LOCAL TMPDIR: #{local_tmpdir}"
+
 		# We don't set environment variables at once, because it would alter global environment, which is not thread-safe (for forked children).  Thus, we just create a proc, and call it in all the forked kids (to collect all the common code that sets ENV in one place).
 		set_common_env = proc do
 			ENV['LDV_SPAWN_KEY'] = spawn_key
@@ -100,6 +106,9 @@ class RealSpawner < Spawner
 			# Set information for packer that will read it when watcher is invoked from a child process
 			ENV['LDV_FILESRV'] = task['global']['filesrv']
 			ENV['LDV_NAMESPACE_ROOT'] = task['global']['root']
+
+			# Set information about where to place files
+			ENV['LDV_FILES_TMPDIR'] = local_tmpdir
 
 			# Set environment specified in the task
 			task['env'].each { |var,val| ENV[var] = val.to_s }
@@ -111,11 +120,8 @@ class RealSpawner < Spawner
 
 		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
 
-		# Tempdir for local computation; will be wiped in this method (at least) or when clearing namespace data (at worst)
-		local_tmpdir = File.join(task['global']['root'],'tmp')
-		FileUtils.mkdir_p local_tmpdir
-
-		@packer = Packer.new(File.join(task['global']['root'],'incoming'),task['global']['filesrv'])
+		FileUtils.mkdir_p File.join(local_tmpdir,'incoming')
+		@packer = Packer.new(File.join(local_tmpdir,'incoming'),task['global']['filesrv'])
 		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup.
 		@packer.download_and_unpack spawn_key,:from_parent
 

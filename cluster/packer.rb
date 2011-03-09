@@ -22,9 +22,11 @@ class Packer
 
 		FileUtils.mkdir_p dir
 		local_pack = File.join dir,name_for(key,destination)
-		retcode = say_and_run("scp","#{filesrv}/#{name_for(key,destination)}",local_pack)
+		retcode = say_and_run_FIXME("scp","#{filesrv}/#{name_for(key,destination)}",local_pack)
 		@log.debug "scp retcode: #{retcode.inspect}"
 
+		return local_pack
+		# Retcode is ignored!
 		if retcode && retcode == 0
 			local_pack
 		else
@@ -37,12 +39,15 @@ class Packer
 	def unpack(archive)
 		# Trace log level doesn't work here... I don't know why...
 		@log.add(1, "Unpacking #{archive}")
-		say_and_run(%w(pax -r -O -f),archive)
+		say_and_run_FIXME(%w(pax -r -O -f),archive)
+		# After we've unpacked the archive, it's assumed to be useless.  We remove it from the local disk
+		@log.debug "Unpacking #{archive}"
+		#FileUtils.rm archive
 	end
 
 	# Downloads package for the key given and unpacks it
 	def download_and_unpack(key,destination)
-		download key,destination or return
+		download key,destination # or return    FIXME: return codes are crep atm! 
 
 		FileUtils.mkdir_p dir
 		local_pack = File.join dir,name_for(key,destination)
@@ -75,7 +80,7 @@ class Packer
 			@log.info "Send results package #{package_name}"
 			pax_args = [%w(pax -O -w -x cpio),expanded_files,"-f",archive_name]
 			pax_args.push('-s',rewrite_paths) if rewrite_paths
-			say_and_run(*pax_args)
+			say_and_run_FIXME(*pax_args)
 		else
 			# The file supplied (there should be only one) is a package itself to be sent
 			raise "In no_package mode there should only be one package (not #{files.size}: #{files.inspect})" unless files.size == 1
@@ -84,7 +89,7 @@ class Packer
 		end
 		# Copy the resultant archive to the server
 		raise "LDV_FILESRV is not set!  Can't sent anything anywhere!" unless filesrv
-		say_and_run("scp",archive_name,filesrv)
+		say_and_run_FIXME("scp",archive_name,filesrv)
 	end
 
 	# Get package file name for the key given
