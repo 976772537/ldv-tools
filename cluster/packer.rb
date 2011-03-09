@@ -9,7 +9,12 @@ class Packer
 	# Create new packer.  Inits with namespace root dir.
 	def initialize(namespace_workdir,filesrv)
 		@dir = namespace_workdir
-		@log = Logging.logger['Node']
+		if defined? Logging && Logging.in_LDV?
+			@log = Logging.logger['Node']
+		else
+			@log = Logging.logger.new(STDERR)
+			@log.level = Logger::INFO
+		end
 		@filesrv = filesrv
 	end
 

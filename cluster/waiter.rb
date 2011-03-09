@@ -31,7 +31,7 @@ class Waiter
 		set_noroute_callback
 
 		# Logging proxy: should work both with cluster's sophisticated logging and without it
-		if defined? Logging
+		if defined? Logging && Logging.in_LDV?
 			@log = Logging.logger['Task']
 		else
 			@log = Logging.logger.new(STDERR)

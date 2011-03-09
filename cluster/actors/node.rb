@@ -17,13 +17,14 @@ class Spawner
 		r = say_and_run("mountpoint",dir)
 		raise "Your system doesn't have 'mountpoint' command!  Report this to the developers!" if r.nil?
 		Logging.logger['Node'].debug r
-		r
+		r == 0
 	end
 
 	# Returns the local mountpoint of a mirror of the remote directory +dir+ on the host specified.
 	# If it's not mounted, creates a mount at the +dir+
 	def ensure_mount(key,user,host,dir)
 		mount_target = File.expand_path File.join(SSH_MOUNTS,dir)
+		FileUtils.mkdir_p mount_target
 		@nlog.trace "Ensuring mount in #{mount_target}"
 
 		already_mounted = Spawner.mounted mount_target

@@ -75,6 +75,8 @@ module Logging
 		)
 		# Consolidate all node loggers
 		#consolidate 'Node'
+
+		@@in_ldv = true
 	end
 
 	# Hask key -> logger
@@ -109,6 +111,10 @@ module Logging
 		if appenders = @@key_appenders[key]
 			appenders.each {|a| a.close }
 		end
+	end
+
+	def self.in_LDV?
+		@@in_ldv
 	end
 end
 
