@@ -4,7 +4,8 @@
 my $instrumnet = 'ldv-core';
 
 use FindBin;
-use SOAP::Lite; 
+# To prevent meaningless module warnings use this instead of use.
+BEGIN { $SIG{'__WARN__'} = sub{}; require SOAP::Lite; SOAP::Lite->import(); $SIG{__WARN__}='DEFAULT'; }
 use POSIX ":sys_wait_h";
 use XML::Twig;
 use IO::Socket::INET;
