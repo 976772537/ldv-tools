@@ -126,10 +126,10 @@ function view_upload_driver_form() {
         <h4>  Ensure that drivers satisfy the following requirements:</h4>
                 <ul>
                         <li>
-                        You may upload either a kernel patch that contains your driver or a separate archive with driver sources
+                        You may upload either a kernel patch that contains your driver or a separate archive with driver source code
                         </li>
                         <li>
-                        If you upload an archive:
+                        If you upload a separate archive:
                         <ul>
                                 <li> Driver should be packaged with gzip or bzip2 and have one of the following extensions: .tar.bz2, tar.gz, .tgz</li>
                                 <li> Archive should contain:</li>
