@@ -20,7 +20,7 @@ public class MainGeneratorOnServ {
 			for(int i=1; i<args.length; i++) {
 				Logger.info("generate for "+args[i]);
 				DegResult res = MainGenerator.generateByIndex(null, args[i], String.valueOf(i), 
-						null, false, new PlainParams(true, true, false));
+						null, false, new PlainParams(true, true, false, true));
 				if(res.isSuccess()) {
 					Logger.info(" generate ldv_main"+i);
 					fw.write(args[i]+" ldv_main"+i+"\n");
