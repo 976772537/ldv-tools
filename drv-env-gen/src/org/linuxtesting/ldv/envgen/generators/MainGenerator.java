@@ -83,7 +83,7 @@ public class MainGenerator {
 	}
 	
 	public static void generate(String filename) {
-		generateByIndex(null, filename, null, null, false, new PlainParams(true,true,false));
+		generateByIndex(null, filename, null, null, false, new PlainParams(true,true,false,true));
 	}
 	
 	public static void generate(String source, String destination, EnvParams p) {
@@ -138,7 +138,7 @@ public class MainGenerator {
 				//this does not work because parsing is done
 				//ep.setSortFunctionCalls(p.isSorted());
 				String id = index + "_" + p.getStringId();
-				FuncGenerator fg = FuncGeneratorFactory.create(GenerateOptions.DRIVER_FUN_STRUCT_FUNCTIONS);				
+				FuncGenerator fg = FuncGeneratorFactory.create(GenerateOptions.DRIVER_FUN_STRUCT_FUNCTIONS, p);				
 				
 				GeneratorContext ctx = new GeneratorContext(p,isgenerateIfdefAroundMains, id, fg, ppcParser, ep, fw, macroTokens, structTokens);
 				

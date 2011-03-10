@@ -3,6 +3,7 @@ package org.linuxtesting.ldv.envgen.generators.fungen;
 import java.util.List;
 
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
+import org.linuxtesting.ldv.envgen.generators.EnvParams;
 
 
 public interface FuncGenerator {
@@ -49,4 +50,6 @@ public interface FuncGenerator {
 	 * generates SIMPLE_CALL
 	 */
 	public String generateSimpleFunctionCall(String indent);
+	
+	public void setParams(EnvParams p);
 }

@@ -12,6 +12,7 @@ public class Groups {
 	private Map<GroupKey, GroupInfo> theGroups = new HashMap<GroupKey, GroupInfo>();
 	private HashSet<Var> declared = new HashSet<Var>();
 	private HashSet<Var> initialized = new HashSet<Var>();
+	boolean enabled = true;
 	
 	public Var getVar(String retType, TokenFunctionDecl token) {
 		VarInfo info = new VarInfo(token.getRetType(), token);
@@ -37,7 +38,7 @@ public class Groups {
 	private Var getVar(VarInfo info) {
 		Var resvar;
 		Logger.trace("Create info " + info);
-		if(info.mayBeGrouped()) {
+		if(enabled && info.mayBeGrouped()) {
 			GroupKey k = info.getGroupKey();
 			Logger.trace("key=" + k);
 			GroupInfo g;
@@ -63,5 +64,10 @@ public class Groups {
 	public Var getVar(String replacementParam, int paramCnt, TokenFunctionDecl token) {
 		VarInfo info = new VarInfo(replacementParam, paramCnt, token);
 		return getVar(info);
+	}
+
+	public void setEnabled(boolean grouped) {
+		Logger.trace("enabled=" + grouped);
+		this.enabled = grouped;
 	}
 }

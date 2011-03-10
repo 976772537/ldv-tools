@@ -38,9 +38,9 @@ public class DEG_cc {
 	@SuppressWarnings("unused")
 	private static EnvParams[] getAllParamVariations() {
 		List<EnvParams> list = new ArrayList<EnvParams>();
-		list.add(new PlainParams(false, false, false));
-		list.add(new PlainParams(true, false, false));
-		list.add(new PlainParams(true, true, false));
+		list.add(new PlainParams(false, false, false, true));
+		list.add(new PlainParams(true, false, false, true));
+		list.add(new PlainParams(true, true, false, true));
 		
 		list.add(new SequenceParams(true,false,Length.one));
 		list.add(new SequenceParams(true,false,Length.infinite));

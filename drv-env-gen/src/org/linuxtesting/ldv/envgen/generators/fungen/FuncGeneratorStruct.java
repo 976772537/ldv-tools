@@ -7,6 +7,7 @@ import java.util.regex.Matcher;
 
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
+import org.linuxtesting.ldv.envgen.generators.EnvParams;
 import org.linuxtesting.ldv.envgen.group.Groups;
 import org.linuxtesting.ldv.envgen.group.Var;
 
@@ -15,7 +16,6 @@ public class FuncGeneratorStruct implements FuncGenerator {
 
 	private TokenFunctionDecl token;
 	private Groups theGroups = new Groups();
-	
 	@Override
 	public List<String> generateVarInit() {
 		List<String> replacementParams = token.getReplacementParams();
@@ -170,5 +170,10 @@ public class FuncGeneratorStruct implements FuncGenerator {
 		}
 		ifunCall.append(")");
 		return ifunCall.toString();
+	}
+
+	@Override
+	public void setParams(EnvParams p) {
+		theGroups.setEnabled(p.isGrouped());
 	}
 }
