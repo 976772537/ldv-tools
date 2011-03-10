@@ -13,6 +13,8 @@
 use strict;
 
 use Fcntl qw(LOCK_EX SEEK_SET);
+# To prevent meaningless module warnings use this instead of use.
+BEGIN { $SIG{'__WARN__'} = sub{}; require SOAP::Lite; SOAP::Lite->import(); $SIG{__WARN__}='DEFAULT'; }
 
 # If we have ID-pool, open it in a thread-safe way.
 my $lock_file = $ENV{'AS_GCC_POOL'};
@@ -141,7 +143,6 @@ sub print_cmd
 
 		my $cmdstream = XML::Twig::Elt->new('cmdstream', $tcmd);
 		$cmdstream->set_pretty_print('indented');
-		use SOAP::Lite;
 		my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
 		$csd->sendCommand(SOAP::Data-> type ("string") -> name ("arg0") -> value ($cmdstream->sprint));
 	} else {
