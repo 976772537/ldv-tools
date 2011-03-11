@@ -1438,6 +1438,9 @@ sub read_equal_src($)
   $line =~ /";$/;
   $line = $PREMATCH;
 
+  # We don't consider an empty string as a correct source code file name.
+  return undef unless ($line);
+
   return $line;
 }
 
@@ -1522,10 +1525,22 @@ sub read_location($)
   my $src_content = $POSTMATCH;
   my $src = read_equal_src($src_content);
 
+  unless (defined($src))
+  {
+    print_debug_warning("Source code file '$src_content' wasn't processed. Use empty string for a given source code file");
+    $src = "";
+  }
+
   die("Can't find a line number in the $line '$location[1]'.")
     unless ($location[1] =~ /$regexp_element_kind/);
   my $line_numb_content = $POSTMATCH;
   my $line_numb = read_equal_int($line_numb_content);
+
+  unless (defined($line_numb))
+  {
+    print_debug_warning("Line number '$line_numb_content' wasn't processed. Use 0 for a given line number");
+    $line_numb = 0;
+  }
 
   @location = ($src, $line_numb);
 
