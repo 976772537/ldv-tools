@@ -801,20 +801,23 @@ sub print_error_trace_node_blast($$)
       print_debug_trace("Find the function name '$1' in '$val'");
 
       # Check wether function is a model function.
-      if ($ldv_model_func_def{$func_name})
+      foreach my $model_func_name (keys(%ldv_model_func_def))
       {
-        print_debug_debug("Find the model function '$func_name'");
-        $class = $entity_class_model_func_call;
+        if ($func_name =~ /$model_func_name/)
+        {
+          print_debug_debug("Find the model function '$func_name'");
+          $class = $entity_class_model_func_call;
 
-        # Try to get corresponding model comment.
-        if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$func_name}{'src'}}{$ldv_model_func_def{$func_name}{'line'}})
-        {
-          my %model_comment = %{$model_comment};
-          $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
-        }
-        else
-        {
-          print_debug_warning("Can't find the model comment for the function '$func_name'");
+          # Try to get corresponding model comment.
+          if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$model_func_name}{'src'}}{$ldv_model_func_def{$model_func_name}{'line'}})
+          {
+            my %model_comment = %{$model_comment};
+            $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
+          }
+          else
+          {
+            print_debug_warning("Can't find the model comment for the function '$func_name'");
+          }
         }
       }
     }
@@ -1309,9 +1312,17 @@ sub process_source_code_files()
     # Read LDV model comments.
     foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
     {
-      if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias}\s*([^\*\/]*)\*\/\s*$/)
+      if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias}\s*/)
       {
-        my $comment = $1;
+        if ($POSTMATCH !~ /\*\/\s*$/)
+        {
+          print_debug_warning ("Incorrect format of the model comment '$line'");
+          next;
+        }
+        
+        my $comment = $PREMATCH;
+        print_debug_trace ("Catch the model comment '$comment' corresponding to '$ldv_model_comment_names{$ldv_model_comment_alias}'");
+        
         # Attributes hash. Keys are attribute names, values are corresponding
         # attribute values.
         my %attrs;
@@ -1331,7 +1342,7 @@ sub process_source_code_files()
             if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
             {
               $attrs{$1} = $2;
-              print_debug_debug("Read the model comment attibute $1='$2'");
+              print_debug_trace("Read the model comment attibute '$1=$2'");
             }
             # If not so then warn and skip attribute.
             else
