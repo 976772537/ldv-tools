@@ -3,14 +3,14 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster
+BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh error-trace-visualizer
 ERROR_TRACE_VISUALIZER_SUBDIRS = error-trace-visualizer shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
-LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher
+LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby
 STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer shared/php
 ONLINE_SUBDIRS = ldv-online 
-CLUSTER_SUBDIRS = cluster
+CLUSTER_SUBDIRS = cluster shared/ruby
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
 LDV_GIT_SUBDIRS = $(LDV_SUBDIRS) ldv-git
 

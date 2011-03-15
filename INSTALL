@@ -51,7 +51,7 @@ MINIMAL PREREQUISITES
 		- gem SysVIPC   (Warning: case-sensitive!)
 		- gem libxml-ruby (tested with 1.1.4)
 		   * requires libxml2-devel
-		- gem logging
+		- gem bones
 	o gzip
 	o tar
 	o bzip2
