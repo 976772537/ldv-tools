@@ -79,25 +79,26 @@ module Logging
 		@@in_ldv = true
 	end
 
-	# Hask key -> logger
+	# Hash: key -> logger
 	@@key_logger = {}
+	# Hash: key -> appenders -- for reaping filehandlers and reopening
+	@@key_appenders = {}
 	# Yield a logger for a node task with the key given
 	def self.logger_for key
-		@@key_logger[key] ||= new_logger_for(key)
+		l = (@@key_logger[key] ||= new_logger_for(key))
+		#reopen appenders if necessary (they may have been reaped)
+		@@key_appenders[key].each{|a| a.reopen }
+		l
 	end
 
-	# Hash key -> appender -- for cleanup
-	@@key_appenders = {}
 	def self.new_logger_for key
 		l = logger["Node::#{key}"]
 		l.additive = true	# copy to the consolidated logger
-		@@key_appenders[key] = [
+		@@key_appenders[key] ||= [
 			# Per-node logging file output
 			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}.trace"), :level=>:all),
 			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}"),       :level=>:normal)
 		]
-		#reopen appenders if necessary (they may have been closed_
-		@@key_appenders[key].each{|a| a.reopen if a.closed?}
 		# Add appenders and merge them with consolidated appenders
 		l.add_appenders(@@key_appenders[key][0],@@key_appenders[key][1])#,
 			# Consolidated logs for all nodes somehow works as is...
