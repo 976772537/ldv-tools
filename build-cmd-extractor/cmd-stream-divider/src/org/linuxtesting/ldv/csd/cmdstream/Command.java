@@ -171,8 +171,16 @@ public class Command implements Cloneable {
 				sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagIn+'>'+in.get(i)+"</"+CmdStream.tagIn+">\n");
 			else
 				sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagIn+" restrict=\""+restrict+"\">"+in.get(i)+"</"+CmdStream.tagIn+">\n");					
-		for(int i=0; i<opts.size(); i++)
-			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOpt+opts.get(i).getAttsString()+'>'+opts.get(i).getValue()+"</"+CmdStream.tagOpt+">\n");
+		for(int i=0; i<opts.size(); i++) {
+			// Attention!  Monkey code!
+			// Instead of using proper XML printing we escape offensive string in bug #604.
+			// Because this whole mess should be rewritten...
+			String optionValue = opts.get(i).getValue();
+			optionValue = optionValue.replaceAll("&", "&amp;");
+			optionValue = optionValue.replaceAll("<", "&lt;");
+			optionValue = optionValue.replaceAll(">", "&gt;");
+			sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOpt+opts.get(i).getAttsString()+'>'+optionValue+"</"+CmdStream.tagOpt+">\n");
+		}
 		for(int i=0; i<out.size(); i++) 
 			if(check)
 				sb.append(CmdStream.shift+CmdStream.shift+'<'+CmdStream.tagOut+" check=\"true\">"+out.get(i)+"</"+CmdStream.tagOut+">\n");
