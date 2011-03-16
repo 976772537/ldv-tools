@@ -36,10 +36,11 @@ class Spawner
 			# We user "read-only" to mount from SSH as our workflow doesn't allow writes this way.  Perhaps, after debugging, we'll discard this option.
 			@nlog.trace "Mounting remote filesystem"
 
-			ssh_args = ["sshfs","-o","ro","#{user}@#{host}:#{dir}",mount_target]
-			sshed = say_and_run_FIXME(*ssh_args)
-			unless sshed
-				raise "SSHFSing failed #{args.inspect}.  Did you install SSHFS?  Is the host reachable?"
+			# We prevent password authentication because we explicitely want to use keys.  If SSH is going to prompt for a password (due to a hostile or wrong task specification) we don't want a cluster node to hang and to wait if a user is going to enter password.
+			ssh_args = ["sshfs","-o","ro","-o","PasswordAuthentication=no","#{user}@#{host}:#{dir}",mount_target]
+			sshed = say_and_run(*ssh_args)
+			unless sshed && sshed == 0
+				raise "SSHFSing failed #{ssh_args.inspect}.  Did you install SSHFS?  Is the host reachable?"
 			end
 		end
 		mount_target
