@@ -29,7 +29,7 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 	private final static Pattern beginPatternLow=Pattern.compile("^\\s*(const\\s+)?(((unsigned)||(struct))\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\s*\\*]*\\s*\\(\\s*[\\s*\\*]*\\s*");
 	private final static Pattern endPatternLow=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?\\)(.*\\s*)+");
 
-	boolean parseInnerFunctionCalls = false;
+	private boolean parseInnerFunctionCalls = false;
 
 	public ExtendedParserFunction(ReaderInterface reader) {
 		super(reader);
