@@ -59,11 +59,18 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 		# If the End-Of-File is reached on all of the streams, then the process might have already ended
 		non_eof_streams = [cerr,cout]
 		while non_eof_streams.length > 0
-			timeout = 4
+			timeout = 2
 			r = select(non_eof_streams,nil,nil,timeout)
-			# If nothing happened during a timeout, issue a warning and try again
+			# If nothing happened during a timeout, check if the process is alive.
+			# Perhaps, it's dead, but the pipes are still open,  This actually happened by sshfs process, which spawns a child and dies, but the child inherits the in-out-err streams, and does not close them.
 			unless r
-				next
+				if thr.alive?
+					# The process is still running, no paniv
+					next
+				else
+					# The process is dead.  We consider that it won't print anymore, and thus the further polling the pipes will only lead to a hangup.  Thus, breaking.
+					break
+				end
 			end
 			#puts r.inspect
 			if r[0].include? cerr
