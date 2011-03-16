@@ -82,7 +82,7 @@ class WatcherRemote < Watcher
 		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
 
 		# First, print archive contents to notify the user what files we have here
-		say_and_run_FIXME(%w(pax -O -f),contents)# FIXME, :no_capture_stdout => true)
+		say_and_run(%w(pax -O -f),contents, :no_capture_stdout => true)
 
 		# FIXME: during development we ignore the error in unpacking
 		packer.unpack contents

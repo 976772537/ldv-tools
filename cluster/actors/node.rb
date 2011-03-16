@@ -75,8 +75,8 @@ class Spawner
 			# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
 			unless ip_localhost? host
 				unionfs_args = ["unionfs","-o","cow","#{workdir}=RW:#{sshdir}=RO",root]
-				unioned = say_and_run_FIXME(*unionfs_args)
-				unless unioned
+				unioned = say_and_run(*unionfs_args)
+				unless unioned && unioned == 0
 					raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"
 				end
 			else

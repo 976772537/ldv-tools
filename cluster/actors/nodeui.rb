@@ -38,7 +38,10 @@ class Nodeui
 	end
 
 	attr_accessor :packer
-	MAX_ATTEMPTS = 10
+	# How lond we wait before package is ready
+	MAX_ATTEMPTS = 100
+	SLEEP_TIME = 10
+
 	# Gets unique key from node, and launches a task with this key
 	def take_unique_key(key)
 		@log.info "Received key: #{key}"
@@ -68,15 +71,13 @@ class Nodeui
 		Waiter.new(opts).wait_async key do |received_key,_|
 			@log.info "Task #{received_key.inspect} has finished!  Still, results may not have been uploaded.  Waiting for some time."
 
-			# Because we can't get return codes reliably, we can't iterate and just wait instead.
-			@log.warn "FIXME: wait for 1 minute before downloading your pack!"
-			Kernel.sleep(60)
-
+			# Download package from server.  If it doesn't download, then wait and try again.
+			# The thing is that ldv-core may send the result message when the package is not yet ready.  It may perform the final fixups for up to 10 minutes per kernel.
 			attempts = 0
 			begin
 				if attempts > 0
-					@log.info "Package is not yet ready"
-					Kernel.sleep(5)
+					@log.debug "Package is not yet ready"
+					Kernel.sleep(SLEEP_TIME)
 				end
 				attempts += 1
 				package = packer.download received_key, :to_parent
