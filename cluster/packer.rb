@@ -43,9 +43,6 @@ class Packer
 		# Trace log level doesn't work here... I don't know why...
 		@log.add(1, "Unpacking #{archive}")
 		say_and_run(%w(pax -r -O -f),archive)
-		# After we've unpacked the archive, it's assumed to be useless.  We remove it from the local disk
-		@log.debug "Unpacking #{archive}"
-		#FileUtils.rm archive
 	end
 
 	# Downloads package for the key given and unpacks it

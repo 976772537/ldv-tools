@@ -335,6 +335,8 @@ class Ldvqueue
 	# Adds data under namespace_key to the namespace table
 	def add_to_namespace(namespace_key,data)
 		@namespaces[namespace_key] = data
+		# Ensure that namespace name is added to data
+		data[:name] ||= namespace_key
 		data
 	end
 

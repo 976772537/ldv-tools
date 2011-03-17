@@ -95,8 +95,10 @@ class RealSpawner < Spawner
 	end
 
 	def spawn_child(job_type,task,spawn_key)
-		# Tempdir for local computation; will be wiped in this method (at least) or when clearing namespace data (at worst)
-		local_tmpdir = File.expand_path File.join('tmp',task['global']['root'])
+		# Tempdir for local computation; will be wiped when the task finishes.
+		# Sample folder:
+		# 	tmp/ldv.101/ldv.101.dscv.500/
+		local_tmpdir = File.expand_path File.join('tmp',task['global']['name'],task['key'])
 		FileUtils.mkdir_p local_tmpdir
 		@nlog.info "LOCAL TMPDIR: #{local_tmpdir}"
 
@@ -126,7 +128,7 @@ class RealSpawner < Spawner
 		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
 
 		FileUtils.mkdir_p File.join(local_tmpdir,'incoming')
-		@packer = Packer.new(File.join(local_tmpdir,'incoming'),task['global']['filesrv'])
+		@packer = Packer.new(local_tmpdir,task['global']['filesrv'])
 		# We should also unpack here, as the watcher API doesn't presuppose unpacking at startup.
 		@packer.download_and_unpack spawn_key,:from_parent
 
@@ -206,7 +208,13 @@ class RealSpawner < Spawner
 				@nlog.info "Child RCV exit with code #{retcode}"
 			end
 		end; ensure
+			# Cleanups for this node
+
+			# Close files that aren't needed anymore (watch out for open filehandlers limit!)
 			Logging.cleanup_for task['key'] if task['key']
+
+			# Remove packages for this node (those received have already been unpacked, and those sent are already on the file server)
+			FileUtils.rm_rf local_tmpdir
 		end
 	end
 end

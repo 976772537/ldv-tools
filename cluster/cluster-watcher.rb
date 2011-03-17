@@ -81,11 +81,15 @@ class WatcherRemote < Watcher
 		# We ignore +path+ since it's hardcoded in the archive
 		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
 
-		# First, print archive contents to notify the user what files we have here
-		say_and_run(%w(pax -O -f),contents, :no_capture_stdout => true)
+		# First, print archive contents to stdout to notify the user what files we have here
+		Kernel.system('pax','-O','-f',contents)
 
-		# FIXME: during development we ignore the error in unpacking
+		# Perform the unpack
 		packer.unpack contents
+
+		# After we unpacked, and the files appeared in the filesystem, we may remove the archive.
+		FileUtils.rm_f contents
+
 		return nil # Suppress printing
 	end
 
