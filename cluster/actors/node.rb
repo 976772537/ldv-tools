@@ -42,6 +42,7 @@ class Spawner
 		@nlog.debug "Already mounted? #{already_mounted}"
 		on_localhost = ip_localhost? host
 		@nlog.debug "Is #{host} localhost? #{on_localhost}"
+		# FIXME: RACE HERE!  If several processes attempt to mount at once, their checks may succeed, and the mounting may fail.  However, that won't affect node much, since the failed tasks will be requeued and processed well.
 		unless already_mounted or on_localhost
 			FileUtils.mkdir_p(mount_target)
 			# We user "read-only" to mount from SSH as our workflow doesn't allow writes this way.  Perhaps, after debugging, we'll discard this option.
@@ -76,6 +77,7 @@ class Spawner
 		# We do this check regardless of whether root is mounted, since there's a FIXME bug in the way we use sshfs
 		sshdir = ensure_mount(key,user,host,root)
 
+		# FIXME: RACE HERE!  If several processes attempt to mount at once, their checks may succeed, and the mounting may fail.  However, that won't affect node much, since the failed tasks will be requeued and processed well.
 		unless Spawner.mounted root or ip_localhost? host
 			workdir = ensure_workdir(key,host,nil,root)
 
@@ -401,9 +403,13 @@ class Ldvnode
 		# Set up ping timer for user display
 		if opts[:ping_time]
 			@show_status.cancel if @show_status
-			@show_status = EM.add_periodic_timer(opts[:ping_time].to_i) { @nlog.info "Current status: #{status_for_cluster.inspect}"}
+			@show_status = EM.add_periodic_timer(opts[:ping_time].to_i) { show_status }
 		end
 		# TODO Force status announce after reconfiguration
+	end
+
+	def show_status
+		@nlog.debug "Current status: #{status_for_cluster.inspect}"
 	end
 
 	# Logger for this particular job on the node
@@ -478,20 +484,29 @@ class Ldvnode
 			when :rejected
 				# If the job's to be sent back, don't touch statuses, just send
 				@nlog.debug "The #{job_type} job with key #{task['key']} rejected!"
+				show_status
 				Nanite.push("/ldvqueue/redo", task)
 				@nlog.trace "A #{job_type} job with key #{task['key']} reject sent."
 			when :finished
-				@nlog.debug "The #{job_type} job with key #{task['key']} finished!"
 				@status_update_mutex.synchronize do
 					@status[job_type] += 1
+					show_status
 				end
+				@nlog.debug "The #{job_type} job with key #{task['key']} finished!"
 			when :exception
+				@status_update_mutex.synchronize do
+					@status[job_type] += 1
+					show_status
+				end
 				@nlog.error "Exception happened when processing #{task['key']}!  Job will be sent back."
 				# We do not try to split and make this look beautiful, because... because it's a fucking exception! 
 				@nlog.error child_backtrace
 				Nanite.push("/ldvqueue/redo", task)
+			else
+				@nlog.warn "Job status is strange: #{job_status}"
 				@status_update_mutex.synchronize do
 					@status[job_type] += 1
+					show_status
 				end
 			end
 			@nlog.trace "EventMachine ends child!"

@@ -46,16 +46,18 @@ class Ldvqueue
 
 		# Restart route timer
 		# During a tick we'll serve exactly one job, according to the priorities
-		if route_timer_interval = opts[:route_time].to_i
+		if route_timer_interval = opts[:route_time].to_f
 			@qlog.debug "Reconfigure: route timer is #{route_timer_interval}"
 			@route_timer.cancel if @route_timer
 			@route_timer = EM.add_periodic_timer(route_timer_interval) { route_task }
 
 			# Add timely loggers (each 5 queue iterations print node statuses)
 			@nodestat_timer.cancel if @nodestat_timer
-			@nodestat_timer = EM.add_periodic_timer(route_timer_interval*10) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
+			@nodestat_timer = EM.add_periodic_timer(10) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
 			@queuestat_timer.cancel if @queuestat_timer
-			@queuestat_timer = EM.add_periodic_timer(route_timer_interval*10) { @qlog.debug "Queue status: #{@queued.log}" }
+			@queuestat_timer = EM.add_periodic_timer(20) { @qlog.debug "Queue status: #{@queued.log}" }
+			@qrstat_timer.cancel if @qrstat_timer
+			@qrstat_timer = EM.add_periodic_timer(10) { q,r = running_stats; @qlog.info "Queued: #{q}; running: #{r}" }
 		end
 
 	end
@@ -118,13 +120,35 @@ class Ldvqueue
 				Nanite.push("/ldvnode/#{job}", task, :target => target)
 
 				# Since queued and running is a hash of hashes, we use jobs[1] instead of jobs
-				@qlog.info "Queued: #{queued.inject(0){|sum,jobs| jobs[1].length+sum}}; running: #{running.inject(0){|sum,jobs| jobs[1].length+sum}}"
+				q,r = running_stats
+				@qlog.info "Queued: #{q}; running: #{r}"
+				@qlog.debug "Queue task #{task[:key]}, Currently run: #{how_run}"
 				@qlog.info "Node status: #{node_availability_info.or "<none>"}"
 				@qlog.debug "Keys left in queue: #{queued.log}"
 			end
 		end
 	end
 
+	# Returns summary of queued and running tasks total
+	def running_stats
+		qu = queued.inject(0){|sum,jobs| jobs[1].length+sum}
+		ru = running.inject(0){|sum,jobs| sum + jobs[1].inject(0){|s,node_tasks| node_tasks[1].length+s}}
+		return qu,ru
+	end
+
+	# Return string that describes distribution of tasks among nodes
+	def how_run
+		node_keys = {}
+		@running.each do |job_type,node_tasks|
+			node_tasks.each do |node,tsk|
+				node_keys[node] ||= {}
+				node_keys[node][job_type] ||= []
+				node_keys[node][job_type] = tsk.map{|t| t[:key]}
+			end
+		end
+
+		node_keys.inspect
+	end
 
 	# Adds tasks to queue.  The payload should be a hash with the following attributes:
 	# 	:type => dscv, rcv or ldv
@@ -161,6 +185,7 @@ class Ldvqueue
 		# Remove from registry of running tasks
 		task = Ldvqueue.symbolize _task
 		remove_task(task)
+		@qlog.debug "Redo task #{_task['key']}, Currently run: #{how_run}"
 		# put task into the beginning of the queue
 		do_queue(_task,:first)
 	end
