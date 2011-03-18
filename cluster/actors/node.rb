@@ -11,6 +11,17 @@ class Spawner
 	LOCAL_MOUNTS = File.join("mnt","local")
 	SSH_MOUNTS = File.join("mnt","ssh")
 
+	def initialize()
+		# Determine the name of unionfs (in Ubuntu and SuSE it differs)
+		if say_and_run('unionfs','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
+			@unionfs='unionfs'
+		elsif say_and_run('unionfs-fuse','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
+			@unionfs='unionfs-fuse'
+		else
+			raise "Can't find a proper unionfs command..."
+		end
+	end
+
 	# Check if +directory+ is already a mountpoint
 	def self.mounted dir
 		Logging.logger['Node'].trace "Check if #{dir} is mounted..."
@@ -37,7 +48,7 @@ class Spawner
 			@nlog.trace "Mounting remote filesystem"
 
 			# We prevent password authentication because we explicitely want to use keys.  If SSH is going to prompt for a password (due to a hostile or wrong task specification) we don't want a cluster node to hang and to wait if a user is going to enter password.
-			ssh_args = ["sshfs","-o","ro","-o","PasswordAuthentication=no","#{user}@#{host}:#{dir}",mount_target]
+			ssh_args = ["sshfs","-o","idmap=user","-o","ro","-o","PasswordAuthentication=no","#{user}@#{host}:#{dir}",mount_target]
 			sshed = say_and_run(*ssh_args)
 			unless sshed && sshed == 0
 				raise "SSHFSing failed #{ssh_args.inspect}.  Did you install SSHFS?  Is the host reachable?"
@@ -60,13 +71,13 @@ class Spawner
 	end
 
 	# Prepares mounts and returns the mountpoint.  Previously it accepted a block and yielded it in the changed dir, but chdir is a global setting, not a local one...
-	def prepare_mounts(key,user,host,root,workdir)
-		@nlog.trace "call prepare_mounts: #{[key,user,host,root,workdir].inspect}"
+	def prepare_mounts(key,user,host,root,_)
+		@nlog.trace "call prepare_mounts: #{[key,user,host,root,_].inspect}"
 		# We do this check regardless of whether root is mounted, since there's a FIXME bug in the way we use sshfs
 		sshdir = ensure_mount(key,user,host,root)
 
 		unless Spawner.mounted root or ip_localhost? host
-			workdir = ensure_workdir(key,host,workdir,root)
+			workdir = ensure_workdir(key,host,nil,root)
 
 			# Create a mountpoint unless it exists
 			FileUtils.mkdir_p root
@@ -74,7 +85,8 @@ class Spawner
 			# Do the union-mount and report failure unless succeeded
 			# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
 			unless ip_localhost? host
-				unionfs_args = ["unionfs","-o","cow","#{workdir}=RW:#{sshdir}=RO",root]
+				# Ubuntu's unionfs doesn't work with relative paths... expand them!
+				unionfs_args = [@unionfs,"-o","cow","#{File.expand_path workdir}=RW:#{File.expand_path sshdir}=RO",root]
 				unioned = say_and_run(*unionfs_args)
 				unless unioned && unioned == 0
 					raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"
@@ -90,6 +102,7 @@ end
 
 class RealSpawner < Spawner
 	def initialize(ldv_home)
+		super()
 		@home = ldv_home
 		@nlog = Logging.logger['Node']
 	end
@@ -122,10 +135,7 @@ class RealSpawner < Spawner
 			task['env'].each { |var,val| @nlog.debug "Set env: #{var} = '#{val.to_s}'" }
 		end
 
-		# Workdir
-		workdir = task['workdir']
-
-		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],task['workdir']
+		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],nil
 
 		FileUtils.mkdir_p File.join(local_tmpdir,'incoming')
 		@packer = Packer.new(local_tmpdir,task['global']['filesrv'])
@@ -141,6 +151,7 @@ class RealSpawner < Spawner
 		# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
 		begin; case job_type
 		when :ldv then
+			workdir = task['global']['root']
 			# ldv-manager gets all it needs from environment.  However, we should create a directory for it, and work inside it.
 			@nlog.trace "Creating #{workdir} for LDV"
 			# We should create logger outside of chdir, since it may contain relative paths
@@ -165,10 +176,10 @@ class RealSpawner < Spawner
 			@nlog.info "LDV package with results is sent!"
 		when :dscv then
 			# Dump taskfile to a temp file
-			tmpdir = File.join(workdir,'tmp')
-			@nlog.trace "Creating #{tmpdir} for DSCV"
-			FileUtils.mkdir_p tmpdir
-			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+			#tmpdir = local_tmpdir
+			#@nlog.trace "Creating #{tmpdir} for DSCV"
+			FileUtils.mkdir_p task['workdir']
+			Tempfile.open("ldv-cluster-task-#{task['key']}",local_tmpdir) do |temp_file|
 				temp_file.write task['args']
 				temp_file.close
 				@nlog.debug "Saved task to temporary file #{temp_file.path}"
@@ -176,7 +187,8 @@ class RealSpawner < Spawner
 
 				fork_callback = proc do
 					set_common_env.call
-					ENV['WORK_DIR'] = workdir
+					FileUtils.mkdir_p task['workdir']
+					ENV['WORK_DIR'] = task['workdir']
 					ENV['LDV_RULE_DB'] ||= File.join(@home,'kernel-rules','model-db.xml')
 					Dir.chdir task_root
 				end
@@ -187,10 +199,10 @@ class RealSpawner < Spawner
 			end
 		when :rcv then
 			# Dump taskfile to a temp file
-			tmpdir = File.join(workdir,'tmp')
-			@nlog.trace "Creating #{tmpdir} for RCV"
-			FileUtils.mkdir_p tmpdir
-			Tempfile.open("ldv-cluster-task-#{task['key']}",tmpdir) do |temp_file|
+			#tmpdir = File.join(workdir,'tmp')
+			#@nlog.trace "Creating #{tmpdir} for RCV"
+			#FileUtils.mkdir_p tmpdir
+			Tempfile.open("ldv-cluster-task-#{task['key']}",local_tmpdir) do |temp_file|
 				temp_file.write task['args']
 				temp_file.close
 				@nlog.debug "Saved task to temporary file #{temp_file.path}"
@@ -198,8 +210,9 @@ class RealSpawner < Spawner
 
 				fork_callback = proc do
 					set_common_env.call
+					FileUtils.mkdir_p task['workdir']
+					ENV['WORK_DIR'] = task['workdir']
 					ENV['DSCV_HOME'] = @home
-					ENV['WORK_DIR'] = workdir
 					Dir.chdir task_root
 				end
 				unless retcode = run_and_log(local_logger,File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
@@ -225,6 +238,7 @@ end
 # TODO: refactor its code... but anyway, you'll not use it in production, even for testing purposes.  Debugging won't be performed on the cluster, and checking if your AMQP setting is OK works well with any output.
 class Player < Spawner
 	def initialize(ldv_home,fname)
+		super()
 		@home = ldv_home
 		@scenarios = {}
 		File.new(fname).each do |line|

@@ -106,9 +106,16 @@ def say_and_run(*args_)
 	# FIXME : set up logger in a more documented way
 	lgr = Logging.logger['Node']
 	lgr.debug "Running: #{args.inspect}"
-	cerr_handler = proc do |pid,cerr|
-		line = cerr.readline
-		lgr.debug line.chomp
+	if opts[:no_capture_stderr]
+		cerr_handler = proc do |pid,cerr|
+			# We should reap the contents of a stream anyway, or we'll loop forever
+			cerr.readline
+		end
+	else
+		cerr_handler = proc do |pid,cerr|
+			line = cerr.readline
+			lgr.debug line.chomp
+		end
 	end
 	# Do not capture stdout if we're told not to
 	if opts[:no_capture_stdout]
