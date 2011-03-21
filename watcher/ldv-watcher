@@ -10,13 +10,11 @@ require 'logger'
 require 'rubygems'
 $:.unshift File.dirname(__FILE__)
 require 'generic.rb'
+$:.unshift File.join(File.dirname(__FILE__),"..","shared","ruby","lib")
+require 'ldv_logging'
 
 # Set up logging
-$log = Logger.new(STDERR)
-# NOTE: for compatibility we use different levels
-levels = { 0 => Logger::FATAL, 4 => Logger::ERROR, 10 => Logger::WARN, 20 => Logger::INFO, 30 => Logger::DEBUG }
-user_set_level = (ENV['LDV_DEBUG'] || '10').to_i;
-$log.level = levels[levels.keys.select{|l| l <= user_set_level}.max]
+$log = LDV::Logging::generic 'watcher'
 
 # Process command arguments
 #

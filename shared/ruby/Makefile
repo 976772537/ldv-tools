@@ -2,12 +2,16 @@
 all:
 # Install shared ruby gems
 ruby_gems=logging
+# Install shared ruby scripts
+ruby_scripts=ldv_logging.rb
 
 gem_install_dir=$(prefix)/shared/ruby/gem
 gem_bin_dir=$(prefix)/shared/ruby/bin
 export GEM_HOME=$(gem_install_dir)
-
 gem_src=gems
+
+script_install_dir=$(prefix)/shared/ruby/lib
+script_src=lib
 
 # Command to install gem
 ifndef GEM_DOC
@@ -41,4 +45,9 @@ logging-install: logging-compile
 %-install: %-compile
 	cd $(gem_src)/$* ; $(Gem_install) *.gem
 
+# Install scripts
+install: $(foreach script,$(ruby_scripts),$(script_install_dir)/$(script)) ;
+$(script_install_dir)/% : $(script_src)/%
+	@mkdir -p $(@D)
+	cp -p -f $^ $@
 

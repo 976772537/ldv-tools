@@ -4,6 +4,7 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 CLUSTER_HOME=$LDV_HOME/cluster
 export GEM_PATH=$CLUSTER_HOME/ruby:$LDV_HOME/shared/ruby/gem:`gem env gempath`
 export PATH=$CLUSTER_HOME:$CLUSTER_HOME/ruby-bin:$PATH
+export RUBYLIB=$LDV_HOME/shared/ruby/lib:$RUBYLIB
 
 # Threadpool is necessary for spawning child processes.  Keep that number as at least "the number of children you're going to run plus one"
 ldvc-node-impl --nanite $CLUSTER_HOME --initrb $CLUSTER_HOME/node.rb --threadpool 40 --format json "$@"

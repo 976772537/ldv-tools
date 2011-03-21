@@ -12,7 +12,7 @@ class Packer
 		if defined? Logging && Logging.in_LDV?
 			@log = Logging.logger['Node']
 		else
-			@log = generic_logger('packer')
+			@log = LDV::Logging.generic('packer')
 		end
 		@filesrv = filesrv
 	end

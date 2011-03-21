@@ -100,7 +100,7 @@ def ulog(_)
 	if defined? Logging && Logging.in_LDV?
 		Logging.logger['Node']
 	else
-		generic_logger('system')
+		LDV::Logging.generic('system')
 	end
 end
 
@@ -174,7 +174,7 @@ def run_and_log(logger,*args_)
 		line = cout.readline
 		if md = /([^:]*):\s*([A-Z]*): (.*)/.match(line)
 			severity = md[2].downcase
-			if Logging::Levels.include? severity
+			if logger.respond_to? severity
 				fixed_line = "#{md[1]}: #{md[3]}"
 				logger.send(severity,fixed_line)
 				return

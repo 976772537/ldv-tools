@@ -5,6 +5,8 @@
 require 'rubygems'
 require 'logging'
 
+require 'ldv_logging'
+
 # Open Logging module (of the original logging gem) to add project-specific logging-related functions.
 module Logging
 	LOG_ROOT_DEFAULT = 'log'
@@ -34,14 +36,13 @@ module Logging
 	def self.opts
 		@@opts
 	end
-	Levels = %w(trace debug info normal warn error fatal)
 	def self.ldv_logging_smallinit(_opts)
 		opts = LOGGING_OPTS_DEFAULTS.merge _opts
 		# Save options
 		@@opts = opts.dup
 
 		# Init LDV-specific logging levels
-		Logging.init(Levels.map{|l| l.to_sym})
+		Logging.init(LDV::Logging::LEVELS.map{|l| l.to_sym})
 
 		# Create a generic logger
 		logger['Generic'].add_appenders(
