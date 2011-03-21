@@ -34,8 +34,7 @@ class Waiter
 		if defined? Logging && Logging.in_LDV?
 			@log = Logging.logger['Task']
 		else
-			@log = Logging.logger.new(STDERR)
-			@log.level = Logger::WARN
+			@log = generic_logger('waiter')
 		end
 	end
 

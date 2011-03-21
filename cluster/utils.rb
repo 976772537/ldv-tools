@@ -95,6 +95,20 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 	return code
 end
 
+# Returns logging for this node
+def ulog(_)
+	if defined? Logging && Logging.in_LDV?
+		Logging.logger['Node']
+	else
+		generic_logger('system')
+	end
+end
+
+# Print command line arguments in a copy-paste friendly way
+def runspect(args)
+	"[ #{args.map {|a| a.inspect}.join(" ")} ]"
+end
+
 # Say_and_run that uses open3 to write proper logs
 def say_and_run(*args_)
 	args = args_.flatten
@@ -104,8 +118,8 @@ def say_and_run(*args_)
 		opts = {}
 	end
 	# FIXME : set up logger in a more documented way
-	lgr = Logging.logger['Node']
-	lgr.debug "Running: #{args.inspect}"
+	lgr = ulog('Node')
+	lgr.debug "Running #{runspect args}"
 	if opts[:no_capture_stderr]
 		cerr_handler = proc do |pid,cerr|
 			# We should reap the contents of a stream anyway, or we'll loop forever
@@ -145,7 +159,7 @@ def run_and_log(logger,*args_)
 	# We strip severity from these messages and print them to our logger with the same severity.
 	cerr_handler = proc do |pid,cerr|
 		line = cerr.readline.chomp
-		if md = /([^:].*): ([A-Z]*): (.*)/.match(line)
+		if md = /([^:]*):\s*([A-Z]*): (.*)/.match(line)
 			severity = md[2].downcase
 			fixed_line = "#{md[1]}: #{md[3]}"
 			logger.send(severity,fixed_line)
@@ -158,7 +172,7 @@ def run_and_log(logger,*args_)
 	cout_handler = proc do |pid,cout|
 		#logger.info cout.readline.chomp
 		line = cout.readline
-		if md = /([^:].*): ([A-Z]*): (.*)/.match(line)
+		if md = /([^:]*):\s*([A-Z]*): (.*)/.match(line)
 			severity = md[2].downcase
 			if Logging::Levels.include? severity
 				fixed_line = "#{md[1]}: #{md[3]}"

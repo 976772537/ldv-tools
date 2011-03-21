@@ -107,7 +107,6 @@ class WatcherRemote < Watcher
 		packer.send_files key,:to_parent,files
 		# Send task
 		task = {:key => key.join('.'), :type => type}
-		$stderr.puts "******************************\n\nSending result for task #{task.inspect}\n\n"
 		EM.run { sender.send('/ldvqueue/result', task) }
 	end
 
