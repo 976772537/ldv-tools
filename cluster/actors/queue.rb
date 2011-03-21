@@ -98,7 +98,8 @@ class Ldvqueue
 					@qlog.debug "Node status: #{node_availability_info.or "<none>"}"
 					@qlog.trace "A #{job_type} found for queueing..."
 																										 # you may set this to -1 for debug
-					node, availability = @nodes.find {|k,v| v[job_type] > 0}
+					node = @nodes.keys.shuffle.find {|k| @nodes[k][job_type] > 0}
+					availability = @nodes[node]
 					if node
 						availability[job_type] -= 1
 						# return job
