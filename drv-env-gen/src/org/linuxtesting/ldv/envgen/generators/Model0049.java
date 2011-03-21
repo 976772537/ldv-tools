@@ -3,16 +3,19 @@ package org.linuxtesting.ldv.envgen.generators;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.Reader;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 
 import org.linuxtesting.ldv.envgen.FSOperationsBase;
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserFunction;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderCCommentsDel;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderInterface;
-import org.linuxtesting.ldv.envgen.cbase.tokens.Token;
+import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionCall;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 
@@ -68,53 +71,64 @@ public class Model0049 {
 		Iterator<TokenFunctionDecl> outFIterator = tokens.iterator();
 		while(outFIterator.hasNext()) {
 			TokenFunctionDecl tf = outFIterator.next();
-			List<Token> lftokens = tf.getTokens();
+			List<TokenFunctionCall> lftokens = tf.getTokens();
+			List<TokenFunctionDecl> resTokens = new LinkedList<TokenFunctionDecl>();
 			if (lftokens != null) {
 				Logger.info("ASSIGN: " + 100*(double)(ipercent++)/(double)(tokens.size())+"%");
-	outcon:		for(int i=0; i<lftokens.size(); i++) {
-					Iterator<TokenFunctionDecl> innerFIterator = tokens.iterator();
-					while(innerFIterator.hasNext()) {
-						TokenFunctionDecl tfd = innerFIterator.next();
-						/* если нашли функцию, то заменим ссылку и брейк*/
-						if(tfd.getName().equals(lftokens.get(i).getContent())) {
-							//replace Token by corresponding TokenFunctionDecl 
-							lftokens.set(i, tfd);
-							continue outcon;
-						}
+				for(int i=0; i<lftokens.size(); i++) {
+					String name = lftokens.get(i).getName();
+					TokenFunctionDecl tfd = findDecl(name, tokens);
+					if(tfd!=null) {
+						//replace Token by corresponding TokenFunctionDecl
+						resTokens.add(tfd);
+					} else {
+						Logger.trace("corresponding decl not found");
 					}
-					/* если не нашли то,
-					 *  удалим элемент */
-					lftokens.remove(i--);
 				}
+				declMap.put(tf.getName(), resTokens);
 			}
 		}
-
+		//TODO use res tokens to construct the call graph 
+		//instead of replacing inner tokens in TokenFunctionDecl
 
 		Logger.info("EXCEPTION_COUNTER:" + ExtendedParserFunction.getParseExceptionCounter());
 		List<String> callgToken = new ArrayList<String>(100000);
-		List<Token> tlist = new ArrayList<Token>(tokens.size());
+		List<TokenFunctionDecl> tlist = new ArrayList<TokenFunctionDecl>(tokens.size());
 		tlist.addAll(tokens);
-		callgToken = printGraph(tlist, new ArrayList<Token>(), funname, callgToken);
+		callgToken = printGraph(tlist, new ArrayList<TokenFunctionDecl>(), funname, callgToken);
 		/* теперь выведем весь список на консоль */
 		for(int i=0; i<callgToken.size(); i++)
 			Logger.norm(callgToken.get(i));
 	}
 
+	private static Map<String, List<TokenFunctionDecl>> declMap = new HashMap<String, List<TokenFunctionDecl>>();
+	
+	private static TokenFunctionDecl findDecl(
+			String name, List<TokenFunctionDecl> tokens) {
+		Iterator<TokenFunctionDecl> innerFIterator = tokens.iterator();
+		while(innerFIterator.hasNext()) {
+			TokenFunctionDecl tfd = innerFIterator.next();
+			if(tfd.getName().equals(name)) {
+				return tfd;
+			}
+		}
+		return null;
+	}
 
 	/* собирает ветки, которые оканчиаются вызовом нашей функции */
-	public static void runGraph(List<Token> tfdlist, List<Token> tfdstack) {
+	public static void runGraph(List<TokenFunctionDecl> tfdlist, List<TokenFunctionDecl> tfdstack) {
 		/* проходимся по списку tfdlist */
-		Iterator<Token> tokenIterator = tfdlist.iterator();
+		Iterator<TokenFunctionDecl> tokenIterator = tfdlist.iterator();
 		while(tokenIterator.hasNext()) {
-			TokenFunctionDecl tfd = (TokenFunctionDecl) tokenIterator.next();
+			TokenFunctionDecl tfd = tokenIterator.next();
 			/* теперь пройдемся по стэку вызовов и посмотрим -
 			 * нет ли там этой функции, и, если есть - то значит это уже
 			 * рекурсия...  */
-			Iterator<Token> stackIterator = tfdstack.iterator();
+			Iterator<TokenFunctionDecl> stackIterator = tfdstack.iterator();
 			boolean recursiveFlag = false;
 			TokenFunctionDecl tfds;
 			while(stackIterator.hasNext()) {
-				tfds = (TokenFunctionDecl) stackIterator.next();
+				tfds = stackIterator.next();
 				if(tfds.getName().equals(tfd.getName())) {
 					recursiveFlag =true;
 				}
@@ -132,7 +146,7 @@ public class Model0049 {
 			StringBuffer sbs = new StringBuffer("");
 			while(stackIterator.hasNext()) {
 				TokenFunctionDecl tfdsl;
-				tfdsl = (TokenFunctionDecl) stackIterator.next();
+				tfdsl = stackIterator.next();
 				sbs.append(tfdsl.getName()+"->");
 			}
 			sbs.append(afterPath);
@@ -154,28 +168,28 @@ public class Model0049 {
 	 * ltfd - список для нового прохода
 	 * tfd - стэк, для хранения текущего пути (для того, чтобы можно было обнаружить рекурсию)
 	 * */
-	public static List<String> printGraph(List<Token> tfdlist, List<Token> tfdstack,String funname, List<String> callgToken) {
+	public static List<String> printGraph(List<TokenFunctionDecl> tfdlist, List<TokenFunctionDecl> tfdstack, String funname, List<String> callgToken) {
 		/* проходимся по списку tfdlist */
-		Iterator<Token> tokenIterator = tfdlist.iterator();
+		Iterator<TokenFunctionDecl> tokenIterator = tfdlist.iterator();
 		while(tokenIterator.hasNext()) {
-			TokenFunctionDecl tfd = (TokenFunctionDecl) tokenIterator.next();
+			TokenFunctionDecl tfd = tokenIterator.next();
 			/* смотрим - это наша функция ?*/
 			if (tfd.getName().equals(funname)) {
 				for (int i=0; i < tfdstack.size(); i++) {
 					/* сначала убедимся, что такого имени нету в стэке */
-					if(!callgToken.contains(((TokenFunctionDecl)tfdstack.get(i)).getName()))
-						callgToken.add(((TokenFunctionDecl)tfdstack.get(i)).getName());
+					if(!callgToken.contains((tfdstack.get(i)).getName()))
+						callgToken.add((tfdstack.get(i)).getName());
 				}
 			}
 
 			/* теперь пройдемся по стэку вызовов и посмотрим -
 			 * нет ли там этой функции, и, если есть - то значит это уже
 			 * рекурсия...  */
-			Iterator<Token> stackIterator = tfdstack.iterator();
+			Iterator<TokenFunctionDecl> stackIterator = tfdstack.iterator();
 			boolean recursiveFlag = false;
 			TokenFunctionDecl tfds;
 			while(stackIterator.hasNext()) {
-				tfds = (TokenFunctionDecl) stackIterator.next();
+				tfds = stackIterator.next();
 				if(tfds.getName().equals(tfd.getName())) {
 					recursiveFlag =true;
 				}
@@ -183,8 +197,10 @@ public class Model0049 {
 			stackIterator = tfdstack.iterator();
 			if(recursiveFlag==false) {
 				tfdstack.add(tfd);
+				List<TokenFunctionDecl> inner = declMap.get(tfd.getName());
+				
 				if(tfd.getTokens()!=null && tfd.getTokens().size()>0)
-					callgToken = printGraph(tfd.getTokens(), tfdstack, funname, callgToken);
+					callgToken = printGraph(inner, tfdstack, funname, callgToken);
 				tfdstack.remove(tfd);
 			}
 		}

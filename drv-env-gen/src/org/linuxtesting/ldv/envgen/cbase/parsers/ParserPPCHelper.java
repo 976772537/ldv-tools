@@ -5,7 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderWrapper;
-import org.linuxtesting.ldv.envgen.cbase.tokens.Token;
+import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenPpcDirective;
 
 
@@ -134,7 +134,7 @@ public class ParserPPCHelper extends Parser<TokenPpcDirective> {
 
 	/* функции для обрамления участков кода директивами препроцессора */
 	/* список директив до токена */
-	public List<TokenPpcDirective> getPPCWithoutINCLUDEbefore(Token token) {
+	public List<TokenPpcDirective> getPPCWithoutINCLUDEbefore(TokenFunctionDecl token) {
 		this.parse();
 		List<TokenPpcDirective> ltokens = new ArrayList<TokenPpcDirective>();
 		Iterator<TokenPpcDirective> tokenIterator = tokens.iterator();
@@ -151,7 +151,7 @@ public class ParserPPCHelper extends Parser<TokenPpcDirective> {
 	}
 
 	/* список директив после токена */
-	public List<TokenPpcDirective> getPPCWithoutINCLUDEafter(Token token) {
+	public List<TokenPpcDirective> getPPCWithoutINCLUDEafter(TokenFunctionDecl token) {
 		this.parse();
 		List<TokenPpcDirective> ltokens = new ArrayList<TokenPpcDirective>();
 		Iterator<TokenPpcDirective> tokenIterator = tokens.iterator();

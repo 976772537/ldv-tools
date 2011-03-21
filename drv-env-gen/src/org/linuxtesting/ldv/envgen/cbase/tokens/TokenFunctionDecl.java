@@ -2,7 +2,7 @@ package org.linuxtesting.ldv.envgen.cbase.tokens;
 
 import java.util.List;
 
-public class TokenFunctionDecl extends ContainerToken<Token> {
+public class TokenFunctionDecl extends ContainerToken<TokenFunctionCall> {
 
 	private static int declCounter = 0;
 
@@ -12,12 +12,24 @@ public class TokenFunctionDecl extends ContainerToken<Token> {
 	private List<String> replacementParams;
 	private String test;
 
-	public TokenFunctionDecl(String name, String retType, List<String> replacementParams, int beginIndex, int endIndex, String content, String ldvCommentContent, List<Token> innerTokens) {
-		super(beginIndex, endIndex, content, ldvCommentContent, innerTokens);
+	private int beginIndex = 0;
+	private int endIndex = 0;
+	
+	public TokenFunctionDecl(String name, String retType, List<String> replacementParams, int beginIndex, int endIndex, String content, String ldvCommentContent, List<TokenFunctionCall> innerTokens) {
+		super(content, ldvCommentContent, innerTokens);
 		this.name = name;
 		this.retType = retType;
 		this.replacementParams = replacementParams;
 		this.id = name + "_" + declCounter++;
+		this.beginIndex = beginIndex;
+		this.endIndex = endIndex;
+	}
+
+	public int getBeginIndex() {
+		return beginIndex;
+	}
+	public int getEndIndex() {
+		return endIndex;
 	}
 
 	public String getId() {
@@ -28,7 +40,7 @@ public class TokenFunctionDecl extends ContainerToken<Token> {
 		return name;
 	}
 	
-	public void setCallback(String callback) {
+	public void setComment(String callback) {
 		this.ldvCommentContent = callback; 
 	}
 

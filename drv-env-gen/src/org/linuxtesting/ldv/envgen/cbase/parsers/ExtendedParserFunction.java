@@ -2,7 +2,6 @@ package org.linuxtesting.ldv.envgen.cbase.parsers;
 
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -12,7 +11,7 @@ import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserStruct.NameAndType;
 import org.linuxtesting.ldv.envgen.cbase.parsers.options.OptionFunctionName;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderInterface;
-import org.linuxtesting.ldv.envgen.cbase.tokens.Token;
+import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionCall;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 
@@ -140,9 +139,11 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 		}
 
 		/* если установлена опция "парсить" вызовы функций, то парсим */
-		List<Token> functionInnerCalls = null;
-		if(this.parseInnerFunctionCalls)
+		List<TokenFunctionCall> functionInnerCalls = null;
+		if(this.parseInnerFunctionCalls) {
+			Logger.trace("Parse inner calls for " + sNameAndRetType);
 			functionInnerCalls = parseInnerCalls(this.getReader().readAll().substring(start,end));
+		}
 		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
 				sNameAndRetType.getType(),replacementParams,start,end,tokenClearContent,null,functionInnerCalls);
 		return token;
@@ -150,12 +151,12 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 
 	/* паттерн нужен, чтобы следующей за ним функции распарсить по нему
 	 * вызовы функций */
-	private final static Pattern fcallsPatterns = Pattern.compile("[\\w\\$]+\\s*\\([\\:\\*\\&\\w\\,\\.\\?\\%\\$\\^\\s\\=\\_\\\"\\\\\\#\\-(\\s*\\-\\s*>\\s*)\\(\\)]*\\)");
+	private final static Pattern fcallsPatterns = Pattern.compile(
+			"[\\w\\$]+\\s*\\("
+			+ "[\\[\\]\\d\\:\\*\\&\\w\\,\\.\\?\\%\\$\\^\\s\\=\\_\\\"\\\\\\#\\-(\\s*\\-\\s*>\\s*)\\(\\)]*"
+			+ "\\)\\s*;");
 	//private static Pattern fcallsRulePatterns = Pattern.compile("[_a-zA-Z$][_a-zA-Z0-9$]*");
 
-	private static final List<String> keywordsList = 
-		Arrays.asList("while","do","if","else","for","return");	
-	
 	private static int parseExceptionCounter = 0;
 
 	public static int getParseExceptionCounter() {
@@ -163,46 +164,41 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 	}
 
 	/* на вход подается - тело функции, вместе с заголовком "abracadabre() { if.. print.. }" */
-	private static List<Token> parseInnerCalls(String buffer) {
-		List<Token> tokens = new ArrayList<Token>();
+	private static List<TokenFunctionCall> parseInnerCalls(String buffer) {
+		List<TokenFunctionCall> tokens = new ArrayList<TokenFunctionCall>();
 		/* подготавливаем и компилим паттерны */
 		Matcher matcher = fcallsPatterns.matcher(buffer.substring(buffer.indexOf('{')));
 		/* матчим контент */
 		/* возможно, перед тем как матчитить придется убирать
 		 * блоки вида "...", иначе матчер будет брать вызовы функций и из
 		 * printk- комментариев в том числе */
-oWhile:		while(matcher.find()) {
+		while(matcher.find()) {
 			try {
 				String callsString = matcher.group();
-				/* оставим только имя */
-				callsString = callsString.substring(0,callsString.indexOf('(')).trim();
-				/* проверим имя - это действительно имя функции, а не ключевое слово */
-				for(int i=0; i<keywordsList.size(); i++)
-					if(keywordsList.get(i).equals(callsString)) continue oWhile;
-				/* здесь создаем токен и отправляем в списиок */
-				Token token = new Token(matcher.start(), matcher.end(), callsString, null);
-				boolean isExitsts = false;
-
-		/*		if (buffer.contains("m_extract_one_cell") && token.getContent().contains("atomic_inc")) {
-					System.out.printf("m_extract_one_cell");
-				}*/
-
+				TokenFunctionCall token = TokenFunctionCall.create(matcher.start(), matcher.end(), callsString);
 				if(token!=null) {
 					/* смотрим, есть ли ли уже такой токен (равный по полю контент) */
-					for(int i=0; i<tokens.size(); i++) {
-						if(tokens.get(i).getContent().equals(token.getContent())) {
-							isExitsts = true;
-							break;
-						}
+					if(!isDuplicateByName(token, tokens)) {
+						Logger.debug("new token " + token);
+						tokens.add(token);							
+					} else {
+						Logger.debug("token already added, name=" + token.getName());
 					}
-					if(isExitsts == false)
-						tokens.add(token);
-				}
+				}				
 			} catch (Exception e) {
 				Logger.debug(" parse exception - "+ ++parseExceptionCounter);
 			}
 		}
 		return tokens;
+	}
+
+	private static boolean isDuplicateByName(TokenFunctionCall token, List<TokenFunctionCall> tokens) {
+		for(int i=0; i<tokens.size(); i++) {
+			if(tokens.get(i).getName().equals(token.getName())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static List<String> createReplacementParams(String tokenClearContent, String funname) {
@@ -275,13 +271,15 @@ oWhile:		while(matcher.find()) {
 					break;
 				case ')' :
 					if(level==0) {
-						params.add(namedecl.substring(firstSquare+1,i));
+						String s = namedecl.substring(firstSquare+1,i);
+						params.add(s.trim());
 						firstSquare=i;
 					} else level--;
 					break;
 				case ',' :
 					if(level==0) {
-						params.add(namedecl.substring(firstSquare+1,i));
+						String s = namedecl.substring(firstSquare+1,i);
+						params.add(s.trim());
 						firstSquare=i;
 					}
 					break;
