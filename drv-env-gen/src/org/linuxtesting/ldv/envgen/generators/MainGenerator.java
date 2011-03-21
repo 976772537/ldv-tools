@@ -326,7 +326,7 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "int " + NONDET_INT + "(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
 		
-		sb.append("\n" + ctx.getIndent() + CallbackItem.getInterruptVarDecl() + "\n");
+		sb.append("\n" + ctx.getIndent() + CallbackItem.getInterruptVarDecl() + ";\n");
 
 	//	if(index == null)
 	//		sb.append("void ldv_main(void) {\n\n\n");
