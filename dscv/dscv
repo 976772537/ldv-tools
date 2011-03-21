@@ -468,7 +468,9 @@ my $rcv_frontends_dir = "$shared_dir/rcv";
 
 # Prepare more sanity checks
 use DSCV::Sanity;
-my $sanity = DSCV::Sanity->new($dscv_base_dir);
+# test: is it the sanity that is problemous for cluster?
+my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
+my $sanity = DSCV::Sanity->new($dscv_base_dir) if $do_sanity;
 # Check how many times blast was run.  It's <number of rule-models>*<number of mains>
 my $expected_blast_runs = 0;
 my $rule_instr_mains = 0;
@@ -804,10 +806,10 @@ for my $rule_id (@properties){
 }
 
 # Perform final sanity check
-my $blast_runs = $sanity->get('blast_calls') || 0;
+my $blast_runs = $sanity->get('blast_calls') || 0 if $do_sanity;
 
 # Output final sanity check results
-if ($blast_runs < $expected_blast_runs) {
+if ($do_sanity && $blast_runs < $expected_blast_runs) {
 	vsay ("WARNING", "SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n");
 }
 

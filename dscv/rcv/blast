@@ -45,6 +45,9 @@ $optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
 my $watcher_keystr = '';
 $optionSpecs{'watcher-key=s'} = \$watcher_keystr;
 
+# test: is it the sanity that is problemous for cluster?
+my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
+
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
 $config->{watcher_key} = [split /,/,$watcher_keystr];
@@ -99,7 +102,7 @@ if ($mode eq 'cmd'){
 	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
 
 	# Prepare sanity checks
-	$sanity = DSCV::Sanity->new($config->{sandir});
+	$sanity = DSCV::Sanity->new($config->{sandir}) if $do_sanity;
 
 	# Base Dir of system being checked
 	my $base_dir = undef;
@@ -182,7 +185,7 @@ sub verify_blast
 		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 
 		# Sanity check (should be performed at DSCV's site)
-		$sanity->blast_called();
+		$sanity->blast_called() if $do_sanity;
 
 		# Prepare files for child
 		# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.

@@ -129,6 +129,9 @@ class RealSpawner < Spawner
 			# Set information about where to place files
 			ENV['LDV_FILES_TMPDIR'] = local_tmpdir
 
+			# Do not perform lock-based sainty checks.  They don't work for cluster and are potentially harmful for network FS-s
+			ENV['LDV_DSCV_NO_SANITY'] = 'yes'
+
 			# Set global environemnt in the namespace
 			task['global']['env'].each { |var,val| ENV[var] = val.to_s }
 			task['global']['env'].each { |var,val| @nlog.debug "Set global env: #{var} = '#{val.to_s}'" }
