@@ -20,6 +20,10 @@ class Spawner
 		else
 			raise "Can't find a proper unionfs command..."
 		end
+
+		# Mutex to prevent race condition during mounting.
+		# If several processes attempt to check and then mount at once, their checks may succeed, and the mounting may fail (already mounted).  However, that won't affect node much, since the failed tasks will be requeued and processed well.
+		@mount_mutex = Mutex.new
 	end
 
 	# Check if +directory+ is already a mountpoint
@@ -38,23 +42,24 @@ class Spawner
 		FileUtils.mkdir_p mount_target
 		@nlog.trace "Ensuring mount in #{mount_target}"
 
-		already_mounted = Spawner.mounted mount_target
-		@nlog.debug "Already mounted? #{already_mounted}"
-		on_localhost = ip_localhost? host
-		@nlog.debug "Is #{host} localhost? #{on_localhost}"
-		# FIXME: RACE HERE!  If several processes attempt to mount at once, their checks may succeed, and the mounting may fail.  However, that won't affect node much, since the failed tasks will be requeued and processed well.
-		unless already_mounted or on_localhost
-			FileUtils.mkdir_p(mount_target)
-			# We user "read-only" to mount from SSH as our workflow doesn't allow writes this way.  Perhaps, after debugging, we'll discard this option.
-			@nlog.trace "Mounting remote filesystem"
+		@mount_mutex.synchronize do
+			already_mounted = Spawner.mounted mount_target
+			@nlog.debug "Already mounted? #{already_mounted}"
+			on_localhost = ip_localhost? host
+			@nlog.debug "Is #{host} localhost? #{on_localhost}"
+			unless already_mounted or on_localhost
+				FileUtils.mkdir_p(mount_target)
+				# We user "read-only" to mount from SSH as our workflow doesn't allow writes this way.  Perhaps, after debugging, we'll discard this option.
+				@nlog.trace "Mounting remote filesystem"
 
-			# We prevent password authentication because we explicitely want to use keys.  If SSH is going to prompt for a password (due to a hostile or wrong task specification) we don't want a cluster node to hang and to wait if a user is going to enter password.
-			ssh_args = ["sshfs","-o","idmap=user","-o","ro","-o","PasswordAuthentication=no","#{user}@#{host}:#{dir}",mount_target]
-			sshed = say_and_run(*ssh_args)
-			unless sshed && sshed == 0
-				raise "SSHFSing failed #{ssh_args.inspect}.  Did you install SSHFS?  Is the host reachable?"
+				# We prevent password authentication because we explicitely want to use keys.  If SSH is going to prompt for a password (due to a hostile or wrong task specification) we don't want a cluster node to hang and to wait if a user is going to enter password.
+				ssh_args = ["sshfs","-o","idmap=user","-o","ro","-o","PasswordAuthentication=no","#{user}@#{host}:#{dir}",mount_target]
+				sshed = say_and_run(*ssh_args)
+				unless sshed && sshed == 0
+					raise "SSHFSing failed #{ssh_args.inspect}.  Did you install SSHFS?  Is the host reachable?"
+				end
 			end
-		end
+		end #sync
 		mount_target
 	end
 
@@ -77,26 +82,27 @@ class Spawner
 		# We do this check regardless of whether root is mounted, since there's a FIXME bug in the way we use sshfs
 		sshdir = ensure_mount(key,user,host,root)
 
-		# FIXME: RACE HERE!  If several processes attempt to mount at once, their checks may succeed, and the mounting may fail.  However, that won't affect node much, since the failed tasks will be requeued and processed well.
-		unless Spawner.mounted root or ip_localhost? host
-			workdir = ensure_workdir(key,host,nil,root)
+		@mount_mutex.synchronize do
+			unless Spawner.mounted root or ip_localhost? host
+				workdir = ensure_workdir(key,host,nil,root)
 
-			# Create a mountpoint unless it exists
-			FileUtils.mkdir_p root
+				# Create a mountpoint unless it exists
+				FileUtils.mkdir_p root
 
-			# Do the union-mount and report failure unless succeeded
-			# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
-			unless ip_localhost? host
-				# Ubuntu's unionfs doesn't work with relative paths... expand them!
-				unionfs_args = [@unionfs,"-o","cow","#{File.expand_path workdir}=RW:#{File.expand_path sshdir}=RO",root]
-				unioned = say_and_run(*unionfs_args)
-				unless unioned && unioned == 0
-					raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"
+				# Do the union-mount and report failure unless succeeded
+				# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
+				unless ip_localhost? host
+					# Ubuntu's unionfs doesn't work with relative paths... expand them!
+					unionfs_args = [@unionfs,"-o","cow","#{File.expand_path workdir}=RW:#{File.expand_path sshdir}=RO",root]
+					unioned = say_and_run(*unionfs_args)
+					unless unioned && unioned == 0
+						raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"
+					end
+				else
+					@nlog.trace "Host #{host} is local, do not make a unionfs-mount"
 				end
-			else
-				@nlog.trace "Host #{host} is local, do not make a unionfs-mount"
 			end
-		end
+		end #sync
 
 		root
 	end
