@@ -49,7 +49,7 @@ module Nanite
         unless LEVELS.include?(lvl)
           raise(ArgumentError, 'Log level must be one of :debug, :info, :warn, :error, or :fatal')
         end
-        @logger.info("[setup] setting log level to #{lvl.to_s.upcase}")
+        @logger.debug("[setup] setting log level to #{lvl.to_s.upcase}")
         @level = lvl
         @logger.level = LEVELS[lvl]
       end
