@@ -42,10 +42,11 @@ class Waiter
 		@topic ||= mq.topic('ldv-wait-for-results', :durable => true)
 	end
 
-	def queue
-		# This will only create one queue
+	def queue(key='')
+		# Create a unique queue that is discarded when waiter stops.  To achieve that, we use the current key, and additionally guard this with a random number.
 		@rn ||= rand(10000)
-		@queue ||= mq.queue("ldv-results-queue-#{@rn}", :exclusive => true, :auto_delete => true)
+		@keystr = key.gsub(/\*|#/,'')
+		@queue ||= mq.queue("ldv-results-queue-#{@keystr}-#{@rn}", :exclusive => true, :auto_delete => true)
 	end
 
 	def packer
@@ -58,7 +59,7 @@ class Waiter
 		# Issue a blocking binding, and wait for a result
 		packet = nil
 		@log.info "Waiting for tasks with key #{key}..."
-		self.queue.bind(topic, :key=>key).subscribe do |header, body|
+		self.queue(key).bind(topic, :key=>key).subscribe do |header, body|
 			# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
 			received_key = header.properties[:routing_key]
 			@log.info "Received results for key: #{received_key}"
@@ -82,7 +83,7 @@ class Waiter
 		# Issue a blocking binding, and wait for a result
 		packet = nil
 		@log.info "Waiting for tasks with key #{key}..."
-		self.queue.bind(topic, :key=>key).subscribe do |header, body|
+		self.queue(key).bind(topic, :key=>key).subscribe do |header, body|
 			# I don't know how to check properly, but if the queue is empty, header is not nil, but its properties are!
 			received_key = header.properties[:routing_key]
 			@log.info "Received results for key: #{received_key}"
