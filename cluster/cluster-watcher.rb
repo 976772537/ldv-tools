@@ -37,8 +37,8 @@ class WatcherRemote < Watcher
 
 	def sender
 		unless @sender
-			@sender = NaniteSender.new({:log_level=>:warn}.merge opts)
-			$log.warn "sender init opts #{opts.inspect}"
+			@sender = NaniteSender.new({:log_level=>:warn, :log=>$log}.merge opts)
+			$log.debug "sender init opts #{opts.inspect}"
 		end
 		@sender
 	end
