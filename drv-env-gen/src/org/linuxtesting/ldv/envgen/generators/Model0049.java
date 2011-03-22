@@ -13,6 +13,7 @@ import java.util.Map;
 import org.linuxtesting.ldv.envgen.FSOperationsBase;
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserFunction;
+import org.linuxtesting.ldv.envgen.cbase.parsers.FunctionCallParser;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderCCommentsDel;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderInterface;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionCall;
@@ -33,6 +34,7 @@ public class Model0049 {
 	}
 
 	public static void generate(String filename, String dirname, String funname) {
+		FunctionCallParser callParser = new FunctionCallParser();
 		/* получим список всех с-шников директории */
 		List<String> cfilenames = FSOperationsBase.getDirContentRecursiveC(dirname);
 		/* в цикле будем заполнять список токенов */
@@ -50,7 +52,7 @@ public class Model0049 {
 				/* создадим экземпляр парсера функций c call-вызовами */
 				ExtendedParserFunction ep = new ExtendedParserFunction(wreader);
 				/* скажем парсеру, чтобы он выдирал functionCalls */
-				ep.parseFunctionCallsOn();
+				ep.addBodyParser(callParser);
 				/* распарсим функции и добавим их в список */
 				tokens.addAll(ep.parse());
 				ipercent++;
@@ -71,7 +73,7 @@ public class Model0049 {
 		Iterator<TokenFunctionDecl> outFIterator = tokens.iterator();
 		while(outFIterator.hasNext()) {
 			TokenFunctionDecl tf = outFIterator.next();
-			List<TokenFunctionCall> lftokens = tf.getTokens();
+			List<TokenFunctionCall> lftokens = FunctionCallParser.getFunctionCalls(tf);
 			List<TokenFunctionDecl> resTokens = new LinkedList<TokenFunctionDecl>();
 			if (lftokens != null) {
 				Logger.info("ASSIGN: " + 100*(double)(ipercent++)/(double)(tokens.size())+"%");
@@ -91,7 +93,7 @@ public class Model0049 {
 		//TODO use res tokens to construct the call graph 
 		//instead of replacing inner tokens in TokenFunctionDecl
 
-		Logger.info("EXCEPTION_COUNTER:" + ExtendedParserFunction.getParseExceptionCounter());
+		Logger.info("EXCEPTION_COUNTER:" + callParser.getParseExceptionCounter());
 		List<String> callgToken = new ArrayList<String>(100000);
 		List<TokenFunctionDecl> tlist = new ArrayList<TokenFunctionDecl>(tokens.size());
 		tlist.addAll(tokens);

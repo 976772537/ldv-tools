@@ -6,20 +6,14 @@ import java.util.List;
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserFunction;
 
-public class TokenFunctionCall extends Token {
+public class TokenFunctionCall extends TokenBodyElement {
 
-	String name;
 	List<String> params;
 	
 	public TokenFunctionCall(String name, List<String> params, int beginIndex, int endIndex, String content,
 			String ldvCommentContent) {
-		super(content, ldvCommentContent);
-		this.name = name;
+		super(name, content, ldvCommentContent);
 		this.params = params;
-	}
-
-	public String getName() {
-		return name;
 	}
 
 	public List<String> getParams() {
@@ -27,6 +21,8 @@ public class TokenFunctionCall extends Token {
 	}
 	
 	public static TokenFunctionCall create(int start, int end, String callsString) {
+		Logger.info("parsing call string " + callsString);			
+		
 		/* оставим только имя */
 		String name = callsString.substring(0,callsString.indexOf('(')).trim();
 		/* проверим имя - это действительно имя функции, а не ключевое слово */

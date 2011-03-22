@@ -2,7 +2,7 @@ package org.linuxtesting.ldv.envgen.cbase.tokens;
 
 import java.util.List;
 
-public class TokenFunctionDecl extends ContainerToken<TokenFunctionCall> {
+public class TokenFunctionDecl extends ContainerToken<TokenBodyElement> {
 
 	private static int declCounter = 0;
 
@@ -15,7 +15,7 @@ public class TokenFunctionDecl extends ContainerToken<TokenFunctionCall> {
 	private int beginIndex = 0;
 	private int endIndex = 0;
 	
-	public TokenFunctionDecl(String name, String retType, List<String> replacementParams, int beginIndex, int endIndex, String content, String ldvCommentContent, List<TokenFunctionCall> innerTokens) {
+	public TokenFunctionDecl(String name, String retType, List<String> replacementParams, int beginIndex, int endIndex, String content, String ldvCommentContent, List<TokenBodyElement> innerTokens) {
 		super(content, ldvCommentContent, innerTokens);
 		this.name = name;
 		this.retType = retType;
