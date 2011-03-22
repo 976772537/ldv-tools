@@ -31,7 +31,7 @@ targets= \
 	actors/nodeui.rb \
 	ui.rb \
 
-bintargets=ldvc-master ldvc-node ldvc-task
+bintargets=ldvc-master ldvc-node ldvc-task ldvc-env
 
 cluster_targets=$(targets:%=$(install_dir)/%)
 cluster_bintargets=$(bintargets:%=$(bindir)/%)

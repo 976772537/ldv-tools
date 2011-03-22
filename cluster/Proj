@@ -5,6 +5,7 @@
 	ldvc-node
 	ldvc-master
 	ldvc-task
+	ldvc-env
 
 ldvc-mapper
 ldvc-queue
