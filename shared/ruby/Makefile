@@ -28,6 +28,9 @@ all:
 install:
 endif
 
+# Some gem _build_ scripts rely on rubygems
+export RUBYOPT=rubygems
+
 gems-compile: $(foreach gem,$(ruby_gems),$(gem)-compile) ;
 gems-install: $(foreach gem,$(ruby_gems),$(gem)-install) ;
 
