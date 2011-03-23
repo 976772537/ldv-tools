@@ -4,13 +4,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.FileWriter;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -23,17 +21,13 @@ import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserFunction;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserSimple;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserStruct;
 import org.linuxtesting.ldv.envgen.cbase.parsers.FunctionBodyParser;
-import org.linuxtesting.ldv.envgen.cbase.parsers.FunctionCallParser;
+import org.linuxtesting.ldv.envgen.cbase.parsers.InterruptParser;
 import org.linuxtesting.ldv.envgen.cbase.parsers.Item;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ParserPPCHelper;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderCCommentsDel;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderInterface;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderWrapper;
-import org.linuxtesting.ldv.envgen.cbase.tokens.CallbackCollectionToken;
-import org.linuxtesting.ldv.envgen.cbase.tokens.TimerCollectionToken;
-import org.linuxtesting.ldv.envgen.cbase.tokens.TokenAssignTimer;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenStruct;
-import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionCall;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDeclSimple;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenPpcDirective;
@@ -170,14 +164,14 @@ public class MainGenerator {
 					assert parsedFunctions!=null;
 					//add collection with interrupt calls
 					Logger.debug("add collection with interrupt calls");
-					TokenFuncCollection interrupts = createInterrupts(parsedFunctions);
+					TokenFuncCollection interrupts = InterruptParser.createInterrupts(parsedFunctions);
 					collection.add(interrupts);
 				}
 				if(p.isGenTimers()) {
 					assert parsedFunctions!=null;
 					//add collection with timer calls
 					Logger.debug("add collection with timer calls");
-					TokenFuncCollection timers = createTimers(parsedFunctions);
+					TokenFuncCollection timers = AssignTimerParser.createTimers(parsedFunctions);
 					collection.add(timers);
 										
 				}
@@ -207,71 +201,6 @@ public class MainGenerator {
 		return new DegResult(false);
 	}
 
-	private static TokenFuncCollection createInterrupts(
-			Map<String, TokenFunctionDecl> parsedFunctions) {
-		String targetFunction = "request_irq";
-		Logger.debug("Create callbacks for " + targetFunction);
-		List<TokenFunctionDecl> tokens = new LinkedList<TokenFunctionDecl>();
-		Set<String> set = new HashSet<String>();
-		//get second parameter
-		int callbackParamInd = 1;
-		for(Map.Entry<String, TokenFunctionDecl> e : parsedFunctions.entrySet()) {
-			TokenFunctionDecl tfd = e.getValue();
-			assert tfd.getTokens()!=null;
-			for(TokenFunctionCall tcall : FunctionCallParser.getFunctionCalls(tfd)) {
-				Logger.debug("Process call=" + tcall);
-				if(targetFunction.equals(tcall.getName())) {
-					Logger.debug("Found " + targetFunction + " call=" + tcall);
-					String callbackParam = tcall.getParams().get(callbackParamInd);
-					Logger.debug("Get parameter " + callbackParamInd + "=" + callbackParam);
-					if(set.contains(tcall.getName())) {
-						Logger.debug("Duplicate callback=" + callbackParam);
-					} else {
-						TokenFunctionDecl callback = parsedFunctions.get(callbackParam);
-						if(callback!=null) {
-							Logger.debug("callback found " + callback.getName());
-							tokens.add(callback);
-							set.add(callbackParam);
-						} else {
-							Logger.debug("callback not found " + callbackParam);
-						}
-					}
-				}
-			}
-		}
-		return new CallbackCollectionToken(targetFunction, 
-				"interrupt handler calls", tokens);
-	}
-
-	private static TokenFuncCollection createTimers(
-			Map<String, TokenFunctionDecl> parsedFunctions) {
-		Logger.debug("Create timers");
-		List<TokenFunctionDecl> tokens = new LinkedList<TokenFunctionDecl>();
-		Set<String> set = new HashSet<String>();
-		for(Map.Entry<String, TokenFunctionDecl> e : parsedFunctions.entrySet()) {
-			TokenFunctionDecl tfd = e.getValue();
-			assert tfd.getTokens()!=null;
-			for(TokenAssignTimer assignTimer : AssignTimerParser.getTimers(tfd)) {
-				Logger.debug("Process timer=" + assignTimer);
-				String name = assignTimer.getName();
-				if(set.contains(name)) {
-					Logger.debug("Duplicate timer=" + name);
-				} else {
-					assert name!=null;
-					TokenFunctionDecl timer = parsedFunctions.get(name);
-					if(timer!=null) {
-						Logger.debug("timer found " + timer.getName());
-						tokens.add(timer);
-						set.add(name);
-					} else {
-						Logger.debug("timer not found " + name);
-					}
-				}
-			}
-		}
-		return new TimerCollectionToken("timer", "timer calls", tokens);
-	}
-	
 	private static List<FunctionBodyParser> getRequiredParsers(EnvParams[] plist) {
 		List<FunctionBodyParser> list = new LinkedList<FunctionBodyParser>();
 		boolean genint = false;
@@ -285,7 +214,7 @@ public class MainGenerator {
 			}
 		}
 		if(genint) {
-			list.add(new FunctionCallParser());
+			list.add(new InterruptParser());
 		}
 		if(gentimer) {
 			list.add(new AssignTimerParser());
