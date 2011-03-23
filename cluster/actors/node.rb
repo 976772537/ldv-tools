@@ -53,7 +53,11 @@ class Spawner
 				@nlog.trace "Mounting remote filesystem"
 
 				# We prevent password authentication because we explicitely want to use keys.  If SSH is going to prompt for a password (due to a hostile or wrong task specification) we don't want a cluster node to hang and to wait if a user is going to enter password.
-				ssh_args = ["sshfs","-o","idmap=user","-o","ro","-o","PasswordAuthentication=no","#{user}@#{host}:#{dir}",mount_target]
+				ssh_args = ["sshfs","-o","idmap=user","-o","ro","-o","PasswordAuthentication=no"]
+				if ENV['LDV_SSHFS_OPTS']
+					ENV['LDV_SSHFS_OPTS'].split(' ').each {|opt| ssh_args << opt}
+				end
+				ssh_args += [ "#{user}@#{host}:#{dir}",mount_target ]
 				sshed = say_and_run(*ssh_args)
 				unless sshed && sshed == 0
 					raise "SSHFSing failed #{ssh_args.inspect}.  Did you install SSHFS?  Is the host reachable?"
