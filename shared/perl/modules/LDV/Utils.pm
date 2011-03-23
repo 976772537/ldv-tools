@@ -64,16 +64,25 @@ sub pop_instrument
 }
 
 # Say something only if the number supplied is not less than current verbosity
+# If the message consists of multiple lines, prepend verbosity info to each.
 sub vsay
 {
 	my $v = from_eng shift;
 	local $,=' ';
+	local $_;
 	if ($v <= $verbosity) {
 		my $instrument = $instrument[-1];
 		my $level_string = $backlev{$v};
-		print $debug_stream "$instrument: " if defined $instrument;
-		print $debug_stream "$level_string: ";
-		print $debug_stream @_;
+		my $prepend_string = "";
+		$prepend_string .= "$instrument: " if defined $instrument;
+		$prepend_string .= "$level_string: ";
+
+		# Make a nicely-looking text: newline at the end, and each line prepended with tool and severity info
+		my $to_out = join($,,@_);
+		$to_out = "$to_out\n" unless $to_out=~/\n$/;
+		my @lines = map{"$prepend_string$_\n"} split(/\n/,$to_out,-1);
+		pop @lines; # Last line that corresponded to last \n is spurious.
+		print $debug_stream join("",@lines);
 	}
 }
 
