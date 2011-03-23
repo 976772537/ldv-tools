@@ -19,8 +19,12 @@ class NaniteSender
 
 	def send(target,payload)
 		@log.trace "Sending payload #{payload.inspect}" if @log
-		Nanite.push(target, payload, :selector => :ldv_selector)
-		EM.add_timer(3) { @log.trace "Sender dies" if @log; EM.stop }
+		# Instead of push/die, we do a request/die, because three seconds is sometimes not enough for cluster to process yet another small node.
+		Nanite.request(target, payload, :selector => :ldv_selector) do |res|
+			@log.trace "Reply gotten.  Sender dies in a second." if @log
+			# Die, but do it outside this handler.
+			EM.add_timer(0.5) { EM.stop }
+		end
 	end
 
 end
