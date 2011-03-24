@@ -5,8 +5,8 @@ import org.linuxtesting.ldv.envgen.cbase.tokens.Token;
 public class CallbackItem<T extends Token> extends Item<T> {
  
 	public static final String LDV_IN_INTERRUPT = "LDV_IN_INTERRUPT";
-	public static final String LDV_IN_INTERRUPT_OUT = "0";
-	public static final String LDV_IN_INTERRUPT_IN = "1";
+	public static final String LDV_IN_INTERRUPT_OUT = "1";
+	public static final String LDV_IN_INTERRUPT_IN = "2";
 	
 	public static String getInterruptVarDecl() {
 		return "int " + LDV_IN_INTERRUPT;
