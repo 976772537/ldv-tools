@@ -61,6 +61,7 @@ class WatcherRemote < Watcher
 
 		payload = { :type => what, :args => (ENV['LDV_NOREAD_TASKS'] ? 'intentionally empty' : IO.read(task_fname)), :key => mk(key), :env => [], :workdir => workdir }
 		EM.run { sender.send('/ldvqueue/queue', payload)}
+		nil
 	end
 
 	# Successful task completion
