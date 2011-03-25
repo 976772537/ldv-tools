@@ -6,7 +6,6 @@ driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/
 driver=mydrv/;origin=kernel;kernel=mykernel-1-2.6.32.15;model=39_1;module=mydrv/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=mydrv/safe.ko;origin=kernel;kernel=mykernel-1-2.6.32.15;model=08_1;module=mydrv/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=tests-bce--test-failedon32.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=Compile error
-driver=tests-bce--test-samemodulename.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_7;module=drivers/tests-bce/test-samemodulename/mod2/main.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=tests-patch-error-applying.diff;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=Error during applying patch
 driver=tests-patch-no-targets.patch;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=Can not find target
 driver=tests-patch-not-patch.patch;origin=external;kernel=mykernel-1-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=It is not patch or driver archive
