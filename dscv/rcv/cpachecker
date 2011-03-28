@@ -35,6 +35,8 @@ use File::Path qw(mkpath);
 
 my $config={
 	cmdfile=>'',
+	rawcmdfile=>'',
+	watcher_key=>[],
 };
 
 my %optionSpecs = ();
@@ -45,9 +47,19 @@ LDV::Utils::push_instrument('rcv-cpachecker');
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
 $optionSpecs{'sanity-dir=s'} = \$config->{sandir};
+$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
+my $watcher_keystr = '';
+$optionSpecs{'watcher-key=s'} = \$watcher_keystr;
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
+$config->{watcher_key} = [split /,/,$watcher_keystr];
+
+my $mode = undef;
+$config->{cmdfile} and $mode = 'cmd';
+$config->{rawcmdfile} and $mode = 'raw';
+
+defined $mode or die "You should specify either --cmdfile or --rawcmdfile option!";
 
 # Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
@@ -58,12 +70,6 @@ my $workdir = $config->{workdir};
 my $cpachecker_config = $ENV{'CPACHECKER_CONFIG'};
 
 my $cil_dir = "$shared_dir/cil";
-
--f $config->{cmdfile} or die "RCV's command file $config->{cmdfile} is not found";
-#-x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
--d $workdir or die "--workdir=$config->{workdir} is not a directory!";
--d $configs_dir or die "CPAchecker configs directory $configs_dir is not a directory";
-!$cpachecker_config || -f $cpachecker_config or die "CPAchecker configuration '$cpachecker_config' is specified but not readable!";
 
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
@@ -77,30 +83,59 @@ if ($ENV{'NO_CIL'}){
 	$cilly='';
 }
 
-# Prepare sanity checks
-my $sanity = DSCV::Sanity->new($config->{sandir});
-
 #Check if cpachecker is available
-cpachecker_quick_check();
+#cpachecker_quick_check();
 
 #======================================================================
 # PREPARE CMDFILE TRAVERSERS AND RUN THEM
 #======================================================================
 use XML::Twig;
 
-# Base Dir of system being checked
-my $base_dir = undef;
-my $unbasedir = undef;
+my $sanity = undef;
 
-# Now all subroutines are initialized.  Let's start processing the cmdfile.
-my $check_input_file = XML::Twig->new(
-	twig_handlers => {
-		basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
-		cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-		ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cilly_once=>$cilly, cil_path=>$cil_dir, cil_temps=>"$workdir/cil_temps"),
-	}
-);
-$check_input_file->parsefile($config->{cmdfile});
+if ($mode eq 'cmd'){
+	# Launch of RCV frontend, process CMDfile and spawn some raw verifier tasks
+
+	-f $config->{cmdfile} or die "RCV's command file $config->{cmdfile} is not found";
+#-x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
+	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+	-d $configs_dir or die "CPAchecker configs directory $configs_dir is not a directory";
+	!$cpachecker_config || -f $cpachecker_config or die "CPAchecker configuration '$cpachecker_config' is specified but not readable!";
+
+	# Prepare sanity checks
+	$sanity = DSCV::Sanity->new($config->{sandir});
+
+	# Base Dir of system being checked
+	my $base_dir = undef;
+	my $unbasedir = undef;
+
+	# Now all subroutines are initialized.  Let's start processing the cmdfile.
+	my $check_input_file = XML::Twig->new(
+		twig_handlers => {
+			basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
+			cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
+			ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cilly_once=>$cilly, cil_path=>$cil_dir, cil_temps=>"$workdir/cil_temps"),
+		}
+	);
+	$check_input_file->parsefile($config->{cmdfile});
+}elsif ($mode eq 'raw'){
+	# Parse CMDfile for arguments, and launch RCV only
+	my %args = ();
+	!-f $config->{rawcmdfile} and die "CPACHECKER's raw command file $config->{rawcmdfile} is not found";
+
+	# How we parse raw xml to %args hash
+	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
+
+	# in this mode work dir is passed as workdir
+	$workdir ||= $args{workdir};
+	-d $workdir or die "the workdir '$config->{workdir}' is not a directory!";
+
+	# Now we can call BLAST, finally
+	call_cpachecker(%args);
+
+}else{
+	die "Assertion failed";
+}
 
 exit 0;
 # NO CODE AFTER THIS POINT!
@@ -114,15 +149,16 @@ sub verify_cpachecker
 {
 	my %args = @_;
 	$args{report} or die;
-	open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-	my $repT = XML::Twig::Elt->new('reports');
-
 	# Since arguments alter depending on main, we should save them to temporary.
 	my %args_template = (%args);
 
 	for my $main (@{$args{mains}}){
 		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		if ($args{already_failed}){
+			# Print at once, without spawning task through watcher
+			open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+			my $repT = XML::Twig::Elt->new('reports');
+
 			# Prepare a failure command
 			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
 			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
@@ -142,92 +178,28 @@ sub verify_cpachecker
 
 			$rcvResultT->paste(last_child =>$cmdInstT);
 			$cmdInstT->paste($repT);
+
+			# Commit the report
+			$repT->set_pretty_print('indented');
+			$repT->print($CPACHECKER_REPORT);
+			close $CPACHECKER_REPORT;
 		}else{
-			# OK, need to call CPAchecker
-			my $result = call_cpachecker(%args, main=>$main);
+			# Sanity check
+			$sanity->blast_called();
 
-			# Print verdict to console and to report
-			vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
-			vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
-
-			# Verdict
-			my $bv = $result->{'CPACHECKER-detailed'};
-			if ($bv =~ /\bsafe\b/) {
-				$bv='SAFE';
-			}elsif($bv =~ /\bunsafe\b/){
-				$bv='UNSAFE';
-			}else{
-				$bv='UNKNOWN';
-			}
-			# Result is derived from verdict
-			my $br = $result->{'CPACHECKER'};
-			vsay (40, "CPACHECKER status is $br\n");
-			if($br =~ /\bno\b/i){
-				$br='FAILED';
-			}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
-				$br='OK';
-			}else{
-				$br='FAILED';
-			}
-
-			# Write source files to trace. This is needed since cpachecker
-			# doesn't provide good location and just print links to lines of a
-			# preprocessed cill file. At least add this file to trace.
-			# I can't secure that there is a trace for each unsafe verdict so check it.
-			if ($bv eq 'UNSAFE' and -f $args{trace}) {
-				open(TRACE_FILE, '<', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
-				my @cpachecker_trace = <TRACE_FILE>;
-				close TRACE_FILE;
-				open(TRACE_FILE, '>', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
-				my @cpachecker_src_files = @{$args{files}};
-				my $cpachecker_src_file = shift(@cpachecker_src_files);
-				print TRACE_FILE "Src $cpachecker_src_file: ";
-				foreach (@cpachecker_trace) {
-					print TRACE_FILE $_;
-				}
-				close TRACE_FILE;
-			}
-
-			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-			XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-			XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
-
-			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
-			XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
-			XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
-
-			# Calculate and output time elapsed
-			# Read file with time statistics
-			# copied from blast script
-			# TODO(time): check it
-			if ( -f "$workdir/stats_rcv.xml" && ! -z "$workdir/stats_rcv.xml" ) {
-				my %timestats;
-				open(STATS_FILE, '<', "$workdir/stats_rcv.xml") or die "Can't open file with time statistics: \"$workdir/stats_rcv.xml\", $!";
-				while(<STATS_FILE>) {
-					/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
-					$timestats{$1} += $2;
-				}
-				close STATS_FILE;
-				foreach(keys %timestats) {
-					my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
-					$time_elt->set_att( name =>$_);
-					$time_elt->paste($rcvResultT);
-				}
-			} else {
-				my $time_elt = XML::Twig::Elt->new('time',0);
-				$time_elt->set_att( name =>"ALL");
-				$time_elt->paste($rcvResultT);
-			}
-
-			$rcvResultT->paste(last_child =>$cmdInstT);
-			$cmdInstT->paste($repT);
+			$args{main} = $main;
+			my $task_fname = "$config->{cmdfile}.for.$main";
+			vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
+			my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
+			Utils::hash_to_xml(\%args,'input',$TASK);
+			close $TASK;
+			vsay('INFO',"Written RCV single command to '$task_fname'\n");
+			$ENV{'RCV_FRONTEND_CMD'} = $0;
+			# FIXME: key is transferred through env variable.  RCV should be rewritten.
+			#                                            task        dir      >>>> the rest is the key to distinguis from others
+			LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main);
 		}
 	}
-
-CLOSE_REPORT:
-	$repT->set_pretty_print('indented');
-	$repT->print($CPACHECKER_REPORT);
-	close $CPACHECKER_REPORT;
 }
 
 # Call cpachecker
@@ -325,7 +297,7 @@ sub call_cpachecker
 	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
 		pattern => ".*,ALL;.*java.*,JAVA-PROC;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
-		output => "$workdir/stats_rcv.xml",
+		output => $args{timestats},
 		id_str => "DSCV_TIMEOUT ",
 		},@cpachecker_options
 	);
@@ -350,9 +322,6 @@ sub call_cpachecker
 	my $fpid = open3($CPACHECKER_IN,$CPACHECKER_OUT,$CPACHECKER_ERR,@cpachecker_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cpachecker_options";
 
 	vsay (20,"CPACHECKER debug trace is being written to $args{debug}\n");
-
-	# Sanity check
-	$sanity->blast_called();
 
 	# In CPAchecker trace is in the separate file.  We'll just copy it to $args{trace} at the end
 	my $trace_fname = "$outputpath/ErrorPath.txt";
@@ -415,7 +384,96 @@ Additional options: $ENV{'CPACHECKER_OPTIONS'}
 =========== Launch inform ends ===========
 EOR
 
-	return $result;
+	# OK, CPAchecker finished, and now we print small XML report for it
+
+	# Assignments to port the old code
+	my $main = $args{main};
+
+	open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+	my $repT = XML::Twig::Elt->new('reports');
+
+	# Print verdict to console and to report
+	vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
+	vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
+
+	# Verdict
+	my $bv = $result->{'CPACHECKER-detailed'};
+	if ($bv =~ /\bsafe\b/) {
+		$bv='SAFE';
+	}elsif($bv =~ /\bunsafe\b/){
+		$bv='UNSAFE';
+	}else{
+		$bv='UNKNOWN';
+	}
+	# Result is derived from verdict
+	my $br = $result->{'CPACHECKER'};
+	vsay (40, "CPACHECKER status is $br\n");
+	if($br =~ /\bno\b/i){
+		$br='FAILED';
+	}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
+		$br='OK';
+	}else{
+		$br='FAILED';
+	}
+
+	# Write source files to trace. This is needed since cpachecker
+	# doesn't provide good location and just print links to lines of a
+	# preprocessed cill file. At least add this file to trace.
+	# I can't secure that there is a trace for each unsafe verdict so check it.
+	if ($bv eq 'UNSAFE' and -f $args{trace}) {
+		open(TRACE_FILE, '<', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
+		my @cpachecker_trace = <TRACE_FILE>;
+		close TRACE_FILE;
+		open(TRACE_FILE, '>', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
+		my @cpachecker_src_files = @{$args{files}};
+		my $cpachecker_src_file = shift(@cpachecker_src_files);
+		print TRACE_FILE "Src $cpachecker_src_file: ";
+		foreach (@cpachecker_trace) {
+			print TRACE_FILE $_;
+		}
+		close TRACE_FILE;
+	}
+
+	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+	XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+	XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+	# Confess who is responsible for that mess
+	XML::Twig::Elt->new('verifier',{},'CPAchecker')->paste($cmdInstT);
+
+	my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
+	XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
+	XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
+
+	# Calculate and output time elapsed
+	# Read file with time statistics
+	# copied from blast script
+	# TODO(time): check it
+	my $timestats_fname = $args{timestats};
+	if ( -f $timestats_fname && ! -z $timestats_fname ) {
+		my %timestats;
+		open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: \"$timestats_fname\", $!";
+		while(<STATS_FILE>) {
+			/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
+			$timestats{$1} += $2;
+		}
+		close STATS_FILE;
+		foreach(keys %timestats) {
+			my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
+			$time_elt->set_att( name =>$_);
+			$time_elt->paste($rcvResultT);
+		}
+	} else {
+		my $time_elt = XML::Twig::Elt->new('time',0);
+		$time_elt->set_att( name =>"ALL");
+		$time_elt->paste($rcvResultT);
+	}
+
+	$rcvResultT->paste(last_child =>$cmdInstT);
+	$cmdInstT->paste($repT);
+
+	$repT->set_pretty_print('indented');
+	$repT->print($CPACHECKER_REPORT);
+	close $CPACHECKER_REPORT;
 }
 
 
@@ -440,8 +498,13 @@ sub cpachecker_verdict
 {
 	return[100_000,sub{
 		my $l=shift or return undef;
+		# Old versions of CPAchecker print somthing like this...
 		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
 		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
+		# Newer versions choose more generic terms
+		$l =~ /Given specification violated\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
+		$l =~ /Given specification violated\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
+
 		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'CPACHECKER-detailed' => "The system is safe.  Error location is not reachable.", 'CPACHECKER'=>'yes'};
 		return undef;
 	}];
