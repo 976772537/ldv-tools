@@ -105,7 +105,13 @@ sub cmd_for_driver
 		XML::Twig::Elt->new('basedir',$cwd_for_ld_command)->paste(first_child=>$streamT);
 		# Add LD command with proper sub-fields
 		my $ld = XML::Twig::Elt->new('ld',{'id'=>$cmd_id++});
-		my $ko_name = $main_c_file; $ko_name =~ s/^.*\/(.*)\.c$/$1.ko/;
+
+		# See bug #918.  The name of the "module" should contain the complete path (but not the path to kernel root), as there may be several "modules" with the same name.
+		# Actually, it's not the case in the kernel as a whole (I guess, module names should be unique), but here we create spurious "modules", which are, in fact, directly mapped from object files that, in turn, _can_ have duplicate names.  So we should not truncate the path here.
+		my $ko_name = $main_c_file;
+		$ko_name =~ s/$cwd_for_ld_command\/+//;
+		$ko_name =~ s/\.c$/.ko/;
+
 		XML::Twig::Elt->new('cwd',$cwd_for_ld_command)->paste(first_child=>$ld);
 		XML::Twig::Elt->new('out',{check=>'true'},$ko_name)->paste(first_child=>$ld);
 		XML::Twig::Elt->new('in',$_)->paste(last_child=>$ld) for @o_files;
