@@ -204,10 +204,12 @@ sub start_next {
 		eval {
 
 		sub kill_watcher {
+			vsay 'WARNING', "Killing build...\n";
+			kill 9, $bce_pid;
+			vsay 'INFO', "Shutting down watcher\n";
+			LDV::Utils::watcher_cmd('fail', @{$config->{'watcher_key'}});
 			bce_ldv_report 'FAILED', 'exit', "Watcher exception";
-                        vsay 20, "Shutting down watcher\n";
-                        LDV::Utils::watcher_cmd('fail', @{$config->{'watcher_key'}});
-                        die"Fatal error: $@";
+			die "Fatal error: $@";
 		}
 
 		$SIG{TERM} = \&kill_watcher;
