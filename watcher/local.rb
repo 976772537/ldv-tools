@@ -47,7 +47,7 @@ class FlockPool
 		@lock_fname = fname
 		$log.debug "Checking if exists #{@lock_fname}..."
 		unless File.exists? @lock_fname
-			$log.info "Creating new pool at #{@lock_fname}"
+			$log.debug "Creating new pool at #{@lock_fname}"
 			FileUtils.touch @lock_fname
 			lock_and do |f|
 				f.seek(0,IO::SEEK_SET)
@@ -201,7 +201,7 @@ class WatcherLocal < Watcher
 			end
 			# If we block, then wait for child to finish
 			if config[:block_queue]
-				$log.warn "Waiting for #{pool} call to finish..."
+				$log.info "Waiting for #{pool} call to finish..."
 				Process.waitall
 			else
 				Process.detach rcv_pid
@@ -244,7 +244,7 @@ class WatcherLocal < Watcher
 			# Prepare stuff for level checks
 			base_level = file_depth(running)
 			level_check = proc {|path| level ? (file_depth(path) <= base_level + level + 1) : true }
-			#$log.warn "Args: level=#{level.inspect} path=#{path.inspect} split=#{File.split(path).inspect} length=#{file_depth(path)} rhs=#{(level? (base_level + level + 1):nil).inspect}";
+			#$log.trace "Args: level=#{level.inspect} path=#{path.inspect} split=#{File.split(path).inspect} length=#{file_depth(path)} rhs=#{(level? (base_level + level + 1):nil).inspect}";
 
 			$log.debug "Searching for files in #{running} and #{queried}"
 			def eligible(level_check,*paths)
@@ -272,11 +272,11 @@ class WatcherLocal < Watcher
 					Find.prune unless level_check.call(file)
 					#$log.debug "passed!"
 
-					$log.warn "ACKED #{file} when LEVEL IS #{level.inspect} for #{args.inspect}"; 
+					$log.debug "ACKED #{file} when LEVEL IS #{level.inspect} for #{args.inspect}"; 
 					key = keyfilestrip(file,@dir.join('finished'))
-					$log.debug "Key is '#{key.inspect}'"
+					$log.trace "Key is '#{key.inspect}'"
 					key.pop
-					$log.debug "Key is '#{key.inspect}'"
+					$log.trace "Key is '#{key.inspect}'"
 					# Read data
 					waited_workdir = File.read(file).chomp
 					$log.debug "Waited workdir is '#{waited_workdir}'"
@@ -315,7 +315,7 @@ class WatcherLocal < Watcher
 	end
 
 	def unpack(*args)
-		$log.warn "Fake unpack!"
+		$log.debug "Fake unpack!"
 		return nil # Suppress printing
 	end
 
@@ -328,12 +328,12 @@ class WatcherLocal < Watcher
 
 	# Get key for current args.  If the process is not watched for, generate key from the pool
 	def key(*args)
-		$log.info "Key requested for #{args.inspect}"
+		$log.debug "Key requested for #{args.inspect}"
 
 		# Increase reference counter
-		$log.warn "Increasing reference counter..."
+		$log.trace "Increasing reference counter..."
 		total_refs = @server_instances_pool.get
-		$log.warn "Serving #{total_refs} instances"
+		$log.debug "Serving #{total_refs} instances"
 
 		# If key's passed from queue procedure, via an ENV variable (as in cluster mode), then return it.  Otherwise, get a new one
 		return ENV['LDV_SPAWN_KEY'] if ENV['LDV_SPAWN_KEY']

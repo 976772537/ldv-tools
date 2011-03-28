@@ -7,6 +7,9 @@ require 'fileutils'
 require 'find'
 require 'logger'
 
+# Set path to gems so that our gems are automatically loaded
+ENV['GEM_PATH'] = File.join(File.dirname(__FILE__),"..","shared","ruby","gem") + (ENV['GEM_PATH']?":#{ENV['GEM_PATH']}":"") + ":" + (`gem env gempath`.chomp)
+# Require gems
 require 'rubygems'
 $:.unshift File.dirname(__FILE__)
 require 'generic.rb'
