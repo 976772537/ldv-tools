@@ -26,6 +26,12 @@ use Utils;
 use File::Basename;
 use File::Path qw(mkpath);
 
+#cycle buffer for storing last 100 lines of the error log
+my @limitedBuffer;
+my $sizeLimit = 100;
+my $bufferCounter=0;
+
+
 my $config={
 	cmdfile=>'',
 	rawcmdfile=>'',
@@ -159,6 +165,34 @@ sub verify_blast
 
 	}
 }
+
+#cycle buffer for storing last 100 lines of the error log
+
+sub addToBuffer
+{
+	my $elem = shift;
+	$limitedBuffer[$bufferCounter]=$elem;
+	$bufferCounter += 1;
+	if ($bufferCounter>=$sizeLimit) 
+	{
+		$bufferCounter = 0;
+	}
+}
+
+sub getBuffer 
+{
+	my $result = "";
+	my $cnt = $bufferCounter;
+	do {
+		if(defined  $limitedBuffer[$cnt]) {
+			$result .= $limitedBuffer[$cnt] . "\n";
+		}
+		$cnt++;
+		if($cnt>=$sizeLimit) { $cnt = 0; }
+	} while ($cnt!=$bufferCounter);
+	return $result;
+}
+
 
 # Call blast
 use IPC::Open3;
@@ -307,7 +341,8 @@ sub call_blast
 	my ($BLAST_IN,$BLAST_OUT,$BLAST_ERR);
 	# Fork blast
 	local $"=" ";
-	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
+	local (*BLAST_IN,*BLAST_OUT,*BLAST_ERR);
+	my $fpid = open3(*BLAST_IN,*BLAST_OUT,*BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
 	vsay (20,"BLAST debug trace is being written to $args{debug}\n");
 
@@ -319,12 +354,13 @@ sub call_blast
 	# Process output and redirect it to file
 	local $_;
 	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
-	while (<$BLAST_OUT>) {
+	while (<BLAST_OUT>) {
 		print $BLAST_DEBUG $_;
 		$verdictor->chew_line($_);
 	}
-	while (<$BLAST_ERR>) {
+	while (<BLAST_ERR>) {
 		print $BLAST_DEBUG $_;
+		addToBuffer($_);
 		$verdictor->chew_line($_);
 	}
 
@@ -368,19 +404,6 @@ sub call_blast
 			$stopsep = "stop-sep with default merge";
 		}
 	}
-	$result->{'BLAST-detailed'} .= <<EOR ;
-
-=========== Launch information ===========
-Verifier: BLAST ($ver4rep)
-Time Limit: $tl4rep
-Memory Limit: $ml4rep
-Additional options: $ENV{'BLAST_OPTIONS'}
-Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
-@{[$ENV{'BLAST_EXP_NOLATTICE'} ? 'No lattice\n' : '']}@{[$ENV{'BLAST_ALIASES'} ? 'With aliases\n' : '']}
-Using $stopsep
-=========== Launch inform ends ===========
-EOR
-
 	# Ok, BLAST finished, and we now print the small XML report for it
 
 	# Assignments to port the old code
@@ -410,7 +433,21 @@ EOR
 		$bv='UNSAFE';
 	}else{
 		$bv='UNKNOWN';
+		$result->{'BLAST-detailed'} .= getBuffer();
 	}
+
+	$result->{'BLAST-detailed'} .= <<EOR ;
+
+=========== Launch information ===========
+Verifier: BLAST ($ver4rep)
+Time Limit: $tl4rep
+Memory Limit: $ml4rep
+Additional options: $ENV{'BLAST_OPTIONS'}
+Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
+@{[$ENV{'BLAST_EXP_NOLATTICE'} ? 'No lattice\n' : '']}@{[$ENV{'BLAST_ALIASES'} ? 'With aliases\n' : '']}
+Using $stopsep
+=========== Launch inform ends ===========
+EOR
 
 
 	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
