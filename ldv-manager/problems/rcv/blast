@@ -22,6 +22,8 @@ while (<>){
 	/Errormsg\.Error/i and print "Parsing errors";
 	/simplemem: temporary needed outside a function/i and print "Temp outside func"; 
 	/Invalid_argument\("Predicate index is less than zero"\)/ and print "Large_int";
+        /SymbolicStore\.Value\.Invalid_access\("Attempt to use Null pointer as a base of offset address"\)/ and print "SymStore_Null";
+        /Failure\("hd"\)/ and print "Failure_hd";
 	/FociInterface.SAT/ and print "Blocks_SAT";
 	/NoNewPredicatesException/ and print "NoNewPredicates";
 	/Fatal error: out of memory./ and print "Ocaml_OOM";

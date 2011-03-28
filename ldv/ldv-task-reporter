@@ -130,6 +130,9 @@ sub hxml_cmdstream {
 			# Save list of files specific for this trace
 			my %sources = ();
 			foreach (@trace_files) {
+				# Error-trace-visualizer sometimes prints empty lines.  Skip them.
+				next unless $_;
+
 				vsay 'TRACE', "Process trace file: $_\n";
 				if(/$state->{'path'}\/+csd_deg_dscv\/+\d+\/+/) {
 					my $brelpath = $_;
@@ -163,29 +166,36 @@ sub hxml_cmdstream {
 					$path_to_kernel=`LDV_ENVS_TARGET=$LDV_ENVS_TARGET $config->{'kernel-manager'} --action=getpath --name=$kernel`;
 					chomp($path_to_kernel);
 					if(!(-d $path_to_kernel)) {
-						vsay 'NORMAL', "Can't get path for kernel.";
-						return;
+						vsay 'WARNING', "Can't get path for kernel ('$path_to_kernel' does not exist).  Skipping this file.\n";
+						next;
 					}
+
+					# Path fixup heuristics.
+					# We determine where the file the trace refers to comes from, adjust its path and put it into the proper place, where it can be found by packaging script.
 					my $kernel_file;
 					chomp($_);
 					if(/$state->{'path'}\/+ldv_tempdir\/+driver\/+/) {
+						vsay 'TRACE', "Seems like an external driver.\n";
 						$kernel_file="$_";
 					} elsif ( -f && /$kernel\/+/) {
+						vsay 'TRACE', "Seems like a kernel file with full path.\n";
 						$kernel_file = $_;
 						$kernel_file =~ s/.*\/+$kernel\/+(.*)/$path_to_kernel\/$1/;
 					} elsif (/^\//) {
+						vsay 'TRACE', "Seems like an unknown file with a full path.\n";
 						$kernel_file=$_;
 					} else {
+						vsay 'TRACE', "Seems like a kernel file with a relative path.\n";
 						$kernel_file="$path_to_kernel/$_";
 					}
 					chomp($kernel_file);
 					if(!(-f $kernel_file)) {
-						vsay 'NORMAL', "Can't find kernel file.";
-						return;
+						vsay 'WARNING', "Can't find kernel file '$kernel_file'.  Skipping this file.\n";
+						next;
 					}
 					if(system('cp',$kernel_file,$rel_path_full)) {
-						vsay 'NORMAL', "Can't copy kernel file.";
-						return;
+						vsay 'WARNING', "Can't copy kernel file '$kernel_file' to '$rel_path_full'.  Skipping this file.\n";
+						next;
 					}
 					# Save relative file to the list
 					my (undef,undef,$copied_file) = splitpath($kernel_file);

@@ -111,9 +111,10 @@ sub set_post_annotations($@)
         $self->{'kind'} = 'FunctionCallWithoutBody';
       }
       
-      if (${${$post_annotation}{'values'}}[0] and ${${$post_annotation}{'values'}}[0] =~ /skipping call to function due to stack overflow/)
+      if (${${$post_annotation}{'values'}}[0] and ${${$post_annotation}{'values'}}[0] =~ /skipping call to function due to stack overflow \((\d+)\)/)
       {
         $self->{'kind'} = 'FunctionStackOverflow';
+        $self->{'fdepth'} = $1;
       }
     }
   }

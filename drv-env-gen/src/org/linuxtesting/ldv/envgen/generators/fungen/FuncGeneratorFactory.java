@@ -3,17 +3,20 @@ package org.linuxtesting.ldv.envgen.generators.fungen;
 import java.util.Map;
 import java.util.HashMap;
 
+import org.linuxtesting.ldv.envgen.generators.EnvParams;
+
 public class FuncGeneratorFactory {
 	
 	protected final static Map<GenerateOptions, Class<?>> map = defaultMap();
 	
-	public static FuncGenerator create(GenerateOptions gopts) {
+	public static FuncGenerator create(GenerateOptions gopts, EnvParams p) {
 		Class<?> klass = map.get(gopts);
 		if(klass == null) 
 			throw new RuntimeException(" was unable to find an FuncGenerator named "+gopts+".");
 		FuncGenerator funcGeneratorInstance = null;
 		try {
-			funcGeneratorInstance = (FuncGenerator)klass.newInstance(); 
+			funcGeneratorInstance = (FuncGenerator)klass.newInstance();
+			funcGeneratorInstance.setParams(p);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

@@ -314,13 +314,15 @@ sub hxml_cmdstream_ld {
 		if($kernel_driver eq $driver_internal) {
 			$driver_name =~ s/$xmlbasedir\/+//;
 			$module_name = $driver_name;
+			ldv_tprint("Internal driver with basedir='$xmlbasedir', driver_name='$driver_name', module_name='$module_name'");
 		} elsif($kernel_driver eq $driver_external) {
 			$module_name =~ s/.*\/+csd_deg_dscv\/+\d+\/+driver\/+//;
 			$indriver_name =~ s/.*\/(.*)/$1/;
 			$driver_name = $indriver_name;
+			ldv_tprint("External driver with basedir='$xmlbasedir', driver_name='$driver_name', module_name='$module_name'");
 		}
 		# 1. replace outdir from basedir in xml with our driverdir
-  		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
+		if(!($outdir =~ s/$xmlbasedir/$my_driverdir/)) {
 			ldv_eprint("Can't find basedir pattern in ld outdirs.");
 			exit 1;
 		}

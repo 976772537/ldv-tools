@@ -13,12 +13,14 @@ public abstract class EnvParams {
 	boolean sorted;
 	boolean check;
 	boolean init;
+	boolean grouped;
 	
-	public EnvParams(boolean sorted, boolean check, boolean init) {
+	public EnvParams(boolean sorted, boolean check, boolean init, boolean grouped) {
 		super();
 		this.check = check;
 		this.sorted = sorted;
 		this.init = init;
+		this.grouped = grouped;
 		assert !check || sorted : "if you want to check please sort it"; 
 	}
 	
@@ -42,6 +44,13 @@ public abstract class EnvParams {
 			this.init = false;
 		} else {
 			this.init = true;
+		}
+		
+		String grouped = props.getProperty(key + ".grouped", "true");
+		if(grouped.trim().equalsIgnoreCase("false")) {
+			this.grouped = false;
+		} else {
+			this.grouped = true;
 		}
 	}
 
@@ -96,5 +105,9 @@ public abstract class EnvParams {
 	@Override
 	public String toString() {
 		return getStringId();
+	}
+
+	public boolean isGrouped() {
+		return grouped;
 	}
 }

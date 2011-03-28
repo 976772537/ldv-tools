@@ -187,6 +187,10 @@ my $debug_name = 'error-trace-visualizer';
 # Hash that keeps all dependencies required by the given error trace. Keys are
 # pathes to corresponding dependencies files.
 our %dependencies;
+# Values of previously processed source code file and line number. They are
+# needed in cases when a current entity location isn't processed successfully.
+my $src_prev;
+my $line_prev;
 
 # Engine to be used during processing and printing of an error trace.
 my $engine = '';
@@ -618,7 +622,7 @@ sub print_error_trace_blast($)
     , "\n \$('a.#${entity_class_intellectual_func_body}ShowHide').toggle(function() {"
     , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"
     , "\n      var isFuncBodyHasModelFuncCall = false;"
-    , "\n      \$(this).children('div').each(function() {"
+    , "\n      \$(this).find('div').each(function() {"
     , "\n        if (\$(this).hasClass('$entity_class_model_func_call')) {"
     , "\n          isFuncBodyHasModelFuncCall = true;"
     , "\n        }"
@@ -633,7 +637,7 @@ sub print_error_trace_blast($)
     , "\n  }, function() {"
     , "\n    \$('.$entity_class_func_body, .$entity_class_driver_env_func_body').each(function() {"
     , "\n      var isFuncBodyHasModelFuncCall = false;"
-    , "\n      \$(this).children('div').each(function() {"
+    , "\n      \$(this).find('div').each(function() {"
     , "\n        if (\$(this).hasClass('$entity_class_model_func_call')) {"
     , "\n          isFuncBodyHasModelFuncCall = true;"
     , "\n        }"
@@ -801,20 +805,23 @@ sub print_error_trace_node_blast($$)
       print_debug_trace("Find the function name '$1' in '$val'");
 
       # Check wether function is a model function.
-      if ($ldv_model_func_def{$func_name})
+      foreach my $model_func_name (keys(%ldv_model_func_def))
       {
-        print_debug_debug("Find the model function '$func_name'");
-        $class = $entity_class_model_func_call;
+        if ($func_name =~ /$model_func_name/)
+        {
+          print_debug_debug("Find the model function '$func_name'");
+          $class = $entity_class_model_func_call;
 
-        # Try to get corresponding model comment.
-        if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$func_name}{'src'}}{$ldv_model_func_def{$func_name}{'line'}})
-        {
-          my %model_comment = %{$model_comment};
-          $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
-        }
-        else
-        {
-          print_debug_warning("Can't find the model comment for the function '$func_name'");
+          # Try to get corresponding model comment.
+          if (my $model_comment = $ldv_model_comments{$ldv_model_func_def{$model_func_name}{'src'}}{$ldv_model_func_def{$model_func_name}{'line'}})
+          {
+            my %model_comment = %{$model_comment};
+            $title .= ": Model " . $model_comment{'alias'} . " - " . $model_comment{'comment'};
+          }
+          else
+          {
+            print_debug_warning("Can't find the model comment for the function '$func_name'");
+          }
         }
       }
     }
@@ -899,8 +906,10 @@ sub print_error_trace_node_blast($$)
     $class = $entity_class_func_stack_overflow unless ($class);
     print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function call is skipped due to stack overflow. */ };</div>");
-  }
+    my $fdepth = '?';
+    $fdepth = $tree_node->{'fdepth'} if ($tree_node->{'fdepth'});
+    print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function call is skipped to reduce time of verification according to '-fdepth $fdepth' option. */ };</div>");
+  } 
   elsif ($tree_node->{'kind'} eq 'Block')
   {
     # Split expressions joined together into one block.
@@ -1309,9 +1318,17 @@ sub process_source_code_files()
     # Read LDV model comments.
     foreach my $ldv_model_comment_alias (keys(%ldv_model_comment_names))
     {
-      if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias}\s*([^\*\/]*)\*\/\s*$/)
+      if ($line =~ /^\s*\/\*\s*$ldv_model_comment_names{$ldv_model_comment_alias}\s*/)
       {
-        my $comment = $1;
+        if ($POSTMATCH !~ /\*\/\s*$/)
+        {
+          print_debug_warning ("Incorrect format of the model comment '$line'");
+          next;
+        }
+        
+        my $comment = $PREMATCH;
+        print_debug_trace ("Catch the model comment '$comment' corresponding to '$ldv_model_comment_names{$ldv_model_comment_alias}'");
+        
         # Attributes hash. Keys are attribute names, values are corresponding
         # attribute values.
         my %attrs;
@@ -1331,7 +1348,7 @@ sub process_source_code_files()
             if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
             {
               $attrs{$1} = $2;
-              print_debug_debug("Read the model comment attibute $1='$2'");
+              print_debug_trace("Read the model comment attibute '$1=$2'");
             }
             # If not so then warn and skip attribute.
             else
@@ -1438,6 +1455,9 @@ sub read_equal_src($)
   $line =~ /";$/;
   $line = $PREMATCH;
 
+  # We don't consider an empty string as a correct source code file name.
+  return undef unless ($line);
+
   return $line;
 }
 
@@ -1522,10 +1542,30 @@ sub read_location($)
   my $src_content = $POSTMATCH;
   my $src = read_equal_src($src_content);
 
+  if (defined($src))
+  {
+    $src_prev = $src; 
+  }
+  else
+  {
+    print_debug_warning("Source code file '$src_content' wasn't processed. Use a previosly obtained value '$src_prev' for a given source code file");
+    $src = $src_prev;
+  }
+
   die("Can't find a line number in the $line '$location[1]'.")
     unless ($location[1] =~ /$regexp_element_kind/);
   my $line_numb_content = $POSTMATCH;
   my $line_numb = read_equal_int($line_numb_content);
+
+  if (defined($line_numb))
+  {
+    $line_prev = $line_numb;
+  }
+  else
+  {
+    print_debug_warning("Line number '$line_numb_content' wasn't processed. Use a previosly obtained value '$line_prev' for a given line number");
+    $line_numb = $line_prev;
+  }
 
   @location = ($src, $line_numb);
 
