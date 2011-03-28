@@ -154,7 +154,9 @@ vsay 'TRACE', "BCE successfully finished\n";
 #
 my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
 
-# mem leak
+vsay 'DEBUG', "Wait until CSD is empty...\n";
+
+# Due to memory leak in SOAP::Lite, we can't call isEmpty() directly many times; instead we call an external program
 #while($csd->isEmpty() eq 'false') {
 while(system($config->{'is-empty'})) {
 	is_exists($next_pid) or last;
@@ -164,6 +166,7 @@ while(system($config->{'is-empty'})) {
 #
 # kill CSD
 #
+vsay 'TRACE', "Kill CSD and reap it...\n";
 kill 9, $csd_pid;
 waitpid $csd_pid, 0;
 
@@ -171,16 +174,18 @@ waitpid $csd_pid, 0;
 # Wait until verification process finished her works. Verification
 # process guaranteed to terminate if CSD is dead.
 #
+vsay 'TRACE', "Wait until the fork finishes...\n";
 waitpid $next_pid, 0;
 
 
 #
-# check if process is exisst in /proc
+# check if process is exists in /proc, AND if it's not defunct (zombie).
+# The PID of the process may still be in the system, but it may have long be gone.
 #
 sub is_exists {
 	my ($pid) = @_;
 	defined $pid or return 0;
-	return -d "/proc/$pid";
+	return (-d "/proc/$pid") && (`cat /proc/$pid/status` !~ /State:.*Z/);
 }
 
 #
