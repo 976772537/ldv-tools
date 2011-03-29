@@ -906,8 +906,10 @@ sub print_error_trace_node_blast($$)
     $class = $entity_class_func_stack_overflow unless ($class);
     print($file_report_out "\n<div class='$class' title='$title' id='ETV", ($html_id++), "'>");
     print_spaces($indent);
-    print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function call is skipped due to stack overflow. */ };</div>");
-  }
+    my $fdepth = '?';
+    $fdepth = $tree_node->{'fdepth'} if ($tree_node->{'fdepth'});
+    print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function call is skipped to reduce time of verification according to '-fdepth $fdepth' option. */ };</div>");
+  } 
   elsif ($tree_node->{'kind'} eq 'Block')
   {
     # Split expressions joined together into one block.
