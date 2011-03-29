@@ -26,7 +26,7 @@ use Utils;
 use File::Basename;
 use File::Path qw(mkpath);
 
-#cycle buffer for storing last 100 lines of the error log
+#cycle buffer for storing last $sizeLimit lines of the error log
 my @limitedBuffer;
 my $sizeLimit = 100;
 my $bufferCounter=0;
@@ -166,7 +166,7 @@ sub verify_blast
 	}
 }
 
-#cycle buffer for storing last 100 lines of the error log
+#cycle buffer for storing last $sizeLimit lines of the error log
 
 sub addToBuffer
 {
@@ -433,7 +433,7 @@ sub call_blast
 		$bv='UNSAFE';
 	}else{
 		$bv='UNKNOWN';
-		$result->{'BLAST-detailed'} .= getBuffer();
+		$result->{'BLAST-detailed'} .= "\n" . getBuffer();
 	}
 
 	$result->{'BLAST-detailed'} .= <<EOR ;
