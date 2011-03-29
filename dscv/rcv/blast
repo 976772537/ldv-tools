@@ -185,7 +185,7 @@ sub getBuffer
 	my $cnt = $bufferCounter;
 	do {
 		if(defined  $limitedBuffer[$cnt]) {
-			$result .= $limitedBuffer[$cnt] . "\n";
+			$result .= $limitedBuffer[$cnt];
 		}
 		$cnt++;
 		if($cnt>=$sizeLimit) { $cnt = 0; }
