@@ -701,6 +701,9 @@ goto AFTER_CHECK unless $actions->{verification};
 vsay 'NORMAL', "Generating build commands for all drivers...\n";
 
 my @cmdgen_cmd = ($ldv_commands->{meta_driver},"--stdin",$cmd_file,$work_dir);
+# Add option to re-generate commands for existing drivers, if --force is specified.
+# This was useful in bug #918 given the --keep-work option is specified: metadata were re-generated, but the commands themselves were left as were.
+push @cmdgen_cmd, "--no-skip-existing" if $force;
 use IPC::Open3;
 my ($FULL_DR_EATER,$CMDGEN_REPORTS,$CMDGEN_ERR); 
 use Symbol 'gensym'; $CMDGEN_ERR = gensym;
