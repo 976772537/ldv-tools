@@ -26,6 +26,8 @@ my $reference = undef;
 my $watchfor = 'tree';
 # Requests per seccond
 my $frequency = 10;
+# Whether we do not do this term-kill stuff, and just kill processes at once
+my $just_kill = '';
 
 GetOptions(
 	'timelimit|t=i'=>\$timelimit,
@@ -36,6 +38,7 @@ GetOptions(
 	'output|o=s'=>\$output,
 	'reference|r=s'=>\$reference,
 	'watchfor|w=s'=>\$watchfor,
+	'just-kill'=>\$just_kill,
 ) or usage;
 
 @ARGV or usage;
@@ -309,9 +312,9 @@ sub kill_process_group_safely
 	my ($pgrp) = @_;
 	# Show that we're dying, so that our timely alarm handler doesn't longjmp() control out of here
 	$dying = 1;
-	signal_to_process_group_safely($pgrp,SIGTERM);
 	# Reset alarm handler (we need it for sleep to work)
 	$SIG{'ALRM'} = 'DEFAULT';
+	signal_to_process_group_safely($pgrp,SIGTERM) unless $just_kill;
 	sleep(1);
 	signal_to_process_group_safely($pgrp,SIGKILL);
 }

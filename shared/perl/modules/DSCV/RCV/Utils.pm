@@ -53,6 +53,7 @@ sub set_up_timeout
 	unshift @cmdline,"-m",$memlimit if $memlimit;
 	unshift @cmdline,"-p",$pattern if $pattern;
 	unshift @cmdline,"-o",$output if $output;
+	unshift @cmdline,"--just-kill" if $resource_spec->{kill_at_once};
 	unshift @cmdline,$timeout if $timelimit || $memlimit;
 
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
