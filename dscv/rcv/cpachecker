@@ -298,6 +298,7 @@ sub call_cpachecker
 		pattern => ".*,ALL;.*java.*,JAVA-PROC;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
 		output => $args{timestats},
 		id_str => "DSCV_TIMEOUT ",
+		kill_at_once => 1,
 		},@cpachecker_options
 	);
 
