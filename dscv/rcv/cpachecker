@@ -355,6 +355,7 @@ sub call_cpachecker
 				$verdictor->chew_line($out_buf);
 				print $CPACHECKER_DEBUG $out_buf;
 				$select->remove(\*CPACHECKER_OUT);
+				vsay (40,"Child's stdout stream closed.\n");
 			}
 		}elsif ($fh == \*CPACHECKER_ERR) {
 			# Non-blocking read and add to buffer
@@ -375,6 +376,7 @@ sub call_cpachecker
 				$verdictor->chew_line($err_buf);
 				print $CPACHECKER_DEBUG $err_buf;
 				$select->remove(\*CPACHECKER_ERR);
+				vsay (40,"Child's stderr stream closed.\n");
 			}
 		}
 	}}

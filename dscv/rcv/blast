@@ -339,7 +339,6 @@ sub call_blast
 	# The streams will be printing GZIP-compressed text.
 	# TODO: Make it parallel.  Currently it's all processed inline, in the same thread.
 	my $BLAST_DEBUG = new IO::Compress::Gzip $args{debug} or die "gzip failed: $GzipError\n";
-	my ($BLAST_IN,$BLAST_OUT,$BLAST_ERR);
 	# Fork blast
 	local $"=" ";
 	local (*BLAST_IN,*BLAST_OUT,*BLAST_ERR);
@@ -385,6 +384,7 @@ sub call_blast
 				$verdictor_out->chew_line($out_buf);
 				print $BLAST_DEBUG $out_buf;
 				$select->remove(\*BLAST_OUT);
+				vsay (40,"Child's stdout stream closed.\n");
 			}
 		}elsif ($fh == \*BLAST_ERR) {
 			# Non-blocking read and add to buffer
@@ -407,6 +407,7 @@ sub call_blast
 				addToBuffer($err_buf);
 				print $BLAST_DEBUG $err_buf;
 				$select->remove(\*BLAST_ERR);
+				vsay (40,"Child's stderr stream closed.\n");
 			}
 		}
 	}}
