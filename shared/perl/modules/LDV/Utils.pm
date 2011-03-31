@@ -250,10 +250,11 @@ sub watcher_cmd_callback
 		chomp $line;
 		vsay('DEBUG',"Watcher says: $line\n");
 
-		# Call back
-		$lines_read ++;
-		vsay('DEBUG',"Read $lines_read lines, need to read $max_lines.\n");
-		$callback->($line);
+		# Call back, and it returns how many useful lines we've read
+		my $rv = $callback->($line);
+		$rv ||= 0;
+		$lines_read += $rv;
+		vsay('DEBUG',"After callback, read $lines_read useful lines, need to read $max_lines.\n");
 		vsay('TRACE',"Left callback.\n");
 	}
 	if ($lines_read >= $max_lines) {

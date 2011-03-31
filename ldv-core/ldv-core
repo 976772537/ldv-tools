@@ -364,13 +364,27 @@ sub wait_for_all_verified {
 			die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
 		}
 		my (undef, $cid) = @key;
-		# unpack the incoming package
-		vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
-		vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
-		LDV::Utils::watcher_cmd('unpack', $path, $contents);
-		# find corresponding task descriptor and set status to 'verified'
-		vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
-		$tasks->{$cid}->{state} = 'verified';
+		# Check if such key has already arrived
+		my $key_id = join(".",@key);
+		unless (exists $keys_arrived->{$key_id}){
+			$keys_arrived->{$key_id} = 1;
+			# unpack the incoming package
+			vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
+			vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
+			LDV::Utils::watcher_cmd('unpack', $path, $contents);
+			# find corresponding task descriptor and set status to 'verified'
+			vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
+			$tasks->{$cid}->{state} = 'verified';
+
+			# Return that we have waited for one key succesfully
+			return 1;
+		}else{
+			# This is not the first time, just note that.
+			vsay('WARNING',"Received result for $cid AGAIN, ignoring.\n");
+
+			# Notify the parent that we have read zero useful keys
+			return 0;
+		}
 	};
 
 	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";

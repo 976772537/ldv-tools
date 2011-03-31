@@ -689,6 +689,9 @@ for my $property (@properties){
 # Wait for the number of RCVs we should spawn
 my $rcvs_consumed = 0;
 
+# Hash of the keys returned.  A key may arrive twice (if this node is a re-instantiation of a terminated node, and a child of that terminated node finishes its work after another instance of it was queried).
+my $keys_arrived = {};
+
 # Callback to process one result of an RCV.  It's called synchronously.
 my $process_rcv_result = sub {
 	my @rv = split /,/,$_[0];
@@ -703,19 +706,35 @@ my $process_rcv_result = sub {
 		my $k = shift @key;
 		die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
 	}
-		vsay('DEBUG',"Done loop \n");
+	vsay('TRACE',"Done key loop \n");
 	my (undef,$rule_id,undef,$cmd_id,$main_id) = @key;
-	# unpack the incoming package
-	vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
-	vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
-	my ($files,undef) = LDV::Utils::watcher_cmd_readall('unpack',$path,$contents);
-	local $_;
-	for_parent($_) for @$files;
+
+	# Check if such key has already arrived
+	my $key_id = join(".",@key);
+	unless (exists $keys_arrived->{$key_id}){
+		$keys_arrived->{$key_id} = 1;
+		vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
+		# unpack the incoming package
+		vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
+		my ($files,undef) = LDV::Utils::watcher_cmd_readall('unpack',$path,$contents);
+		local $_;
+		for_parent($_) for @$files;
+
+		# Return that we have waited for one key succesfully
+		return 1;
+	}else{
+		# This is not the first time, just note that.
+		vsay('WARNING',"Received result for $rule_id, $cmd_id, $main_id AGAIN, ignoring.\n");
+
+		# Notify the parent that we have read zero useful keys
+		return 0;
+	}
 };
 
 while ($rcvs_consumed < $expected_blast_runs) {
-	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$expected_blast_runs-$rcvs_consumed));
-	$rcvs_consumed += LDV::Utils::watcher_cmd_callback($expected_blast_runs-$rcvs_consumed,$process_rcv_result,'wait','rcv',@watcher_key,'#');
+	my $more = $expected_blast_runs-(scalar keys %$keys_arrived);
+	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$more));
+	$rcvs_consumed += LDV::Utils::watcher_cmd_callback($more,$process_rcv_result,'wait','rcv',@watcher_key,'#');
 }
 
 # Get files for trace.
