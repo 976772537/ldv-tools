@@ -18,7 +18,7 @@ module Nanite
       setup_common_options(opts, options, 'mapper')
 
       opts.on("-a", "--agent-timeout TIMEOUT", "How long to wait before an agent is considered to be offline and thus removed from the list of available agents.") do |timeout|
-        options[:agent_timeout] = timeout
+        options[:agent_timeout] = timeout.to_i
       end
 
       opts.on("-r", "--offline-redelivery-frequency", "The frequency in seconds that messages stored in the offline queue will be retrieved for attempted redelivery to the nanites. Default is 10 seconds.") do |frequency|
