@@ -212,7 +212,6 @@ class Ldvqueue
 	def remove(node)
 		@status_update_mutex.synchronize do
 			remove_node node
-			@clog.warn "Node #{node} was shut down or stalled!"
 		end if nodes[node]	# No need to remove non-worker node
 	end
 
@@ -259,6 +258,7 @@ class Ldvqueue
 
 	# Requeues tasks assigned to node
 	def remove_node(node_key)
+		@clog.warn "Node #{node_key} was shut down or stalled!"
 		@nodes.delete node_key
 		@task_update_mutex.synchronize do
 			@running.each do |k,v|

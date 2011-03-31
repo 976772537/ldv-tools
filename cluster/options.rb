@@ -16,7 +16,7 @@ class ClusterOptionsParser
 			opts.define_head "Nanite Agent: ruby process that acts upon messages passed to it by a mapper."
 			opts.separator '*'*80
 
-			setup_common_options(opts, options, 'agent')
+			setup_mapper_options(opts, options)
 
 			opts.on("-n", "--nanite NANITE_ROOT", "Specify the root of your nanite agent project.") do |nanite|
 				options[:root] = nanite
