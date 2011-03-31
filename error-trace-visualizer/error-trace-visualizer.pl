@@ -1335,7 +1335,8 @@ sub process_source_code_files()
 
         # Read auxiliary comment attributes. They are in form:
         # (attr1 = 'attr1 value', attr2 = 'attr2 value', ...)
-        if ($comment =~ /\(([^\)]*)\)\s*/)
+        # Note that there may be ')' inside ''.
+        if ($comment =~ /\((.*')\s*(?=\))\)\s*/)
         {
           my $attr_all = $1;
           $comment = $POSTMATCH;

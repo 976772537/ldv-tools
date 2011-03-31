@@ -26,6 +26,12 @@ use Utils;
 use File::Basename;
 use File::Path qw(mkpath);
 
+#cycle buffer for storing last $sizeLimit lines of the error log
+my @limitedBuffer;
+my $sizeLimit = 100;
+my $bufferCounter=0;
+
+
 my $config={
 	cmdfile=>'',
 	rawcmdfile=>'',
@@ -206,10 +212,39 @@ sub verify_blast
 	}
 }
 
+#cycle buffer for storing last $sizeLimit lines of the error log
+
+sub addToBuffer
+{
+	my $elem = shift;
+	$limitedBuffer[$bufferCounter]=$elem;
+	$bufferCounter += 1;
+	if ($bufferCounter>=$sizeLimit) 
+	{
+		$bufferCounter = 0;
+	}
+}
+
+sub getBuffer 
+{
+	my $result = "";
+	my $cnt = $bufferCounter;
+	do {
+		if(defined  $limitedBuffer[$cnt]) {
+			$result .= $limitedBuffer[$cnt];
+		}
+		$cnt++;
+		if($cnt>=$sizeLimit) { $cnt = 0; }
+	} while ($cnt!=$bufferCounter);
+	return $result;
+}
+
+
 # Call blast
 use IPC::Open3;
 use StreamAutomaton;
 use IO::Compress::Gzip qw($GzipError);
+use IO::Select;
 sub call_blast
 {
 	my %args = @_;
@@ -351,29 +386,78 @@ sub call_blast
 	# The streams will be printing GZIP-compressed text.
 	# TODO: Make it parallel.  Currently it's all processed inline, in the same thread.
 	my $BLAST_DEBUG = new IO::Compress::Gzip $args{debug} or die "gzip failed: $GzipError\n";
-	my ($BLAST_IN,$BLAST_OUT,$BLAST_ERR);
 	# Fork blast
 	local $"=" ";
-	my $fpid = open3($BLAST_IN,$BLAST_OUT,$BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
+	local (*BLAST_IN,*BLAST_OUT,*BLAST_ERR);
+	my $fpid = open3(*BLAST_IN,*BLAST_OUT,*BLAST_ERR,@blast_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @blast_options";
 
 	vsay (20,"BLAST debug trace is being written to $args{debug}\n");
 
 	# Create trace printer
 	my $dumptrace = dumptrace($args{trace});
 	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([$dumptrace,StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),ocaml_detect()]);
+	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),ocaml_detect()]);
+	# Verdictor that chews only the lines that BLAST prints to STDOUT.  This does not let STDERR lines to mingle with error trace.
+	my $verdictor_out = StreamAutomaton->new([$dumptrace]);
 
 	# Process output and redirect it to file
 	local $_;
-	# TODO: This should be replaced by select(2) call, but I'm too lazy to do it now.	We'll just print STDERR after STDOUT.
-	while (<$BLAST_OUT>) {
-		print $BLAST_DEBUG $_;
-		$verdictor->chew_line($_);
-	}
-	while (<$BLAST_ERR>) {
-		print $BLAST_DEBUG $_;
-		$verdictor->chew_line($_);
-	}
+
+	my $chunk_size = 4000;
+	my $select = IO::Select->new();
+	$select->add(\*BLAST_OUT);
+	$select->add(\*BLAST_ERR);
+	# Buffers to perform a non-block read and split it into lines
+	my ($err_buf,$out_buf);
+	while (my @ready_fhs = $select->can_read()){ for my $fh (@ready_fhs){
+		if ($fh == \*BLAST_OUT) {
+			# Non-blocking read and add to buffer
+			my $buf;
+			my $read = sysread BLAST_OUT,$buf,$chunk_size;
+			$out_buf.=$buf;
+			# Split buffer into lines and push to result calculator
+			while ($out_buf =~ /(.*?\n)(.*)/s) {
+				my $line = $1;
+				$out_buf=$2;
+				# Process the line fetched
+				$verdictor->chew_line($line);
+				$verdictor_out->chew_line($line);
+				print $BLAST_DEBUG $line;
+			}
+			# Read of zero indicates an EOF, and read of undef indicates an error (which may be a closed pipe)
+			unless ($read){
+				# chew what's left in the buffer
+				$verdictor->chew_line($out_buf);
+				$verdictor_out->chew_line($out_buf);
+				print $BLAST_DEBUG $out_buf;
+				$select->remove(\*BLAST_OUT);
+				vsay (40,"Child's stdout stream closed.\n");
+			}
+		}elsif ($fh == \*BLAST_ERR) {
+			# Non-blocking read and add to buffer
+			my $buf;
+			my $read = sysread BLAST_ERR,$buf,$chunk_size;
+			$err_buf.=$buf;
+			# Split buffer into lines and push to result calculator
+			while ($err_buf =~ /(.*?\n)(.*)/s) {
+				my $line = $1;
+				$err_buf=$2;
+				# Process the line fetched
+				$verdictor->chew_line($line);
+				addToBuffer($line);
+				print $BLAST_DEBUG $line;
+			}
+			# Read of zero indicates an EOF, and read of undef indicates an error (which may be a closed pipe)
+			unless ($read){
+				# chew what's left in the buffer
+				$verdictor->chew_line($err_buf);
+				addToBuffer($err_buf);
+				print $BLAST_DEBUG $err_buf;
+				$select->remove(\*BLAST_ERR);
+				vsay (40,"Child's stderr stream closed.\n");
+			}
+		}
+	}}
 
 	my %child = Utils::hard_wait($fpid,0);
 	close $BLAST_DEBUG;
@@ -394,6 +478,8 @@ sub call_blast
 		vsay (20,"BLAST failed with exit code $blast_rv.  But who cares?\n");
 	}
 
+	# We do not store the output of $verdictor_out, as it was used only to read the trace, but we should call result() for it to actually yield the trace
+	$verdictor_out->result();
 	my $result = {%{$verdictor->result()}};
 	# Post limits and verdict on different lines!
 	$result->{'BLAST-detailed'} = join "\n",(grep {$_} ($result->{'BLAST-detailed'},$result->{'LIMITS'},$result->{'OCAML'}));
@@ -415,19 +501,6 @@ sub call_blast
 			$stopsep = "stop-sep with default merge";
 		}
 	}
-	$result->{'BLAST-detailed'} .= <<EOR ;
-
-=========== Launch information ===========
-Verifier: BLAST ($ver4rep)
-Time Limit: $tl4rep
-Memory Limit: $ml4rep
-Additional options: $ENV{'BLAST_OPTIONS'}
-Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
-@{[$ENV{'BLAST_EXP_NOLATTICE'} ? 'No lattice\n' : '']}@{[$ENV{'BLAST_ALIASES'} ? 'With aliases\n' : '']}
-Using $stopsep
-=========== Launch inform ends ===========
-EOR
-
 	# Ok, BLAST finished, and we now print the small XML report for it
 
 	# Assignments to port the old code
@@ -457,7 +530,21 @@ EOR
 		$bv='UNSAFE';
 	}else{
 		$bv='UNKNOWN';
+		$result->{'BLAST-detailed'} .= "\n" . getBuffer();
 	}
+
+	$result->{'BLAST-detailed'} .= <<EOR ;
+
+=========== Launch information ===========
+Verifier: BLAST ($ver4rep)
+Time Limit: $tl4rep
+Memory Limit: $ml4rep
+Additional options: $ENV{'BLAST_OPTIONS'}
+Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
+@{[$ENV{'BLAST_EXP_NOLATTICE'} ? 'No lattice\n' : '']}@{[$ENV{'BLAST_ALIASES'} ? 'With aliases\n' : '']}
+Using $stopsep
+=========== Launch inform ends ===========
+EOR
 
 
 	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});

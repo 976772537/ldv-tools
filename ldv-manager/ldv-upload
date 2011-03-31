@@ -300,6 +300,11 @@ OptionParser.new do |opts|
 		$no_backwards_compatibility = true
 	end
 
+	opts.on "--modfilter MODULE_PREFIX", "Only load modules that start with the prefix specified" do |module_prefix|
+		$modprefix = module_prefix
+	end
+
+
 	opts.on "--debug", "Debug output" do |xml_fname|
 		$debug = true
 	end
@@ -387,8 +392,6 @@ masters = MasterStats.new
 
 LaunchStreamFactory.init_global_params(:driver_name => driver_name, :driver_origin=>driver_origin, :git_tag => git_tag, :global_verifier => global_verifier, :task => task)
 
-module_filter = ENV['LDV_MODFILTER']
-
 builds = {}
 
 potential_master = []
@@ -403,7 +406,9 @@ while not docs.end_of? 'reports' do
 	# Skip nodes we're not interested in...
 	if docs.name == 'ld'
 		# Skip the module if necessary
-		if module_filter && docs['module_name'] != module_filter
+		if $modprefix && !docs['module_name'].start_with?($modprefix)
+			$stderr.puts "Skipping #{docs['module_name']} as it doesn't comply to modfilter #{$modprefix}"
+			docs.next
 			next
 		end
 	elsif docs.start_of? 'build'
