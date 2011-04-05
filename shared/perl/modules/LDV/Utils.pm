@@ -182,9 +182,12 @@ sub watcher_cmd_readall
 	my $WATCHER; open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
 	# Read one line.  If none is printed, the line will contain undef;
 	local $_;
-	my @lines = <$WATCHER>;
-	local $"=",";
-	vsay('TRACE',"Watcher says: @lines\n") if @lines;
+	my @lines = ();
+	while (<$WATCHER>){
+		chomp;
+		vsay('TRACE',"Watcher says: $_\n") if $_;
+		push @lines,$_;
+	}
 	chomp for @lines;
 	close $WATCHER;	# We don't need anything else
 
