@@ -433,8 +433,14 @@ class Ldvnode
 	# Return status for this node for cluster controller.  Based on this, the decision where to route tasks will be made
 	def status_for_cluster
 		st = status
+		# Append node load to the usual availability status
+		st[:load] = load_average
 		@nlog.debug "Announcing status #{st.inspect}"
 		st
+	end
+
+	def load_average
+		`cat /proc/loadavg`.chomp.split[0].to_f
 	end
 
 

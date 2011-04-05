@@ -26,6 +26,10 @@ class ClusterOptionsParser
 				options[:ping_time] = ping
 			end
 
+			opts.on("--max-node-load LOAD", "Specify maximum load averame (1 min.) of a node to route tasks to it ") do |max_load|
+				options[:max_node_load] = max_load.to_f
+			end
+
 			opts.on("--route-time ROUTE_TIME", "Specify how often the queue attempts to route a task") do |route_time|
 				options[:route_time] = route_time
 			end

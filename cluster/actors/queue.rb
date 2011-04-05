@@ -45,6 +45,22 @@ class Ldvqueue
 		@key_fname = File.expand_path File.join('data','max_key')
 		deserialize(:all)
 
+		# Node selection algorithm
+		@max_load = opts[:max_node_load] || 5
+		@select_node = lambda do |node_stats|
+			return nil if node_stats.empty?
+			least_loaded_node = node_stats.keys.min_by {|node_key| node_stats[node_key]['load'].to_f }
+			# Check if the load is low enough
+			if !least_loaded_node || node_stats[least_loaded_node]['load'].to_f > @max_load
+				@qlog.debug "Couldn't find node with load less than #{@max_load}!"
+				nil
+			else
+				@qlog.trace "OK, max load is #{node_stats[least_loaded_node][:load].to_f}, less than #{@max_load}"
+				least_loaded_node
+			end
+		end
+		#@select_node = lambda {|node_stats| node_stats.keys.shuffle.first}
+
 		# Restart route timer
 		# During a tick we'll serve exactly one job, according to the priorities
 		if route_timer_interval = opts[:route_time].to_f
@@ -106,9 +122,12 @@ class Ldvqueue
 					@qlog.debug "Node status: #{node_availability_info.or "<none>"}"
 					@qlog.trace "A #{job_type} found for queueing..."
 																										 # you may set this to -1 for debug
-					node = @nodes.keys.shuffle.find {|k| @nodes[k][job_type] > 0}
-					availability = @nodes[node]
+					#node = @nodes.keys.shuffle.find {|k| @nodes[k][job_type] > 0}
+					available_nodes = @nodes.inject({}) {|r,kv| r[kv[0]] = kv[1] if kv[1][job_type] > 0 ; r }
+					@qlog.trace "available_nodes for #{job_type}: #{available_nodes.inspect}"
+					node = @select_node[available_nodes]
 					if node
+						availability = @nodes[node]
 						availability[job_type] -= 1
 						# return job
 						job,target = job_type,node
