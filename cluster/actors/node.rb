@@ -392,6 +392,10 @@ class Ldvnode
 		@home = ENV['LDV_HOME'] || File.join(File.dirname(__FILE__),"..","..")
 		@nlog.debug "LDV_HOME is #{@home}"
 
+		# Set up max load (we'll reject tasks if our load is higher)
+		@max_load = opts[:max_node_load] || 1000
+
+
 		# Initialize task spawner.
 		# Should be performed before availability is relinquished!
 		if fname = opts[:play_scenario]
@@ -478,7 +482,10 @@ class Ldvnode
 			@nlog.trace "EventMachine spawns child!"
 			# Update local status
 			@status_update_mutex.synchronize do
-				if @status[job_type] > 0
+				if load_average > @max_load
+					@nlog.debug "Load too high #{load_average}, should be less than #{@max_load}, rejecting"
+					job_status = :rejected
+				elsif @status[job_type] > 0
 					@status[job_type] -= 1
 				else
 					job_status = :rejected
