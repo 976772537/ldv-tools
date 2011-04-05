@@ -30,6 +30,7 @@ targets= \
 	ldvc-task-impl \
 	actors/nodeui.rb \
 	ui.rb \
+	scheduler/tasks.rb \
 
 bintargets=ldvc-master ldvc-node ldvc-task ldvc-env
 

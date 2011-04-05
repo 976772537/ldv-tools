@@ -26,6 +26,8 @@ utils.rb
 utils/
 	logging.rb
 	open3.rb
+scheduler/
+	tasks.rb
 
 cluster-watcher.rb
 

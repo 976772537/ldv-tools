@@ -128,7 +128,7 @@ def say_and_run(*args_)
 	else
 		cerr_handler = proc do |pid,cerr|
 			line = cerr.readline
-			lgr.debug line.chomp
+			lgr.error line.chomp
 		end
 	end
 	# Do not capture stdout if we're told not to

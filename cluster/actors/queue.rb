@@ -1,20 +1,13 @@
+require 'scheduler/tasks'
+
 class Ldvqueue
 
 	include Nanite::Actor
 	expose :queue, :redo, :announce, :remove, :result, :purge_task, :get_unique_key
 
-	attr_accessor :nodes, :queued, :running, :waiter
+	attr_accessor :nodes, :queued, :running, :waiter, :tasks
 
 	Job_priority = %w(rcv dscv ldv)
-
-	class QueuedTasks < Hash
-		def initialize(hash = {})
-			super hash
-		end
-		def log
-			self.inject({}) {|r,pair| r[pair[0]] = pair[1].map{|task| task[:key]}; r }.inspect
-		end
-	end
 
 	DEFAULT_OPTIONS = { :route_time => 5 }
 
@@ -22,8 +15,8 @@ class Ldvqueue
 		@status_update_mutex = Mutex.new
 		@task_update_mutex = Mutex.new
 		@nodes = {}
-		@queued = Job_priority.inject(QueuedTasks.new({})) {|r,j| r[j]=[]; r}
-		@running = Job_priority.inject({}) {|r,j| r[j]={}; r}
+
+		@tasks = TaskStorage.new(Job_priority,nil)
 
 		# Waiter -- create its own AMQP queues and use them to implement waiting
 		# Initialized after construction -- see waiter_new
@@ -41,6 +34,7 @@ class Ldvqueue
 		# Initialize loggers (they might have been reconfigured as well).  NOTE that loggers should be the first to initialize, since all the information on how well the reinitialization went goes there
 		# Queue logger
 		@qlog = Logging.logger['Task']
+		tasks.qlog = @qlog
 		# Cluster logger
 		@clog = Logging.logger['Cluster']
 
@@ -55,9 +49,9 @@ class Ldvqueue
 			@nodestat_timer.cancel if @nodestat_timer
 			@nodestat_timer = EM.add_periodic_timer(10) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
 			@queuestat_timer.cancel if @queuestat_timer
-			@queuestat_timer = EM.add_periodic_timer(20) { @qlog.debug "Queue status: #{@queued.log}" }
+			@queuestat_timer = EM.add_periodic_timer(20) { @qlog.debug "Queue status: #{tasks.queued(:all).inspect}" }
 			@qrstat_timer.cancel if @qrstat_timer
-			@qrstat_timer = EM.add_periodic_timer(10) { q,r = running_stats; @qlog.info "Queued: #{q}; running: #{r}" }
+			@qrstat_timer = EM.add_periodic_timer(10) { @qlog.info "Queued: #{tasks.queued(:all).size}; running: #{tasks.running_on(:all).size}" }
 		end
 
 	end
@@ -85,13 +79,16 @@ class Ldvqueue
 
 	# Fetch task from task queue, selects node to route it to, and pushes it to the cluster
 	def route_task
+		# Take a task from queue and launch it
 		@task_update_mutex.synchronize do
+
+			# At this point, every task queued has never been finished in the cluster.
 
 			# Find job_type and an available node to route job of that type to
 			# If nothing found, find will return nils, and job and target will remain nils
 			job,target = nil,nil
 			Job_priority.find do |job_type|
-				if @queued[job_type].empty?
+				if tasks.queued(job_type).empty?
 					false	#try job of next type
 				else
 					# Cluster info log
@@ -111,41 +108,45 @@ class Ldvqueue
 				end
 			end
 			if target
-				task = @queued[job].shift
-				@running[job][target] ||= []
-				@running[job][target] << task
-
-				@qlog.info "Routing #{job} with key #{task[:key]} to #{target}."
-				@qlog.trace "Routed task: #{task.inspect}"
-
-				Nanite.push("/ldvnode/#{job}", task, :target => target)
-
-				# Since queued and running is a hash of hashes, we use jobs[1] instead of jobs
-				q,r = running_stats
-				@qlog.info "Queued: #{q}; running: #{r}"
-				@qlog.debug "Queue task #{task[:key]}, Currently run: #{how_run}"
-				@qlog.info "Node status: #{node_availability_info.or "<none>"}"
-				@qlog.debug "Keys left in queue: #{queued.log}"
+				task = tasks.queued(job).first
+				@qlog.trace "Moving task #{task.inspect} to running"
+				task.dequeue
+				task.run_on target
+				route_task_to job, task.raw, target
 			end
 		end
+
+	end
+
+	# Route task to specific target.  Does not hold a mutex
+	private; def route_task_to job, raw_task, target
+		@qlog.info "Routing #{job} with key #{raw_task['key']} to #{target}."
+		@qlog.trace "Routed task: #{raw_task.inspect}"
+
+		Nanite.push("/ldvnode/#{job}", raw_task, :target => target)
+
+		# Since queued and running is a hash of hashes, we use jobs[1] instead of jobs
+		@qlog.info "Queued: #{tasks.queued(:all).size}; running: #{tasks.running_on(:all).size}"
+		@qlog.debug "Queue task #{raw_task['key']}, Currently run: #{how_run}"
+		@qlog.info "Node status: #{node_availability_info.or "<none>"}"
+		# FIXME
+		@qlog.debug "Keys left in queue: #{tasks.queued(:all).inspect}"
 	end
 
 	# Returns summary of queued and running tasks total
-	def running_stats
-		qu = queued.inject(0){|sum,jobs| jobs[1].length+sum}
-		ru = running.inject(0){|sum,jobs| sum + jobs[1].inject(0){|s,node_tasks| node_tasks[1].length+s}}
-		return qu,ru
-	end
+	#private; def running_stats
+		#qu = queued.inject(0){|sum,jobs| jobs[1].length+sum}
+		#ru = running.inject(0){|sum,jobs| sum + jobs[1].inject(0){|s,node_tasks| node_tasks[1].length+s}}
+		#return qu,ru
+	#end
 
 	# Return string that describes distribution of tasks among nodes
 	def how_run
 		node_keys = {}
-		@running.each do |job_type,node_tasks|
-			node_tasks.each do |node,tsk|
-				node_keys[node] ||= {}
-				node_keys[node][job_type] ||= []
-				node_keys[node][job_type] = tsk.map{|t| t[:key]}
-			end
+		tasks.running_on(:all).each do |k|
+			node_keys[k.node] ||= {}
+			node_keys[k.node][k.type] ||= []
+			node_keys[k.node][k.type] << k.key
 		end
 
 		node_keys.inspect
@@ -156,37 +157,43 @@ class Ldvqueue
 	# 	:args => arguments (the taskfile)
 	# 	:workdir => working directory for this task
 	# 	:key => a string with a key for this task
-	def queue(_task, where = :last)
+	public; def queue(_task, where = :last)
 		@qlog.info "Incoming task: #{_task['key']}" if where
 		do_queue(_task,where)
 	end
 
 	def do_queue(_task, where = :last)
-		@qlog.debug "Add to queue: #{_task['key']}"
-		@qlog.trace "Queueing task #{_task.inspect}"
-		if Ldvqueue.task_correct? _task
-			task = Ldvqueue.symbolize(_task)
+		begin
+			task = tasks.queue(_task,where)
+		rescue TaskExists => te
+			task = te.task
+			@qlog.trace "Task we wanted to queue already exists: #{task.inspect}"
+			# If the task has already finished, but is queued again (we assume that it's due to a denial of its parent), we send result at once instead of queueing it.
+			if task.finished?
+				result task.raw
 
-			# Add information specific to the task's namespace for a node to read
-			assign_namespace_data(task)
+			# Second, we do not queue if it's already queued or running.  If the task is running on an alive node, then it will finish, and the receiver will get the result anyway.  If the scheduler thinks the task is running on an alive node, but the node's actually dead, the announce from cluster controller will re-queue the task, and put it to the beginning of the queue.  So, any task will be executed at least once.
+			elsif task.queued? || task.running?
+				# do nothing
 
-			# Push the task into queue
-			@task_update_mutex.synchronize do
-				enqueue_task(task[:type],task,where)
+			# Otherwise the task is neither finished nor going to run.  Perhaps, something wrong is occured?  Let's remove the task and retry
+			else
+				tasks.purge task
+				retry
 			end
-
-		else
-			raise "Badly formed task #{_task.inspect}!"
 		end
+
+		# Add information specific to the task's namespace for a node to read
+		assign_namespace_data(task)
 	end
 
 	def redo(_task)
 		@qlog.debug "Reject task: #{_task['key']}!"
 		@qlog.trace "Reject task: #{_task}!"
 		# Remove from registry of running tasks
-		task = Ldvqueue.symbolize _task
-		remove_task(task)
-		@qlog.debug "Redo task #{_task['key']}, Currently run: #{how_run}"
+		key = _task['key']
+		tasks.task_of(key).requeue
+		@qlog.debug "Redo task #{key}, Currently run: #{how_run}"
 		# put task into the beginning of the queue
 		do_queue(_task,:first)
 	end
@@ -216,19 +223,25 @@ class Ldvqueue
 	end
 
 	def result(_task)
-		task = Ldvqueue.symbolize(_task)
-		# Remove result from the queue
-		@task_update_mutex.synchronize do
-			remove_task(task)
+		@qlog.trace "Result with raw task #{_task.inspect}"
+		task = tasks.task_of_raw _task
+
+		unless task
+			@qlog.warn "Strange result with key #{_task['key']} arrived (perhaps, from previous trash run?).  Ignoring."
+			return nil
 		end
+
+		@qlog.info "Task finished: #{task.key}"
+		# Remove result from the queue
+		task.finish
 		# Push result to the waiter
-		waiter.job_done(task[:key],task)
-		@qlog.info "Task finished: #{task[:key]}"
+		waiter.job_done(task.key,task.raw)
 		@qlog.trace "Result gotten of #{task.inspect}"
 	end
 
 	# Development only!
 	def purge_task(task)
+		fail
 		remove_task_from(task,self.queued)
 	end
 
@@ -236,40 +249,16 @@ class Ldvqueue
 		remove_task_from(task,self.running)
 	end
 
-	def remove_task_from(task,proper_queue)
-		# Find the node, on which the task was running, and remove it from the list
-		# FIXME: make it faster?
-
-		node_task_map = proper_queue[task[:type]]
-		raise "Task type (#{task[:type]}) is not supported!" unless node_task_map
-		node,tasks = node_task_map.find do |node,tasks|
-			tasks.find { |queued_task| queued_task[:key] == task[:key] }
-		end
-		@qlog.trace "remove_task_from Node: #{node.inspect}"
-		@qlog.trace "remove_task_from Task: #{task[:key].inspect}"
-		# Remove this task from running tasks
-		if node
-			tasks.reject! { |queued_task| queued_task[:key] == task[:key] } if node
-			# If there's no tasks left, delete node from the registry
-			@qlog.trace "remove_task_from: tasks left #{tasks.inspect}"
-			node_task_map.delete node if tasks.empty?
-		end
-	end
-
 	# Requeues tasks assigned to node
 	def remove_node(node_key)
 		@clog.warn "Node #{node_key} was shut down or stalled!"
 		@nodes.delete node_key
-		@task_update_mutex.synchronize do
-			@running.each do |k,v|
-				# tasks currently running on the node being removed, for k job type
-				node_tasks = v[node_key]
-				if node_tasks && !node_tasks.empty?
-					# Add at the beginning of the queue: since these tasks are already launched, they should be re-done asap
-					node_tasks.each {|t| enqueue_task(k,t,:first) }
-				end
-				v.delete node_key
-			end
+
+		#@task_update_mutex.synchronize do
+
+		tasks.running_on(node_key).each do |k|
+			@qlog.trace "Requeueing #{k.inspect}"
+			k.requeue
 		end
 		@qlog.debug "Tasks for #{node_key} requeued"
 	end
@@ -280,34 +269,6 @@ class Ldvqueue
 		@qlog.info "New node #{node} connected!"
 	end
 
-	# must - keys that every task should have
-	# may  - keys that some tasks might have
-	# Other keys are prohibited!
-	Task_keys = {'type' => :must, 'args' => :must, 'workdir' => :must, 'key' => :must, 'env'=>:must, 'global' => :may}
-	# Check if task is correct
-	def self.task_correct?(task)
-		task.keys.each do |item|
-			raise unless Task_keys[item]
-		end
-		Task_keys.each do |item,req|
-			return false if req == :must && !task[item]
-		end
-		return true
-	end
-
-	# Make hash "symbol->data" from "string->data"
-	def self.symbolize(task)
-		task.inject({}) {|r,kv| r[kv[0].to_sym]=kv[1];  r }
-	end
-
-	def enqueue_task(type,task,where = :last)
-		self.queued[type] ||= []
-		if where == :last
-			self.queued[type] << task
-		else
-			self.queued[type].unshift task
-		end
-	end
 
 	NODE_PRETTY = [['ldv','L'],['dscv','D'],['rcv','R']]
 	# Print a nice string about availability of services on nodes.
