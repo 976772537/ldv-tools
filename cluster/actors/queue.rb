@@ -18,6 +18,9 @@ class Ldvqueue
 
 		@tasks = TaskStorage.new(Job_priority,nil)
 
+		# Default unique key (for new pools)
+		@default_key = 100
+
 		# Waiter -- create its own AMQP queues and use them to implement waiting
 		# Initialized after construction -- see waiter_new
 		@waiter = nil
@@ -37,6 +40,10 @@ class Ldvqueue
 		tasks.qlog = @qlog
 		# Cluster logger
 		@clog = Logging.logger['Cluster']
+
+		# Serialization init
+		@key_fname = File.expand_path File.join('data','max_key')
+		deserialize(:all)
 
 		# Restart route timer
 		# During a tick we'll serve exactly one job, according to the priorities
@@ -65,8 +72,12 @@ class Ldvqueue
 		# EventMachine calls handlers synchronously, so no mutex here.
 		@key_pool ||= {}
 		# FIXME: read this from file
-		@key_pool[key_skel] ||= 100
+		@key_pool[key_skel] ||= @default_key
 		new_key = @key_pool[key_skel] += 1
+
+		# Serialize as soon as possible
+		serialize
+
 		new_key_str = "#{key_skel}.#{new_key}"
 
 		@qlog.info "Unique key requested for #{key_skel}.  Sending: #{new_key_str}"
@@ -331,6 +342,32 @@ class Ldvqueue
 
 	def init_waiter(opts = {})
 		@waiter = Waiter.new(opts)
+	end
+
+
+	## SERIALIZATION
+	# Serialization prototype.  Currently serializes keys to files.  Should be called synchronously.
+	def serialize(what = :all)
+		# Save key
+		begin
+			FileUtils.mkdir_p(File.dirname(@key_fname))
+			File.open(@key_fname,'w') do |f|
+				@qlog.trace "Serialize keys: #{@key_pool.inspect}"
+				Marshal.dump(@key_pool,f)
+			end
+		rescue
+			@qlog.error "Serialization failed"
+		end
+	end
+
+	def deserialize(what = :all)
+		begin
+			File.open(@key_fname) do |f|
+				@key_pool = Marshal.load(f)
+			end
+		rescue
+			@key_pool = nil
+		end
 	end
 
 end
