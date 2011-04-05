@@ -1947,6 +1947,54 @@ sub process_cmds()
           die("The specified input file '$in_file' doesn't exist.")
             unless ($in_file and -f $in_file);
 
+          # do dirty hack for 39_7 model
+          if ( $opt_model_id eq "39_7") 
+          {
+            @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);", 
+                      "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
+                      "void ldv_spin_lock_nest_lock(spinlock_t *lock, struct lockdep_map *map);",
+                      "void ldv_spin_lock_irqsave_nested_TEMPLATE(spinlock_t *lock, int subclass);",
+                      "int ldv_spin_trylock_irqsave_TEMPLATE(spinlock_t *lock, unsigned long flags);"
+                     );
+            @keys = ("spin_lock_irqsave",
+                     "spin_lock_nested",
+                     "spin_lock_nest_lock",
+                     "spin_lock_irqsave_nested",
+                     "spin_trylock_irqsave"
+                    );
+            @replacements = ("ldv_spin_lock_irqsave",
+                             "ldv_spin_lock_nested",
+                             "ldv_spin_lock_nest_lock",
+                             "ldv_spin_lock_irqsave_nested",
+                             "ldv_spin_trylock_irqsave"
+                            );
+
+            print_debug_trace("Replace defines by model functions for model ".$opt_model_id);
+            for ($count = 0; $count < scalar(@keys); $count++) {
+       	      print "Replace defines for keys['$count']=".$keys[$count];
+            }
+            my $decl = $decls[$count];
+            my $key = $keys[$count];
+            my $replacement = $replacements[$count];
+            my $tmpfile = $in_file.".bak";
+            rename($in_file, $tmpfile)
+             or die("Can't rename inputfile '$in_file' to '$tmpfile'");   
+            open(OUT, '>',$in_file) 
+              or die("Can't open file '$in_file' for write: $ERRNO");
+            open(IN, '<', "$tmpfile")
+              or die("Can't open file '$in_file' for read: $ERRNO");
+            print OUT $decl."\n";
+            while(<IN>) {
+              $_ =~ s/$key/$replacement/g;
+              print OUT $_;
+            }
+            close(IN)
+              or die("Couldn't close file '$tmpfile': $ERRNO\n");
+            close(OUT)
+              or die("Couldn't close file '$in_file': $ERRNO\n");
+            #system('perl', '-p', '-i.bak', '-e', "s/".$key."/".$replacement."/g")
+            #  or die("Can't replace content of the file '$in_file'");         
+          }
           # Get target file cache key.
           my $target_file = "$in_file$common_c_suffix";
           my $cache_file_key = $target_file;
