@@ -282,6 +282,9 @@ sub call_blast
 		# Skip if there's not map and foreach handlers
 		if (@reroute_map || @reroute_foreach){
 			push @blast_options,"-reroute";
+			if($rerouteT->first_child('first_only')) {
+				push @blast_options,"-reroute-first";
+			}
 			local $_;
 			push @blast_options,"-reroute-map",$_ for @reroute_map;
 			push @blast_options,"-reroute-foreach",$_ for @reroute_foreach;
