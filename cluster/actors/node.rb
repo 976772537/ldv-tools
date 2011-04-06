@@ -129,6 +129,9 @@ class RealSpawner < Spawner
 
 		# We don't set environment variables at once, because it would alter global environment, which is not thread-safe (for forked children).  Thus, we just create a proc, and call it in all the forked kids (to collect all the common code that sets ENV in one place).
 		set_common_env = proc do
+			# Notify children that we are in cluster
+			ENV['LDV_IN_CLUSTER'] = '1'
+
 			ENV['LDV_SPAWN_KEY'] = spawn_key
 			# LDV_WATCHER_SRV is set in wrapper script that call set_env_from_opts in options.rb
 

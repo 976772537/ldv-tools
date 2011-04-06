@@ -14,7 +14,13 @@ class Ldvqueue
 	def initialize
 		@status_update_mutex = Mutex.new
 		@task_update_mutex = Mutex.new
+
+		# Node status notion
 		@nodes = {}
+		@discount = []
+		@load_range = 60
+		@load_start_coeff = 1
+		@load_end_coeff = 1
 
 		@tasks = TaskStorage.new(Job_priority,nil)
 
@@ -55,11 +61,15 @@ class Ldvqueue
 				@qlog.debug "Couldn't find node with load less than #{@max_load}!"
 				nil
 			else
-				@qlog.trace "OK, max load is #{node_stats[least_loaded_node][:load].to_f}, less than #{@max_load}"
+				@qlog.trace "OK, max load is #{node_stats[least_loaded_node]['load']}, less than #{@max_load}"
 				least_loaded_node
 			end
 		end
 		#@select_node = lambda {|node_stats| node_stats.keys.shuffle.first}
+		# Discounting heuristic
+		@load_range = opts[:disc_range] || 60
+		@load_start_coeff = opts[:disc_start] || 1.0
+		@load_end_coeff = opts[:disc_end] || 1.0
 
 		# Restart route timer
 		# During a tick we'll serve exactly one job, according to the priorities
@@ -126,16 +136,19 @@ class Ldvqueue
 
 					# Get list of nodes which have enough free slots to accept this job
 					available_nodes = @nodes.inject({}) {|r,kv| r[kv[0]] = kv[1] if kv[1][job_type] > 0 ; r }
-
 					@qlog.trace "available_nodes for #{job_type}: #{available_nodes.inspect}"
-					node = @select_node[available_nodes]
+					# Apply discounting heuristic to the load of these nodes
+					available_nodes_with_discount = discount available_nodes
+					@qlog.trace "available_nodes (discounted) for #{job_type}: #{available_nodes_with_discount.inspect}"
+
+					node = @select_node[available_nodes_with_discount]
 					if node
 						# Decrease our notion of node load
 						availability = @nodes[node]
 						# Node will absorb less jobs
 						availability[job_type] -= 1
 						# Node is more loaded
-						availability['load'] += 1
+						add_discount(+1.0*@load_start_coeff,node)
 
 						# return job
 						job,target = job_type,node
@@ -257,6 +270,14 @@ class Ldvqueue
 			new_nodes.each {|node| add_node(node,statuses[node]) }
 			# And casually switch statuses of nodes that didn't go anywhere
 			(statuses.keys & @nodes.keys).each {|n| @nodes[n] = statuses[n] }
+
+			# Fixup statuses: convert strings to floats
+			@nodes.each do |node,st|
+				st['load'] = st['load'].to_f if st['load']
+				# Save real load to a separate variable (we'll discount loads based on this)
+				st['real_load'] = st['load']
+			end
+			@clog.debug "Announced (discount): #{(discount @nodes).inspect}"
 		end
 	end
 
@@ -291,11 +312,53 @@ class Ldvqueue
 	# When task is removed from queue, we alter our notion its node availability.
 	# Task is a taskhandler.
 	def fixup_status(task)
-		#EM.add_timer(1) {
-			@clog.trace "Status fixup for node #{task.node} after result of #{task.inspect}"
-			@nodes[task.node]['load'] -= 1
+		@clog.trace "Status fixup for node #{task.node} after result of #{task.inspect}"
+		# Add a slot into our notion about that node
+		if @nodes[task.node]
 			@nodes[task.node][task.type] += 1
-		#}
+			# Add discount on status of nodes: pretend that it's less than the value the node tells us
+			if task.type == 'dscv'
+				# DSCV nodes most likely waited at the end for quite a time, so decrease less than we could
+				coeff = @load_end_coeff*0.5
+			else
+				coeff = @load_end_coeff
+			end
+			add_discount(-1.0*@load_end_coeff,task.node)
+		end
+	end
+
+	# Discount stats given by stored discounts.  Remove old discounts.
+	# When we send a task to a node, we increase the real load average for this node for 1 minute by value decreasing over this minute from 1 to 0. After 1 minute we consider the load established, and remove this discount
+	# When a task finishes, we decrease the load average in the same way.
+	def discount discounted
+		@qlog.trace "Current discounts: #{@discount.inspect}"
+		# Save the current time (for consistency)
+		nowtime = Time.now
+		# Remove discounts for nodes older than a minute
+		while @discount.first && (nowtime - @discount.first[:time] > @load_range)
+			@qlog.trace "Discount drop #{@discount.first.inspect}"
+			@discount.pop
+		end
+		# NOTE that we do not remove discounts if a task has started and finished in a minute.  If this happens, the total effect on the node's load will remain constant and negative for some time, and then will increase up to zero.  This should alleviate an increase in average load that took into account the task that has already finished, has contributed to the load average, but does not predict the future anymore.
+
+		# Discount real load, not the current one!
+		discounted.each do |k,v|
+			v['load'] = v['real_load']
+		end
+		# Add discount to the stats of each node
+		@discount.each do |d|
+			if discounted[d[:node]]
+				discounted[d[:node]]['load'] += d[:value]*(1 - (nowtime - d[:time]).to_f / @load_range)
+			end
+		end
+		discounted
+	end
+
+	def add_discount value, node
+		was = discount(@nodes)[node]['load']
+		@discount << {:time=>Time.now, :value => value.to_f, :node => node}
+		now = discount(@nodes)[node]['load']
+		@qlog.trace "Discounted #{node} by #{value} from #{was} to #{now}"
 	end
 
 	# Development only!

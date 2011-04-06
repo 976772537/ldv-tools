@@ -26,10 +26,6 @@ class ClusterOptionsParser
 				options[:ping_time] = ping
 			end
 
-			opts.on("--max-node-load LOAD", "Specify maximum load averame (1 min.) of a node to route tasks to it ") do |max_load|
-				options[:max_node_load] = max_load.to_f
-			end
-
 			opts.on("--route-time ROUTE_TIME", "Specify how often the queue attempts to route a task") do |route_time|
 				options[:route_time] = route_time
 			end
@@ -64,6 +60,20 @@ class ClusterOptionsParser
 
 			opts.on("--file-server user@host:/folder", "SSH file server to exchange files in the cloud.  Auth by key.") do |val|
 				options[:filesrv] = val
+			end
+
+			opts.on("--max-node-load LOAD", "Specify maximum load averame (1 min.) of a node to route tasks to it ") do |max_load|
+				options[:max_node_load] = max_load.to_f
+			end
+
+			opts.on("--disc-range SECONDS", "Discounting heuristics adjust node's load averages for this amount of seconds") do |sec|
+				options[:disc_range] = sec.to_f
+			end
+			opts.on("--disc-start COEFF", "Assume load of newcoming tasks constant and equal to this") do |sec|
+				options[:disc_start] = sec.to_f
+			end
+			opts.on("--disc-end COEFF", "Assume load of finishing tasks constant and equal to this") do |sec|
+				options[:disc_end] = sec.to_f
 			end
 
 			
