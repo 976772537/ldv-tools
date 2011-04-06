@@ -212,9 +212,11 @@ sub start_next {
 			die "Fatal error: $@";
 		}
 
-		$SIG{TERM} = \&kill_watcher;
-		$SIG{INT} = \&kill_watcher;
 		$SIG{QUIT} = \&kill_watcher;
+		# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+		$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+		# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
+		$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 
 		my $tasks = {};
 		while(1) {
@@ -279,7 +281,8 @@ sub start_next {
 		1;
 		} or do {
 		        vsay 4, "Fatal error.  Stopping services before reporting...\n";
-			kill_watcher();
+			# FIXME: we shouldn't check for cluster here, but as of today it's more important to not send fails on signals
+			kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
 		};
 
 		exit 0;

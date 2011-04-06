@@ -152,15 +152,18 @@ if ($mode eq 'cmd'){
 		die $@;
 	}
 
-	$SIG{TERM} = \&kill_watcher;
-	$SIG{INT} = \&kill_watcher;
 	$SIG{QUIT} = \&kill_watcher;
+	# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+	$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+	# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
+	$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 	eval {
 		call_blast(%args);
 		1;
 	} or do {
 		vsay 4, "Fatal error.  Stopping services before reporting...\n";
-		kill_watcher();
+		# FIXME: send sometimes in cluster mode
+		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
 		# We die in kill_watcher, no need to exit here... but just in case...
 		exit 1;
 	};
