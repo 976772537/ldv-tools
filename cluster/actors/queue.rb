@@ -46,7 +46,7 @@ class Ldvqueue
 		deserialize(:all)
 
 		# Node selection algorithm
-		@max_load = opts[:max_node_load] || 5
+		@max_load = opts[:max_node_load] || 100
 		@select_node = lambda do |node_stats|
 			return nil if node_stats.empty?
 			least_loaded_node = node_stats.keys.min_by {|node_key| node_stats[node_key]['load'].to_f }
@@ -123,12 +123,20 @@ class Ldvqueue
 					@qlog.trace "A #{job_type} found for queueing..."
 																										 # you may set this to -1 for debug
 					#node = @nodes.keys.shuffle.find {|k| @nodes[k][job_type] > 0}
+
+					# Get list of nodes which have enough free slots to accept this job
 					available_nodes = @nodes.inject({}) {|r,kv| r[kv[0]] = kv[1] if kv[1][job_type] > 0 ; r }
+
 					@qlog.trace "available_nodes for #{job_type}: #{available_nodes.inspect}"
 					node = @select_node[available_nodes]
 					if node
+						# Decrease our notion of node load
 						availability = @nodes[node]
+						# Node will absorb less jobs
 						availability[job_type] -= 1
+						# Node is more loaded
+						availability['load'] += 1
+
 						# return job
 						job,target = job_type,node
 					else
@@ -220,9 +228,15 @@ class Ldvqueue
 	def redo(_task)
 		@qlog.debug "Reject task: #{_task['key']}!"
 		@qlog.trace "Reject task: #{_task}!"
-		# Remove from registry of running tasks
 		key = _task['key']
-		tasks.task_of(key).requeue
+
+		# Remove from registry of running tasks
+		task = tasks.task_of(key)
+		task.requeue
+
+		# We might "want" to fix up our notion of node's status, and increase its availability, for instance.  But the thing is that doing a "redo" means that out notion of the status was incorrect in the first place!  So we don't invoke fixup_status here
+		#fixup_status task
+
 		@qlog.debug "Redo task #{key}, Currently run: #{how_run}"
 		# put task into the beginning of the queue
 		do_queue(_task,:first)
@@ -266,7 +280,22 @@ class Ldvqueue
 		task.finish
 		# Push result to the waiter
 		waiter.job_done(task.key,task.raw)
+
+		# Alter our notion about node's status
+		# As node first sends the result, and then performs local cleanups, we pause a bit for this status (WE DON'T)
+		fixup_status(task)
+
 		@qlog.trace "Result gotten of #{task.inspect}"
+	end
+
+	# When task is removed from queue, we alter our notion its node availability.
+	# Task is a taskhandler.
+	def fixup_status(task)
+		#EM.add_timer(1) {
+			@clog.trace "Status fixup for node #{task.node} after result of #{task.inspect}"
+			@nodes[task.node]['load'] -= 1
+			@nodes[task.node][task.type] += 1
+		#}
 	end
 
 	# Development only!

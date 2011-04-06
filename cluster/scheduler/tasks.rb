@@ -164,10 +164,8 @@ class TaskDescriptor
 		inspect
 	end
 	def inspect
-		"#<TaskDesc @key=#{key.inspect}, @status=#{status.inspect}, @type=#{type.inspect}, @payload.keys=#{@payload.keys.inspect}>"
-	end
-	def inspect
-		"#<TaskDesc @key=#{key.inspect}, @status=#{status.inspect}, @type=#{type.inspect}>"
+		node_desc = node ? "@node=#{node}":""
+		"#<TaskDesc @key=#{key.inspect}, @status=#{status.inspect}, @type=#{type.inspect}#{node_desc}>"
 	end
 
 	def running?
