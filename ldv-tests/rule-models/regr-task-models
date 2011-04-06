@@ -1,3 +1,3 @@
-driver=39_7--test-doublelock.tar.bz2;origin=external;kernel=linux-2.6.37.tar.bz2;model=39_1;module=drivers/39_7/test-doublelock/doublelock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=39_7--test-safe.tar.bz2;origin=external;kernel=linux-2.6.37.tar.bz2;model=39_7;module=drivers/39_7/test-safe/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=39_7--test-unlock.tar.bz2;origin=external;kernel=linux-2.6.37.tar.bz2;model=39_7;module=drivers/39_7/test-unlock/unlockwithoutlock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=39_7--test-doublelock.tar.bz2;origin=external;kernel=linux-2.6.37;model=39_7;module=drivers/39_7/test-doublelock/doublelock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=39_7--test-safe.tar.bz2;origin=external;kernel=linux-2.6.37;model=39_7;module=drivers/39_7/test-safe/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=39_7--test-unlock.tar.bz2;origin=external;kernel=linux-2.6.37;model=39_7;module=drivers/39_7/test-unlock/unlockwithoutlock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe

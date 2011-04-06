@@ -31,7 +31,8 @@ install: all
 	@$(call test_prefix)
 	if [ ! -d $(prefix)/$(MODEL_TEST_DIR) ]; then mkdir -p $(prefix)/$(MODEL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR_DRV}/*.tar.bz2 $(prefix)/$(MODEL_TEST_DIR) || exit 1;
-	cp $(TEST_TASK) $(prefix)/$(MODEL_TEST_DIR) || exit 1;	
+	cp $(TEST_TASK) $(prefix)/$(MODEL_TEST_DIR) || exit 1;
+	cp -r *.tar.bz2 $(prefix)/$(MODEL_TEST_DIR) || exit 1;
 	cp ../regr-tests/test-sets/big/linux-2.6.31.6.tar.bz2 $(prefix)/$(MODEL_TEST_DIR) || exit 1;
 # Clean
 clean: 
