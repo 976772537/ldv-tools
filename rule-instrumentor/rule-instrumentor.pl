@@ -1950,19 +1950,19 @@ sub process_cmds()
           # do dirty hack for 39_7 model
           if ( $opt_model_id eq "39_7") 
           {
-            @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);", 
+            my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);", 
                       "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
                       "void ldv_spin_lock_nest_lock(spinlock_t *lock, struct lockdep_map *map);",
                       "void ldv_spin_lock_irqsave_nested_TEMPLATE(spinlock_t *lock, int subclass);",
                       "int ldv_spin_trylock_irqsave_TEMPLATE(spinlock_t *lock, unsigned long flags);"
                      );
-            @keys = ("spin_lock_irqsave",
+            my @keys = ("spin_lock_irqsave",
                      "spin_lock_nested",
                      "spin_lock_nest_lock",
                      "spin_lock_irqsave_nested",
                      "spin_trylock_irqsave"
                     );
-            @replacements = ("ldv_spin_lock_irqsave",
+            my @replacements = ("ldv_spin_lock_irqsave",
                              "ldv_spin_lock_nested",
                              "ldv_spin_lock_nest_lock",
                              "ldv_spin_lock_irqsave_nested",
@@ -1970,12 +1970,6 @@ sub process_cmds()
                             );
 
             print_debug_trace("Replace defines by model functions for model ".$opt_model_id);
-            for ($count = 0; $count < scalar(@keys); $count++) {
-       	      print "Replace defines for keys['$count']=".$keys[$count];
-            }
-            my $decl = $decls[$count];
-            my $key = $keys[$count];
-            my $replacement = $replacements[$count];
             my $tmpfile = $in_file.".bak";
             rename($in_file, $tmpfile)
              or die("Can't rename inputfile '$in_file' to '$tmpfile'");   
@@ -1983,9 +1977,19 @@ sub process_cmds()
               or die("Can't open file '$in_file' for write: $ERRNO");
             open(IN, '<', "$tmpfile")
               or die("Can't open file '$in_file' for read: $ERRNO");
-            print OUT $decl."\n";
+            
+            print OUT "#include <linux/spinlock.h>\n";
+            for (my $count = 0; $count < scalar(@keys); $count++) {
+       	      print "Add decls for keys['$count']=".$keys[$count];
+              my $decl = $decls[$count];
+              print OUT $decl."\n";
+            }
             while(<IN>) {
-              $_ =~ s/$key/$replacement/g;
+              for (my $count = 0; $count < scalar(@keys); $count++) {
+                my $key = $keys[$count];
+                my $replacement = $replacements[$count];
+                $_ =~ s/$key/$replacement/g;
+              }
               print OUT $_;
             }
             close(IN)
