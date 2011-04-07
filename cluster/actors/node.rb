@@ -112,6 +112,18 @@ class Spawner
 	end
 end
 
+def setenv(env,_log,lstr='')
+	env.each do |var,val|
+		if var == 'PATH'
+			new_value = val.to_s + ":" + ENV[var]
+		else
+			new_value = val.to_s
+		end
+		_log.debug "Set env #{lstr}: #{var} = '#{new_value}'"
+		ENV[var] = new_value
+	end
+end
+
 class RealSpawner < Spawner
 	def initialize(ldv_home)
 		super()
@@ -146,11 +158,9 @@ class RealSpawner < Spawner
 			ENV['LDV_DSCV_NO_SANITY'] = 'yes'
 
 			# Set global environemnt in the namespace
-			task['global']['env'].each { |var,val| ENV[var] = val.to_s }
-			task['global']['env'].each { |var,val| @nlog.debug "Set global env: #{var} = '#{val.to_s}'" }
+			setenv task['global']['env'],@nlog,"global"
 			# Set environment specified in the task (overrides that of namespace)
-			task['env'].each { |var,val| ENV[var] = val.to_s }
-			task['env'].each { |var,val| @nlog.debug "Set env: #{var} = '#{val.to_s}'" }
+			setenv task['env'],@nlog,"global"
 		end
 
 		task_root = prepare_mounts task['key'],task['global']['sshuser'],task['global']['host'],task['global']['root'],nil
