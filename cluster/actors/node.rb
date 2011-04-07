@@ -382,6 +382,10 @@ class Ldvnode
 
 		# NOTE that we should reconfigure at once, since we should announce the initial status
 		reconfigure DEFAULT_OPTS
+
+		# Temporary set max load
+		@max_load = 5
+		@max_load_need_reset = true
 	end
 
 	# Reconfigures the actor with the new config
@@ -396,7 +400,13 @@ class Ldvnode
 		@nlog.debug "LDV_HOME is #{@home}"
 
 		# Set up max load (we'll reject tasks if our load is higher)
-		@max_load = opts[:max_node_load] || 1000
+		# NOTE: we need this tricky way because we send our first ping _before_ reconfiguration (when agent is run), and we may send very large max_load and receive too many tasks if we want our load to be less than the default 1000.  So, we reset max_load to its default value only in reconfiguration, making it initially a very careful 5.
+		if opts[:max_node_load]
+			@max_load = opts[:max_node_load]
+		else
+			@max_load = 1000 if @max_load_need_reset
+			@max_load_need_reset = true
+		end
 
 
 		# Initialize task spawner.
@@ -442,6 +452,7 @@ class Ldvnode
 		st = status
 		# Append node load to the usual availability status
 		st[:load] = load_average
+		st[:max_load] = @max_load
 		@nlog.debug "Announcing status #{st.inspect}"
 		st
 	end

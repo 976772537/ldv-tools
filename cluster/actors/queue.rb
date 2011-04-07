@@ -55,13 +55,19 @@ class Ldvqueue
 		@max_load = opts[:max_node_load] || 100
 		@select_node = lambda do |node_stats|
 			return nil if node_stats.empty?
-			least_loaded_node = node_stats.keys.min_by {|node_key| node_stats[node_key]['load'].to_f }
+
+			# Get list of nodes that have a load low enough
+			all_nodes = node_stats.keys
+			capable_nodes = all_nodes.select {|node_key| !node_stats[node_key]['max_load'] || (node_stats[node_key]['load'].to_f < node_stats[node_key]['max_load'].to_f) }
+
+			# Choose a least loaded node from the capable
+			least_loaded_node = capable_nodes.min_by {|node_key| node_stats[node_key]['load'].to_f }
 			# Check if the load is low enough
 			if !least_loaded_node || node_stats[least_loaded_node]['load'].to_f > @max_load
-				@qlog.debug "Couldn't find node with load less than #{@max_load}!"
+				@qlog.debug "Couldn't find a capable node!"
 				nil
 			else
-				@qlog.trace "OK, max load is #{node_stats[least_loaded_node]['load']}, less than #{@max_load}"
+				@qlog.trace "OK, max load is #{node_stats[least_loaded_node]['load']}, less than #{@max_load} and node's #{node_stats[least_loaded_node]['max_load']}"
 				least_loaded_node
 			end
 		end
@@ -148,7 +154,7 @@ class Ldvqueue
 						# Node will absorb less jobs
 						availability[job_type] -= 1
 						# Node is more loaded
-						add_discount(+1.0*@load_start_coeff,node)
+						add_discount(+1.0*@load_start_coeff*Task_discount[job_type],node)
 
 						# return job
 						job,target = job_type,node
@@ -317,13 +323,7 @@ class Ldvqueue
 		if @nodes[task.node]
 			@nodes[task.node][task.type] += 1
 			# Add discount on status of nodes: pretend that it's less than the value the node tells us
-			if task.type == 'dscv'
-				# DSCV nodes most likely waited at the end for quite a time, so decrease less than we could
-				coeff = @load_end_coeff*0.5
-			else
-				coeff = @load_end_coeff
-			end
-			add_discount(-1.0*@load_end_coeff,task.node)
+			add_discount(-1.0*@load_end_coeff*Task_end_discount[task.type.to_s],task.node)
 		end
 	end
 
@@ -353,6 +353,9 @@ class Ldvqueue
 		end
 		discounted
 	end
+
+	Task_discount = {'ldv' => 1, 'dscv' => 0.5, 'rcv' => 1 }
+	Task_end_discount = {'ldv' => 1, 'dscv' => 0.7, 'rcv' => 1 }
 
 	def add_discount value, node
 		was = discount(@nodes)[node]['load']
