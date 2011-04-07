@@ -58,8 +58,11 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 		cin.close_write
 		# If the End-Of-File is reached on all of the streams, then the process might have already ended
 		non_eof_streams = [cerr,cout]
+		# Progressive timeout.  We assume that probability of task to be shorter is greater than for it to be longer.  So we increase timeout interval of select, as with time it's less likely that a task will die in the fixed interval.
+		sleeps = [0.01,0.1,0.2,0.5,0.75,1,2,4]
 		while non_eof_streams.length > 0
-			timeout = 2
+			# Get next timeout value from sleeps array until none left
+			timeout = sleeps.shift || timeout
 			r = select(non_eof_streams,nil,nil,timeout)
 			# If nothing happened during a timeout, check if the process is alive.
 			# Perhaps, it's dead, but the pipes are still open,  This actually happened by sshfs process, which spawns a child and dies, but the child inherits the in-out-err streams, and does not close them.
