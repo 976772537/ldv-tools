@@ -7,6 +7,8 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 
+#include <linux/rwsem.h>
+
 static DEFINE_SPINLOCK(my_lock);
 
 static int misc_open(struct inode * inode, struct file * file);
@@ -18,8 +20,8 @@ static const struct file_operations misc_fops = {
 
 static int misc_open(struct inode * inode, struct file * file)
 {
-	struct lockdep_map *map;
-	spin_lock_nest_lock(&my_lock, map);
+	struct rw_semaphore * sem;
+	spin_lock_nest_lock(&my_lock, sem);
 	return 0;
 }
 

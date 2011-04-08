@@ -18,9 +18,8 @@ static const struct file_operations misc_fops = {
 
 static int misc_open(struct inode * inode, struct file * file)
 {
-	unsigned long flags;
 	spin_lock(&my_lock);
-	spin_unlock_wait(&my_lock,flags);
+	spin_unlock_wait(&my_lock);
 	return 0;
 }
 

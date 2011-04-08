@@ -1952,9 +1952,9 @@ sub process_cmds()
           {
             my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);", 
                       "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
-                      "void ldv_spin_lock_nest_lock(spinlock_t *lock, struct lockdep_map *map);",
-                      "void ldv_spin_lock_irqsave_nested_TEMPLATE(spinlock_t *lock, int subclass);",
-                      "int ldv_spin_trylock_irqsave_TEMPLATE(spinlock_t *lock, unsigned long flags);"
+                      "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
+                      "void ldv_spin_lock_irqsave_nested(spinlock_t *lock, int subclass);",
+                      "int ldv_spin_trylock_irqsave(spinlock_t *lock, unsigned long flags);"
                      );
             my @keys = ("spin_lock_irqsave",
                      "spin_lock_nested",
@@ -1988,7 +1988,7 @@ sub process_cmds()
               for (my $count = 0; $count < scalar(@keys); $count++) {
                 my $key = $keys[$count];
                 my $replacement = $replacements[$count];
-                $_ =~ s/$key/$replacement/g;
+                $_ =~ s/\b$key\b/$replacement/g;
               }
               print OUT $_;
             }
