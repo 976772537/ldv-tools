@@ -17,7 +17,7 @@ sub hard_wait
 	my $wpres = undef;
 	my ($stime, $utime, $status) = undef;
 	while (!defined $wpres || $wpres != $pid){
-		($wpres, $status, $utime, $stime) = wait3('blocking');
+		($wpres, $status, $utime, $stime) = wait3(1); # 1 means that the call is blocking
 	}
 	$? = $status;
 	return ('utime'=>$utime, 'stime'=>$stime);
@@ -104,6 +104,95 @@ sub xml_to_hash
 	}
 
 	return %args;
+}
+
+# Opens command, connects to its stdout and stderr via pipes, and invokes a callback for each line read from there.  You may supply either generic callback, or a separate callback for both streams, or more callbacks.  If you specify no callbacks, it mimics system() call.
+# Usage:
+# 	open3_callbacks("ls","-l")
+# 	open3_callbacks(sub{ both streams },"ls","-l")
+# 	open3_callbacks({ out=>sub{ stdout }, err=>sub { stderr }}, "ls","-l")
+# Available callbacks:
+# 	out => linewise stdout capture
+# 	err => linewise stderr capture
+# 	close_out => when stdout EOF is encountered
+# 	close_err => when stderr EOF is encountered
+use IPC::Open3;
+use IO::Select;
+sub open3_callbacks
+{
+	my $callbacks = shift;
+	my ($out_callback,$err_callback,$close_out_callback,$close_err_callback) = (sub{print STDOUT $_[0];},sub{print STDERR $_[0];},sub{},sub{});
+	# Variable arguments: determine callbacks
+	if (ref $callbacks eq 'CODE') {
+		$out_callback = $callbacks;
+		$err_callback = $callbacks;
+	}elsif (ref $callbacks eq 'HASH'){
+		$err_callback = $callbacks->{'err'} || $callbacks->{'out'} || sub{print STDERR $_[0];};
+		$out_callback = $callbacks->{'out'} || sub{print STDOUT $_[0];};
+		$close_out_callback = $callbacks->{'close_out'} || sub{};
+		$close_err_callback = $callbacks->{'close_err'} || sub{};
+	}else{
+		# It was a (part of a) command we're to run.
+		unshift @_,$callbacks;
+	}
+
+	# Chunk to read from pipe in one nonblocking read operation
+	my $chunk_size = 4000;
+
+	# Spawn child process
+	local (*SUB_IN,*SUB_OUT,*SUB_ERR);
+	local $"=" ";
+	local $_;
+	my $fpid = open3(*SUB_IN,*SUB_OUT,*SUB_ERR,@_) or die "Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @_";
+
+	my $select = IO::Select->new();
+	$select->add(\*SUB_OUT);
+	$select->add(\*SUB_ERR);
+	# Buffers to perform a non-block read and split it into lines
+	my ($err_buf,$out_buf);
+	while (my @ready_fhs = $select->can_read()){ for my $fh (@ready_fhs){
+		if ($fh == \*SUB_OUT) {
+			# Non-blocking read and add to buffer
+			my $buf;
+			my $read = sysread SUB_OUT,$buf,$chunk_size;
+			$out_buf.=$buf;
+			# Split buffer into lines and push to result calculator
+			while ($out_buf =~ /(.*?\n)(.*)/s) {
+				my $line = $1;
+				$out_buf=$2;
+				# Process the line fetched
+				$out_callback->($line);
+			}
+			# Read of zero indicates an EOF, and read of undef indicates an error (which may be a closed pipe)
+			unless ($read){
+				# chew what's left in the buffer
+				$out_callback->($out_buf);
+				$select->remove(\*SUB_OUT);
+				$close_out_callback->();
+			}
+		}elsif ($fh == \*SUB_ERR) {
+			# Non-blocking read and add to buffer
+			my $buf;
+			my $read = sysread SUB_ERR,$buf,$chunk_size;
+			$err_buf.=$buf;
+			# Split buffer into lines and push to result calculator
+			while ($err_buf =~ /(.*?\n)(.*)/s) {
+				my $line = $1;
+				$err_buf=$2;
+				# Process the line fetched
+				$err_callback->($line);
+			}
+			# Read of zero indicates an EOF, and read of undef indicates an error (which may be a closed pipe)
+			unless ($read){
+				# chew what's left in the buffer
+				$err_callback->($err_buf);
+				$select->remove(\*SUB_ERR);
+				$close_err_callback->();
+			}
+		}
+	}}
+
+	return Utils::hard_wait($fpid,0);
 }
 
 1;
