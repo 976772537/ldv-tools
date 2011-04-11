@@ -16,7 +16,7 @@ Logging.ldv_logging_init opts_p.options
 
 EM.run do
   #Nanite.start_agent(opts_p.options)
-	agent = Nanite::Agent.new( {:format => :json, :log_level=>'debug'}.merge opts_p.options)
+	agent = Nanite::Agent.new( {:format => :json, :log_level=>'debug', :fragile=>true}.merge opts_p.options)
 	agent.run
 
 	# Initialize logger for node as nanite

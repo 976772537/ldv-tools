@@ -11,7 +11,7 @@ require 'waiter.rb'
 raise "You should specify key in command line!" if ARGV.empty?
 
 EM.run do
-	waiter = Waiter.new(:host => 'localhost', :user => 'mapper', :pass => 'testing', :vhost => '/nanite', :format => :json)
+	waiter = Waiter.new(:host => 'localhost', :user => 'mapper', :pass => 'testing', :vhost => '/nanite', :format => :json, :fragile=>true)
 
 	rslt = waiter.wait_for ARGV.join('.')
 

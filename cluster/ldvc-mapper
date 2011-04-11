@@ -26,7 +26,7 @@ EM.run do
 			Nanite::Log.debug "Number of available nodes: #{nanites_providing('/ldvnode/hello').length}"
 			statuses = nanites_providing('/ldvnode/hello').inject({}) {|r,kv| r[kv[0]]=kv[1][:status] ; r }
 			Nanite::Log.trace "Gonna announce statuses #{statuses.inspect}"
-			Nanite.push("/ldvqueue/announce", statuses, :offline_failsafe => true)
+			Nanite.push("/ldvqueue/announce", statuses)
 		end
 
 		def ldv_selector(service,tags=[])
@@ -47,11 +47,11 @@ EM.run do
 		Nanite::Log.debug "Node #{token} removed!"
 		# Send information about the node removed (after some time, since right now mapper has not yet updated the node record)
 		EM.add_timer(2) {mapper.cluster.announce_status_info}
-		Nanite.push("/ldvqueue/remove", token, :offline_failsafe => true)
+		Nanite.push("/ldvqueue/remove", token)
 		# We'll send information about not interesting nodes this way, so we use announce_status_info instead
 	end
 
-	Nanite.start_mapper({:host => 'localhost', :user => 'mapper', :vhost => '/nanite', :log_level => 'debug', :agent_timeout => 60, :format => :json, :callbacks => {:timeout => node_remove_callback, :unregister => node_remove_callback, :register => node_add_callback }}.merge opts_p.options )
+	Nanite.start_mapper({:host => 'localhost', :user => 'mapper', :vhost => '/nanite', :log_level => 'debug', :agent_timeout => 60, :format => :json, :callbacks => {:timeout => node_remove_callback, :unregister => node_remove_callback, :register => node_add_callback }, :fragile => true}.merge opts_p.options )
 
 	# Initialize logger for mapper
 	# (start_mapper re-assigns this logger, so we should do it afterwards)

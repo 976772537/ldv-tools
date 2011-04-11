@@ -49,7 +49,7 @@ opts[:filesrv] or raise "Please specify SSH File Server via --file-server"
 # Run the node now to request a unique key and process the reply
 
 EM.run do
-	agent = Nanite::Agent.new( {:format => :json, :log_level=>'debug', :initrb => File.join(ENV['CLUSTER_HOME'],'ui.rb')}.merge opts_p.options)
+	agent = Nanite::Agent.new( {:format => :json, :log_level=>'debug', :fragile=>true, :initrb => File.join(ENV['CLUSTER_HOME'],'ui.rb')}.merge opts_p.options)
 	agent.run
 
 	# Initialize logger for node as nanite

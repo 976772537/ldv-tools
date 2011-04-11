@@ -10,6 +10,7 @@ class NaniteSender
 		@options = opts.dup
 		@options[:ping_time] = 1
 		@options[:root] = File.dirname(__FILE__)
+		@options[:fragile] = true
 
 		@log = opts[:log]
 		@log.trace "New sender: #{({:format => :json, :initrb => File.join(@options[:root],'tester.rb')}.merge @options).inspect}" if @log
