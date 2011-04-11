@@ -23,6 +23,7 @@ class NaniteSender
 		Nanite.request(target, payload, :selector => :ldv_selector) do |res|
 			@log.trace "Result sent.  Sender dies in a second." if @log
 			# Stop even loop at once, do not create additional handlers, because EventMachine may stall here.
+			# NOTE that we can't do graceful stop (AMQP.stop) here, as it will break AMQP processing in the whole node.
 			EM.stop_event_loop
 		end
 	end
