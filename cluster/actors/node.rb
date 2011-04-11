@@ -381,7 +381,7 @@ class Ldvnode
 	# Function to spawn child.  Substitute with scenario player if you want to run integration tests
 	attr_accessor :spawner
 
-	Task_availability_default = { :ldv => 1, :dscv => 1, :rcv => 1 }
+	Task_availability_default = { :ldv => 0, :dscv => 1, :rcv => 1 }
 	Task_availability_zero    = { :ldv => 0, :dscv => 0, :rcv => 0 }
 
 	DEFAULT_OPTS = {:availability => Task_availability_default }
