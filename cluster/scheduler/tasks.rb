@@ -164,7 +164,7 @@ class TaskDescriptor
 		inspect
 	end
 	def inspect
-		node_desc = node ? "@node=#{node}":""
+		node_desc = node ? " @node=#{node}":""
 		"#<TaskDesc @key=#{key.inspect}, @status=#{status.inspect}, @type=#{type.inspect}#{node_desc}>"
 	end
 

@@ -89,6 +89,8 @@ class Ldvqueue
 			@nodestat_timer = EM.add_periodic_timer(10) { @qlog.info "Node status: #{node_availability_info.or "<none>"}" }
 			@queuestat_timer.cancel if @queuestat_timer
 			@queuestat_timer = EM.add_periodic_timer(20) { @qlog.debug "Queue status: #{tasks.queued(:all).inspect}" }
+			@runstat_timer.cancel if @runstat_timer
+			@runstat_timer = EM.add_periodic_timer(60) { @qlog.info "Running tasks: #{tasks.running_on(:all).inspect}" }
 			@qrstat_timer.cancel if @qrstat_timer
 			@qrstat_timer = EM.add_periodic_timer(10) { @qlog.info "Queued: #{tasks.queued(:all).size}; running: #{tasks.running_on(:all).size}" }
 		end
