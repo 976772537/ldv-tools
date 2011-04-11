@@ -319,8 +319,6 @@ sub call_cpachecker
 	open $CPACHECKER_DEBUG, ">", $args{debug} or die "Can't open file $args{debug}: $!";
 	# Fork cpachecker
 	local $"=" ";
-	local (*CPACHECKER_IN,*CPACHECKER_OUT,*CPACHECKER_ERR);
-	my $fpid = open3(*CPACHECKER_IN,*CPACHECKER_OUT,*CPACHECKER_ERR,@cpachecker_options) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cpachecker_options";
 
 	vsay (20,"CPACHECKER debug trace is being written to $args{debug}\n");
 
@@ -329,59 +327,23 @@ sub call_cpachecker
 	# Create verdict calculator
 	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict(),java_oom(),cpachecker_syntax()]);
 
-	my $chunk_size = 4000;
-	my $select = IO::Select->new();
-	$select->add(\*CPACHECKER_OUT);
-	$select->add(\*CPACHECKER_ERR);
-	# Buffers to perform a non-block read and split it into lines
-	my ($err_buf,$out_buf);
-	while (my @ready_fhs = $select->can_read()){ for my $fh (@ready_fhs){
-		if ($fh == \*CPACHECKER_OUT) {
-			# Non-blocking read and add to buffer
-			my $buf;
-			my $read = sysread CPACHECKER_OUT,$buf,$chunk_size;
-			$out_buf.=$buf;
-			# Split buffer into lines and push to result calculator
-			while ($out_buf =~ /(.*?\n)(.*)/s) {
-				my $line = $1;
-				$out_buf=$2;
-				# Process the line fetched
-				$verdictor->chew_line($line);
-				print $CPACHECKER_DEBUG $line;
-			}
-			# Read of zero indicates an EOF, and read of undef indicates an error (which may be a closed pipe)
-			unless ($read){
-				# chew what's left in the buffer
-				$verdictor->chew_line($out_buf);
-				print $CPACHECKER_DEBUG $out_buf;
-				$select->remove(\*CPACHECKER_OUT);
-				vsay (40,"Child's stdout stream closed.\n");
-			}
-		}elsif ($fh == \*CPACHECKER_ERR) {
-			# Non-blocking read and add to buffer
-			my $buf;
-			my $read = sysread CPACHECKER_ERR,$buf,$chunk_size;
-			$err_buf.=$buf;
-			# Split buffer into lines and push to result calculator
-			while ($err_buf =~ /(.*?\n)(.*)/s) {
-				my $line = $1;
-				$err_buf=$2;
-				# Process the line fetched
-				$verdictor->chew_line($line);
-				print $CPACHECKER_DEBUG $line;
-			}
-			# Read of zero indicates an EOF, and read of undef indicates an error (which may be a closed pipe)
-			unless ($read){
-				# chew what's left in the buffer
-				$verdictor->chew_line($err_buf);
-				print $CPACHECKER_DEBUG $err_buf;
-				$select->remove(\*CPACHECKER_ERR);
-				vsay (40,"Child's stderr stream closed.\n");
-			}
-		}
-	}}
-
-	my %child = Utils::hard_wait($fpid,0);
+	my %child = Utils::open3_callbacks({
+		# Stdout callback
+		out => sub{ my $line = shift;
+			$verdictor->chew_line($line);
+			print $CPACHECKER_DEBUG $line;
+		},
+		# Stderr callback
+		'err' => sub{ my $line = shift;
+			$verdictor->chew_line($line);
+			print $CPACHECKER_DEBUG $line;
+		},
+		close_out=>sub{ vsay (40,"Child's stdout stream closed.\n");},
+		close_err=>sub{ vsay (40,"Child's stderr stream closed.\n");},
+		},
+		# BLAST call string
+		@cpachecker_options
+	);
 	close $CPACHECKER_DEBUG;
 
   vsay (40,"CPACHECKER open3 return value: $?\n");
