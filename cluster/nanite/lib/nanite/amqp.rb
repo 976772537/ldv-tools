@@ -40,4 +40,12 @@ module Nanite
       MQ.new(connection)
     end
   end
+
+  module FragileHelper
+    # Helper to declare conforming queues (in classes with AMQPHelper included)
+    # amq.queue(identity, durab.merge :a=>b)...
+    def durab
+      @fragile_nodes ? {:auto_delete => true} : {:durable => true}
+    end
+  end
 end

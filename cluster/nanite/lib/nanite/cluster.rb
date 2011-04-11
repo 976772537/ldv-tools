@@ -2,7 +2,7 @@ module Nanite
   class Cluster
     attr_reader :agent_timeout, :nanites, :reaper, :serializer, :identity, :amq, :redis, :mapper, :callbacks
 
-    def initialize(amq, agent_timeout, identity, serializer, mapper, state_configuration=nil, callbacks = {})
+    def initialize(amq, agent_timeout, identity, serializer, mapper, state_configuration=nil, callbacks = {}, opts = {})
       @amq = amq
       @agent_timeout = agent_timeout
       @identity = identity
@@ -11,6 +11,7 @@ module Nanite
       @state = state_configuration
       @security = SecurityProvider.get
       @callbacks = callbacks
+      @fragile_nodes = opts[:fragile]
       setup_state
       @reaper = Reaper.new(agent_timeout)
       setup_queues
@@ -67,13 +68,15 @@ module Nanite
         old_target = request.target
         request.target = target unless target == 'mapper-offline'
         Nanite::Log.debug("SEND #{request.to_s([:from, :tags, :target])}")
-        amq.queue(target, :durable => true).publish(serializer.dump(request, enforce_format?(target)), :persistent => request.persistent)
+        amq.queue(target, durab).publish(serializer.dump(request, enforce_format?(target)), :persistent => request.persistent)
       ensure
         request.target = old_target
       end
     end
 
     protected
+
+    include FragileHelper
 
     def enforce_format?(target)
       target == 'mapper-offline' ? :insecure : nil
@@ -89,7 +92,7 @@ module Nanite
         else
           packet = Advertise.new(nil, ping.identity)
           Nanite::Log.debug("SEND #{packet.to_s} to #{ping.identity}")
-          amq.queue(ping.identity, :durable => true).publish(serializer.dump(packet))
+          amq.queue(ping.identity, durab).publish(serializer.dump(packet))
         end
       end
     end
@@ -125,7 +128,7 @@ module Nanite
     # forward response back to agent that originally made the request
     def forward_response(res, persistent)
       Nanite::Log.debug("SEND #{res.to_s([:to])}")
-      amq.queue(res.to, :durable => true).publish(serializer.dump(res), :persistent => persistent)
+      amq.queue(res.to, durab).publish(serializer.dump(res), :persistent => persistent)
     end
     
     # returns least loaded nanite that provides given service

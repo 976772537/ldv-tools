@@ -1,6 +1,7 @@
 module Nanite
   class Agent
     include AMQPHelper
+    include FragileHelper
     include FileStreaming
     include ConsoleHelper
     
@@ -57,6 +58,8 @@ module Nanite
     # prefetch    : Sets prefetch (only supported in RabbitMQ >= 1.6).  Use value of 1 for long
     #               running jobs (greater than a second) to avoid slamming/stalling your agent.
     #
+    # fragile     : Makes node fragile instead of durable.  Store its AMQP binding only when it's alive.
+    #
     # single_threaded: Run all operations in one thread
     #
     # threadpool_size: Number of threads to run operations in
@@ -104,6 +107,7 @@ module Nanite
       @serializer = Serializer.new(@options[:format])
       @status_proc = lambda { parse_uptime(`uptime 2> /dev/null`) rescue 'no status' }
       @monitor = Nanite::Agent::Monitor.new(self, @options)
+      @fragile_nodes = @options[:fragile]
       @amqp = start_amqp(@options)
       @registry = ActorRegistry.new
       @dispatcher = Dispatcher.new(@amqp, @registry, @serializer, @identity, @options)
@@ -133,7 +137,7 @@ module Nanite
     def unsubscribe
       heartbeat.cancel
       amqp.queue('heartbeat').unsubscribe
-      amqp.queue(identity, :durable=>true).unsubscribe
+      amqp.queue(identity, durab).unsubscribe
     end
     
     def disconnect
@@ -205,7 +209,7 @@ module Nanite
           Nanite::Log.warn("RECV NOT AUTHORIZED #{packet.to_s}")
           if packet.kind_of?(Request)
             r = Result.new(packet.token, packet.reply_to, @deny_token, identity)
-            amqp.queue(packet.reply_to, :durable => true, :no_declare => options[:secure]).publish(serializer.dump(r))
+            amqp.queue(packet.reply_to, durab.merge(:no_declare => options[:secure])).publish(serializer.dump(r))
           end
         else
           dispatcher.dispatch(packet)
@@ -226,7 +230,7 @@ module Nanite
       if amqp.respond_to?(:prefetch) && @options.has_key?(:prefetch)
         amqp.prefetch(@options[:prefetch])
       end
-      amqp.queue(identity, :durable => true).subscribe(:ack => true) do |info, msg|
+      amqp.queue(identity, durab).subscribe(:ack => true) do |info, msg|
         begin
           info.ack
           receive(serializer.load(msg))

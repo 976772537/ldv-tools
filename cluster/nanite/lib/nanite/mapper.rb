@@ -20,6 +20,7 @@ module Nanite
     include AMQPHelper
     include ConsoleHelper
     include DaemonizeHelper
+    include FragileHelper
 
     attr_reader :cluster, :identity, :job_warden, :options, :serializer, :amq
 
@@ -128,6 +129,7 @@ module Nanite
       setup_logging
       @serializer = Serializer.new(@options[:format])
       setup_process
+      @fragile_nodes = @options[:fragile]
       @amq = start_amqp(@options)
       @job_warden = JobWarden.new(@serializer)
       setup_cluster
@@ -282,7 +284,7 @@ module Nanite
     end
 
     def setup_message_queue
-      amq.queue(identity, :durable => true).bind(amq.fanout(identity)).subscribe do |msg|
+      amq.queue(identity, durab).bind(amq.fanout(identity)).subscribe do |msg|
         begin
           msg = serializer.load(msg)     
           Nanite::Log.debug("RECV #{msg.to_s}")
@@ -299,7 +301,7 @@ module Nanite
     end
 
     def setup_cluster
-      @cluster = Cluster.new(@amq, @options[:agent_timeout], @options[:identity], @serializer, self, @options[:redis], @options[:callbacks])
+      @cluster = Cluster.new(@amq, @options[:agent_timeout], @options[:identity], @serializer, self, @options[:redis], @options[:callbacks],{:fragile => @options[:fragile]})
     end
     
     def setup_process

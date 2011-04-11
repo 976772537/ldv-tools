@@ -9,6 +9,7 @@ module Nanite
       @serializer = serializer
       @identity = identity
       @options = options
+      @fragile_nodes = @options[:fragile]
       @evmclass = EM
       @evmclass.threadpool_size = (@options[:threadpool_size] || 20).to_i
     end
@@ -34,7 +35,7 @@ module Nanite
         if deliverable.kind_of?(Request)
           r = Result.new(deliverable.token, deliverable.reply_to, r, identity)
           Nanite::Log.debug("SEND #{r.to_s([])}")
-          amq.queue(deliverable.reply_to, :durable => true, :exclusive => false, :no_declare => options[:secure]).publish(serializer.dump(r))
+          amq.queue(deliverable.reply_to, durab.merge( :exclusive => false, :no_declare => options[:secure])).publish(serializer.dump(r))
         end
         r # For unit tests
       end
@@ -47,6 +48,8 @@ module Nanite
     end
 
     protected
+
+    include FragileHelper
 
     def increment_running_jobs(job)
       EM.next_tick do
