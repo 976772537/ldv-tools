@@ -17,7 +17,7 @@ sub hard_wait
 	my $wpres = undef;
 	my ($stime, $utime, $status) = undef;
 	while (!defined $wpres || $wpres != $pid){
-		($wpres, $status, $utime, $stime) = wait3('blocking');
+		($wpres, $status, $utime, $stime) = wait3(1); # 1 means that the call is blocking
 	}
 	$? = $status;
 	return ('utime'=>$utime, 'stime'=>$stime);
@@ -106,8 +106,9 @@ sub xml_to_hash
 	return %args;
 }
 
-# Opens command, connects to its stdout and stderr via pipes, and invokes a callback for each line read from there.  You may supply either generic callback, or a separate callback for both streams
+# Opens command, connects to its stdout and stderr via pipes, and invokes a callback for each line read from there.  You may supply either generic callback, or a separate callback for both streams, or more callbacks.  If you specify no callbacks, it mimics system() call.
 # Usage:
+# 	open3_callbacks("ls","-l")
 # 	open3_callbacks(sub{ both streams },"ls","-l")
 # 	open3_callbacks({ out=>sub{ stdout }, err=>sub { stderr }}, "ls","-l")
 # Available callbacks:
@@ -120,16 +121,19 @@ use IO::Select;
 sub open3_callbacks
 {
 	my $callbacks = shift;
-	my ($out_callback,$err_callback,$close_out_callback,$close_err_callback) = (undef,undef,sub{},sub{});
+	my ($out_callback,$err_callback,$close_out_callback,$close_err_callback) = (sub{print STDOUT $_[0];},sub{print STDERR $_[0];},sub{},sub{});
 	# Variable arguments: determine callbacks
 	if (ref $callbacks eq 'CODE') {
 		$out_callback = $callbacks;
 		$err_callback = $callbacks;
-	}else{
-		$out_callback = $callbacks->{'out'};
-		$err_callback = $callbacks->{'err'} || $callbacks->{'out'};
+	}elsif (ref $callbacks eq 'HASH'){
+		$err_callback = $callbacks->{'err'} || $callbacks->{'out'} || sub{print STDERR $_[0];};
+		$out_callback = $callbacks->{'out'} || sub{print STDOUT $_[0];};
 		$close_out_callback = $callbacks->{'close_out'} || sub{};
 		$close_err_callback = $callbacks->{'close_err'} || sub{};
+	}else{
+		# It was a (part of a) command we're to run.
+		unshift @_,$callbacks;
 	}
 
 	# Chunk to read from pipe in one nonblocking read operation
