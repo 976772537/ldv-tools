@@ -120,7 +120,7 @@ is_exists($csd_pid) or die"Starting CSD failed: $!";
 #
 my $bce_pid = start_bce;
 if(!is_exists($bce_pid)) {
-	vsay 'TRACE', "Try to kill BCE...\n";
+	vsay 'TRACE', "Try to kill CSD...\n";
 	kill 9, $csd_pid;
 	waitpid $csd_pid, 0;
 }
@@ -243,11 +243,11 @@ sub start_next {
 				} else {
                                         push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};       
 				}
-		
+
 				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
 				system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
 				$ENV{'WORK_DIR'} = $old_workdir;
-		
+
 				$command =~ m/.*\/+([0-9]+)/ and my $cid=$1;	
 				$tasks->{$cid}->{state} = 'wait';
 				$tasks->{$cid}->{path} = $command;
@@ -280,7 +280,8 @@ sub start_next {
 		bce_ldv_report $rep_result;
 		1;
 		} or do {
-		        vsay 4, "Fatal error.  Stopping services before reporting...\n";
+			print STDERR $@ if ($@);
+			vsay 4, "Fatal error.  Stopping services before reporting...\n";
 			# FIXME: we shouldn't check for cluster here, but as of today it's more important to not send fails on signals
 			kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
 		};

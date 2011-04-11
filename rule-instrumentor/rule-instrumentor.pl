@@ -273,6 +273,7 @@ my $opt_model_id;
 my $opt_report_in;
 my $opt_report_out;
 my $opt_skip_restrict_main;
+my $opt_suppress_config_check;
 
 # This flag says whether usual or report mode is set up.
 my $report_mode = 0;
@@ -844,7 +845,8 @@ sub get_opt()
     'report-out=s' => \$opt_report_out,
     'rule-model|m=s' => \$opt_model_id,
     'cache=s' => \$opt_cache_dir,
-    'skip-norestrict' => \$opt_skip_restrict_main))
+    'skip-norestrict' => \$opt_skip_restrict_main,
+    'suppress-config' => \$opt_suppress_config_check))
   {
     warn("Incorrect options may completely change the meaning! Please run " .
       "script with --help option to see how you may use this tool");
@@ -957,6 +959,9 @@ OPTIONS
   --skip-norestrict
     If this option is given then turn off caching for compilation
     commands that haven't restrict-main
+
+  --suppress-config
+    Do not try to look for and alter Kernel config header file.
 
 ENVIRONMENT VARIABLES
 
@@ -1834,9 +1839,9 @@ sub process_cmds()
 
       print_debug_debug("Add wanted options '@on_opts'");
       push(@opts, @on_opts);
-      print_debug_trace("Add config include options for cc command");
-      if ($ldv_model{'config'} and $cmd->gi eq $xml_cmd_cc)
+      if (!$opt_suppress_config_check and $ldv_model{'config'} and $cmd->gi eq $xml_cmd_cc)
       {
+        print_debug_trace("Add config include options for cc command");
         die("The configuration file is specified for the model but there is no configuration marked correspondingly.")
           unless ($autoconf);
 

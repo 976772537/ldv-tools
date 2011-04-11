@@ -305,6 +305,7 @@ $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->
 # INLINE mode preparation
 
 use File::Path qw(mkpath rmtree);
+use File::Spec;
 # If we're in inline mode, we should create appropriate cmdfile in the working dir and use it as such.
 if ($mode eq 'inline'){
 	# First we parse options
@@ -317,6 +318,7 @@ if ($mode eq 'inline'){
 	}
 	# Then we generate workdir
 	$config->{work_dir} = "verify-".join('-',@{$config->{inl_files}});
+	$config->{work_dir} = File::Spec->rel2abs($config->{work_dir});
 	$ENV{'WORK_DIR'} = $config->{work_dir};
 	rmtree($config->{work_dir});
 
@@ -619,6 +621,7 @@ for my $property (@properties){
 	);
 	push @rule_instr_args, "--cache=$ENV{'RI_CACHE'}" if $ENV{'RI_CACHE'};
 	push @rule_instr_args, "--skip-norestrict" if $ENV{'RI_CACHE_MODE'} eq 'git';
+	push @rule_instr_args, "--suppress-config" if $mode eq 'inline';
 	vsay (10,"Calling rule_instrumenter for rule model $property...\n");
 	vsay (20,@rule_instr_args,"\n");
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";

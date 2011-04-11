@@ -4,6 +4,14 @@ use XML::Twig;
 use FindBin;
 use Time::HiRes qw(gettimeofday);
 
+use FindBin;
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$FindBin::Bin/../shared/perl";
+}
+
+use Utils;
+
 my $deg_home = "$FindBin::Bin";
 
 # interfaces
@@ -125,7 +133,8 @@ $check_twig_handlers = { "$xml_cmd_stream/$xml_cmd_ld"  => \&hxml_cmdstream_chec
 $check_twig= new XML::Twig(TwigHandlers => $check_twig_handlers);
 $check_twig->parsefile($cmdfile_out);
 ldv_dprint("Ok");
-$wresult eq 'FAILED' && exit 1;
+# We used to die abnormally if we couldn't generate main, but now we don't, we just report maingenerator failure in drv-eng-gen-reporter script
+ldv_wprint(sprintf("Envgen failed!  Cmdstream without mains was generated.")) if $wresult eq 'FAILED';
 
 sub hxml_cmdstream_check_ld {
 	my $id_ld=$_[1]->att($xml_cmd_attr_id);
@@ -231,9 +240,16 @@ sub hxml_cmdstream_cc {
 		ldv_dprint("RUN LDV_CC: @args");
 	}
 	ldv_iprint("Starting ldv_cc interface...");
-	if(system(@args) != 0) {
+	# Chew last 100 lines of the stderr to the buffer (which is to be printed on failure)
+	my @lastbuf = ();
+	my $lastbuf_len = 100;
+	Utils::open3_callbacks(
+		{'err'=>sub{ shift @lastbuf if scalar @lastbuf >= $lastbuf_len; push @lastbuf,$_[0]; print STDERR $_[0];}},
+		@args
+	);
+	if($? != 0) {
 		ldv_eprint("ldv_cc failed !");
-		ldv_feprint($errorfile, "ldv_ld_failed", $result);
+		ldv_feprint($errorfile, "ldv_cc_failed, last 100 lines from stderr: \n@lastbuf", $result);
 	}
 
 	if ($result ne 'FAILED') {
@@ -339,12 +355,22 @@ sub hxml_cmdstream_ld {
 		ldv_dprint("RUN LDV_LD: @debug_args");
 	}
 	ldv_iprint("Starting ldv_ld interface...");
-	if(system(@args) != 0) {
+	# Chew last 100 lines of the stderr to the buffer (which is to be printed on failure)
+	my @lastbuf = ();
+	my $lastbuf_len = 100;
+	Utils::open3_callbacks(
+		{'err'=>sub{ shift @lastbuf if scalar @lastbuf >= $lastbuf_len; push @lastbuf,$_[0]; print STDERR $_[0];}},
+		@args
+	);
+	if($? != 0) {
 		ldv_eprint("ldv_ld failed !");
-		ldv_feprint($errorfile, "ldv_ld_failed", $result);
+		ldv_feprint($errorfile, "ldv_ld_failed, last 100 lines from stderr: \n@lastbuf", $result);
 	}
 	ldv_iprint("End of ldv_ld - Ok.");
-	if ($result ne 'FAILED') {
+
+	# Load lines from .ko temporary file, and print "main" tags to the XML output.
+	# However, if something failed (not just LDV_LD, but one of ldv_cc's as well, hence the wresult instead of result), we do not print "main" tags, so that DSCV does not waste its time on running any RCVs.
+	if ($wresult ne 'FAILED') {
 		foreach my $section ( $_[1]->children('out') ) {
 			my $outdir = $section->text;
 			# 1. replace outdir from basedir in xml with our driverdir
@@ -527,7 +553,7 @@ sub ldv_dprint
 
 sub ldv_wprint
 {
-	if($log_level>=10) {
+	if($log_level>=4) {
 		ldv_print("WARNING: $_[0]");
 	}
 }
