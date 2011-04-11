@@ -51,7 +51,7 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 		/* хаки, которые потом нужно включить по-возможности в regexpr */
 		/* не должен матчииться:"PageDirty(page) && PageSwapCache(page)) {"  - */
 		/* по количеству закрывающих скобок */
-
+		//Logger.trace("The content is " + content);
 		if(content.indexOf(" && ")!=-1) {
 			Logger.debug("Hack. Ignore &&: " + content);
 			return null;
@@ -182,6 +182,11 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 		byte[] fbname = functionName.getBytes();
 		int level = 1;
 		int beginName;
+		Logger.trace("Function name (" + functionName.length() + "):" + functionName);
+		if(functionName.length()<2) {
+			Logger.warn("Empty function name " + functionName);
+			return null;
+		}
 		/* проскакиваем параметры функции */
 		for(beginName=functionName.length()-2; level!=0 && beginName>0; beginName--) {
 			if(fbname[beginName]==')') level++;
