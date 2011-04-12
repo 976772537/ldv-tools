@@ -49,7 +49,7 @@ end
 # Program run helpers
 require 'utils/open3'
 
-# Open a stream with open3, and invoke a callback when a stream is ready for reading (but may be in EOF mode).  Waits till the process terminates, and returns its error code.
+# Open a stream with open3, and invoke a callback when a stream is ready for reading (but may be in EOF mode).  Waits till the process terminates, and returns its error code.  Callbacks should not block for FDs with data available.
 def open3_callbacks(cout_callback, cerr_callback, *args)
 	code = nil
 	MyOpen3.popen3(*args) do |cin,cout,cerr,thr|
@@ -59,7 +59,7 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 		# If the End-Of-File is reached on all of the streams, then the process might have already ended
 		non_eof_streams = [cerr,cout]
 		# Progressive timeout.  We assume that probability of task to be shorter is greater than for it to be longer.  So we increase timeout interval of select, as with time it's less likely that a task will die in the fixed interval.
-		sleeps = [0.01,0.1,0.2,0.5,0.75,1,2,4]
+		sleeps = [ [0.05]*20,[0.1]*5,[0.5]*3,1,2,4].flatten
 		while non_eof_streams.length > 0
 			# Get next timeout value from sleeps array until none left
 			timeout = sleeps.shift || timeout
@@ -75,7 +75,6 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 					break
 				end
 			end
-			#puts r.inspect
 			if r[0].include? cerr
 				begin
 					cerr_callback[pid,cerr]
@@ -92,10 +91,46 @@ def open3_callbacks(cout_callback, cerr_callback, *args)
 			end
 		end
 		# Reap process status
+		# NOTE: in the ruby 1.8.7 I used this line may block for up to a second (due to internal thread scheduling machanism of Ruby).  In 1.9 this waitup is gone.  Upgrade your software if you encounter differences.
 		code = thr.value
 	end
 	# Return code, either nil if something bad happened, or the actual return code if we were successful
 	return code
+end
+
+# Read linewise and supply lines to callbacks
+# Linewise read can not use "readline" because the following situation may (and did) happen.  The process spawned writes some data to stderr, but does not terminate it with a newline.  We run a callback for stderr, use readline and block.  The process spawned then writes a lot of data to stdout, reaches pipe limit, and blocks as well in a write(stdout) call.  Deadlock.  So, we use more low-level read.
+def open3_linewise(cout_callback, cerr_callback, *args)
+	# Read this number of bytes from stream per nonblocking read
+	some = 4096
+
+	# Standard output backend
+	cout_buf = ''
+	cout_backend = proc do |pid,cout|
+		cout_buf += cout.readpartial some
+		while md = /(.*)\n/.match(cout_buf)
+			cout_callback[md[1]]
+			cout_buf = md.post_match
+		end
+	end
+
+	# standard error backend
+	cerr_buf = ''
+	cerr_backend = proc do |pid,cerr|
+		cerr_buf += cerr.readpartial some
+		while md = /(.*)\n/.match(cerr_buf)
+			cerr_callback[md[1]]
+			cerr_buf = md.post_match
+		end
+	end
+
+	retcode = open3_callbacks(cout_backend,cerr_backend,*args)
+
+	# Read the rest of buffers
+	cout_callback[cout_buf] if cout_buf.length > 0
+	cerr_callback[cerr_buf] if cerr_buf.length > 0
+
+	return retcode
 end
 
 # Returns logging for this node
@@ -124,30 +159,22 @@ def say_and_run(*args_)
 	lgr = ulog('Node')
 	lgr.debug "Running #{runspect args}"
 	if opts[:no_capture_stderr]
-		cerr_handler = proc do |pid,cerr|
-			# We should reap the contents of a stream anyway, or we'll loop forever
-			cerr.readline
-		end
+		cerr_handler = proc { |line| }
 	else
-		cerr_handler = proc do |pid,cerr|
-			line = cerr.readline
+		cerr_handler = proc do |line|
 			lgr.error line.chomp
 		end
 	end
 	# Do not capture stdout if we're told not to
 	if opts[:no_capture_stdout]
-		cout_handler = proc do |pid,cout|
-			# We should reap the contents of a stream anyway, or we'll loop forever
-			cout.readline
-		end
+		cout_handler = proc { |line| }
 	else
-		cout_handler = proc do |pid,cout|
-			lgr.info cout.readline.chomp
+		cout_handler = proc do |line|
+			lgr.info line.chomp
 		end
 	end
 
-	retcode = open3_callbacks(cout_handler,cerr_handler,*args)
-	retcode
+	open3_linewise(cout_handler,cerr_handler,*args)
 end
 
 # Run and log information to the logger supplied
@@ -160,8 +187,7 @@ def run_and_log(logger,*args_)
 	#
 	# etc.  Messages that don't comply are treated as errors by default.
 	# We strip severity from these messages and print them to our logger with the same severity.
-	cerr_handler = proc do |pid,cerr|
-		line = cerr.readline.chomp
+	cerr_handler = proc do |line|
 		if md = /([^:]*):\s*([A-Z]*): (.*)/.match(line)
 			severity = md[2].downcase
 			fixed_line = "#{md[1]}: #{md[3]}"
@@ -171,32 +197,25 @@ def run_and_log(logger,*args_)
 			logger.error line.chomp
 		end
 	end
-	# Some tools in LDV print something to STDOUT.  This includes ldv-manager (wich is, essentially, makefile) and, perhaps, other tools.  We assign "Info" severity to these messages
-	cout_handler = proc do |pid,cout|
-		#logger.info cout.readline.chomp
-		line = cout.readline
+	cout_handler = proc do |line|
 		if md = /([^:]*):\s*([A-Z]*): (.*)/.match(line)
 			severity = md[2].downcase
 			if logger.respond_to? severity
 				fixed_line = "#{md[1]}: #{md[3]}"
 				logger.send(severity,fixed_line)
 				return
+			else
+				# Unknown severity; perhaps, this line is not about logging?
+				# print it as an error in this case
+				logger.error line.chomp
 			end
-			# Unknown severity; perhaps, this line is not about logging?
 		end
 
 		# It's a strange line, print as error
 		logger.error line.chomp
 	end
-	#cerr_handler = proc do |pid,cerr|
-		#line = cerr.readline
-		#logger.debug line.chomp
-	#end
-	#cout_handler = proc do |pid,cout|
-		#logger.info cout.readline.chomp
-	#end
 
-	retcode = open3_callbacks(cout_handler,cerr_handler,*args)
+	retcode = open3_linewise(cout_handler,cerr_handler,*args)
 
 	logger.debug "Finished #{args.inspect} with code #{retcode}"
 
