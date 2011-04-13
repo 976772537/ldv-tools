@@ -107,6 +107,9 @@ sub get_cmd_tag_from_report_by_id {
 # twig  handlers
 #####################################################
 
+# List of failed CC commands and their descriptions.  Format: cc's outfile -> description (ld matches via cc file names)
+my %failed_ccs = ();
+
 sub hxml_cmdstream {
 	my $id=$_[1]->att($xml_cmd_attr_id);
 	my @commands = get_cmd_tag_from_report_by_id($id);
@@ -160,14 +163,32 @@ sub hxml_cmdstream {
 			open(FIL,$astate[7]);
 			while(<FIL>) {
 				$description .= $_;
-			} 
+			}
 			$description.='      ';
 			close(FIL);
-		} 
+		}
+		# Determine final status.  Initially it's gotten from the recorded file
+		my $status = $astate[6];
+		# If it's a CC command, record to failed_ccs
+		if ($command->name eq 'cc'){
+			$failed_ccs{$command->first_child_text($xml_cmd_out)} = $description;
+		}elsif ($command->name eq 'ld'){
+			# If it's an LD command, adjust status correspondingly, if any of its input CCs have failed
+			my $really_failed = '';
+			for my $in_o ($command->children_text){
+				if ($failed_ccs{$in_o}){
+					$really_failed = 1;
+					ldv_wprint(sprintf("Envgen failure recorded for module %s.",$command->att($xml_reports_module_name)));
+					$description.=sprintf("Main generation for file '%s' failed: %s\n",$in_o,$failed_ccs{$in_o});
+				}
+			}
+			$status = 'FAILED' if $really_failed;
+		}
 		XML::Twig::Elt->new($xml_instrument_desc,$description)->paste($instrument);
-		XML::Twig::Elt->new($xml_instrument_status,$astate[6])->paste($instrument);
+		XML::Twig::Elt->new($xml_instrument_status,$status)->paste($instrument);
 		XML::Twig::Elt->new($xml_stats_loc,$astate[4])->paste($instrument);
 		$instrument->paste('last_child',$command);
+
 	}
 }	
 
@@ -278,6 +299,13 @@ sub ldv_print
 sub ldv_eprint
 {
 	ldv_print "ERROR: $_[0]";
+}
+
+sub ldv_wprint
+{
+	if($log_level>=4) {
+		ldv_print("WARNING: $_[0]");
+	}
 }
 
 sub ldv_sprint
