@@ -1955,20 +1955,22 @@ sub process_cmds()
                       "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
                       "void ldv_spin_lock_irqsave_nested(spinlock_t *lock, int subclass);",
                       "int ldv_spin_trylock_irqsave(spinlock_t *lock, unsigned long flags);",
-                      "void ldv_spin_lock_TEMPLATE(spinlock_t *lock);",
-                      "void ldv_spin_lock_bh_TEMPLATE(spinlock_t *lock);",
-                      "void ldv_spin_lock_irq_TEMPLATE(spinlock_t *lock);",
-                      "int ldv_spin_trylock_TEMPLATE(spinlock_t *lock);",
-                      "int ldv_spin_trylock_bh_TEMPLATE(spinlock_t *lock);",
-                      "int ldv_spin_trylock_irq_TEMPLATE(spinlock_t *lock);",
-                      "void ldv_spin_unlock_TEMPLATE(spinlock_t *lock);",
-                      "void ldv_spin_unlock_bh_TEMPLATE(spinlock_t *lock);",
-                      "void ldv_spin_unlock_irq_TEMPLATE(spinlock_t *lock);",
-                      "void ldv_spin_unlock_irqrestore_TEMPLATE(spinlock_t *lock, unsigned long flags);",
-                      "void ldv_spin_unlock_wait_TEMPLATE(spinlock_t *lock);",
-                      "int ldv_spin_is_locked_TEMPLATE(spinlock_t *lock);",
-                      "int ldv_spin_is_contended_TEMPLATE(spinlock_t *lock);",
-                      "int ldv_spin_can_lock_TEMPLATE(spinlock_t *lock);"
+                      "void ldv_spin_lock(spinlock_t *lock);",
+                      "void ldv_spin_lock_bh(spinlock_t *lock);",
+                      "void ldv_spin_lock_irq(spinlock_t *lock);",
+                      "int ldv_spin_trylock(spinlock_t *lock);",
+                      "int ldv_spin_trylock_bh(spinlock_t *lock);",
+                      "int ldv_spin_trylock_irq(spinlock_t *lock);",
+                      "void ldv_spin_unlock(spinlock_t *lock);",
+                      "void ldv_spin_unlock_bh(spinlock_t *lock);",
+                      "void ldv_spin_unlock_irq(spinlock_t *lock);",
+                      "void ldv_spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags);",
+                      "void ldv_spin_unlock_wait(spinlock_t *lock);",
+                      "int ldv_spin_is_locked(spinlock_t *lock);",
+                      "int ldv_spin_is_contended(spinlock_t *lock);",
+                      "int ldv_spin_can_lock(spinlock_t *lock);",
+                      "int ldv_atomic_dec_and_lock(spinlock_t *lock, atomic_t *atomic);".
+		      "\n#define ldv_atomic_dec_and_lock_macro(atomic,lock) ldv_atomic_dec_and_lock(lock,atomic)"
                      );
             my @keys = ("spin_lock_irqsave",
                      "spin_lock_nested",
@@ -1988,7 +1990,8 @@ sub process_cmds()
                      "spin_unlock_wait",
                      "spin_is_locked",
                      "spin_is_contended",
-                     "spin_can_lock"
+                     "spin_can_lock",
+                     "atomic_dec_and_lock"
                     );
             my @replacements = ("ldv_spin_lock_irqsave",
                              "ldv_spin_lock_nested",
@@ -2008,7 +2011,8 @@ sub process_cmds()
                              "ldv_spin_unlock_wait",
                              "ldv_spin_is_locked",
                              "ldv_spin_is_contended",
-                             "ldv_spin_can_lock"
+                             "ldv_spin_can_lock",
+                     	     "ldv_atomic_dec_and_lock_macro"
                             );
 
             print_debug_trace("Replace defines by model functions for model ".$opt_model_id);
