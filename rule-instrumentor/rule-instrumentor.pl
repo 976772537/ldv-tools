@@ -194,6 +194,10 @@ my @config_dir = ();
 # Kind of instrumentation.
 my $kind_isplain = 0;
 my $kind_isaspect = 0;
+my $aspectator_type = undef;
+
+# Supported aspectator backends
+my %supported_backends = ('gcc'=>1, 'llvm'=>1);
 
 my $ldv_rule_instrumentor_abs;
 my @ldv_rule_instrumentor_path;
@@ -203,18 +207,35 @@ my $ldv_rule_instrumentor;
 my @ldv_rule_instrumentor_patterns = ('.*,ALL', '.*cc1.*,CC1', '.*c-backend.*,C-BACKEND', '.*linker.*,LINKER');
 my $ldv_aspectator_bin_dir;
 my $ldv_aspectator;
+# Env var that keeps path to GCC executable.
+my $ldv_aspectator_gcc;
+my $ldv_gcc;
 my $ldv_timeout_script;
 my $ldv_timeout_script_output;
 my @ldv_timeout_script_opts;
 # Environment variable that says that options passed to gcc compiler aren't
 # quoted.
 my $ldv_no_quoted = 'LDV_NO_QUOTED';
-# Environment variable that keeps path to GCC executable.
-my $ldv_aspectator_gcc = 'LDV_LLVM_GCC';
-my $ldv_c_backend;
-my $ldv_gcc;
+
+# LLVM backend-specific configuration
+
+# Environment variable that keeps path to GCC executable for LLVM
+my $ldv_llvm_aspectator_gcc = 'LDV_LLVM_GCC';
+my $ldv_llvm_c_backend;
+my $ldv_llvm_gcc;
+my $ldv_llvm_aspectator_bin_dir;
+my $ldv_llvm_aspectator;
 # Linker.
-my $ldv_linker;
+my $ldv_llvm_linker;
+
+# Aspectator configuration
+my $ldv_gcc_aspectator;
+# Environment variable that keeps path to GCC executable for LLVM
+my $ldv_gcc_aspectator_gcc = 'LDV_ASPECTATOR_CORE';
+
+my $ldv_gcc_aspectator_bin_dir;
+my $ldv_gcc_gcc;
+
 # Directory contains rules models database and their source code.
 my $ldv_model_dir;
 # Name of xml file containing models database. Name is relative to models
@@ -323,6 +344,7 @@ my $xml_model_db_hints = 'hints';
 my $xml_model_db_kind = 'kind';
 my $xml_model_db_model = 'model';
 my $xml_model_db_opt_aspect = 'aspect_options';
+my $xml_model_db_opt_aspect_llvm = 'aspect_llvm_options';
 my $xml_model_db_opt_on = 'on';
 my $xml_model_db_opt_off = 'off';
 my $xml_model_db_opt_plain = 'plain_options';
@@ -632,7 +654,7 @@ sub get_model_info()
   foreach my $model (@models)
   {
     # Process options to be passed to the gcc compiler.
-    if ($model->gi eq $xml_model_db_opt_plain || $model->gi eq $xml_model_db_opt_aspect)
+    if ($model->gi eq $xml_model_db_opt_plain || $model->gi eq $xml_model_db_opt_aspect || $model->gi eq $xml_model_db_opt_aspect_llvm)
     {
       print_debug_trace("Process '" . $model->gi . "' options");
 
@@ -668,7 +690,8 @@ sub get_model_info()
         @gcc_plain_off_opts = @off_opts;
         @gcc_plain_on_opts = @on_opts;
       }
-      else
+      elsif ($model->gi eq $xml_model_db_opt_aspect || $model->gi eq $xml_model_db_opt_aspect_llvm)
+      # I see no point in distinguising aspectator's options even further
       {
         @gcc_aspect_off_opts = @off_opts;
         @gcc_aspect_on_opts = @on_opts;
@@ -776,9 +799,30 @@ sub get_model_info()
       print_debug_trace("Check whether the '$id_attr' model kinds are specified correctly");
       foreach my $kind (@kinds)
       {
-        if ($kind eq 'aspect')
+        if ($kind eq 'aspect' || $kind eq 'aspect-llvm')
         {
           $kind_isaspect = 1;
+
+          # Determine aspectating backend for this rule and set global variables to those specific to this backend 
+          $aspectator_type = ($kind eq 'aspect') ? 'gcc' : 'llvm';
+
+          # Check if the backend specified is supported
+          local $_;
+          die(sprintf("The '$aspectator_type' aspectator backend is not supported in this installation!  Only %s are supported",join(", ",grep{$supported_backends{$_}} keys %supported_backends)))
+            unless ($supported_backends{$aspectator_type});
+
+          if ($aspectator_type eq 'gcc')
+          {
+            $ldv_aspectator = $ldv_gcc_aspectator;
+            $ldv_aspectator_gcc = $ldv_gcc_aspectator_gcc;
+            $ldv_gcc = $ldv_gcc_gcc;
+          }
+          else
+          {
+            $ldv_aspectator = $ldv_llvm_aspectator;
+            $ldv_aspectator_gcc = $ldv_llvm_aspectator_gcc;
+            $ldv_gcc = $ldv_llvm_gcc;
+          }
 
           die("Models database doesn't contain '$xml_model_db_files_aspect' tag for '$id_attr' model")
             unless ($aspect);
@@ -786,7 +830,7 @@ sub get_model_info()
           die("Aspect file '$ldv_model_dir/$aspect' doesn't exist (for '$id_attr' model)")
             unless (-f "$ldv_model_dir/$aspect");
 
-          print_debug_debug("The aspect mode is used for '$id_attr' model");
+          print_debug_debug("The aspect mode with type '$aspectator_type' is used for '$id_attr' model");
 
           print($file_cmds_log "$log_cmds_aspect\n");
         }
@@ -1137,51 +1181,89 @@ sub prepare_files_and_dirs()
 
   print_debug_debug("The instrument auxiliary tools directory is '$ldv_rule_instrumentor'");
 
-  # Directory contains all binaries needed by aspectator.
-  $ldv_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/bin";
-  unless(-d $ldv_aspectator_bin_dir)
-  {
-    warn("Directory '$ldv_aspectator_bin_dir' (aspectator binaries directory) doesn't exist");
-    help();
-  }
-  print_debug_debug("The aspectator binaries directory is '$ldv_aspectator_bin_dir'");
+  # LLVM backend is optional, and may be not included into the shippment
+  if ($supported_backends{'llvm'}){
+    # Directory contains all binaries needed by aspectator.
+    $ldv_llvm_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/llvm-2.6/bin";
+    unless(-d $ldv_llvm_aspectator_bin_dir)
+    {
+      warn("Directory '$ldv_llvm_aspectator_bin_dir' (LLVM aspectator binaries directory) doesn't exist");
+      help();
+    }
+    print_debug_debug("The llvm aspectator binaries directory is '$ldv_llvm_aspectator_bin_dir'");
 
-  # Aspectator script.
-  $ldv_aspectator = "$ldv_aspectator_bin_dir/compiler";
-  unless(-f $ldv_aspectator)
-  {
-    warn("File '$ldv_aspectator' (aspectator) doesn't exist");
-    help();
-  }
-  print_debug_debug("The aspectator script (compiler) is '$ldv_aspectator'");
+    # Aspectator script.
+    $ldv_llvm_aspectator = "$ldv_llvm_aspectator_bin_dir/compiler";
+    unless(-f $ldv_llvm_aspectator)
+    {
+      warn("File '$ldv_llvm_aspectator' (aspectator) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM aspectator script (compiler) is '$ldv_llvm_aspectator'");
 
-  # C backend.
-  $ldv_c_backend = "$ldv_aspectator_bin_dir/c-backend";
-  unless(-f $ldv_c_backend)
-  {
-    warn("File '$ldv_c_backend' (LLVM C backend) doesn't exist");
-    help();
-  }
-  print_debug_debug("The C backend is '$ldv_c_backend'");
+    # C backend.
+    $ldv_llvm_c_backend = "$ldv_llvm_aspectator_bin_dir/c-backend";
+    unless(-f $ldv_llvm_c_backend)
+    {
+      warn("File '$ldv_llvm_c_backend' (LLVM C backend) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM C backend is '$ldv_llvm_c_backend'");
 
-  # GCC compiler with aspectator extensions that is used by aspectator
-  # script.
-  $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
-  unless(-f $ldv_gcc)
-  {
-    warn("File '$ldv_gcc' (GCC compiler) doesn't exist");
-    help();
-  }
-  print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc'");
+    # GCC compiler with aspectator extensions that is used by aspectator
+    # script.
+    $ldv_llvm_gcc = "$ldv_llvm_aspectator_bin_dir/compiler-core";
+    unless(-f $ldv_llvm_gcc)
+    {
+      warn("File '$ldv_llvm_gcc' (LLVM GCC compiler) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM GCC compiler (compiler core) is '$ldv_llvm_gcc'");
 
-  # Linker.
-  $ldv_linker = "$ldv_aspectator_bin_dir/linker";
-  unless(-f $ldv_linker)
-  {
-    warn("File '$ldv_linker' (LLVM linker) doesn't exist");
-    help();
+    # Linker.
+    $ldv_llvm_linker = "$ldv_llvm_aspectator_bin_dir/linker";
+    unless(-f $ldv_llvm_linker)
+    {
+      warn("File '$ldv_llvm_linker' (LLVM linker) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM linker is '$ldv_llvm_linker'");
   }
-  print_debug_debug("The linker is '$ldv_linker'");
+
+  # GCC aspectator backend is included into the default shippment, but just in case...
+  if ($supported_backends{'gcc'}){
+    # Directory contains all binaries needed by aspectator.
+    $ldv_gcc_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/gcc-4.6/bin";
+    unless(-d $ldv_gcc_aspectator_bin_dir)
+    {
+      warn("Directory '$ldv_gcc_aspectator_bin_dir' (aspectator binaries directory) doesn't exist");
+      help();
+    }
+    print_debug_debug("The aspectator binaries directory is '$ldv_gcc_aspectator_bin_dir'");
+
+    # Aspectator script.
+    $ldv_gcc_aspectator = "$ldv_gcc_aspectator_bin_dir/gcc_4stage.sh";
+    unless(-f $ldv_gcc_aspectator)
+    {
+      warn("File '$ldv_gcc_aspectator' (aspectator) doesn't exist");
+      help();
+    }
+    print_debug_debug("The aspectator script (compiler) is '$ldv_gcc_aspectator'");
+
+    # GCC compiler with aspectator extensions that is used by aspectator
+    # script.
+    # FIXME: temporal fix
+    # $ldv_gcc_gcc = "$ldv_gcc_aspectator_bin_dir/compiler-core";
+    $ldv_gcc_gcc=`which gcc`;
+    chomp $ldv_gcc_gcc;
+    unless(-f $ldv_gcc_gcc)
+    {
+      warn("File '$ldv_gcc_gcc' (GCC compiler) doesn't exist");
+      help();
+    }
+    print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc_gcc'");
+
+  }
 
   # Use environment variable for the models directory instead of the standard
   # one from the LDV_HOME.
@@ -1527,7 +1609,7 @@ sub process_cmd_ld()
         $ldv_timeout_script,
         @ldv_timeout_script_opts,
         "--reference=$cmd{'id'}",
-        $ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+        $ldv_llvm_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
 
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
@@ -1557,7 +1639,7 @@ sub process_cmd_ld()
         $ldv_timeout_script,
         @ldv_timeout_script_opts,
         "--reference=$cmd{'id'}",
-        $ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
+        $ldv_llvm_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
 
       print_debug_info("Execute the command '@args'");
       ($status, $desc) = exec_status_and_desc(@args);
@@ -1609,9 +1691,9 @@ sub process_cmd_ld()
       # one file generally (i.e. with usual and common aspects) instrumented.
       # We choose the first one here. Other files must be usually instrumented.
       my @ins_usual = map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}});
-      my @args_usual = ($ldv_linker, @llvm_linker_opts, @ins_usual, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      my @args_usual = ($ldv_llvm_linker, @llvm_linker_opts, @ins_usual, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
       my @ins_general = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
-      my @args_general = ($ldv_linker, @llvm_linker_opts, @ins_general, '-o', "$cmd{'out'}$llvm_bitcode_general_suffix");
+      my @args_general = ($ldv_llvm_linker, @llvm_linker_opts, @ins_general, '-o', "$cmd{'out'}$llvm_bitcode_general_suffix");
 
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
@@ -1781,6 +1863,7 @@ sub process_cmds()
       my @off_opts;
       if ($kind_isaspect)
       {
+        # Option fixups are stored in the same place for both aspectators
         @on_opts = @gcc_aspect_on_opts;
         @off_opts = @gcc_aspect_off_opts;
       }
