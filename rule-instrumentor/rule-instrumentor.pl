@@ -231,7 +231,7 @@ my $ldv_llvm_linker;
 # Aspectator configuration
 my $ldv_gcc_aspectator;
 # Environment variable that keeps path to GCC executable for LLVM
-my $ldv_gcc_aspectator_gcc = 'LDV_ASPECTATOR_CORE';
+my $ldv_gcc_aspectator_gcc_env = 'LDV_ASPECTATOR_CORE';
 
 my $ldv_gcc_aspectator_bin_dir;
 my $ldv_gcc_gcc;
@@ -823,8 +823,18 @@ sub get_model_info()
           if ($aspectator_type eq 'gcc')
           {
             $ldv_aspectator = $ldv_gcc_aspectator;
-            $ldv_aspectator_gcc = $ldv_gcc_aspectator_gcc;
-            $ldv_gcc = $ldv_gcc_gcc;
+            $ldv_aspectator_gcc = $ldv_gcc_aspectator_gcc_env;
+            if (my $user_specified_aspectator = $ENV{$ldv_gcc_aspectator_gcc_env}){
+              print_debug_debug("Using user-specified GCC aspectator found in '$user_specified_aspectator'");
+              die("User-specified aspectator '$user_specified_aspectator' is not an executable file!")
+                unless (-x $user_specified_aspectator);
+              $ldv_gcc = $user_specified_aspectator;
+            }
+            else
+            {
+              print_debug_debug("Using the default GCC aspectator found in $ldv_gcc");
+              $ldv_gcc = $ldv_gcc_gcc;
+            }
           }
           else
           {
@@ -1259,21 +1269,20 @@ sub prepare_files_and_dirs()
     }
     print_debug_debug("The aspectator script (compiler) is '$ldv_gcc_aspectator'");
     # For now, preprocessor will go as an aspectator
-    # FIXME: temporal fix
-    $ldv_gcc_aspectator = "cpp";
 
     # GCC compiler with aspectator extensions that is used by aspectator
     # script.
-    # FIXME: temporal fix
-    # $ldv_gcc_gcc = "$ldv_gcc_aspectator_bin_dir/compiler-core";
-    $ldv_gcc_gcc=`which gcc`;
-    chomp $ldv_gcc_gcc;
-    unless(-f $ldv_gcc_gcc)
+    # FIXME: for now, we do not have such aspectator!
+    unless (defined $ENV{$ldv_gcc_aspectator_gcc_env})
     {
-      warn("File '$ldv_gcc_gcc' (GCC compiler) doesn't exist");
-      help();
+      $ldv_gcc_gcc = "$ldv_gcc_aspectator_bin_dir/compiler-core";
+      unless(-f $ldv_gcc_gcc)
+      {
+        warn("File '$ldv_gcc_gcc' (GCC compiler) doesn't exist");
+        help();
+      }
+      print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc_gcc'");
     }
-    print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc_gcc'");
 
   }
 
