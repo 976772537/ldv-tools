@@ -235,6 +235,15 @@ my $ldv_gcc_aspectator_gcc = 'LDV_ASPECTATOR_CORE';
 
 my $ldv_gcc_aspectator_bin_dir;
 my $ldv_gcc_gcc;
+# GCC ASpectator suffixes
+# Suffix of generated aspect files emitted near the source files
+my $gcc_suffix_aspect = '.c';
+# Suffix for usual aspectated files for GCC aspectator
+my $gcc_suffix_usual = '.usual.c';
+# Suffix for general aspectated files for GCC aspectator
+my $gcc_suffix_general = '.general.c';
+# Suffix for stage 1 files for GCC aspectator
+my $gcc_preprocessed_suffix = '.p';
 
 # Directory contains rules models database and their source code.
 my $ldv_model_dir;
@@ -1249,6 +1258,9 @@ sub prepare_files_and_dirs()
       help();
     }
     print_debug_debug("The aspectator script (compiler) is '$ldv_gcc_aspectator'");
+    # For now, preprocessor will go as an aspectator
+    # FIXME: temporal fix
+    $ldv_gcc_aspectator = "cpp";
 
     # GCC compiler with aspectator extensions that is used by aspectator
     # script.
@@ -1378,16 +1390,40 @@ sub process_cmd_cc()
 
     print_debug_trace("Go to the build directory to execute cc command");
 
+    # Aspectators generate two files here.  The first is aspectated code (llvm-based aspectator generates aspectated bitcode, and gcc-based aspectator generates aspectated preprocessed code), and the second is .p file generated after 1st stage (referred to by error traces).
+    # .p is common for both supported aspectators, and the first file suffix differs
+
+    my $aspectated_suffix_generated = undef;
+    my $aspectated_suffix_usual = undef;
+    my $aspectated_suffix_general = undef;
+    my $preprocessed_suffix = undef;
+
+    if ($aspectator_type eq 'gcc')
+    {
+      $aspectated_suffix_generated = $gcc_suffix_aspect;
+      $aspectated_suffix_usual = $gcc_suffix_usual;
+      $aspectated_suffix_general = $gcc_suffix_general;
+      $preprocessed_suffix = $gcc_preprocessed_suffix;
+    }
+    elsif ($aspectator_type eq 'llvm')
+    {
+      $aspectated_suffix_generated = $llvm_bitcode_suffix;
+      $aspectated_suffix_usual = $llvm_bitcode_usual_suffix;
+      $aspectated_suffix_general = $llvm_bitcode_general_suffix;
+      $preprocessed_suffix = $llvm_preprocessed_suffix;
+    }
+    else {die};
+
     my ($status, $desc);
 
     # Get target file cache key.
-    my $cache_target = "$cmd{'out'}$llvm_bitcode_usual_suffix";
+    my $cache_target = "$cmd{'out'}$aspectated_suffix_usual";
     my $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The target file cache key is '$cache_file_key'");
 
     # Get target preprocessed file cache key.
-    my $preprocessed_cache_target = "${$cmd{'ins'}}[0]$llvm_preprocessed_suffix";
+    my $preprocessed_cache_target = "${$cmd{'ins'}}[0]$preprocessed_suffix";
     my $preprocessed_cache_file_key = $preprocessed_cache_target;
     $preprocessed_cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The preprocessed target file cache key is '$preprocessed_cache_file_key'");
@@ -1443,17 +1479,16 @@ sub process_cmd_cc()
       chdir($tool_working_dir)
         or die("Can't change directory to '$tool_working_dir'");
 
-      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'")
-        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'")
+        unless (-f "${$cmd{'ins'}}[0]$aspectated_suffix_generated");
+      print_debug_debug("The aspectator produces the usual bitcode/source file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'");
 
-      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-      # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
+      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectated_suffix_generated with llvm object code (or preprocessed sources in GCC aspectator). Copy them to $cmd{'out'}$aspectated_suffix_usual files.
       print_debug_trace("Copy the usual bitcode file");
       # An error in the following line could appear if the "key" .o file was cached, but this file was not (due to different options?)
       # If it happens, just drop the cache
-      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix")
-        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+      mv("${$cmd{'ins'}}[0]$aspectated_suffix_generated", "$cmd{'out'}$aspectated_suffix_usual")
+        or die("Can't copy file '${$cmd{'ins'}}[0]$aspectated_suffix_generated' to file '$cmd{'out'}$aspectated_suffix_usual': $ERRNO");
 
       # Save the result to cache.
       save_to_cache($cache_target, $opt_model_id, $cache_file_key)
@@ -1464,8 +1499,8 @@ sub process_cmd_cc()
         unless ($skip_caching);
     }
 
-    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
-    print_debug_debug("The usual bitcode file is '$cmd{'out'}$llvm_bitcode_usual_suffix'");
+    $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_usual"} = 1;
+    print_debug_debug("The usual bitcode/source file is '$cmd{'out'}$aspectated_suffix_usual'");
 
     unless (LDV::Utils::check_verbosity('DEBUG'))
     {
@@ -1494,8 +1529,8 @@ sub process_cmd_cc()
       $ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     # Try to fetch result (and we think that the file that ends with
-    # $llvm_bitcode_usual_suffix is THE ONLY result of this part.
-    $cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
+    # $aspectated_suffix_usual is THE ONLY result of this part.
+    $cache_target = "$cmd{'out'}$aspectated_suffix_general";
     $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The target file cache key is '$cache_file_key'");
@@ -1547,17 +1582,16 @@ sub process_cmd_cc()
       delete($ENV{$ldv_no_quoted});
       delete($ENV{$ldv_aspectator_gcc});
 
-      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'")
-        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'")
+        unless (-f "${$cmd{'ins'}}[0]$aspectated_suffix_generated");
+      print_debug_debug("The aspectator produces the usual bitcode/source file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'");
 
-      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-      # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
+      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectated_suffix_generated with llvm object code (or GCC preprocessed sources). Copy them to $cmd{'out'}$aspectated_suffix_general files.
       print_debug_trace("Copy the general bitcode file");
-      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix")
-        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
-      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
-      print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'");
+      mv("${$cmd{'ins'}}[0]$aspectated_suffix_generated", "$cmd{'out'}$aspectated_suffix_general")
+        or die("Can't copy file '${$cmd{'ins'}}[0]$aspectated_suffix_generated' to file '$cmd{'out'}$aspectated_suffix_general': $ERRNO");
+      $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_general"} = 1;
+      print_debug_debug("The general bitcode file is '$cmd{'out'}$aspectated_suffix_general'");
 
       # Save the result to cache.
       save_to_cache($cache_target, $opt_model_id, $cache_file_key)
