@@ -1,6 +1,11 @@
 require 'socket'
 require 'utils/logging.rb'
 
+# SSH parameters (for all options)
+def ssh_opts
+	["-o","StrictHostKeyChecking=no"]
+end
+
 # Get local IP of the interface, through which the request to the host supplied is routed to.
 # If the host is not specified, uses 'google.com'
 def local_ip(to_host = 'google.com')

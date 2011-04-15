@@ -26,7 +26,7 @@ class Packer
 
 		FileUtils.mkdir_p dir
 		local_pack = File.join dir,name_for(key,destination)
-		retcode = say_and_run("scp","#{filesrv}/#{name_for(key,destination)}",local_pack)
+		retcode = say_and_run("scp",ssh_opts,"#{filesrv}/#{name_for(key,destination)}",local_pack)
 		@log.debug "scp retcode: #{retcode.inspect}"
 
 		if retcode && retcode == 0
@@ -89,7 +89,7 @@ class Packer
 		end
 		# Copy the resultant archive to the server
 		raise "LDV_FILESRV is not set!  Can't sent anything anywhere!" unless filesrv
-		say_and_run("scp",archive_name,filesrv)
+		say_and_run("scp",ssh_opts,archive_name,filesrv)
 	end
 
 	# Get package file name for the key given
