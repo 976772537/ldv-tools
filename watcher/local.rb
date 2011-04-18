@@ -315,7 +315,7 @@ class WatcherLocal < Watcher
 	end
 
 	def unpack(*args)
-		$log.debug "Fake unpack!"
+		$log.debug "Unpack does nothing in local mode."
 		return nil # Suppress printing
 	end
 

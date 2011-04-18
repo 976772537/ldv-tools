@@ -194,7 +194,7 @@ sub watcher_cmd_readall
 	# Check return values
 	my $rv = $?;
 	my $retcode = $?>>8;
-	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
 	# Return code of 1 means failure.  Other codes mean useful stuff
 	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
 
@@ -220,7 +220,7 @@ sub watcher_cmd
 	# Check return values
 	my $rv = $?;
 	my $retcode = $?>>8;
-	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
 	# Return code of 1 means failure.  Other codes mean useful stuff
 	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
 
@@ -273,7 +273,7 @@ sub watcher_cmd_callback
 	# Check return values
 	my $rv = $?;
 	my $retcode = $?>>8;
-	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
 	# Return code of 1 means failure.  Other codes mean useful stuff
 	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
 
@@ -293,7 +293,7 @@ sub watcher_cmd_noread
 	# Check return values
 	my $rv = $?;
 	my $retcode = $?>>8;
-	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
 	# Return code of 1 means failure.  Other codes mean useful stuff
 	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
 
