@@ -55,7 +55,7 @@ end
 
 # Add a special has_one association, which, in addition to foreign key, takes a special parameter "kind" into account.  This "kind" in the child table should be equal to association name, both when creating and when fetching records.
 def param_for_has_one assoc, params = {}
-	has_one assoc, params.merge({:conditions => {:kind => assoc.to_sym}})
+	has_one assoc, params.merge({:conditions => {:kind => assoc.to_s}})
 	alias_method "#{assoc}_activerecord".to_sym, "#{assoc}=".to_sym
 	define_method "#{assoc}=" do |new_entry|
 		new_entry.kind = assoc.to_s
