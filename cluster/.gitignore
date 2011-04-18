@@ -1,0 +1,8 @@
+
+# Vim swaps
+.*.swp
+.*.swo
+
+# Nanite configuration
+config.yml
+

@@ -51,6 +51,7 @@ MINIMAL PREREQUISITES
 		- gem SysVIPC   (Warning: case-sensitive!)
 		- gem libxml-ruby (tested with 1.1.4)
 		   * requires libxml2-devel
+		- gem bones
 	o gzip
 	o tar
 	o bzip2
@@ -79,6 +80,25 @@ LDV-GIT ADDITIONAL PREREQUISITES
 	o Graph.pm Perl module
 	o `perldoc` Perl util
 
+CLUSTER PREREQUISITES
+
+	o sudo gem install rake
+	o sudo gem install rspec
+	o sudo gem install rdoc
+	o sudo gem install rspec
+	o sudo gem install json
+	o sudo gem install rspec
+	o apt-get install -y libopenssl-ruby (required on Ubuntu systems)
+	o unionfs (FUSE version)
+	o sshfs (FUSE)
+	o logrotate
+	o Erlang
+	o RabbitMQ server 2.0.0 (greater versions are not supported!)
+		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server_2.0.0-1_all.deb (Debian)
+		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server-2.0.0-1.suse.noarch.rpm (Suse)
+
+
+
 
 CONFIGURING EXISTSING SOFTWARE
 
@@ -92,7 +112,6 @@ Extend "maximal packet size".  LDV uploads source files to database, and they
 may get huge.  10Mb is enough; just add the following lines to /etc/my.cnf:
 	[mysqld]
 	max_allowed_packet = 10M
-
 
 INSTALLING LDV
 
@@ -119,8 +138,11 @@ before installing '6' and '7'.
   5. To install everything use (also including ldv-online):
      prefix=/path/to/your/installation/directory make install-all
 
-  7. To install ldv-git:
+  6. To install ldv-git:
      prefix=/path/to/your/installation/directory make install-ldv-git
+
+  7. To install cluster (both node and server):
+     prefix=/path/to/your/installation/directory make install-ldv-cluster
 
 For some tools that use LDV to work, you need to add directory with binaries to
 your path:

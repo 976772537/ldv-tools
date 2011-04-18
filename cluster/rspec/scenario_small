@@ -1,0 +1,7 @@
+ldv.1: key ldv-core
+ldv.1: queue dscv /tmp/cluster/wd/work/current--X--wl12xx.ko.tar.bz2--X--newonelinux-2.6.31.6--X--32_7/linux-2.6.31.6/csd_deg_dscv/14/task_descriptor /tmp/cluster/wd/work/current--X--wl12xx.ko.tar.bz2--X--newonelinux-2.6.31.6--X--32_7/linux-2.6.31.6/csd_deg_dscv/14/dscv_tempdir ldv.1 dscv 14
+ldv.1.dscv.14: key dscv
+ldv.1.dscv.14: success dscv ldv.1 dscv 14
+ldv.1: wait dscv ldv.1 dscv *
+ldv.1: unpack /tmp/cluster/wd/work/current--X--wl12xx.ko.tar.bz2--X--newonelinux-2.6.31.6--X--32_7/linux-2.6.31.6/csd_deg_dscv/14/dscv_tempdir 
+ldv.1: success ldv ldv.1

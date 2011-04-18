@@ -1,0 +1,16 @@
+/.DS_Store
+\#*
+.#*
+.emacs*
+.*.swp
+pkg
+db
+vendor
+*.log
+rdoc
+config.yml
+spec/config.yml
+spec/nanite.*.log
+*.tmproj
+nbproject
+.idea

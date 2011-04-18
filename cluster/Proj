@@ -1,0 +1,61 @@
+
+= Cluster prototype
+
+= External interface
+	ldvc-node
+	ldvc-master
+	ldvc-task
+	ldvc-env
+
+ldvc-mapper
+ldvc-queue
+ldvc-node-impl
+ldvc-task-impl
+
+ldvc-wait-task
+
+test-dscv.rb
+test-simple.rb
+
+options.rb
+waiter.rb
+sender.rb
+queue.rb
+packer.rb
+utils.rb
+utils/
+	logging.rb
+	open3.rb
+scheduler/
+	tasks.rb
+
+cluster-watcher.rb
+
+actors/
+	queue.rb
+	node.rb
+	nodeui.rb
+init.rb
+tester.rb
+node.rb
+ui.rb
+
+README
+Makefile
+
+rspec/
+	queue_spec.rb
+
+nanite/
+	lib/nanite/
+		agent.rb
+		amqp.rb
+
+amqp/
+	amqp.gemspec
+	lib/
+		amqp.rb
+		mq.rb
+	examples/
+
+

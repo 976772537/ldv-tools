@@ -8,7 +8,7 @@ export install_dir=$(prefix)/watcher
 bindir?=$(prefix)/bin
 dscv_target=$(bindir)/dscv
 
-targets=ldv-watcher
+targets=ldv-watcher generic.rb local.rb
 
 watcher_targets=$(targets:%=$(install_dir)/%)
 
