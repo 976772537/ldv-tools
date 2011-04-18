@@ -1,6 +1,7 @@
 
 # Compilation
-all: gem-compile
+# We do not compile "nanite", as this requires an installed amqp! (see bug #1096)
+all: amqp-compile
 
 # Installation
 export install_dir=$(prefix)/cluster
