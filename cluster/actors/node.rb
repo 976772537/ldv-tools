@@ -141,6 +141,16 @@ class RealSpawner < Spawner
 		FileUtils.mkdir_p local_tmpdir
 		@nlog.info "LOCAL TMPDIR: #{local_tmpdir}"
 
+		# Get LDV_HOME of the toolset we use.  The thing is that we may specify an alternative toolset (via PATH env var in the task), and we should adjust how different tools within our toolset are invoked.
+		ldv_home = @home
+		bin_path = File.join @home,'bin'
+		new_path = task['env']['PATH'] || task['global']['env']['PATH']
+		if new_path
+			bin_path = new_path
+			ldv_home = File.expand_path File.join(new_path,"..")
+		end
+
+
 		# We don't set environment variables at once, because it would alter global environment, which is not thread-safe (for forked children).  Thus, we just create a proc, and call it in all the forked kids (to collect all the common code that sets ENV in one place).
 		set_common_env = proc do
 			# Notify children that we are in cluster
@@ -148,6 +158,11 @@ class RealSpawner < Spawner
 
 			ENV['LDV_SPAWN_KEY'] = spawn_key
 			# LDV_WATCHER_SRV is set in wrapper script that call set_env_from_opts in options.rb
+
+			# Set new LDV_HOME for toolset.  If it's an alternative toolset, then it would pick an alternative tools.
+			ENV['LDV_HOME'] = ldv_home
+			# However, we want alternative toolsets run watchers of the current one
+			ENV['LDV_WATCHER_HOME'] = @home
 
 			# Set information for packer that will read it when watcher is invoked from a child process
 			ENV['LDV_FILESRV'] = task['global']['filesrv']
@@ -178,7 +193,6 @@ class RealSpawner < Spawner
 
 		# Run job-specific targets
 		# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
-		# However, we should watch TODO that eventmachine doesn't prevent from working in parallel!
 		begin; case job_type
 		when :ldv then
 			workdir = task['global']['root']
@@ -197,7 +211,7 @@ class RealSpawner < Spawner
 				ENV['LDV_COPY_RESULTS_TO'] = result_pax
 				Dir.chdir workdir
 			end
-			unless retcode = run_and_log(ldv_logger,'ldv-manager', :fork_callback => fork_callback)
+			unless retcode = run_and_log(ldv_logger,File.join(bin_path,'ldv-manager'), :fork_callback => fork_callback)
 				@nlog.error "Failed to run ldv-manager for key #{task['key']}."
 			end
 			@nlog.info "Child LDV exit with code #{retcode}"
@@ -206,8 +220,6 @@ class RealSpawner < Spawner
 			@nlog.info "LDV package with results is sent!"
 		when :dscv then
 			# Dump taskfile to a temp file
-			#tmpdir = local_tmpdir
-			#@nlog.trace "Creating #{tmpdir} for DSCV"
 			FileUtils.mkdir_p task['workdir']
 			Tempfile.open("ldv-cluster-task-#{task['key']}",local_tmpdir) do |temp_file|
 				temp_file.write task['args']
@@ -219,33 +231,35 @@ class RealSpawner < Spawner
 					set_common_env.call
 					FileUtils.mkdir_p task['workdir']
 					ENV['WORK_DIR'] = task['workdir']
-					ENV['LDV_RULE_DB'] ||= File.join(@home,'kernel-rules','model-db.xml')
+					ENV['LDV_RULE_DB'] ||= File.join(ldv_home,'kernel-rules','model-db.xml')
 					Dir.chdir task_root
 				end
-				unless retcode = run_and_log(local_logger,'dscv',"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
+				unless retcode = run_and_log(local_logger,File.join(bin_path,'dscv'),"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
 					@nlog.error "Failed to run DSCV for key #{task['key']}."
 				end
 				@nlog.info "Child DSCV exit with code #{retcode}"
 			end
 		when :rcv then
 			# Dump taskfile to a temp file
-			#tmpdir = File.join(workdir,'tmp')
-			#@nlog.trace "Creating #{tmpdir} for RCV"
-			#FileUtils.mkdir_p tmpdir
 			Tempfile.open("ldv-cluster-task-#{task['key']}",local_tmpdir) do |temp_file|
 				temp_file.write task['args']
 				temp_file.close
 				@nlog.debug "Saved task to temporary file #{temp_file.path}"
 				@nlog.trace task['args']
 
+				# Set up the proper verifier, and call its backend
+				verifier = task['env']['RCV_VERIFIER'] || task['global']['env']['RCV_VERIFIER'] || 'blast'
+				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv','blast')
+				@nlog.info "Using verifier #{verifier} located at #{verifier_wrapper_exe}"
+
 				fork_callback = proc do
 					set_common_env.call
 					FileUtils.mkdir_p task['workdir']
 					ENV['WORK_DIR'] = task['workdir']
-					ENV['DSCV_HOME'] = @home
+					ENV['DSCV_HOME'] = ldv_home
 					Dir.chdir task_root
 				end
-				unless retcode = run_and_log(local_logger,File.join(@home,'dscv','rcv','blast'),"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
+				unless retcode = run_and_log(local_logger,verifier_wrapper_exe,"--rawcmdfile=#{temp_file.path}",:fork_callback => fork_callback)
 					@nlog.error "Failed to run RCV for key #{task['key']}."
 				end
 				@nlog.info "Child RCV exit with code #{retcode}"
@@ -409,6 +423,7 @@ class Ldvnode
 
 		# set up LDV_HOME
 		@home = ENV['LDV_HOME'] || File.join(File.dirname(__FILE__),"..","..")
+		@home = File.expand_path @home
 		@nlog.debug "LDV_HOME is #{@home}"
 
 		# Set up max load (we'll reject tasks if our load is higher)

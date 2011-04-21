@@ -59,7 +59,7 @@ class WatcherRemote < Watcher
 		$log.warn "Packing files #{files.inspect}"
 		packer.send_files key,:from_parent,files
 
-		payload = { :type => what, :args => (ENV['LDV_NOREAD_TASKS'] ? 'intentionally empty' : IO.read(task_fname)), :key => mk(key), :env => [], :workdir => workdir }
+		payload = { :type => what, :args => (ENV['LDV_NOREAD_TASKS'] ? 'intentionally empty' : IO.read(task_fname)), :key => mk(key), :env => {}, :workdir => workdir }
 		EM.run { sender.send('/ldvqueue/queue', payload)}
 		nil
 	end

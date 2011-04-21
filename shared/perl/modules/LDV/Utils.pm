@@ -175,7 +175,7 @@ my $ldv_watcher = undef;
 sub watcher_cmd_readall
 {
 	push_instrument("watcher");
-	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
 	vsay('INFO',"Called watcher: @watcher_args\n");
@@ -206,7 +206,7 @@ sub watcher_cmd_readall
 sub watcher_cmd
 {
 	push_instrument("watcher");
-	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
 	vsay('INFO',"Called watcher: @watcher_args\n");
@@ -236,7 +236,7 @@ sub watcher_cmd_callback
 	my $callback = shift;
 
 	push_instrument("watcher");
-	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
 	vsay('INFO',"Called watcher: @watcher_args\n");
@@ -285,7 +285,7 @@ sub watcher_cmd_callback
 sub watcher_cmd_noread
 {
 	push_instrument("watcher");
-	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
 	vsay('INFO',"Called watcher (output not checked): @watcher_args\n");
