@@ -240,8 +240,10 @@ my $ldv_gcc_gcc;
 my $gcc_suffix_aspect = '.c';
 # Suffix for usual aspectated files for GCC aspectator
 my $gcc_suffix_usual = '.usual.c';
+my $gcc_suffix_usual_o = '.usual.o';
 # Suffix for general aspectated files for GCC aspectator
 my $gcc_suffix_general = '.general.c';
+my $gcc_suffix_general_o = '.general.o';
 # Suffix for stage 1 files for GCC aspectator
 my $gcc_preprocessed_suffix = '.p';
 
@@ -2683,7 +2685,7 @@ sub process_report()
           else
           {
             $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_main => $main_id, $xml_report_attr_model => $opt_model_id);
-            print_debug_trace("Print stubs instead of a rcv verdict and a trace since it fails");
+            print_debug_debug("Print stubs instead of a rcv verdict and a trace since it fails");
             $xml_writer->dataElement($xml_report_verdict => $xml_report_verdict_stub);
             $xml_writer->dataElement($xml_report_trace => '');
 
