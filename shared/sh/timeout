@@ -63,10 +63,12 @@ defined $blackbox_pid or die "Couldn't fork: $!";
 
 unless ($blackbox_pid){
 	# Set the process group of the blackbox process
-	# We set it even if we watch for a process tree
-	setpgrp 0,0;
+	# We do not need to change a process group if we aren't using it to control our jobs
+	unless ($watchfor eq 'tree') {
+		setpgrp 0,0;
+	}
 	local $" = " ";
-	exec @ARGV or die "Couldn't exec @ARGV: $!"; 
+	exec @ARGV or die "Couldn't exec @ARGV: $!";
 }
 # Make sure we kill forked child on exit
 sub when_die{
