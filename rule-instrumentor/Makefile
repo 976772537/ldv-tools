@@ -1,5 +1,7 @@
 ASPECTATOR_DIR = aspectator
-aspectator_backends=llvm-2.6 gcc-4.6
+# TODO: add key to optionally turn LLVM backend on
+#aspectator_backends=llvm-2.6 gcc-4.6
+aspectator_backends=gcc-4.6
 
 INSTALL_DIR = __install
 

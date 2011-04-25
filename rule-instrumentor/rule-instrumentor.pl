@@ -197,7 +197,7 @@ my $kind_isaspect = 0;
 my $aspectator_type = undef;
 
 # Supported aspectator backends
-my %supported_backends = ('gcc'=>1, 'llvm'=>1);
+my %supported_backends = ('gcc'=>1, 'llvm'=>0);
 
 my $ldv_rule_instrumentor_abs;
 my @ldv_rule_instrumentor_path;
@@ -1263,7 +1263,7 @@ sub prepare_files_and_dirs()
     print_debug_debug("The aspectator binaries directory is '$ldv_gcc_aspectator_bin_dir'");
 
     # Aspectator script.
-    $ldv_gcc_aspectator = "$ldv_gcc_aspectator_bin_dir/gcc_4stage.sh";
+    $ldv_gcc_aspectator = "$ldv_gcc_aspectator_bin_dir/compiler";
     unless(-f $ldv_gcc_aspectator)
     {
       warn("File '$ldv_gcc_aspectator' (aspectator) doesn't exist");
