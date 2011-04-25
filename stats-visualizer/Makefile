@@ -132,4 +132,4 @@ test:
 	@echo The statistics server doesn\'t have any test
 
 clean:
-	rm -rf $(INSTALL_DIR) || exit 1
+	@echo The statistics server doesn\'t require cleaning

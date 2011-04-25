@@ -48,8 +48,9 @@ install-tests:
 	@mkdir -p $(install_dir)/rspec
 	cp rspec/*.rb $(install_dir)/rspec
 
+# Ignore errors of commands below since they aren't so important.
 clean:
-	cd nanite && rake clean
+	-cd nanite && rake clean
 
 $(install_dir)/%: %
 	@mkdir -p $(@D)

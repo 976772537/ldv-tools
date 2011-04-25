@@ -54,3 +54,6 @@ $(script_install_dir)/% : $(script_src)/%
 	@mkdir -p $(@D)
 	cp -p -f $^ $@
 
+clean:
+	@echo Cleaning isn\'t implemented at the moment
+#             although it may be
