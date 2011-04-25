@@ -7,3 +7,6 @@
 [submodule "dscv/rcv/cil"]
 	path = dscv/rcv/cil
 	url = git://forge.ispras.ru/cil.git
+[submodule "rule-instrumentor/aspectator/gcc-4.6"]
+	path = rule-instrumentor/aspectator/gcc-4.6
+	url = git://forge.ispras.ru/aspect-gcc.git
