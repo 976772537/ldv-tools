@@ -29,6 +29,11 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info p
 # Subroutine prototypes.
 ################################################################################
 
+# Add engine to the XML command
+# args: XML command (will be modified!)
+# retn: XML command with the engine
+sub add_engine_tag($);
+
 # Create configuration files and return pathes to them.
 # args: the name of directory relatively to which configurations are
 #   created; the part of path to configuration file.
@@ -50,10 +55,16 @@ sub delete_aux_files();
 # retn: a function execution status and description.
 sub exec_status_and_desc(@);
 
+# Auxilliary function that fixes options in the command given by adding model
+# options and removing some of them
+# args: XML cmd, options to add, options to remove
+# retn: autoconf path, filtered options list
+sub filter_opts($$$);
+
 # The auxiliary function that count execution time for its function argument.
 # args: a function name.
 # retn: a function execution status, description and time.
-sub exec_status_desc_and_time($);
+sub func_status_desc_and_time;
 
 # Obtain information for required model from models database xml.
 # args: no.
@@ -142,8 +153,6 @@ sub string_to_cache($@);
 # common aspects.
 my $aspect_general_suffix = '.general';
 
-# Information on a current command.
-my %cmd;
 # Commands execution statuses;
 my %cmds_status_fail;
 my %cmds_status_ok;
@@ -475,6 +484,17 @@ print_debug_normal("Make all successfully");
 # Subroutines.
 ################################################################################
 
+sub add_engine_tag($)
+{
+  my ($cmd) = shift;
+  # Add engine tag for both cc and ld commands.
+  print_debug_trace("For the both cc and ld commands add engine");
+  my $xml_engine_tag = new XML::Twig::Elt('engine', $ldv_model{'engine'});
+  $xml_engine_tag->paste('last_child', $cmd);
+
+  return $cmd;
+}
+
 sub create_configs($$)
 {
   my $rel_dir = shift;
@@ -588,15 +608,16 @@ sub delete_aux_files()
   }
 }
 
-sub exec_status_desc_and_time($)
+sub func_status_desc_and_time
 {
   my $func = shift;
+  my @args = @_;
 
   print_debug_trace("Keep the start time");
   my $start_time = [gettimeofday()];
 
   print_debug_trace("Call the function by the function reference");
-  my ($status, $desc) = $func->();
+  my ($status, $desc) = $func->(@args);
 
   print_debug_trace("Find and save script execution time");
   my $end_time = [gettimeofday()];
@@ -1380,8 +1401,22 @@ sub print_cmd_log($)
 
 sub process_cmd_cc()
 {
+  my ($cmd,%cmd) = @_;
+      #%cmd = (
+        #'id' => $id_attr,
+        #'cwd' => $cwd_text,
+        #'ins' => \@ins_text,
+        #'out' => $out_text,
+        #'check' => $check_text,
+        #'restrict-main' => $restrict_main,
+        #'opts' => \@opts);
+
+  my $kind_gcc = ($kind_isaspect && $aspectator_type eq 'gcc');
+
   if ($kind_isaspect)
   {
+    print_debug_debug("The command '$cmd{'id'}' is specifically processed for the aspect mode");
+
     # On each cc command we run aspectator on corresponding file with
     # corresponding model aspect and options. Also add -I option with
     # models directory needed to find appropriate headers for usual aspect.
@@ -1629,18 +1664,130 @@ sub process_cmd_cc()
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
 
+    # If we're in GCC aspectator mode, we should print a modified CC command just like in plain mode
+    if ($kind_gcc){
+      my $cmd_general = new XML::Twig::Elt('cc',{'id' => "$cmd{'id'}$id_common_model_suffix"});
+      new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_general);
+      new XML::Twig::Elt('in',"$cmd{'out'}$aspectated_suffix_general")->paste('last_child',$cmd_general);
+      new XML::Twig::Elt('out',"$cmd{'out'}$gcc_suffix_general_o")->paste('last_child',$cmd_general);
+      add_engine_tag($cmd_general);
+      $cmd_general->print($file_xml_out);
+
+      my $cmd_usual = new XML::Twig::Elt('cc',{'id' => $cmd{'id'}});
+      new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_usual);
+      new XML::Twig::Elt('in',"$cmd{'out'}$aspectated_suffix_usual")->paste('last_child',$cmd_usual);
+      new XML::Twig::Elt('out',"$cmd{'out'}$gcc_suffix_usual_o")->paste('last_child',$cmd_usual);
+      add_engine_tag($cmd_usual);
+      $cmd_usual->print($file_xml_out);
+    }
+
     return (0, $desc);
   }
+  elsif ($kind_isplain)
+  {
+    print_debug_debug("The command '$cmd{'id'}' is specifically processed for the plain mode");
 
-  # At the moment just the aspect mode is presented here.
+    add_engine_tag($cmd);
+
+    # Exchange the existing options with the processed ones.
+    $cmd->cut_children($xml_cmd_opt);
+    foreach my $opt (@{$cmd{'opts'}})
+    {
+      new XML::Twig::Elt($xml_cmd_opt, $opt)->paste('last_child',$cmd);
+    }
+
+    # Add -I option with common model dir to find appropriate headers. Note
+    # that it also add for a duplicated command.
+    print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers");
+    my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
+    $common_model_opt->paste('last_child', $cmd);
+
+    # FIXME
+    print_debug_trace("Print the modified command");
+    $cmd->print($file_xml_out);
+
+    # Add "common" source code to one of the input files in this CC command.
+    print_debug_debug("Duplicate an each cc command with the one containing a common model");
+    my $common_model_cc = $cmd->copy;
+
+    print_debug_trace("Change an id attribute");
+    $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . $id_common_model_suffix);
+
+    # Note that this generated file is always keeped since it's needed for
+    # report visualization.
+    print_debug_trace("Concatenate a common model with the first input file");
+    my $in = $common_model_cc->first_child($xml_cmd_in);
+    my $in_file = $in->text;
+    die("The specified input file '$in_file' doesn't exist.")
+      unless ($in_file and -f $in_file);
+
+    # Get target file cache key.
+    my $target_file = "$in_file$common_c_suffix";
+    my $cache_file_key = $target_file;
+    $cache_file_key =~ s/^$opt_basedir//;
+    print_debug_debug("The target file cache key is '$cache_file_key'");
+
+    if (copy_from_cache($target_file, $opt_model_id, $cache_file_key))
+    {
+      # Cache hit.
+      print_debug_info("Got file '$in_file$common_c_suffix' from cache");
+    }
+    else
+    {
+      # Cache miss.
+      open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
+        or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
+      cat($in_file, $file_with_common_model)
+        or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
+      cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
+        or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
+      close($file_with_common_model)
+        or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
+
+      # Save the information obtained to cache.
+      save_to_cache($target_file, $opt_model_id, $cache_file_key);
+    }
+
+    $in->set_text("$in_file$common_c_suffix");
+    print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
+
+    print_debug_trace("Add suffix for output file of the duplicated cc command");
+    my $out = $common_model_cc->first_child($xml_cmd_out);
+    $out->set_text($out->text . $common_o_suffix);
+
+    # FIXME
+    print_debug_trace("Print the duplicated cc command");
+    $common_model_cc->print($file_xml_out);
+
+    print_debug_debug("Finish processing of the command having id '$cmd{'id'}' in the plain mode");
+
+    return (0, []);
+  }
+
 }
 
 sub process_cmd_ld()
 {
+  my ($cmd,%cmd) = @_;
+      #%cmd = (
+        #'id' => $id_attr,
+        #'cwd' => $cwd_text,
+        #'ins' => \@ins_text,
+        #'out' => $out_text,
+        #'check' => $check_text,
+        #'restrict-main' => $restrict_main,
+        #'opts' => \@opts);
+  # Backporting code: add $idattr for convenience
+  my $id_attr = $cmd{'id'};
+
   my $ischeck = $cmd{'check'} eq 'true';
 
-  if ($kind_isaspect)
+  my $kind_gcc = ($kind_isaspect && $aspectator_type eq 'gcc');
+
+  if ($kind_isaspect && $aspectator_type eq 'llvm')
   {
+    print_debug_debug("The command '$cmd{'id'}' is specifically processed for the aspect mode");
+
     print_debug_debug("Prepare a C file to be checked for the ld command marked with 'check = \"true\"'");
 
     if ($ischeck)
@@ -1701,6 +1848,7 @@ sub process_cmd_ld()
       # Use here the first input file name to relate with corresponding ld
       # command.
       $xml_writer->dataElement('out' => ${$cmd{'ins'}}[0]);
+      # FIXME: replace with add_engine_tag
       $xml_writer->dataElement('engine' => $ldv_model{'engine'});
       # Close the cc tag.
       $xml_writer->endTag();
@@ -1709,6 +1857,7 @@ sub process_cmd_ld()
       $xml_writer->dataElement('cwd' => $cmd{'cwd'});
       $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);
       $xml_writer->dataElement('out' => "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      # FIXME: replace with add_engine_tag
       $xml_writer->dataElement('engine' => $ldv_model{'engine'});
 
       foreach my $entry_point (@{$cmd{'entry point'}})
@@ -1765,14 +1914,58 @@ sub process_cmd_ld()
       print_debug_debug("The linker produces the generally linked bitcode file '$cmd{'out'}$llvm_bitcode_general_suffix'");
     }
 
-    # Create artificial empty description.
-    my @desc = ();
-
     # Status is ok, description is empty.
-    return (0, \@desc);
+    return (0, []);
   }
+  elsif($kind_isplain || $kind_gcc)
+  {
+    # Add an additional input model file, error and hints tags for each ld
+    # command.
 
-  # At the moment just the aspect mode is presented here.
+    # Replace the first object file to be linked with the object file
+    # containing the common model (or, general aspect in GCC aspectator).
+    my $common_suffix = undef;
+    if ($kind_gcc)
+    {
+      $common_suffix = $gcc_suffix_general_o;
+    }
+    else
+    {
+      $common_suffix = $common_o_suffix;
+    }
+    print_debug_trace("For the ld command change the first input file");
+    my $in = $cmd->first_child($xml_cmd_in);
+    $in->set_text($in->text . $common_suffix);
+
+    # Replace the other object files with those with "usual" suffix in GCC aspect mode
+    if ($kind_gcc)
+    {
+      my @in_tags = $cmd->children($xml_cmd_in);
+      shift @in_tags;
+      for my $in_tag (@in_tags)
+      {
+        $in_tag->set_text($in_tag->text . $gcc_suffix_usual_o);
+      }
+    }
+
+    print_debug_trace("For the ld command add error tag");
+    my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
+    $xml_error_tag->paste('last_child', $cmd);
+
+    print_debug_trace("For the ld command copy hints as them");
+    my $twig_hints = $ldv_model{'twig hints'}->copy;
+    $twig_hints->paste('last_child', $cmd);
+
+    add_engine_tag($cmd);
+
+    # FIXME
+    print_debug_trace("Print the modified command");
+    $cmd->print($file_xml_out);
+
+    print_debug_debug("Finish processing of the command having id '$cmd{'id'}' in the plain mode");
+    # Status is ok, description is empty.
+    return (0, []);
+  }
 }
 
 sub process_cmds()
@@ -1795,12 +1988,9 @@ sub process_cmds()
       $cmd_basedir = $cmd->text;
       print_debug_debug("The base directory '$cmd_basedir' is specified");
 
-      if ($kind_isplain)
-      {
-        print_debug_trace("Use the tool base directory '$opt_basedir' instead of the specified one in the plain mode");
-        $cmd->set_text($opt_basedir);
-        $cmd->print($file_xml_out);
-      }
+      print_debug_trace("Use the tool base directory '$opt_basedir' instead of the specified one in the plain mode");
+      $cmd->set_text($opt_basedir);
+      $cmd->print($file_xml_out);
     }
     # Interpret cc and ld commands.
     elsif ($cmd->gi eq $xml_cmd_cc or $cmd->gi eq $xml_cmd_ld)
@@ -1918,55 +2108,8 @@ sub process_cmds()
         @off_opts = @gcc_plain_off_opts;
       }
 
-      print_debug_trace("Read an array of options and exclude the unwanted ones ('@off_opts')");
-      my @opts;
-      my $autoconf;
-      for (my $opt = $cmd->first_child($xml_cmd_opt)
-        ; $opt
-        ; $opt = $opt->next_elt($xml_cmd_opt))
-      {
-        my $opt_text = $opt->text;
+      my ($autoconf,@opts) = filter_opts($cmd,\@on_opts,\@off_opts);
 
-        my $opt_config_attr = $opt->att($xml_cmd_opt_config);
-        if ($opt_config_attr)
-        {
-          print_debug_debug("The option '$opt_text' is marked as configuration header file");
-
-          if ($opt_config_attr eq $xml_cmd_opt_config_autoconf)
-          {
-            print_debug_debug("The option '$opt_text' is marked as automatic configuration header file");
-            # Story automatic configuration header file just once.
-            if ($autoconf)
-            {
-              die("Don't mark more then one option as automatic configuration header file");
-            }
-            else
-            {
-              $autoconf = $opt_text;
-            }
-          }
-        }
-
-        # Exclude options for the gcc compiler.
-        foreach my $off_opt (@off_opts)
-        {
-          if ($opt_text =~ /^$off_opt$/)
-          {
-            print_debug_debug("Exclude the option '$opt_text' for the '$id_attr' command");
-            $opt_text = '';
-            last;
-          }
-        }
-
-        next unless ($opt_text);
-
-        push(@opts, $opt_text);
-
-        last if ($opt->is_last_child($xml_cmd_opt));
-      }
-
-      print_debug_debug("Add wanted options '@on_opts'");
-      push(@opts, @on_opts);
       if (!$opt_suppress_config_check and $ldv_model{'config'} and $cmd->gi eq $xml_cmd_cc)
       {
         print_debug_trace("Add config include options for cc command");
@@ -1985,234 +2128,14 @@ sub process_cmds()
 
       print_debug_debug("The options to be passed to the gcc compiler are '@opts'");
 
-      print_debug_trace("Read an array of entry points");
-      my @entry_points = ();
-      for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
-        ; $entry_point
-        ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
-      {
-        push(@entry_points, $entry_point->text);
-
-        last if ($entry_point->is_last_child($xml_cmd_entry_point));
-      }
+      my @entry_points = $cmd->children_text($xml_cmd_entry_point);
       print_debug_debug("The entry points are '@entry_points'");
 
-      # For the plain mode just copy and modify a bit input xml.
-      if ($kind_isplain)
-      {
-        print_debug_debug("The command '$id_attr' is specifically processed for the plain mode");
-        # Add an additional input model file, error and hints tags for aneach ld
-        # command.
-        if ($cmd->gi eq $xml_cmd_ld)
-        {
-          # Replace the first object file to be linked with the object file
-          # containing the common model.
-          print_debug_trace("For the ld command change the first input file");
-          my $in = $cmd->first_child($xml_cmd_in);
-          $in->set_text($in->text . $common_o_suffix);
-
-          print_debug_trace("For the ld command add error tag");
-          my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
-          $xml_error_tag->paste('last_child', $cmd);
-
-          print_debug_trace("For the ld command copy hints as them");
-          my $twig_hints = $ldv_model{'twig hints'}->copy;
-          $twig_hints->paste('last_child', $cmd);
-        }
-
-        # Add engine tag for both cc and ld commands.
-        if ($cmd->gi eq $xml_cmd_ld or $cmd->gi eq $xml_cmd_cc)
-        {
-          print_debug_trace("For the both cc and ld commands add engine");
-          my $xml_engine_tag = new XML::Twig::Elt('engine', $ldv_model{'engine'});
-          $xml_engine_tag->paste('last_child', $cmd);
-        }
-
-        # Exchange the existing options with the processed ones.
-        my @opts_to_del;
-        for (my $opt = $cmd->first_child($xml_cmd_opt)
-          ; $opt
-          ; $opt = $opt->next_elt($xml_cmd_opt))
-        {
-          push(@opts_to_del, $opt);
-          last if ($opt->is_last_child($xml_cmd_opt));
-        }
-        foreach (@opts_to_del)
-        {
-          $_->delete();
-        }
-        foreach my $opt (@opts)
-        {
-          my $xml_opt_tag = new XML::Twig::Elt($xml_cmd_opt, $opt);
-          $xml_opt_tag->paste('last_child', $cmd);
-        }
-
-        # Add -I option with common model dir to find appropriate headers. Note
-        # that it also add for a duplicated command.
-        if ($cmd->gi eq $xml_cmd_cc)
-        {
-          print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers");
-          my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
-          $common_model_opt->paste('last_child', $cmd);
-        }
-
-        print_debug_trace("Print the modified command");
-        $cmd->print($file_xml_out);
-
-        if ($cmd->gi eq $xml_cmd_cc)
-        {
-          print_debug_debug("Duplicate an each cc command with the one containing a common model");
-          my $common_model_cc = $cmd->copy;
-
-          print_debug_trace("Change an id attribute");
-          $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . $id_common_model_suffix);
-
-          # Note that this generated file is always keeped since it's needed for
-          # report visualization.
-          print_debug_trace("Concatenate a common model with the first input file");
-          my $in = $common_model_cc->first_child($xml_cmd_in);
-          my $in_file = $in->text;
-          die("The specified input file '$in_file' doesn't exist.")
-            unless ($in_file and -f $in_file);
-
-          # Get target file cache key.
-          my $target_file = "$in_file$common_c_suffix";
-          my $cache_file_key = $target_file;
-          $cache_file_key =~ s/^$opt_basedir//;
-          print_debug_debug("The target file cache key is '$cache_file_key'");
-
-          if (copy_from_cache($target_file, $opt_model_id, $cache_file_key))
-          {
-            # Cache hit.
-            print_debug_info("Got file '$in_file$common_c_suffix' from cache");
-          }
-          else
-          {
-            # Cache miss.
-            open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
-              or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
-            cat($in_file, $file_with_common_model)
-              or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
-            cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
-              or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
-            close($file_with_common_model)
-              or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
-
-            # Save the information obtained to cache.
-            save_to_cache($target_file, $opt_model_id, $cache_file_key);
-          }
-
-          $in->set_text("$in_file$common_c_suffix");
-          print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
-
-          print_debug_trace("Add suffix for output file of the duplicated cc command");
-          my $out = $common_model_cc->first_child($xml_cmd_out);
-          $out->set_text($out->text . $common_o_suffix);
-
-          print_debug_trace("Print the duplicated cc command");
-          $common_model_cc->print($file_xml_out);
-        }
-
-        print_debug_trace("Log information on the '$id_attr' command execution status");
-        # All times are 0 since it's assumed that in the plain mode all
-        # actions are simple and doesn't require a lot of time to be
-        # executed.
-        if ($cmd->gi eq $xml_cmd_cc)
-        {
-          # Just mark that the output file is generated successfully.
-          $cmds_status_ok{$out_text} = $id_attr;
-          my @ok_desc = ();
-          my %log = (
-              'cmd' => $log_cmds_cc # The cc command was executed.
-            , 'status' => $log_cmds_ok # The cc command is executed successfully.
-            , 'time' => 0 # The executed time is 0 in the plain mode.
-            , 'id' => $id_attr # The cc command id.
-            , 'check' => 0 # The cc command always has 0 check attribute.
-            , 'entries' => \@entry_points # The cc command doesn't contain any entry point indeed.
-            , 'desc' => \@ok_desc # There is no description since all is ok.
-          );
-          print_cmd_log(\%log);
-        }
-        elsif ($cmd->gi eq $xml_cmd_ld)
-        {
-          # Check whether all input files are processed sucessfully.
-          my $status_in = 1;
-          my @cc_error_desc = ();
-          foreach my $in_text (@ins_text)
-          {
-            # I.e. when ld input file was processed with errors.
-            if (defined($cmds_status_fail{$in_text}))
-            {
-              print_debug_trace("The required by ld file '$in_text' wasn't processed successfully");
-              $status_in = 0;
-              push(@cc_error_desc, $cmds_status_fail{$in_text});
-            }
-            # I.e. when ld input file wasn't processed at all. I assume
-            # that this situation is impossible indeed.
-            elsif (!defined($cmds_status_ok{$in_text}))
-            {
-              print_debug_trace("The required by ld file '$in_text' wasn't processed at all");
-              $status_in = 0;
-              my @desc = ("The input file '$in_text' required by the ld command wasn't processed");
-              push(@cc_error_desc, \@desc);
-            }
-          }
-
-          if ($status_in)
-          {
-            print_debug_debug("All ld command input files are processed successfully");
-            # Just mark that the output file is generated successfully.
-            $cmds_status_ok{$out_text} = $id_attr;
-            my @ok_desc = ();
-            my %log = (
-                'cmd' => $log_cmds_ld # The ld command was executed.
-              , 'status' => $log_cmds_ok # The ld command execution status.
-              , 'time' => 0 # The executed time is 0 in the plain mode.
-              , 'id' => $id_attr # The ld command id.
-              , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
-              , 'entries' => \@entry_points # The ld command entry points.
-              , 'desc' => \@ok_desc # There is no description since all is ok.
-            );
-            print_cmd_log(\%log);
-          }
-          else
-          {
-            print_debug_debug("Some ld command input files aren't processed successfully");
-            # Mark that the output file isn't generated successfully.
-            $cmds_status_fail{$out_text} = join_error_desc(@cc_error_desc);
-            my %log = (
-                'cmd' => $log_cmds_ld # The ld command was executed.
-              , 'status' => $log_cmds_fail # The ld command failed.
-              , 'time' => 0 # The executed time is 0 in the plain mode.
-              , 'id' => $id_attr # The ld command id.
-              , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
-              , 'entries' => \@entry_points # The ld command entry points.
-              , 'desc' => $cmds_status_fail{$out_text} # The ld command fails due to some input cc commands aren't finished successfully.
-            );
-            print_cmd_log(\%log);
-          }
-        }
-
-        print_debug_debug("Finish processing of the command having id '$id_attr' in the plain mode");
-        next;
-      }
-
-      print_debug_debug("The command '$id_attr' is specifically processed for the aspect mode");
-      $out_text = $out->text;
-
-      print_debug_trace("Read an array of input files");
-      @ins_text = ();
-      for (my $in = $cmd->first_child($xml_cmd_in)
-        ; $in
-        ; $in = $in->next_elt($xml_cmd_in))
-      {
-        push(@ins_text, $in->text);
-
-        last if ($in->is_last_child($xml_cmd_in));
-      }
+      @ins_text = $cmd->children_text($xml_cmd_in);
+      print_debug_trace("The input files are '@ins_text'");
 
       print_debug_trace("Store the current command information");
-      %cmd = (
+      my %cmd = (
         'id' => $id_attr,
         'cwd' => $cwd_text,
         'ins' => \@ins_text,
@@ -2221,13 +2144,11 @@ sub process_cmds()
         'restrict-main' => $restrict_main,
         'opts' => \@opts);
 
-      undef($cmd{'entry point'});
-
       # cc command doesn't contain any specific settings.
       if ($cmd->gi eq $xml_cmd_cc)
       {
         print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode");
-        my ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_cc);
+        my ($status, $desc, $time) = func_status_desc_and_time(\&process_cmd_cc,$cmd,%cmd);
 
         print_debug_trace("Log information on the '$id_attr' command execution status");
         my $status_log;
@@ -2298,7 +2219,7 @@ sub process_cmds()
         # Process command just when inputs are ok.
         if ($status_in)
         {
-          ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_ld);
+          ($status, $desc, $time) = func_status_desc_and_time(\&process_cmd_ld,$cmd,%cmd);
         }
 
         print_debug_trace("Log information on the '$id_attr' command execution status");
@@ -2608,7 +2529,7 @@ sub process_report()
 
       # ld commands have additional suffix in the aspect mode.
       my $rule_instrument_cmd_id = $cmd_id;
-      if ($mode_isaspect)
+      if ($mode_isaspect && ($aspectator_type eq 'llvm'))
       {
         $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
       }
@@ -2920,4 +2841,63 @@ sub string_to_cache($@)
     close($cache_fh)
       or die("Couldn't close file '$cache_fname': $ERRNO\n");
   }
+}
+
+sub filter_opts($$$)
+{
+  my ($cmd,$on_opts,$off_opts) = @_;
+  my @on_opts = @$on_opts;
+  my @off_opts = @$off_opts;
+
+  print_debug_trace("Read an array of options and exclude the unwanted ones ('@off_opts')");
+  my @opts = ();
+  my $autoconf = undef;
+  for (my $opt = $cmd->first_child($xml_cmd_opt)
+    ; $opt
+    ; $opt = $opt->next_elt($xml_cmd_opt))
+  {
+    my $opt_text = $opt->text;
+
+    my $opt_config_attr = $opt->att($xml_cmd_opt_config);
+    if ($opt_config_attr)
+    {
+      print_debug_debug("The option '$opt_text' is marked as configuration header file");
+
+      if ($opt_config_attr eq $xml_cmd_opt_config_autoconf)
+      {
+        print_debug_debug("The option '$opt_text' is marked as automatic configuration header file");
+        # Story automatic configuration header file just once.
+        if ($autoconf)
+        {
+          die("Don't mark more then one option as automatic configuration header file");
+        }
+        else
+        {
+          $autoconf = $opt_text;
+        }
+      }
+    }
+
+    # Exclude options for the gcc compiler.
+    foreach my $off_opt (@off_opts)
+    {
+      if ($opt_text =~ /^$off_opt$/)
+      {
+        print_debug_debug(sprintf("Exclude the option '$opt_text' for the '%d' command",$cmd->att($xml_cmd_attr_id)));
+        $opt_text = '';
+        last;
+      }
+    }
+
+    next unless ($opt_text);
+
+    push(@opts, $opt_text);
+
+    last if ($opt->is_last_child($xml_cmd_opt));
+  }
+
+  print_debug_debug("Add wanted options '@on_opts'");
+  push(@opts, @on_opts);
+
+  return ($autoconf,@opts);
 }
