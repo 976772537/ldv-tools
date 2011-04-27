@@ -45,7 +45,7 @@ sub create_configs($$);
 # retn: nothing.
 sub create_general_aspect();
 
-# Delete auxiliary files produced during work in the nondebug modes.
+# Delete auxiliary files produced during work in the nondebug modes. (Useful for LLVM only).
 # args: no.
 # retn: nothing.
 sub delete_aux_files();
@@ -598,6 +598,7 @@ sub create_general_aspect()
 
 sub delete_aux_files()
 {
+  # Note that this is only effective for LLVM aspectator.  GCC aspectator removes the files on its own.
   return 0 if (LDV::Utils::check_verbosity('DEBUG'));
 
   foreach my $file (keys(%files_to_be_deleted))
@@ -1545,7 +1546,8 @@ sub process_cmd_cc()
         unless ($skip_caching);
     }
 
-    $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_usual"} = 1;
+    # GCC aspectator deletes the files on its own
+    $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_usual"} = 1 unless $kind_gcc;
     print_debug_debug("The usual bitcode/source file is '$cmd{'out'}$aspectated_suffix_usual'");
 
     unless (LDV::Utils::check_verbosity('DEBUG'))
@@ -1636,7 +1638,8 @@ sub process_cmd_cc()
       print_debug_trace("Copy the general bitcode file");
       mv("${$cmd{'ins'}}[0]$aspectated_suffix_generated", "$cmd{'out'}$aspectated_suffix_general")
         or die("Can't copy file '${$cmd{'ins'}}[0]$aspectated_suffix_generated' to file '$cmd{'out'}$aspectated_suffix_general': $ERRNO");
-      $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_general"} = 1;
+      # GCC aspectator deletes the files on its own
+      $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_general"} = 1 unless $kind_gcc;
       print_debug_debug("The general bitcode file is '$cmd{'out'}$aspectated_suffix_general'");
 
       # Save the result to cache.
