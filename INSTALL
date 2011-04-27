@@ -55,6 +55,7 @@ MINIMAL PREREQUISITES
 	o gzip
 	o tar
 	o bzip2
+	o rake
 
 
 ADDITIONAL PREREQUISITES
@@ -82,7 +83,6 @@ LDV-GIT ADDITIONAL PREREQUISITES
 
 CLUSTER PREREQUISITES
 
-	o sudo gem install rake
 	o sudo gem install rspec
 	o sudo gem install rdoc
 	o sudo gem install rspec
