@@ -416,6 +416,7 @@ public class CmdStream {
 			cmd = tempdir + "/" + commandsQueue.take().getId();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+			Logger.err("InterruptedException caught when executing getNextCommand.  Returning null.");
 		}
 		return cmd;
 	}

@@ -212,9 +212,11 @@ sub start_next {
 			die "Fatal error: $@";
 		}
 
-		$SIG{TERM} = \&kill_watcher;
-		$SIG{INT} = \&kill_watcher;
 		$SIG{QUIT} = \&kill_watcher;
+		# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+		$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+		# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
+		$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 
 		my $tasks = {};
 		while(1) {
@@ -273,14 +275,15 @@ sub start_next {
 		
 		# create 
 		vsay 'TRACE', "Try to send 'success' message to watcher...\n";
-		LDV::Utils::watcher_cmd('success', @{$config->{'watcher_key'}});
+		LDV::Utils::watcher_cmd('success', 'ldv', @{$config->{'watcher_key'}});
 		vsay 'TRACE', "Message 'success' was sent to watcher.\n";
 		bce_ldv_report $rep_result;
 		1;
 		} or do {
 			print STDERR $@ if ($@);
 			vsay 4, "Fatal error.  Stopping services before reporting...\n";
-			kill_watcher();
+			# FIXME: we shouldn't check for cluster here, but as of today it's more important to not send fails on signals
+			kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
 		};
 
 		exit 0;
@@ -352,34 +355,51 @@ sub wait_for_all_verified {
 		$tasks->{$_}->{state} eq 'queued' and $wait_counter++;
 	}
 
-	#
-	# waiting for all tasks
-	#
+	# Callback, which is invoked for each watcher invocation
+	my $process_dscv_result = sub {
+		# Read line (the one returned by watcher) and split it
+		my @rv = split /,/,$_[0];
+		my ($path, $contents, @key) = @rv;
+
+		#not defined $path and die"Can't get path!";
+
+		for my $wk (@{$config->{'watcher_key'}}){
+			my $k = shift @key;
+			die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
+		}
+		my (undef, $cid) = @key;
+		# Check if such key has already arrived
+		my $key_id = join(".",@key);
+		unless (exists $keys_arrived->{$key_id}){
+			$keys_arrived->{$key_id} = 1;
+			# unpack the incoming package
+			vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
+			vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
+			LDV::Utils::watcher_cmd('unpack', $path, $contents);
+			# find corresponding task descriptor and set status to 'verified'
+			vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
+			$tasks->{$cid}->{state} = 'verified';
+
+			# Return that we have waited for one key succesfully
+			return 1;
+		}else{
+			# This is not the first time, just note that.
+			vsay('WARNING',"Received result for $cid AGAIN, ignoring.\n");
+
+			# Notify the parent that we have read zero useful keys
+			return 0;
+		}
+	};
+
 	vsay 'TRACE', "Number of tasks in status 'queued' is - $wait_counter\n";
 	while($wait_counter > 0) {
 		vsay 'TRACE', "Tasks for wait_for_dscv: $wait_counter\n";
-	        my ($path, $contents, @key) = wait_for_dscv() and $wait_counter--;
-		#not defined $path and die"Can't get path!";
-	        for my $wk (@{$config->{'watcher_key'}}){
-	                my $k = shift @key;
-	                die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
-	        }
-	        my (undef, $cid) = @key;
-
-	        # unpack the incoming package
-	        vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
-	        vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
-	        LDV::Utils::watcher_cmd('unpack', $path, $contents);
-
-		# find corresponding task descriptor and set status to 'verified'
-		vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
-		$tasks->{$cid}->{state} = 'verified';
+		vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'dscv', @{$config->{'watcher_key'}},'dscv','*')\n";
+		$wait_counter -= LDV::Utils::watcher_cmd_callback($wait_counter,$process_dscv_result,'wait','dscv',@{$config->{'watcher_key'}},'dscv','*');
 	}
 }
 
 sub wait_for_dscv {
-	vsay 'TRACE', "Wait for dscv tasks: watcher_cmd('wait', 'any', @{$config->{'watcher_key'}})\n";
-	my ($dscv_id, undef) = LDV::Utils::watcher_cmd('wait', 'any', @{$config->{'watcher_key'}});
 	$dscv_id or return;
 	return split /,/,$dscv_id;	
 }
@@ -417,7 +437,7 @@ sub scheduler_send_task {
 	$ENV{'RCV_FRONTEND_CMD'} = $config->{'dscv'}
 ;
 	vsay 'TRACE', "Calling watcher...\n";
-	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, "$command/task_input", @{$config->{'watcher_key'}}, 'dscv', $cid);
+	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, $dscv_args->{'workdir'}, @{$config->{'watcher_key'}}, 'dscv', $cid);
 
 	vsay 'TRACE', "Set task status to \"queued\"\n";
 	$task_descriptor->{'state'} = 'queued';
@@ -579,7 +599,7 @@ sub init_config {
 
 	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{'workdir'}/watcher";
 	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
-	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','ldv-core');
+	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','ldv');
 	vsay 'DEBUG', "Got key string $key_str.\n";
 	my @watcher_key = split /,/,$key_str;
 	$config->{'watcher_key'} = \@watcher_key;

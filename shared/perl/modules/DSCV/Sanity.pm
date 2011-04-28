@@ -16,14 +16,16 @@ my $debug_me = '';
 sub new
 {
 	my $class = shift;
-	my $dscv_dir = shift || Carp::confess;
+	my $dscv_dir = shift;
+	my $mock = $dscv_dir? 1 : '';
 	my $this = {
+		mock => $mock,
 		_filename => "$dscv_dir/sanity.xml",
 		_filename_toread => "$dscv_dir/.sanity_toread.xml",
 		F => undef,
 	};
 	# Create dummy XML unless it exists
-	`echo "<sanity></sanity>" >\Q$this->{_filename}\E` unless (-f $this->{_filename});
+	`echo "<sanity></sanity>" >\Q$this->{_filename}\E` unless $mock || (-f $this->{_filename});
 	bless ($this,$class);
 	return $this;
 }
@@ -32,12 +34,14 @@ sub new
 sub copyfwd
 {
 	my $this = shift;
+	return if $this->{mock};
 	# Copy file, to be able to set directly to the locked one
 	copy($this->{_filename},$this->{_filename_toread}) or Carp::confess;
 }
 sub copyback
 {
 	my $this = shift;
+	return if $this->{mock};
 	# Copy file, to be able to set directly to the locked one
 	copy($this->{_filename_toread},$this->{_filename}) or Carp::confess;
 }
@@ -46,6 +50,7 @@ sub copyback
 sub info_lock
 {
 	my $this = shift;
+	return if $this->{mock};
 
 	die "This is already locked!" if defined $this->{F};
 
@@ -64,6 +69,7 @@ sub info_lock
 sub info_unlock
 {
 	my $this = shift;
+	return if $this->{mock};
 
 	die "What is not locked cannot be unlocked!" unless defined $this->{F};
 
@@ -76,6 +82,7 @@ use File::Copy;
 sub raw_get
 {
 	my $this = shift;
+	return if $this->{mock};
 	my $var = shift or Carp::confess;
 
 	my $value = undef;
@@ -92,6 +99,7 @@ sub raw_get
 sub get
 {
 	my $this = shift;
+	return if $this->{mock};
 	my $result = undef;
 
 	$this->info_lock();
@@ -111,6 +119,7 @@ sub get
 sub raw_set
 {
 	my $this = shift;
+	return if $this->{mock};
 	my $var = shift or Carp::confess;
 
 	defined $this->{F} or die "File's not loaded, but you wanna set $var";
@@ -140,6 +149,7 @@ sub raw_set
 sub blast_called
 {
 	my $this = shift;
+	return if $this->{mock};
 	my $num = undef;
 
 	$this->info_lock();

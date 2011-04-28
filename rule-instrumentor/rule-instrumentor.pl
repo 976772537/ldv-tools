@@ -1724,6 +1724,105 @@ sub process_cmd_cc()
     die("The specified input file '$in_file' doesn't exist.")
       unless ($in_file and -f $in_file);
 
+    # Drity hack for 39_7 model; should be resolved with properly written aspect!
+    if ( $opt_model_id eq "39_7")
+    {
+      my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);",
+                "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
+                "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
+                "void ldv_spin_lock_irqsave_nested(spinlock_t *lock, int subclass);",
+                "int ldv_spin_trylock_irqsave(spinlock_t *lock, unsigned long flags);",
+                "void ldv_spin_lock(spinlock_t *lock);",
+                "void ldv_spin_lock_bh(spinlock_t *lock);",
+                "void ldv_spin_lock_irq(spinlock_t *lock);",
+                "int ldv_spin_trylock(spinlock_t *lock);",
+                "int ldv_spin_trylock_bh(spinlock_t *lock);",
+                "int ldv_spin_trylock_irq(spinlock_t *lock);",
+                "void ldv_spin_unlock(spinlock_t *lock);",
+                "void ldv_spin_unlock_bh(spinlock_t *lock);",
+                "void ldv_spin_unlock_irq(spinlock_t *lock);",
+                "void ldv_spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags);",
+                "void ldv_spin_unlock_wait(spinlock_t *lock);",
+                "int ldv_spin_is_locked(spinlock_t *lock);",
+                "int ldv_spin_is_contended(spinlock_t *lock);",
+                "int ldv_spin_can_lock(spinlock_t *lock);",
+                "int ldv_atomic_dec_and_lock(spinlock_t *lock, atomic_t *atomic);".
+    "\n#define ldv_atomic_dec_and_lock_macro(atomic,lock) ldv_atomic_dec_and_lock(lock,atomic)"
+               );
+      my @keys = ("spin_lock_irqsave",
+               "spin_lock_nested",
+               "spin_lock_nest_lock",
+               "spin_lock_irqsave_nested",
+               "spin_trylock_irqsave",
+               "spin_lock",
+               "spin_lock_bh",
+               "spin_lock_irq",
+               "spin_trylock",
+               "spin_trylock_bh",
+               "spin_trylock_irq",
+               "spin_unlock",
+               "spin_unlock_bh",
+               "spin_unlock_irq",
+               "spin_unlock_irqrestore",
+               "spin_unlock_wait",
+               "spin_is_locked",
+               "spin_is_contended",
+               "spin_can_lock",
+               "atomic_dec_and_lock"
+              );
+      my @replacements = ("ldv_spin_lock_irqsave",
+                       "ldv_spin_lock_nested",
+                       "ldv_spin_lock_nest_lock",
+                       "ldv_spin_lock_irqsave_nested",
+                       "ldv_spin_trylock_irqsave",
+                       "ldv_spin_lock",
+                       "ldv_spin_lock_bh",
+                       "ldv_spin_lock_irq",
+                       "ldv_spin_trylock",
+                       "ldv_spin_trylock_bh",
+                       "ldv_spin_trylock_irq",
+                       "ldv_spin_unlock",
+                       "ldv_spin_unlock_bh",
+                       "ldv_spin_unlock_irq",
+                       "ldv_spin_unlock_irqrestore",
+                       "ldv_spin_unlock_wait",
+                       "ldv_spin_is_locked",
+                       "ldv_spin_is_contended",
+                       "ldv_spin_can_lock",
+                     "ldv_atomic_dec_and_lock_macro"
+                      );
+
+      print_debug_trace("Replace defines by model functions for model ".$opt_model_id);
+      my $tmpfile = $in_file.".bak";
+      rename($in_file, $tmpfile)
+       or die("Can't rename inputfile '$in_file' to '$tmpfile'");
+      open(OUT, '>',$in_file)
+        or die("Can't open file '$in_file' for write: $ERRNO");
+      open(IN, '<', "$tmpfile")
+        or die("Can't open file '$in_file' for read: $ERRNO");
+
+      print OUT "#include <linux/spinlock.h>\n";
+      for (my $count = 0; $count < scalar(@keys); $count++) {
+        print "Add decls for keys['$count']=".$keys[$count];
+        my $decl = $decls[$count];
+        print OUT $decl."\n";
+      }
+      while(<IN>) {
+        for (my $count = 0; $count < scalar(@keys); $count++) {
+          my $key = $keys[$count];
+          my $replacement = $replacements[$count];
+          $_ =~ s/\b$key\b/$replacement/g;
+        }
+        print OUT $_;
+      }
+      close(IN)
+        or die("Couldn't close file '$tmpfile': $ERRNO\n");
+      close(OUT)
+        or die("Couldn't close file '$in_file': $ERRNO\n");
+      #system('perl', '-p', '-i.bak', '-e', "s/".$key."/".$replacement."/g")
+      #  or die("Can't replace content of the file '$in_file'");
+    }
+
     # Get target file cache key.
     my $target_file = "$in_file$common_c_suffix";
     my $cache_file_key = $target_file;
