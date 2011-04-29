@@ -70,3 +70,4 @@ driver=68_1--test-coherentfree.tar.bz2;origin=external;kernel=linux-2.6.37;model
 driver=68_1--test-coherentalloc.tar.bz2;origin=external;kernel=linux-2.6.37;model=68_1;module=drivers/68_1/test-coherentalloc/coherentalloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=68_1--test-kzallocstruct.tar.bz2;origin=external;kernel=linux-2.6.37;model=68_1;module=drivers/68_1/test-kzallocstruct/kzallocstruct.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=68_1--test-savedatacheck.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-savedatacheck/savedatacheck.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1--test-saveinstruct.tar.bz2;origin=external;kernel=linux-2.6.37;model=68_1;module=drivers/68_1/test-saveinstruct/saveinstruct.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
