@@ -27,5 +27,6 @@ while (<>){
 	/FociInterface.SAT/ and print "Blocks_SAT";
 	/NoNewPredicatesException/ and print "NoNewPredicates";
 	/Fatal error: out of memory./ and print "Ocaml_OOM";
+        /Error: Global __constr_expr_[0-9]* was already defined at/i and print "ConstExpr";
 }
 

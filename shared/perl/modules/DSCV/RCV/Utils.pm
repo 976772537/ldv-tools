@@ -191,6 +191,7 @@ sub cc_maker
 		# Write the list to o-file
 		mkpath(dirname($o_file));
 
+		vsay ('DEBUG', "Saving cc command to '$o_file'\n");
 		my $children_FH; open $children_FH,">",$o_file or die "Dead while trying to open $o_file for writing";
 		$cmdT->print($children_FH);
 		close $children_FH;
@@ -265,17 +266,13 @@ sub ld_maker
 		my @errlocs = $cmdT->children_text('error');
 		# Report file (%s will be replaced with main name)
 		my $report = reports_dir($workdir)."/$target.%s.report";
-		mkpath(dirname($report));
 		# Tool debug file (to dump the trace of the tool)
 		my $debug = reports_dir($workdir)."/$target.%s.debug";
 		$debug.=".gz" if $archivated;
-		mkpath(dirname($debug));
 		# Trace file (to dump the error trace)
 		my $trace = reports_dir($workdir)."/$target.%s.trace";
-		mkpath(dirname($trace));
 		# Time stats file
 		my $timestats = reports_dir($workdir)."/$target.%s.timestats.xml";
-		mkpath(dirname($timestats));
 
 		# Common arguments for the verifier command
 		my %common_vercmd_args = (cmd_id=>$cmdT->att('id'), hints=>$hintsT, mains=>\@mains, errlocs=>\@errlocs, report=>$report, trace=>$trace, debug=>$debug, dbg_target=>$target, workdir=>$workdir, timestats=>$timestats);
@@ -379,9 +376,19 @@ sub ld_maker
 		my @files = map {$_->{i_file}} @$c_files_info;
 		$do_cilly_once and @files = "$workdir/cilly/out.cilf.c";
 
+		ensure_args_folders(%common_vercmd_args);
 		$verify->(%common_vercmd_args, files => \@files);
 
 	};
+}
+
+sub ensure_args_folders
+{
+	my %args = @_;
+	mkpath(dirname($args{report}));
+	mkpath(dirname($args{debug}));
+	mkpath(dirname($args{trace}));
+	mkpath(dirname($args{timestats}));
 }
 
 # Given main name and arguments array, returns arguments unique for that name

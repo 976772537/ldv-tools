@@ -265,6 +265,11 @@ if (grep {m/^inline$/} @ARGV){
 
 GetOptions(%optionSpecs) or usage("Unrecognized options!");
 
+use LDV::Utils;
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('dscv');
+
+
 if($mode eq 'raw') {
 	-f $config->{'rawcmdfile'} or die "Command file for raw mode '$config->{rawcmdfile}' does not exists: $!";
 	my %args = ();
@@ -276,7 +281,11 @@ if($mode eq 'raw') {
 	$config->{work_dir} = $args{workdir};
 	$config->{rule_db_dir} = $args{ruledb};
 	-d $config->{work_dir} or die "the workdir '$config->{work_dir}' is not a directory!";
-	-f $config->{rule_db_dir} or die "the rule_db_dir '$config->{rule_db_dir}' is not a file!";
+	-f $config->{rule_db_dir} or do{
+		vsay ('WARNING', $config->{rule_db_dir}." is not a good Rule DB.  Falling back to env. var.\n");
+		$config->{rule_db_dir} = $ENV{'LDV_RULE_DB'};
+		-f $config->{rule_db_dir};
+	} or die "the rule_db_dir '$config->{rule_db_dir}' is not a file!";
 	# Setting work_dir is important for Rule Instrumentor
 	$ENV{'WORK_DIR'} = $config->{work_dir};
 
@@ -385,10 +394,6 @@ unless (scalar @{$config->{properties}}){
 mkpath ($config->{work_dir});
 
 
-use LDV::Utils;
-LDV::Utils::set_verbosity($config->{verbosity});
-LDV::Utils::push_instrument('dscv');
-
 # Get "key" from LDV watcher (the guy who queues processes).
 # If this process is not watched for (i.e. watcher was not started, and it's a user's action that initiated the verification--i.e. inline mode), then watcher generates and returns a new key.
 # NOTE: we don't interpret this key, we just pass it to invocations of our tools
@@ -401,6 +406,37 @@ my ($key_str,undef) = LDV::Utils::watcher_cmd('key','dscv');
 vsay ('DEBUG',"Got key string $key_str.\n");
 my @watcher_key = split /,/,$key_str;
 
+#====
+# We should pack files for the parent task to process afterwards.  Use these functions
+use File::Spec::Functions qw(rel2abs);
+# Ref since it's called inside the closure in Twig parser
+my $files_for_parent = {};
+sub for_parent
+{ local $_; for (@_){
+	my $fname = rel2abs($_);
+	vsay('TRACE',"Will package file: '$fname'\n");
+	$files_for_parent->{$fname} = 1;
+}}
+sub not_for_parent
+{ local $_; for (@_){
+	my $fname = rel2abs($_);
+	vsay('TRACE',"Will NOT package file: '$fname'\n");
+	$files_for_parent->{$fname} = 0;
+}}
+sub files_for_parent
+{ local $_; return (grep {$files_for_parent->{$_}} keys %$files_for_parent); }
+sub for_parent_if_exists
+{ local $_; for (@_){
+	my $fname = rel2abs($_);
+	if (-f $fname){
+		vsay('TRACE',"Will package file: '$fname'\n");
+		$files_for_parent->{$fname} = 1;
+	}else{
+		vsay('TRACE',"Will NOT package file: '$fname' (doesn't exist)\n");
+	}
+}}
+#====
+
 ###########################
 # EXCEPTION HANDLING!
 eval {
@@ -409,13 +445,15 @@ sub kill_watcher
 {
 	vsay 20, "Shutting down watcher\n";
 	# Report failure to the watcher (reckon we've registered a key for our process?)
-	LDV::Utils::watcher_cmd('fail',@watcher_key);
+	LDV::Utils::watcher_cmd('fail','dscv',@watcher_key);
 	die $@;
 }
 
-$SIG{TERM} = \&kill_watcher;
-$SIG{INT} = \&kill_watcher;
 $SIG{QUIT} = \&kill_watcher;
+# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
+$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 
 
 # Actual work.
@@ -434,7 +472,9 @@ my $rcv_frontends_dir = "$shared_dir/rcv";
 
 # Prepare more sanity checks
 use DSCV::Sanity;
-my $sanity = DSCV::Sanity->new($dscv_base_dir);
+# test: is it the sanity that is problemous for cluster?
+my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
+my $sanity = DSCV::Sanity->new($dscv_base_dir) if $do_sanity;
 # Check how many times blast was run.  It's <number of rule-models>*<number of mains>
 my $expected_blast_runs = 0;
 my $rule_instr_mains = 0;
@@ -472,6 +512,9 @@ vsay ('DEBUG',"Expecting $expected_blast_runs runs of RCV backend.\n");
 if ($expected_blast_runs == 0 && !$config->{force}){
 
 	vsay 10,"Nothing will be run (no mains!).  Printing final report...\n";
+
+	# Mark the resultant report as that for parent.
+	for_parent($config->{report});
 
 	my $big_reportT = XML::Twig::Elt->new("reports");
 
@@ -526,6 +569,7 @@ my $copy_driver = sub
 {
 	my $to = shift or die;
 	defined $driver_dir or die;
+	vsay('DEBUG',"Copying driver from '$driver_dir' to '$to'...\n");
 	dircopy($driver_dir,$to) or die $!;
 };
 
@@ -543,6 +587,10 @@ mkpath ($ri_basedir);
 
 # Get list of properties to check
 my @properties = @{$config->{properties}};
+
+# For each rule model, record verifier used for that
+my %verifier_for = ();
+
 
 for my $property (@properties){
 	# make outcmdfile
@@ -596,6 +644,7 @@ for my $property (@properties){
 			}else{
 				XML::Twig::Elt->new('engine',{},$verifier)->paste($cmdT);
 			}
+			$verifier_for{$property} = $verifier;
 
 			# Sanity check
 			if ($cmdT->tag eq 'ld') {
@@ -642,25 +691,88 @@ for my $property (@properties){
 #              wait for all RCV tasks
 
 
-sub wait_for_rcv
-{
-	my ($rcv_id,undef) = LDV::Utils::watcher_cmd('wait','any',@watcher_key);
-	return split /,/,$rcv_id;
-}
+# Wait for the number of RCVs we should spawn
+my $rcvs_consumed = 0;
 
-while (my @rv = wait_for_rcv()){
+# Hash of the keys returned.  A key may arrive twice (if this node is a re-instantiation of a terminated node, and a child of that terminated node finishes its work after another instance of it was queried).
+my $keys_arrived = {};
+
+# Callback to process one result of an RCV.  It's called synchronously.
+my $process_rcv_result = sub {
+	my @rv = split /,/,$_[0];
+	vsay('TRACE',"In callback: @rv\n");
+
+	# In cluster mode such a call would just block forever...
+	die "Tried to wait for more processes than we should!" unless @rv;
+
 	my ($path,$contents,@key) = @rv;
 	# Discard generic part of the key returned
 	for my $wk (@watcher_key){
 		my $k = shift @key;
 		die "Assertion failed: '$k' == '$wk'" if $k ne $wk;
 	}
+	vsay('TRACE',"Done key loop \n");
 	my (undef,$rule_id,undef,$cmd_id,$main_id) = @key;
-	# unpack the incoming package
-	vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
-	vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
-	LDV::Utils::watcher_cmd('unpack',$path,$contents);
+
+	# Check if such key has already arrived
+	my $key_id = join(".",@key);
+	unless (exists $keys_arrived->{$key_id}){
+		$keys_arrived->{$key_id} = 1;
+		vsay('INFO',"Successfully waited for $rule_id, $cmd_id, $main_id\n");
+		# unpack the incoming package
+		vsay('DEBUG',"Unpacking '$contents' to '$path'\n");
+		my ($files,undef) = LDV::Utils::watcher_cmd_readall('unpack',$path,$contents);
+		local $_;
+		for_parent($_) for @$files;
+
+		# Return that we have waited for one key succesfully
+		return 1;
+	}else{
+		# This is not the first time, just note that.
+		vsay('WARNING',"Received result for $rule_id, $cmd_id, $main_id AGAIN, ignoring.\n");
+
+		# Notify the parent that we have read zero useful keys
+		return 0;
+	}
+};
+
+while ($rcvs_consumed < $expected_blast_runs) {
+	my $more = $expected_blast_runs-(scalar keys %$keys_arrived);
+	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$more));
+	$rcvs_consumed += LDV::Utils::watcher_cmd_callback($more,$process_rcv_result,'wait','rcv',@watcher_key,'#');
 }
+
+# Get files for trace.
+# Warning!  This is not reentrant (bad usage of $temp_file)!
+sub add_files_for_trace
+{
+	# Check all the traces we have, and add the relevant source code files to the package for our parents
+	# I would like to add only the files that are generated by DSCV, but the code for path fixups is a mess, see ldv/ldv-task-reporter.  So I'll just add all the files here, and just notify you with FIXME. :-)
+	my $trace_fname = shift or die;
+	my $verifier = shift or die;
+	vsay('INFO', "Getting files for trace $trace_fname with ETV for parent package.\n");
+	my $temp_file = "$dscv_base_dir/etv.tmp";
+	my @etv = ("$ENV{'DSCV_HOME'}/bin/error-trace-visualizer.pl",
+		"--engine=$verifier",
+		"--report=$trace_fname",
+		"--reqs-out=$temp_file"
+	);
+	local $"=" ";
+	vsay('DEBUG', "Calling error-trace-visualizer: @etv\n");
+	system(@etv) and die("Error trace visualizer (@etv) failed\n");
+
+	# add all the files printed to reqs-out file to the package for parent
+	my $TRACE_READ; open $TRACE_READ, "<", $temp_file or die;
+	local $_;
+	while (<$TRACE_READ>){
+		chomp;
+		vsay('DEBUG', "ETV returns file: $_\n");
+		for_parent_if_exists($_);
+	}
+	close $TRACE_READ;
+	vsay('DEBUG', "Calling error-trace-visualizer: @etv\n");
+}
+
 
 # Ok, now all sub-commands are waited for, and their xml reports reside in our workdir
 
@@ -682,13 +794,21 @@ for my $rule_id (@properties){
 
 	my $cat_rep=sub{
 		my ($report_file) = @_;
-		XML::Twig->new(
-			twig_roots=> {'reports' => sub {
+		vsay('DEBUG',"Chewing RCV report '$report_file'...\n");
+		XML::Twig->new(twig_roots=> {
+			'reports' => sub {
 				my ($twig,$repT) = @_;
 				local $_;
 				$_->copy->paste($bigRepT) for $repT->children;
-			}}
-		)->parsefile($report_file);
+			},
+			'trace' => sub {
+				my ($twig,$traceT) = @_;
+				# Get files for the tracee  Used only in cluster mode to send all the files these traces refer to to another node.
+				# NOTE that trace may not exist (though referred to in the report)
+				add_files_for_trace($traceT->text,$verifier_for{$rule_id}) if -f $traceT->text;
+			}
+		})->parsefile($report_file);
+		not_for_parent($report_file)
 	};
 	DSCV::RCV::Utils::foreach_report($verifier_dir,$cat_rep);
 
@@ -706,12 +826,14 @@ for my $rule_id (@properties){
 	vsay ('NORMAL',"Calling rule-instrumenter to fix up report for rule $property...\n");
 	vsay (20, "@rule_instr_report\n");
 	system @rule_instr_report and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_report";
+	for_parent($after_ri_rep_name);
 }
 
 # Perform final sanity check
-my $blast_runs = $sanity->get('blast_calls') || 0;
+my $blast_runs = $sanity->get('blast_calls') || 0 if $do_sanity;
 
-if ($blast_runs < $expected_blast_runs) {
+# Output final sanity check results
+if ($do_sanity && $blast_runs < $expected_blast_runs) {
 	vsay ("WARNING", "SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n");
 }
 
@@ -732,7 +854,11 @@ for my $property (@properties){
 			$_->copy->paste($reportsT) for $rule_repT->children;
 		}}
 	)->parsefile($after_ri_rep_name);
+
+	not_for_parent($after_ri_rep_name);
 }
+# Mark the resultant report as that for parent.
+for_parent($config->{report});
 
 # Add <dscv> tag to the report
 sub add_dscv_info
@@ -817,14 +943,16 @@ vsay 20,"Final report is written to $config->{report}\n";
 1;
 } or do {
 	vsay 4, "Fatal error.  Stopping services before reporting...\n";
-	kill_watcher();
+	# FIXME: we shouldn't check for cluster here, but as of today it's more important to not send fails on signals
+	kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
 	# We die in kill_watcher, no need to exit here... but just in case...
 	exit 1;
 };
 
 FINALIZE:
+
 # Report success to the watcher
-LDV::Utils::watcher_cmd('success',@watcher_key);
+LDV::Utils::watcher_cmd('success','dscv',@watcher_key,'@@',files_for_parent());
 
 # EXCEPTION HANDLING!
 ###########################

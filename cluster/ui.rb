@@ -1,0 +1,2 @@
+register Nodeui.new
+

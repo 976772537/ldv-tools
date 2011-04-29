@@ -1,0 +1,14 @@
+#!/bin/bash
+
+export LDV_HOME=`readlink -f \`dirname $0\`/../`;
+export CLUSTER_HOME=$LDV_HOME/cluster
+export GEM_PATH=$CLUSTER_HOME/ruby:$LDV_HOME/shared/ruby/gem:`gem env gempath`
+export PATH=$CLUSTER_HOME:$CLUSTER_HOME/ruby-bin:$PATH
+export RUBYLIB=$LDV_HOME/shared/ruby/lib:$RUBYLIB
+
+# If anything is supplied as an argument, execute.  Otherwisem just export
+echo $#
+if [ $# -ne 0 ] ; then
+	exec "$@"
+fi
+

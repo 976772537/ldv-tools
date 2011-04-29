@@ -8,6 +8,7 @@ ldv-tests/regr-tests/test-sets/small/__install_drivers
 ldv-tests/regr-tests/test-sets/small/__install_kernels
 ldv-tests/regr-tests/test-sets/general/__install_drivers
 ldv-tests/aspect-tests/__install_drivers
+ldv-tests/rule-models/__install_drivers
 
 # Statistics server config file that is filled once by hand and
 # must not be commited.

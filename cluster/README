@@ -1,0 +1,12 @@
+Incorrect packet type: set format == json!
+
+Please, run all entities from different consoles.
+
+Please, set up different tokens to nodes when you test them on a local machine!  Random generator is not seeded!!  If you run on a remote machine, set up them with IP addresses or someting...
+
+You need RabbitMQ of 1.8-2.0.  2.2 doesn't work!
+You'll also need Erlang to install RabbitMQ.
+You'll need a modified Nanite gem (installed automatically).
+
+Sometimes cluster controller stalls for 60 seconds (node timeout period).  Don't know why it happens
+

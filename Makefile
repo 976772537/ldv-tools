@@ -3,13 +3,14 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher
+BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh error-trace-visualizer
 ERROR_TRACE_VISUALIZER_SUBDIRS = error-trace-visualizer shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
-LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher
+LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby
 STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer shared/php
 ONLINE_SUBDIRS = ldv-online 
+CLUSTER_SUBDIRS = cluster shared/ruby
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
 LDV_GIT_SUBDIRS = $(LDV_SUBDIRS) ldv-git
 
@@ -48,6 +49,9 @@ install-testing: pre_tests $(call forall_subdirs,$(TESTS_SUBDIRS),install)
 
 # Install only test stuff
 install-ldv-git: pre_tests $(call forall_subdirs,$(LDV_GIT_SUBDIRS),install)
+
+# Install cluster
+install-cluster: pre_tests ocaml_is_installed $(call forall_subdirs,$(CLUSTER_SUBDIRS),install)
 
 clean: $(call forall_subdirs,$(CLEAN_SUBDIRS),clean)
 

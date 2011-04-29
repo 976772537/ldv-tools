@@ -132,6 +132,7 @@ $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Result_report=
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Run_spec=$(if $(cmdstream_driver),--cmdstream=,--driver=)
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Ldv_env=$(if $(cmdstream_driver),$(envs)@$(ldv_rules),$(ldv_task))
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Tmp_dir=$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/tmp
+$$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: Result_pax=$(RESULTS_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).pax
 
 # We add dependency on the archive with file to allow consecutive launches
 # If driver is from cmdstream, we do not prepare kernel
@@ -147,9 +148,10 @@ $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ld
 	@echo $(call mkize,$(1))
 	@mkdir -p $$(RESULTS_DIR) $$(Tmp_dir)
 	$(Script_dir)report-fixup $$(@D)/report_after_ldv.xml $$(Tag) $$(Driver) $(if $(kernel_driver),kernel,external) $$(@D)/report_after_ldv.xml.source/ $$(@D) >$$(Tmp_dir)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml
-	$(Script_dir)package $$(Tmp_dir)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml $(RESULTS_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).pax -s '|^$$(Tmp_dir)\/*||'
+	$(Script_dir)package $$(Tmp_dir)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).report.xml $$(Result_pax) -s '|^$$(Tmp_dir)\/*||'
 	$(if $(LDV_REMOVE_ON_SUCCESS),rm -rf $$(@D)/*,)
-	@echo "The results of the launch reside in:           $(RESULTS_DIR)/$(call mkize,$(1))$(ldv_task_for_targ)$(Verifier).pax"
+	@echo "The results of the launch reside in:           $$(Result_pax)"
+	$(if $(LDV_COPY_RESULTS_TO),cp $$(Result_pax) $(LDV_COPY_RESULTS_TO),)
 endef
 
 $(foreach task,$(tasks),$(eval $(call rule_for_task,$(task))))

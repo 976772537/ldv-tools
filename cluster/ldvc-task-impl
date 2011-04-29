@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+# User interface for cluster.
+# Uploads files, runs tasks and waits for results
+
+require 'rubygems'
+require 'nanite'
+require 'optparse'
+$:.unshift File.dirname(__FILE__)
+require 'waiter.rb'
+require 'options.rb'
+require 'utils.rb'
+
+opts_p = ClusterOptionsParser.new({})
+opts_p.do_parse
+
+opts = opts_p.options
+
+# Initialize loggers
+Logging.ldv_logging_init opts_p.options
+log = Logging.logger['Generic']
+
+commands = ARGV.dup
+files = []
+envvars = commands.inject({}) do |vars,arg|
+	if md = /(.*?)=(.*)/.match(arg)
+		vars[md[1]] = md[2]
+	else
+		files << arg
+	end
+	vars
+end
+
+# Check if all files exist
+if file = files.detect {|file| not File.exists? file }
+	log.error "File '#{file}' doesn't exist!"
+	exit 1
+end
+
+# If key is specified, then get it
+key = opts[:key]
+
+# Verify if workdir is specified
+opts[:workdir] && File.directory?(opts[:workdir]) or raise "Please, specify correct directory via --workdir"
+# Verify user and host
+opts[:sshuser] or raise "Please specify SSH user to connect to this machine via --ssh-user"
+opts[:sshhost] or raise "Please specify SSH host to connect to this machine via --ssh-host"
+opts[:filesrv] or raise "Please specify SSH File Server via --file-server"
+
+# Run the node now to request a unique key and process the reply
+
+EM.run do
+	agent = Nanite::Agent.new( {:format => :json, :log_level=>'debug', :fragile=>true, :initrb => File.join(ENV['CLUSTER_HOME'],'ui.rb')}.merge opts_p.options)
+	agent.run
+
+	# Initialize logger for node as nanite
+	# (start re-assigns this logger, so we should do it afterwards)
+	Nanite::Log.init_with_logger Logging.logger['Nanite']
+
+	node = agent.registry.actors['nodeui']
+	# Invoke reconfiguration at once, since there's no way to do it through constructor in Nanite
+	node.reconfigure(opts.merge :files => files, :env => envvars)
+
+	# Name of the current node
+	my_name = agent.identity
+
+	if key
+		# We already know the root key of the namespace, launch it directly.
+		Nanite.push('/nodeui/take_unique_key',key,:target=>my_name)
+	else
+		# Send a procedure to the scheduler.  It will report back with a unique key, and this is handled in take_unique_key in nodeui.rb
+		log.debug "Waiting until cluster replies"
+		death_clock = EM.add_timer(6) {log.fatal "Cluster does not respond from amqp://#{opts[:user]}@#{opts[:host]}#{opts[:vhost]}/ldvqueue/get_unique_key.  Exit."; exit 1;}
+		Nanite.request('/ldvqueue/get_unique_key',{:key=>'ldv', :reply_to=>my_name}) do |res|
+			EM.cancel_timer death_clock
+			log.debug "Cluster replied to get_unique_key with #{res.inspect}."
+
+			# We already know the root key of the namespace, launch it directly.
+			Nanite.push('/nodeui/take_unique_key',res.values.first)
+		end
+	end
+
+	# We fall into the infinite event loop, which is terminated upon receiving results in take_unique_key.
+	# Good luck!
+end
+
+

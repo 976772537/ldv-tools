@@ -12,12 +12,20 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/man
 
 # Phony targets.
-.PHONY: install all
+.PHONY: all install test clean
 
+# Default make action.
 all:
+	@echo The error trace visualizer doesn\'t require compilation
 
 # Install needed executables to specified path.
 install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
 	cp $(ERROR_TRACE_VISUALIZER_SCRIPT) $(bindir) || exit 1
+
+test:
+	@echo The error trace visualizer doesn\'t have any test
+
+clean:
+	@echo The error trace visualizer doesn\'t require cleaning 

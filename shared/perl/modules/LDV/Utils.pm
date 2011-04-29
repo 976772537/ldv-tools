@@ -8,6 +8,8 @@ use vars qw(@ISA @EXPORT_OK @EXPORT);
 #@EXPORT_OK=qw(set_verbosity);
 use base qw(Exporter);
 
+use POSIX;
+
 # Stream where debug messages will be printed.
 my $debug_stream = \*STDOUT;
 
@@ -62,16 +64,25 @@ sub pop_instrument
 }
 
 # Say something only if the number supplied is not less than current verbosity
+# If the message consists of multiple lines, prepend verbosity info to each.
 sub vsay
 {
 	my $v = from_eng shift;
 	local $,=' ';
+	local $_;
 	if ($v <= $verbosity) {
 		my $instrument = $instrument[-1];
 		my $level_string = $backlev{$v};
-		print $debug_stream "$instrument: " if defined $instrument;
-		print $debug_stream "$level_string: ";
-		print $debug_stream @_;
+		my $prepend_string = "";
+		$prepend_string .= "$instrument: " if defined $instrument;
+		$prepend_string .= "$level_string: ";
+
+		# Make a nicely-looking text: newline at the end, and each line prepended with tool and severity info
+		my $to_out = join($,,@_);
+		$to_out = "$to_out\n" unless $to_out=~/\n$/;
+		my @lines = map{"$prepend_string$_\n"} split(/\n/,$to_out,-1);
+		pop @lines; # Last line that corresponded to last \n is spurious.
+		print $debug_stream join("",@lines);
 	}
 }
 
@@ -161,10 +172,41 @@ sub check_system_call
 
 # Invokes command for LDV watched 
 my $ldv_watcher = undef;
+sub watcher_cmd_readall
+{
+	push_instrument("watcher");
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	# Call watcher for the next RCV command
+	my @watcher_args = ($ldv_watcher,@_);
+	vsay('INFO',"Called watcher: @watcher_args\n");
+	my $WATCHER; open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
+	# Read one line.  If none is printed, the line will contain undef;
+	local $_;
+	my @lines = ();
+	while (<$WATCHER>){
+		chomp;
+		vsay('TRACE',"Watcher says: $_\n") if $_;
+		push @lines,$_;
+	}
+	chomp for @lines;
+	close $WATCHER;	# We don't need anything else
+
+	# Check return values
+	my $rv = $?;
+	my $retcode = $?>>8;
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
+	# Return code of 1 means failure.  Other codes mean useful stuff
+	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
+
+	pop_instrument("watcher");
+
+	return ([@lines],$retcode);
+}
+
 sub watcher_cmd
 {
 	push_instrument("watcher");
-	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
 	vsay('INFO',"Called watcher: @watcher_args\n");
@@ -178,7 +220,7 @@ sub watcher_cmd
 	# Check return values
 	my $rv = $?;
 	my $retcode = $?>>8;
-	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
 	# Return code of 1 means failure.  Other codes mean useful stuff
 	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
 
@@ -187,10 +229,63 @@ sub watcher_cmd
 	return ($line,$retcode);
 }
 
+# (number,callback,args) -- call watcher with args, read no more than number lines from stdout, and call callback on each of them.  Returns the actual number of lines read.
+sub watcher_cmd_callback
+{
+	my $max_lines = shift;
+	my $callback = shift;
+
+	push_instrument("watcher");
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	# Call watcher for the next RCV command
+	my @watcher_args = ($ldv_watcher,@_);
+	vsay('INFO',"Called watcher: @watcher_args\n");
+
+	my $WATCHER; my $pid = open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
+	my $lines_read = 0;
+	my $line = undef;
+	while ($lines_read < $max_lines){
+		# Read the next line
+		vsay('TRACE',"Read $lines_read lines, need to read $max_lines, reading next line...\n");
+		$line = <$WATCHER>;
+		# If it's EOF, exit without calling a callback
+		last unless defined $line;
+		chomp $line;
+		vsay('DEBUG',"Watcher says: $line\n");
+
+		# Call back, and it returns how many useful lines we've read
+		my $rv = $callback->($line);
+		$rv ||= 0;
+		$lines_read += $rv;
+		vsay('DEBUG',"After callback, read $lines_read useful lines, need to read $max_lines.\n");
+		vsay('TRACE',"Left callback.\n");
+	}
+	if ($lines_read >= $max_lines) {
+		vsay('DEBUG',"Killing watcher...\n");
+		# don't give the bastard a chance!
+		kill SIGKILL,$pid;
+		# Don't check the return code: we may be killing a dead process (which is unsafe, but still...)
+	}
+	vsay('DEBUG',"Closing read pipe...\n");
+	close $WATCHER;	# We don't need anything else.  This will just drop stuff in a buffer of a dead process.
+	vsay('DEBUG',"Read pipe closed.\n");
+
+	# Check return values
+	my $rv = $?;
+	my $retcode = $?>>8;
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
+	# Return code of 1 means failure.  Other codes mean useful stuff
+	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
+
+	pop_instrument("watcher");
+
+	return $lines_read;
+}
+
 sub watcher_cmd_noread
 {
 	push_instrument("watcher");
-	$ldv_watcher ||= ($ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
+	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
 	vsay('INFO',"Called watcher (output not checked): @watcher_args\n");
@@ -198,7 +293,7 @@ sub watcher_cmd_noread
 	# Check return values
 	my $rv = $?;
 	my $retcode = $?>>8;
-	vsay('INFO',"Watcher returns $retcode, waitpid: $rv\n");
+	vsay('DEBUG',"Watcher returns $retcode, waitpid: $rv\n");
 	# Return code of 1 means failure.  Other codes mean useful stuff
 	die "INTEGRATION ERROR: watcher failed with retcode $retcode" if $retcode == 1;
 
