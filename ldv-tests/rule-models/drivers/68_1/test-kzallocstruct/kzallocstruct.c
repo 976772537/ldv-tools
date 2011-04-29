@@ -4,6 +4,7 @@ linux-2.6.37	68_1	drivers/input/misc/cm109.ko	ldv_main0_sequence_infinite_withch
 usb_free_urb does nothing if it is called for zero pointer
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -35,6 +36,8 @@ static int my_usb_open(struct inode * inode, struct file * file)
 struct my_ctl_packet {
 	u8 byte[4];
 } __attribute__ ((packed));
+
+#define USB_PKT_LEN     sizeof(struct my_ctl_packet)
 
 struct my_dev {
 	struct usb_device *udev; /* usb device */

@@ -17,14 +17,23 @@ static const struct file_operations misc_fops = {
         .open           = misc_open,
 };
 
+struct my_data {
+	struct urb *u;
+};
 
 static int misc_open(struct inode * inode, struct file * file)
 {
-	struct usb_device dev;
-	size_t size;
-	gfp_t mem_flags;
-	dma_addr_t dma;
-	usb_alloc_coherent(&dev,size,mem_flags,&dma);
+	struct my_data d;
+	d.u = usb_alloc_urb(0, GFP_KERNEL);
+	if(d.u==0) {
+		//free should not fail
+		//even if it does not know that d.u==0
+		usb_free_urb(d.u);
+		usb_free_urb(d.u);
+	} else {
+		//safe
+		usb_free_urb(d.u);
+	}
 	return 0;
 }
 

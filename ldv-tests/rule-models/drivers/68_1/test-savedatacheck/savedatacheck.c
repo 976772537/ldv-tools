@@ -53,7 +53,7 @@ static int my_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	
 	if (!mouse) 
 		goto fail1;
-	mouse->irq = usb_alloc_urb(); 
+	mouse->irq = usb_alloc_urb(0, GFP_KERNEL); 
 	if (!mouse->irq) 
 		goto fail1;
  

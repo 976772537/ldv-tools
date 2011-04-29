@@ -24,8 +24,8 @@ static int misc_open(struct inode * inode, struct file * file)
 	u1 = usb_alloc_urb(0, GFP_KERNEL);
 	if(u1==0) {
 		//test that it may fail
-		usb_free_urb(u1);
-		usb_free_urb(u1);
+		u1 = usb_alloc_urb(0, GFP_KERNEL);
+		//alloc without free
 	} else {
 		//safe
 		usb_free_urb(u1);
