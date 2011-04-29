@@ -62,7 +62,7 @@ driver=68_1--test-freenull.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=6
 driver=68_1--test-safe.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-safe/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=68_1--test-singlefree.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-singlefree/singlefree.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=68_1--test-singlealloc.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-singlealloc/singlealloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=68_1--test-twourb.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-twourb/twourb.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1--test-twourb.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-twourb/twourb.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=68_1--test-allocfail.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-allocfail/allocfail.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=68_1--test-allocsuccess.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-allocsuccess/allocsuccess.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=68_1--test-freeassume.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1;module=drivers/68_1/test-freeassume/freeassume.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
