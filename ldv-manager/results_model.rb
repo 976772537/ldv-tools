@@ -1,4 +1,7 @@
 
+# for problem recalculation
+require 'enhanced_open3'
+
 class Environment < ActiveRecord::Base
 end
 
@@ -120,14 +123,9 @@ class Stats < ActiveRecord::Base
 		Find.find(scripts_dir) do |file|
 			if !FileTest.directory?(file) && FileTest.executable?(file)
 				# Run the script and get its output
-				Open3.popen3(file) do |cin,cout,cerr|
-					# Send description to the checker
-					cin.write( description )
-					cin.close
-					# This should be very sumple, but somehow has_and_belongs_to_many :uniq doesn't work! O_o
-					cout.each {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
-					cerr.each {|errln| $stderr.puts errln}
-				end
+				cout_callback = proc {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
+				cerr_callback = proc {|errln| $stderr.puts errln}
+				EnhancedOpen3.open3_input_linewise(description,cout_callback,cerr_callback,file) if description
 			end
 		end
 	end

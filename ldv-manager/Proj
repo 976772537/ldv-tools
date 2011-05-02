@@ -28,14 +28,7 @@ problems/
 		blast
 		test
 
-../shared/perl/modules/
-	File/Copy/
-	  Recursive.pm
-	StreamAutomaton.pm
-	LDV/
-		Utils.pm
-	DSCV/
-		Sanity.pm
-		RCV/Utils.pm
-	Utils.pm
+../shared/ruby/lib/
+	enhanced_open3.rb
+	ldv_logging.rb
 

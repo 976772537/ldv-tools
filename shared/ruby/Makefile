@@ -3,7 +3,7 @@ all:
 # Install shared ruby gems
 ruby_gems=logging
 # Install shared ruby scripts
-ruby_scripts=ldv_logging.rb
+ruby_scripts=ldv_logging.rb enhanced_open3.rb
 
 gem_install_dir=$(prefix)/shared/ruby/gem
 gem_bin_dir=$(prefix)/shared/ruby/bin
