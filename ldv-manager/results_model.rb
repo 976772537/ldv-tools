@@ -1,6 +1,7 @@
 
 # for problem recalculation
 require 'enhanced_open3'
+require 'tempfile'
 
 class Environment < ActiveRecord::Base
 end
@@ -123,9 +124,26 @@ class Stats < ActiveRecord::Base
 		Find.find(scripts_dir) do |file|
 			if !FileTest.directory?(file) && FileTest.executable?(file)
 				# Run the script and get its output
-				cout_callback = proc {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
-				cerr_callback = proc {|errln| $stderr.puts errln}
-				EnhancedOpen3.open3_input_linewise(description,cout_callback,cerr_callback,file) if description
+				# Uncomment when Ruby 1.9 is set as the primary target!  It's very slow in 1.8 due to a bug in Ruby.
+				#cout_callback = proc {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
+				#cerr_callback = proc {|errln| $stderr.puts errln}
+				#EnhancedOpen3.open3_input_linewise(description,cout_callback,cerr_callback,file) if description
+
+				## Use files instead of open3 due to Ruby 1.8 bug.
+				# YES, for Ruby 1.8 using files for this is faster!
+				found = {}
+				Tempfile.open("ldv-upload-description") do |temp_file|
+					temp_file.write description
+					temp_file.close
+					IO.popen("#{file} <#{temp_file.path}").each do |line|
+						line.chomp!
+						unless found[line]
+							p = Problem.find_or_create_by_name(line)
+							problems << p unless problems.include? p
+							found[line] = true
+						end
+					end
+				end
 			end
 		end
 	end
