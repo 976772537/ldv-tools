@@ -14,5 +14,6 @@ while (<>){
 	or /: fatal error: incorrect reference code/ and print "<a href=\"http://forge.ispras.ru/issues/1165\">Bad_ref_code</a>"
 	or /: fatal error: incorrect exceptional code/ and print "<a href=\"http://forge.ispras.ru/issues/1166\">Bad_exc_code</a>"
 	or /: fatal error: / and print "Fatal_err";
+	/tree node '.*' isn't supported/ and print "CBE_bad_node";
 }
 
