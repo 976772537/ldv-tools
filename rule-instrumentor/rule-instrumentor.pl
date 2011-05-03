@@ -660,7 +660,7 @@ sub exec_status_and_desc(@)
     or die("Couldn't open file '$opt_basedir/$tool_temp' for read: $ERRNO");
 
   my @desc = <$file_temp_read>;
-  print_debug_debug("The command execution full description is '@desc'");
+  print_debug_trace("The command execution full description is '@desc'");
 
   close($file_temp_read)
     or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");
@@ -743,7 +743,7 @@ sub get_model_info()
     print_debug_trace("Read id attribute for a model to find the corresponding one");
     my $id_attr = $model->att($xml_model_db_attr_id)
       // die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
-    print_debug_debug("Read the '$id_attr' id attribute for a model");
+    print_debug_trace("Read the '$id_attr' id attribute for a model");
 
     # Model is found!
     if ($id_attr eq $opt_model_id)
@@ -2472,7 +2472,7 @@ sub process_report()
       unless ($cmd_status eq $log_cmds_ok or $cmd_status eq $log_cmds_fail);
     print_debug_debug("The commmand log command execution status is '$cmd_status'");
     print_debug_debug("The commmand log command entry points are '@cmd_entry_points'");
-    print_debug_debug("The commmand log command description is '$cmd_desc'");
+    print_debug_trace("The commmand log command description is '$cmd_desc'");
 
     print_debug_trace("Remove the non-ASCII symbols from description since they aren't parsed correctly");
     $cmd_desc =~ s/[^[:ascii:]]//g;

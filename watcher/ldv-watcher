@@ -70,7 +70,7 @@ if ENV['LDV_TEST_WAITER_FNAME']
 	# Quick hack: we just replace commas with dots, it's not the best solution...
 	File.open(ENV['LDV_TEST_WAITER_FNAME'],"a") {|f| f.puts "#{ENV['LDV_SPAWN_KEY'].gsub(/,/,'.')}: #{cmd_args.join(" ")}" }
 else
-	$log.debug "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
+	$log.trace "#{ENV['LDV_SPAWN_KEY']}: #{([command]+arguments).join(" ")}"
 end
 
 result = nil

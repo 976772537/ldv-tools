@@ -701,6 +701,7 @@ my $keys_arrived = {};
 # Callback to process one result of an RCV.  It's called synchronously.
 my $process_rcv_result = sub {
 	my @rv = split /,/,$_[0];
+	LDV::Utils::push_instrument('dscv');
 	vsay('TRACE',"In callback: @rv\n");
 
 	# In cluster mode such a call would just block forever...
@@ -726,12 +727,14 @@ my $process_rcv_result = sub {
 		local $_;
 		for_parent($_) for @$files;
 
+		LDV::Utils::push_instrument('dscv');
 		# Return that we have waited for one key succesfully
 		return 1;
 	}else{
 		# This is not the first time, just note that.
 		vsay('WARNING',"Received result for $rule_id, $cmd_id, $main_id AGAIN, ignoring.\n");
 
+		LDV::Utils::pop_instrument('dscv');
 		# Notify the parent that we have read zero useful keys
 		return 0;
 	}

@@ -178,7 +178,7 @@ sub watcher_cmd_readall
 	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
-	vsay('INFO',"Called watcher: @watcher_args\n");
+	vsay('DEBUG',"Called watcher: @watcher_args\n");
 	my $WATCHER; open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
 	# Read one line.  If none is printed, the line will contain undef;
 	local $_;
@@ -209,7 +209,7 @@ sub watcher_cmd
 	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
-	vsay('INFO',"Called watcher: @watcher_args\n");
+	vsay('DEBUG',"Called watcher: @watcher_args\n");
 	my $WATCHER; open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
 	# Read one line.  If none is printed, the line will contain undef;
 	my $line = <$WATCHER>;
@@ -239,7 +239,7 @@ sub watcher_cmd_callback
 	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
-	vsay('INFO',"Called watcher: @watcher_args\n");
+	vsay('DEBUG',"Called watcher: @watcher_args\n");
 
 	my $WATCHER; my $pid = open $WATCHER, "-|", @watcher_args or die "INTEGRATION ERROR: watcher failed ($!): @watcher_args";
 	my $lines_read = 0;
@@ -251,7 +251,7 @@ sub watcher_cmd_callback
 		# If it's EOF, exit without calling a callback
 		last unless defined $line;
 		chomp $line;
-		vsay('DEBUG',"Watcher says: $line\n");
+		vsay('TRACE',"Watcher says: $line\n");
 
 		# Call back, and it returns how many useful lines we've read
 		my $rv = $callback->($line);
@@ -266,9 +266,9 @@ sub watcher_cmd_callback
 		kill SIGKILL,$pid;
 		# Don't check the return code: we may be killing a dead process (which is unsafe, but still...)
 	}
-	vsay('DEBUG',"Closing read pipe...\n");
+	vsay('TRACE',"Closing read pipe...\n");
 	close $WATCHER;	# We don't need anything else.  This will just drop stuff in a buffer of a dead process.
-	vsay('DEBUG',"Read pipe closed.\n");
+	vsay('TRACE',"Read pipe closed.\n");
 
 	# Check return values
 	my $rv = $?;
@@ -288,7 +288,7 @@ sub watcher_cmd_noread
 	$ldv_watcher ||= ($ENV{'LDV_WATCHER_HOME'} || $ENV{'LDV_HOME'} || $ENV{'DSCV_HOME'})."/watcher/ldv-watcher";
 	# Call watcher for the next RCV command
 	my @watcher_args = ($ldv_watcher,@_);
-	vsay('INFO',"Called watcher (output not checked): @watcher_args\n");
+	vsay('DEBUG',"Called watcher (output not checked): @watcher_args\n");
 	system(@watcher_args);
 	# Check return values
 	my $rv = $?;
