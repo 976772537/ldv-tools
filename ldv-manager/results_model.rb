@@ -135,14 +135,15 @@ class Stats < ActiveRecord::Base
 				Tempfile.open("ldv-upload-description") do |temp_file|
 					temp_file.write description
 					temp_file.close
-					IO.popen("#{file} <#{temp_file.path}").each do |line|
+					# Open with a do...end block to make IO automatically reap the process
+					IO.popen("#{file} <#{temp_file.path}") do |pipe_fh|; pipe_fh.each do |line|
 						line.chomp!
 						unless found[line]
 							p = Problem.find_or_create_by_name(line)
 							problems << p unless problems.include? p
 							found[line] = true
 						end
-					end
+					end; end
 				end
 			end
 		end
