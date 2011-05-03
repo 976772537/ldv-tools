@@ -21,6 +21,8 @@ Makefile
 
 ldv-problem
 problems/
+	ri/
+		aspectator
 	dscv/
 		problems
 	rcv/
