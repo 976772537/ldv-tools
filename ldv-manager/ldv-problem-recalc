@@ -5,6 +5,7 @@
 require 'rubygems'
 require 'active_record'
 require 'find'
+require 'optparse'
 
 ENV['LDV_SRVHOME'] ||= File.expand_path("../",File.dirname(__FILE__))
 manhome = File.join(ENV['LDV_SRVHOME'],"ldv-manager")
@@ -17,9 +18,19 @@ sql = ldv_db_connect
 # We should connect before we load our data model
 require File.join(manhome,"results_model.rb")
 
+options = {}
+OptionParser.new do |opts|
+	opts.banner = "Usage: #{$0} [--no-clear]"
+	opts.define_head "Recalculate problems in the LDV results database"
+
+	opts.on "--no-clear", "Do not clear the whole database before recalculating" do
+		options[:no_clear] = true
+	end
+end.parse!
+
 # By default (and this is the only option), we just recalculate everything
 $stderr.write "ldv-problem-recalc: WARNING! ARGUMENTS ARE DEPRECATED AND NOT USED!\n" unless ARGV.empty?
-Problem.clear_all(sql)
+Problem.clear_all(sql) unless options[:no_clear]
 puts "ldv-problem-recalc: All problems are deleted from database, and will now be recalculated..."
 
 # All tools, all standard scripts
