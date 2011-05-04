@@ -18,12 +18,12 @@ driver=tests-model-29_1--test-doublefree.tar.bz2;origin=external;kernel=mykernel
 driver=tests-model-29_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=29_1;module=drivers/tests-model-29_1/test-safe/safe.ko;main=ldv_main0;verdict=safe;ideal=safe
 driver=tests-model-29_1--test-twopools.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=29_1;module=drivers/tests-model-29_1/test-twopools/twopools.ko;main=ldv_main0;verdict=unsafe;ideal=safe
 driver=tests-model-32_1--test-doublelock.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-model-32_1/test-doublelock/doublelock.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe
-driver=tests-model-32_1--test-doublelock.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_2;module=drivers/tests-model-32_1/test-doublelock/doublelock.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe
+driver=tests-model-32_1--test-doublelock.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1a;module=drivers/tests-model-32_1/test-doublelock/doublelock.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe
 driver=tests-model-32_1--test-safe-impossible-condition.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-model-32_1/test-safe-impossible-condition/safe.ko;main=ldv_main0_plain_sorted_withcheck;verdict=safe;ideal=safe
 driver=tests-model-32_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-model-32_1/test-safe/safe.ko;main=ldv_main0;verdict=safe;ideal=safe
-driver=tests-model-32_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_2;module=drivers/tests-model-32_1/test-safe/safe.ko;main=ldv_main0;verdict=safe;ideal=safe
+driver=tests-model-32_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1a;module=drivers/tests-model-32_1/test-safe/safe.ko;main=ldv_main0;verdict=safe;ideal=safe
 driver=tests-model-32_1--test-unlock.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1;module=drivers/tests-model-32_1/test-unlock/unlockwithoutlock.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe
-driver=tests-model-32_1--test-unlock.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_2;module=drivers/tests-model-32_1/test-unlock/unlockwithoutlock.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe
+driver=tests-model-32_1--test-unlock.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=32_1a;module=drivers/tests-model-32_1/test-unlock/unlockwithoutlock.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe
 driver=tests-model-37_1--test-nodelay.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=37_1;module=drivers/tests-model-37_1/test-nodelay/nodelay.ko;main=ldv_main0;verdict=safe;ideal=unsafe
 driver=tests-model-37_1--test-safe.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=37_1;module=drivers/tests-model-37_1/test-safe/safe.ko;main=ldv_main0;verdict=safe;ideal=safe
 driver=tests-model-39_1--test-doublelock.tar.bz2;origin=external;kernel=mykernel-1-2.6.32.15;model=39_1;module=drivers/tests-model-39_1/test-doublelock/doublelock.ko;main=ldv_main0;verdict=unsafe;ideal=unsafe

@@ -359,6 +359,7 @@ sub wait_for_all_verified {
 	my $process_dscv_result = sub {
 		# Read line (the one returned by watcher) and split it
 		my @rv = split /,/,$_[0];
+		LDV::Utils::push_instrument('ldv-core');
 		my ($path, $contents, @key) = @rv;
 
 		#not defined $path and die"Can't get path!";
@@ -380,12 +381,14 @@ sub wait_for_all_verified {
 			vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
 			$tasks->{$cid}->{state} = 'verified';
 
+			LDV::Utils::pop_instrument('ldv-core');
 			# Return that we have waited for one key succesfully
 			return 1;
 		}else{
 			# This is not the first time, just note that.
 			vsay('WARNING',"Received result for $cid AGAIN, ignoring.\n");
 
+			LDV::Utils::pop_instrument('ldv-core');
 			# Notify the parent that we have read zero useful keys
 			return 0;
 		}

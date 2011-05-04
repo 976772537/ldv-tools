@@ -477,6 +477,7 @@ my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
 my $sanity = DSCV::Sanity->new($dscv_base_dir) if $do_sanity;
 # Check how many times blast was run.  It's <number of rule-models>*<number of mains>
 my $expected_blast_runs = 0;
+# How many BLAST runs are expected after rule instrumentation (the discrepancy between these two probably denotes an error)
 my $rule_instr_mains = 0;
 
 # Send cmdfile to Instrumentor for each rule.
@@ -700,6 +701,7 @@ my $keys_arrived = {};
 # Callback to process one result of an RCV.  It's called synchronously.
 my $process_rcv_result = sub {
 	my @rv = split /,/,$_[0];
+	LDV::Utils::push_instrument('dscv');
 	vsay('TRACE',"In callback: @rv\n");
 
 	# In cluster mode such a call would just block forever...
@@ -725,19 +727,21 @@ my $process_rcv_result = sub {
 		local $_;
 		for_parent($_) for @$files;
 
+		LDV::Utils::push_instrument('dscv');
 		# Return that we have waited for one key succesfully
 		return 1;
 	}else{
 		# This is not the first time, just note that.
 		vsay('WARNING',"Received result for $rule_id, $cmd_id, $main_id AGAIN, ignoring.\n");
 
+		LDV::Utils::pop_instrument('dscv');
 		# Notify the parent that we have read zero useful keys
 		return 0;
 	}
 };
 
-while ($rcvs_consumed < $expected_blast_runs) {
-	my $more = $expected_blast_runs-(scalar keys %$keys_arrived);
+while ($rcvs_consumed < $rule_instr_mains) {
+	my $more = $rule_instr_mains-(scalar keys %$keys_arrived);
 	vsay('INFO',sprintf("Waiting for %d more RCVs...\n",$more));
 	$rcvs_consumed += LDV::Utils::watcher_cmd_callback($more,$process_rcv_result,'wait','rcv',@watcher_key,'#');
 }
@@ -833,8 +837,9 @@ for my $rule_id (@properties){
 my $blast_runs = $sanity->get('blast_calls') || 0 if $do_sanity;
 
 # Output final sanity check results
-if ($do_sanity && $blast_runs < $expected_blast_runs) {
-	vsay ("WARNING", "SANITY CHECK FAILED: BLAST was run $blast_runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n");
+if (($do_sanity && ($blast_runs < $expected_blast_runs)) || ( !$do_sanity && ($rule_instr_mains < $expected_blast_runs))) {
+	my $runs = $do_sanity ? $blast_runs : $rule_instr_mains;
+	vsay ("WARNING", "SANITY CHECK FAILED: BLAST was run $runs times, but was expected to run $expected_blast_runs times.  Check if rule-instrumenter worked correctly\n");
 }
 
 

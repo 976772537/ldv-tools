@@ -1,12 +1,12 @@
 [submodule "dscv/rcv/backends/blast"]
 	path = dscv/rcv/backends/blast
 	url = git://forge.ispras.ru/blast.git
-[submodule "rule-instrumentor/aspectator"]
-	path = rule-instrumentor/aspectator
-	url = git://forge.ispras.ru/aspectator.git
 [submodule "kernel-rules"]
 	path = kernel-rules
 	url = git://forge.ispras.ru/kernel-rules.git
 [submodule "dscv/rcv/cil"]
 	path = dscv/rcv/cil
 	url = git://forge.ispras.ru/cil.git
+[submodule "rule-instrumentor/aspectator/gcc-4.6"]
+	path = rule-instrumentor/aspectator/gcc-4.6
+	url = git://forge.ispras.ru/aspect-gcc.git

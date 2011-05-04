@@ -29,6 +29,11 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info p
 # Subroutine prototypes.
 ################################################################################
 
+# Add engine to the XML command
+# args: XML command (will be modified!)
+# retn: XML command with the engine
+sub add_engine_tag($);
+
 # Create configuration files and return pathes to them.
 # args: the name of directory relatively to which configurations are
 #   created; the part of path to configuration file.
@@ -40,7 +45,7 @@ sub create_configs($$);
 # retn: nothing.
 sub create_general_aspect();
 
-# Delete auxiliary files produced during work in the nondebug modes.
+# Delete auxiliary files produced during work in the nondebug modes. (Useful for LLVM only).
 # args: no.
 # retn: nothing.
 sub delete_aux_files();
@@ -50,10 +55,16 @@ sub delete_aux_files();
 # retn: a function execution status and description.
 sub exec_status_and_desc(@);
 
+# Auxilliary function that fixes options in the command given by adding model
+# options and removing some of them
+# args: XML cmd, options to add, options to remove
+# retn: autoconf path, filtered options list
+sub filter_opts($$$);
+
 # The auxiliary function that count execution time for its function argument.
 # args: a function name.
 # retn: a function execution status, description and time.
-sub exec_status_desc_and_time($);
+sub func_status_desc_and_time;
 
 # Obtain information for required model from models database xml.
 # args: no.
@@ -142,8 +153,6 @@ sub string_to_cache($@);
 # common aspects.
 my $aspect_general_suffix = '.general';
 
-# Information on a current command.
-my %cmd;
 # Commands execution statuses;
 my %cmds_status_fail;
 my %cmds_status_ok;
@@ -194,6 +203,10 @@ my @config_dir = ();
 # Kind of instrumentation.
 my $kind_isplain = 0;
 my $kind_isaspect = 0;
+my $aspectator_type = undef;
+
+# Supported aspectator backends
+my %supported_backends = ('gcc'=>1, 'llvm'=>0);
 
 my $ldv_rule_instrumentor_abs;
 my @ldv_rule_instrumentor_path;
@@ -203,18 +216,46 @@ my $ldv_rule_instrumentor;
 my @ldv_rule_instrumentor_patterns = ('.*,ALL', '.*cc1.*,CC1', '.*c-backend.*,C-BACKEND', '.*linker.*,LINKER');
 my $ldv_aspectator_bin_dir;
 my $ldv_aspectator;
+# Env var that keeps path to GCC executable.
+my $ldv_aspectator_gcc;
+my $ldv_gcc;
 my $ldv_timeout_script;
 my $ldv_timeout_script_output;
 my @ldv_timeout_script_opts;
 # Environment variable that says that options passed to gcc compiler aren't
 # quoted.
 my $ldv_no_quoted = 'LDV_NO_QUOTED';
-# Environment variable that keeps path to GCC executable.
-my $ldv_aspectator_gcc = 'LDV_LLVM_GCC';
-my $ldv_c_backend;
-my $ldv_gcc;
+
+# LLVM backend-specific configuration
+
+# Environment variable that keeps path to GCC executable for LLVM
+my $ldv_llvm_aspectator_gcc = 'LDV_LLVM_GCC';
+my $ldv_llvm_c_backend;
+my $ldv_llvm_gcc;
+my $ldv_llvm_aspectator_bin_dir;
+my $ldv_llvm_aspectator;
 # Linker.
-my $ldv_linker;
+my $ldv_llvm_linker;
+
+# Aspectator configuration
+my $ldv_gcc_aspectator;
+# Environment variable that keeps path to GCC executable for LLVM
+my $ldv_gcc_aspectator_gcc_env = 'LDV_ASPECTATOR_CORE';
+
+my $ldv_gcc_aspectator_bin_dir;
+my $ldv_gcc_gcc;
+# GCC ASpectator suffixes
+# Suffix of generated aspect files emitted near the source files
+my $gcc_suffix_aspect = '.c';
+# Suffix for usual aspectated files for GCC aspectator
+my $gcc_suffix_usual = '.usual.c';
+my $gcc_suffix_usual_o = '.usual.o';
+# Suffix for general aspectated files for GCC aspectator
+my $gcc_suffix_general = '.general.c';
+my $gcc_suffix_general_o = '.general.o';
+# Suffix for stage 1 files for GCC aspectator
+my $gcc_preprocessed_suffix = '.p';
+
 # Directory contains rules models database and their source code.
 my $ldv_model_dir;
 # Name of xml file containing models database. Name is relative to models
@@ -252,7 +293,7 @@ my @llvm_linker_opts = ('-f');
 my $llvm_preprocessed_suffix = '.p';
 
 # The commands log file designatures.
-my $log_cmds_aspect = 'mode=aspect';
+my $log_cmds_aspect = {'gcc' => 'mode=aspect', 'llvm'=>'mode=aspect-llvm'};
 my $log_cmds_cc = 'cc';
 my $log_cmds_desc_begin = '^^^^^&&&&&';
 my $log_cmds_desc_end = '&&&&&^^^^^';
@@ -323,6 +364,7 @@ my $xml_model_db_hints = 'hints';
 my $xml_model_db_kind = 'kind';
 my $xml_model_db_model = 'model';
 my $xml_model_db_opt_aspect = 'aspect_options';
+my $xml_model_db_opt_aspect_llvm = 'aspect_llvm_options';
 my $xml_model_db_opt_on = 'on';
 my $xml_model_db_opt_off = 'off';
 my $xml_model_db_opt_plain = 'plain_options';
@@ -442,6 +484,17 @@ print_debug_normal("Make all successfully");
 # Subroutines.
 ################################################################################
 
+sub add_engine_tag($)
+{
+  my ($cmd) = shift;
+  # Add engine tag for both cc and ld commands.
+  print_debug_trace("For the both cc and ld commands add engine");
+  my $xml_engine_tag = new XML::Twig::Elt('engine', $ldv_model{'engine'});
+  $xml_engine_tag->paste('last_child', $cmd);
+
+  return $cmd;
+}
+
 sub create_configs($$)
 {
   my $rel_dir = shift;
@@ -545,6 +598,7 @@ sub create_general_aspect()
 
 sub delete_aux_files()
 {
+  # Note that this is only effective for LLVM aspectator.  GCC aspectator removes the files on its own.
   return 0 if (LDV::Utils::check_verbosity('DEBUG'));
 
   foreach my $file (keys(%files_to_be_deleted))
@@ -555,15 +609,16 @@ sub delete_aux_files()
   }
 }
 
-sub exec_status_desc_and_time($)
+sub func_status_desc_and_time
 {
   my $func = shift;
+  my @args = @_;
 
   print_debug_trace("Keep the start time");
   my $start_time = [gettimeofday()];
 
   print_debug_trace("Call the function by the function reference");
-  my ($status, $desc) = $func->();
+  my ($status, $desc) = $func->(@args);
 
   print_debug_trace("Find and save script execution time");
   my $end_time = [gettimeofday()];
@@ -605,7 +660,7 @@ sub exec_status_and_desc(@)
     or die("Couldn't open file '$opt_basedir/$tool_temp' for read: $ERRNO");
 
   my @desc = <$file_temp_read>;
-  print_debug_debug("The command execution full description is '@desc'");
+  print_debug_trace("The command execution full description is '@desc'");
 
   close($file_temp_read)
     or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");
@@ -632,7 +687,7 @@ sub get_model_info()
   foreach my $model (@models)
   {
     # Process options to be passed to the gcc compiler.
-    if ($model->gi eq $xml_model_db_opt_plain || $model->gi eq $xml_model_db_opt_aspect)
+    if ($model->gi eq $xml_model_db_opt_plain || $model->gi eq $xml_model_db_opt_aspect || $model->gi eq $xml_model_db_opt_aspect_llvm)
     {
       print_debug_trace("Process '" . $model->gi . "' options");
 
@@ -668,7 +723,8 @@ sub get_model_info()
         @gcc_plain_off_opts = @off_opts;
         @gcc_plain_on_opts = @on_opts;
       }
-      else
+      elsif ($model->gi eq $xml_model_db_opt_aspect || $model->gi eq $xml_model_db_opt_aspect_llvm)
+      # I see no point in distinguising aspectator's options even further
       {
         @gcc_aspect_off_opts = @off_opts;
         @gcc_aspect_on_opts = @on_opts;
@@ -687,7 +743,7 @@ sub get_model_info()
     print_debug_trace("Read id attribute for a model to find the corresponding one");
     my $id_attr = $model->att($xml_model_db_attr_id)
       // die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
-    print_debug_debug("Read the '$id_attr' id attribute for a model");
+    print_debug_trace("Read the '$id_attr' id attribute for a model");
 
     # Model is found!
     if ($id_attr eq $opt_model_id)
@@ -776,9 +832,40 @@ sub get_model_info()
       print_debug_trace("Check whether the '$id_attr' model kinds are specified correctly");
       foreach my $kind (@kinds)
       {
-        if ($kind eq 'aspect')
+        if ($kind eq 'aspect' || $kind eq 'aspect-llvm')
         {
           $kind_isaspect = 1;
+
+          # Determine aspectating backend for this rule and set global variables to those specific to this backend 
+          $aspectator_type = ($kind eq 'aspect') ? 'gcc' : 'llvm';
+
+          # Check if the backend specified is supported
+          local $_;
+          die(sprintf("The '$aspectator_type' aspectator backend is not supported in this installation!  Only %s are supported",join(", ",grep{$supported_backends{$_}} keys %supported_backends)))
+            unless ($supported_backends{$aspectator_type});
+
+          if ($aspectator_type eq 'gcc')
+          {
+            $ldv_aspectator = $ldv_gcc_aspectator;
+            $ldv_aspectator_gcc = $ldv_gcc_aspectator_gcc_env;
+            if (my $user_specified_aspectator = $ENV{$ldv_gcc_aspectator_gcc_env}){
+              print_debug_debug("Using user-specified GCC aspectator found in '$user_specified_aspectator'");
+              die("User-specified aspectator '$user_specified_aspectator' is not an executable file!")
+                unless (-x $user_specified_aspectator);
+              $ldv_gcc = $user_specified_aspectator;
+            }
+            else
+            {
+              $ldv_gcc = $ldv_gcc_gcc;
+              print_debug_debug("Using the default GCC aspectator found in $ldv_gcc");
+            }
+          }
+          else
+          {
+            $ldv_aspectator = $ldv_llvm_aspectator;
+            $ldv_aspectator_gcc = $ldv_llvm_aspectator_gcc;
+            $ldv_gcc = $ldv_llvm_gcc;
+          }
 
           die("Models database doesn't contain '$xml_model_db_files_aspect' tag for '$id_attr' model")
             unless ($aspect);
@@ -786,9 +873,9 @@ sub get_model_info()
           die("Aspect file '$ldv_model_dir/$aspect' doesn't exist (for '$id_attr' model)")
             unless (-f "$ldv_model_dir/$aspect");
 
-          print_debug_debug("The aspect mode is used for '$id_attr' model");
+          print_debug_debug("The aspect mode with type '$aspectator_type' is used for '$id_attr' model");
 
-          print($file_cmds_log "$log_cmds_aspect\n");
+          print($file_cmds_log "$log_cmds_aspect->{$aspectator_type}\n");
         }
         elsif ($kind eq 'plain')
         {
@@ -1137,51 +1224,91 @@ sub prepare_files_and_dirs()
 
   print_debug_debug("The instrument auxiliary tools directory is '$ldv_rule_instrumentor'");
 
-  # Directory contains all binaries needed by aspectator.
-  $ldv_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/bin";
-  unless(-d $ldv_aspectator_bin_dir)
-  {
-    warn("Directory '$ldv_aspectator_bin_dir' (aspectator binaries directory) doesn't exist");
-    help();
-  }
-  print_debug_debug("The aspectator binaries directory is '$ldv_aspectator_bin_dir'");
+  # LLVM backend is optional, and may be not included into the shippment
+  if ($supported_backends{'llvm'}){
+    # Directory contains all binaries needed by aspectator.
+    $ldv_llvm_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/llvm-2.6/bin";
+    unless(-d $ldv_llvm_aspectator_bin_dir)
+    {
+      warn("Directory '$ldv_llvm_aspectator_bin_dir' (LLVM aspectator binaries directory) doesn't exist");
+      help();
+    }
+    print_debug_debug("The llvm aspectator binaries directory is '$ldv_llvm_aspectator_bin_dir'");
 
-  # Aspectator script.
-  $ldv_aspectator = "$ldv_aspectator_bin_dir/compiler";
-  unless(-f $ldv_aspectator)
-  {
-    warn("File '$ldv_aspectator' (aspectator) doesn't exist");
-    help();
-  }
-  print_debug_debug("The aspectator script (compiler) is '$ldv_aspectator'");
+    # Aspectator script.
+    $ldv_llvm_aspectator = "$ldv_llvm_aspectator_bin_dir/compiler";
+    unless(-f $ldv_llvm_aspectator)
+    {
+      warn("File '$ldv_llvm_aspectator' (aspectator) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM aspectator script (compiler) is '$ldv_llvm_aspectator'");
 
-  # C backend.
-  $ldv_c_backend = "$ldv_aspectator_bin_dir/c-backend";
-  unless(-f $ldv_c_backend)
-  {
-    warn("File '$ldv_c_backend' (LLVM C backend) doesn't exist");
-    help();
-  }
-  print_debug_debug("The C backend is '$ldv_c_backend'");
+    # C backend.
+    $ldv_llvm_c_backend = "$ldv_llvm_aspectator_bin_dir/c-backend";
+    unless(-f $ldv_llvm_c_backend)
+    {
+      warn("File '$ldv_llvm_c_backend' (LLVM C backend) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM C backend is '$ldv_llvm_c_backend'");
 
-  # GCC compiler with aspectator extensions that is used by aspectator
-  # script.
-  $ldv_gcc = "$ldv_aspectator_bin_dir/compiler-core";
-  unless(-f $ldv_gcc)
-  {
-    warn("File '$ldv_gcc' (GCC compiler) doesn't exist");
-    help();
-  }
-  print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc'");
+    # GCC compiler with aspectator extensions that is used by aspectator
+    # script.
+    $ldv_llvm_gcc = "$ldv_llvm_aspectator_bin_dir/compiler-core";
+    unless(-f $ldv_llvm_gcc)
+    {
+      warn("File '$ldv_llvm_gcc' (LLVM GCC compiler) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM GCC compiler (compiler core) is '$ldv_llvm_gcc'");
 
-  # Linker.
-  $ldv_linker = "$ldv_aspectator_bin_dir/linker";
-  unless(-f $ldv_linker)
-  {
-    warn("File '$ldv_linker' (LLVM linker) doesn't exist");
-    help();
+    # Linker.
+    $ldv_llvm_linker = "$ldv_llvm_aspectator_bin_dir/linker";
+    unless(-f $ldv_llvm_linker)
+    {
+      warn("File '$ldv_llvm_linker' (LLVM linker) doesn't exist");
+      help();
+    }
+    print_debug_debug("The LLVM linker is '$ldv_llvm_linker'");
   }
-  print_debug_debug("The linker is '$ldv_linker'");
+
+  # GCC aspectator backend is included into the default shippment, but just in case...
+  if ($supported_backends{'gcc'}){
+    # Directory contains all binaries needed by aspectator.
+    $ldv_gcc_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/gcc-4.6/bin";
+    unless(-d $ldv_gcc_aspectator_bin_dir)
+    {
+      warn("Directory '$ldv_gcc_aspectator_bin_dir' (aspectator binaries directory) doesn't exist");
+      help();
+    }
+    print_debug_debug("The aspectator binaries directory is '$ldv_gcc_aspectator_bin_dir'");
+
+    # Aspectator script.
+    $ldv_gcc_aspectator = "$ldv_gcc_aspectator_bin_dir/compiler";
+    unless(-f $ldv_gcc_aspectator)
+    {
+      warn("File '$ldv_gcc_aspectator' (aspectator) doesn't exist");
+      help();
+    }
+    print_debug_debug("The aspectator script (compiler) is '$ldv_gcc_aspectator'");
+    # For now, preprocessor will go as an aspectator
+
+    # GCC compiler with aspectator extensions that is used by aspectator
+    # script.
+    # FIXME: for now, we do not have such aspectator!
+    unless (defined $ENV{$ldv_gcc_aspectator_gcc_env})
+    {
+      $ldv_gcc_gcc = "$ldv_gcc_aspectator_bin_dir/compiler-core";
+      unless(-f $ldv_gcc_gcc)
+      {
+        warn("File '$ldv_gcc_gcc' (GCC compiler) doesn't exist");
+        help();
+      }
+      print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc_gcc'");
+    }
+
+  }
 
   # Use environment variable for the models directory instead of the standard
   # one from the LDV_HOME.
@@ -1275,8 +1402,22 @@ sub print_cmd_log($)
 
 sub process_cmd_cc()
 {
+  my ($cmd,%cmd) = @_;
+      #%cmd = (
+        #'id' => $id_attr,
+        #'cwd' => $cwd_text,
+        #'ins' => \@ins_text,
+        #'out' => $out_text,
+        #'check' => $check_text,
+        #'restrict-main' => $restrict_main,
+        #'opts' => \@opts);
+
+  my $kind_gcc = ($kind_isaspect && $aspectator_type eq 'gcc');
+
   if ($kind_isaspect)
   {
+    print_debug_debug("The command '$cmd{'id'}' is specifically processed for the aspect mode");
+
     # On each cc command we run aspectator on corresponding file with
     # corresponding model aspect and options. Also add -I option with
     # models directory needed to find appropriate headers for usual aspect.
@@ -1296,16 +1437,40 @@ sub process_cmd_cc()
 
     print_debug_trace("Go to the build directory to execute cc command");
 
+    # Aspectators generate two files here.  The first is aspectated code (llvm-based aspectator generates aspectated bitcode, and gcc-based aspectator generates aspectated preprocessed code), and the second is .p file generated after 1st stage (referred to by error traces).
+    # .p is common for both supported aspectators, and the first file suffix differs
+
+    my $aspectated_suffix_generated = undef;
+    my $aspectated_suffix_usual = undef;
+    my $aspectated_suffix_general = undef;
+    my $preprocessed_suffix = undef;
+
+    if ($aspectator_type eq 'gcc')
+    {
+      $aspectated_suffix_generated = $gcc_suffix_aspect;
+      $aspectated_suffix_usual = $gcc_suffix_usual;
+      $aspectated_suffix_general = $gcc_suffix_general;
+      $preprocessed_suffix = $gcc_preprocessed_suffix;
+    }
+    elsif ($aspectator_type eq 'llvm')
+    {
+      $aspectated_suffix_generated = $llvm_bitcode_suffix;
+      $aspectated_suffix_usual = $llvm_bitcode_usual_suffix;
+      $aspectated_suffix_general = $llvm_bitcode_general_suffix;
+      $preprocessed_suffix = $llvm_preprocessed_suffix;
+    }
+    else {die};
+
     my ($status, $desc);
 
     # Get target file cache key.
-    my $cache_target = "$cmd{'out'}$llvm_bitcode_usual_suffix";
+    my $cache_target = "$cmd{'out'}$aspectated_suffix_usual";
     my $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The target file cache key is '$cache_file_key'");
 
     # Get target preprocessed file cache key.
-    my $preprocessed_cache_target = "${$cmd{'ins'}}[0]$llvm_preprocessed_suffix";
+    my $preprocessed_cache_target = "${$cmd{'ins'}}[0]$preprocessed_suffix";
     my $preprocessed_cache_file_key = $preprocessed_cache_target;
     $preprocessed_cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The preprocessed target file cache key is '$preprocessed_cache_file_key'");
@@ -1361,17 +1526,16 @@ sub process_cmd_cc()
       chdir($tool_working_dir)
         or die("Can't change directory to '$tool_working_dir'");
 
-      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'")
-        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'")
+        unless (-f "${$cmd{'ins'}}[0]$aspectated_suffix_generated");
+      print_debug_debug("The aspectator produces the usual bitcode/source file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'");
 
-      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-      # object code. Copy them to $cmd{'out'}$llvm_bitcode_usual_suffix files.
+      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectated_suffix_generated with llvm object code (or preprocessed sources in GCC aspectator). Copy them to $cmd{'out'}$aspectated_suffix_usual files.
       print_debug_trace("Copy the usual bitcode file");
       # An error in the following line could appear if the "key" .o file was cached, but this file was not (due to different options?)
       # If it happens, just drop the cache
-      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_usual_suffix")
-        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_usual_suffix': $ERRNO");
+      mv("${$cmd{'ins'}}[0]$aspectated_suffix_generated", "$cmd{'out'}$aspectated_suffix_usual")
+        or die("Can't copy file '${$cmd{'ins'}}[0]$aspectated_suffix_generated' to file '$cmd{'out'}$aspectated_suffix_usual': $ERRNO");
 
       # Save the result to cache.
       save_to_cache($cache_target, $opt_model_id, $cache_file_key)
@@ -1382,8 +1546,9 @@ sub process_cmd_cc()
         unless ($skip_caching);
     }
 
-    $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_usual_suffix"} = 1;
-    print_debug_debug("The usual bitcode file is '$cmd{'out'}$llvm_bitcode_usual_suffix'");
+    # GCC aspectator deletes the files on its own
+    $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_usual"} = 1 unless $kind_gcc;
+    print_debug_debug("The usual bitcode/source file is '$cmd{'out'}$aspectated_suffix_usual'");
 
     unless (LDV::Utils::check_verbosity('DEBUG'))
     {
@@ -1412,8 +1577,8 @@ sub process_cmd_cc()
       $ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
 
     # Try to fetch result (and we think that the file that ends with
-    # $llvm_bitcode_usual_suffix is THE ONLY result of this part.
-    $cache_target = "$cmd{'out'}$llvm_bitcode_general_suffix";
+    # $aspectated_suffix_usual is THE ONLY result of this part.
+    $cache_target = "$cmd{'out'}$aspectated_suffix_general";
     $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The target file cache key is '$cache_file_key'");
@@ -1465,17 +1630,17 @@ sub process_cmd_cc()
       delete($ENV{$ldv_no_quoted});
       delete($ENV{$ldv_aspectator_gcc});
 
-      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'")
-        unless (-f "${$cmd{'ins'}}[0]$llvm_bitcode_suffix");
-      print_debug_debug("The aspectator produces the usual bitcode file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix'");
+      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'")
+        unless (-f "${$cmd{'ins'}}[0]$aspectated_suffix_generated");
+      print_debug_debug("The aspectator produces the usual bitcode/source file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'");
 
-      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$llvm_bitcode_suffix with llvm
-      # object code. Copy them to $cmd{'out'}$llvm_bitcode_general_suffix files.
+      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectated_suffix_generated with llvm object code (or GCC preprocessed sources). Copy them to $cmd{'out'}$aspectated_suffix_general files.
       print_debug_trace("Copy the general bitcode file");
-      mv("${$cmd{'ins'}}[0]$llvm_bitcode_suffix", "$cmd{'out'}$llvm_bitcode_general_suffix")
-        or die("Can't copy file '${$cmd{'ins'}}[0]$llvm_bitcode_suffix' to file '$cmd{'out'}$llvm_bitcode_general_suffix': $ERRNO");
-      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
-      print_debug_debug("The general bitcode file is '$cmd{'out'}$llvm_bitcode_general_suffix'");
+      mv("${$cmd{'ins'}}[0]$aspectated_suffix_generated", "$cmd{'out'}$aspectated_suffix_general")
+        or die("Can't copy file '${$cmd{'ins'}}[0]$aspectated_suffix_generated' to file '$cmd{'out'}$aspectated_suffix_general': $ERRNO");
+      # GCC aspectator deletes the files on its own
+      $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_general"} = 1 unless $kind_gcc;
+      print_debug_debug("The general bitcode file is '$cmd{'out'}$aspectated_suffix_general'");
 
       # Save the result to cache.
       save_to_cache($cache_target, $opt_model_id, $cache_file_key)
@@ -1502,18 +1667,229 @@ sub process_cmd_cc()
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
 
+    # If we're in GCC aspectator mode, we should print a modified CC command just like in plain mode
+    if ($kind_gcc){
+      my $cmd_general = new XML::Twig::Elt('cc',{'id' => "$cmd{'id'}$id_common_model_suffix"});
+      new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_general);
+      new XML::Twig::Elt('in',"$cmd{'out'}$aspectated_suffix_general")->paste('last_child',$cmd_general);
+      new XML::Twig::Elt('out',"$cmd{'out'}$gcc_suffix_general_o")->paste('last_child',$cmd_general);
+      add_engine_tag($cmd_general);
+      $cmd_general->print($file_xml_out);
+
+      my $cmd_usual = new XML::Twig::Elt('cc',{'id' => $cmd{'id'}});
+      new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_usual);
+      new XML::Twig::Elt('in',"$cmd{'out'}$aspectated_suffix_usual")->paste('last_child',$cmd_usual);
+      new XML::Twig::Elt('out',"$cmd{'out'}$gcc_suffix_usual_o")->paste('last_child',$cmd_usual);
+      add_engine_tag($cmd_usual);
+      $cmd_usual->print($file_xml_out);
+    }
+
     return (0, $desc);
   }
+  elsif ($kind_isplain)
+  {
+    print_debug_debug("The command '$cmd{'id'}' is specifically processed for the plain mode");
 
-  # At the moment just the aspect mode is presented here.
+    add_engine_tag($cmd);
+
+    # Exchange the existing options with the processed ones.
+    $cmd->cut_children($xml_cmd_opt);
+    foreach my $opt (@{$cmd{'opts'}})
+    {
+      new XML::Twig::Elt($xml_cmd_opt, $opt)->paste('last_child',$cmd);
+    }
+
+    # Add -I option with common model dir to find appropriate headers. Note
+    # that it also add for a duplicated command.
+    print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers");
+    my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
+    $common_model_opt->paste('last_child', $cmd);
+
+    # FIXME
+    print_debug_trace("Print the modified command");
+    $cmd->print($file_xml_out);
+
+    # Add "common" source code to one of the input files in this CC command.
+    print_debug_debug("Duplicate an each cc command with the one containing a common model");
+    my $common_model_cc = $cmd->copy;
+
+    print_debug_trace("Change an id attribute");
+    $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . $id_common_model_suffix);
+
+    # Note that this generated file is always keeped since it's needed for
+    # report visualization.
+    print_debug_trace("Concatenate a common model with the first input file");
+    my $in = $common_model_cc->first_child($xml_cmd_in);
+    my $in_file = $in->text;
+    die("The specified input file '$in_file' doesn't exist.")
+      unless ($in_file and -f $in_file);
+
+    # Drity hack for 39_7 model; should be resolved with properly written aspect!
+    if ( $opt_model_id eq "39_7")
+    {
+      my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);",
+                "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
+                "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
+                "void ldv_spin_lock_irqsave_nested(spinlock_t *lock, int subclass);",
+                "int ldv_spin_trylock_irqsave(spinlock_t *lock, unsigned long flags);",
+                "void ldv_spin_lock(spinlock_t *lock);",
+                "void ldv_spin_lock_bh(spinlock_t *lock);",
+                "void ldv_spin_lock_irq(spinlock_t *lock);",
+                "int ldv_spin_trylock(spinlock_t *lock);",
+                "int ldv_spin_trylock_bh(spinlock_t *lock);",
+                "int ldv_spin_trylock_irq(spinlock_t *lock);",
+                "void ldv_spin_unlock(spinlock_t *lock);",
+                "void ldv_spin_unlock_bh(spinlock_t *lock);",
+                "void ldv_spin_unlock_irq(spinlock_t *lock);",
+                "void ldv_spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags);",
+                "void ldv_spin_unlock_wait(spinlock_t *lock);",
+                "int ldv_spin_is_locked(spinlock_t *lock);",
+                "int ldv_spin_is_contended(spinlock_t *lock);",
+                "int ldv_spin_can_lock(spinlock_t *lock);",
+                "int ldv_atomic_dec_and_lock(spinlock_t *lock, atomic_t *atomic);".
+    "\n#define ldv_atomic_dec_and_lock_macro(atomic,lock) ldv_atomic_dec_and_lock(lock,atomic)"
+               );
+      my @keys = ("spin_lock_irqsave",
+               "spin_lock_nested",
+               "spin_lock_nest_lock",
+               "spin_lock_irqsave_nested",
+               "spin_trylock_irqsave",
+               "spin_lock",
+               "spin_lock_bh",
+               "spin_lock_irq",
+               "spin_trylock",
+               "spin_trylock_bh",
+               "spin_trylock_irq",
+               "spin_unlock",
+               "spin_unlock_bh",
+               "spin_unlock_irq",
+               "spin_unlock_irqrestore",
+               "spin_unlock_wait",
+               "spin_is_locked",
+               "spin_is_contended",
+               "spin_can_lock",
+               "atomic_dec_and_lock"
+              );
+      my @replacements = ("ldv_spin_lock_irqsave",
+                       "ldv_spin_lock_nested",
+                       "ldv_spin_lock_nest_lock",
+                       "ldv_spin_lock_irqsave_nested",
+                       "ldv_spin_trylock_irqsave",
+                       "ldv_spin_lock",
+                       "ldv_spin_lock_bh",
+                       "ldv_spin_lock_irq",
+                       "ldv_spin_trylock",
+                       "ldv_spin_trylock_bh",
+                       "ldv_spin_trylock_irq",
+                       "ldv_spin_unlock",
+                       "ldv_spin_unlock_bh",
+                       "ldv_spin_unlock_irq",
+                       "ldv_spin_unlock_irqrestore",
+                       "ldv_spin_unlock_wait",
+                       "ldv_spin_is_locked",
+                       "ldv_spin_is_contended",
+                       "ldv_spin_can_lock",
+                     "ldv_atomic_dec_and_lock_macro"
+                      );
+
+      print_debug_trace("Replace defines by model functions for model ".$opt_model_id);
+      my $tmpfile = $in_file.".bak";
+      rename($in_file, $tmpfile)
+       or die("Can't rename inputfile '$in_file' to '$tmpfile'");
+      open(OUT, '>',$in_file)
+        or die("Can't open file '$in_file' for write: $ERRNO");
+      open(IN, '<', "$tmpfile")
+        or die("Can't open file '$in_file' for read: $ERRNO");
+
+      print OUT "#include <linux/spinlock.h>\n";
+      for (my $count = 0; $count < scalar(@keys); $count++) {
+        print "Add decls for keys['$count']=".$keys[$count];
+        my $decl = $decls[$count];
+        print OUT $decl."\n";
+      }
+      while(<IN>) {
+        for (my $count = 0; $count < scalar(@keys); $count++) {
+          my $key = $keys[$count];
+          my $replacement = $replacements[$count];
+          $_ =~ s/\b$key\b/$replacement/g;
+        }
+        print OUT $_;
+      }
+      close(IN)
+        or die("Couldn't close file '$tmpfile': $ERRNO\n");
+      close(OUT)
+        or die("Couldn't close file '$in_file': $ERRNO\n");
+      #system('perl', '-p', '-i.bak', '-e', "s/".$key."/".$replacement."/g")
+      #  or die("Can't replace content of the file '$in_file'");
+    }
+
+    # Get target file cache key.
+    my $target_file = "$in_file$common_c_suffix";
+    my $cache_file_key = $target_file;
+    $cache_file_key =~ s/^$opt_basedir//;
+    print_debug_debug("The target file cache key is '$cache_file_key'");
+
+    if (copy_from_cache($target_file, $opt_model_id, $cache_file_key))
+    {
+      # Cache hit.
+      print_debug_info("Got file '$in_file$common_c_suffix' from cache");
+    }
+    else
+    {
+      # Cache miss.
+      open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
+        or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
+      cat($in_file, $file_with_common_model)
+        or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
+      cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
+        or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
+      close($file_with_common_model)
+        or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
+
+      # Save the information obtained to cache.
+      save_to_cache($target_file, $opt_model_id, $cache_file_key);
+    }
+
+    $in->set_text("$in_file$common_c_suffix");
+    print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
+
+    print_debug_trace("Add suffix for output file of the duplicated cc command");
+    my $out = $common_model_cc->first_child($xml_cmd_out);
+    $out->set_text($out->text . $common_o_suffix);
+
+    # FIXME
+    print_debug_trace("Print the duplicated cc command");
+    $common_model_cc->print($file_xml_out);
+
+    print_debug_debug("Finish processing of the command having id '$cmd{'id'}' in the plain mode");
+
+    return (0, []);
+  }
+
 }
 
 sub process_cmd_ld()
 {
+  my ($cmd,%cmd) = @_;
+      #%cmd = (
+        #'id' => $id_attr,
+        #'cwd' => $cwd_text,
+        #'ins' => \@ins_text,
+        #'out' => $out_text,
+        #'check' => $check_text,
+        #'restrict-main' => $restrict_main,
+        #'opts' => \@opts);
+  # Backporting code: add $idattr for convenience
+  my $id_attr = $cmd{'id'};
+
   my $ischeck = $cmd{'check'} eq 'true';
 
-  if ($kind_isaspect)
+  my $kind_gcc = ($kind_isaspect && $aspectator_type eq 'gcc');
+
+  if ($kind_isaspect && $aspectator_type eq 'llvm')
   {
+    print_debug_debug("The command '$cmd{'id'}' is specifically processed for the aspect mode");
+
     print_debug_debug("Prepare a C file to be checked for the ld command marked with 'check = \"true\"'");
 
     if ($ischeck)
@@ -1527,7 +1903,7 @@ sub process_cmd_ld()
         $ldv_timeout_script,
         @ldv_timeout_script_opts,
         "--reference=$cmd{'id'}",
-        $ldv_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+        $ldv_llvm_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
 
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
@@ -1557,7 +1933,7 @@ sub process_cmd_ld()
         $ldv_timeout_script,
         @ldv_timeout_script_opts,
         "--reference=$cmd{'id'}",
-        $ldv_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
+        $ldv_llvm_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
 
       print_debug_info("Execute the command '@args'");
       ($status, $desc) = exec_status_and_desc(@args);
@@ -1574,6 +1950,7 @@ sub process_cmd_ld()
       # Use here the first input file name to relate with corresponding ld
       # command.
       $xml_writer->dataElement('out' => ${$cmd{'ins'}}[0]);
+      # FIXME: replace with add_engine_tag
       $xml_writer->dataElement('engine' => $ldv_model{'engine'});
       # Close the cc tag.
       $xml_writer->endTag();
@@ -1582,6 +1959,7 @@ sub process_cmd_ld()
       $xml_writer->dataElement('cwd' => $cmd{'cwd'});
       $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);
       $xml_writer->dataElement('out' => "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      # FIXME: replace with add_engine_tag
       $xml_writer->dataElement('engine' => $ldv_model{'engine'});
 
       foreach my $entry_point (@{$cmd{'entry point'}})
@@ -1609,9 +1987,9 @@ sub process_cmd_ld()
       # one file generally (i.e. with usual and common aspects) instrumented.
       # We choose the first one here. Other files must be usually instrumented.
       my @ins_usual = map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}});
-      my @args_usual = ($ldv_linker, @llvm_linker_opts, @ins_usual, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      my @args_usual = ($ldv_llvm_linker, @llvm_linker_opts, @ins_usual, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
       my @ins_general = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
-      my @args_general = ($ldv_linker, @llvm_linker_opts, @ins_general, '-o', "$cmd{'out'}$llvm_bitcode_general_suffix");
+      my @args_general = ($ldv_llvm_linker, @llvm_linker_opts, @ins_general, '-o', "$cmd{'out'}$llvm_bitcode_general_suffix");
 
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
@@ -1638,14 +2016,58 @@ sub process_cmd_ld()
       print_debug_debug("The linker produces the generally linked bitcode file '$cmd{'out'}$llvm_bitcode_general_suffix'");
     }
 
-    # Create artificial empty description.
-    my @desc = ();
-
     # Status is ok, description is empty.
-    return (0, \@desc);
+    return (0, []);
   }
+  elsif($kind_isplain || $kind_gcc)
+  {
+    # Add an additional input model file, error and hints tags for each ld
+    # command.
 
-  # At the moment just the aspect mode is presented here.
+    # Replace the first object file to be linked with the object file
+    # containing the common model (or, general aspect in GCC aspectator).
+    my $common_suffix = undef;
+    if ($kind_gcc)
+    {
+      $common_suffix = $gcc_suffix_general_o;
+    }
+    else
+    {
+      $common_suffix = $common_o_suffix;
+    }
+    print_debug_trace("For the ld command change the first input file");
+    my $in = $cmd->first_child($xml_cmd_in);
+    $in->set_text($in->text . $common_suffix);
+
+    # Replace the other object files with those with "usual" suffix in GCC aspect mode
+    if ($kind_gcc)
+    {
+      my @in_tags = $cmd->children($xml_cmd_in);
+      shift @in_tags;
+      for my $in_tag (@in_tags)
+      {
+        $in_tag->set_text($in_tag->text . $gcc_suffix_usual_o);
+      }
+    }
+
+    print_debug_trace("For the ld command add error tag");
+    my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
+    $xml_error_tag->paste('last_child', $cmd);
+
+    print_debug_trace("For the ld command copy hints as them");
+    my $twig_hints = $ldv_model{'twig hints'}->copy;
+    $twig_hints->paste('last_child', $cmd);
+
+    add_engine_tag($cmd);
+
+    # FIXME
+    print_debug_trace("Print the modified command");
+    $cmd->print($file_xml_out);
+
+    print_debug_debug("Finish processing of the command having id '$cmd{'id'}' in the plain mode");
+    # Status is ok, description is empty.
+    return (0, []);
+  }
 }
 
 sub process_cmds()
@@ -1668,12 +2090,9 @@ sub process_cmds()
       $cmd_basedir = $cmd->text;
       print_debug_debug("The base directory '$cmd_basedir' is specified");
 
-      if ($kind_isplain)
-      {
-        print_debug_trace("Use the tool base directory '$opt_basedir' instead of the specified one in the plain mode");
-        $cmd->set_text($opt_basedir);
-        $cmd->print($file_xml_out);
-      }
+      print_debug_trace("Use the tool base directory '$opt_basedir' instead of the specified one in the plain mode");
+      $cmd->set_text($opt_basedir);
+      $cmd->print($file_xml_out);
     }
     # Interpret cc and ld commands.
     elsif ($cmd->gi eq $xml_cmd_cc or $cmd->gi eq $xml_cmd_ld)
@@ -1781,6 +2200,7 @@ sub process_cmds()
       my @off_opts;
       if ($kind_isaspect)
       {
+        # Option fixups are stored in the same place for both aspectators
         @on_opts = @gcc_aspect_on_opts;
         @off_opts = @gcc_aspect_off_opts;
       }
@@ -1790,55 +2210,8 @@ sub process_cmds()
         @off_opts = @gcc_plain_off_opts;
       }
 
-      print_debug_trace("Read an array of options and exclude the unwanted ones ('@off_opts')");
-      my @opts;
-      my $autoconf;
-      for (my $opt = $cmd->first_child($xml_cmd_opt)
-        ; $opt
-        ; $opt = $opt->next_elt($xml_cmd_opt))
-      {
-        my $opt_text = $opt->text;
+      my ($autoconf,@opts) = filter_opts($cmd,\@on_opts,\@off_opts);
 
-        my $opt_config_attr = $opt->att($xml_cmd_opt_config);
-        if ($opt_config_attr)
-        {
-          print_debug_debug("The option '$opt_text' is marked as configuration header file");
-
-          if ($opt_config_attr eq $xml_cmd_opt_config_autoconf)
-          {
-            print_debug_debug("The option '$opt_text' is marked as automatic configuration header file");
-            # Story automatic configuration header file just once.
-            if ($autoconf)
-            {
-              die("Don't mark more then one option as automatic configuration header file");
-            }
-            else
-            {
-              $autoconf = $opt_text;
-            }
-          }
-        }
-
-        # Exclude options for the gcc compiler.
-        foreach my $off_opt (@off_opts)
-        {
-          if ($opt_text =~ /^$off_opt$/)
-          {
-            print_debug_debug("Exclude the option '$opt_text' for the '$id_attr' command");
-            $opt_text = '';
-            last;
-          }
-        }
-
-        next unless ($opt_text);
-
-        push(@opts, $opt_text);
-
-        last if ($opt->is_last_child($xml_cmd_opt));
-      }
-
-      print_debug_debug("Add wanted options '@on_opts'");
-      push(@opts, @on_opts);
       if (!$opt_suppress_config_check and $ldv_model{'config'} and $cmd->gi eq $xml_cmd_cc)
       {
         print_debug_trace("Add config include options for cc command");
@@ -1857,332 +2230,14 @@ sub process_cmds()
 
       print_debug_debug("The options to be passed to the gcc compiler are '@opts'");
 
-      print_debug_trace("Read an array of entry points");
-      my @entry_points = ();
-      for (my $entry_point = $cmd->first_child($xml_cmd_entry_point)
-        ; $entry_point
-        ; $entry_point = $entry_point->next_elt($xml_cmd_entry_point))
-      {
-        push(@entry_points, $entry_point->text);
-
-        last if ($entry_point->is_last_child($xml_cmd_entry_point));
-      }
+      my @entry_points = $cmd->children_text($xml_cmd_entry_point);
       print_debug_debug("The entry points are '@entry_points'");
 
-      # For the plain mode just copy and modify a bit input xml.
-      if ($kind_isplain)
-      {
-        print_debug_debug("The command '$id_attr' is specifically processed for the plain mode");
-        # Add an additional input model file, error and hints tags for aneach ld
-        # command.
-        if ($cmd->gi eq $xml_cmd_ld)
-        {
-          # Replace the first object file to be linked with the object file
-          # containing the common model.
-          print_debug_trace("For the ld command change the first input file");
-          my $in = $cmd->first_child($xml_cmd_in);
-          $in->set_text($in->text . $common_o_suffix);
-
-          print_debug_trace("For the ld command add error tag");
-          my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
-          $xml_error_tag->paste('last_child', $cmd);
-
-          print_debug_trace("For the ld command copy hints as them");
-          my $twig_hints = $ldv_model{'twig hints'}->copy;
-          $twig_hints->paste('last_child', $cmd);
-        }
-
-        # Add engine tag for both cc and ld commands.
-        if ($cmd->gi eq $xml_cmd_ld or $cmd->gi eq $xml_cmd_cc)
-        {
-          print_debug_trace("For the both cc and ld commands add engine");
-          my $xml_engine_tag = new XML::Twig::Elt('engine', $ldv_model{'engine'});
-          $xml_engine_tag->paste('last_child', $cmd);
-        }
-
-        # Exchange the existing options with the processed ones.
-        my @opts_to_del;
-        for (my $opt = $cmd->first_child($xml_cmd_opt)
-          ; $opt
-          ; $opt = $opt->next_elt($xml_cmd_opt))
-        {
-          push(@opts_to_del, $opt);
-          last if ($opt->is_last_child($xml_cmd_opt));
-        }
-        foreach (@opts_to_del)
-        {
-          $_->delete();
-        }
-        foreach my $opt (@opts)
-        {
-          my $xml_opt_tag = new XML::Twig::Elt($xml_cmd_opt, $opt);
-          $xml_opt_tag->paste('last_child', $cmd);
-        }
-
-        # Add -I option with common model dir to find appropriate headers. Note
-        # that it also add for a duplicated command.
-        if ($cmd->gi eq $xml_cmd_cc)
-        {
-          print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers");
-          my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
-          $common_model_opt->paste('last_child', $cmd);
-        }
-
-        print_debug_trace("Print the modified command");
-        $cmd->print($file_xml_out);
-
-        if ($cmd->gi eq $xml_cmd_cc)
-        {
-          print_debug_debug("Duplicate an each cc command with the one containing a common model");
-          my $common_model_cc = $cmd->copy;
-
-          print_debug_trace("Change an id attribute");
-          $common_model_cc->set_att($xml_cmd_attr_id => $cmd->att($xml_cmd_attr_id) . $id_common_model_suffix);
-
-          # Note that this generated file is always keeped since it's needed for
-          # report visualization.
-          print_debug_trace("Concatenate a common model with the first input file");
-          my $in = $common_model_cc->first_child($xml_cmd_in);
-          my $in_file = $in->text;
-          die("The specified input file '$in_file' doesn't exist.")
-            unless ($in_file and -f $in_file);
-
-          # do dirty hack for 39_7 model
-          if ( $opt_model_id eq "39_7") 
-          {
-            my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);", 
-                      "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
-                      "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
-                      "void ldv_spin_lock_irqsave_nested(spinlock_t *lock, int subclass);",
-                      "int ldv_spin_trylock_irqsave(spinlock_t *lock, unsigned long flags);",
-                      "void ldv_spin_lock(spinlock_t *lock);",
-                      "void ldv_spin_lock_bh(spinlock_t *lock);",
-                      "void ldv_spin_lock_irq(spinlock_t *lock);",
-                      "int ldv_spin_trylock(spinlock_t *lock);",
-                      "int ldv_spin_trylock_bh(spinlock_t *lock);",
-                      "int ldv_spin_trylock_irq(spinlock_t *lock);",
-                      "void ldv_spin_unlock(spinlock_t *lock);",
-                      "void ldv_spin_unlock_bh(spinlock_t *lock);",
-                      "void ldv_spin_unlock_irq(spinlock_t *lock);",
-                      "void ldv_spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags);",
-                      "void ldv_spin_unlock_wait(spinlock_t *lock);",
-                      "int ldv_spin_is_locked(spinlock_t *lock);",
-                      "int ldv_spin_is_contended(spinlock_t *lock);",
-                      "int ldv_spin_can_lock(spinlock_t *lock);",
-                      "int ldv_atomic_dec_and_lock(spinlock_t *lock, atomic_t *atomic);".
-		      "\n#define ldv_atomic_dec_and_lock_macro(atomic,lock) ldv_atomic_dec_and_lock(lock,atomic)"
-                     );
-            my @keys = ("spin_lock_irqsave",
-                     "spin_lock_nested",
-                     "spin_lock_nest_lock",
-                     "spin_lock_irqsave_nested",
-                     "spin_trylock_irqsave",
-                     "spin_lock",
-                     "spin_lock_bh",
-                     "spin_lock_irq",
-                     "spin_trylock",
-                     "spin_trylock_bh",
-                     "spin_trylock_irq",
-                     "spin_unlock",
-                     "spin_unlock_bh",
-                     "spin_unlock_irq",
-                     "spin_unlock_irqrestore",
-                     "spin_unlock_wait",
-                     "spin_is_locked",
-                     "spin_is_contended",
-                     "spin_can_lock",
-                     "atomic_dec_and_lock"
-                    );
-            my @replacements = ("ldv_spin_lock_irqsave",
-                             "ldv_spin_lock_nested",
-                             "ldv_spin_lock_nest_lock",
-                             "ldv_spin_lock_irqsave_nested",
-                             "ldv_spin_trylock_irqsave",
-                             "ldv_spin_lock",
-                             "ldv_spin_lock_bh",
-                             "ldv_spin_lock_irq",
-                             "ldv_spin_trylock",
-                             "ldv_spin_trylock_bh",
-                             "ldv_spin_trylock_irq",
-                             "ldv_spin_unlock",
-                             "ldv_spin_unlock_bh",
-                             "ldv_spin_unlock_irq",
-                             "ldv_spin_unlock_irqrestore",
-                             "ldv_spin_unlock_wait",
-                             "ldv_spin_is_locked",
-                             "ldv_spin_is_contended",
-                             "ldv_spin_can_lock",
-                     	     "ldv_atomic_dec_and_lock_macro"
-                            );
-
-            print_debug_trace("Replace defines by model functions for model ".$opt_model_id);
-            my $tmpfile = $in_file.".bak";
-            rename($in_file, $tmpfile)
-             or die("Can't rename inputfile '$in_file' to '$tmpfile'");   
-            open(OUT, '>',$in_file) 
-              or die("Can't open file '$in_file' for write: $ERRNO");
-            open(IN, '<', "$tmpfile")
-              or die("Can't open file '$in_file' for read: $ERRNO");
-            
-            print OUT "#include <linux/spinlock.h>\n";
-            for (my $count = 0; $count < scalar(@keys); $count++) {
-       	      print "Add decls for keys['$count']=".$keys[$count];
-              my $decl = $decls[$count];
-              print OUT $decl."\n";
-            }
-            while(<IN>) {
-              for (my $count = 0; $count < scalar(@keys); $count++) {
-                my $key = $keys[$count];
-                my $replacement = $replacements[$count];
-                $_ =~ s/\b$key\b/$replacement/g;
-              }
-              print OUT $_;
-            }
-            close(IN)
-              or die("Couldn't close file '$tmpfile': $ERRNO\n");
-            close(OUT)
-              or die("Couldn't close file '$in_file': $ERRNO\n");
-            #system('perl', '-p', '-i.bak', '-e', "s/".$key."/".$replacement."/g")
-            #  or die("Can't replace content of the file '$in_file'");         
-          }
-          # Get target file cache key.
-          my $target_file = "$in_file$common_c_suffix";
-          my $cache_file_key = $target_file;
-          $cache_file_key =~ s/^$opt_basedir//;
-          print_debug_debug("The target file cache key is '$cache_file_key'");
-
-          if (copy_from_cache($target_file, $opt_model_id, $cache_file_key))
-          {
-            # Cache hit.
-            print_debug_info("Got file '$in_file$common_c_suffix' from cache");
-          }
-          else
-          {
-            # Cache miss.
-            open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
-              or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
-            cat($in_file, $file_with_common_model)
-              or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
-            cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
-              or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
-            close($file_with_common_model)
-              or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
-
-            # Save the information obtained to cache.
-            save_to_cache($target_file, $opt_model_id, $cache_file_key);
-          }
-
-          $in->set_text("$in_file$common_c_suffix");
-          print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
-
-          print_debug_trace("Add suffix for output file of the duplicated cc command");
-          my $out = $common_model_cc->first_child($xml_cmd_out);
-          $out->set_text($out->text . $common_o_suffix);
-
-          print_debug_trace("Print the duplicated cc command");
-          $common_model_cc->print($file_xml_out);
-        }
-
-        print_debug_trace("Log information on the '$id_attr' command execution status");
-        # All times are 0 since it's assumed that in the plain mode all
-        # actions are simple and doesn't require a lot of time to be
-        # executed.
-        if ($cmd->gi eq $xml_cmd_cc)
-        {
-          # Just mark that the output file is generated successfully.
-          $cmds_status_ok{$out_text} = $id_attr;
-          my @ok_desc = ();
-          my %log = (
-              'cmd' => $log_cmds_cc # The cc command was executed.
-            , 'status' => $log_cmds_ok # The cc command is executed successfully.
-            , 'time' => 0 # The executed time is 0 in the plain mode.
-            , 'id' => $id_attr # The cc command id.
-            , 'check' => 0 # The cc command always has 0 check attribute.
-            , 'entries' => \@entry_points # The cc command doesn't contain any entry point indeed.
-            , 'desc' => \@ok_desc # There is no description since all is ok.
-          );
-          print_cmd_log(\%log);
-        }
-        elsif ($cmd->gi eq $xml_cmd_ld)
-        {
-          # Check whether all input files are processed sucessfully.
-          my $status_in = 1;
-          my @cc_error_desc = ();
-          foreach my $in_text (@ins_text)
-          {
-            # I.e. when ld input file was processed with errors.
-            if (defined($cmds_status_fail{$in_text}))
-            {
-              print_debug_trace("The required by ld file '$in_text' wasn't processed successfully");
-              $status_in = 0;
-              push(@cc_error_desc, $cmds_status_fail{$in_text});
-            }
-            # I.e. when ld input file wasn't processed at all. I assume
-            # that this situation is impossible indeed.
-            elsif (!defined($cmds_status_ok{$in_text}))
-            {
-              print_debug_trace("The required by ld file '$in_text' wasn't processed at all");
-              $status_in = 0;
-              my @desc = ("The input file '$in_text' required by the ld command wasn't processed");
-              push(@cc_error_desc, \@desc);
-            }
-          }
-
-          if ($status_in)
-          {
-            print_debug_debug("All ld command input files are processed successfully");
-            # Just mark that the output file is generated successfully.
-            $cmds_status_ok{$out_text} = $id_attr;
-            my @ok_desc = ();
-            my %log = (
-                'cmd' => $log_cmds_ld # The ld command was executed.
-              , 'status' => $log_cmds_ok # The ld command execution status.
-              , 'time' => 0 # The executed time is 0 in the plain mode.
-              , 'id' => $id_attr # The ld command id.
-              , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
-              , 'entries' => \@entry_points # The ld command entry points.
-              , 'desc' => \@ok_desc # There is no description since all is ok.
-            );
-            print_cmd_log(\%log);
-          }
-          else
-          {
-            print_debug_debug("Some ld command input files aren't processed successfully");
-            # Mark that the output file isn't generated successfully.
-            $cmds_status_fail{$out_text} = join_error_desc(@cc_error_desc);
-            my %log = (
-                'cmd' => $log_cmds_ld # The ld command was executed.
-              , 'status' => $log_cmds_fail # The ld command failed.
-              , 'time' => 0 # The executed time is 0 in the plain mode.
-              , 'id' => $id_attr # The ld command id.
-              , 'check' => ($check_text eq 'true') # The ld command has some check attribute.
-              , 'entries' => \@entry_points # The ld command entry points.
-              , 'desc' => $cmds_status_fail{$out_text} # The ld command fails due to some input cc commands aren't finished successfully.
-            );
-            print_cmd_log(\%log);
-          }
-        }
-
-        print_debug_debug("Finish processing of the command having id '$id_attr' in the plain mode");
-        next;
-      }
-
-      print_debug_debug("The command '$id_attr' is specifically processed for the aspect mode");
-      $out_text = $out->text;
-
-      print_debug_trace("Read an array of input files");
-      @ins_text = ();
-      for (my $in = $cmd->first_child($xml_cmd_in)
-        ; $in
-        ; $in = $in->next_elt($xml_cmd_in))
-      {
-        push(@ins_text, $in->text);
-
-        last if ($in->is_last_child($xml_cmd_in));
-      }
+      @ins_text = $cmd->children_text($xml_cmd_in);
+      print_debug_trace("The input files are '@ins_text'");
 
       print_debug_trace("Store the current command information");
-      %cmd = (
+      my %cmd = (
         'id' => $id_attr,
         'cwd' => $cwd_text,
         'ins' => \@ins_text,
@@ -2191,13 +2246,11 @@ sub process_cmds()
         'restrict-main' => $restrict_main,
         'opts' => \@opts);
 
-      undef($cmd{'entry point'});
-
       # cc command doesn't contain any specific settings.
       if ($cmd->gi eq $xml_cmd_cc)
       {
         print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode");
-        my ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_cc);
+        my ($status, $desc, $time) = func_status_desc_and_time(\&process_cmd_cc,$cmd,%cmd);
 
         print_debug_trace("Log information on the '$id_attr' command execution status");
         my $status_log;
@@ -2268,7 +2321,7 @@ sub process_cmds()
         # Process command just when inputs are ok.
         if ($status_in)
         {
-          ($status, $desc, $time) = exec_status_desc_and_time(\&process_cmd_ld);
+          ($status, $desc, $time) = func_status_desc_and_time(\&process_cmd_ld,$cmd,%cmd);
         }
 
         print_debug_trace("Log information on the '$id_attr' command execution status");
@@ -2346,9 +2399,16 @@ sub process_report()
   my $mode_isaspect = 0;
   my $mode_isplain = 0;
 
-  if ($mode eq $log_cmds_aspect)
+  if ($mode eq $log_cmds_aspect->{'gcc'})
   {
     $mode_isaspect = 1;
+    $aspectator_type = 'gcc';
+    print_debug_debug("The GCC aspect mode is specified");
+  }
+  elsif ($mode eq $log_cmds_aspect->{'llvm'})
+  {
+    $mode_isaspect = 1;
+    $aspectator_type = 'llvm';
     print_debug_debug("The aspect mode is specified");
   }
   elsif ($mode eq $log_cmds_plain)
@@ -2419,7 +2479,7 @@ sub process_report()
       unless ($cmd_status eq $log_cmds_ok or $cmd_status eq $log_cmds_fail);
     print_debug_debug("The commmand log command execution status is '$cmd_status'");
     print_debug_debug("The commmand log command entry points are '@cmd_entry_points'");
-    print_debug_debug("The commmand log command description is '$cmd_desc'");
+    print_debug_trace("The commmand log command description is '$cmd_desc'");
 
     print_debug_trace("Remove the non-ASCII symbols from description since they aren't parsed correctly");
     $cmd_desc =~ s/[^[:ascii:]]//g;
@@ -2578,7 +2638,8 @@ sub process_report()
 
       # ld commands have additional suffix in the aspect mode.
       my $rule_instrument_cmd_id = $cmd_id;
-      if ($mode_isaspect)
+
+      if ($mode_isaspect && ($aspectator_type eq 'llvm'))
       {
         $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
       }
@@ -2655,7 +2716,7 @@ sub process_report()
           else
           {
             $xml_writer->startTag($xml_report_ld, $xml_report_attr_ref => $cmd_id, $xml_report_attr_main => $main_id, $xml_report_attr_model => $opt_model_id);
-            print_debug_trace("Print stubs instead of a rcv verdict and a trace since it fails");
+            print_debug_debug("Print stubs instead of a rcv verdict and a trace since it fails");
             $xml_writer->dataElement($xml_report_verdict => $xml_report_verdict_stub);
             $xml_writer->dataElement($xml_report_trace => '');
 
@@ -2890,4 +2951,63 @@ sub string_to_cache($@)
     close($cache_fh)
       or die("Couldn't close file '$cache_fname': $ERRNO\n");
   }
+}
+
+sub filter_opts($$$)
+{
+  my ($cmd,$on_opts,$off_opts) = @_;
+  my @on_opts = @$on_opts;
+  my @off_opts = @$off_opts;
+
+  print_debug_trace("Read an array of options and exclude the unwanted ones ('@off_opts')");
+  my @opts = ();
+  my $autoconf = undef;
+  for (my $opt = $cmd->first_child($xml_cmd_opt)
+    ; $opt
+    ; $opt = $opt->next_elt($xml_cmd_opt))
+  {
+    my $opt_text = $opt->text;
+
+    my $opt_config_attr = $opt->att($xml_cmd_opt_config);
+    if ($opt_config_attr)
+    {
+      print_debug_debug("The option '$opt_text' is marked as configuration header file");
+
+      if ($opt_config_attr eq $xml_cmd_opt_config_autoconf)
+      {
+        print_debug_debug("The option '$opt_text' is marked as automatic configuration header file");
+        # Story automatic configuration header file just once.
+        if ($autoconf)
+        {
+          die("Don't mark more then one option as automatic configuration header file");
+        }
+        else
+        {
+          $autoconf = $opt_text;
+        }
+      }
+    }
+
+    # Exclude options for the gcc compiler.
+    foreach my $off_opt (@off_opts)
+    {
+      if ($opt_text =~ /^$off_opt$/)
+      {
+        print_debug_debug(sprintf("Exclude the option '$opt_text' for the '%d' command",$cmd->att($xml_cmd_attr_id)));
+        $opt_text = '';
+        last;
+      }
+    }
+
+    next unless ($opt_text);
+
+    push(@opts, $opt_text);
+
+    last if ($opt->is_last_child($xml_cmd_opt));
+  }
+
+  print_debug_debug("Add wanted options '@on_opts'");
+  push(@opts, @on_opts);
+
+  return ($autoconf,@opts);
 }

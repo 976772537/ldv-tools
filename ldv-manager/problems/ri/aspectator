@@ -7,7 +7,13 @@ while (<>){
 	chomp;
 	/error: invalid storage class for function try_module_get/ and print "<a href =\"http://forge.ispras.ru/issues/380\">bug380:</a> try_module_get";
 	/internal compiler error: Segmentation fault/ and print "Segmentation fault";
-	/: error: / and print "Compiler error";
-	/: warning: / and print "Compiler warning";
+	/: error: / and print "Compile error";
+	/: warning: / and print "Warning";
+	/: fatal error: incorrect expression code/ and print "<a href=\"http://forge.ispras.ru/issues/1159\">Expr_code</a>"
+	or /: fatal error: character .* wasn't put to stream/ and print "<a href=\"http://forge.ispras.ru/issues/349\">Bad_char</a>"
+	or /: fatal error: incorrect reference code/ and print "<a href=\"http://forge.ispras.ru/issues/1165\">Bad_ref_code</a>"
+	or /: fatal error: incorrect exceptional code/ and print "<a href=\"http://forge.ispras.ru/issues/1166\">Bad_exc_code</a>"
+	or /: fatal error: / and print "Fatal_err";
+	/tree node '.*' isn't supported/ and print "CBE_bad_node";
 }
 

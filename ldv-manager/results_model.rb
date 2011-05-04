@@ -1,4 +1,8 @@
 
+# for problem recalculation
+require 'enhanced_open3'
+require 'tempfile'
+
 class Environment < ActiveRecord::Base
 end
 
@@ -120,13 +124,26 @@ class Stats < ActiveRecord::Base
 		Find.find(scripts_dir) do |file|
 			if !FileTest.directory?(file) && FileTest.executable?(file)
 				# Run the script and get its output
-				Open3.popen3(file) do |cin,cout,cerr|
-					# Send description to the checker
-					cin.write( description )
-					cin.close
-					# This should be very sumple, but somehow has_and_belongs_to_many :uniq doesn't work! O_o
-					cout.each {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
-					cerr.each {|errln| $stderr.puts errln}
+				# Uncomment when Ruby 1.9 is set as the primary target!  It's very slow in 1.8 due to a bug in Ruby.
+				#cout_callback = proc {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
+				#cerr_callback = proc {|errln| $stderr.puts errln}
+				#EnhancedOpen3.open3_input_linewise(description,cout_callback,cerr_callback,file) if description
+
+				## Use files instead of open3 due to Ruby 1.8 bug.
+				# YES, for Ruby 1.8 using files for this is faster!
+				found = {}
+				Tempfile.open("ldv-upload-description") do |temp_file|
+					temp_file.write description
+					temp_file.close
+					# Open with a do...end block to make IO automatically reap the process
+					IO.popen("#{file} <#{temp_file.path}") do |pipe_fh|; pipe_fh.each do |line|
+						line.chomp!
+						unless found[line]
+							p = Problem.find_or_create_by_name(line)
+							problems << p unless problems.include? p
+							found[line] = true
+						end
+					end; end
 				end
 			end
 		end

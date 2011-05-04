@@ -2,7 +2,6 @@
 require 'rubygems'
 require 'active_record'
 require 'find'
-require 'open3'
 require 'logger'
 require 'rexml/document'
 require 'fileutils'
@@ -10,6 +9,7 @@ require 'optparse'
 
 ENV['LDV_SRVHOME'] ||= File.expand_path("../",File.dirname(__FILE__))
 manhome = File.join(ENV['LDV_SRVHOME'],"ldv-manager")
+$:.unshift File.join(ENV['LDV_SRVHOME'],'shared','ruby','lib')
 
 # Due to a huge size of a log, it's not useful to print warnings as they appear.  Instead, we just save them here.
 warnings = []
