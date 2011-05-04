@@ -72,7 +72,8 @@ listed above:
 	o PHP 5.3
 	o PHP modules:
 		- Apache
-		- MySQL
+		- PDO mysql
+		- PDO sqlite
 		- DOM
 	o Markdown code formatter
 
