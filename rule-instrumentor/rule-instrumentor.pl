@@ -293,7 +293,7 @@ my @llvm_linker_opts = ('-f');
 my $llvm_preprocessed_suffix = '.p';
 
 # The commands log file designatures.
-my $log_cmds_aspect = 'mode=aspect';
+my $log_cmds_aspect = {'gcc' => 'mode=aspect', 'llvm'=>'mode=aspect-llvm'};
 my $log_cmds_cc = 'cc';
 my $log_cmds_desc_begin = '^^^^^&&&&&';
 my $log_cmds_desc_end = '&&&&&^^^^^';
@@ -856,8 +856,8 @@ sub get_model_info()
             }
             else
             {
-              print_debug_debug("Using the default GCC aspectator found in $ldv_gcc");
               $ldv_gcc = $ldv_gcc_gcc;
+              print_debug_debug("Using the default GCC aspectator found in $ldv_gcc");
             }
           }
           else
@@ -875,7 +875,7 @@ sub get_model_info()
 
           print_debug_debug("The aspect mode with type '$aspectator_type' is used for '$id_attr' model");
 
-          print($file_cmds_log "$log_cmds_aspect\n");
+          print($file_cmds_log "$log_cmds_aspect->{$aspectator_type}\n");
         }
         elsif ($kind eq 'plain')
         {
@@ -2399,9 +2399,16 @@ sub process_report()
   my $mode_isaspect = 0;
   my $mode_isplain = 0;
 
-  if ($mode eq $log_cmds_aspect)
+  if ($mode eq $log_cmds_aspect->{'gcc'})
   {
     $mode_isaspect = 1;
+    $aspectator_type = 'gcc';
+    print_debug_debug("The GCC aspect mode is specified");
+  }
+  elsif ($mode eq $log_cmds_aspect->{'llvm'})
+  {
+    $mode_isaspect = 1;
+    $aspectator_type = 'llvm';
     print_debug_debug("The aspect mode is specified");
   }
   elsif ($mode eq $log_cmds_plain)
@@ -2631,6 +2638,7 @@ sub process_report()
 
       # ld commands have additional suffix in the aspect mode.
       my $rule_instrument_cmd_id = $cmd_id;
+
       if ($mode_isaspect && ($aspectator_type eq 'llvm'))
       {
         $rule_instrument_cmd_id .= $id_ld_llvm_suffix;
