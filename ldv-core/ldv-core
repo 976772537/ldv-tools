@@ -218,8 +218,12 @@ sub start_next {
 		# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
 		$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 
+		# We will only tolerate this many SOAP errors
+		my $retries = 10;
+
 		my $tasks = {};
-		while(1) {
+		while(is_exists($csd_pid)){
+			vsay 'TRACE', "Trying to fetch next command...\n";
 			my $command =  eval{ return $csd->getCommand(); };
 			if($command) {
 				vsay 'TRACE', "Calling external interface to submit task\n";
@@ -253,17 +257,28 @@ sub start_next {
 				$tasks->{$cid}->{path} = $command;
 				vsay 'TRACE', "Calling external interface to submit task for CID=$cid\n";
 			
-				scheduler_send_task($tasks->{$cid}, $cid);		
-					
-		
+				scheduler_send_task($tasks->{$cid}, $cid);
+
+
 				vsay 'NORMAL', "Wait for command...\n";
 			} else {
-				vsay 'WARNING', "SOAP error: $@";
-				vsay 'WARNING', "CSD returns nothing!  A command is lost!\n";
-				!is_exists($csd_pid) and last;
-				vsay 'TRACE', "Test for next command...\n";
+				# If command is null, there may be two situations.
+				# First, it may be an error in SOAP...
+				if ($@){
+					vsay 'WARNING', "SOAP error: $@.";
+					if ($retries > 0){
+						$retries--;
+						vsay 'WARNING', "Will make $retries more retries.";
+					}else{
+						die "Too many SOAP errors";
+					}
+				}else{
+					# OR, CSD doesn't have a command readily available; then, retry
+					vsay 'DEBUG', "No command available atm.  Waiting for more.";
+				}
 			}
 		}
+		vsay 'NORMAL', "CSD has been terminated.";
 
 		vsay 'NORMAL', "Sleep while all tasks verified.\n";
 		# pass this stage in single machine

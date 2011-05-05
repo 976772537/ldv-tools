@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+
 
 import javax.naming.NamingException;
 import javax.xml.parsers.DocumentBuilder;
@@ -409,13 +411,16 @@ public class CmdStream {
 		}
 	}
 
+	// Return null if there is no any command in 10 seconds
 	public String getNextCommand() {
 		String cmd = null;
 		try {
-			/*
-			 * if(commandsQueue.isEmpty()) return null;
-			 */
-			cmd = tempdir + "/" + commandsQueue.take().getId();
+			Command next_or_null = commandsQueue.poll(10000L, TimeUnit.MILLISECONDS);
+			if (next_or_null == null){
+				cmd = null;
+			}else{
+				cmd = tempdir + "/" + next_or_null.getId();
+			}
 		} catch (InterruptedException e) {
 			Logger.err("Interrupted in getNextCommand!");
 			e.printStackTrace();
