@@ -227,7 +227,7 @@ sub start_next {
 				vsay 'NORMAL', "Calling drv-env-gen...\n";
 				#make_path("$command/deg");
 				$ENV{'WORK_DIR'} = $command;
-				
+
 				my @deg_args = (
 					$config->{'deg'},
 					"--basedir=deg",
@@ -235,13 +235,13 @@ sub start_next {
 					"--cmdfile-out=$command/cmd_after_deg.xml",
 					"--state-file=$command/deg.state"
 				);
-		
+
 				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver_name'}";
 
 				if($config->{'cmdstream'}) {
-                                        push @deg_args,"--kernel-driver";       
+					push @deg_args,"--kernel-driver";
 				} else {
-                                        push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};       
+					push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
 				}
 
 				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
@@ -258,8 +258,10 @@ sub start_next {
 		
 				vsay 'NORMAL', "Wait for command...\n";
 			} else {
-				vsay 'TRACE', "Test for next command...\n";
+				vsay 'WARNING', "SOAP error: $@";
+				vsay 'WARNING', "CSD returns nothing!  A command is lost!\n";
 				!is_exists($csd_pid) and last;
+				vsay 'TRACE', "Test for next command...\n";
 			}
 		}
 

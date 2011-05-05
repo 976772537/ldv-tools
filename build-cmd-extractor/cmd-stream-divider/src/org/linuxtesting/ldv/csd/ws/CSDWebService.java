@@ -27,7 +27,7 @@ public class CSDWebService {
 	
 	@WebMethod
 	public void sendCommand(String xmlcommand) {
-		Logger.trace(" CSD sendCommand:");
+		Logger.norm(" CSD sendCommand:");
 		System.out.println(xmlcommand);
 		try {
 			cmdstream.processCmdStream(xmlcommand);
@@ -54,8 +54,9 @@ public class CSDWebService {
 
 	@WebMethod
 	public String getCommand() {
+		Logger.norm("Getting next...");
 		String command = cmdstream.getNextCommand();
-		Logger.trace("Getting command \""+command+"\"...");
+		Logger.norm("Got command \""+command+"\"...");
 		return command;
 	}
 

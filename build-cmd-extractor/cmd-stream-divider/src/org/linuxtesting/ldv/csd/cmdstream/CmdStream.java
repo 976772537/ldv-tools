@@ -400,9 +400,11 @@ public class CmdStream {
 
 	public void putCommand(Command cmd) {
 		try {
-			Logger.norm("Command added.");
+			Logger.norm("Adding command...");
 			commandsQueue.put(cmd);
+			Logger.norm("Command added.");
 		} catch (InterruptedException e) {
+			Logger.err("Interrupted in putCommand!");
 			e.printStackTrace();
 		}
 	}
@@ -415,6 +417,7 @@ public class CmdStream {
 			 */
 			cmd = tempdir + "/" + commandsQueue.take().getId();
 		} catch (InterruptedException e) {
+			Logger.err("Interrupted in getNextCommand!");
 			e.printStackTrace();
 			Logger.err("InterruptedException caught when executing getNextCommand.  Returning null.");
 		}
