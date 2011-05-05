@@ -49,7 +49,10 @@ class Nodeui
 		# Package the files supplied and upload them
 		@log.info "Packing and sending files you supplied"
 		packer = Packer.new(".",opts[:filesrv])
-		packer.send_files [key], :from_parent, opts[:files], :rewrite => "|.*/|#{opts[:workdir]}/|p"
+		# HACK: we make all paths absolute because we can't make a single sed regexp to replace both absolute and relative paths with workdir.  With a backslash at the beginning, absolute paths will not be harmed, and relative will be given a slash at the beginning to be replaced with a workdir.
+		files_abs = (opts[:files] || []).map {|f| File.expand_path f}
+		# Note the / after the workdir!  It's important for a correct regexp is workdir specification itself does not have a /
+		packer.send_files [key], :from_parent, files_abs, :rewrite => "|.*/|#{opts[:workdir]}/|p"
 
 		# Create and launch the relevant task
 		task = {
