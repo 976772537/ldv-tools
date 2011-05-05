@@ -83,7 +83,7 @@ class WatcherRemote < Watcher
 		# We use -O to make pax not prompt user for anything (for instance, when archive file's not found)
 
 		# First, print archive contents to stdout to notify the user what files we have here
-		Kernel.system('pax','-O','-f',contents)
+		Packer.print_contents_of contents
 
 		# Perform the unpack
 		packer.unpack contents
