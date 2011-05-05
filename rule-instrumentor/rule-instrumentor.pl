@@ -1803,7 +1803,8 @@ sub process_cmd_cc()
 
       print OUT "#include <linux/spinlock.h>\n";
       for (my $count = 0; $count < scalar(@keys); $count++) {
-        print "Add decls for keys['$count']=".$keys[$count];
+        # This was intended for debugging only
+        #print "Add decls for keys['$count']=".$keys[$count];
         my $decl = $decls[$count];
         print OUT $decl."\n";
       }
