@@ -22,7 +22,11 @@ class ClusterOptionsParser
 				options[:root] = nanite
 			end
 
-			opts.on("--ping-time PINGTIME", "Specify how often the agents contacts the mapper") do |ping|
+			opts.on("--ping-time PINGTIME", "Specify how often the agents contact the mapper") do |ping|
+				# Do not allow zero pings; treat them as errors
+				if ping.to_i <= 0
+					ping = 1
+				end
 				options[:ping_time] = ping
 			end
 
