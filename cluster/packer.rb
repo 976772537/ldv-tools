@@ -98,7 +98,7 @@ class Packer
 	end
 
 	public; def self.print_contents_of package
-		Kernel.system('pax','-z','-O','-f',contents)
+		Kernel.system('pax','-z','-O','-f',package)
 	end
 end
 
