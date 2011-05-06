@@ -54,14 +54,18 @@ class Nodeui
 		# Note the / after the workdir!  It's important for a correct regexp is workdir specification itself does not have a /
 		packer.send_files [key], :from_parent, files_abs, :rewrite => "|.*/|#{opts[:workdir]}/|p"
 
+		# Set a unique name for the task unless specified
+		task_env = opts[:env].dup
+		task_env['name'] ||= key
+
 		# Create and launch the relevant task
 		task = {
 			:type => 'ldv',
 			:args => "",
 			:workdir=> opts[:workdir],
 			:key => key,
-			:env => opts[:env],
-			:global => {:sshuser=>opts[:sshuser], :host => opts[:sshhost], :root => opts[:workdir], :filesrv=>opts[:filesrv], :env => opts[:env]}
+			:env => task_env,
+			:global => {:sshuser=>opts[:sshuser], :host => opts[:sshhost], :root => opts[:workdir], :filesrv=>opts[:filesrv], :env => task_env}
 		}
 		@log.debug "Task prepared, here it is: #{task.inspect}.  Sending."
 		initialize_death_clock('/ldvqueue/queue')
