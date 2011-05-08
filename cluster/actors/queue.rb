@@ -127,6 +127,8 @@ class Ldvqueue
 	# Fetch task from task queue, selects node to route it to, and pushes it to the cluster
 	def route_task
 		# Take a task from queue and launch it
+		# The action performed is implemented as a callback
+		as_a_result = proc { }
 		@task_update_mutex.synchronize do
 
 			# At this point, every task queued has never been finished in the cluster.
@@ -173,13 +175,13 @@ class Ldvqueue
 				@qlog.trace "Moving task #{task.inspect} to running"
 				task.dequeue
 				task.run_on target
-				route_task_to job, task.raw, target
+				as_a_result = proc {route_task_to job, task.raw, target}
 			end
 		end # task mutex sync
-
+		as_a_result[]
 	end
 
-	# Route task to specific target.  Does not hold a mutex
+	# Route task to specific target.  Does not need a mutex
 	private; def route_task_to job, raw_task, target
 		@qlog.info "Routing #{job} with key #{raw_task['key']} to #{target}."
 		@qlog.trace "Routed task: #{raw_task.inspect}"
@@ -233,7 +235,7 @@ class Ldvqueue
 			@qlog.trace "Task we wanted to queue already exists: #{task.inspect}"
 			# If the task has already finished, but is queued again (we assume that it's due to a denial of its parent), we send result at once instead of queueing it.
 			if task.finished?
-				result task.raw
+				do_result task.raw,false
 
 			# Second, we do not queue if it's already queued or running.  If the task is running on an alive node, then it will finish, and the receiver will get the result anyway.  If the scheduler thinks the task is running on an alive node, but the node's actually dead, the announce from cluster controller will re-queue the task, and put it to the beginning of the queue.  So, any task will be executed at least once.
 			elsif task.queued? || task.running?
@@ -311,20 +313,32 @@ class Ldvqueue
 			return nil
 		end
 
+		do_result task
+	end
+
+	# When result is called from the outside, it needs to lock a task mutex.  However, some inside code already holds the mutex and wants to call result().  That's why need_lock is necessary here.
+	def do_result(task,need_mutex_lock = true)
 		@qlog.info "Task finished: #{task.key}"
-		# Remove result from the queue
-		@task_update_mutex.synchronize do
+		unsafe_work = proc do
+			# Remove result from the queue
 			task.finish
 
 			# Alter our notion about node's status
 			# As node first sends the result, and then performs local cleanups, we pause a bit for this status (WE DON'T)
 			fixup_status(task)
 		end
+		if need_mutex_lock
+			@task_update_mutex.synchronize &unsafe_work
+		else
+			unsafe_work[]
+		end
 
 		# Push result to the waiter
 		waiter.job_done(task.key,task.raw)
 
 		@qlog.trace "Result gotten of #{task.inspect}"
+
+		true
 	end
 
 	# When task is removed from queue, we alter our notion its node availability.
