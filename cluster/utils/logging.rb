@@ -4,6 +4,7 @@
 
 require 'rubygems'
 require 'logging'
+require 'fileutils'
 
 require 'ldv_logging'
 
@@ -85,20 +86,22 @@ module Logging
 	# Hash: key -> appenders -- for reaping filehandlers and reopening
 	@@key_appenders = {}
 	# Yield a logger for a node task with the key given
-	def self.logger_for key
-		l = (@@key_logger[key] ||= new_logger_for(key))
+	def self.logger_for key, prefix = '.'
+		l = (@@key_logger[key] ||= new_logger_for(key,prefix))
 		#reopen appenders if necessary (they may have been reaped)
 		@@key_appenders[key].each{|a| a.reopen }
 		l
 	end
 
-	def self.new_logger_for key
+	def self.new_logger_for key,prefix
 		l = logger["Node::#{key}"]
 		l.additive = true	# copy to the consolidated logger
+		wd = File.join(@@opts[:work_task_dir],prefix)
+		FileUtils.mkdir_p wd
 		@@key_appenders[key] ||= [
 			# Per-node logging file output
-			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}.trace"), :level=>:all),
-			mkappender(File.join(@@opts[:work_task_dir],"node_#{key}"),       :level=>:normal)
+			mkappender(File.join(wd,"node_#{key}.trace"), :level=>:all),
+			mkappender(File.join(wd,"node_#{key}"),       :level=>:normal)
 		]
 		# Add appenders and merge them with consolidated appenders
 		l.add_appenders(@@key_appenders[key][0],@@key_appenders[key][1])#,

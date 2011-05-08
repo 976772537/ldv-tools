@@ -189,7 +189,7 @@ class RealSpawner < Spawner
 
 		# Local logger for the current task.
 		# We store its name to close it afterwards, as it consumes open filehandlers, and we may run out of their limit
-		local_logger = Logging.logger_for(task['key'])
+		local_logger = Logging.logger_for(task['key'],task['global']['name'])
 
 		# Run job-specific targets
 		# NOTE that we don't need any asynchronous forking.  Here we can just synchronously call local processes, and wait for them to finish, because Nanite node can perform several jobs at once
