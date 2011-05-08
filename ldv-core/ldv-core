@@ -391,7 +391,8 @@ sub wait_for_all_verified {
 		unless (exists $keys_arrived->{$key_id}){
 			$keys_arrived->{$key_id} = 1;
 			# unpack the incoming package
-			vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
+			vsay 'NORMAL', "Successfully waited for subprocess with id \"$cid\"\n";
+			vsay 'DEBUG', "Command N \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
 			vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
 			LDV::Utils::watcher_cmd('unpack', $path, $contents);
 			# find corresponding task descriptor and set status to 'verified'
