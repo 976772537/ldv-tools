@@ -415,7 +415,7 @@ if [ ! -n "$cmdstream" ]; then
 	if [ $KERNEL_LEVEL -eq 0 -a ! -n "`grep '<ld id=' $cmdfileout`" ]; then
 		let worktime=`perl -e "use Time::HiRes qw( gettimeofday ); print int(gettimeofday*1000)"`-$start_time;
 		echo $worktime>$statefile_data;
-		echo "Driver have no kernel modules." >$statefile;
+		echo "Driver has no kernel modules." >$statefile;
 		ldv_print "ERROR: Driver have no kernel modules.";
 		exit 1;
 	fi;

@@ -129,6 +129,10 @@ class WatcherLocal < Watcher
 
 	# Stop server
 	def shutdown
+		@sem_fnames.keys.each {|pool| ensure_semaphore pool }
+		$log.trace @sem.inspect
+		@sem.values.compact.each &:ipc_rmid
+
 		FileUtils.rm_r server_address
 	end
 
@@ -148,7 +152,7 @@ class WatcherLocal < Watcher
 #	end
 
 	# Ensure that semaphore is created and initialized
-	def ensure_semaphore(pool)
+	def ensure_semaphore(pool,kill = false)
 		pool_file = @sem_fnames[pool] or raise "Can't queue this kind of pools: #{pool}! Only #{@sem_fnames.keys.join(', ')} are supported!"
 		FileUtils.touch pool_file
 		$log.debug "Going to use semaphore #{pool_file}"

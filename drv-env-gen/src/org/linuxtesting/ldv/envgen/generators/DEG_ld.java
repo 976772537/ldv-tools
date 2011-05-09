@@ -103,8 +103,10 @@ public class DEG_ld {
 		}
 		
 		File outputFileObj = new File(args[i]);
-		if(outputFileObj.exists())
-				return false;
+		if(outputFileObj.exists()) {
+			Logger.err("Output file already exists.");
+			return false;
+		}
 		outputFile = args[i];
 
 		return true;
