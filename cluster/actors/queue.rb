@@ -235,7 +235,7 @@ class Ldvqueue
 			@qlog.trace "Task we wanted to queue already exists: #{task.inspect}"
 			# If the task has already finished, but is queued again (we assume that it's due to a denial of its parent), we send result at once instead of queueing it.
 			if task.finished?
-				do_result task.raw,false
+				do_result task,false
 
 			# Second, we do not queue if it's already queued or running.  If the task is running on an alive node, then it will finish, and the receiver will get the result anyway.  If the scheduler thinks the task is running on an alive node, but the node's actually dead, the announce from cluster controller will re-queue the task, and put it to the beginning of the queue.  So, any task will be executed at least once.
 			elsif task.queued? || task.running?
@@ -316,6 +316,7 @@ class Ldvqueue
 		do_result task
 	end
 
+	# do_results, unlike +result+, gets an "internal" task, not a raw one
 	# When result is called from the outside, it needs to lock a task mutex.  However, some inside code already holds the mutex and wants to call result().  That's why need_lock is necessary here.
 	def do_result(task,need_mutex_lock = true)
 		@qlog.info "Task finished: #{task.key}"
