@@ -12,13 +12,25 @@ public class TokenPpcDirective extends Token {
 	}
 
 	private PPCType ppctype;
-	
+	private int beginIndex = 0;
+	private int endIndex = 0;
+		
 	public TokenPpcDirective(int beginIndex, int endIndex, String content, String ldvCommentContent, PPCType ppctype) {
-		super(beginIndex, endIndex, content, ldvCommentContent);
+		super(content, ldvCommentContent);
 		this.ppctype = ppctype;
+		this.beginIndex = beginIndex;
+		this.endIndex = endIndex;
 	}	
 	
 	public PPCType getPPCType() {
 		return this.ppctype;
+	}
+
+	public int getBeginIndex() {
+		return beginIndex;
+	}
+	
+	public int getEndIndex() {
+		return endIndex;
 	}
 }

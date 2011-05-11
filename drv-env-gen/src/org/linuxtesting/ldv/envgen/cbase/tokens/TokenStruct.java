@@ -1,23 +1,16 @@
 package org.linuxtesting.ldv.envgen.cbase.tokens;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-import org.linuxtesting.ldv.envgen.Logger;
-import org.linuxtesting.ldv.envgen.cbase.parsers.Item;
 import org.linuxtesting.ldv.envgen.cbase.parsers.PatternSorter;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserStruct.NameAndType;
 
-
-public class TokenStruct extends ContainerToken<TokenFunctionDecl> {
-	/* список функций, которые содержаться в структурах */
-	
-	
+public class TokenStruct extends TokenFuncCollection {
 	private String name;
 	private String type;
 	
+	@Override
 	public String getName() {
 		return name;
 	}
@@ -28,27 +21,19 @@ public class TokenStruct extends ContainerToken<TokenFunctionDecl> {
 	
 	public TokenStruct(String name, String type, int beginIndex, int endIndex, String content, 
 			String ldvCommentContent, List<TokenFunctionDecl> functionDeclList) {
-		super(beginIndex, endIndex, content, ldvCommentContent, functionDeclList);
+		super(content, ldvCommentContent, functionDeclList);
 		this.name = name;
 		this.type = type;
 	}
-
-	public void setComments(List<NameAndType> fnamesPattern) {
-		for(TokenFunctionDecl tfd: tokens) {
-			// ищем для него соответствующий тип
-			for(NameAndType nt : fnamesPattern) {
-				if(nt.getName().equals(tfd.getName())) {
-					tfd.setCallback(nt.getType());
-					break;
-				}
-			}
-		}
+		
+	@Override
+	public String getId() {
+		return name + "_" + type;
 	}
 
-	boolean sorted = false;
-	
-	public boolean isSorted() {
-		return sorted;
+	@Override
+	public String getDesc() {
+		return "STRUCT: struct type: " + type + ", struct name: " + name;
 	}
 	
 	public void sortFunctions(PatternSorter patternSorter, List<NameAndType> fnames) {
@@ -68,44 +53,15 @@ public class TokenStruct extends ContainerToken<TokenFunctionDecl> {
 		sorted = true;
 	}
 	
-	protected List<Item<TokenFunctionDecl>> sortedItems;
-	
-	public List<Item<TokenFunctionDecl>> getSortedTokens() {
-		return sortedItems;
-	}
-	
-	public String getDeclStr(String indent) {
-		Set<String> s = new HashSet<String>();
-		StringBuffer buf = new StringBuffer();
-		for(Item<TokenFunctionDecl> t : sortedItems) {
-			String itemDecl = t.getDeclarationStr(getId());
-			if(s.add(itemDecl)) {
-				buf.append(indent + itemDecl + "\n");				
-			}
-		}
-		return buf.toString();
-	}
-
-	public String getCompletionCheckStr() {
-		Set<String> s = new HashSet<String>();
-		StringBuffer buf = new StringBuffer();
-		boolean first = true;
-		for(Item<TokenFunctionDecl> t : sortedItems) {
-			String itemCheck = t.getCompletionCheckStr(getId());
-			Logger.trace("itemCheck=" + itemCheck);
-			//ignore empty checks
-			if(itemCheck!=null && !itemCheck.trim().isEmpty() && s.add(itemCheck)) {
-				if(!first) {
-					buf.append(" || ");					
+	public void setComments(List<NameAndType> fnamesPattern) {
+		for(TokenFunctionDecl tfd: tokens) {
+			// ищем для него соответствующий тип
+			for(NameAndType nt : fnamesPattern) {
+				if(nt.getName().equals(tfd.getName())) {
+					tfd.setComment(nt.getType());
+					break;
 				}
-				buf.append(itemCheck);				
-				first = false;
 			}
 		}
-		return buf.toString();
-	}
-	
-	public String getId() {
-		return name + "_" + type;
 	}
 }

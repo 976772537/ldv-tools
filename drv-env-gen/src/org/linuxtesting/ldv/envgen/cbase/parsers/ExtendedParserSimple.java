@@ -35,7 +35,7 @@ public class ExtendedParserSimple extends ExtendedParser<TokenFunctionDeclSimple
 		List<TokenFunctionDecl> functions = innerParserFunctions.parse();
 		if(functions == null || functions.size() == 0)
 			return null;
-		TokenFunctionDecl oneToken = (TokenFunctionDecl)functions.get(0);
+		TokenFunctionDecl oneToken = functions.get(0);
 		TokenFunctionDeclSimple token = null;
 		if(nameAndType.getType().equals("module_init")) {
 			token = new TokenFunctionDeclSimple(nameAndType.getName(),

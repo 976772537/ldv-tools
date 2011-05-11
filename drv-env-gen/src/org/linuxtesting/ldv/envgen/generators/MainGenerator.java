@@ -7,23 +7,31 @@ import java.io.FileWriter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
 import org.linuxtesting.ldv.envgen.FSOperationsBase;
 import org.linuxtesting.ldv.envgen.Logger;
+import org.linuxtesting.ldv.envgen.cbase.parsers.AssignTimerParser;
+import org.linuxtesting.ldv.envgen.cbase.parsers.CallbackItem;
+import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserFunction;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserSimple;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserStruct;
+import org.linuxtesting.ldv.envgen.cbase.parsers.FunctionBodyParser;
+import org.linuxtesting.ldv.envgen.cbase.parsers.InterruptParser;
 import org.linuxtesting.ldv.envgen.cbase.parsers.Item;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ParserPPCHelper;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderCCommentsDel;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderInterface;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderWrapper;
+import org.linuxtesting.ldv.envgen.cbase.tokens.TokenStruct;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDeclSimple;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenPpcDirective;
-import org.linuxtesting.ldv.envgen.cbase.tokens.TokenStruct;
+import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFuncCollection;
 import org.linuxtesting.ldv.envgen.generators.fungen.FuncGenerator;
 import org.linuxtesting.ldv.envgen.generators.fungen.FuncGeneratorFactory;
 import org.linuxtesting.ldv.envgen.generators.fungen.GenerateOptions;
@@ -116,8 +124,18 @@ public class MainGenerator {
 			ReaderInterface wreader = new ReaderCCommentsDel(reader);
 			/* сделаем парсер директив препроцессора */
 			ParserPPCHelper ppcParser = new ParserPPCHelper((ReaderWrapper)wreader);
+			
+			Map<String, TokenFunctionDecl> parsedFunctions = null;
+			List<FunctionBodyParser> bodyParsers = getRequiredParsers(plist);
+			if(!bodyParsers.isEmpty()) {
+				Logger.debug("parseAllFunctions");
+				parsedFunctions = parseAllFunctions(wreader, bodyParsers);
+			} else {
+				Logger.debug("do not generate any interrupt... calls");
+			}
 			/* создадим экземпляр парсера структур */
-			ExtendedParserStruct ep = new ExtendedParserStruct(properties, wreader);
+			ExtendedParserStruct ep = 
+				new ExtendedParserStruct(properties, wreader, parsedFunctions);
 			/* создадим экземпляр парсера функций из макросов module_init и module_exit */
 			ExtendedParserSimple epSimple = new ExtendedParserSimple(wreader);
 			/* распарсим структуры */
@@ -140,7 +158,24 @@ public class MainGenerator {
 				String id = index + "_" + p.getStringId();
 				FuncGenerator fg = FuncGeneratorFactory.create(GenerateOptions.DRIVER_FUN_STRUCT_FUNCTIONS, p);				
 				
-				GeneratorContext ctx = new GeneratorContext(p,isgenerateIfdefAroundMains, id, fg, ppcParser, ep, fw, macroTokens, structTokens);
+				List<TokenFuncCollection> collection = new LinkedList<TokenFuncCollection>(structTokens);
+				
+				if(p.isGenInterrupt()) {
+					assert parsedFunctions!=null;
+					//add collection with interrupt calls
+					Logger.debug("add collection with interrupt calls");
+					TokenFuncCollection interrupts = InterruptParser.createInterrupts(parsedFunctions);
+					collection.add(interrupts);
+				}
+				if(p.isGenTimers()) {
+					assert parsedFunctions!=null;
+					//add collection with timer calls
+					Logger.debug("add collection with timer calls");
+					TokenFuncCollection timers = AssignTimerParser.createTimers(parsedFunctions);
+					collection.add(timers);
+										
+				}
+				GeneratorContext ctx = new GeneratorContext(p,isgenerateIfdefAroundMains, id, fg, ppcParser, ep, fw, macroTokens, collection);
 				
 				generateMainHeader(ctx);								
 					generateVarDeclSection(ctx);			
@@ -166,6 +201,38 @@ public class MainGenerator {
 		return new DegResult(false);
 	}
 
+	private static List<FunctionBodyParser> getRequiredParsers(EnvParams[] plist) {
+		List<FunctionBodyParser> list = new LinkedList<FunctionBodyParser>();
+		boolean genint = false;
+		boolean gentimer = false;
+		for(EnvParams p : plist) {
+			if(p.isGenInterrupt()) {
+				genint = true;
+			}
+			if(p.isGenTimers()) {
+				gentimer = true;
+			}
+		}
+		if(genint) {
+			list.add(new InterruptParser());
+		}
+		if(gentimer) {
+			list.add(new AssignTimerParser());
+		}
+		return list;
+	}
+
+	private static Map<String, TokenFunctionDecl> parseAllFunctions(ReaderInterface reader, List<FunctionBodyParser> bodyParsers) {
+		Map<String, TokenFunctionDecl> parsedFunctions = new TreeMap<String, TokenFunctionDecl>();
+		ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(reader);
+		innerParserFunctions.addAllBodyParser(bodyParsers);
+		List<TokenFunctionDecl> functions = innerParserFunctions.parse();
+		for(TokenFunctionDecl tfd : functions) {
+			parsedFunctions.put(tfd.getName(), tfd);
+		}
+		return parsedFunctions;
+	}
+
 	public static class GeneratorContext {
 		final EnvParams p;		
 		final boolean isgenerateIfdefAroundMains; 
@@ -175,7 +242,7 @@ public class MainGenerator {
 		final ExtendedParserStruct ep;
 		final FileWriter fw; 
 		final List<TokenFunctionDeclSimple> macroTokens;	
-		final List<TokenStruct> structTokens; 
+		final List<TokenFuncCollection> structTokens; 
 		private String indent = "";
 		private static final String SHIFT = "\t";
 		
@@ -184,7 +251,7 @@ public class MainGenerator {
 				FuncGenerator fg, ParserPPCHelper ppcParser, ExtendedParserStruct ep,
 				FileWriter fw,
 				List<TokenFunctionDeclSimple> macroTokens,
-				List<TokenStruct> structTokens) {
+				List<TokenFuncCollection> structTokens) {
 			super();
 			this.p = p;
 			this.isgenerateIfdefAroundMains = isgenerateIfdefAroundMains;
@@ -250,7 +317,8 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
 		sb.append("\n" + ctx.getIndent() + "int " + NONDET_INT + "(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
-		sb.append("\n" + ctx.getIndent() + "extern int IN_INTERRUPT;\n");
+		
+		sb.append("\n" + ctx.getIndent() + CallbackItem.getInterruptVarDecl() + ";\n");
 
 	//	if(index == null)
 	//		sb.append("void ldv_main(void) {\n\n\n");
@@ -338,12 +406,12 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_INITIALIZING_PART+" */");
 		Logger.trace("Start appending \"VARIABLE INITIALIZING PART\"...");
 		sb.append("\n" + ctx.getIndent() + "/*============================= VARIABLE INITIALIZING PART  =============================*/");
-		sb.append("\n" + ctx.getIndent() + "IN_INTERRUPT = 1;\n");
+		sb.append("\n" + ctx.getIndent() + CallbackItem.getInterruptInit() + ";\n");
 		if(ctx.p.isInit()) {
-			for(TokenStruct token : ctx.structTokens) {
+			for(TokenFuncCollection token : ctx.structTokens) {
 				if(token.hasInnerTokens()) {
-						Logger.trace("Start appending inittialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
-						sb.append("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+						Logger.trace("Start appending inittialization for " + token.getDesc() +"\"...");
+						sb.append("\n" + ctx.getIndent() + "/** " + token.getDesc() + " **/");
 						for(TokenFunctionDecl tfd : token.getTokens()) {
 							sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
 							ctx.fg.set(tfd);
@@ -361,7 +429,7 @@ public class MainGenerator {
 							sb = new StringBuffer();
 						}
 						sb.append("\n");
-						Logger.trace("Ok. Var initialization for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
+						Logger.trace("Ok. Var initialization for " + token.getDesc() + "\" - successfully finished.");
 				}
 			}
 		}
@@ -378,10 +446,10 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_BEGIN+ldvTag_VARIABLE_DECLARATION_PART+" */");
 		sb.append("\n" + ctx.getIndent() + "/*============================= VARIABLE DECLARATION PART   =============================*/");
 		
-		for(TokenStruct token : ctx.structTokens) {
+		for(TokenFuncCollection token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
-					Logger.trace("Start appending declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\"...");
-					sb.append("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getType() + " **/");
+					Logger.trace("Start appending declarations for " + token.getDesc()+"\"...");
+					sb.append("\n" + ctx.getIndent() + "/** " + token.getDesc() + " **/");
 					for(TokenFunctionDecl tfd : token.getTokens()) {
 						sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
 						ctx.fg.set(tfd);
@@ -407,7 +475,7 @@ public class MainGenerator {
 						sb = new StringBuffer();
 					}
 					sb.append("\n");
-					Logger.trace("Ok. Var declarations for structure type \""+token.getType()+"\" and name \""+token.getType()+"\" - successfully finished.");
+					Logger.trace("Ok. Var declarations for " + token.getDesc()+"\" - successfully finished.");
 			}
 		}
 		sb.append("\n\n\n");
@@ -425,7 +493,7 @@ public class MainGenerator {
 			SequenceParams sp = (SequenceParams)ctx.p;
 			//generate declarations for state counters
 			if(sp.isStatefull()) {
-				for(TokenStruct token : ctx.structTokens) {
+				for(TokenFuncCollection token : ctx.structTokens) {
 					if(token.hasInnerTokens() && token.isSorted() && sp.isStatefull()) {
 						ctx.fw.write(token.getDeclStr(ctx.getIndent())+"\n");				
 					}
@@ -453,7 +521,7 @@ public class MainGenerator {
 				+ "while(  " + NONDET_INT + "()");
 		ctx.incIndent();
 		if(sp.isStatefull()) {
-			for(TokenStruct token : ctx.structTokens) {
+			for(TokenFuncCollection token : ctx.structTokens) {
 				if(token.hasInnerTokens() && token.isSorted()) {
 					String str = token.getCompletionCheckStr();
 					if(str!=null && !str.trim().isEmpty()) {
@@ -482,7 +550,7 @@ public class MainGenerator {
 	private static void generateSequenceOne(GeneratorContext ctx, SequenceParams sp) throws IOException {
 		int caseCounter = 0;
 		ctx.fw.write("\n" + ctx.getIndent() + "switch(" + NONDET_INT + "()) {\n");		
-		for(TokenStruct token : ctx.structTokens) {
+		for(TokenFuncCollection token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
 				ctx.incIndent();
 				if(sp.isSorted() && token.isSorted() && sp.isStatefull()) {
@@ -490,7 +558,7 @@ public class MainGenerator {
 						TokenFunctionDecl tfd = item.getData();						
 						ctx.fw.write("\n" + ctx.getIndent() + "case " + caseCounter + ": {\n");
 						ctx.incIndent();
-						ctx.fw.write("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+						ctx.fw.write("\n" + ctx.getIndent() + "/** " + token.getDesc() + " **/");
 						ctx.fw.write("\n" + ctx.getIndent() + item.getPreconditionStrBegin(token.getId()) + "\n");
 						generateFunctionCall(ctx, token, tfd);
 						ctx.fw.write("\n" + ctx.getIndent() + item.getUpdateStr(token.getId()) + "\n");						
@@ -504,7 +572,7 @@ public class MainGenerator {
 					for(TokenFunctionDecl tfd : token.getTokens()) {
 						ctx.fw.write("\n" + ctx.getIndent() + "case " + caseCounter + ": {\n");
 						ctx.incIndent();
-						ctx.fw.write("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+						ctx.fw.write("\n" + ctx.getIndent() + "/** " + token.getDesc()+ " **/");
 						generateFunctionCall(ctx, token, tfd);
 						ctx.decIndent();
 						ctx.fw.write("\n" + ctx.getIndent() + "}\n");
@@ -522,9 +590,9 @@ public class MainGenerator {
 	}
 
 	private static void generatePlainBody(GeneratorContext ctx) throws IOException {		
-		for(TokenStruct token : ctx.structTokens) {
+		for(TokenFuncCollection token : ctx.structTokens) {
 			if(token.hasInnerTokens()) {
-				ctx.fw.write("\n" + ctx.getIndent() + "/** STRUCT: struct type: " + token.getType() + ", struct name: " + token.getName() + " **/");
+				ctx.fw.write("\n" + ctx.getIndent() + "/** " + token.getDesc() + " **/");
 				if(ctx.p.isSorted() && token.isSorted()) {
 					for(Item<TokenFunctionDecl> item : token.getSortedTokens()) {
 						TokenFunctionDecl tfd = item.getData();						
@@ -541,7 +609,7 @@ public class MainGenerator {
 	}
 
 	private static void generateFunctionCall(GeneratorContext ctx,
-			TokenStruct token, TokenFunctionDecl tfd) throws IOException {
+			TokenFuncCollection token, TokenFunctionDecl tfd) throws IOException {
 		StringBuffer sb = new StringBuffer();				
 		sb.append("\n" + ctx.getIndent() + "/* content: " + tfd.getContent() + "*/");
 		ctx.fg.set(tfd);
