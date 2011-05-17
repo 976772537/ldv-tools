@@ -93,6 +93,11 @@ my $basedir="$workdir/$tempdir";
 my $my_driverdir="$basedir/$driver_dirname";
 my $stats_file="$basedir/stats.xml";
 
+if (-f $stats_file){
+	ldv_dprint("Time stats exist, removing.");
+	unlink $stats_file or die "Couldn't unlink '$stats_file': $!";
+}
+
 chomp($basedir);
 mkpath($basedir);
 unless (-d $basedir){
