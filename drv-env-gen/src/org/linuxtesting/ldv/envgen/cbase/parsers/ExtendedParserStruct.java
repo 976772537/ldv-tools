@@ -108,7 +108,11 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 				for(NameAndType fnamesIterator : fnames) {
 					TokenFunctionDecl tfd = parsedFunctions.get(fnamesIterator.getName());
 					if(tfd!=null) {
-						functions.add(tfd);
+						if(!isExists(functions, tfd)) {
+							functions.add(tfd);
+						} else {
+							Logger.debug("duplicated function tfd=" + tfd.getName());
+						}
 					} else {
 						Logger.debug("Not found declaration for name " + fnamesIterator.getName());
 					}
@@ -131,6 +135,17 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 			return token;
 		}
 		return null;
+	}
+
+	private boolean isExists(List<TokenFunctionDecl> functions,
+			TokenFunctionDecl tfd) {
+		String name = tfd.getName();
+		for(TokenFunctionDecl d : functions) {
+			if(name.equals(d.getName())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static NameAndType parseNameAndType(String clearContent) {
