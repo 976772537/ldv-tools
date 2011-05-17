@@ -12,8 +12,10 @@ class Ldvqueue
 	DEFAULT_OPTIONS = { :route_time => 5 }
 
 	def initialize
+		# deadlock prevention: task can't be hold inside status's sync block
 		@status_update_mutex = Mutex.new
 		@task_update_mutex = Mutex.new
+		@key_pool_mutex = Mutex.new
 
 		# Node status notion
 		@nodes = {}
@@ -46,6 +48,8 @@ class Ldvqueue
 		tasks.qlog = @qlog
 		# Cluster logger
 		@clog = Logging.logger['Cluster']
+
+		# TODO: This should hold all the mutexes (crucial when it will be performed on-line)
 
 		# Serialization init
 		@key_fname = File.expand_path File.join('data','max_key')
@@ -103,10 +107,10 @@ class Ldvqueue
 		reply_to = key_info['reply_to']
 
 		@qlog.debug "Unique key requested for #{key_skel}"
-		# EventMachine calls handlers synchronously, so no mutex here.
-		@key_pool ||= {}
-		# FIXME: read this from file
-		@key_pool[key_skel] ||= @default_key
+		@key_pool_mutex.synchronize do
+			@key_pool ||= {}
+			@key_pool[key_skel] ||= @default_key
+		end
 		new_key = @key_pool[key_skel] += 1
 
 		# Serialize as soon as possible
@@ -116,15 +120,15 @@ class Ldvqueue
 
 		@qlog.info "Unique key requested for #{key_skel}.  Sending: #{new_key_str}"
 
+		# Return the new key, and the requestor will get it
 		new_key_str
-
-		# Launch the task on the node given
-		#Nanite.push('/nodeui/take_unique_key',"#{key_skel}.#{new_key}",:target=>reply_to)
 	end
 
 	# Fetch task from task queue, selects node to route it to, and pushes it to the cluster
 	def route_task
 		# Take a task from queue and launch it
+		# The action performed is implemented as a callback
+		as_a_result = proc { }
 		@task_update_mutex.synchronize do
 
 			# At this point, every task queued has never been finished in the cluster.
@@ -171,13 +175,13 @@ class Ldvqueue
 				@qlog.trace "Moving task #{task.inspect} to running"
 				task.dequeue
 				task.run_on target
-				route_task_to job, task.raw, target
+				as_a_result = proc {route_task_to job, task.raw, target}
 			end
-		end
-
+		end # task mutex sync
+		as_a_result[]
 	end
 
-	# Route task to specific target.  Does not hold a mutex
+	# Route task to specific target.  Does not need a mutex
 	private; def route_task_to job, raw_task, target
 		@qlog.info "Routing #{job} with key #{raw_task['key']} to #{target}."
 		@qlog.trace "Routed task: #{raw_task.inspect}"
@@ -218,10 +222,12 @@ class Ldvqueue
 	# 	:key => a string with a key for this task
 	public; def queue(_task, where = :last)
 		@qlog.info "Incoming task: #{_task['key']}" if where
-		do_queue(_task,where)
+		@task_update_mutex.synchronize {do_queue(_task,where)}
 	end
 
+	# Should have mutex locked at the beginning!
 	def do_queue(_task, where = :last)
+		@qlog.warn "Mutex is not locked in do_queue!" unless @task_update_mutex.locked?
 		begin
 			task = tasks.queue(_task,where)
 		rescue TaskExists => te
@@ -229,7 +235,7 @@ class Ldvqueue
 			@qlog.trace "Task we wanted to queue already exists: #{task.inspect}"
 			# If the task has already finished, but is queued again (we assume that it's due to a denial of its parent), we send result at once instead of queueing it.
 			if task.finished?
-				result task.raw
+				do_result task,false
 
 			# Second, we do not queue if it's already queued or running.  If the task is running on an alive node, then it will finish, and the receiver will get the result anyway.  If the scheduler thinks the task is running on an alive node, but the node's actually dead, the announce from cluster controller will re-queue the task, and put it to the beginning of the queue.  So, any task will be executed at least once.
 			elsif task.queued? || task.running?
@@ -251,22 +257,25 @@ class Ldvqueue
 		@qlog.trace "Reject task: #{_task}!"
 		key = _task['key']
 
-		# Remove from registry of running tasks
-		task = tasks.task_of(key)
-		task.requeue
+		@task_update_mutex.synchronize do
+			# Remove from registry of running tasks
+			task = tasks.task_of(key)
+			task.requeue
+
+			@qlog.debug "Redo task #{key}, Currently run: #{how_run}"
+			# put task into the beginning of the queue
+			do_queue(_task,:first)
+		end
 
 		# We might "want" to fix up our notion of node's status, and increase its availability, for instance.  But the thing is that doing a "redo" means that out notion of the status was incorrect in the first place!  So we don't invoke fixup_status here
 		#fixup_status task
 
-		@qlog.debug "Redo task #{key}, Currently run: #{how_run}"
-		# put task into the beginning of the queue
-		do_queue(_task,:first)
 	end
 
 	# Announce statuses.  Keys MUST be strings, not syms!
 	def announce(statuses)
 		return unless statuses	#If something weird happened
-		@status_update_mutex.synchronize do
+		@task_update_mutex.synchronize do
 			@clog.debug "Announced: #{statuses.inspect}"
 			new_nodes = statuses.keys - @nodes.keys
 			nodes_to_remove = @nodes.keys - statuses.keys
@@ -290,9 +299,9 @@ class Ldvqueue
 	end
 
 	def remove(node)
-		@status_update_mutex.synchronize do
-			remove_node node
-		end if nodes[node]	# No need to remove non-worker node
+		@task_update_mutex.synchronize do
+			remove_node node if nodes[node]	# No need to remove non-worker node
+		end
 	end
 
 	def result(_task)
@@ -304,17 +313,33 @@ class Ldvqueue
 			return nil
 		end
 
+		do_result task
+	end
+
+	# do_results, unlike +result+, gets an "internal" task, not a raw one
+	# When result is called from the outside, it needs to lock a task mutex.  However, some inside code already holds the mutex and wants to call result().  That's why need_lock is necessary here.
+	def do_result(task,need_mutex_lock = true)
 		@qlog.info "Task finished: #{task.key}"
-		# Remove result from the queue
-		task.finish
+		unsafe_work = proc do
+			# Remove result from the queue
+			task.finish
+
+			# Alter our notion about node's status
+			# As node first sends the result, and then performs local cleanups, we pause a bit for this status (WE DON'T)
+			fixup_status(task)
+		end
+		if need_mutex_lock
+			@task_update_mutex.synchronize &unsafe_work
+		else
+			unsafe_work[]
+		end
+
 		# Push result to the waiter
 		waiter.job_done(task.key,task.raw)
 
-		# Alter our notion about node's status
-		# As node first sends the result, and then performs local cleanups, we pause a bit for this status (WE DON'T)
-		fixup_status(task)
-
 		@qlog.trace "Result gotten of #{task.inspect}"
+
+		true
 	end
 
 	# When task is removed from queue, we alter our notion its node availability.
@@ -333,6 +358,8 @@ class Ldvqueue
 	# When we send a task to a node, we increase the real load average for this node for 1 minute by value decreasing over this minute from 1 to 0. After 1 minute we consider the load established, and remove this discount
 	# When a task finishes, we decrease the load average in the same way.
 	def discount discounted
+		@qlog.warn "Mutex is not locked in discount!" unless @task_update_mutex.locked?
+
 		@qlog.trace "Current discounts: #{@discount.inspect}"
 		# Save the current time (for consistency)
 		nowtime = Time.now
@@ -360,6 +387,8 @@ class Ldvqueue
 	Task_end_discount = {'ldv' => 1, 'dscv' => 0.7, 'rcv' => 1 }
 
 	def add_discount value, node
+		@qlog.warn "Mutex is not locked in remove_lock!" unless @task_update_mutex.locked?
+
 		was = discount(@nodes)[node]['load']
 		@discount << {:time=>Time.now, :value => value.to_f, :node => node}
 		now = discount(@nodes)[node]['load']
@@ -372,16 +401,12 @@ class Ldvqueue
 		remove_task_from(task,self.queued)
 	end
 
-	def remove_task(task)
-		remove_task_from(task,self.running)
-	end
-
 	# Requeues tasks assigned to node
+	# Must be done under a mutex!
 	def remove_node(node_key)
+		@qlog.warn "Mutex is not locked in remove_node!" unless @task_update_mutex.locked?
 		@clog.warn "Node #{node_key} was shut down or stalled!"
 		@nodes.delete node_key
-
-		#@task_update_mutex.synchronize do
 
 		tasks.running_on(node_key).each do |k|
 			@qlog.trace "Requeueing #{k.inspect}"
@@ -392,6 +417,7 @@ class Ldvqueue
 
 	# Adds node to a pool of available
 	def add_node(node,status)
+		@qlog.warn "Mutex is not locked in add_node!" unless @task_update_mutex.locked?
 		nodes[node]=status
 		@qlog.info "New node #{node} connected!"
 	end

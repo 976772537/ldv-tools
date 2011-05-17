@@ -41,7 +41,7 @@ class Packer
 	def unpack(archive)
 		# Trace log level doesn't work here... I don't know why...
 		@log.add(1, "Unpacking #{archive}")
-		say_and_run(%w(pax -r -O -f),archive)
+		say_and_run(%w(pax -z -r -O -f),archive)
 		@log.add(1, "Unpacking #{archive} finished.")
 	end
 
@@ -78,7 +78,7 @@ class Packer
 			end
 
 			@log.info "Send results package #{package_name}"
-			pax_args = [%w(pax -O -w -x cpio),expanded_files,"-f",archive_name]
+			pax_args = [%w(pax -z -O -w -x cpio),expanded_files,"-f",archive_name]
 			pax_args.push('-s',rewrite_paths) if rewrite_paths
 			say_and_run(*pax_args)
 		else
@@ -95,6 +95,10 @@ class Packer
 	# Get package file name for the key given
 	private; def name_for key, destination
 		"#{key}-#{(destination == :to_parent)? 'to':'from'}-parent.pax"
+	end
+
+	public; def self.print_contents_of package
+		Kernel.system('pax','-z','-O','-f',package)
 	end
 end
 

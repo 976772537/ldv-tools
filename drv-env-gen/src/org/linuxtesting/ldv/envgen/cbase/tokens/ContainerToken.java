@@ -15,9 +15,9 @@ public class ContainerToken<T extends Token> extends Token {
 		return false;
 	}
 
-	public ContainerToken(int beginIndex, int endIndex, String content,
+	public ContainerToken(String content,
 			String ldvCommentContent, List<T> tokens) {
-		super(beginIndex, endIndex, content, ldvCommentContent);
+		super(content, ldvCommentContent);
 		this.tokens = tokens;
 	}
 

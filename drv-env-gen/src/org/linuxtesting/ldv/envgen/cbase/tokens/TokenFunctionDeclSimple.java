@@ -21,8 +21,8 @@ public class TokenFunctionDeclSimple extends TokenFunctionDecl {
 			List<String> replacementParams, int beginIndex, int endIndex,
 			String content, String ldvCommentContent, SimpleType simpleType) {
 		super(name, retType, replacementParams, beginIndex, endIndex, content, ldvCommentContent, null);
-		tokens = new ArrayList<Token>();
-		tokens.add(this);
+		tokens = new ArrayList<TokenBodyElement>();
+		//tokens.add(this);
 		this.simpleType = simpleType;
 	}
 

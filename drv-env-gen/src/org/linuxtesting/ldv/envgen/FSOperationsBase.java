@@ -58,7 +58,8 @@ public class FSOperationsBase {
 				return true;
 			} catch (IOException e)
 			{
-				//e.printStackTrace();
+				Logger.err("ldv_err: FSOperations.CopyFile(\""+srcFilename+"\", "+dstFilename+")\n");
+				e.printStackTrace();
 			}
 		}
 		return false;
@@ -170,9 +171,11 @@ public class FSOperationsBase {
 			fin.close();
 		} catch (FileNotFoundException e)
 		{
-			//System.err.print("ldv_err: FSOperations.readFile(\""+filename+"\", "+removeNewLine+")\n");
+			Logger.err("ldv_err: FSOperations.readFile(\""+filename+"\", "+removeNewLine+")\n");
+			e.printStackTrace();
 		} catch (IOException e) {
-			//System.err.print("ldv_err: FSOperations.readFile(\""+filename+"\", "+removeNewLine+")\n");
+			Logger.err("ldv_err: FSOperations.readFile(\""+filename+"\", "+removeNewLine+")\n");
+			e.printStackTrace();
 		}
 		return buffer.toString();
 	}

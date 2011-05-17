@@ -2,6 +2,7 @@ package org.linuxtesting.ldv.envgen.cbase.parsers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -9,8 +10,8 @@ import java.util.regex.Pattern;
 import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.parsers.options.OptionStructType;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderInterface;
-import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenStruct;
+import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 
 public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
@@ -37,7 +38,8 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 
 	/* если 1 - то используем механизм поиска шаблонов */
 	private boolean sortFunctionCalls = true;
-
+	Map<String,TokenFunctionDecl> parsedFunctions;
+	
 	public void setSortFunctionCalls(boolean b) {
 		this.sortFunctionCalls = b;
 	}
@@ -48,7 +50,7 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		return patternSorter;
 	}
 
-	public ExtendedParserStruct(Properties properties, ReaderInterface reader) {
+	public ExtendedParserStruct(Properties properties, ReaderInterface reader, Map<String,TokenFunctionDecl> parsedFunctions) {
 		super(reader);
 		addOption(new OptionStructType());
 		if(properties!=null) {
@@ -56,10 +58,11 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		} else {
 			patternSorter = new PatternSorter();			
 		}
+		this.parsedFunctions = parsedFunctions;
 	}
 
 	public ExtendedParserStruct(ReaderInterface reader) {
-		this(null, reader);
+		this(null, reader, null);
 	}
 	
 	/**
@@ -87,15 +90,30 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		List<NameAndType> fnames = getFunctionNames(innerContent);
 		Logger.trace("TokenStruct.parseContent " + sNameAndType + " initialized as " + fnames);
 		if(fnames.size()>0) {
-			/* создадим парсер функций */
-			ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(getReader());
-			/* и добавим в него поиск только по указанным именам функций */
-			for(NameAndType fnamesIterator : fnames) {
-				/* TODO: сделать метод добавления множества параметров */
-				innerParserFunctions.addConfigOption("name", fnamesIterator.getName());
+			List<TokenFunctionDecl> functions;
+			if(parsedFunctions==null) {
+				Logger.debug("parse functions");
+				/* создадим парсер функций */
+				ExtendedParserFunction innerParserFunctions = new ExtendedParserFunction(getReader());
+				/* и добавим в него поиск только по указанным именам функций */
+				for(NameAndType fnamesIterator : fnames) {
+					/* TODO: сделать метод добавления множества параметров */
+					innerParserFunctions.addConfigOption("name", fnamesIterator.getName());
+				}
+				/* и запустим парсер */
+				functions = innerParserFunctions.parse();
+			} else {
+				Logger.debug("use parsed functions table");
+				functions = new ArrayList<TokenFunctionDecl>(fnames.size()); 
+				for(NameAndType fnamesIterator : fnames) {
+					TokenFunctionDecl tfd = parsedFunctions.get(fnamesIterator.getName());
+					if(tfd!=null) {
+						functions.add(tfd);
+					} else {
+						Logger.debug("Not found declaration for name " + fnamesIterator.getName());
+					}
+				}				
 			}
-			/* и запустим парсер */
-			List<TokenFunctionDecl> functions = innerParserFunctions.parse();
 			Logger.trace("TokenStruct.parsed funcs " + functions);
 			Logger.debug("TokenStruct.parseContent: Found " + functions.size() + " out of " + fnames.size() + " functions");
 			/* и создадим токен - структуру */

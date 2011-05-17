@@ -6,7 +6,7 @@ import java.io.IOException;
 import org.linuxtesting.ldv.envgen.FSOperationsBase;
 import org.linuxtesting.ldv.envgen.Logger;
 
-
+@Deprecated
 public class MainGeneratorOnServ {
 	public static void main(String[] args) {
 		long startf = System.currentTimeMillis();

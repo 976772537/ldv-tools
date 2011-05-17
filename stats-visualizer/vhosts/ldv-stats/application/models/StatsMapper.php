@@ -484,7 +484,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               // For tools problems pages restrict the selected result both to
               // the corresponding problem name.
               foreach (array_keys($this->_toolsInfoNameTableColumnMapper) as $toolNameForRestrict) {
-                if (preg_match("/$toolNameForRestrict/", $pageName)) {
+                if (preg_match("/$toolNameForRestrict Problems/", $pageName)) {
                   $toolNameProblems = preg_split('/ /', $pageName);
                   if ($value == 'Unmatched') {
                     $select = $select

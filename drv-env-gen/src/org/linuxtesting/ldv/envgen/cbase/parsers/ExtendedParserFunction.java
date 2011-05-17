@@ -2,8 +2,8 @@ package org.linuxtesting.ldv.envgen.cbase.parsers;
 
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -12,7 +12,7 @@ import org.linuxtesting.ldv.envgen.Logger;
 import org.linuxtesting.ldv.envgen.cbase.parsers.ExtendedParserStruct.NameAndType;
 import org.linuxtesting.ldv.envgen.cbase.parsers.options.OptionFunctionName;
 import org.linuxtesting.ldv.envgen.cbase.readers.ReaderInterface;
-import org.linuxtesting.ldv.envgen.cbase.tokens.Token;
+import org.linuxtesting.ldv.envgen.cbase.tokens.TokenBodyElement;
 import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 
@@ -29,23 +29,29 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 	private final static Pattern beginPatternLow=Pattern.compile("^\\s*(const\\s+)?(((unsigned)||(struct))\\s+)?[a-zA-Z_][a-zA-Z0-9_]*[\\s*\\*]*\\s*\\(\\s*[\\s*\\*]*\\s*");
 	private final static Pattern endPatternLow=Pattern.compile("([\\s\\*]*\\[[\\s\\*]*\\])?\\)(.*\\s*)+");
 
-	boolean parseInnerFunctionCalls = false;
+	private List<FunctionBodyParser> bodyParsers = new LinkedList<FunctionBodyParser>();
+	
+	//private boolean parseInnerFunctionCalls = false;
 
 	public ExtendedParserFunction(ReaderInterface reader) {
 		super(reader);
 		addOption(new OptionFunctionName());
 	}
 
-	public 	void parseFunctionCallsOn() {
-		this.parseInnerFunctionCalls = true;
+	public void addBodyParser(FunctionBodyParser parser) {
+		bodyParsers.add(parser);
 	}
 
+	public void addAllBodyParser(List<FunctionBodyParser> parsers) {
+		bodyParsers.addAll(parsers);
+	}
+	
 	@Override
 	protected TokenFunctionDecl parseContent(String content, int start, int end) {
 		/* хаки, которые потом нужно включить по-возможности в regexpr */
 		/* не должен матчииться:"PageDirty(page) && PageSwapCache(page)) {"  - */
 		/* по количеству закрывающих скобок */
-
+		//Logger.trace("The content is " + content);
 		if(content.indexOf(" && ")!=-1) {
 			Logger.debug("Hack. Ignore &&: " + content);
 			return null;
@@ -139,70 +145,17 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 			e.printStackTrace();
 		}
 
-		/* если установлена опция "парсить" вызовы функций, то парсим */
-		List<Token> functionInnerCalls = null;
-		if(this.parseInnerFunctionCalls)
-			functionInnerCalls = parseInnerCalls(this.getReader().readAll().substring(start,end));
-		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
-				sNameAndRetType.getType(),replacementParams,start,end,tokenClearContent,null,functionInnerCalls);
-		return token;
-	}
-
-	/* паттерн нужен, чтобы следующей за ним функции распарсить по нему
-	 * вызовы функций */
-	private final static Pattern fcallsPatterns = Pattern.compile("[\\w\\$]+\\s*\\([\\:\\*\\&\\w\\,\\.\\?\\%\\$\\^\\s\\=\\_\\\"\\\\\\#\\-(\\s*\\-\\s*>\\s*)\\(\\)]*\\)");
-	//private static Pattern fcallsRulePatterns = Pattern.compile("[_a-zA-Z$][_a-zA-Z0-9$]*");
-
-	private static final List<String> keywordsList = 
-		Arrays.asList("while","do","if","else","for","return");	
-	
-	private static int parseExceptionCounter = 0;
-
-	public static int getParseExceptionCounter() {
-		return parseExceptionCounter;
-	}
-
-	/* на вход подается - тело функции, вместе с заголовком "abracadabre() { if.. print.. }" */
-	private static List<Token> parseInnerCalls(String buffer) {
-		List<Token> tokens = new ArrayList<Token>();
-		/* подготавливаем и компилим паттерны */
-		Matcher matcher = fcallsPatterns.matcher(buffer.substring(buffer.indexOf('{')));
-		/* матчим контент */
-		/* возможно, перед тем как матчитить придется убирать
-		 * блоки вида "...", иначе матчер будет брать вызовы функций и из
-		 * printk- комментариев в том числе */
-oWhile:		while(matcher.find()) {
-			try {
-				String callsString = matcher.group();
-				/* оставим только имя */
-				callsString = callsString.substring(0,callsString.indexOf('(')).trim();
-				/* проверим имя - это действительно имя функции, а не ключевое слово */
-				for(int i=0; i<keywordsList.size(); i++)
-					if(keywordsList.get(i).equals(callsString)) continue oWhile;
-				/* здесь создаем токен и отправляем в списиок */
-				Token token = new Token(matcher.start(), matcher.end(), callsString, null);
-				boolean isExitsts = false;
-
-		/*		if (buffer.contains("m_extract_one_cell") && token.getContent().contains("atomic_inc")) {
-					System.out.printf("m_extract_one_cell");
-				}*/
-
-				if(token!=null) {
-					/* смотрим, есть ли ли уже такой токен (равный по полю контент) */
-					for(int i=0; i<tokens.size(); i++) {
-						if(tokens.get(i).getContent().equals(token.getContent())) {
-							isExitsts = true;
-							break;
-						}
-					}
-					if(isExitsts == false)
-						tokens.add(token);
-				}
-			} catch (Exception e) {
-				Logger.debug(" parse exception - "+ ++parseExceptionCounter);
-			}
+		Logger.trace("Parse inner calls for " + sNameAndRetType);
+		String buffer = this.getReader().readAll().substring(start,end);
+		List<TokenBodyElement> bodyElements = new LinkedList<TokenBodyElement>();
+		for(FunctionBodyParser parser : bodyParsers) {
+			List<TokenBodyElement> list = parser.parse(buffer);
+			Logger.trace("Parsed elements " + list.size());
+			bodyElements.addAll(list);
 		}
-		return tokens;
+		TokenFunctionDecl token = new TokenFunctionDecl(sNameAndRetType.getName(),
+				sNameAndRetType.getType(),replacementParams,start,end,tokenClearContent,null,bodyElements);
+		return token;
 	}
 
 	private static List<String> createReplacementParams(String tokenClearContent, String funname) {
@@ -229,6 +182,11 @@ oWhile:		while(matcher.find()) {
 		byte[] fbname = functionName.getBytes();
 		int level = 1;
 		int beginName;
+		Logger.trace("Function name (" + functionName.length() + "):" + functionName);
+		if(functionName.length()<2) {
+			Logger.warn("Empty function name " + functionName);
+			return null;
+		}
 		/* проскакиваем параметры функции */
 		for(beginName=functionName.length()-2; level!=0 && beginName>0; beginName--) {
 			if(fbname[beginName]==')') level++;
@@ -266,7 +224,8 @@ oWhile:		while(matcher.find()) {
 		if(firstSquare==-1) return null;
 		int level=0;
 		char symbol=0;
-		for(int i=firstSquare+1; i<namedecl.length(); i++)
+		int prev = firstSquare;
+		for(int i=prev+1; i<namedecl.length(); i++)
 		{
 			symbol=namedecl.charAt(i);
 			switch (symbol) {
@@ -275,14 +234,24 @@ oWhile:		while(matcher.find()) {
 					break;
 				case ')' :
 					if(level==0) {
-						params.add(namedecl.substring(firstSquare+1,i));
-						firstSquare=i;
-					} else level--;
+						String s = namedecl.substring(prev+1,i);
+						params.add(s.trim());
+						prev=i;
+					} else {
+						level--;
+						if(level<0) {
+							Logger.warn("Too many closing braces in " + namedecl);
+							Logger.debug("Level is less than zero, level=" + level);
+							Logger.debug("prev=" + prev);
+							Logger.debug("i=" + i);
+						}
+					}
 					break;
 				case ',' :
 					if(level==0) {
-						params.add(namedecl.substring(firstSquare+1,i));
-						firstSquare=i;
+						String s = namedecl.substring(prev+1,i);
+						params.add(s.trim());
+						prev=i;
 					}
 					break;
 			}

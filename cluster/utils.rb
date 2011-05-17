@@ -52,91 +52,8 @@ end
 
 
 # Program run helpers
-require 'utils/open3'
-
-# Open a stream with open3, and invoke a callback when a stream is ready for reading (but may be in EOF mode).  Waits till the process terminates, and returns its error code.  Callbacks should not block for FDs with data available.
-def open3_callbacks(cout_callback, cerr_callback, *args)
-	code = nil
-	MyOpen3.popen3(*args) do |cin,cout,cerr,thr|
-		pid = thr[:pid]
-		# Close input at once, as we don't use it
-		cin.close_write
-		# If the End-Of-File is reached on all of the streams, then the process might have already ended
-		non_eof_streams = [cerr,cout]
-		# Progressive timeout.  We assume that probability of task to be shorter is greater than for it to be longer.  So we increase timeout interval of select, as with time it's less likely that a task will die in the fixed interval.
-		sleeps = [ [0.05]*20,[0.1]*5,[0.5]*3,1,2,4].flatten
-		while non_eof_streams.length > 0
-			# Get next timeout value from sleeps array until none left
-			timeout = sleeps.shift || timeout
-			r = select(non_eof_streams,nil,nil,timeout)
-			# If nothing happened during a timeout, check if the process is alive.
-			# Perhaps, it's dead, but the pipes are still open,  This actually happened by sshfs process, which spawns a child and dies, but the child inherits the in-out-err streams, and does not close them.
-			unless r
-				if thr.alive?
-					# The process is still running, no paniv
-					next
-				else
-					# The process is dead.  We consider that it won't print anymore, and thus the further polling the pipes will only lead to a hangup.  Thus, breaking.
-					break
-				end
-			end
-			if r[0].include? cerr
-				begin
-					cerr_callback[pid,cerr]
-				rescue EOFError
-					non_eof_streams.delete_if {|s| s==cerr}
-				end
-			end
-			if r[0].include? cout
-				begin
-					cout_callback[pid,cout]
-				rescue EOFError
-					non_eof_streams.delete_if {|s| s==cout}
-				end
-			end
-		end
-		# Reap process status
-		# NOTE: in the ruby 1.8.7 I used this line may block for up to a second (due to internal thread scheduling machanism of Ruby).  In 1.9 this waitup is gone.  Upgrade your software if you encounter differences.
-		code = thr.value
-	end
-	# Return code, either nil if something bad happened, or the actual return code if we were successful
-	return code
-end
-
-# Read linewise and supply lines to callbacks
-# Linewise read can not use "readline" because the following situation may (and did) happen.  The process spawned writes some data to stderr, but does not terminate it with a newline.  We run a callback for stderr, use readline and block.  The process spawned then writes a lot of data to stdout, reaches pipe limit, and blocks as well in a write(stdout) call.  Deadlock.  So, we use more low-level read.
-def open3_linewise(cout_callback, cerr_callback, *args)
-	# Read this number of bytes from stream per nonblocking read
-	some = 4096
-
-	# Standard output backend
-	cout_buf = ''
-	cout_backend = proc do |pid,cout|
-		cout_buf += cout.readpartial some
-		while md = /(.*)\n/.match(cout_buf)
-			cout_callback[md[1]]
-			cout_buf = md.post_match
-		end
-	end
-
-	# standard error backend
-	cerr_buf = ''
-	cerr_backend = proc do |pid,cerr|
-		cerr_buf += cerr.readpartial some
-		while md = /(.*)\n/.match(cerr_buf)
-			cerr_callback[md[1]]
-			cerr_buf = md.post_match
-		end
-	end
-
-	retcode = open3_callbacks(cout_backend,cerr_backend,*args)
-
-	# Read the rest of buffers
-	cout_callback[cout_buf] if cout_buf.length > 0
-	cerr_callback[cerr_buf] if cerr_buf.length > 0
-
-	return retcode
-end
+require 'enhanced_open3'
+require 'open3'
 
 # Returns logging for this node
 def ulog(_)
@@ -179,7 +96,7 @@ def say_and_run(*args_)
 		end
 	end
 
-	open3_linewise(cout_handler,cerr_handler,*args)
+	EnhancedOpen3.open3_linewise(nil,cout_handler,cerr_handler,*args)
 end
 
 # Run and log information to the logger supplied
@@ -220,7 +137,7 @@ def run_and_log(logger,*args_)
 		logger.error line.chomp
 	end
 
-	retcode = open3_linewise(cout_handler,cerr_handler,*args)
+	retcode = EnhancedOpen3.open3_linewise(nil,cout_handler,cerr_handler,*args)
 
 	logger.debug "Finished #{args.inspect} with code #{retcode}"
 

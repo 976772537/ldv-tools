@@ -65,6 +65,7 @@ EM.run do
 
 	if key
 		# We already know the root key of the namespace, launch it directly.
+		# setting :target is important, since there may be several tasks running from the same machine (We call it "cluster frontend")
 		Nanite.push('/nodeui/take_unique_key',key,:target=>my_name)
 	else
 		# Send a procedure to the scheduler.  It will report back with a unique key, and this is handled in take_unique_key in nodeui.rb
@@ -74,8 +75,11 @@ EM.run do
 			EM.cancel_timer death_clock
 			log.debug "Cluster replied to get_unique_key with #{res.inspect}."
 
+			raise "Res is NULL!  Try again please" unless res
+
 			# We already know the root key of the namespace, launch it directly.
-			Nanite.push('/nodeui/take_unique_key',res.values.first)
+			# setting :target is important, since there may be several tasks running from the same machine (We call it "cluster frontend")
+			Nanite.push('/nodeui/take_unique_key',res.values.first, :target=>my_name)
 		end
 	end
 

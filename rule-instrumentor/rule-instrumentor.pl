@@ -293,7 +293,7 @@ my @llvm_linker_opts = ('-f');
 my $llvm_preprocessed_suffix = '.p';
 
 # The commands log file designatures.
-my $log_cmds_aspect = 'mode=aspect';
+my $log_cmds_aspect = {'gcc' => 'mode=aspect', 'llvm'=>'mode=aspect-llvm'};
 my $log_cmds_cc = 'cc';
 my $log_cmds_desc_begin = '^^^^^&&&&&';
 my $log_cmds_desc_end = '&&&&&^^^^^';
@@ -660,7 +660,7 @@ sub exec_status_and_desc(@)
     or die("Couldn't open file '$opt_basedir/$tool_temp' for read: $ERRNO");
 
   my @desc = <$file_temp_read>;
-  print_debug_debug("The command execution full description is '@desc'");
+  print_debug_trace("The command execution full description is '@desc'");
 
   close($file_temp_read)
     or die("Couldn't close file '$opt_basedir/$tool_temp': $ERRNO\n");
@@ -743,7 +743,7 @@ sub get_model_info()
     print_debug_trace("Read id attribute for a model to find the corresponding one");
     my $id_attr = $model->att($xml_model_db_attr_id)
       // die("Models database doesn't contain '$xml_model_db_attr_id' attribute for some model");
-    print_debug_debug("Read the '$id_attr' id attribute for a model");
+    print_debug_trace("Read the '$id_attr' id attribute for a model");
 
     # Model is found!
     if ($id_attr eq $opt_model_id)
@@ -856,8 +856,8 @@ sub get_model_info()
             }
             else
             {
-              print_debug_debug("Using the default GCC aspectator found in $ldv_gcc");
               $ldv_gcc = $ldv_gcc_gcc;
+              print_debug_debug("Using the default GCC aspectator found in $ldv_gcc");
             }
           }
           else
@@ -875,7 +875,7 @@ sub get_model_info()
 
           print_debug_debug("The aspect mode with type '$aspectator_type' is used for '$id_attr' model");
 
-          print($file_cmds_log "$log_cmds_aspect\n");
+          print($file_cmds_log "$log_cmds_aspect->{$aspectator_type}\n");
         }
         elsif ($kind eq 'plain')
         {
@@ -1803,7 +1803,8 @@ sub process_cmd_cc()
 
       print OUT "#include <linux/spinlock.h>\n";
       for (my $count = 0; $count < scalar(@keys); $count++) {
-        print "Add decls for keys['$count']=".$keys[$count];
+        # This was intended for debugging only
+        #print "Add decls for keys['$count']=".$keys[$count];
         my $decl = $decls[$count];
         print OUT $decl."\n";
       }
@@ -2399,9 +2400,16 @@ sub process_report()
   my $mode_isaspect = 0;
   my $mode_isplain = 0;
 
-  if ($mode eq $log_cmds_aspect)
+  if ($mode eq $log_cmds_aspect->{'gcc'})
   {
     $mode_isaspect = 1;
+    $aspectator_type = 'gcc';
+    print_debug_debug("The GCC aspect mode is specified");
+  }
+  elsif ($mode eq $log_cmds_aspect->{'llvm'})
+  {
+    $mode_isaspect = 1;
+    $aspectator_type = 'llvm';
     print_debug_debug("The aspect mode is specified");
   }
   elsif ($mode eq $log_cmds_plain)
@@ -2472,7 +2480,7 @@ sub process_report()
       unless ($cmd_status eq $log_cmds_ok or $cmd_status eq $log_cmds_fail);
     print_debug_debug("The commmand log command execution status is '$cmd_status'");
     print_debug_debug("The commmand log command entry points are '@cmd_entry_points'");
-    print_debug_debug("The commmand log command description is '$cmd_desc'");
+    print_debug_trace("The commmand log command description is '$cmd_desc'");
 
     print_debug_trace("Remove the non-ASCII symbols from description since they aren't parsed correctly");
     $cmd_desc =~ s/[^[:ascii:]]//g;
@@ -2631,6 +2639,7 @@ sub process_report()
 
       # ld commands have additional suffix in the aspect mode.
       my $rule_instrument_cmd_id = $cmd_id;
+
       if ($mode_isaspect && ($aspectator_type eq 'llvm'))
       {
         $rule_instrument_cmd_id .= $id_ld_llvm_suffix;

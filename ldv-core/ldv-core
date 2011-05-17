@@ -218,8 +218,12 @@ sub start_next {
 		# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
 		$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 
+		# We will only tolerate this many SOAP errors
+		my $retries = 10;
+
 		my $tasks = {};
-		while(1) {
+		while(is_exists($csd_pid)){
+			vsay 'TRACE', "Trying to fetch next command...\n";
 			my $command =  eval{ return $csd->getCommand(); };
 			if($command) {
 				vsay 'TRACE', "Calling external interface to submit task\n";
@@ -227,7 +231,11 @@ sub start_next {
 				vsay 'NORMAL', "Calling drv-env-gen...\n";
 				#make_path("$command/deg");
 				$ENV{'WORK_DIR'} = $command;
-				
+
+				# Since we don't wipe a re-used working dir, we have to remove state-files if they exist
+				ensure_removed("$command/deg.state", "DEG state file");
+				ensure_removed("$command/cmd_after_deg.xml", "DEG output cmdfile");
+
 				my @deg_args = (
 					$config->{'deg'},
 					"--basedir=deg",
@@ -235,13 +243,13 @@ sub start_next {
 					"--cmdfile-out=$command/cmd_after_deg.xml",
 					"--state-file=$command/deg.state"
 				);
-		
+
 				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver_name'}";
 
 				if($config->{'cmdstream'}) {
-                                        push @deg_args,"--kernel-driver";       
+					push @deg_args,"--kernel-driver";
 				} else {
-                                        push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};       
+					push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
 				}
 
 				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
@@ -253,15 +261,28 @@ sub start_next {
 				$tasks->{$cid}->{path} = $command;
 				vsay 'TRACE', "Calling external interface to submit task for CID=$cid\n";
 			
-				scheduler_send_task($tasks->{$cid}, $cid);		
-					
-		
+				scheduler_send_task($tasks->{$cid}, $cid);
+
+
 				vsay 'NORMAL', "Wait for command...\n";
 			} else {
-				vsay 'TRACE', "Test for next command...\n";
-				!is_exists($csd_pid) and last;
+				# If command is null, there may be two situations.
+				# First, it may be an error in SOAP...
+				if ($@){
+					vsay 'WARNING', "SOAP error: $@.";
+					if ($retries > 0){
+						$retries--;
+						vsay 'WARNING', "Will make $retries more retries.";
+					}else{
+						die "Too many SOAP errors";
+					}
+				}else{
+					# OR, CSD doesn't have a command readily available; then, retry
+					vsay 'DEBUG', "No command available atm.  Waiting for more.";
+				}
 			}
 		}
+		vsay 'NORMAL', "CSD has been terminated.";
 
 		vsay 'NORMAL', "Sleep while all tasks verified.\n";
 		# pass this stage in single machine
@@ -302,6 +323,8 @@ sub csd_create_report {
 	print DEGLIST "$tasks->{$_}->{path}/report_after_deg.xml\n" foreach keys %{$tasks};
 	close DEGLIST;
 
+	ensure_removed("$config->{'csd_tempdir'}/report_after_csd.xml", "CSD reporter state file");
+
 	vsay 'NORMAL', "Calling CSD reporter...\n";
 	
 	my @csd_reporter_args = ($config->{'csd-reporter'},
@@ -324,6 +347,8 @@ sub csd_create_report {
 sub deg_create_report {
 	my ($task_path)  = @_;
 	vsay 'DEBUG', "Calling DEG reporter for \"$task_path\"\n";
+
+	ensure_removed("$task_path/report_after_deg.xml", "DEG reporter output file");
 
 	@deg_reporter_args = ($config->{'deg-reporter'},
 		"--stats-file=$task_path/deg/stats.xml",
@@ -359,6 +384,7 @@ sub wait_for_all_verified {
 	my $process_dscv_result = sub {
 		# Read line (the one returned by watcher) and split it
 		my @rv = split /,/,$_[0];
+		LDV::Utils::push_instrument('ldv-core');
 		my ($path, $contents, @key) = @rv;
 
 		#not defined $path and die"Can't get path!";
@@ -373,19 +399,22 @@ sub wait_for_all_verified {
 		unless (exists $keys_arrived->{$key_id}){
 			$keys_arrived->{$key_id} = 1;
 			# unpack the incoming package
-			vsay 'INFO', "Successfully waited for command id \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
+			vsay 'NORMAL', "Successfully waited for subprocess with id \"$cid\"\n";
+			vsay 'DEBUG', "Command N \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
 			vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
 			LDV::Utils::watcher_cmd('unpack', $path, $contents);
 			# find corresponding task descriptor and set status to 'verified'
 			vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
 			$tasks->{$cid}->{state} = 'verified';
 
+			LDV::Utils::pop_instrument('ldv-core');
 			# Return that we have waited for one key succesfully
 			return 1;
 		}else{
 			# This is not the first time, just note that.
 			vsay('WARNING',"Received result for $cid AGAIN, ignoring.\n");
 
+			LDV::Utils::pop_instrument('ldv-core');
 			# Notify the parent that we have read zero useful keys
 			return 0;
 		}
@@ -413,7 +442,7 @@ sub scheduler_send_task {
 	$task_descriptor->{'state'} eq 'wait' or return;
 	$task_descriptor->{'task_fname'} = "$command/task_descriptor";
 
-	make_path("$command/dscv_tempdir") or die"$!";
+	defined make_path("$command/dscv_tempdir") or die"make_path('$command/dscv_tempdir'): $!";
 	my $dscv_report = "$command/dscv_tempdir/report_after_dscv.xml";
 	vsay 'NORMAL', "Calling Domain Speicific C-Verifier\n";
 	
@@ -467,6 +496,9 @@ sub parallel_run {
 sub start_bce {
 	vsay 'NORMAL', "Starting BCE...\n";
 	$ENV{'BUILDFILE'} = "$config->{'bce_tempdir'}/build.xml";
+	ensure_removed("$config->{'bce_state'}","BCE state file");
+	ensure_removed("$config->{'xml_after_bce'}","BCE output cmdfile");
+
 	my @bce_args = ($config->{'timeout'},
 		'-p',
 		'.*,ALL\;CHILD:.*,ALL\;.*bce_gcc.*,BCE_GCC\;.*as_gcc.*,AS_GCC\;.*cc1.*,CC1',
@@ -503,6 +535,12 @@ sub start_bce {
 #
 sub start_csd {
 	vsay 'NORMAL', "Starting CSD (WSDL)...\n";
+	my $csd_state_file = $config->{'csd_state'};
+	if (-f $csd_state_file){
+		vsay 'DEBUG', "CSD state file '$csd_state_file' already exists; removing it...";
+		unlink ($csd_state_file);
+	}
+
 	my @csd_options = ('java',
 		'-Xmx256M',
 		'-jar',
@@ -538,6 +576,16 @@ sub start_csd {
 
 }
 
+# Helper function to easily unlink state files
+sub ensure_removed
+{
+	my ($file,$message) = @_;
+	if (-f $file){
+		vsay 'DEBUG', ("$message '$file' already exists.  Removing it...\n");
+		unlink ($file);
+	}
+}
+
 sub init_config {
 	vsay 'DEBUG', "Config initialization...\n";
 	
@@ -557,7 +605,10 @@ sub init_config {
 	$config->{'report-out'}    = abs_path($config->{'report-out'});
 	-d $config->{'env'} or die"Environmnet dir \"$config->{'env'}\" - not exists!";
 	-d $config->{'report-out'} and die"Output report file \"$config->{'report-out'}\" - already exists as dir!";
-	-f $config->{'report-out'} and die"Output report file \"$config->{'report-out'}\" - already exists as file!";
+	if (-f $config->{'report-out'}) {
+		vsay 'DEBUG', "Output report file \"$config->{'report-out'}\" - already exists as file.  Removing it...";
+		unlink($config->{'report-out'});
+	}
 
 	$config->{'bce_tempdir'} = "$config->{'workdir'}/bce_tempdir";
 	$config->{'ldv_tempdir'} = "$config->{'workdir'}/ldv_tempdir";
@@ -591,6 +642,10 @@ sub init_config {
 	$config->{'bce_state'} = "$config->{'bce_tempdir'}/err.state";
 	$config->{'unarch_log'} = "$config->{'ldv_tempdir'}/unarch.log";
 	$config->{'as_gcc_pool'} = "$config->{'bce_tempdir'}/as_gcc_pool";
+	if (-f $config->{'as_gcc_pool'}){
+		vsay 'DEBUG', "GCC wrapper pool '$config->{'as_gcc_pool'}' already exists. Removing it...";
+		unlink($config->{'as_gcc_pool'});
+	}
 	$config->{'csd_state'} = "$config->{'csd_tempdir'}/csd.state";
 	$ENV{'AS_GCC_POOL'} = $config->{'as_gcc_pool'};
 	$config->{'driverdir'} = "$config->{'ldv_tempdir'}/$config->{'DRIVER_DIR_NAME'}";
@@ -630,6 +685,7 @@ sub bce_create_report {
 		print FILE "    </desc>\n  </build>\n</reports>\n";
 		close FILE or die"$!";
 	} else {
+		ensure_removed("$config->{'bce_report'}", "BCE reporter output file");
 		vsay 'DEBUG', "Calling BCE reporter...\n";
 		my @bce_reporter_args = ($config->{'bce-reporter'},
 			"--cmdfile=$config->{'xml_after_bce'}",
@@ -690,7 +746,7 @@ sub copy_backup {
 		# create destination dirs if it needs
 		my $dst_dir = dirname($dst);
 		if(! -d $dst_dir) {
-			make_path($dst_dir) or ldv_report_and_exit("Can't create dir \"$dst_dir\" for copy backup:$!"); 
+			defined make_path($dst_dir) or ldv_report_and_exit("Can't create dir \"$dst_dir\" for copy backup:$!"); 
 		}
 		
 		# copy backup file to destination dir
@@ -884,18 +940,21 @@ sub unpack_if_archive {
 	my ($type, $file, $outdir, $logfile) = @_;
 	verbose_system("touch $config->{'unarch_log'}") and die"$!";
 
+	# NOTE the --touch attribute for tar below!
+	# If we re-use an existing ldv-core directory, this is totally necessary, since the driver won't be recompiled if the modification times are preserved, as all the modules will be up to date!
+
 	# I. If source - is archive - then unpack it...
 	#if($type eq 'application/x-bzip-compressed-tar') {
 	if($type eq 'application/x-bzip2') {
 		not -d $outdir and make_path($outdir);
 		vsay 'TRACE', "Unpacking source x-bzip2\n";
-		verbose_system("tar xvjpf $file -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
+		verbose_system("tar xvjpf $file --touch -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
 		return 1;
 	#} elsif ($type eq 'application/x-compressed-tar') {
 	} elsif ($type eq 'application/x-gzip') {
 		not -d $outdir and make_path($outdir);
 		vsay 'TRACE', "Unpacking source gzip\n";
-		verbose_system("tar xvzpf $file -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
+		verbose_system("tar xvzpf $file --touch -C $outdir > $logfile 2>&1") and ldv_report_and_exit("Can't unpack \"$file\"");
 		return 1;
 	};
 }

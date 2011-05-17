@@ -14,6 +14,8 @@ public abstract class EnvParams {
 	boolean check;
 	boolean init;
 	boolean grouped;
+	boolean genInterrupt = true;
+	private boolean genTimers = true;
 	
 	public EnvParams(boolean sorted, boolean check, boolean init, boolean grouped) {
 		super();
@@ -51,6 +53,20 @@ public abstract class EnvParams {
 			this.grouped = false;
 		} else {
 			this.grouped = true;
+		}
+		
+		String genInterrupt = props.getProperty(key + ".gen_interrupt", "true");
+		if(genInterrupt.trim().equalsIgnoreCase("false")) {
+			this.genInterrupt = false;
+		} else {
+			this.genInterrupt = true;
+		}
+		
+		String genTimers = props.getProperty(key + ".gen_timers", "true");
+		if(genTimers.trim().equalsIgnoreCase("false")) {
+			this.genTimers = false;
+		} else {
+			this.genTimers = true;
 		}
 	}
 
@@ -109,5 +125,13 @@ public abstract class EnvParams {
 
 	public boolean isGrouped() {
 		return grouped;
+	}
+
+	public boolean isGenInterrupt() {
+		return genInterrupt;
+	}
+
+	public boolean isGenTimers() {
+		return genTimers;
 	}
 }
