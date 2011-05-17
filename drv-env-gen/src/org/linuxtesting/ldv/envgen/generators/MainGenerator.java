@@ -207,9 +207,11 @@ public class MainGenerator {
 		boolean gentimer = false;
 		for(EnvParams p : plist) {
 			if(p.isGenInterrupt()) {
+				Logger.trace("Include interrupt parser");
 				genint = true;
 			}
 			if(p.isGenTimers()) {
+				Logger.trace("Include timer parser");
 				gentimer = true;
 			}
 		}
