@@ -365,6 +365,7 @@ sub call_cpachecker
 
 	# Fork and run CPACHECKER in a child process.	Redirect its output (std and err) to a file
 	# Open file to redirect
+	mkpath(dirname($args{debug}));
 	my $CPACHECKER_DEBUG;
 	open $CPACHECKER_DEBUG, ">", $args{debug} or die "Can't open file $args{debug}: $!";
 	# Fork cpachecker
