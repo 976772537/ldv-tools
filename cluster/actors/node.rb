@@ -118,6 +118,12 @@ def setenv(env,_log,lstr='')
 	env.each do |var,val|
 		if var == 'PATH'
 			new_value = val.to_s + ":" + ENV[var]
+		elsif var == 'LDV_TOOLS'
+			# Ignore 'LDV_TOOLS' as it may have a special meaning
+			# However, add it to PATH
+			ENV['PATH'] = "#{val.to_s}:#{ENV['PATH']}"
+			_log.debug "Set env #{lstr}: PATH = '#{val.to_s}:#{ENV['PATH']}'"
+			next
 		else
 			new_value = val.to_s
 		end
@@ -144,7 +150,7 @@ class RealSpawner < Spawner
 		# Get LDV_HOME of the toolset we use.  The thing is that we may specify an alternative toolset (via PATH env var in the task), and we should adjust how different tools within our toolset are invoked.
 		ldv_home = @home
 		bin_path = File.join @home,'bin'
-		new_path = task['env']['PATH'] || task['global']['env']['PATH']
+		new_path = task['env']['LDV_TOOLS'] || task['global']['env']['LDV_TOOLS']
 		if new_path
 			bin_path = new_path
 			ldv_home = File.expand_path File.join(new_path,"..")
