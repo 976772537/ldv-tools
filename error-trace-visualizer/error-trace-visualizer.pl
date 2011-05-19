@@ -1104,8 +1104,11 @@ sub process_error_trace_blast()
       # Empty lines are meanigless.
       next unless($element_part);
 
-      $element .= $element_part;
-
+      # Add extra space to separate different parts of a given element from
+      # each other. Further it should helps to print nice expressions.
+      $element .= " " if ($element);
+      $element .= "$element_part";
+      
       # Detect the element kind and call the corresponding handler to read it.
       die("Can't find the element '$element' kind.") unless ($element =~ /$regexp_element_kind/);
       my $element_kind = $1;
