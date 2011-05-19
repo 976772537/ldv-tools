@@ -161,6 +161,7 @@ if ($mode eq 'cmd'){
 		call_blast(%args);
 		1;
 	} or do {
+		vsay 4, "Exception occured: $@";
 		vsay 4, "Fatal error.  Stopping services before reporting...\n";
 		# FIXME: send sometimes in cluster mode
 		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
