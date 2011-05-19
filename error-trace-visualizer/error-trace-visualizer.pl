@@ -712,10 +712,74 @@ sub print_error_trace_node_blast($$)
   # Process tree node values a bit.
   if (${$tree_node->{'values'}}[0])
   {
+    my $value = ${$tree_node->{'values'}}[0];
+    
     # Remove names scope for all tree nodes.
-    ${$tree_node->{'values'}}[0] =~ s/@[_a-zA-Z0-9]+//g;
+    $value =~ s/@\w+//g;
+    
     # Add spaces around some operators.
-    ${$tree_node->{'values'}}[0] = add_mising_spaces(${$tree_node->{'values'}}[0]);
+    $value = add_mising_spaces($value);
+    
+    # Add some simple replacements.
+    $value =~ s/ \)/\)/g;
+    $value =~ s/\* \(/\*\(/g;
+    
+    # Replace 'A foffset B' with '&(A)->B' in the "recursive" way.
+    while ($value =~ /(\w+|&\(\w+\))\s+foffset\s+\w+/)
+    {
+      # Collect all foffset operands for a given expression. Note that just the
+      # first can be '&(...)' while others are simple identifiers.
+      my @foffset_ops = ();
+      my $text_for_replacement;
+      if ($value =~ /((\w+|&\(\w+\))\s+foffset\s+)/)
+      {
+        $text_for_replacement = $1;
+        push(@foffset_ops, $2);
+        my $str_end = $POSTMATCH;
+        
+        while (1)
+        {
+          if ($str_end =~ /^(\w+)/)
+          {
+            $text_for_replacement .= $1;
+            push(@foffset_ops, $1);
+          
+            $str_end = $POSTMATCH;
+          
+            if ($str_end =~ /^(\s+foffset\s+)/)
+            {
+              $text_for_replacement .= $1;
+              $str_end = $POSTMATCH
+            }
+            else
+            {
+              last;
+            }
+          }
+          else 
+          {
+            print_debug_warning("Trace format isn't supported");
+          }
+        }
+        # Make required conversion.
+        while (scalar(@foffset_ops) > 1)
+        {
+          my $op1 = shift(@foffset_ops);
+          my $op2 = shift(@foffset_ops);
+          
+          unshift(@foffset_ops, "\&($op1)->$op2");
+        }
+        # Replace initial string with the obtained one.
+        $value =~ s/\Q$text_for_replacement\E/$foffset_ops[0]/;
+      }
+      else
+      {
+        print_debug_warning("Trace format isn't supported");
+      }
+    }
+
+    # Return back the processed value.
+    ${$tree_node->{'values'}}[0] = $value;
   }
 
   # Get source and line if so.
@@ -1104,8 +1168,11 @@ sub process_error_trace_blast()
       # Empty lines are meanigless.
       next unless($element_part);
 
-      $element .= $element_part;
-
+      # Add extra space to separate different parts of a given element from
+      # each other. Further it should helps to print nice expressions.
+      $element .= " " if ($element);
+      $element .= "$element_part";
+      
       # Detect the element kind and call the corresponding handler to read it.
       die("Can't find the element '$element' kind.") unless ($element =~ /$regexp_element_kind/);
       my $element_kind = $1;
