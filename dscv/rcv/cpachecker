@@ -51,6 +51,8 @@ $optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
 my $watcher_keystr = '';
 $optionSpecs{'watcher-key=s'} = \$watcher_keystr;
 
+my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
+
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
 $config->{watcher_key} = [split /,/,$watcher_keystr];
@@ -91,6 +93,15 @@ if ($ENV{'NO_CIL'}){
 #======================================================================
 use XML::Twig;
 
+#==== 
+# We should pack files for the parent task to process afterwards.  Use these functions
+my %files_for_parent = ();
+sub for_parent
+{ local $_; $files_for_parent{$_} = 1 for @_; }
+sub files_for_parent
+{ return keys %files_for_parent; }
+#==== 
+
 my $sanity = undef;
 
 if ($mode eq 'cmd'){
@@ -103,7 +114,7 @@ if ($mode eq 'cmd'){
 	!$cpachecker_config || -f $cpachecker_config or die "CPAchecker configuration '$cpachecker_config' is specified but not readable!";
 
 	# Prepare sanity checks
-	$sanity = DSCV::Sanity->new($config->{sandir});
+	$sanity = DSCV::Sanity->new($config->{sandir}) if $do_sanity;
 
 	# Base Dir of system being checked
 	my $base_dir = undef;
@@ -119,6 +130,15 @@ if ($mode eq 'cmd'){
 	);
 	$check_input_file->parsefile($config->{cmdfile});
 }elsif ($mode eq 'raw'){
+
+	# Set up watcher directory, unless already set
+	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{work_dir}/watcher";
+	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+
+	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
+	vsay ('DEBUG',"Got key string $key_str.\n");
+	my @watcher_key = split /,/,$key_str;
+
 	# Parse CMDfile for arguments, and launch RCV only
 	my %args = ();
 	!-f $config->{rawcmdfile} and die "CPACHECKER's raw command file $config->{rawcmdfile} is not found";
@@ -130,8 +150,33 @@ if ($mode eq 'cmd'){
 	$workdir ||= $args{workdir};
 	-d $workdir or die "the workdir '$config->{workdir}' is not a directory!";
 
-	# Now we can call BLAST, finally
-	call_cpachecker(%args);
+	sub kill_watcher
+	{
+		vsay 20, "Shutting down watcher\n";
+		# Report failure to the watcher (reckon we've registered a key for our process?)
+		LDV::Utils::watcher_cmd('fail',@watcher_key);
+		die $@;
+	}
+
+	$SIG{QUIT} = \&kill_watcher;
+	# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+	$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+	# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
+	$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+
+	eval {
+		call_cpachecker(%args);
+		1;
+	} or do {
+		vsay 4, "Fatal error.  Stopping services before reporting...\n";
+		# FIXME: send sometimes in cluster mode
+		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
+		# We die in kill_watcher, no need to exit here... but just in case...
+		exit 1;
+	};
+
+	# Report success to the watcher
+	LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',files_for_parent());
 
 }else{
 	die "Assertion failed";
@@ -185,7 +230,11 @@ sub verify_cpachecker
 			close $CPACHECKER_REPORT;
 		}else{
 			# Sanity check
-			$sanity->blast_called();
+			$sanity->blast_called() if $do_sanity;
+
+			# Prepare files for child
+			# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
+			my @files_for_child = (@{$args{files}});
 
 			$args{main} = $main;
 			my $task_fname = "$config->{cmdfile}.for.$main";
@@ -197,7 +246,7 @@ sub verify_cpachecker
 			$ENV{'RCV_FRONTEND_CMD'} = $0;
 			# FIXME: key is transferred through env variable.  RCV should be rewritten.
 			#                                            task        dir      >>>> the rest is the key to distinguis from others
-			LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main);
+			LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',@files_for_child);
 		}
 	}
 }
@@ -477,6 +526,11 @@ EOR
 	$repT->set_pretty_print('indented');
 	$repT->print($CPACHECKER_REPORT);
 	close $CPACHECKER_REPORT;
+
+	# Mark files that should be sent to parent
+	# You may skip this step if you're not going to run cluster
+	for_parent($args{report},$args{trace},$args{debug});
+
 }
 
 
