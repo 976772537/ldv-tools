@@ -255,7 +255,7 @@ class RealSpawner < Spawner
 
 				# Set up the proper verifier, and call its backend
 				verifier = task['env']['RCV_VERIFIER'] || task['global']['env']['RCV_VERIFIER'] || 'blast'
-				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv','blast')
+				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv',verifier)
 				@nlog.info "Using verifier #{verifier} located at #{verifier_wrapper_exe}"
 
 				fork_callback = proc do
