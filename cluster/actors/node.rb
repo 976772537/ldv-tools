@@ -112,12 +112,28 @@ class Spawner
 
 		root
 	end
+
+	# Check if there is at_least megabytes available
+	def free_space_check(at_least = nil)
+		# Let's use df.  It will print something like this:
+		# Filesystem         1048576-blocks      Used Available Capacity Mounted on
+		# /dev/sda6                  150787     84577     58550      60% /
+		@nlog.debug "Calling: 'df -P --block-size=1M .'"
+		free_space_mb = `df -P --block-size=1M .`.split("\n")[1].split(/\s+/)[3].to_i
+		return !at_least || (free_space_mb >= at_least)
+	end
 end
 
 def setenv(env,_log,lstr='')
 	env.each do |var,val|
 		if var == 'PATH'
 			new_value = val.to_s + ":" + ENV[var]
+		elsif var == 'LDV_TOOLS'
+			# Ignore 'LDV_TOOLS' as it may have a special meaning
+			# However, add it to PATH
+			ENV['PATH'] = "#{val.to_s}:#{ENV['PATH']}"
+			_log.debug "Set env #{lstr}: PATH = '#{val.to_s}:#{ENV['PATH']}'"
+			next
 		else
 			new_value = val.to_s
 		end
@@ -144,7 +160,7 @@ class RealSpawner < Spawner
 		# Get LDV_HOME of the toolset we use.  The thing is that we may specify an alternative toolset (via PATH env var in the task), and we should adjust how different tools within our toolset are invoked.
 		ldv_home = @home
 		bin_path = File.join @home,'bin'
-		new_path = task['env']['PATH'] || task['global']['env']['PATH']
+		new_path = task['env']['LDV_TOOLS'] || task['global']['env']['LDV_TOOLS']
 		if new_path
 			bin_path = new_path
 			ldv_home = File.expand_path File.join(new_path,"..")
@@ -249,7 +265,7 @@ class RealSpawner < Spawner
 
 				# Set up the proper verifier, and call its backend
 				verifier = task['env']['RCV_VERIFIER'] || task['global']['env']['RCV_VERIFIER'] || 'blast'
-				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv','blast')
+				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv',verifier)
 				@nlog.info "Using verifier #{verifier} located at #{verifier_wrapper_exe}"
 
 				fork_callback = proc do
@@ -435,6 +451,15 @@ class Ldvnode
 			@max_load_need_reset = true
 		end
 
+		if opts[:free_at_least]
+			@free_at_least = opts[:free_at_least]
+		else
+			@free_at_least ||= 10
+		end
+
+		if opts[:node_name]
+			@node_name = opts[:node_name]
+		end
 
 		# Initialize task spawner.
 		# Should be performed before availability is relinquished!
@@ -453,8 +478,10 @@ class Ldvnode
 		end
 		# Start publishing statuses
 		@status_update_mutex.synchronize do
-			@nlog.info "Setting status to #{availability.inspect}"
+			@nlog.info "Initial availability: #{availability.inspect}"
 			availability.each { |task,val_s| if val_s ; @status[task] = val_s.to_i ; end }
+			adjust_status_free_space @status
+			@nlog.info "Setting status to #{status.inspect}"
 		end
 
 		# Set up ping timer for user display
@@ -474,9 +501,20 @@ class Ldvnode
 		Logging.logger["Node::#{key}"]
 	end
 
+	# set availability to zero if no enough space
+	def adjust_status_free_space st
+		if spawner && !spawner.free_space_check(@free_at_least)
+			# Not enough free space left, lie about status
+			@nlog.debug "No enough free space! Will not accept tasks!"
+			st.each {|k,v| st[k] = 0}
+		end
+	end
 	# Return status for this node for cluster controller.  Based on this, the decision where to route tasks will be made
 	def status_for_cluster
-		st = status
+		st = status.dup
+		adjust_status_free_space st
+		# Add information about the node's name
+		st[:node_name] = @node_name if @node_name
 		# Append node load to the usual availability status
 		st[:load] = load_average
 		st[:max_load] = @max_load
@@ -525,6 +563,10 @@ class Ldvnode
 			@status_update_mutex.synchronize do
 				if load_average > @max_load
 					@nlog.debug "Load too high #{load_average}, should be less than #{@max_load}, rejecting"
+					job_status = :rejected
+				elsif !spawner.free_space_check(@free_at_least)
+					# Not enough free space left, lie about status
+					@nlog.debug "No enough free space, rejecting!"
 					job_status = :rejected
 				elsif @status[job_type] > 0
 					@status[job_type] -= 1

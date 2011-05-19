@@ -407,6 +407,13 @@ sub wait_for_all_verified {
 			vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
 			$tasks->{$cid}->{state} = 'verified';
 
+			# If there are less than five tasks left, show their keys.  When one of DSCVs has failed on cluster, it should be visible, which.
+			local $_;
+			my @keys_missing = grep { ! exists $keys_arrived->{join('.','dscv',$_)}} keys %$tasks;
+			if (scalar @keys_missing <= 5 && scalar @keys_missing > 0){
+				vsay 'INFO', "Still waiting for these: ".join(', ',@keys_missing);
+			}
+
 			LDV::Utils::pop_instrument('ldv-core');
 			# Return that we have waited for one key succesfully
 			return 1;
