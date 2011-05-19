@@ -112,6 +112,16 @@ class Spawner
 
 		root
 	end
+
+	# Check if there is at_least megabytes available
+	def free_space_check(at_least = nil)
+		# Let's use df.  It will print something like this:
+		# Filesystem         1048576-blocks      Used Available Capacity Mounted on
+		# /dev/sda6                  150787     84577     58550      60% /
+		@nlog.debug "Calling: 'df -P --block-size=1M .'"
+		free_space_mb = `df -P --block-size=1M .`.split("\n")[1].split(/\s+/)[3].to_i
+		return !at_least || (free_space_mb >= at_least)
+	end
 end
 
 def setenv(env,_log,lstr='')
@@ -441,6 +451,11 @@ class Ldvnode
 			@max_load_need_reset = true
 		end
 
+		if opts[:free_at_least]
+			@free_at_least = opts[:free_at_least]
+		else
+			@free_at_least ||= 10
+		end
 
 		# Initialize task spawner.
 		# Should be performed before availability is relinquished!
@@ -459,8 +474,10 @@ class Ldvnode
 		end
 		# Start publishing statuses
 		@status_update_mutex.synchronize do
-			@nlog.info "Setting status to #{availability.inspect}"
+			@nlog.info "Initial availability: #{availability.inspect}"
 			availability.each { |task,val_s| if val_s ; @status[task] = val_s.to_i ; end }
+			adjust_status_free_space @status
+			@nlog.info "Setting status to #{status.inspect}"
 		end
 
 		# Set up ping timer for user display
@@ -480,9 +497,18 @@ class Ldvnode
 		Logging.logger["Node::#{key}"]
 	end
 
+	# set availability to zero if no enough space
+	def adjust_status_free_space st
+		if spawner && !spawner.free_space_check(@free_at_least)
+			# Not enough free space left, lie about status
+			@nlog.debug "No enough free space! Will not accept tasks!"
+			st.each {|k,v| st[k] = 0}
+		end
+	end
 	# Return status for this node for cluster controller.  Based on this, the decision where to route tasks will be made
 	def status_for_cluster
-		st = status
+		st = status.dup
+		adjust_status_free_space st
 		# Append node load to the usual availability status
 		st[:load] = load_average
 		st[:max_load] = @max_load
@@ -531,6 +557,10 @@ class Ldvnode
 			@status_update_mutex.synchronize do
 				if load_average > @max_load
 					@nlog.debug "Load too high #{load_average}, should be less than #{@max_load}, rejecting"
+					job_status = :rejected
+				elsif !spawner.free_space_check(@free_at_least)
+					# Not enough free space left, lie about status
+					@nlog.debug "No enough free space, rejecting!"
 					job_status = :rejected
 				elsif @status[job_type] > 0
 					@status[job_type] -= 1

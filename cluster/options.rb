@@ -70,6 +70,10 @@ class ClusterOptionsParser
 				options[:max_node_load] = max_load.to_f
 			end
 
+			opts.on("--free-at-least LOAD", "How much space (Mb) should there be free to accept more tasks") do |free_at_least|
+				options[:free_at_least] = free_at_least.to_i
+			end
+
 			opts.on("--disc-range SECONDS", "Discounting heuristics adjust node's load averages for this amount of seconds") do |sec|
 				options[:disc_range] = sec.to_f
 			end
