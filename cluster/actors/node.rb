@@ -457,6 +457,10 @@ class Ldvnode
 			@free_at_least ||= 10
 		end
 
+		if opts[:node_name]
+			@node_name = opts[:node_name]
+		end
+
 		# Initialize task spawner.
 		# Should be performed before availability is relinquished!
 		if fname = opts[:play_scenario]
@@ -509,6 +513,8 @@ class Ldvnode
 	def status_for_cluster
 		st = status.dup
 		adjust_status_free_space st
+		# Add information about the node's name
+		st[:node_name] = @node_name if @node_name
 		# Append node load to the usual availability status
 		st[:load] = load_average
 		st[:max_load] = @max_load
