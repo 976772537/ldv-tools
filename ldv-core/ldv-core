@@ -141,7 +141,11 @@ if(!is_exists($next_pid)) {
 # Wait while BCE not finished
 #
 waitpid $bce_pid, 0;
-vsay 'TRACE', "BCE successfully finished\n";
+if ($? == 0){
+	vsay 'TRACE', "BCE successfully finished\n";
+}else{
+	vsay 'WARNING', "BCE failed, see '$config->{'ldv_tempdir'}/bce_err.log'.\n";
+}
 
 #
 # Try to connect to CSD and white while verification process is finished.
