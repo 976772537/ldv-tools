@@ -444,6 +444,7 @@ sub call_cpachecker
 		my $removing = '';	#if we're removingall stuf until the next empty line
 		for my $ln (@errbuf){
 			$removing=1 if $ln=~/Dead code detected/;
+			$removing=1 if $ln=~/Ignoring inline assembler/;
 			if ($ln =~ /^$/){
 				$removing = '';
 			}else{
