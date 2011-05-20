@@ -7,6 +7,7 @@ while (<>){
 	chomp;
 	/Syntax error in line / and print "Syntax_error";
 	/CIL ERROR./ and print "CIL_parse_error";
+	/Expression is not free of side-effects/ and print "Side";
 }
 
 
