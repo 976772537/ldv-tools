@@ -161,7 +161,7 @@ if ($mode eq 'cmd'){
 		call_blast(%args);
 		1;
 	} or do {
-		vsay 4, "Exception occured: $@";
+		vsay 4, "Exception occured: $@" if $@;
 		vsay 4, "Fatal error.  Stopping services before reporting...\n";
 		# FIXME: send sometimes in cluster mode
 		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
@@ -193,25 +193,64 @@ sub verify_blast
 
 	for my $main (@{$args{mains}}){
 		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
+		if ($args{already_failed}){
+			# Print at once, without spawning task through watcher
+			mkpath(dirname($args{report}));
+			open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+			my $repT = XML::Twig::Elt->new('reports');
 
-		# Sanity check (should be performed at DSCV's site)
-		$sanity->blast_called() if $do_sanity;
+			# Prepare a failure command
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
 
-		# Prepare files for child
-		# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
-		my @files_for_child = (@{$args{files}});
+			# HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
+			my $failmsg = $args{already_failed};
 
-		$args{main} = $main;
-		my $task_fname = "$config->{cmdfile}.for.$main";
-		vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
-		my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
-		Utils::hash_to_xml(\%args,'input',$TASK);
-		close $TASK;
-		vsay('INFO',"Written RCV single command to '$task_fname'\n");
-		$ENV{'RCV_FRONTEND_CMD'} = $0;
-		# FIXME: key is transferred through env variable.  RCV should be rewritten.
-		#                                            task        dir      >>>> the rest is the key to distinguis from others
-		LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',@files_for_child);
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
+			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$failmsg)->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
+
+			# Commit the report
+			$repT->set_pretty_print('indented');
+			$repT->print($BLAST_REPORT);
+			close $BLAST_REPORT;
+
+			# Report failoure to the watcher
+			# TODO: we only implemented success only, so let it be here as is
+			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
+			vsay ('DEBUG',"Got key string $key_str.\n");
+			my @watcher_key = split /,/,$key_str;
+			for_parent($args{report},$args{trace},$args{debug});
+			LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'rcv',$args{cmd_id},$main,'@@',files_for_parent());
+
+		}else{
+
+			# Sanity check (should be performed at DSCV's site)
+			$sanity->blast_called() if $do_sanity;
+
+			# Prepare files for child
+			# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
+			my @files_for_child = (@{$args{files}});
+
+			$args{main} = $main;
+			my $task_fname = "$config->{cmdfile}.for.$main";
+			vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
+			my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
+			Utils::hash_to_xml(\%args,'input',$TASK);
+			close $TASK;
+			vsay('INFO',"Written RCV single command to '$task_fname'\n");
+			$ENV{'RCV_FRONTEND_CMD'} = $0;
+			# FIXME: key is transferred through env variable.  RCV should be rewritten.
+			#                                            task        dir      >>>> the rest is the key to distinguis from others
+			LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',@files_for_child);
+		}
 
 	}
 }

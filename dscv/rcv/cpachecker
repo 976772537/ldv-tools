@@ -168,7 +168,7 @@ if ($mode eq 'cmd'){
 		call_cpachecker(%args);
 		1;
 	} or do {
-		vsay 4, "Exception occured: $@";
+		vsay 4, "Exception occured: $@" if $@;
 		vsay 4, "Fatal error.  Stopping services before reporting...\n";
 		# FIXME: send sometimes in cluster mode
 		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
@@ -202,6 +202,7 @@ sub verify_cpachecker
 		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		if ($args{already_failed}){
 			# Print at once, without spawning task through watcher
+			mkpath(dirname($args{report}));
 			open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 			my $repT = XML::Twig::Elt->new('reports');
 
@@ -229,6 +230,15 @@ sub verify_cpachecker
 			$repT->set_pretty_print('indented');
 			$repT->print($CPACHECKER_REPORT);
 			close $CPACHECKER_REPORT;
+
+			# Report failoure to the watcher
+			# TODO: we only implemented success only, so let it be here as is
+			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
+			vsay ('DEBUG',"Got key string $key_str.\n");
+			my @watcher_key = split /,/,$key_str;
+			for_parent($args{report},$args{trace},$args{debug});
+			LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'rcv',$args{cmd_id},$main,'@@',files_for_parent());
+
 		}else{
 			# Sanity check
 			$sanity->blast_called() if $do_sanity;
@@ -378,6 +388,10 @@ sub call_cpachecker
 	# Create verdict calculator
 	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict(),java_oom(),cpachecker_syntax()]);
 
+	# Store last lines of the log to add them to the report
+	my @errbuf = ();
+	my $errbuf_sz = 50;
+
 	my %child = Utils::open3_callbacks({
 		# Stdout callback
 		out => sub{ my $line = shift;
@@ -387,6 +401,8 @@ sub call_cpachecker
 		# Stderr callback
 		'err' => sub{ my $line = shift;
 			$verdictor->chew_line($line);
+			push @errbuf, $line;
+			shift @errbuf if scalar @errbuf > $errbuf_sz;
 			print $CPACHECKER_DEBUG $line;
 		},
 		close_out=>sub{ vsay (40,"Child's stdout stream closed.\n");},
@@ -413,6 +429,42 @@ sub call_cpachecker
 	# $result->{'CPACHECKER'} = "yes";
 	# Post limits and verdict on different lines!
 	$result->{'CPACHECKER-detailed'} = join "\n",(grep {$_} ($result->{'CPACHECKER-detailed'},$result->{'LIMITS'}));
+
+	# Verdict
+	my $bv = $result->{'CPACHECKER-detailed'};
+	if ($bv =~ /\bsafe\b/) {
+		$bv='SAFE';
+	}elsif($bv =~ /\bunsafe\b/){
+		$bv='UNSAFE';
+	}else{
+		$bv='UNKNOWN';
+		# Add error buffers on unknown.  But first, filter some useless things out of them
+		# CPAchecker's trace is divided into blocks by empty lines.  Some blocks are not interesting to us, and we want the mremoved.
+		local $_;
+		my $cpaerrmsg = '';
+		my $removing = '';	#if we're removingall stuf until the next empty line
+		for my $ln (@errbuf){
+			$removing=1 if $ln=~/Dead code detected/;
+			$removing=1 if $ln=~/Ignoring inline assembler/;
+			if ($ln =~ /^$/){
+				$removing = '';
+			}else{
+				$cpaerrmsg.=$ln unless $removing;
+			}
+		}
+		$result->{'CPACHECKER-detailed'} = $cpaerrmsg . $result->{'CPACHECKER-detailed'};
+	}
+	# Result is derived from verdict
+	my $br = $result->{'CPACHECKER'};
+	vsay (40, "CPACHECKER status is $br\n");
+	if($br =~ /\bno\b/i){
+		$br='FAILED';
+	}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
+		$br='OK';
+	}else{
+		$br='FAILED';
+	}
+
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
@@ -449,26 +501,6 @@ EOR
 	# Print verdict to console and to report
 	vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
 	vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
-
-	# Verdict
-	my $bv = $result->{'CPACHECKER-detailed'};
-	if ($bv =~ /\bsafe\b/) {
-		$bv='SAFE';
-	}elsif($bv =~ /\bunsafe\b/){
-		$bv='UNSAFE';
-	}else{
-		$bv='UNKNOWN';
-	}
-	# Result is derived from verdict
-	my $br = $result->{'CPACHECKER'};
-	vsay (40, "CPACHECKER status is $br\n");
-	if($br =~ /\bno\b/i){
-		$br='FAILED';
-	}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
-		$br='OK';
-	}else{
-		$br='FAILED';
-	}
 
 	# Write source files to trace. This is needed since cpachecker
 	# doesn't provide good location and just print links to lines of a

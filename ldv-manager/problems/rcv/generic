@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+# Problem finder for generic RCV issues
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/PREPROCESS/ and print "CPP_error";
+	/CIL ERROR./ and print "CIL_parse_error";
+}
+
+
