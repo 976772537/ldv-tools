@@ -230,6 +230,14 @@ sub verify_cpachecker
 			$repT->set_pretty_print('indented');
 			$repT->print($CPACHECKER_REPORT);
 			close $CPACHECKER_REPORT;
+
+			# Report failoure to the watcher
+			# TODO: we only implemented success only, so let it be here as is
+			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
+			vsay ('DEBUG',"Got key string $key_str.\n");
+			my @watcher_key = split /,/,$key_str;
+			LDV::Utils::watcher_cmd('success','rcv',@watcher_key);#,'@@',files_for_parent());
+
 		}else{
 			# Sanity check
 			$sanity->blast_called() if $do_sanity;
