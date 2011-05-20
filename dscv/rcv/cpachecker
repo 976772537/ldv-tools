@@ -236,7 +236,8 @@ sub verify_cpachecker
 			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
 			vsay ('DEBUG',"Got key string $key_str.\n");
 			my @watcher_key = split /,/,$key_str;
-			LDV::Utils::watcher_cmd('success','rcv',@watcher_key);#,'@@',files_for_parent());
+			for_parent($args{report},$args{trace},$args{debug});
+			LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'rcv',$args{cmd_id},$main,'@@',files_for_parent());
 
 		}else{
 			# Sanity check

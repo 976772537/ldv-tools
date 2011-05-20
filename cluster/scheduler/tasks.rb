@@ -146,7 +146,7 @@ class TaskDescriptor
 
 
 	def initialize(_raw,_storage)
-		raise "Badly formed task #{_task.inspect}!" unless TaskDescriptor.task_correct? _raw
+		raise "Badly formed task #{_raw.inspect}!" unless TaskDescriptor.task_correct? _raw
 
 		# Symbolize keys and check if task has already been added
 		sym_task = TaskDescriptor.symbolize(_raw)

@@ -393,6 +393,18 @@ class WatcherLocal < Watcher
 	# type is ignored for the local watcher
 	public; def success(type,*key__files)
 		args, files = separate_args key__files
+		key = args
+		@dir.push 'tasks' do
+			query_fname,task_fname,running_fname,finished_fname = %w(queried data running finished).map {|w| @dir.ensure(w,key); @dir.join(w,key,'task')}
+			# If we're signaling about a task we haven't even queued, then create a "finished" file for local launcher to reap. (useful when sending info about preprocess failures: we send SUCCESS for each of the RCVs, which aren't even spawned).
+			if (not File.exists? query_fname) && (not File.exists? running_fname) and (not File.exists? finished_fname)
+				$log.trace "Writing fake task to #{task_fname}..."
+				File.open(task_fname,'w') { |f| f.puts '/abrakadabra/' }
+				$log.trace "Writing fake result to #{finished_fname}..."
+				File.open(finished_fname,'w') { |f| f.puts '/abrakadabra/' }
+				# We do not release semaphore as it hasn't been locked.
+			end
+		end
 		$log.info "Reported success for #{args.inspect}"
 		#set_status('success',args,Process.ppid)
 		remove_data(args) if decrease_refcounter_and_check

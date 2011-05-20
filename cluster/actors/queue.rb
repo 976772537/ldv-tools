@@ -326,11 +326,32 @@ class Ldvqueue
 		task = tasks.task_of_raw _task
 
 		unless task
-			@qlog.warn "Strange result with key #{_task['key']} arrived (perhaps, from previous trash run?).  Ignoring."
-			return nil
+			if data = find_in_namespaces(_task['key'])
+				# NOTE: this block handles situations when preprocessing in DSCV failed.  This means that we haven't even issued an RCV command, and we know it will fail, so we just send its result without queueing it.  Smells like a hack, but it's easier to rewrite this than to clear that DSCV/RCV mess.
+				@qlog.warn "Strange result with key #{_task['key']} arrived (perhaps, an error occured?).  Accepting it since it's from our namespace."
+				# Queue and immediately do the result of task
+				# But first, make task conforming to task spec
+				_task['workdir'] ||= '/abrakadabra/'
+				_task['type'] ||= 'rcv'
+				_task['args'] ||= 'none'
+				_task['env'] ||= []
+				@task_update_mutex.synchronize do
+					do_queue _task
+					task = tasks.task_of_raw _task
+					# Instantly remove it from queue
+					task.dequeue
+					# Save result to broker
+					do_result task, false
+				end
+				return nil
+			else
+				@qlog.warn "Strange result with key #{_task['key']} arrived (perhaps, an error occured?).  Ignoring."
+				return nil
+			end
+		else
+			# If we found the task -- do its result then
+			do_result task
 		end
-
-		do_result task
 	end
 
 	# do_results, unlike +result+, gets an "internal" task, not a raw one
@@ -463,29 +484,32 @@ class Ldvqueue
 
 	NAMESPACE_KEY = :global
 
-	# Assign global information to the task
-	def assign_namespace_data(task)
-		key = task[:key]
-
-		# If we have found the global data for the given key
-		data_found = false
-
+	def find_in_namespaces(key)
 		# We could use a sophisticated algorithm for this, but we'll just do it quick-and-dirty
 		@namespaces.each do |namespace_key, data|
 			# Determine if task's key belongs to the namespace
 			belongs = (key[0,namespace_key.length] == namespace_key)
 			# Assign data if necessary
 			if belongs
-				task[NAMESPACE_KEY] = data
-				data_found = true
-				break
+				return data
 			end
 		end
+		# Not found
+		return nil
+	end
 
-		# If data are not found in the local table, then create a new namespace!
-		if !data_found && task[NAMESPACE_KEY]
-			@qlog.warn "Namespace data for #{key} are not found.  Creating a new namespace with #{task[NAMESPACE_KEY].inspect}."
-			task[NAMESPACE_KEY] = add_to_namespace(key,task[NAMESPACE_KEY])
+	# Assign global information to the task
+	def assign_namespace_data(task)
+		key = task[:key]
+
+		if data = find_in_namespaces(key)
+			task[NAMESPACE_KEY] = data
+		else
+			# If data are not found in the local table, then create a new namespace!
+			if task[NAMESPACE_KEY]
+				@qlog.warn "Namespace data for #{key} are not found.  Creating a new namespace with #{task[NAMESPACE_KEY].inspect}."
+				task[NAMESPACE_KEY] = add_to_namespace(key,task[NAMESPACE_KEY])
+			end
 		end
 	end
 
