@@ -202,6 +202,7 @@ sub verify_cpachecker
 		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
 		if ($args{already_failed}){
 			# Print at once, without spawning task through watcher
+			mkpath(dirname($args{report}));
 			open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
 			my $repT = XML::Twig::Elt->new('reports');
 
