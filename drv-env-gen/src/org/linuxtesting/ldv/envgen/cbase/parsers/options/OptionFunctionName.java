@@ -10,9 +10,14 @@ public final class OptionFunctionName extends Options {
 // Old patterns replaced
 //	private static String pattern =    "(}\\s*;?|\\)\\s*;|\\n\\s*)((?!(\\s*(while|sizeof|if|list_for_each_entry|list_for_each_entry_safe|switch|gadget_for_each_ep)\\s*\\())([\\s\\w\\d\\*\\_\\,\\(\\)]*))\\s+\\*?((?!(for)|(if))([_a-zA-Z][_a-z0-9A-Z]*\\s*))\\([\\s\\w\\d\\*\\&\\_\\,\\(\\)]*\\)\\s*\\{";
 //	private static String prePattern = "(}\\s*;?|\\)\\s*;|\\n\\s*)((?!(\\s*(while|sizeof|if|list_for_each_entry|list_for_each_entry_safe|switch|gadget_for_each_ep)\\s*\\())([\\s\\w\\d\\*\\_\\,\\(\\)]*))\\s+\\*?(";
-	private static String pattern =    "(}\\s*;?|\\)\\s*;|\\n\\s*)((?!(\\s*(while|sizeof|if|list_for_each_entry|list_for_each_entry_safe|switch|gadget_for_each_ep)\\s*\\())([\\s\\w\\d\\*\\_\\,\\(\\)]*))\\s+\\*?((?!(for)|(if))([_a-zA-Z][_a-z0-9A-Z]*\\s*))\\([\\s\\w\\d\\*\\&\\_\\,]*\\)\\s*\\{";
-	private static String prePattern = "(}\\s*;?|\\)\\s*;|\\n\\s*)((?!(\\s*(while|sizeof|if|list_for_each_entry|list_for_each_entry_safe|switch|gadget_for_each_ep)\\s*\\())([\\s\\w\\d\\*\\_\\,\\(\\)]*))\\s+\\*?(";
-	private static String afterPattern = ")\\s*\\([\\s\\w\\d\\*\\&\\_\\,]*\\)\\s*\\{";
+	private static String pattern =    	"(}\\s*;?|\\)\\s*;|\\n\\s*)((?!(\\s*(while|sizeof|if|list_for_each_entry|list_for_each_entry_safe|switch|gadget_for_each_ep)\\s*\\())([\\s\\w\\d\\*\\_\\,\\(\\)]*))\\s+\\*?(" +
+										"(?!(\\bfor\\b)|(\\bif\\b))([_a-zA-Z][_a-z0-9A-Z]*\\s*)" +
+										//"iforce_usb_probe" +
+										")\\" + "s*\\" +
+										"([\\s\\w\\d\\*\\&\\_\\,]*\\)\\s*\\{";
+	private static String prePattern = 	"(}\\s*;?|\\)\\s*;|\\n\\s*)((?!(\\s*(while|sizeof|if|list_for_each_entry|list_for_each_entry_safe|switch|gadget_for_each_ep)\\s*\\())([\\s\\w\\d\\*\\_\\,\\(\\)]*))\\s+\\*?(";
+	private static String afterPattern =")\\s*\\" +
+										"([\\s\\w\\d\\*\\&\\_\\,]*\\)\\s*\\{";
 
 	public OptionFunctionName() {
 		super("name");

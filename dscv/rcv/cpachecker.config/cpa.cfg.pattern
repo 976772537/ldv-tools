@@ -37,3 +37,7 @@ specification = test/config/automata/ErrorLocationAutomaton.txt
 
 cpa.predicate.blk.functions = false
 cpa.predicate.blk.loops     = true
+
+#list of nondeterministic functions, implemented in revision 2360
+cpa.predicate.nondetFunctions = malloc, random, int_nondet, nondet_int, ldv_undefined_int, ldv_undefined_pointer, ldv_undefined_ulong
+

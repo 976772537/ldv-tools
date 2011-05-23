@@ -50,15 +50,15 @@ if (defined $source_dir) {
 }
 
 	# Pack all files
-	print("pax -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ","\n");
-	system("pax -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
+	print("pax -O -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ","\n");
+	system("pax -O -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
 	print("Packing traces: \n");
 	for my $trace (@traces){
 		my $trace_absolute = "$work_dir/$trace";
 		# Traces are also shown in report (but not in filesystem!) even for SAFE files!  That's a bug, but we workaround it here for now.
 		next unless -f $trace_absolute;
-		print("pax -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' \n");
-		system("pax -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' ") and die;
+		print("pax -O -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' \n");
+		system("pax -O -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' ") and die;
 	}
 
 

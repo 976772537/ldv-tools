@@ -319,8 +319,8 @@ else
 	paxname = ARGV[0] or raise "Specify the package name, please"
 	paxname = File.expand_path(paxname)
 	Dir.chdir(tmpdir) do |dir|
-		# Unpack to temporary dir
-		Kernel.system("pax","-r","-f",paxname) or raise "pax didn't work."
+		# Unpack to temporary dir (-O for large archives)
+		Kernel.system("pax","-O","-r","-f",paxname) or raise "pax didn't work."
 	end
 	$stderr.write "Unpacked to: #{tmpdir}\n"
 # Get report name

@@ -141,7 +141,11 @@ if(!is_exists($next_pid)) {
 # Wait while BCE not finished
 #
 waitpid $bce_pid, 0;
-vsay 'TRACE', "BCE successfully finished\n";
+if ($? == 0){
+	vsay 'TRACE', "BCE successfully finished\n";
+}else{
+	vsay 'WARNING', "BCE failed, see '$config->{'ldv_tempdir'}/bce_err.log'.\n";
+}
 
 #
 # Try to connect to CSD and white while verification process is finished.
@@ -407,6 +411,13 @@ sub wait_for_all_verified {
 			vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";
 			$tasks->{$cid}->{state} = 'verified';
 
+			# If there are less than five tasks left, show their keys.  When one of DSCVs has failed on cluster, it should be visible, which.
+			local $_;
+			my @keys_missing = grep { ! exists $keys_arrived->{join('.','dscv',$_)}} keys %$tasks;
+			if (scalar @keys_missing <= 5 && scalar @keys_missing > 0){
+				vsay 'INFO', "Still waiting for these: ".join(', ',@keys_missing);
+			}
+
 			LDV::Utils::pop_instrument('ldv-core');
 			# Return that we have waited for one key succesfully
 			return 1;
@@ -497,7 +508,6 @@ sub start_bce {
 	vsay 'NORMAL', "Starting BCE...\n";
 	$ENV{'BUILDFILE'} = "$config->{'bce_tempdir'}/build.xml";
 	ensure_removed("$config->{'bce_state'}","BCE state file");
-	ensure_removed("$config->{'xml_after_bce'}","BCE output cmdfile");
 
 	my @bce_args = ($config->{'timeout'},
 		'-p',
@@ -514,13 +524,16 @@ sub start_bce {
 	if($config->{'cmdstream'}) {
 		push @bce_args, "--cmdstream=$config->{'cmdstream'}";
 		push @bce_args, '--kernel-driver';
+		# We do not remove BCE output cmdfile in cmdstream mode, because in CMDstream mod it is used as input! (see bug #1251)
 	} elsif($config->{ptarget}) {
 		$config->{ptarget} =~ s/ /&/g;
 		push @bce_args, "--driver=\"$config->{ptarget}\""; 
 		push @bce_args, '--kernel-driver';
+		ensure_removed("$config->{'xml_after_bce'}","BCE output cmdfile");
 	} else {
 		push @bce_args, "--driver=$config->{'driver'}";
 		$config->{'kernel-driver'} and push @bce_args, '--kernel-driver';
+		ensure_removed("$config->{'xml_after_bce'}","BCE output cmdfile");
 	}
 
 	my $pid = parallel_run "@bce_args", "$config->{'ldv_tempdir'}/bce_err.log", "$config->{'ldv_tempdir'}/bce_out.log";

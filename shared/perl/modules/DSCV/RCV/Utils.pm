@@ -323,7 +323,7 @@ sub ld_maker
 					);
 					mkpath(dirname($i_file));
 					$new_record->{i_file} = $i_file;
-					preprocess_file(%$new_record) and die "PREPROCESS ERROR!  Recovery is unimplemented"; # TODO
+					preprocess_file(%$new_record) and do { vsay("WARNING", "PREPROCESS ERROR!  Terminating checker.\n"); $fail = "PREPROCESS ERROR."; return $verify->(%common_vercmd_args, already_failed=>$fail);  };
 				}else{
 					$new_record->{i_file} = $new_record->{c_file};
 				}

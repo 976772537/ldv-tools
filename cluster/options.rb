@@ -22,6 +22,10 @@ class ClusterOptionsParser
 				options[:root] = nanite
 			end
 
+			opts.on("--node-name NAME", "The name of this node") do |name|
+				options[:node_name] = name
+			end
+
 			opts.on("--ping-time PINGTIME", "Specify how often the agents contact the mapper") do |ping|
 				# Do not allow zero pings; treat them as errors
 				if ping.to_i <= 0
@@ -68,6 +72,10 @@ class ClusterOptionsParser
 
 			opts.on("--max-node-load LOAD", "Specify maximum load averame (1 min.) of a node to route tasks to it ") do |max_load|
 				options[:max_node_load] = max_load.to_f
+			end
+
+			opts.on("--free-at-least LOAD", "How much space (Mb) should there be free to accept more tasks") do |free_at_least|
+				options[:free_at_least] = free_at_least.to_i
 			end
 
 			opts.on("--disc-range SECONDS", "Discounting heuristics adjust node's load averages for this amount of seconds") do |sec|
