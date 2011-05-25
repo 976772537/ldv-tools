@@ -55,6 +55,8 @@ class Ldvqueue
 		@key_fname = File.expand_path File.join('data','max_key')
 		deserialize(:all)
 
+		@get_results_from_filesrv = opts[:filesrv_results] if opts[:filesrv_results]
+
 		# Node selection algorithm
 		@max_load = opts[:max_node_load] || 100
 		@select_node = lambda do |node_stats|
@@ -509,6 +511,22 @@ class Ldvqueue
 			if task[NAMESPACE_KEY]
 				@qlog.warn "Namespace data for #{key} are not found.  Creating a new namespace with #{task[NAMESPACE_KEY].inspect}."
 				task[NAMESPACE_KEY] = add_to_namespace(key,task[NAMESPACE_KEY])
+		# If we use a special hack, then populate the task storage from files on the file server
+		if @get_results_from_filesrv
+			@qlog.info "Try to load finished tasks from '#{@get_results_from_filesrv}' with key '#{key}'"
+			@tasks.populate_from_filesrv @get_results_from_filesrv, key do |_task|
+				@qlog.warn "HACK! Loaded results for #{_task['key']} (#{_task.inspect})"
+				#@task_update_mutex.synchronize do
+					do_queue _task
+					task = tasks.task_of_raw _task
+					# Instantly remove it from queue
+					task.dequeue
+					# Save result to broker
+					do_result task, false
+				#end
+			end
+		end
+
 			end
 		end
 	end

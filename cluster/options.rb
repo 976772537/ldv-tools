@@ -88,6 +88,10 @@ class ClusterOptionsParser
 				options[:disc_end] = sec.to_f
 			end
 
+			opts.on("--filesrv-results FOLDER", "Get results from filesrv (hack!)") do |dir|
+				options[:filesrv_results] = dir
+			end
+
 			
 			opts.on("--actors-dir DIR", "Path to directory containing actors (NANITE_ROOT/actors by default)") do |dir|
 				options[:actors_dir] = dir
