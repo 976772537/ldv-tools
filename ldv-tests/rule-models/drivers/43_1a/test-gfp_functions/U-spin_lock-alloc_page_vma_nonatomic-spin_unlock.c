@@ -5,17 +5,19 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-
+#include <linux/gfp.h>
 
 static DEFINE_SPINLOCK(test_lock);
 
 
 int misc_open(struct inode *inode, struct file *file)
 {
-	struct kmem_cache *sc;
+	struct page *p;
+	struct vm_area_struct *vma;
+	unsigned long addr;
 
 	spin_lock(&test_lock);
-	sc= kzalloc(sizeof(struct kmem_cache), GFP_KERNEL);
+	p = alloc_page_vma(GFP_KERNEL, vma, addr);
 	spin_unlock(&test_lock);
 
 	return 0;

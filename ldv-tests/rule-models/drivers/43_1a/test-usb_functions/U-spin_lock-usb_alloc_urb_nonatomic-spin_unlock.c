@@ -5,17 +5,16 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-
+#include <linux/usb.h>
 
 static DEFINE_SPINLOCK(test_lock);
 
 
 int misc_open(struct inode *inode, struct file *file)
 {
-	struct kmem_cache *sc;
-
+	struct urb *my_urb;
 	spin_lock(&test_lock);
-	sc= kzalloc(sizeof(struct kmem_cache), GFP_KERNEL);
+	my_urb = usb_alloc_urb(0, GFP_KERNEL);
 	spin_unlock(&test_lock);
 
 	return 0;

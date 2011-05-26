@@ -15,7 +15,7 @@ int misc_open(struct inode *inode, struct file *file)
 	struct kmem_cache *sc;
 
 	spin_lock(&test_lock);
-	sc= kzalloc(sizeof(struct kmem_cache), GFP_KERNEL);
+	kmem_cache_zalloc(sc, GFP_ATOMIC);
 	spin_unlock(&test_lock);
 
 	return 0;
