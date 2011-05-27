@@ -15,5 +15,6 @@ while (<>){
 	or /: fatal error: / and print "Fatal_err";
 	/tree node '(.*)' isn't supported/ and print "<a href=\"http://forge.ispras.ru/issues/1167\">$1</a>";
 	/Aspectator fails on the (.*) stage/ and print "$1 stage";
+	/error: redeclaration of '(.*)' with no linkage/ and print "Redeclaration";
 }
 
