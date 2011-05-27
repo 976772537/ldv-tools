@@ -635,7 +635,8 @@ sub dumptrace
 		my ($line) = @_;
 		if ($state == TRACE_READ){
 			unless ($current_fh){
-				open $current_fh, ">>", $fname or die;
+				# Do not open for appending, open for writing instead (see bug #1264)
+				open $current_fh, ">", $fname or die;
 			}
 			print $current_fh $line;
 		}
