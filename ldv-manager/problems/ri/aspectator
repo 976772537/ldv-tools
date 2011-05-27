@@ -15,6 +15,17 @@ while (<>){
 	or /: fatal error: / and print "Fatal_err";
 	/tree node '(.*)' isn't supported/ and print "<a href=\"http://forge.ispras.ru/issues/1167\">$1</a>";
 	/Aspectator fails on the (.*) stage/ and print "$1 stage";
-	/error: redeclaration of '(.*)' with no linkage/ and print "Redeclaration";
+
+	/compiler-core: error: kernel.org: No such file or directory/ and print "kernel.org";
+	/warning: no return statement in function returning non-void/ and print "No return warn";
+	/warning: ISO C90 forbids mixed declarations and code/ and print "Mixed decls warn";
+	/error: implicit declaration of function '(.*)'/ and print "Implicit decl";
+
+	#drv-env-gen problems
+	/error: storage size of '(.*)' isn't known/ and print "<a href=\"http://forge.ispras.ru/issues/1293\">Storage size</a>";
+	/error: implicit declaration of function kmalloc/ and print "DEG: implicit kmalloc";
+	/error: redeclaration of '(.*)' with no linkage/ and print "DEG: Redeclaration";
+	/error: #endif without #if/ and print "<a href=\"http://forge.ispras.ru/issues/1293\">DEG: ifdefs</a>";
+	/error: incompatible types when assigning to type '(.*)' from type '(.*)'/ and print "<a href=\"http://forge.ispras.ru/issues/553\">DEG: return type</a>";
 }
 
