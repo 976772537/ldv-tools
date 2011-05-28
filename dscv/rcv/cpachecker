@@ -75,7 +75,8 @@ my $cil_dir = "$shared_dir/cil";
 
 # Resource limits processing
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || undef;	# Do not set memory limit, let cpachecker itself handle this
+# CPAchecker itself does set a memory limit (as of today, the default is 1200 Mbs of Java heap size.)  However, if it just doesn't work, we don't want our machine to get stuck, so we set up a limit of ~2.2 Gb by default.... well, just in case.  The "cases" we observed (char/ipmi/ipmi_watchdog.ko) demonstrate that this is a good estimate of 1.0 Gb of the actual resident memory taken.
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || 2_200_000;
 vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 
 # Check if we launch CIL before the verifier
@@ -356,6 +357,7 @@ sub call_cpachecker
 	# Resources limit.  We don't set memlimit--see below
 	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $timelimit,
+		memlimit => $memlimit,
 		pattern => ".*,ALL;.*java.*,JAVA-PROC;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
 		output => $args{timestats},
 		id_str => "DSCV_TIMEOUT ",
@@ -633,7 +635,8 @@ sub dumptrace
 		my ($line) = @_;
 		if ($state == TRACE_READ){
 			unless ($current_fh){
-				open $current_fh, ">>", $fname or die;
+				# Do not open for appending, open for writing instead (see bug #1264)
+				open $current_fh, ">", $fname or die;
 			}
 			print $current_fh $line;
 		}

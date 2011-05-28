@@ -1,5 +1,7 @@
 # Implementation of task storage in scheduler
 
+require 'find'
+
 class TaskExists < Exception
 	attr_accessor :task
 	def initialize(_task)
@@ -22,6 +24,21 @@ class TaskStorage
 
 		@queue = []
 		@running = []
+	end
+
+	# Populate the pool of finished tasks from file server folder.  It is a hack used when the scheduler fails, and we need to re-use its results.  We only populate the storage for the specific key (to avoid loading useless tasks)
+	public; def populate_from_filesrv(folder,key)
+		Find.find folder do |f|
+			fname = File.basename f
+			if fname =~ /^(#{key}.*)-to-parent.pax/
+				_new_task = { 'key' => $1 }
+				_new_task['workdir'] = '/abrakadabra/'
+				_new_task['type'] = 'rcv'
+				_new_task['args'] = 'none'
+				_new_task['env'] = []
+				yield _new_task
+			end
+		end
 	end
 
 	# QUERYING STORAGE

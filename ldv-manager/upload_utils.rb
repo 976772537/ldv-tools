@@ -1,4 +1,5 @@
 require 'active_record'
+require 'logger'
 
 def ldv_db_connect
 	ActiveRecord::Base.establish_connection(

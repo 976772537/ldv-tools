@@ -128,6 +128,9 @@ sub cilly_file
 	defined $info->{is_list} and push @cil_args,'--extrafiles';
 	push @cil_args,@extra_args;
 
+	# Add extra arguments
+	push @cil_args,(split /\s+/,$ENV{'CIL_OPTIONS'});
+
 	vsay ('DEBUG',"CIL: ",@cil_args,"\n");
 	local $"=' ';
 	my ($CIL_IN,$CIL_OUT,$CIL_ERR);

@@ -2,7 +2,6 @@
 require 'rubygems'
 require 'active_record'
 require 'find'
-require 'logger'
 require 'rexml/document'
 require 'fileutils'
 require 'optparse'
