@@ -1,4 +1,9 @@
 
+# Bones doesn't work on some machines (rake 0.9.0?) without it.
+if defined? Rake::DSL
+	include Rake::DSL
+end
+
 begin
   require 'bones'
 rescue LoadError
