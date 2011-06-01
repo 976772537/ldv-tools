@@ -222,13 +222,14 @@ sub verify_blast
 			$repT->print($BLAST_REPORT);
 			close $BLAST_REPORT;
 
-			# Report failoure to the watcher
-			# TODO: we only implemented success only, so let it be here as is
+			# Report failure to the watcher
+			# We should first allocate key (to keep the allocate/free balance)
 			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
-			vsay ('DEBUG',"Got key string $key_str.\n");
-			my @watcher_key = split /,/,$key_str;
+			#vsay ('DEBUG',"Got key string $key_str.\n");
+			#my @watcher_key = split /,/,$key_str;
+			# But then we ignore this string, and use the watcher_key allocated by the parent DSCV for immediate success reporting
 			for_parent($args{report},$args{trace},$args{debug});
-			LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'rcv',$args{cmd_id},$main,'@@',files_for_parent());
+			LDV::Utils::watcher_cmd('success','rcv',@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',files_for_parent());
 
 		}else{
 
