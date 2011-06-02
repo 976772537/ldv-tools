@@ -477,7 +477,7 @@ sub call_blast
 		# BLAST didn't find input file -- integration error
 		die "BLAST couldn't find some input files";
 	}elsif($blast_rv == 3){
-		die "BLAST couldn't find entry point/error location";
+		vsay (4, "BLAST couldn't find entry point/error location!");
 	}elsif($? == 0){
 		vsay (20,"BLAST OK\n");
 	}else{
@@ -492,6 +492,11 @@ sub call_blast
 	# Add timing information into the result returned
 	$result->{'utime'} = $child{'utime'};
 	$result->{'stime'} = $child{'stime'};
+
+	# If BLAST failed to find an entry point or an error location, tell that:
+	if ($blast_rv == 3){
+		$result->{'BLAST-detailed'} = 'No entry point or error location found';
+	}
 
 	# Add information about limits to result
 	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";

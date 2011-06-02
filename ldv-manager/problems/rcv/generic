@@ -7,6 +7,7 @@ while (<>){
 	chomp;
 	/PREPROCESS/ and print "CPP_error";
 	/CIL ERROR./ and print "CIL_parse_error";
+	/No entry point or error location found/ and print "Main/Label";
 }
 
 
