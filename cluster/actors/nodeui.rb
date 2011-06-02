@@ -67,6 +67,11 @@ class Nodeui
 			:env => task_env,
 			:global => {:sshuser=>opts[:sshuser], :host => opts[:sshhost], :root => opts[:workdir], :filesrv=>opts[:filesrv], :env => task_env}
 		}
+		if opts[:position]
+			@log.info "The task will be run with position #{opts[:position]}"
+			task[:position] = opts[:position]
+		end
+
 		@log.debug "Task prepared, here it is: #{task.inspect}.  Sending."
 		initialize_death_clock('/ldvqueue/queue')
 		Nanite.request('/ldvqueue/queue',task,:offline_failsafe => true, :selector => :ldv_selector) do |res|

@@ -70,6 +70,11 @@ class ClusterOptionsParser
 				options[:filesrv] = val
 			end
 
+			opts.on("--position PR", "Only when queueing task: put it into the queue according to the value, 1 means the task will be the next") do |pr|
+				options[:position] = pr.to_i
+			end
+
+
 			opts.on("--max-node-load LOAD", "Specify maximum load averame (1 min.) of a node to route tasks to it ") do |max_load|
 				options[:max_node_load] = max_load.to_f
 			end

@@ -65,6 +65,13 @@ class TaskStorage
 		task = TaskDescriptor.new _task,self
 		key = task.key
 
+		# If a task has a position, then read it
+		position = where
+		if task[:position]
+			where = task[:position].to_i - 1
+			where = (where < 0)? 0 : where
+		end
+
 		existing_task = @store[key]
 		raise TaskExists.new(existing_task) if existing_task
 
@@ -107,6 +114,9 @@ class TaskStorage
 		task.status = :queued
 		if where == :last
 			@queue << task
+		elsif where.is_a? Integer
+			where = [where,@queue.length].min
+			@queue.insert(where,task)
 		else
 			@queue.unshift task
 		end
@@ -140,7 +150,7 @@ class TaskDescriptor
 	# must - keys that every task should have
 	# may  - keys that some tasks might have
 	# Other keys are prohibited!
-	Task_keys = {'type' => :must, 'args' => :must, 'workdir' => :must, 'key' => :must, 'env'=>:must, 'global' => :may}
+	Task_keys = {'type' => :must, 'args' => :must, 'workdir' => :must, 'key' => :must, 'env'=>:must, 'global' => :may, 'position' => :may}
 	# Check if task is correct
 	def self.task_correct?(task)
 		task.keys.each do |item|
