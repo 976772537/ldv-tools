@@ -84,19 +84,19 @@ LDV-GIT ADDITIONAL PREREQUISITES
 
 CLUSTER PREREQUISITES
 
-	o sudo gem install rspec
 	o sudo gem install rdoc
 	o sudo gem install rspec
 	o sudo gem install json
-	o sudo gem install rspec
 	o apt-get install -y libopenssl-ruby (required on Ubuntu systems)
 	o unionfs (FUSE version)
 	o sshfs (FUSE)
 	o logrotate
+	o Ruby ruby 1.9.2p180 (older versions might not work)
 	o Erlang
 	o RabbitMQ server 2.0.0 (greater versions are not supported!)
 		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server_2.0.0-1_all.deb (Debian)
 		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server-2.0.0-1.suse.noarch.rpm (Suse)
+
 
 
 
