@@ -79,6 +79,7 @@ def say_and_run(*args_)
 	end
 	# FIXME : set up logger in a more documented way
 	lgr = ulog('Node')
+	lgr.trace "PATH=#{ENV['PATH']}"
 	lgr.debug "Running #{runspect args}"
 	if opts[:no_capture_stderr]
 		cerr_handler = proc { |line| }
@@ -102,6 +103,7 @@ end
 # Run and log information to the logger supplied
 def run_and_log(logger,*args_)
 	args = args_.flatten
+	logger.trace "PATH=#{ENV['PATH']}"
 	logger.info "Running: #{args.inspect}"
 	# Error handler reads from stderr stream of the process spawned.  LDV tools (hopefully) write information about their work there in the following format:
 	#   tool: SEVERITY: message
@@ -125,16 +127,15 @@ def run_and_log(logger,*args_)
 			if logger.respond_to? severity
 				fixed_line = "#{md[1]}: #{md[3]}"
 				logger.send(severity,fixed_line)
-				return
 			else
 				# Unknown severity; perhaps, this line is not about logging?
 				# print it as an error in this case
 				logger.error line.chomp
 			end
+		else
+			# It's a strange line, print as error
+			logger.error line.chomp
 		end
-
-		# It's a strange line, print as error
-		logger.error line.chomp
 	end
 
 	retcode = EnhancedOpen3.open3_linewise(nil,cout_handler,cerr_handler,*args)

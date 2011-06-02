@@ -5,10 +5,15 @@ begin; require 'rubygems'; rescue LoadError; end
 begin
   require 'hanna/rdoctask'
 rescue LoadError
-  require 'rake/rdoctask'
+	begin
+		require 'rake/rdoctask'
+	rescue
+		# For the new ruby&gems compatibility
+		require 'rdoc/task'
+	end
 end
 require 'rake/clean'
-require 'lib/nanite'
+require './lib/nanite'
 
 GEM = "nanite"
 AUTHOR = "Ezra Zygmuntowicz"

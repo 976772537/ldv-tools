@@ -124,12 +124,13 @@ module EnhancedOpen3
 			code = thr.value
 		end
 		# Return code, either nil if something bad happened, or the actual return code if we were successful
-		return code
+		code
 	end
 	module_function :open3_callbacks
 
 	# Read linewise and supply lines to callbacks
 	# Linewise read can not use "readline" because the following situation may (and did) happen.  The process spawned writes some data to stderr, but does not terminate it with a newline.  We run a callback for stderr, use readline and block.  The process spawned then writes a lot of data to stdout, reaches pipe limit, and blocks as well in a write(stdout) call.  Deadlock.  So, we use more low-level read.
+	# No returns are allowed in callbacks (ruby 1.9)
 	def open3_linewise(cin_callback, cout_callback, cerr_callback, *args)
 		# Read this number of bytes from stream per nonblocking read
 		some = 4096
@@ -164,13 +165,16 @@ module EnhancedOpen3
 				cin_buf += ( cin_callback[] || '')
 			end
 			# If the buffer is still empty, return nil, showing that cin is temporarly excluded from polling
-			return nil if cin_buf.empty?
-			# Something is in the buffer.  Print a portion of it.
-			to_print, cin_buf = cin_buf[0..some-1],cin_buf[some..cin_buf.length-1]
-			cin_buf ||= ''	# the previous line would null-ify the buffer if it's less than some
-			#$stderr.puts "Length: to_print: #{to_print.length}, buf: #{cin_buf.length}"
-			cin.write to_print
-			return true
+			if cin_buf.empty?
+				nil
+			else
+				# Something is in the buffer.  Print a portion of it.
+				to_print, cin_buf = cin_buf[0..some-1],cin_buf[some..cin_buf.length-1]
+				cin_buf ||= ''	# the previous line would null-ify the buffer if it's less than some
+				#$stderr.puts "Length: to_print: #{to_print.length}, buf: #{cin_buf.length}"
+				cin.write to_print
+				true
+			end
 		end
 
 		retcode = open3_callbacks(cin_backend,cout_backend,cerr_backend,*args)
@@ -179,7 +183,7 @@ module EnhancedOpen3
 		cout_callback[cout_buf] if cout_buf.length > 0
 		cerr_callback[cerr_buf] if cerr_buf.length > 0
 
-		return retcode
+		retcode
 	end
 	module_function :open3_linewise
 
