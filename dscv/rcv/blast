@@ -302,6 +302,7 @@ sub call_blast
 		"-ignoredupfn", # Ignore duplicated functions when constructing CFA
 		"-nosserr", # Ignore "combining structure and non-structure values" error.  LLVM emits such nasty code.
 		"-skipnorm",# Do not try to normalize predicates within BLAST.  Solvers do it much faster.
+		"-enable-recursion",# Allow recursive call graphs, but cut out the actual recursive calls
 	;
 
 	# Add mains and error locations
