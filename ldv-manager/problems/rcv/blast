@@ -29,5 +29,6 @@ while (<>){
 	/Fatal error: out of memory./ and print "Ocaml_OOM";
         /Error: Global __constr_expr_[0-9]* was already defined at/i and print "ConstExpr";
 	/Global .* was already defined/ and print "Two_globals";
+	/error when reading CSIsat output/ and print "CSIsat";
 }
 
