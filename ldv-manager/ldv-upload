@@ -282,6 +282,7 @@ class LaunchStreamFactory
 end
 
 options = {}
+$kernel_filter_regexp = nil
 
 OptionParser.new do |opts|
 	opts.banner = "Usage: #{$0} [--xml report.xml] archive.pax"
@@ -303,6 +304,9 @@ OptionParser.new do |opts|
 		$modprefix = module_prefix
 	end
 
+	opts.on "--kernel-filter regexp", "Only load modules that start with the prefix specified" do |kernel_regexp|
+		$kernel_filter_regexp = Regexp.new(kernel_regexp)
+	end
 
 	opts.on "--debug", "Debug output" do |xml_fname|
 		$debug = true
@@ -424,6 +428,14 @@ while not docs.end_of? 'reports' do
 		unless build_rec.success
 			launch = failed_build_launch_loader.yield
 
+			# Check if kernel complies to the filter
+			if $kernel_filter_regexp
+				unless $kernel_filter_regexp.match(failed_build_launch_loader.kernel_name)
+					puts "Skipping build for kernel #{failed_build_launch_loader.kernel_name}, because it doesn't match the filter."
+					next
+				end
+			end
+
 			# Don't forget to calculate problems for failed build since there is no ld for failed builds.
 			build_rec.calc_problems(File.join(manhome, "problems", "build"))
 			trace = Trace.new
@@ -453,6 +465,16 @@ while not docs.end_of? 'reports' do
 	# Upload LD node
 	ld_ref = docs['ref']
 	ld_kernel = docs['kernel']
+
+	# Check if kernel complies to the filter
+	if $kernel_filter_regexp
+		unless $kernel_filter_regexp.match(ld_kernel)
+			puts "Skipping ld #{ld_ref || 'UNKNOWN! ref is not set!'} because kernel #{ld_kernel} doesn't match the filter."
+			docs.consume
+			next
+		end
+	end
+
 	puts "Uploading ld #{ld_ref || 'UNKNOWN! ref is not set!'}..."
 
 	# Handler for common launch routines
