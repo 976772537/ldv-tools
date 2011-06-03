@@ -243,6 +243,8 @@ sub ld_maker
 	my $workdir = $args{workdir};
 	my $verify = $args{verifier};
 	my $archivated = $args{archivated} || '';
+	# Flag that CIL file list from the previous run was removed
+	my $removed_cil_filelist = 0;
 
 	return sub{
 		my ($twig, $cmdT) = @_;
@@ -303,6 +305,14 @@ sub ld_maker
 				'cwd' => sub { $$cwd = $_[1]->text(); },
 			})->parsefile($o_file);
 
+			# Clear some temporary files that might be left from the previous run
+			my $cilly_dir = "$workdir/cilly";
+			my $cil_extra_files_list = "$cilly_dir/cil_extrafiles.list";
+			if (-f $cil_extra_files_list && !$removed_cil_filelist){
+				vsay 'DEBUG', "CIL file list found from previous run in '$cil_extra_files_list'; removing.";
+				unlink $cil_extra_files_list;
+				$removed_cil_filelist = 1;
+			}
 			# Propagate the information gathered to c_files_info arrays
 			local $_;
 			for my $c_file (@$c_files){
@@ -334,11 +344,9 @@ sub ld_maker
 				# Make file through CIL if necessary
 				# record->{i_file} holds "the file after preprocessing", so use it as input.  Output to {cil_fil}, but copy it back to {i_file}.
 				if ($do_cilly){
-					my $cilly_dir = "$workdir/cilly";
 					mkpath($cilly_dir);
 					#my $cil_file = $new_record->{i_file}; $cil_file =~ s/\.[^.]*$/.cilf.c/; $cil_file =~ s/\//-/g; $cil_file = "$cilly_dir/$cil_file";
 					if($do_cilly_once) {
-						my $cil_extra_files_list = "$cilly_dir/cil_extrafiles.list";
 						vsay 'DEBUG', "Add new file to \"$cilly_dir/cil_extrafiles.list\"\n";
 						open FILE,">>",$cil_extra_files_list or die "Can' open new cillist file: $!";
 						print FILE $new_record->{'i_file'}."\n";
