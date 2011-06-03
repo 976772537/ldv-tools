@@ -1482,8 +1482,14 @@ sub read_brackets($)
   # then additional strings are needed. This is required since an usual string
   # can end with close bracket although it isn't an end of an element to be
   # read.
-  my $open_bracket_numb = ($line =~ tr/\(//);
-  my $close_bracket_numb = ($line =~ tr/\)//);
+  # We also need to ensure that brackets inside quotes are ignored! So just
+  # remove all strings from a given line before we will count the number of
+  # brackets. Don't forget about escaped quotes inside stings.
+  my $line_without_strings = $line;
+  $line_without_strings =~ s/\\"//g;
+  $line_without_strings =~ s/"[^"]*"//g;
+  my $open_bracket_numb = ($line_without_strings =~ tr/\(//);
+  my $close_bracket_numb = ($line_without_strings =~ tr/\)//);
   return undef if ($open_bracket_numb != $close_bracket_numb);
 
   # Remove brackets surrounding the line.
