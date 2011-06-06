@@ -115,6 +115,7 @@ sub cilly_file
 		# However, for cill to REALLY output the file, GCC's preprocessr at some stage should print it.  We need the following line:
 		#"-o",$info->{cil_file},
 		# Default CIL options
+		# The option --dosimplify is doing annoying thing. It make pointers from explicit calls. So comment it
 		#"--dosimplify",
 		"--printCilAsIs",
 		"--domakeCFG",
