@@ -189,6 +189,9 @@ my @gcc_aspect_off_opts;
 my @gcc_aspect_on_opts;
 my @gcc_plain_off_opts;
 my @gcc_plain_on_opts;
+# Options to the llvm compiler to be turned on/off.
+my @llvm_aspect_off_opts;
+my @llvm_aspect_on_opts;
 
 # Additional suffixies for id attributes.
 my $id_common_model_suffix = '-with-common-model';
@@ -723,11 +726,16 @@ sub get_model_info()
         @gcc_plain_off_opts = @off_opts;
         @gcc_plain_on_opts = @on_opts;
       }
-      elsif ($model->gi eq $xml_model_db_opt_aspect || $model->gi eq $xml_model_db_opt_aspect_llvm)
+      elsif ($model->gi eq $xml_model_db_opt_aspect)
       # I see no point in distinguising aspectator's options even further
       {
         @gcc_aspect_off_opts = @off_opts;
         @gcc_aspect_on_opts = @on_opts;
+      }
+      elsif ($model->gi eq $xml_model_db_opt_aspect_llvm)
+      {
+        @llvm_aspect_off_opts = @off_opts;
+        @llvm_aspect_on_opts = @on_opts;
       }
 
       # Go to the next 'model'.
@@ -2199,11 +2207,15 @@ sub process_cmds()
       print_debug_trace("Get on and off options");
       my @on_opts;
       my @off_opts;
-      if ($kind_isaspect)
+      if ($kind_isaspect && $aspectator_type eq 'gcc')
       {
-        # Option fixups are stored in the same place for both aspectators
         @on_opts = @gcc_aspect_on_opts;
         @off_opts = @gcc_aspect_off_opts;
+      }
+      elsif ($kind_isaspect && $aspectator_type eq 'llvm')
+      {
+        @on_opts = @llvm_aspect_on_opts;
+        @off_opts = @llvm_aspect_off_opts;
       }
       elsif ($kind_isplain)
       {
