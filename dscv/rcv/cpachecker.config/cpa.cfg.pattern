@@ -41,3 +41,5 @@ cpa.predicate.blk.loops     = true
 #list of nondeterministic functions, implemented in revision 2360
 cpa.predicate.nondetFunctions = malloc, random, int_nondet, nondet_int, ldv_undefined_int, ldv_undefined_pointer, ldv_undefined_ulong
 
+#To completely ignore all casts in the source code, implemented in revision 3614
+parser.ignoreCasts = true
