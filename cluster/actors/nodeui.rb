@@ -77,6 +77,10 @@ class Nodeui
 		Nanite.request('/ldvqueue/queue',task,:offline_failsafe => true, :selector => :ldv_selector) do |res|
 			@log.info "Task queued, waiting for its results..."
 			stop_death_clock
+			# Save the unformation about the launch to the special file
+			File.open("task-registry",'a') do |f|
+				f.puts "\nNew task #{key} filed at #{Time.new}:\n\n#{task.inspect}\n\n"
+			end
 		end
 
 		# Asynchronously wait for the task to finish
