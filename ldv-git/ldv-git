@@ -144,6 +144,16 @@ Do not erase directories with debug information after verifying a driver.  By de
 my $keep_work = '';
 $optionSpecs{'keep-work!'} = \$keep_work;
 
+=item B<--base-filter=drivers>
+
+Restrict checking only to the kernel folders that match regexp.  Specify C<--base-filter=.*> to check everything from all kernel folders.
+
+=cut
+# We keep it in an env variable since it's passed to meta1 script via environment.
+$ENV{'LDV_BASE_FOLDER_FILTER'} = '^drivers/';
+$optionSpecs{'base-filter=s'} = \$ENV{'LDV_BASE_FOLDER_FILTER'};
+
+
 # To skip checking out intermediate commit--currently it just messes everything up.
 my $suppress_interm = '';
 $optionSpecs{'no-intermediate'} = \$suppress_interm;
@@ -608,7 +618,7 @@ goto CORRECT_FINALIZE if $pretend_full;
 # Get list of changed files since the last check.
 my @modified_files = ();
 if (!$full){
-	@modified_files = grep {m/^drivers/} keys %{git_modified($commit,$base_commit)}
+	@modified_files = grep {m/$ENV{'LDV_BASE_FOLDER_FILTER'}/} keys %{git_modified($commit,$base_commit)}
 }else{
 	# Do nothing: metadiff can work without old metadata
 	## if there's no previous check then all files are marked as modified
@@ -632,6 +642,7 @@ use IPC::Open3;
 my ($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR); 
 use Symbol 'gensym'; $METADIFF_ERR = gensym;
 vsay 'NORMAL', "Generating list of changed files...\n";
+vsay 'DEBUG', sprintf("Calling: %s",join(' ',@metadiff_cmd));
 my $metadiff_pid = open3($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR,@metadiff_cmd) or do { local $"=" "; die "Can't open3. Cmdline: @metadiff_cmd";};
 
 print $MODIFIED_FILES_EATER "$_\n" for @modified_files;
@@ -647,16 +658,31 @@ waitpid $metadiff_pid, 0;
 
 # Filter drivers
 vsay 'NORMAL', "Filtering changed files...\n";
-# First we filter according to --filter option
-#print "DEBUG_1: filter: $filter\n";
-@changed_files = grep {m/^drivers\/$filter/} @changed_files;
+
+# First we filter according to the base directory.
+my $base_filter = $ENV{'LDV_BASE_FOLDER_FILTER'};
+vsay "DEBUG", "filtering base directory: $base_filter\n";
+my $before = scalar @changed_files;
+
+@changed_files = grep {m/$base_filter/} @changed_files;
+
+vsay "DEBUG", sprintf("Filtered %d drivers", $before - scalar @changed_files);
+
+# Then we filter according to --filter option
+vsay "DEBUG", "filtering modules: $filter\n";
+$before = scalar @changed_files;
+
+@changed_files = grep {m/$filter/} @changed_files;
+
+vsay "DEBUG", sprintf("Filtered %d drivers", $before - scalar @changed_files);
+
 # Also filter the files that are not checkable "drivers" (TODO!)
 @changed_files = @changed_files;
 
 # Generate lists of C files that constitute driver, for each "changed" file.
 my $full_drivers = {};
 
-vsay 'NORMAL', "Generating sets of C files that form drivers...\n";
+vsay 'NORMAL', "Generating sets of C files that form complete 'modules'...\n";
 
 #print "DEBUG_2:".$meta_file."\n";
 vsay 'NORMAL',"$_\n" for @changed_files;
