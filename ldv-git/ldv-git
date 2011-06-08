@@ -128,11 +128,11 @@ $optionSpecs{'cache!'} = \$cache;
 
 =item B<--rule=rule_id,rule_id>
 
-Check only the rules listed.  By default, checks the following rules: 32_7, 77_1, 08_1, 29_1, 37_1, 43_1.
+Check only the rules listed.  By default, checks the following rules: 32_7, 39_7, 77_1, 08_1, 29_1, 37_1, 43_1a.
 
 =cut
 # Default array needed since GetOptions only appends to this array instead of rewriting it.
-my @rules_default = qw/32_7 77_1 08_1 29_1 37_1 43_1/;
+my @rules_default = qw/32_7 39_7 77_1 08_1 29_1 37_1 43_1a/;
 # Rules 68_1 and 60_1 were excluded, because they don't work with latest kernels.
 my @rules = ();
 $optionSpecs{'rules=s'} = \@rules;
