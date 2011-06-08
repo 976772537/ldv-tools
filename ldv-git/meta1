@@ -54,7 +54,7 @@ sub functions_called
 	}
 
 	# If a file doesn't emit any function, then rtl file may not be emitted as well.
-	return () unless -f $rtl_file;
+	return () unless $rtl_file && -f $rtl_file;
 
 	my %result = ();
 
