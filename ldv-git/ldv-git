@@ -638,26 +638,27 @@ my @changed_files = ();
 my @metadiff_cmd = ($ldv_commands->{meta_diff},$meta_file);
 push @metadiff_cmd, $base_meta_file if !$full;
 
-use IPC::Open3;
-my ($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR); 
-use Symbol 'gensym'; $METADIFF_ERR = gensym;
+use Utils;
 vsay 'NORMAL', "Generating list of changed files...\n";
 vsay 'DEBUG', sprintf("Calling: %s",join(' ',@metadiff_cmd));
-my $metadiff_pid = open3($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR,@metadiff_cmd) or do { local $"=" "; die "Can't open3. Cmdline: @metadiff_cmd";};
 
-print $MODIFIED_FILES_EATER "$_\n" for @modified_files;
-close $MODIFIED_FILES_EATER;
+my $modified_files_str = join('',map{"$_\n"} @modified_files);
+vsay 'TRACE', $modified_files_str;
 
-vsay 'NORMAL', "Reading list of changed files...\n";
-
-@changed_files = map {chomp; $_;} (<$CHANGED_FILES>);
-
-print STDERR for (<$METADIFF_ERR>);
-
-waitpid $metadiff_pid, 0;
+Utils::open3_callbacks({
+	'err' => sub {my $line = shift;
+		print STDERR $line;
+	},
+	'out' => sub {my $line = shift;
+		chomp $line;
+		vsay 'DEBUG', sprintf("Detected modified file: %s",$line);
+		push @changed_files, $line;
+	},
+	'in_text' => $modified_files_str
+},@metadiff_cmd);
 
 # Filter drivers
-vsay 'NORMAL', "Filtering changed files...\n";
+vsay 'NORMAL', sprintf("Filtering %d changed files...\n",scalar @changed_files);
 
 # First we filter according to the base directory.
 my $base_filter = $ENV{'LDV_BASE_FOLDER_FILTER'};
@@ -730,23 +731,32 @@ my @cmdgen_cmd = ($ldv_commands->{meta_driver},"--stdin",$cmd_file,$work_dir);
 # Add option to re-generate commands for existing drivers, if --force is specified.
 # This was useful in bug #918 given the --keep-work option is specified: metadata were re-generated, but the commands themselves were left as were.
 push @cmdgen_cmd, "--no-skip-existing" if $force;
-use IPC::Open3;
-my ($FULL_DR_EATER,$CMDGEN_REPORTS,$CMDGEN_ERR); 
-use Symbol 'gensym'; $CMDGEN_ERR = gensym;
-my $cmdgen_pid = open3($FULL_DR_EATER,$CMDGEN_REPORTS,$CMDGEN_ERR,@cmdgen_cmd) or do { local $"=" "; die "Can't open3. Cmdline: @cmdgen_cmd";};
+
+vsay 'DEBUG',sprintf("Running %s\n",join(" ",@cmdgen_cmd));
+
+my $full_drivers_str = '';
 
 for my $driver (keys %$full_drivers){
-	print $FULL_DR_EATER "== $driver\n$driver\n";
-	print $FULL_DR_EATER "$_\n" for keys %{$full_drivers->{$driver}}; 
+	$full_drivers_str .= "== $driver\n$driver\n";
+	$full_drivers_str .= "$_\n" for keys %{$full_drivers->{$driver}};
 }
-close $FULL_DR_EATER;
 
-while (<$CMDGEN_REPORTS>){
-	print STDOUT "$_";
-}
-print STDERR $_ for (<$CMDGEN_ERR>);
+my $TMPFDS; open $TMPFDS,">",'/tmp/tmpffds';
+print $TMPFDS $full_drivers_str;
+close $TMPFDS;
 
-waitpid $cmdgen_pid, 0;
+Utils::open3_callbacks({
+	'err' => sub {my $line = shift;
+		print STDERR $line;
+	},
+	'out' => sub {my $line = shift;
+		chomp $line;
+		print STDOUT $line;
+	},
+	'in_text' => $full_drivers_str
+},@cmdgen_cmd);
+
+
 $? and die "metadriver for $meta_file";
 vsay 'NORMAL', ((scalar keys %$full_drivers)." drivers to verify...\n");
 
