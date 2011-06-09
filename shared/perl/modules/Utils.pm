@@ -116,12 +116,14 @@ sub xml_to_hash
 # 	err => linewise stderr capture
 # 	close_out => when stdout EOF is encountered
 # 	close_err => when stderr EOF is encountered
+# 	in_text => text to print to stdin before closing it
 use IPC::Open3;
 use IO::Select;
 sub open3_callbacks
 {
 	my $callbacks = shift;
 	my ($out_callback,$err_callback,$close_out_callback,$close_err_callback) = (sub{print STDOUT $_[0];},sub{print STDERR $_[0];},sub{},sub{});
+	my $in_text = '';
 	# Variable arguments: determine callbacks
 	if (ref $callbacks eq 'CODE') {
 		$out_callback = $callbacks;
@@ -131,6 +133,7 @@ sub open3_callbacks
 		$out_callback = $callbacks->{'out'} || sub{print STDOUT $_[0];};
 		$close_out_callback = $callbacks->{'close_out'} || sub{};
 		$close_err_callback = $callbacks->{'close_err'} || sub{};
+		$in_text = $callbacks->{'in_text'} || '';
 	}else{
 		# It was a (part of a) command we're to run.
 		unshift @_,$callbacks;
@@ -148,10 +151,30 @@ sub open3_callbacks
 	my $select = IO::Select->new();
 	$select->add(\*SUB_OUT);
 	$select->add(\*SUB_ERR);
+
+	my $select_write = IO::Select->new();
+	if ($in_text ne ''){
+		$select_write->add(\*SUB_IN);
+	}else{
+		close SUB_IN;
+	}
 	# Buffers to perform a non-block read and split it into lines
 	my ($err_buf,$out_buf);
-	while (my @ready_fhs = $select->can_read()){ for my $fh (@ready_fhs){
-		if ($fh == \*SUB_OUT) {
+	my @ready_fhs = ();
+	my @write_fhs = ();
+	while (($select->count() + $select_write->count()) && (@ready_fhs = IO::Select->select($select,$select_write))){ for my $fh (@{$ready_fhs[0]},@{$ready_fhs[1]}){
+		if ($in_text && $fh == \*SUB_IN){
+			# Print a chunk
+			my $written = syswrite SUB_IN,$in_text,length($in_text);
+			$in_text = substr $in_text, $written,(length($in_text)-$written);
+
+			# If we've written everything, then close the filehandle
+			if ($in_text eq ''){
+				$select_write->remove(\*SUB_IN);
+				# First remove, then close
+				close SUB_IN;
+			}
+		}elsif ($fh == \*SUB_OUT) {
 			# Non-blocking read and add to buffer
 			my $buf;
 			my $read = sysread SUB_OUT,$buf,$chunk_size;
