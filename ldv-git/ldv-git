@@ -150,8 +150,8 @@ Restrict checking only to the kernel folders that match regexp.  Specify C<--bas
 
 =cut
 # We keep it in an env variable since it's passed to meta1 script via environment.
-$ENV{'LDV_BASE_FOLDER_FILTER'} = '^drivers/';
-$optionSpecs{'base-filter=s'} = \$ENV{'LDV_BASE_FOLDER_FILTER'};
+my $folder_filter = '^drivers/';
+$optionSpecs{'base-filter=s'} = \$folder_filter;
 
 
 # To skip checking out intermediate commit--currently it just messes everything up.
@@ -172,6 +172,8 @@ use Getopt::Long;
 GetOptions(%optionSpecs,
 	'--help' => sub { pod2usage(-verbose => 3); },
 ) or usage("Unrecognized options!");
+
+$ENV{'LDV_BASE_FOLDER_FILTER'} = $folder_filter;
 
 =head1 ACTIONS
 
