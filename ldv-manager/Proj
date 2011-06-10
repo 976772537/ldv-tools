@@ -17,6 +17,8 @@ ldv-upload
 ldv-problem-recalc
 upload_utils.rb
 
+ldv-view-pax
+
 Makefile
 
 ldv-problem
