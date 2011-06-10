@@ -13,7 +13,7 @@ problem_install_dir=$(ldvm_dir)/problems
 problems=$(shell find problems -type f -executable | sed 's/^problems\/*//')
 problem_targets=$(problems:%=$(problem_install_dir)/%)
 
-bin_sources=ldv-problem-recalc ldv-manager ldv-upload path-to-results-schema-sql ldv-load.pl
+bin_sources=ldv-problem-recalc ldv-manager ldv-upload path-to-results-schema-sql ldv-load.pl ldv-view-pax
 bin_targets=$(bin_sources:%=$(bindir)/%)
 
 mkscript_dir=$(ldvm_dir)/mk
