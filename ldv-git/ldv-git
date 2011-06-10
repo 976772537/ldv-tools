@@ -701,6 +701,16 @@ for my $driver_raw (keys %$full_drivers_raw){
 	$full_drivers->{$driver_raw} = {};
 	$full_drivers->{$driver_raw}->{$_} = 1 for split /\s+/s, $full_drivers_raw->{$driver_raw};
 	delete $full_drivers->{$driver_raw}->{$driver_raw} if exists $full_drivers->{$driver_raw}->{$driver_raw};
+
+	# Filter out alien dependencies.  For now, we only take into account dependencies from the same base folder.  This may change in the future as our tools mature.
+	my $base_folder = $driver_raw; $base_folder =~ s/\/.*//;
+	for my $dep (keys %{$full_drivers->{$driver_raw}}){
+		my $dep_base_folder = $dep;  $dep_base_folder =~ s/\/.*//;
+		if ($dep_base_folder ne $base_folder){
+			vsay 'TRACE', "Removing $dep from dependencies of $driver_raw (base-filter)";
+			delete $full_drivers->{$driver_raw}->{$dep};
+		}
+	}
 }
 
 # If we're to show our plan, we print it here
