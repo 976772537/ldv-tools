@@ -743,6 +743,7 @@ for my $driver (keys %$full_drivers){
 	$full_drivers_str .= "$_\n" for keys %{$full_drivers->{$driver}};
 }
 
+# Debug only
 my $TMPFDS; open $TMPFDS,">",'/tmp/tmpffds';
 print $TMPFDS $full_drivers_str;
 close $TMPFDS;
