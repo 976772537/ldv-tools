@@ -244,8 +244,8 @@ sub ld_maker
 	my $workdir = $args{workdir};
 	my $verify = $args{verifier};
 	my $archivated = $args{archivated} || '';
-	# Flag that CIL file list from the previous run was removed
-	my $removed_cil_filelist = 0;
+	# Flag that CIL file list from the previous run was removed (or not found)
+	my $old_cil_file_list_checked = 0;
 
 	return sub{
 		my ($twig, $cmdT) = @_;
@@ -309,11 +309,12 @@ sub ld_maker
 			# Clear some temporary files that might be left from the previous run
 			my $cilly_dir = "$workdir/cilly";
 			my $cil_extra_files_list = "$cilly_dir/cil_extrafiles.list";
-			if (-f $cil_extra_files_list && !$removed_cil_filelist){
+			if (-f $cil_extra_files_list && !$old_cil_file_list_checked){
 				vsay 'DEBUG', "CIL file list found from previous run in '$cil_extra_files_list'; removing.";
 				unlink $cil_extra_files_list;
-				$removed_cil_filelist = 1;
 			}
+			# we've dealt with a residue of an old file list (if it was there) already, set the flag.
+			$old_cil_file_list_checked = 1;
 			# Propagate the information gathered to c_files_info arrays
 			local $_;
 			for my $c_file (@$c_files){

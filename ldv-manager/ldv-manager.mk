@@ -152,6 +152,7 @@ $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ld
 	$(if $(LDV_REMOVE_ON_SUCCESS),rm -rf $$(@D)/*,)
 	@echo "The results of the launch reside in:           $$(Result_pax)"
 	$(if $(LDV_COPY_RESULTS_TO),cp $$(Result_pax) $(LDV_COPY_RESULTS_TO),)
+	$(if $(LDV_VIEW),@ldv-view-pax $$(Result_pax),)
 endef
 
 $(foreach task,$(tasks),$(eval $(call rule_for_task,$(task))))

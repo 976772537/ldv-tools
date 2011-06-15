@@ -7,6 +7,18 @@ while (<>){
 	chomp;
 	/Syntax error in line / and print "Syntax_error";
 	/Expression is not free of side-effects/ and print "Side";
+	/Invalid configuration: Function ldv_main(.*) not found!/ and print "Main not found";
+	/unknown initializer: CASTDesignatedInitializer/ and print "CASTDesignatedInitializer";
+	/Unknown unary operator/ and print "Unary";
+	/Duplicate label (.*) in function/ and print "Duplicate label";
+	/File (.*) does not exist!/ and print "File not exists";
+	/AbstractGNUSourceCodeParser.parseCompoundStatement/ and print "Compound statement";
+	/CPAchecker.run, SEVERE/ and print "SEVERE";
+	/java.lang.OutOfMemoryError: (.*)/ and print "Java OutOfmemory";
+	/java.lang.AssertionError/ and print "Assertion";
+	/org.sosy_lab.cpachecker.util.predicates.CtoFormulaConverter.buildLvalueTerm/ and print "CtoFormulaConverter";
+	/org.sosy_lab.cpachecker.cfa.ast.IASTBinaryExpression/ and print "IASTBinaryExpression";
+	/org.sosy_lab.cpachecker.util.predicates.mathsat.MathsatInterpolatingProver.getInterpolant/ and print "MathsatInterpolatingProver";
 }
 
 

@@ -1,0 +1,15 @@
+driver=08_1--test-nonseek.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-nonseek/S-nonseek-alone-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=08_1--test-nonseek.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-nonseek/S-nonseek-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=08_1--test-nonseek.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-nonseek/U-nonseek-alone-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/S-get-putexit-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/S-get-put-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/S-noerrget-put-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/S-refcounter-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-get-putexit-simple-2-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-get-putexit-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-get-put-simple-2-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-get-put-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-noerrget-put-simple-2-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-noerrget-put-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-refcounter-simple-2-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=08_1--test-putget.tar.bz2;origin=external;kernel=linux-2.6.37;model=08_1;module=drivers/08_1/test-putget/U-refcounter-simple-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
