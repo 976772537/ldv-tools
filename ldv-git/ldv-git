@@ -146,7 +146,7 @@ $optionSpecs{'keep-work!'} = \$keep_work;
 
 =item B<--base-filter=drivers>
 
-Restrict checking only to the kernel folders that match regexp.  Specify C<--base-filter=.*> to check everything from all kernel folders.
+Restrict checking only to the kernel folders that match regexp.  Specify C<--base-filter=.*> to check everything from all kernel folders.  To select only particular folders, use regexp pipe operator: C<--base-filter=^drivers|^sound>.
 
 =cut
 # We keep it in an env variable since it's passed to meta1 script via environment.
