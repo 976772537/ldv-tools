@@ -27,5 +27,10 @@ while (<>){
 	/error: redeclaration of '(.*)' with no linkage/ and print "DEG: Redeclaration";
 	/error: #endif without #if/ and print "<a href=\"http://forge.ispras.ru/issues/1293\">DEG: ifdefs</a>";
 	/error: incompatible types when assigning to type '(.*)' from type '(.*)'/ and print "<a href=\"http://forge.ispras.ru/issues/553\">DEG: return type</a>";
+
+	# misc (see bug #1360)
+	/too few arguments to function 'ldv_check_alloc_flags'/ and print "<a href=\"http://forge.ispras.ru/issues/1360\">Few_args</a>";
+	/'no_instrument_function' attribute applies only to functions/ and print "<a href=\"http://forge.ispras.ru/issues/1366\">Bad_attr</a>";
+	/void value not ignored as it ought to be/ and print "Void_val";
 }
 
