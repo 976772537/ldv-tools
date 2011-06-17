@@ -68,6 +68,8 @@ eval {
 	# For cmd generator
 	$ENV{'AS_GCC_POOL'} = $pool_file;
 	vsay 'DEBUG', "Variable AS_GCC_POOL: $ENV{'AS_GCC_POOL'}\n";
+	# Check base folder filter
+	vsay 'DEBUG', "Variable LDV_BASE_FOLDER_FILTER: $ENV{'LDV_BASE_FOLDER_FILTER'}\n";
 	# Upon a forced full check, make sure that all drivers will be updated.  To do that, touch all .c files.
 	if ($forced_full_check){
 		vsay 'NORMAL', "Touch'ing all *.c files to force full regeneration...\n";

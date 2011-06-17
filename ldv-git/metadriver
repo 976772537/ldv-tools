@@ -9,6 +9,7 @@ use File::Copy;
 use File::Path;
 use File::Temp qw/tempfile/;
 use File::Spec::Functions;
+use IO::Handle;
 use XML::Twig;
 use Graph;
 use Cwd;
@@ -51,11 +52,13 @@ if (!$stdin){
 	my $meta = MetaUtils::meta_to_raw_hash($meta_fname,$filter_files);
 	cmd_for_driver($meta,$main_c_file,\*STDOUT,@c_files);
 }else{
+	$| = 1;
 	my ($meta_fname,$target_dir) = @ARGV;
 	my $meta = MetaUtils::meta_to_raw_hash($meta_fname);
 	# is it empty?
 	my $drivers = MetaUtils::meta_to_raw_hash_from_fh(\*STDIN);
 	for my $driver (keys %$drivers){
+		vsay 'NORMAL', "Generating commands for $driver...\n";
 		my $driver_fname = catfile($target_dir,$driver,'commands.xml');
 		# Skip driver if cmdfile exists
 		$skip_existing && -f $driver_fname and next;

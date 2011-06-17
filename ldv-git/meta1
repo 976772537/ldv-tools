@@ -6,7 +6,11 @@
 use strict;
 
 my ($c,$i,$e,$o) = @ARGV;
-do { print STDERR "LDV: Not a driver, analysis skipped.\n"; goto CLEANUP; } unless $c =~ /^drivers\//;
+
+# $base_folder is the root folder inside the kernel of the file being compiled.  By default we only check drivers, but, optionally, we may check other folders as well.
+my $base_folder_filter = $ENV{'LDV_BASE_FOLDER_FILTER'} || 'drivers';
+my $base_folder =  $c; $base_folder =~ s/\/.*//;
+do { print STDERR "LDV: Not in $base_folder_filter, analysis skipped.\n"; goto CLEANUP; } unless $c =~ /$base_folder_filter/;
 defined $o or die ("Meta1 usage fail, cmdline is ".join(" ", @ARGV));
 
 sub included_files
@@ -50,7 +54,7 @@ sub functions_called
 	}
 
 	# If a file doesn't emit any function, then rtl file may not be emitted as well.
-	return () unless -f $rtl_file;
+	return () unless $rtl_file && -f $rtl_file;
 
 	my %result = ();
 
@@ -127,7 +131,8 @@ print "== $c\n";
 $\ = "\n";
 
 print "-- INCLUDED";
-print for grep /^drivers/, included_files($i,getcwd());
+# We only depend on the includes in the same base folder.  We do not want drivers to depend on generic includes, for instance.
+print for grep /^$base_folder/, included_files($i,getcwd());
 
 print "-- CALLED";
 my $callers = functions_called($e,$c);

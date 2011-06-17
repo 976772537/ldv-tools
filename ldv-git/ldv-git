@@ -128,11 +128,11 @@ $optionSpecs{'cache!'} = \$cache;
 
 =item B<--rule=rule_id,rule_id>
 
-Check only the rules listed.  By default, checks the following rules: 32_7, 77_1, 08_1, 29_1, 37_1, 43_1.
+Check only the rules listed.  By default, checks the following rules: 32_7, 39_7, 77_1, 08_1, 29_1, 37_1, 43_1a.
 
 =cut
 # Default array needed since GetOptions only appends to this array instead of rewriting it.
-my @rules_default = qw/32_7 77_1 08_1 29_1 37_1 43_1/;
+my @rules_default = qw/32_7 39_7 77_1 08_1 29_1 37_1 43_1a/;
 # Rules 68_1 and 60_1 were excluded, because they don't work with latest kernels.
 my @rules = ();
 $optionSpecs{'rules=s'} = \@rules;
@@ -143,6 +143,16 @@ Do not erase directories with debug information after verifying a driver.  By de
 
 my $keep_work = '';
 $optionSpecs{'keep-work!'} = \$keep_work;
+
+=item B<--base-filter=drivers>
+
+Restrict checking only to the kernel folders that match regexp.  Specify C<--base-filter=.*> to check everything from all kernel folders.  To select only particular folders, use regexp pipe operator: C<--base-filter=^drivers|^sound>.
+
+=cut
+# We keep it in an env variable since it's passed to meta1 script via environment.
+my $folder_filter = '^drivers/';
+$optionSpecs{'base-filter=s'} = \$folder_filter;
+
 
 # To skip checking out intermediate commit--currently it just messes everything up.
 my $suppress_interm = '';
@@ -162,6 +172,8 @@ use Getopt::Long;
 GetOptions(%optionSpecs,
 	'--help' => sub { pod2usage(-verbose => 3); },
 ) or usage("Unrecognized options!");
+
+$ENV{'LDV_BASE_FOLDER_FILTER'} = $folder_filter;
 
 =head1 ACTIONS
 
@@ -608,7 +620,7 @@ goto CORRECT_FINALIZE if $pretend_full;
 # Get list of changed files since the last check.
 my @modified_files = ();
 if (!$full){
-	@modified_files = grep {m/^drivers/} keys %{git_modified($commit,$base_commit)}
+	@modified_files = grep {m/$ENV{'LDV_BASE_FOLDER_FILTER'}/} keys %{git_modified($commit,$base_commit)}
 }else{
 	# Do nothing: metadiff can work without old metadata
 	## if there's no previous check then all files are marked as modified
@@ -628,35 +640,52 @@ my @changed_files = ();
 my @metadiff_cmd = ($ldv_commands->{meta_diff},$meta_file);
 push @metadiff_cmd, $base_meta_file if !$full;
 
-use IPC::Open3;
-my ($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR); 
-use Symbol 'gensym'; $METADIFF_ERR = gensym;
+use Utils;
 vsay 'NORMAL', "Generating list of changed files...\n";
-my $metadiff_pid = open3($MODIFIED_FILES_EATER,$CHANGED_FILES,$METADIFF_ERR,@metadiff_cmd) or do { local $"=" "; die "Can't open3. Cmdline: @metadiff_cmd";};
+vsay 'DEBUG', sprintf("Calling: %s",join(' ',@metadiff_cmd));
 
-print $MODIFIED_FILES_EATER "$_\n" for @modified_files;
-close $MODIFIED_FILES_EATER;
+my $modified_files_str = join('',map{"$_\n"} @modified_files);
+vsay 'TRACE', $modified_files_str;
 
-vsay 'NORMAL', "Reading list of changed files...\n";
-
-@changed_files = map {chomp; $_;} (<$CHANGED_FILES>);
-
-print STDERR for (<$METADIFF_ERR>);
-
-waitpid $metadiff_pid, 0;
+Utils::open3_callbacks({
+	'err' => sub {my $line = shift;
+		print STDERR $line;
+	},
+	'out' => sub {my $line = shift;
+		chomp $line;
+		vsay 'DEBUG', sprintf("Detected modified file: %s",$line);
+		push @changed_files, $line;
+	},
+	'in_text' => $modified_files_str
+},@metadiff_cmd);
 
 # Filter drivers
-vsay 'NORMAL', "Filtering changed files...\n";
-# First we filter according to --filter option
-#print "DEBUG_1: filter: $filter\n";
-@changed_files = grep {m/^drivers\/$filter/} @changed_files;
+vsay 'NORMAL', sprintf("Filtering %d changed files...\n",scalar @changed_files);
+
+# First we filter according to the base directory.
+my $base_filter = $ENV{'LDV_BASE_FOLDER_FILTER'};
+vsay "DEBUG", "filtering base directory: $base_filter\n";
+my $before = scalar @changed_files;
+
+@changed_files = grep {m/$base_filter/} @changed_files;
+
+vsay "DEBUG", sprintf("Filtered %d drivers", $before - scalar @changed_files);
+
+# Then we filter according to --filter option
+vsay "DEBUG", "filtering modules: $filter\n";
+$before = scalar @changed_files;
+
+@changed_files = grep {m/$filter/} @changed_files;
+
+vsay "DEBUG", sprintf("Filtered %d drivers", $before - scalar @changed_files);
+
 # Also filter the files that are not checkable "drivers" (TODO!)
 @changed_files = @changed_files;
 
 # Generate lists of C files that constitute driver, for each "changed" file.
 my $full_drivers = {};
 
-vsay 'NORMAL', "Generating sets of C files that form drivers...\n";
+vsay 'NORMAL', "Generating sets of C files that form complete 'modules'...\n";
 
 #print "DEBUG_2:".$meta_file."\n";
 vsay 'NORMAL',"$_\n" for @changed_files;
@@ -672,6 +701,16 @@ for my $driver_raw (keys %$full_drivers_raw){
 	$full_drivers->{$driver_raw} = {};
 	$full_drivers->{$driver_raw}->{$_} = 1 for split /\s+/s, $full_drivers_raw->{$driver_raw};
 	delete $full_drivers->{$driver_raw}->{$driver_raw} if exists $full_drivers->{$driver_raw}->{$driver_raw};
+
+	# Filter out alien dependencies.  For now, we only take into account dependencies from the same base folder.  This may change in the future as our tools mature.
+	my $base_folder = $driver_raw; $base_folder =~ s/\/.*//;
+	for my $dep (keys %{$full_drivers->{$driver_raw}}){
+		my $dep_base_folder = $dep;  $dep_base_folder =~ s/\/.*//;
+		if ($dep_base_folder ne $base_folder){
+			vsay 'TRACE', "Removing $dep from dependencies of $driver_raw (base-filter)";
+			delete $full_drivers->{$driver_raw}->{$dep};
+		}
+	}
 }
 
 # If we're to show our plan, we print it here
@@ -704,23 +743,33 @@ my @cmdgen_cmd = ($ldv_commands->{meta_driver},"--stdin",$cmd_file,$work_dir);
 # Add option to re-generate commands for existing drivers, if --force is specified.
 # This was useful in bug #918 given the --keep-work option is specified: metadata were re-generated, but the commands themselves were left as were.
 push @cmdgen_cmd, "--no-skip-existing" if $force;
-use IPC::Open3;
-my ($FULL_DR_EATER,$CMDGEN_REPORTS,$CMDGEN_ERR); 
-use Symbol 'gensym'; $CMDGEN_ERR = gensym;
-my $cmdgen_pid = open3($FULL_DR_EATER,$CMDGEN_REPORTS,$CMDGEN_ERR,@cmdgen_cmd) or do { local $"=" "; die "Can't open3. Cmdline: @cmdgen_cmd";};
+
+vsay 'DEBUG',sprintf("Running %s\n",join(" ",@cmdgen_cmd));
+
+my $full_drivers_str = '';
 
 for my $driver (keys %$full_drivers){
-	print $FULL_DR_EATER "== $driver\n$driver\n";
-	print $FULL_DR_EATER "$_\n" for keys %{$full_drivers->{$driver}}; 
+	$full_drivers_str .= "== $driver\n$driver\n";
+	$full_drivers_str .= "$_\n" for keys %{$full_drivers->{$driver}};
 }
-close $FULL_DR_EATER;
 
-while (<$CMDGEN_REPORTS>){
-	print STDOUT "$_";
-}
-print STDERR $_ for (<$CMDGEN_ERR>);
+# Debug only
+my $TMPFDS; open $TMPFDS,">",'/tmp/tmpffds';
+print $TMPFDS $full_drivers_str;
+close $TMPFDS;
 
-waitpid $cmdgen_pid, 0;
+Utils::open3_callbacks({
+	'err' => sub {my $line = shift;
+		print STDERR $line;
+	},
+	'out' => sub {my $line = shift;
+		chomp $line;
+		print STDOUT $line;
+	},
+	'in_text' => $full_drivers_str
+},@cmdgen_cmd);
+
+
 $? and die "metadriver for $meta_file";
 vsay 'NORMAL', ((scalar keys %$full_drivers)." drivers to verify...\n");
 

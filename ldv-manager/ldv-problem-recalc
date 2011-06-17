@@ -26,19 +26,33 @@ OptionParser.new do |opts|
 	opts.on "--no-clear", "Do not clear the whole database before recalculating" do
 		options[:no_clear] = true
 	end
+
+	opts.on "--last COUNT", "Only recalculate problems for last COUNT entries" do |count|
+		options[:last] = count
+	end
 end.parse!
 
 # By default (and this is the only option), we just recalculate everything
 $stderr.write "ldv-problem-recalc: WARNING! ARGUMENTS ARE DEPRECATED AND NOT USED!\n" unless ARGV.empty?
-Problem.clear_all(sql) unless options[:no_clear]
-puts "ldv-problem-recalc: All problems are deleted from database, and will now be recalculated..."
 
 # All tools, all standard scripts
-Trace.all.each do |trace|
+recalc_one = proc do |trace|
 	Trace.tools.each do |tool,v|
 		if tool_stat = trace.send(tool)
+			# Clear here if we do not recalc all problems
+			tool_stat.problems = [] if options[:last] && !options[:no_clear]
 			tool_stat.calc_problems(File.join(manhome, "problems", tool))
 		end
 	end
+end
+
+if last = options[:last]
+	Trace.find(:all,:limit => last,:order => "id DESC").each {|t| recalc_one[t] }
+else
+	unless options[:no_clear]
+		Problem.clear_all(sql)
+		puts "ldv-problem-recalc: All problems have been deleted from database, and will now be recalculated..."
+	end
+	Trace.all.each {|t| recalc_one[t] }
 end
 
