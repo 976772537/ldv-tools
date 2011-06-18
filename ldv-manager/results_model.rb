@@ -114,24 +114,27 @@ class Trace < ActiveRecord::Base
 	validates_format_of :result, :with => /safe|unsafe|unknown/, :on => :save
 end
 
-# Cache of problem scripts
-$problem_scripts = []
+# Cache of problem scripts (scripts_dir-specific)
+$problem_scripts = {}
 # Cace of problem entries
 $problems_cache = {}
 
 def raw_calc_problems(description,scripts_dir)
 	# Ruby 1.9 doesn't want nonexisting paths in Find.find!
 	return nil unless FileTest.exists? scripts_dir
+
 	# Calculate script files once (in order not to traverse the scripts directory at each run)
-	if $problem_scripts.empty?
+	$problem_scripts[scripts_dir] ||= []
+
+	if $problem_scripts[scripts_dir].empty?
 		Find.find(scripts_dir) do |file|
 			if !FileTest.directory?(file) && FileTest.executable?(file)
-				$problem_scripts << file
+				$problem_scripts[scripts_dir] << file
 			end
 		end
 	end
 
-	$problem_scripts.each do |file|
+	$problem_scripts[scripts_dir].each do |file|
 		# Run the script and get its output
 		# Uncomment when Ruby 1.9 is set as the primary target!  It's very slow in 1.8 due to a bug in Ruby.
 		#cout_callback = proc {|line| p = Problem.find_or_create_by_name(line.chomp); problems << p unless problems.include? p }
