@@ -8,9 +8,8 @@ use strict;
 my ($c,$i,$e,$o) = @ARGV;
 
 # $base_folder is the root folder inside the kernel of the file being compiled.  By default we only check drivers, but, optionally, we may check other folders as well.
-my $base_folder_filter = $ENV{'LDV_BASE_FOLDER_FILTER'} || 'drivers';
 my $base_folder =  $c; $base_folder =~ s/\/.*//;
-do { print STDERR "LDV: Not in $base_folder_filter, analysis skipped.\n"; goto CLEANUP; } unless $c =~ /$base_folder_filter/;
+# Note that we do not filter against the base folder here, as we would like to collect metadata once, and then fire checks many times with whatever configurations possible
 defined $o or die ("Meta1 usage fail, cmdline is ".join(" ", @ARGV));
 
 sub included_files
