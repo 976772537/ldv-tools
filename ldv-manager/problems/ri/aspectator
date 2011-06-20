@@ -8,12 +8,24 @@ while (<>){
 	/error: invalid storage class for function try_module_get/ and print "<a href =\"http://forge.ispras.ru/issues/380\">bug380:</a> try_module_get";
 	/internal compiler error: Segmentation fault/ and print "Segmentation fault";
 	/: error: / and print "Compile error";
+	/: error: LDV: / and print "LDV error";
 	/: warning: / and print "Warning";
-	/: fatal error: incorrect expression code/ and print "<a href=\"http://forge.ispras.ru/issues/1159\">Expr_code</a>"
-	or /: fatal error: character .* wasn't put to stream/ and print "<a href=\"http://forge.ispras.ru/issues/349\">Bad_char</a>"
-	or /: fatal error: incorrect reference code/ and print "<a href=\"http://forge.ispras.ru/issues/1165\">Bad_ref_code</a>"
-	or /: fatal error: incorrect exceptional code/ and print "<a href=\"http://forge.ispras.ru/issues/1166\">Bad_exc_code</a>"
+	/: warning: LDV: / and print "LDV warning";
+	/: fatal error: character .* wasn't put to stream/ and print "<a href=\"http://forge.ispras.ru/issues/349\">Bad_char</a>"
 	or /: fatal error: / and print "Fatal_err";
-	/tree node '.*' isn't supported/ and print "CBE_bad_node";
+	/tree node '(.*)' isn't supported/ and print "<a href=\"http://forge.ispras.ru/issues/1167\">$1</a>";
+	/Aspectator fails on the (.*) stage/ and print "$1 stage";
+
+	/compiler-core: error: kernel.org: No such file or directory/ and print "kernel.org";
+	/warning: no return statement in function returning non-void/ and print "No return warn";
+	/warning: ISO C90 forbids mixed declarations and code/ and print "Mixed decls warn";
+	/error: implicit declaration of function '(.*)'/ and print "Implicit decl";
+
+	#drv-env-gen problems
+	/error: storage size of '(.*)' isn't known/ and print "<a href=\"http://forge.ispras.ru/issues/1293\">Storage size</a>";
+	/error: implicit declaration of function kmalloc/ and print "DEG: implicit kmalloc";
+	/error: redeclaration of '(.*)' with no linkage/ and print "DEG: Redeclaration";
+	/error: #endif without #if/ and print "<a href=\"http://forge.ispras.ru/issues/1293\">DEG: ifdefs</a>";
+	/error: incompatible types when assigning to type '(.*)' from type '(.*)'/ and print "<a href=\"http://forge.ispras.ru/issues/553\">DEG: return type</a>";
 }
 
