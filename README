@@ -86,8 +86,38 @@ HOW TO USE
     "drivers=drivers/usb/storage/" "rule_models=39_1"
 
   To verify one external driver (don't forget to place it into the TEST_DIR):
-    ldv-manager tag=current "envs=linux-2.6.32.9.tar.bz2" \
+    ldv-manager "envs=linux-2.6.32.9.tar.bz2" \
     "drivers=hdpvr-core.tar.bz2" "rule_models=39_1"
+
+
+      RULES TO CHOOSE
+
+  You may verify your driver against several rules.  These rules are specified
+	in "rule_models" variables.  Currently, there are several rules supported
+	with different levels of quality.
+
+	Good quality rules (low false positive rate):
+
+	  * 32_7 - Mutex lock/unlock
+	  * 39_7 - Spin lock/unlock
+
+	Medium quality rules (medium false positive rate):
+
+	  * 68_1 - usb_alloc/free_urb
+	  * 43_1a - Memory allocation under spinlock
+
+	Low quality rules (find few errors, high false positive rate):
+
+	  * 60_1 - Linked list double add
+	  * 08_1 - module put/get
+	  * 37_1 - Delay in probe_irq on/off
+	  * 29_1 - PCI pool create/destroy, alloc/free
+	  * 77_1 - NOIO allocation under usb_lock
+
+
+	You may specify several rules like this:
+    ldv-manager "envs=linux-2.6.32.9.tar.bz2" \
+    "drivers=hdpvr-core.tar.bz2" "rule_models=32_7 39_7 68_1 43_1a"
 
 
       VIEW RESULTS
