@@ -1,0 +1,4 @@
+driver=32_7--test-atomic_dec.tar.bz2;origin=external;kernel=linux-2.6.37;model=32_7;module=drivers/32_7/test-atomic_dec/S-dec-lock-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=32_7--test-atomic_dec.tar.bz2;origin=external;kernel=linux-2.6.37;model=32_7;module=drivers/32_7/test-atomic_dec/U-dec-double-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=32_7--test-atomic_dec.tar.bz2;origin=external;kernel=linux-2.6.37;model=32_7;module=drivers/32_7/test-atomic_dec/U-dec-lock-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=32_7--test-atomic_dec.tar.bz2;origin=external;kernel=linux-2.6.37;model=32_7;module=drivers/32_7/test-atomic_dec/U-dec-wrong-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe

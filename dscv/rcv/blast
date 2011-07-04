@@ -369,6 +369,7 @@ sub call_blast
 	my $rerouteT = $hintsT ? $hintsT->first_child('rerouter') : undef;
 	if ($rerouteT){
 		my @reroute_map = $rerouteT->children_text('map');
+		my @reroute_map2 = $rerouteT->children_text('map2');
 		my @reroute_foreach = $rerouteT->children_text('foreach');
 		my $placeholder = $rerouteT->first_child_text('placeholder');
 		# Skip if there's not map and foreach handlers
@@ -379,6 +380,7 @@ sub call_blast
 			}
 			local $_;
 			push @blast_options,"-reroute-map",$_ for @reroute_map;
+			push @blast_options,"-reroute-map2",$_ for @reroute_map2;
 			push @blast_options,"-reroute-foreach",$_ for @reroute_foreach;
 			push @blast_options,"-reroute-placeholder",$placeholder if $placeholder;
 		}
