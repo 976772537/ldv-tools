@@ -230,7 +230,7 @@ if ($resultsNumb) {
 
       // Print just conversions that take place.
       if (array_key_exists($verdictRefRaw, $changes) and array_key_exists($verdictRaw, $changes[$verdictRefRaw])) {
-        echo "    <td class='SCStatsComparisonTableHeaderConversions SCFrom_$verdictRef SCTo_$verdict'>$verdictRef &rarr $verdict</td>";
+        echo "    <td class='SCStatsComparisonTableHeaderConversions SCFrom_$verdictRef SCTo_$verdict'>$verdictRef &rarr; $verdict</td>";
       }
     }
   }
@@ -321,7 +321,7 @@ if ($resultsNumb) {
                   echo "  <td class='SCStatsComparisonSubTableHeaderTotalStatKeys'>$driversMatchedStatKey</td>";
                 }
               }
-              echo "<td class='SCStatsComparisonSubTableHeaderTotalArrow' rowspan='" . (1 + count($drivers)) . "'> &rarr </td>";
+              echo "<td class='SCStatsComparisonSubTableHeaderTotalArrow' rowspan='" . (1 + count($drivers)) . "'> &rarr; </td>";
               foreach ($driversStatKeys as $driversStatKey) {
                 echo "  <td class='SCStatsComparisonSubTableHeaderTotalStatKeys'>$driversStatKey</td>";
               }
@@ -386,7 +386,7 @@ if ($resultsNumb) {
               if (count($driversMatchedStatKeys)) {
                 echo " <td class='SCStatsComparisonSubTableHeaderDetails'>Details</td>";
               }
-              echo "<td class='SCStatsComparisonSubTableHeaderArrow' rowspan='" . (1 + count($drivers)) . "'> &rarr </td>";
+              echo "<td class='SCStatsComparisonSubTableHeaderArrow' rowspan='" . (1 + count($drivers)) . "'> &rarr; </td>";
               foreach ($driversStatKeys as $driversStatKey) {
                 echo "  <td class='SCStatsComparisonSubTableHeaderStatKeys'>$driversStatKey</td>";
               }
