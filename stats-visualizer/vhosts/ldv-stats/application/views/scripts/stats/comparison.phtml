@@ -250,6 +250,13 @@ if ($resultsNumb) {
 
       if (array_key_exists($statKey, $result['Stats key'])) {
         $value = $result['Stats key'][$statKey];
+
+        // Print conversion for the kernel if so.
+        if ($statKey == 'Environment version' 
+          && array_key_exists($statKey, $result['Stats key matched'])
+          && $result['Stats key matched'][$statKey] != $value)
+          echo $result['Stats key matched'][$statKey] . " &rarr; ";
+
         echo $value;
         if (is_null($value)) {
           $value = '__NULL';
