@@ -310,8 +310,8 @@ if ($resultsNumb) {
             if (array_key_exists($verdictRaw, $result['Verdict changes'][$verdictRefRaw])) {
               $drivers = $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['drivers'];
 
-              $driversStatKeys = array_keys($drivers[0]['driver']);
-              $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']);
+              $driversStatKeys = array_keys($drivers[0]['driver']['Stats key']);
+              $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']['Stats key']);
 
               echo "<table class='SCStatsComparisonSubTableTotal' border='1'>
                       <tr class='SCStatsComparisonSubTableHeaderTotalFirstRow'>";
@@ -335,11 +335,11 @@ if ($resultsNumb) {
                 $j++;
                 foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
                   if ($driversMatchedStatKey != 'Stats key matched') {
-                    echo "  <td class='SCStatsComparisonSubTableTotalStatKeys'>" . $driver['matched driver'][$driversMatchedStatKey] . "</td>";
+                    echo "  <td class='SCStatsComparisonSubTableTotalStatKeys'>" . $driver['matched driver']['Stats key'][$driversMatchedStatKey] . "</td>";
                   }
                 }
                 foreach ($driversStatKeys as $driversStatKey) {
-                  echo "  <td class='SCStatsComparisonSubTableTotalStatKeys'>" . $driver['driver'][$driversStatKey] . "</td>";
+                  echo "  <td class='SCStatsComparisonSubTableTotalStatKeys'>" . $driver['driver']['Stats key'][$driversStatKey] . "</td>";
                 }
                 echo "</tr>";
               }
@@ -372,9 +372,11 @@ if ($resultsNumb) {
               echo "<a href='#' class='SCConversion' id='SCConversion_$conversionId'>" . $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['numb'] . "</a>";
               $drivers = $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['drivers'];
 
-              $driversStatKeys = array_keys($drivers[0]['driver']);
-              $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']);
-
+              $driversStatKeys = array_keys($drivers[0]['driver']['Stats key']);
+              $driversAuxInfoKeys = array_keys($drivers[0]['driver']['Aux info']);
+              $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']['Stats key']);
+              $driversMatchedAuxInfoKeys = array_keys($drivers[0]['matched driver']['Aux info']);
+              
               echo "<table border=1 style='display:none' id='SCConversionDrivers_$conversionId' class='SCStatsComparisonSubTable SCConversionDrivers'>
                       <tr class='SCStatsComparisonSubTableHeaderFirstRow'>";
               echo "    <td class='SCStatsComparisonSubTableHeaderRowCounter'>#</td>";
@@ -383,12 +385,20 @@ if ($resultsNumb) {
                   echo "  <td class='SCStatsComparisonSubTableHeaderStatKeys'>$driversMatchedStatKey</td>";
                 }
               }
+              foreach ($driversMatchedAuxInfoKeys as $driversMatchedAuxInfoKey) {
+								if ($verdictRefRaw == 'unsafe' && $driversMatchedAuxInfoKey == 'Error trace')
+                  echo "  <td class='SCStatsComparisonSubTableHeaderDetails'>$driversMatchedAuxInfoKey</td>";
+              }
               if (count($driversMatchedStatKeys)) {
                 echo " <td class='SCStatsComparisonSubTableHeaderDetails'>Details</td>";
               }
               echo "<td class='SCStatsComparisonSubTableHeaderArrow' rowspan='" . (1 + count($drivers)) . "'> &rarr; </td>";
               foreach ($driversStatKeys as $driversStatKey) {
                 echo "  <td class='SCStatsComparisonSubTableHeaderStatKeys'>$driversStatKey</td>";
+              }
+              foreach ($driversAuxInfoKeys as $driversAuxInfoKey) {
+								if ($verdictRaw == 'unsafe' && $driversAuxInfoKey == 'Error trace')
+                  echo "  <td class='SCStatsComparisonSubTableHeaderDetails'>$driversAuxInfoKey</td>";
               }
               if (count($driversStatKeys)) {
                 echo "  <td class='SCStatsComparisonSubTableHeaderDetails'>Details</td>";
@@ -405,7 +415,7 @@ if ($resultsNumb) {
                 $j++;
 
                 foreach ($driversMatchedStatKeys as $driversMatchedStatKey) {
-                  $value = $driver['matched driver'][$driversMatchedStatKey];
+                  $value = $driver['matched driver']['Stats key'][$driversMatchedStatKey];
 
                   // For conversions to deleted state matched driver carries
                   // information on statistics key values.
@@ -430,6 +440,26 @@ if ($resultsNumb) {
                     $statKeysDriverMatchedValues[$driversMatchedStatKey] = $value;
                   }
                 }
+                foreach ($driversMatchedAuxInfoKeys as $driversMatchedAuxInfoKey) {
+								  if ($verdictRefRaw == 'unsafe' && $driversMatchedAuxInfoKey == 'Error trace') {
+                    echo "<td class='SCStatsComparisonSubTableDetails'>";
+                    echo "<a href='"
+                      . $this->url(
+                        array_merge(
+                          $globals,
+                          array(
+                            'controller' => 'stats',
+                            'action'     => 'errortrace',
+                            'page' => $driversMatchedAuxInfoKey,
+                            'value' => $drivers[0]['matched driver']['Aux info'][$driversMatchedAuxInfoKey]),
+                          $statKeysMatchedValues,
+                          $statKeysDriverMatchedValues),
+                        'default',
+                        true)
+                      . "'>...</a>";
+                    echo "</td>";                
+                  }
+                }
                 if (count($driversMatchedStatKeys)) {
                   echo "<td class='SCStatsComparisonSubTableDetails'>";
                   echo "<a href='"
@@ -448,9 +478,29 @@ if ($resultsNumb) {
                   echo "</td>";
                 }
                 foreach ($driversStatKeys as $driversStatKey) {
-                  $value = $driver['driver'][$driversStatKey];
+                  $value = $driver['driver']['Stats key'][$driversStatKey];
                   echo "<td class='SCStatsComparisonSubTableStatKeys'>$value</td>";
                   $statKeysDriverValues[$driversStatKey] = $value;
+                }
+                foreach ($driversAuxInfoKeys as $driversAuxInfoKey) {
+								  if ($verdictRaw == 'unsafe' && $driversAuxInfoKey == 'Error trace') {
+                    echo "<td class='SCStatsComparisonSubTableDetails'>";
+                    echo "<a href='"
+                      . $this->url(
+                        array_merge(
+                          $globals,
+                          array(
+                            'controller' => 'stats',
+                            'action'     => 'errortrace',
+                            'page' => $driversAuxInfoKey,
+                            'value' => $drivers[0]['driver']['Aux info'][$driversAuxInfoKey]),
+                          $statKeysValues,
+                          $statKeysDriverValues),
+                        'default',
+                        true)
+                      . "'>...</a>";
+                    echo "</td>";                
+                  }
                 }
                 if (count($driversStatKeys)) {
                   echo "<td class='SCStatsComparisonSubTableDetails'>";

@@ -943,6 +943,16 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$verificationInfoName]);
     $verificationInfo[$verificationInfoName] = "$tableColumn[tableShort].$tableColumn[column]";
 
+    // Save links to error traces as additional information as well as problem
+    // names. It's very usefull in comparison indeed. 
+    $auxVerificationInfo = array();
+    $auxVerificationInfoForComparison = array('Error trace' => 1);
+    
+    foreach ($auxVerificationInfoForComparison as $name => $aux) {
+		  $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
+      $auxVerificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
+		}
+
     $launches = $this->getDbTable('Application_Model_DbTable_Launches', $this->_db);
 
     // Prepare query to the statistics database to collect launch and
@@ -954,7 +964,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $tableMain = 'launches';
     $select = $select
       ->from(array($this->_tableMapper[$tableMain] => $tableMain),
-        array_merge($launchInfo, $launchInfoComparison, $verificationInfo));
+        array_merge($launchInfo, $launchInfoComparison, $verificationInfo, $auxVerificationInfo));
 
     // Join launches with related with statistics key tables. Note that traces
     // is always joined.
@@ -1012,7 +1022,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $statsCmp[$taskId] = array();
       }
 
-      foreach (array_keys(array_merge($launchInfo, $launchInfoComparison, $verificationInfo)) as $statsKeyPart) {
+      foreach (array_keys(array_merge($launchInfo, $launchInfoComparison, $verificationInfo, $auxVerificationInfo)) as $statsKeyPart) {
         $statsPart[$statsKeyPart] = $launchesRow[$statsKeyPart];
 
         if (array_key_exists($statsKeyPart, $launchInfoForComparison)) {
@@ -1036,7 +1046,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     foreach (array_keys($statsCmp) as $taskId) {
       $statsCmp[$taskId][$deleted] = array();
     }
-#print_r($statsCmp);exit;
+//print_r($statsCmp);exit;
     // Match tasks launches with each other. The first task id is used as the
     // referenced one. For matching use the special regexp. Don't forget to add
     // additional kernel matching if this is needed!
@@ -1092,7 +1102,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-#print_r($statsCmpMatch);exit;
+//print_r($statsCmpMatch);exit;
 
     $result['Comparison stats'] = array();
     $result['Comparison stats']['All changes'] = array();
@@ -1146,9 +1156,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
           foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
             if (!array_key_exists($statsKeyPart, $resultPart['Stats key'])) {
-              $driver[$statsKeyPart] = $matchStats['stats'][$statsKeyPart];
+              $driver['Stats key'][$statsKeyPart] = $matchStats['stats'][$statsKeyPart];
             }
           }
+
+          foreach (array_keys($auxVerificationInfo) as $verificationInfoPart) {
+					  $driver['Aux info'][$verificationInfoPart] = $matchStats['stats'][$verificationInfoPart];
+					}
 
           // Get verdicts from the task compared and the referenced task.
           $statsVerdict = $matchStats['stats']['Verdict'];
@@ -1167,9 +1181,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
             foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
               if (!array_key_exists($statsKeyPart, $resultPart['Stats key matched'])) {
-                $driverMatched[$statsKeyPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$statsKeyPart];
+                $driverMatched['Stats key'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$statsKeyPart];
               }
             }
+            
+            foreach (array_keys($auxVerificationInfo) as $verificationInfoPart) {
+	  				  $driverMatched['Aux info'][$verificationInfoPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$verificationInfoPart];
+		  			}
           }
 
           $driversMatched[] = $driverMatched;
@@ -1221,7 +1239,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-#print_r($result);exit;
+//print_r($result);exit;
 
     return $result;
   }
