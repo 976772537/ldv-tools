@@ -154,14 +154,21 @@ if ($resultsNumb) {
               $(this).addClass('SSStatsComparisonTableColorOver');
             })
             $('.SSStatsComparisonTableRow').mouseout(function() {
-              $(this).removeClass('SSStatsComparisonTableColorOver');
-            })
+              $('.SSStatsComparisonTableColorOver').removeClass('SSStatsComparisonTableColorOver');
+            });
+            
             $('.SSStatsComparisonSubTableRow').mouseover(function() {
               $(this).addClass('SSStatsComparisonSubTableColorOver');
             })
             $('.SSStatsComparisonSubTableRow').mouseout(function() {
-              $(this).removeClass('SSStatsComparisonSubTableColorOver');
-            })
+              $('.SSStatsComparisonSubTableColorOver').not('.SSStatsComparisonSubTableColorOverFreeze').removeClass('SSStatsComparisonSubTableColorOver');
+            });
+            $('.SSStatsComparisonSubTableRow').click(function() {
+              if ($(this).hasClass('SSStatsComparisonSubTableColorOverFreeze'))
+                $('.SSStatsComparisonSubTableColorOver').removeClass('SSStatsComparisonSubTableColorOverFreeze').removeClass('SSStatsComparisonSubTableColorOver');
+              else
+                $('.SSStatsComparisonSubTableColorOver').addClass('SSStatsComparisonSubTableColorOverFreeze');
+            });
           });
         </script>";
 

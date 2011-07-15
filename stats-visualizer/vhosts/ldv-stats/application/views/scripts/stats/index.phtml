@@ -195,10 +195,16 @@ if ($resultsNumb) {
                   statKeysClasses[statKeyClass] = true;
                 })
               })
-            })
+            });
             $('.SSStatsTableRow').mouseout(function() {
-              $('.SSStatsTableColorOver').removeClass('SSStatsTableColorOver');
-            })
+              $('.SSStatsTableColorOver').not('.SSStatsTableColorOverFreeze').removeClass('SSStatsTableColorOver');
+            });
+            $('.SSStatsTableRow').click(function() {
+              if ($(this).hasClass('SSStatsTableColorOverFreeze'))
+                $('.SSStatsTableColorOver').removeClass('SSStatsTableColorOverFreeze').removeClass('SSStatsTableColorOver');
+              else
+                $('.SSStatsTableColorOver').addClass('SSStatsTableColorOverFreeze');
+            });
           });
         </script>";
 

@@ -244,6 +244,11 @@ body
   background-color: #EFB9E0;
 }
 
+.SSStatsTableColorOverFreeze, .SSStatsComparisonSubTableColorOverFreeze
+{
+  background-color: #DE92C9;
+}
+
 /* Statistics comparison table style. */
 .SCStatsComparisonTableHeaderTotalChanges
 {
