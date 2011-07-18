@@ -211,29 +211,15 @@ if ($resultsNumb) {
   // Print large text bubble plugin.
   echo "<script type='text/javascript'>
           $(document).ready(function() {
-            $('.SSStatsTableDescription').each(function() {
-              // Add bubble just for really large descriptions that have a
-              // scroolbar either on Ox or Oy direction.
-              var elem = $(this).get(0);
-              if (elem.clientWidth != elem.scrollWidth || elem.clientHeight != elem.scrollHeight) {
-                var html = $(this).parent().html();
-                var text = $(this).text();
-                html = \"<div class='SSStatsTableDescriptionBubbleShowHide'><a href='#' class='SSStatsTableDescriptionBubbleShowHideLink'>...</a></div>\" + html;
-                $(this).parent().html(html);
-              }
-            })
-          });
-        </script>";
-  echo "<script type='text/javascript'>
-          $(document).ready(function() {
-            $('.SSStatsTableDescriptionBubbleShowHideLink').toggle(function() {
-              var bubbleText = $(this).parent().next().text();
-              $(\"<div class='SSBubble'>\" + bubbleText + '</div>').insertAfter($(this).parent());
+            $('.SSStatsTableDescription').toggle(function() {
+              $(this).removeClass('SSStatsTableDescription').addClass('SSBubble');
+              $('<div class=\"SSStatsTableDescription\">Stub</div>').insertAfter($(this));
             }, function() {
-              $(this).parent().next().remove();
+              $(this).next().remove();
+              $(this).removeClass('SSBubble').addClass('SSStatsTableDescription');
             })
           });
-        </script>";
+        </script>";  
 
   // Print task description edit plugin.
   $indicator = $this->baseUrl() . "/images/indicator.gif";
