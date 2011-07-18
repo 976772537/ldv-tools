@@ -120,22 +120,32 @@ class StatsController extends Zend_Controller_Action
 
     // Write raw representation of error trace directly to the file.
     $errorTraceRawFile = APPLICATION_PATH . "/../data/trace/original";
-    $handle = fopen($errorTraceRawFile, 'w')
+    $handleErrorTrace = fopen($errorTraceRawFile, 'r+')
       or die("Can't open the file '$errorTraceRawFile' for write");
-    fwrite($handle, $results['Error trace']->errorTraceRaw)
+    // We should lock files with error trace and source code until error trace
+    // visualizer will process it.
+    flock($handleErrorTrace, LOCK_EX)
+      or die ("Can't lock the file '$errorTraceRawFile'");
+    // Remove previous content of the given file before writing.
+    ftruncate($handleErrorTrace, 0)
+      or die ("Can't truncate the file '$errorTraceRawFile'");
+    fwrite($handleErrorTrace, $results['Error trace']->errorTraceRaw)
       or die("Can't write raw error trace to the file '$errorTraceRawFile'");
-    fclose($handle);
 
     // Write file names and source code directly to the file.
     $sourceCodeFile = APPLICATION_PATH . "/../data/trace/src";
-    $handle = fopen($sourceCodeFile, 'w')
+    $handleSrc = fopen($sourceCodeFile, 'r+')
       or die("Can't open the file '$sourceCodeFile' for write");
+    flock($handleSrc, LOCK_EX)
+      or die ("Can't lock the file '$sourceCodeFile'");
+    // Remove previous content of the given file before writing.
+    ftruncate($handleSrc, 0)
+      or die ("Can't truncate the file '$sourceCodeFile'");
     $fileSeparator = '-------';
     foreach ($results['Error trace']->sourceCodeFiles as $fileName => $sourceCode) {
-      fwrite($handle, "$fileSeparator$fileName$fileSeparator\n$sourceCode\n")
+      fwrite($handleSrc, "$fileSeparator$fileName$fileSeparator\n$sourceCode\n")
         or die("Can't write source code to the file '$sourceCodeFile'");
     }
-    fclose($handle);
 
     // Obtain the path to the error trace visualizer script.
     $etvConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'error-trace-visualizer');
@@ -154,18 +164,23 @@ class StatsController extends Zend_Controller_Action
     if ($retCode) {
       $error = "<h1>The error trace visualizer fails!!!</h1>";
       $this->view->error = $error;
-      return;
     }
+    else {
+      // Store the html representation of error trace and source code.
+      $errorTrace = file_get_contents($errorTraceFile)
+        or die("Can't read processed error trace from the file '$errorTraceFile'");
 
-    // Store the html representation of error trace and source code.
-    $errorTrace = file_get_contents($errorTraceFile)
-      or die("Can't read processed error trace from the file '$errorTraceFile'");
+      $results['Error trace']->setOptions(array('errorTrace' => $errorTrace));
 
-    $results['Error trace']->setOptions(array('errorTrace' => $errorTrace));
+      $this->view->entries = array_merge($this->view->entries, $results);
+      $this->view->entries['Globals'] = $this->_globals;
+      $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
 
-    $this->view->entries = array_merge($this->view->entries, $results);
-    $this->view->entries['Globals'] = $this->_globals;
-    $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
+      // Close file handlers and release corresponding locks after processed
+      // error trace was obtained.
+      fclose($handleErrorTrace);
+      fclose($handleSrc);
+    }
   }
 
   public function comparisonAction()
