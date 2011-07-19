@@ -310,7 +310,7 @@ body
 }
 
 /* Statistics error trace visualizer style. */
-#SETVLogShowHide
+#SETVHelpShowHide, #SETVLogShowHide
 {
   font-size: 12pt;
   padding: 10px 0px 0px 0px;
@@ -327,7 +327,7 @@ body
 #SSInfoShowHide
 {
   font-size: 12pt;
-  padding: 30px 0px 0px 0px;
+  padding: 10px 0px 0px 0px;
 }
 
 #SSInfo

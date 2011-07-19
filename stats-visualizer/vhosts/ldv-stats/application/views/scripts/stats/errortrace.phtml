@@ -13,6 +13,20 @@ else {
   print_r($results['Error trace']->errorTrace);
 }
 
+// Print show/hide plugin for error trace visualizer help. By default it isn't shown.
+echo "<script type='text/javascript'>
+        $(document).ready(function() {
+          $('.ETVHelp').before('<div id=\"SETVHelpShowHide\"><a href=\"#\" id=\"SETVHelpShowHideLink\">Error trace visualizer help</a></div>');
+          $('#SETVHelpShowHideLink').toggle(function() {
+            $('.ETVHelp').show();
+            return false;
+          } , function() {
+            $('.ETVHelp').hide();
+            return false;
+          });
+        });
+      </script>";
+
 // Print show/hide plugin for error trace visualizer log. By default it isn't shown.
 echo "<script type='text/javascript'>
         $(document).ready(function() {
