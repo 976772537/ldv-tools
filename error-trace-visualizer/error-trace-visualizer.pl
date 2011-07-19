@@ -280,7 +280,7 @@ my %show_hide_global = (
   , 11 => {'class', my $entity_class_return_val = 'ETVReturnValue', 'name', 'Return values', 'main', 0, 'show', 1}
   , 12 => {'class', my $entity_class_assert = 'ETVAssert', 'name', 'Asserts', 'main', 0, 'show', 1}
   , 13 => {'class', my $entity_class_assert_cond = 'ETVAssertCondition', 'name', 'Assert conditions', 'main', 0, 'show', 1}
-  , 14 => {'class', my $entity_class_ident = 'ETVIdentation', 'name', 'Identation', 'main', 0, 'show', 1}
+  , 14 => {'class', my $entity_class_ident = 'ETVI', 'name', 'Identation', 'main', 0, 'show', 1}
   , 15 => {'class', my $entity_class_driver_env_init = 'ETVDriverEnvInit', 'name', 'Driver environment initialization', 'main', 0, 'show', 0}
   , 16 => {'class', my $entity_class_driver_env_func_call = 'ETVDriverEnvFunctionCall', 'name', 'Driver environment function calls', 'main', 0, 'show', 1}
   , 17 => {'class', my $entity_class_driver_env_func_body = 'ETVDriverEnvFunctionBody', 'name', 'Driver environment function bodies', 'main', 0, 'show', 1}
@@ -308,12 +308,16 @@ my %srcs;
 
 # The colors to be used in highlighting.
 my $syntax_colors = {
-  comment => 'ETVSrcComment',
+  comment => 'ETVSrcC',
   string  => 'ETVSrcString',
   number  => 'ETVSrcNumber',
-  key1    => 'ETVSrcCKeywords',
-  key2    => 'ETVSrcCPPKeywords',
+  key1    => 'ETVSrcCK',
+  key2    => 'ETVSrcCPPK',
 };
+
+# Those source code file names and lines that are reffered by error trace.
+my %reffered_locations;
+
 
 ################################################################################
 # Main section.
@@ -987,11 +991,11 @@ sub print_error_trace_node_blast($$)
     {
       print_spaces($indent);
       print_show_hide_local("ETV$html_id") if ($isshow_hide);
-      print($file_report_out $expr, ";<br />");
+      print($file_report_out $expr, ";<br />\n");
 
       if ($isshow_hide)
       {
-        print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
+        print($file_report_out "<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
         $isshow_hide = 0;
       }
     }
@@ -1045,7 +1049,7 @@ sub print_spaces($)
   # occupies more than one line then following to the first line fields are
   # filled with spaces. Because of there is spaces indentation before each line
   # this is done here.
-  print($file_report_out "<span class='ETVLineNumber'>");
+  print($file_report_out "<span class='ETVLN'>");
   if ($entity_line and $entity_src)
   {
     # Generate a link to the source code line if so.
@@ -1054,8 +1058,8 @@ sub print_spaces($)
     if ($files_long_name{$entity_src})
     {
       my $file_link = convert_file_to_link($files_long_name{$entity_src});
-
       $entity_line_str =~ s/(\d+)/<a href='#$file_link:$entity_line'>$1<\/a>/;
+      $reffered_locations{"$file_link:$entity_line"} = 1;
       print($file_report_out $entity_line_str)
     }
     else
@@ -1118,7 +1122,7 @@ sub print_show_hide_local($)
   my $entity_id = shift;
 
   print($file_report_out
-    "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n");
+    "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>");
 }
 
 sub process_error_trace()
@@ -1696,7 +1700,7 @@ sub visualize_error_trace($)
   print($file_report_out
       "\n<script type='text/javascript'>"
     , "\n  \$(document).ready(function() {"
-    , "\n    \$('.ETVLineNumber a').click(function() {"
+    , "\n    \$('.ETVLN a').click(function() {"
     , "\n      \$('#ETVTabs ul li').removeClass('ETVActive');"
     , "\n      var currentLink = \$(this).attr('href');"
     , "\n      var linkPosition = currentLink.lastIndexOf('#');"
@@ -1774,7 +1778,11 @@ sub visualize_error_trace($)
     my $line_numb = 1;
     foreach my $line (@src_highlighted)
     {
-      printf($file_report_out "<span class='ETVSrcLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'></a>%5d </span>", $line_numb);
+      my $anchor;
+      my $link_to_file = convert_file_to_link($src);
+      $anchor = "<a name='$link_to_file:$line_numb'></a>"
+        if (defined($reffered_locations{"$link_to_file:$line_numb"}));
+      printf($file_report_out "<span class='ETVSrcLN'>$anchor%5d </span>", $line_numb);
       print($file_report_out "$line");
       $line_numb++;
       print($file_report_out "\n") if ($line_numb <= scalar(@src_highlighted));
