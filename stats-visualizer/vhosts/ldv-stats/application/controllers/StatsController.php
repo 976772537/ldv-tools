@@ -39,13 +39,31 @@ class StatsController extends Zend_Controller_Action
     $global->startTime = $starttime;
 
     // Get information on the current profile.
+    $this->_logger = Zend_Registry::get('logger');
+
+    // Try to use previously obtained information on a given profile.
+    if ($global->profileCurrent['name']) {
+      if (array_key_exists('profilename', $this->_globals) && $global->profileCurrent['name'] == $this->_globals['profilename']
+        || $global->profileCurrent['name'] == '__DEFAULT') {
+        $this->_logger->log("Use previously obtained information on the given profile: '" . $global->profileCurrent['name'] . "'", Zend_Log::DEBUG);
+        $this->_profileInfo = $global->profileCurrent['info'];
+        return;
+      }
+    }
+
     $profileMapper = new Application_Model_ProfileMapper();
     if (array_key_exists('profilename', $this->_globals)) {
       $this->_profileInfo = $profileMapper->getProfileInfo($profileMapper->getProfile($this->_globals['profilename']));
+      $global->profileCurrent['name'] = $this->_globals['profilename'];
     }
     else {
       $this->_profileInfo = $profileMapper->getProfileInfo();
+      $global->profileCurrent['name'] = '__DEFAULT';
     }
+
+    $global->profileCurrent['info'] = $this->_profileInfo;
+
+    $this->_logger->log("Successfully collect information on the given profile: '" . $global->profileCurrent['name'] . "'", Zend_Log::DEBUG);
   }
 
   public function indexAction()
