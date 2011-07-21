@@ -312,7 +312,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 #print_r($toolsInfo);exit;
 #print_r($toolsTime);exit;
 
-    $launches = $this->getDbTable('Application_Model_DbTable_Launches', $this->_db);
+    $launches = $this->getDbTable('Application_Model_DbTable_Launches', NULL, $this->_db);
 
     // Prepare query to the statistics database to collect launch and
     // verification info.
@@ -830,7 +830,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Connect to the profile database and remember connection settings.
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
-    $traces = $this->getDbTable('Application_Model_DbTable_Traces', $this->_db);
+    $traces = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
 
     // Prepare query to the statistics database to obtrain a error trace.
     $select = $traces
@@ -850,7 +850,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $errorTraceRow = $traces->fetchRow($select);
     $errorTrace = new Application_Model_ErrorTrace(array('errorTraceRaw' => $errorTraceRow[$pageName], 'engine' => $errorTraceRow['Engine']));
 
-    $sources = $this->getDbTable('Application_Model_DbTable_Sources', $this->_db);
+    $sources = $this->getDbTable('Application_Model_DbTable_Sources', NULL, $this->_db);
 
     // Prepare query to the statistics database to obtrain source code files
     // corresponding to a given error trace.
@@ -969,7 +969,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $auxVerificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
 		}
 
-    $launches = $this->getDbTable('Application_Model_DbTable_Launches', $this->_db);
+    $launches = $this->getDbTable('Application_Model_DbTable_Launches', NULL, $this->_db);
 
     // Prepare query to the statistics database to collect launch and
     // verification info.
