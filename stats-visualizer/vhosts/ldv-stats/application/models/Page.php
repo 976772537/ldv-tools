@@ -4,6 +4,7 @@ class Application_Model_Page extends Application_Model_GeneralStats
 {
   protected $_launchInfo;
   protected $_verificationInfo;
+  protected $_knowledgeBaseInfo;
   protected $_toolsInfo;
 
   public function setToolsInfoOrder($order)
@@ -40,5 +41,17 @@ class Application_Model_Page extends Application_Model_GeneralStats
   public function getVerificationInfo()
   {
     return $this->_verificationInfo;
+  }
+
+  public function setKnowledgeBaseInfoOrder($order)
+  {
+    $knowledgeBaseInfo = new Application_Model_KnowledgeBaseInfo();
+    $this->_knowledgeBaseInfo[$order] = $knowledgeBaseInfo;
+    return $knowledgeBaseInfo;
+  }
+
+  public function getKnowledgeBaseInfo()
+  {
+    return $this->_knowledgeBaseInfo;
   }
 }

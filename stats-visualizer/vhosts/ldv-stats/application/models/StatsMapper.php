@@ -241,7 +241,18 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
       }
     }
+
 #print_r($verificationInfo);exit;
+    // Obtain information on knowledge base info columns. Note that they are not
+    // from main verification results database so they will be obtained later.
+    $knowledgeBaseKey = array();
+    if (null !== $page->knowledgeBaseInfo) {
+      foreach ($page->knowledgeBaseInfo as $info) {
+        $knowledgeBaseKey[] = $info->knowledgeBaseInfoName;
+      }
+    }
+#print_r($knowledgeBaseKey);exit;
+    
     // Obtain the list of tools info columns.
     $tools = array();
     $toolsInfo = array();
@@ -727,6 +738,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $resultPart['Verification info'][$verificationKeyPart] = $launchesRow[$verificationKeyPart];
       }
 
+      $resultPart['Knowledge base info'] = array();
+      foreach ($knowledgeBaseKey as $knowledgeBaseKeyPart) {
+        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = 1;
+      }
+      
       $resultPart['Tools info'] = array();
       foreach ($toolsKey as $toolsKeyPart) {
         $resultPart['Tools info'][$toolsKeyPart] = $launchesRow[$toolsKeyPart];
@@ -791,7 +807,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
 #foreach ($result as $res) {echo "<br>";print_r($res);} exit;
-
+#print_r($result); exit;
     return $result;
   }
 

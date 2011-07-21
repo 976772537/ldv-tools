@@ -168,6 +168,28 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         }
       }
 
+      // Get information on knowledge base.
+      $pagesKnowledgeBaseInfo = $this->getProfilesDbTable('Application_Model_DbTable_PagesKnowledgeBaseInfo');
+      $pagesKnowledgeBaseInfoResultSet = $pagesKnowledgeBaseInfo->fetchAll($pagesKnowledgeBaseInfo
+        ->select()->setIntegrityCheck(false)
+        ->from(array('PAKB' => 'pages_kb_info'),
+            array('Name' => 'KB.name',
+                  'Id' => 'KB.id',
+                  'Order' => 'AU.order',
+                  'Presence' => 'AU.presence'))
+        ->joinLeft(array('KB' => 'kb_info'), 'PAKB.kb_info_id=KB.id', array())
+        ->joinLeft(array('AU' => 'aux_info'), 'KB.aux_info_id=AU.id', array())
+        ->where('pages_id = ?', $profilePagesRow['Id'])
+        ->order('AU.order'));
+
+      foreach($pagesKnowledgeBaseInfoResultSet as $pagesKnowledgeBaseInfoRow) {
+        $profilePageKnowledgeBaseInfo = $profilePage->setKnowledgeBaseInfoOrder($pagesKnowledgeBaseInfoRow['Order']);
+        $profilePageKnowledgeBaseInfo->setOptions(array(
+          'knowledgeBaseInfoName' => $pagesKnowledgeBaseInfoRow['Name'],
+          'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
+        $this->_logger->log("The knowledge base information: $pagesKnowledgeBaseInfoRow[Name]", Zend_Log::DEBUG);
+      }
+
       // Get information on tools in general.
       $pagesToolsInfo = $this->getDbTable('Application_Model_DbTable_PagesToolsInfo');
       $pagesToolsInfoResultSet = $pagesToolsInfo->fetchAll($pagesToolsInfo

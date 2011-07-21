@@ -240,6 +240,7 @@ if ($resultsNumb) {
 
   $statKeys = array_keys($stats[0]['Stats key']);
   $verificationKeys = array_keys($stats[0]['Verification info']);
+  $knowledgeBaseKeys = array_keys($stats[0]['Knowledge base info']);
   $toolKeys = array_keys($stats[0]['Tools info']);
   $problemKeys = array_keys($results['Stats']['All tool problems']);
   $toolNames = array_keys($results['Stats']['All tool names']);
@@ -298,6 +299,7 @@ if ($resultsNumb) {
 #print_r($tools);exit;
 
   $statVerificationKeyRowSpan = 1;
+  $statKnowledgeBaseKeyRowSpan = 1;
   $statToolsKeyRowSpan = 1;
 
   if (count($tools)) {
@@ -306,6 +308,7 @@ if ($resultsNumb) {
 
   if (count($problemKeys) || count($childrenKeys)) {
     $statVerificationKeyRowSpan++;
+    $statKnowledgeBaseKeyRowSpan++;
     $statToolsKeyRowSpan++;
   }
 
@@ -347,6 +350,9 @@ if ($resultsNumb) {
       $verificationKey = 'Total';
     }
     printData("    <td class='SSStatsTableHeaderVerificationInfo' rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>", $verificationKey);
+  }
+  foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
+    printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' rowspan='$statKnowledgeBaseKeyRowSpan'>$knowledgeBaseKey</td>", $knowledgeBaseKey);
   }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     printData("    <td class='SSStatsTableHeaderTools' colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>", null);
@@ -654,6 +660,12 @@ if ($resultsNumb) {
       else {
         printData($value, $value);
       }
+      echo "</td>";
+    }
+
+    foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
+      echo "    <td class='SSAlignRight'>";
+        printData('-', '');
       echo "</td>";
     }
 
