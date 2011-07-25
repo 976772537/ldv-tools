@@ -4,6 +4,8 @@ current directory and define your own values of variables there.
 Also you may specify them through the corresponding environment variables. 
 Note that environment variables are preferable.
 
+Then, run "make install-visualization" from the root ldv-tools directory.
+
 Note! Most likely you must install the statistics server under root since it
 have to copy files to web server virtual host and configuration directories.
 

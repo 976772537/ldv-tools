@@ -2,9 +2,8 @@ TUTORIAL
 ========
 
    I. PREPARE
-      You should prepare database and environment variables before verification
-      start. This procedure is performed only once for each instance of the ldv
-      tools. Following subsections describes minimal requirements.
+      You should prepare database and environment variables. This procedure is
+      performed only once for each instance of the ldv tools.
 
       1. Create a database:
           - Install and configure mysql server and client if they are not
@@ -78,10 +77,10 @@ TUTORIAL
 
         - Start the verification process:
             * For external drivers:
-              ldv-manager tag=current "envs=linux-2.6.31.6.tar.bz2" \
+              ldv-manager "envs=linux-2.6.31.6.tar.bz2" \
               "drivers=PATH_TO_YOUR_DRIVER_ARCHIEVE" "rule_models=32_7 32_1"
             * For kernel drivers:
-              ldv-manager tag=current "envs=linux-2.6.31.6.tar.bz2" \
+              ldv-manager "envs=linux-2.6.31.6.tar.bz2" \
               kernel_driver=1 "drivers=PATH_TO_YOUR_DRIVERS_DIR" \
               "rule_models=32_7 32_1"
 

@@ -16,20 +16,6 @@ PREREQUISITES:
 7. PAX archiver (that's POSIX standard actually) and CPIO archiver
 
 
-INSTALLATION
-============
-
-First you should install ldv-manager.  You can do it by changing into its directory and running
-
-	make install prefix=where/to/install
-
-or by calling
-
-	make install-all
-
-from ldv-tools root dir.
-
-
 HOW TO USE LDV-MANAGER
 ======================
 (on using ldv-manager within LDV backend, consult also 'USING LDV-MANAGER WITH LDV BACKEND' section)
