@@ -1,0 +1,12 @@
+When you edit mysql workbench project and then generate corresponding SQL script
+don't forget to change in an automatically generated SQL script the second
+foreign key to point to 'traces' table, i.e. replace this:
+  CONSTRAINT `fk_results_kb_2`
+    FOREIGN KEY (`trace_id` )
+    REFERENCES `traces` (`id` )
+with this:
+  CONSTRAINT `fk_results_kb_2`
+    FOREIGN KEY (`trace_id` )
+    REFERENCES `traces` (`id` )
+(this is required since there is no information on 'traces' table in the
+knowledge base mysql workbench project).
