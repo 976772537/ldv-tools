@@ -24,7 +24,7 @@ index e4deb73..558511b 100644
 +	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c) -fdump-rtl-expand;	  \
  	$(cmd_modversions)						  \
 +	$(cmd_ldv_meta1) $< $@.i $(notdir $<).*.expand $@ | $(cmd_ldv_metamerge) $(LDVGIT_META) ;		  \
-+	if echo "$<" | grep --perl-regexp "$(LDV_BASE_FOLDER_FILTER)" >/dev/null 2>/dev/null ; then ( echo "== $<"; cat $@.xmlcmd ) | $(cmd_ldv_metamerge) $(LDVGIT_CMDS) ; fi ;		  \
++	( echo "== $<"; cat $@.xmlcmd ) | $(cmd_ldv_metamerge) $(LDVGIT_CMDS) ;		  \
  	$(call echo-cmd,record_mcount)					  \
  	$(cmd_record_mcount)						  \
  	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' >    \
