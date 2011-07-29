@@ -53,6 +53,7 @@ else
 		Problem.clear_all(sql)
 		puts "ldv-problem-recalc: All problems have been deleted from database, and will now be recalculated..."
 	end
-	Trace.all.each {|t| recalc_one[t] }
+	# Recalculate in descending order, since the developer is more likely to be interested in recent records, than in older ones.
+	Trace.find(:all,:order => "id DESC").each {|t| recalc_one[t] }
 end
 
