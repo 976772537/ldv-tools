@@ -2,11 +2,11 @@
 
 class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 {
-	public function getProfilesDbTable($tableName)
-	{
-	  return $this->getDbTable($tableName, 'profiles');
-	}
-	
+  public function getProfilesDbTable($tableName)
+  {
+    return $this->getDbTable($tableName, 'profiles');
+  }
+
   public function getProfiles()
   {
     $profiles = $this->getProfilesDbTable('Application_Model_DbTable_Profiles');
