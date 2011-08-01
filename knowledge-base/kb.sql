@@ -26,7 +26,7 @@ CREATE  TABLE IF NOT EXISTS `kb` (
   UNIQUE INDEX `ID` (`name` ASC, `public` ASC) )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
-COLLATE = utf8_general_ci;
+COLLATE = utf8_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -37,6 +37,7 @@ DROP TABLE IF EXISTS `kb`.`results_kb` ;
 CREATE  TABLE IF NOT EXISTS `results_kb` (
   `trace_id` INT(10) UNSIGNED NOT NULL ,
   `kb_id` INT NOT NULL ,
+  `exact` TINYINT(1) NULL DEFAULT NULL ,
   PRIMARY KEY (`trace_id`, `kb_id`) ,
   INDEX `fk_results_kb_1` (`kb_id` ASC) ,
   INDEX `fk_results_kb_2` (`trace_id` ASC) ,
@@ -52,7 +53,7 @@ CREATE  TABLE IF NOT EXISTS `results_kb` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
-COLLATE = utf8_general_ci;
+COLLATE = utf8_unicode_ci;
 
 
 
