@@ -352,3 +352,24 @@ body
   font-weight: bold;
   padding: 5px 0px 0px 0px;
 }
+
+.SSKBTruePositive
+{
+  color: #00A100;
+}
+
+.SSKBFalsePositive
+{
+  color: #D68A00;
+}
+
+.SSKBInconclusive
+{
+  color: #CF0000;
+  font-weight: bold;
+}
+
+.SSKBUnknown
+{
+  color: #9200ED;
+}

@@ -30,6 +30,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'Unsafe' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Unsafe'),
     'Unknown' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Unknown'));
   protected $_knowledgeBaseInfoNameTableColumnMapper = array(
+    'KB ID' => array('table' => 'kb', 'column' => 'name'),
     'KB Verdict' => array('table' => 'kb', 'column' => 'verdict'),
     'KB Tags' => array('table' => 'kb', 'column' => 'tags'));
   protected $_toolsInfoNameTableColumnMapper = array(
@@ -259,10 +260,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $knowledgeBaseInfo = array();
     $knowledgeBaseKey = array();
     if (null !== $page->knowledgeBaseInfo) {
+      // Extract additionally KB ids to create prompts further.
+      $page->setKnowledgeBaseInfoOrder(1000)->setKnowledgeBaseInfoName('KB ID');
       foreach ($page->knowledgeBaseInfo as $info) {
         $name = $info->knowledgeBaseInfoName;
         $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
-        $knowledgeBaseInfo[$name] = "GROUP_CONCAT(`$tableColumn[tableShort]`.`$tableColumn[column]` SEPARATOR ';')";
+        // We use special separator to distinguish corresponding KB ids,
+        // verdicts and tags later.
+        $knowledgeBaseInfo[$name] = "GROUP_CONCAT(`$tableColumn[tableShort]`.`$tableColumn[column]` SEPARATOR '__;')";
 
         $knowledgeBaseKey[] = $name;
       }
@@ -771,9 +776,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $resultPart['Knowledge base info'] = array();
       foreach ($knowledgeBaseKey as $knowledgeBaseKeyPart) {
-        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = $launchesRow[$knowledgeBaseKeyPart];
+        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = preg_split('/__;/', $launchesRow[$knowledgeBaseKeyPart]);
       }
-
+      
       $resultPart['Tools info'] = array();
       foreach ($toolsKey as $toolsKeyPart) {
         $resultPart['Tools info'][$toolsKeyPart] = $launchesRow[$toolsKeyPart];
