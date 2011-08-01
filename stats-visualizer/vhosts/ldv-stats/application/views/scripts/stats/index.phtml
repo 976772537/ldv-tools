@@ -665,7 +665,13 @@ if ($resultsNumb) {
 
     foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
       echo "    <td class='SSAlignRight'>";
+      $value = $result['Knowledge base info'][$knowledgeBaseKey];
+      if (!$value) {
         printData('-', '');
+      }
+      else {
+        printData($value, $value);
+      }
       echo "</td>";
     }
 

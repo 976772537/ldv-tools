@@ -29,6 +29,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'Safe' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Safe'),
     'Unsafe' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Unsafe'),
     'Unknown' => array('table' => 'traces', 'column' => 'result', 'cond' => 'Unknown'));
+  protected $_knowledgeBaseInfoNameTableColumnMapper = array(
+    'KB Verdict' => array('table' => 'kb', 'column' => 'verdict'),
+    'KB Tags' => array('table' => 'kb', 'column' => 'tags'));
   protected $_toolsInfoNameTableColumnMapper = array(
     'BCE' => array('table' => 'stats', 'column' => 'build_id'),
     'DEG' => array('table' => 'stats', 'column' => 'maingen_id'),
@@ -49,10 +52,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
   protected $_tableMapper = array(
     'drivers' => 'DR',
     'environments' => 'EN',
+    'kb' => 'KB',
     'launches' => 'LA',
     'problems' => 'PR',
     'processes' => 'PRO',
     'problems_stats' => 'PRST',
+    'results_kb' => 'RE',
     'rule_models' => 'RU',
     'scenarios' => 'SC',
     'stats' => 'ST',
@@ -243,16 +248,27 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
 
 #print_r($verificationInfo);exit;
-    // Obtain information on knowledge base info columns. Note that they are not
-    // from main verification results database so they will be obtained later.
+
+    // Obtain information on knowledge base info columns.
     $knowledgeBaseKey = array();
     if (null !== $page->knowledgeBaseInfo) {
       foreach ($page->knowledgeBaseInfo as $info) {
         $knowledgeBaseKey[] = $info->knowledgeBaseInfoName;
       }
     }
-#print_r($knowledgeBaseKey);exit;
-    
+    $knowledgeBaseInfo = array();
+    $knowledgeBaseKey = array();
+    if (null !== $page->knowledgeBaseInfo) {
+      foreach ($page->knowledgeBaseInfo as $info) {
+        $name = $info->knowledgeBaseInfoName;
+        $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
+        $knowledgeBaseInfo[$name] = "GROUP_CONCAT(`$tableColumn[tableShort]`.`$tableColumn[column]` SEPARATOR ';')";
+
+        $knowledgeBaseKey[] = $name;
+      }
+    }
+#print_r($knowledgeBaseKey);print_r($knowledgeBaseInfo);exit;
+
     // Obtain the list of tools info columns.
     $tools = array();
     $toolsInfo = array();
@@ -323,7 +339,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $tableMain = 'launches';
     $select = $select
       ->from(array($this->_tableMapper[$tableMain] => $tableMain),
-        array_merge($launchInfo, $verificationInfo, $verificationResultInfo, $toolsInfo));
+        array_merge($launchInfo, $verificationInfo, $verificationResultInfo, $knowledgeBaseInfo, $toolsInfo));
 
     // Join launches with related with statistics key tables. Note that traces
     // is always joined.
@@ -333,6 +349,21 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $select = $select
       ->joinLeft(array($this->_tableMapper[$table] => $table)
         , '`' . $this->_tableMapper[$tableMain] . '`.`' . $this->_tableLaunchMapper[$table] . '`=`' . $this->_tableMapper[$table] . '`.`id`'
+        , array());
+    }
+
+    // Join KB table through KB cache table if needed.
+    if (!empty($knowledgeBaseKey)) {
+      $tableResultsKB = 'results_kb';
+      $tableResultsKBShort = $this->_tableMapper[$tableResultsKB];
+      $select = $select
+        ->joinLeft(array($tableResultsKBShort => $tableResultsKB)
+        , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBShort`.`trace_id`"
+        , array());
+      $tableKB = 'kb';
+      $select = $select
+        ->joinLeft(array($this->_tableMapper[$tableKB] => $tableKB)
+        , '`' . $this->_tableMapper[$tableKB] . "`.`id`=`$tableResultsKBShort`.`kb_id`"
         , array());
     }
 
@@ -740,9 +771,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $resultPart['Knowledge base info'] = array();
       foreach ($knowledgeBaseKey as $knowledgeBaseKeyPart) {
-        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = 1;
+        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = $launchesRow[$knowledgeBaseKeyPart];
       }
-      
+
       $resultPart['Tools info'] = array();
       foreach ($toolsKey as $toolsKeyPart) {
         $resultPart['Tools info'][$toolsKeyPart] = $launchesRow[$toolsKeyPart];
@@ -808,6 +839,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
 #foreach ($result as $res) {echo "<br>";print_r($res);} exit;
 #print_r($result); exit;
+
     return $result;
   }
 
@@ -960,14 +992,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $verificationInfo[$verificationInfoName] = "$tableColumn[tableShort].$tableColumn[column]";
 
     // Save links to error traces as additional information as well as problem
-    // names. It's very usefull in comparison indeed. 
+    // names. It's very usefull in comparison indeed.
     $auxVerificationInfo = array();
     $auxVerificationInfoForComparison = array('Error trace' => 1);
-    
+
     foreach ($auxVerificationInfoForComparison as $name => $aux) {
-		  $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
+      $tableColumn = $this->getTableColumn($this->_verificationInfoNameTableColumnMapper[$name]);
       $auxVerificationInfo[$name] = "$tableColumn[tableShort].$tableColumn[column]";
-		}
+    }
 
     $launches = $this->getDbTable('Application_Model_DbTable_Launches', NULL, $this->_db);
 
@@ -1177,8 +1209,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           }
 
           foreach (array_keys($auxVerificationInfo) as $verificationInfoPart) {
-					  $driver['Aux info'][$verificationInfoPart] = $matchStats['stats'][$verificationInfoPart];
-					}
+            $driver['Aux info'][$verificationInfoPart] = $matchStats['stats'][$verificationInfoPart];
+          }
 
           // Get verdicts from the task compared and the referenced task.
           $statsVerdict = $matchStats['stats']['Verdict'];
@@ -1200,10 +1232,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                 $driverMatched['Stats key'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$statsKeyPart];
               }
             }
-            
+
             foreach (array_keys($auxVerificationInfo) as $verificationInfoPart) {
-	  				  $driverMatched['Aux info'][$verificationInfoPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$verificationInfoPart];
-		  			}
+              $driverMatched['Aux info'][$verificationInfoPart] = $statsCmp[$taskIdCmpRef][$matchStats['match']][$verificationInfoPart];
+            }
           }
 
           $driversMatched[] = $driverMatched;
