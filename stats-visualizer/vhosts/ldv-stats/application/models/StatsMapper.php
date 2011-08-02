@@ -32,7 +32,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
   protected $_knowledgeBaseInfoNameTableColumnMapper = array(
     'KB ID' => array('table' => 'kb', 'column' => 'name'),
     'KB Verdict' => array('table' => 'kb', 'column' => 'verdict'),
-    'KB Tags' => array('table' => 'kb', 'column' => 'tags'));
+    'KB Tags' => array('table' => 'kb', 'column' => 'tags'),
+    'KB Fit' => array('table' => 'results_kb', 'column' => 'fit'));
   protected $_toolsInfoNameTableColumnMapper = array(
     'BCE' => array('table' => 'stats', 'column' => 'build_id'),
     'DEG' => array('table' => 'stats', 'column' => 'maingen_id'),
@@ -262,6 +263,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     if (null !== $page->knowledgeBaseInfo) {
       // Extract additionally KB ids to create prompts further.
       $page->setKnowledgeBaseInfoOrder(1000)->setKnowledgeBaseInfoName('KB ID');
+      // Extract information on fit.
+      $page->setKnowledgeBaseInfoOrder(1001)->setKnowledgeBaseInfoName('KB Fit');
       foreach ($page->knowledgeBaseInfo as $info) {
         $name = $info->knowledgeBaseInfoName;
         $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);

@@ -360,8 +360,8 @@ if ($resultsNumb) {
     printData("    <td class='SSStatsTableHeaderVerificationInfo' rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>", $verificationKey);
   }
   foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
-    // We don't need knowledge base identifiers to be printed explicitly.
-    if ($knowledgeBaseKey != 'KB ID')
+    // We don't need knowledge base identifiers and fits to be printed explicitly.
+    if ($knowledgeBaseKey != 'KB ID' and $knowledgeBaseKey != 'KB Fit')
       printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' rowspan='$statKnowledgeBaseKeyRowSpan'>$knowledgeBaseKey</td>", $knowledgeBaseKey);
   }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
@@ -674,7 +674,7 @@ if ($resultsNumb) {
     }
 
     foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
-      if ($knowledgeBaseKey == 'KB ID')
+      if ($knowledgeBaseKey == 'KB ID' or $knowledgeBaseKey == 'KB Fit')
         continue;
         
       echo "    <td class='SSAlignRight'>";
@@ -684,6 +684,16 @@ if ($resultsNumb) {
       // I.e. when there is relevant to the given launch information in KB.
       if (count($value)) {
         if ($knowledgeBaseKey == 'KB Verdict') {
+          // First of all remember an extent of fit between a given launch and KB.
+          $fit = array();
+          if (array_key_exists('KB Fit', $result['Knowledge base info'])) {
+            for ($i = 0; array_key_exists($i, $value); $i++) {
+              $fit[] = $result['Knowledge base info']['KB Fit'][$i];
+            }
+          }
+          $tbd = array_search('TBD', $fit);
+          $require_script = array_search('Require script', $fit);
+
           if (count($value) > 1) {
             // Reduce multiple verdicts in accordance with the following table:
             //     TP  FP  UNK
@@ -712,7 +722,16 @@ if ($resultsNumb) {
           if ($value == 'Unknown')
             $value = '-';
 
-          $value = "<div class='$knowledgeBaseVerdictCSS[$value]'>$value</div>";
+          // Calculate additional notes if so.
+          $note = '';
+          if ($tbd !== false) {
+            $note .= '*';
+          }
+          if ($require_script !== false) {
+            $note .= '**';
+          }
+
+          $value = "<div class='$knowledgeBaseVerdictCSS[$value]'>$value<span class='SSKBFitNote'>$note</span></div>";
         }
         else if ($knowledgeBaseKey == 'KB Tags') {
           $items = array();
