@@ -66,11 +66,13 @@ my $kb_schema = "$FindBin::RealBin/../knowledge-base/kb.sql";
 my $kb_common_data = "$FindBin::RealBin/../knowledge-base/kb-common.sql";
 
 # Command-line options. Use --help option to see detailed description of them.
+my $opt_common_data;
 my $opt_delete;
 my $opt_help;
 my $opt_init;
 my $opt_init_schema;
 my $opt_new;
+my $opt_schema;
 my $opt_update_pattern;
 my $opt_update_result;
 
@@ -104,11 +106,13 @@ print_debug_normal("Make all successfully");
 sub get_opt()
 {
   unless (GetOptions(
+    'common-data=s' => \$opt_common_data,
     'delete=s' => \$opt_delete,
     'help|h' => \$opt_help,
     'init' => \$opt_init,
     'init-schema' => \$opt_init_schema,
     'new=s' => \$opt_new,
+    'schema=s' => \$opt_schema,
     'update-pattern=s' => \$opt_update_pattern,
     'update-result=s' => \$opt_update_result))
   {
@@ -202,14 +206,30 @@ sub prepare_files_and_dirs()
 
   if ($opt_init_schema)
   {
-    print_debug_trace("Check presence of KB database schema");
-    die("KB schema '$kb_schema' doesn't exist") if (!-f $kb_schema);
+    if ($opt_schema)
+    {
+      print_debug_trace("Check presence of user specified KB database schema");
+      die("KB schema '$opt_schema' doesn't exist") if (!-f $opt_schema);
+    }
+    else
+    {
+      print_debug_trace("Check presence of default KB database schema");
+      die("KB schema '$kb_schema' doesn't exist") if (!-f $kb_schema);
+    }
   }
 
   if ($opt_init)
   {
-    print_debug_trace("Check presence of common KB data");
-    die("Common KB data '$kb_common_data' doesn't exist") if (!-f $kb_common_data);
+    if ($opt_common_data)
+    {
+      print_debug_trace("Check presence of user specified common KB data");
+      die("Common KB data '$opt_common_data' doesn't exist") if (!-f $opt_common_data);
+    }
+    else
+    {
+      print_debug_trace("Check presence of default common KB data");
+      die("Common KB data '$kb_common_data' doesn't exist") if (!-f $kb_common_data);
+    }
   }
 }
 
@@ -217,13 +237,17 @@ sub upload_to_kb()
 {
   if ($opt_init_schema)
   {
-    print_debug_info("Execute the command '$mysql_connection < $kb_schema'");
-    `$mysql_connection < $kb_schema`;
+    my $schema = $kb_schema;
+    $schema = $opt_schema if ($opt_schema);
+    print_debug_info("Execute the command '$mysql_connection < $schema'");
+    `$mysql_connection < $schema`;
 
     if (!$CHILD_ERROR and $opt_init)
     {
-      print_debug_info("Execute the command '$mysql_connection < $kb_common_data'");
-      `$mysql_connection < $kb_common_data`;
+      my $common_data = $kb_common_data;
+      $common_data = $opt_common_data if ($opt_common_data);
+      print_debug_info("Execute the command '$mysql_connection < $common_data'");
+      `$mysql_connection < $common_data`;
     }
 
     die("There is no the mysql executable in your PATH!")
