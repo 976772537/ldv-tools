@@ -37,7 +37,7 @@ DROP TABLE IF EXISTS `kb`.`results_kb` ;
 CREATE  TABLE IF NOT EXISTS `results_kb` (
   `trace_id` INT(10) UNSIGNED NOT NULL ,
   `kb_id` INT NOT NULL ,
-  `exact` TINYINT(1) NULL DEFAULT NULL ,
+  `fit` ENUM('Exact', 'Require script', 'TBD') NOT NULL DEFAULT 'TBD' ,
   PRIMARY KEY (`trace_id`, `kb_id`) ,
   INDEX `fk_results_kb_1` (`kb_id` ASC) ,
   INDEX `fk_results_kb_2` (`trace_id` ASC) ,
