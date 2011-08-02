@@ -37,12 +37,23 @@ public class SimpleVar extends Var {
 
 	@Override
 	public int hashCode() {
-		return System.identityHashCode(this);
+		String name = getVarName();
+		if(name!=null) {
+			return name.hashCode();
+		} else {
+			return 0;
+		}
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		return this==obj;
+		String name = getVarName();
+		if(! (obj instanceof SimpleVar)) {
+			return false;
+		}
+		SimpleVar other = (SimpleVar)obj;
+		String name2 = other.getVarName();
+		return name==name2 || name!=null && name.equals(name2);
 	}
 	
 }
