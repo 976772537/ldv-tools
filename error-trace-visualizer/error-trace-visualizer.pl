@@ -1778,7 +1778,7 @@ sub visualize_error_trace($)
     my $line_numb = 1;
     foreach my $line (@src_highlighted)
     {
-      my $anchor;
+      my $anchor = '';
       my $link_to_file = convert_file_to_link($src);
       $anchor = "<a name='$link_to_file:$line_numb'></a>"
         if (defined($reffered_locations{"$link_to_file:$line_numb"}));
