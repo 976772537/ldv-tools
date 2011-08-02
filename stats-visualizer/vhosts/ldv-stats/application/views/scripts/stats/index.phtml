@@ -735,65 +735,7 @@ if ($resultsNumb) {
       print($value);
       echo "</td>";
     }
-/*
-    if (!empty($knowledgeBaseKeys)) {
-      $ismultiple = false;
-      $knowledgeBaseId = $result['Knowledge base info']['KB ID'];
-      $knowledgeBaseIds = array();
-      if (strstr($knowledgeBaseId, $separator)) {
-        $ismultiple = true;
-        $knowledgeBaseIds = preg_split("/$separator/", $knowledgeBaseId);
-      }
-      foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
-        if ($knowledgeBaseKey != 'KB ID') {
-          echo "    <td class='SSAlignRight'>";
-          
-          $value = $result['Knowledge base info'][$knowledgeBaseKey];
-          
-          if ($ismultiple) {
-            $values = preg_split("/$separator/", $value);
-            if ($knowledgeBaseKey == 'KB Verdict') {
 
-
-
-
-            }
-          }
-          
-          $class = '';
-          if ($knowledgeBaseKey == 'KB Verdict') {
-            if ($value == 'True positive')
-              $class = 'SSKBTruePositive';
-            else if ($value == 'False positive')
-              $class = 'SSKBFalsePositive';
-            else if ($value == 'Inconclusive')
-              $class = 'SSKBInconclusive';
-            if ($value == 'Unknown') {
-              $class = 'SSKBUnknown';
-              $value = '-';
-            }
-            $value = "<div class='$class'>$value</div>";
-          }
-          else if ($ismultiple) {
-            $items = array();
-            foreach ($values as $item) {
-              $items[] = "<div class='$class'>$item</div>";
-            } 
-            $value = implode('', $items);
-          }
-           
-          if (!$value) {
-            printData('-', '');
-          }
-          else {
-            printData($value, $value);
-          }
-          
-          echo "</td>";
-        }
-      }
-    }
-*/
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
         $classAux = '';
