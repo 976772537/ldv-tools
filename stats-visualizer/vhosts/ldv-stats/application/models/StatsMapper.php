@@ -776,7 +776,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $resultPart['Knowledge base info'] = array();
       foreach ($knowledgeBaseKey as $knowledgeBaseKeyPart) {
-        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = preg_split('/__;/', $launchesRow[$knowledgeBaseKeyPart]);
+				$value = $launchesRow[$knowledgeBaseKeyPart];
+        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] 
+          = null !== $value ? preg_split('/__;/', $value) : array();
       }
       
       $resultPart['Tools info'] = array();

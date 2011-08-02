@@ -681,52 +681,57 @@ if ($resultsNumb) {
 
       $value = $result['Knowledge base info'][$knowledgeBaseKey];
 
-      if ($knowledgeBaseKey == 'KB Verdict') {
-        if (count($value) > 1) {
-          // Reduce multiple verdicts in accordance with the following table:
-          //     TP  FP  UNK
-          // TP  TP  INC TP
-          // FP  INC FP  FP
-          // UNK TP  FP  UNK
-          // where TP is True positive, FP is False positive, UNK is Unknown and 
-          // INC is Inconclusive (the last cannot be specified by a user).
-          $fp = array_search('False positive', $value);
-          $tp = array_search('True positive', $value);
-          $unk = array_search('Unknown', $value);
-          
-          if ($tp !== false and $fp === false)
-            $value = 'True positive';
-          else if ($fp !== false and $tp === false)
-            $value = 'False positive';
-          else if ($tp !== false and $fp !== false)
-            $value = 'Inconclusive';
-          else
-            $value = 'Unknown';
-        }
-        else {
-          $value = $value[0];
-        }
-
-        if ($value == 'Unknown')
-          $value = '-';
-
-        $value = "<div class='$knowledgeBaseVerdictCSS[$value]'>$value</div>";
-      }
-      else if ($knowledgeBaseKey == 'KB Tags') {
-        $items = array();
-        for ($i = 0; array_key_exists($i, $value); $i++) {
-          if (array_key_exists('KB ID', $result['Knowledge base info'])) {
-            $verdictClass = '';
-            if (array_key_exists('KB Verdict', $result['Knowledge base info']))
-              $verdictClass = "class ='" . $knowledgeBaseVerdictCSS[$result['Knowledge base info']['KB Verdict'][$i]] . "'";
-            $items[] = "<div $verdictClass title='" . $result['Knowledge base info']['KB ID'][$i] . "'>$value[$i]</div>";
+      // I.e. when there is relevant to the given launch information in KB.
+      if (count($value)) {
+        if ($knowledgeBaseKey == 'KB Verdict') {
+          if (count($value) > 1) {
+            // Reduce multiple verdicts in accordance with the following table:
+            //     TP  FP  UNK
+            // TP  TP  INC TP
+            // FP  INC FP  FP
+            // UNK TP  FP  UNK
+            // where TP is True positive, FP is False positive, UNK is Unknown and 
+            // INC is Inconclusive (the last cannot be specified by a user).
+            $fp = array_search('False positive', $value);
+            $tp = array_search('True positive', $value);
+            $unk = array_search('Unknown', $value);
+            
+            if ($tp !== false and $fp === false)
+              $value = 'True positive';
+            else if ($fp !== false and $tp === false)
+              $value = 'False positive';
+            else if ($tp !== false and $fp !== false)
+              $value = 'Inconclusive';
+            else
+              $value = 'Unknown';
           }
-          else
-            $items[] = $value[$i];
+          else {
+            $value = $value[0];
+          }
+
+          if ($value == 'Unknown')
+            $value = '-';
+
+          $value = "<div class='$knowledgeBaseVerdictCSS[$value]'>$value</div>";
         }
-        $value = implode($items);
+        else if ($knowledgeBaseKey == 'KB Tags') {
+          $items = array();
+          for ($i = 0; array_key_exists($i, $value); $i++) {
+            if (array_key_exists('KB ID', $result['Knowledge base info'])) {
+              $verdictClass = '';
+              if (array_key_exists('KB Verdict', $result['Knowledge base info']))
+                $verdictClass = "class ='" . $knowledgeBaseVerdictCSS[$result['Knowledge base info']['KB Verdict'][$i]] . "'";
+              $items[] = "<div $verdictClass title='" . $result['Knowledge base info']['KB ID'][$i] . "'>$value[$i]</div>";
+            }
+            else
+              $items[] = $value[$i];
+          }
+          $value = implode($items);
+        }
       }
-       
+      else
+        $value = '-';
+         
       print($value);
       echo "</td>";
     }
