@@ -192,20 +192,20 @@ sub delete_cache($)
 
 sub generate_cache($)
 {
-	my $kb_ids_ref = shift;
-	my $kb_ids_str = '';
-	my $kb_ids_in = '';
-	my @kb_ids;
-	
-	if ($kb_ids_ref)
-	{
-		@kb_ids = @{$kb_ids_ref};
-		$kb_ids_str = " for KB ids '@kb_ids'";
-		$kb_ids_in = " AND kb.id in (@kb_ids) ";
+  my $kb_ids_ref = shift;
+  my $kb_ids_str = '';
+  my $kb_ids_in = '';
+  my @kb_ids;
+
+  if ($kb_ids_ref)
+  {
+    @kb_ids = @{$kb_ids_ref};
+    $kb_ids_str = " for KB ids '@kb_ids'";
+    $kb_ids_in = " AND kb.id in (@kb_ids) ";
   }
-  
+
   print_debug_trace("Generate KB cache$kb_ids_str...");
-	
+
   if ($opt_init_cache_db or $opt_update_pattern)
   {
     # Before fast initialization of the whole KB cache by means of db tools
@@ -213,9 +213,9 @@ sub generate_cache($)
     # from KB cache that corresponds to KB entities with updated patterns.
     if ($kb_ids_ref)
     {
-			delete_cache($kb_ids_ref)
-			  if ($opt_update_pattern);
-		}
+      delete_cache($kb_ids_ref)
+        if ($opt_update_pattern);
+    }
     else
     {
       delete_cache(undef);
@@ -241,14 +241,14 @@ sub generate_cache($)
   # initialization.
   if ($opt_init_cache_script or $opt_update_pattern_script)
   {
-		# Specify that KB cache recalculation by means of corresponding scripts is
-		# required.
-		if ($opt_update_pattern_script)
-		{
-			$dbh->do("UPDATE results_kb SET fit='Require script' WHERE kb_id in (@kb_ids)")
-			   or die($dbh->errstr);
-		}
-		
+    # Specify that KB cache recalculation by means of corresponding scripts is
+    # required.
+    if ($opt_update_pattern_script)
+    {
+      $dbh->do("UPDATE results_kb SET fit='Require script' WHERE kb_id in (@kb_ids)")
+         or die($dbh->errstr);
+    }
+
     print_debug_trace("Begin to perform KB cache initialization with scripts$kb_ids_str...");
     my $all_data = $dbh->selectall_arrayref(
       "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id
@@ -321,8 +321,8 @@ sub get_opt()
   help() if ($opt_help);
 
   # Check consistency.
-  die("Don't specify both --update-pattern or --update-pattern-script together with --init-cache or --init-cache-kb or --init-cache-script") 
-    if (($opt_update_pattern or $opt_update_pattern_script) 
+  die("Don't specify both --update-pattern or --update-pattern-script together with --init-cache or --init-cache-kb or --init-cache-script")
+    if (($opt_update_pattern or $opt_update_pattern_script)
       and ($opt_init_cache or $opt_init_cache_db or $opt_init_cache_script));
 
   # Initialization implies KB schema uploading as well as KB data.
@@ -383,9 +383,60 @@ SYNOPSIS
 
 OPTIONS
 
+  --common-data <file>
+    Path to user defined common data to be uploaded to KB instead of
+    the default one.
+    
+  --delete <ids>
+    KB ids for which corresponding KB cache records will be deleted.
+  
   -h, --help
     Print this help and exit with a error.
 
+  --init
+    Means that common data will be uploaded to KB. It turns on
+    --init-schema.
+  
+  --init-cache
+    Synonym for --init-cache-db and --init-cache-script.
+    
+  --init-cache-db
+    Fast initialization of KB cache by means of database tools.
+    
+  --init-cache-script
+    Addition to the --init-cache-db option. Except database tools
+    relevant scripts will be involved. After all either corresponding
+    exact cache records will be obtained or they will be removed. 
+    
+  --init-schema
+    Upload KB schema to a specified database. Note that the given 
+    database should contain statistics database schema uploaded.
+        
+  --new <ids>
+    New KB ids for which corresponding KB cache records will be 
+    calculated in depence on --init-cache-db and --init-cache-script
+    options.
+    
+  --schema <file>
+    Path to user defined KB schema to be uploaded to KB instead of
+    the default one.
+         
+  --update-pattern <ids>
+    KB ids with updated patterns. For them corresponding KB cache
+    records will be recalculated just in the fast manner. Don't use
+    --init-cache, --init-cache-db and --init-cache-script together
+    with the given option.
+             
+  --update-pattern-script <ids>
+    KB ids with updated pattern scripts. For them corresponding KB
+    cache records will be recalculated with help of scripts. Don't use
+    --init-cache, --init-cache-db and --init-cache-script together
+    with the given option.
+    
+  --update-result <ids>
+    Cache (re)generation isn't required in this case, so, nothing will
+    be done.
+              
 ENVIRONMENT VARIABLES
 
   LDV_DEBUG
