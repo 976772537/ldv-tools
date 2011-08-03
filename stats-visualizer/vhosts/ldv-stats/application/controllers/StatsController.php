@@ -193,6 +193,7 @@ class StatsController extends Zend_Controller_Action
       $this->view->entries = array_merge($this->view->entries, $results);
       $this->view->entries['Globals'] = $this->_globals;
       $this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
+      $this->view->entries['Knowledge base'] = $results['Knowledge base'];
 
       // Close file handlers and release corresponding locks after processed
       // error trace was obtained.

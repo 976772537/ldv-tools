@@ -923,6 +923,18 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     $result['Error trace'] = $errorTrace;
 
+    // Collect information on relevant KB records for the given error trace.
+    $kb = $this->getDbTable('Application_Model_DbTable_KnowledgeBase', NULL, $this->_db);
+    $select = $kb
+      ->select()->setIntegrityCheck(false);
+    $select = $select
+      ->from('kb',
+        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags'))
+      ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
+      ->joinLeft('traces', "results_kb.trace_id=traces.id", array())
+      ->where("traces.id = ?", $trace_id);
+    $result['Knowledge base'] = $kb->fetchAll($select)->toArray();
+
     // Gather all statistics key restrictions comming through the parameters.
     // For error trace they are always presented.
     foreach (array_keys($this->_launchInfoNameTableColumnMapper) as $statKey) {
@@ -930,6 +942,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $result['Restrictions'][$statKey] = $params[$statKey];
       }
     }
+
+#print_r($result['Knowledge base']);exit;
 
     return $result;
   }

@@ -11,6 +11,23 @@ if (isset($this->error)) {
 }
 else {
   print_r($results['Error trace']->errorTrace);
+  
+  // Print KB records relevant to a given error trace.
+  $kbRecords = $results['Knowledge base'];
+  echo "<table id='SETVKBTable' border='1'>";
+  echo '<tr>';
+  foreach (array_keys($kbRecords[0]) as $columnName) {
+    echo "<td>$columnName</td>";
+  }
+  foreach ($kbRecords as $kbRecord) {
+    echo '<tr>';
+    foreach ($kbRecord as $columnName => $kbCellValue) {
+      echo "<td class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</td>";
+    }
+    echo '</tr>';
+  }
+  echo '</tr>';
+  echo '</table>';
 }
 
 // Print show/hide plugin for error trace visualizer help. By default it isn't shown.
