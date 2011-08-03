@@ -1,6 +1,7 @@
 #! /usr/bin/perl -w
 
 
+use DBI;
 use English;
 use Env qw(LDV_DEBUG LDV_KB_RECALC_DEBUG LDVDBHOST LDVDB LDVUSER LDVDBPASSWD);
 use FindBin;
@@ -20,6 +21,16 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+# Drop the whole KB cache.
+# args: no.
+# retn: nothing.
+sub drop_cache();
+
+# Generate cache that binds verification results with KB.
+# args: no.
+# retn: nothing.
+sub generate_cache();
 
 # Process command-line options. To see detailed description of these options
 # run script with --help option.
@@ -47,6 +58,9 @@ sub upload_to_kb();
 # Global variables.
 ################################################################################
 
+# Common database handler.
+my $dbh;
+
 # Prefix for all debug messages.
 my $debug_name = 'kb-recalc';
 
@@ -70,11 +84,20 @@ my $opt_common_data;
 my $opt_delete;
 my $opt_help;
 my $opt_init;
+my $opt_init_cache;
+my $opt_init_cache_db;
+my $opt_init_cache_script;
 my $opt_init_schema;
 my $opt_new;
 my $opt_schema;
 my $opt_update_pattern;
 my $opt_update_result;
+
+# A header and tail to be used for each executed script in KB cache (re)generating.
+my $script_header =
+"no warnings 'all';";
+my $script_tail =
+"0;";
 
 
 ################################################################################
@@ -96,12 +119,104 @@ if ($opt_init_schema or $opt_init)
   upload_to_kb();
 }
 
+my $host;
+$LDVDBHOST ? $host = $LDVDBHOST : $host = 'localhost';
+$dbh = DBI->connect("DBI:mysql:database=$LDVDB;host=$host", $LDVUSER, $LDVDBPASSWD)
+    or die("Couldn't connect to database: " . DBI->errstr);
+
+if ($opt_init_cache_db or $opt_init_cache_script)
+{
+  print_debug_normal("Start KB cache (re)generation");
+  generate_cache();
+}
+
 print_debug_normal("Make all successfully");
 
 
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub drop_cache()
+{
+  print_debug_trace("Drop KB cache...");
+  $dbh->do('DELETE FROM results_kb') or die($dbh->errstr);
+  print_debug_debug("KB cache was dropped successfully");
+}
+
+sub generate_cache()
+{
+  print_debug_trace("Generate KB cache...");
+
+  if ($opt_init_cache_db) 
+  {
+		# Just before fast initialization by means of db tools we need to drop cache.
+    drop_cache();
+    
+    print_debug_trace("Begin to perform fast KB cache initialization...");
+    $dbh->do(
+      "INSERT INTO results_kb
+			 SELECT traces.id, kb.id, IF(kb.script IS NULL, 'Exact' , 'Require script')
+			 FROM kb, launches
+				 LEFT JOIN traces on traces.id=launches.trace_id
+				 LEFT JOIN rule_models on rule_models.id=launches.rule_model_id
+				 LEFT JOIN scenarios on scenarios.id=launches.scenario_id
+			 WHERE traces.result='unsafe'
+				 AND IF(kb.model is NULL, 1, rule_models.name like kb.model) = 1
+				 AND IF(kb.module is NULL, 1, scenarios.executable like kb.module) = 1
+				 AND IF(kb.main is NULL, 1, scenarios.main like kb.main) = 1") or die($dbh->errstr);
+		print_debug_debug("Fast KB cache initialization was performed successfully");
+  }
+  
+  # This seems to require too much time. So, separate it from the fast cache
+  # initialization.
+  if ($opt_init_cache_script)
+  {
+    my $all_data = $dbh->selectall_arrayref(
+      "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id
+       FROM launches
+         LEFT JOIN traces on traces.id=launches.trace_id
+         LEFT JOIN results_kb on traces.id=results_kb.trace_id
+         LEFT JOIN kb on kb.id=results_kb.kb_id
+         LEFT JOIN rule_models on rule_models.id=launches.rule_model_id
+         LEFT JOIN scenarios on scenarios.id=launches.scenario_id
+       WHERE results_kb.fit='Require script'") or die($dbh->errstr);
+
+    foreach my $data (@{$all_data}) {
+      my ($model, $module, $main, $script, $trace_id, $kb_id) = @{$data};
+
+      print_debug_trace("Execute script '$script' with model '$model', module '$module' and main '$main'");
+      my $ret = eval("$script_header\n$script\n$script_tail");
+
+      if ($EVAL_ERROR)
+      {
+        print_debug_warning("Couldn't execute script '$script': \n'$EVAL_ERROR'");
+        next;
+      }
+
+      if ($ret)
+      {
+        print_debug_debug("Script failed");
+        # In this case we should delete corresponding record from KB cache.
+        $dbh->do(
+          "DELETE FROM results_kb WHERE trace_id=$trace_id AND kb_id=$kb_id") or die($dbh->errstr);
+        print_debug_debug("Remove from KB cache record with trace id '$trace_id' and KB id '$kb_id'");
+      }
+      else
+      {
+        print_debug_debug("Script passed");
+        # In this case we should set corresponding record from KB cache as 'Exact'.
+        $dbh->do(
+          "UPDATE results_kb SET results_kb.fit='Exact' WHERE trace_id=$trace_id AND kb_id=$kb_id") or die($dbh->errstr);
+        print_debug_debug("Update KB cache record (change fit from 'Require script' to 'Exact') with trace id '$trace_id' and KB id '$kb_id'");
+      }
+    }
+    
+		print_debug_debug("KB cache initialization with scripts application was performed successfully");
+  }
+
+  print_debug_debug("KB cache was generated successfully");
+}
 
 sub get_opt()
 {
@@ -110,6 +225,9 @@ sub get_opt()
     'delete=s' => \$opt_delete,
     'help|h' => \$opt_help,
     'init' => \$opt_init,
+    'init-cache' => \$opt_init_cache,
+    'init-cache-db' => \$opt_init_cache_db,
+    'init-cache-script' => \$opt_init_cache_script,
     'init-schema' => \$opt_init_schema,
     'new=s' => \$opt_new,
     'schema=s' => \$opt_schema,
@@ -130,6 +248,13 @@ sub get_opt()
 
   print_debug_debug("Common KB data will be uploaded to the specified database")
     if ($opt_init);
+
+  # Both cache initializations will be performed in this case.
+  if ($opt_init_cache)
+  {
+    $opt_init_cache_db = 1;
+    $opt_init_cache_script = 1;
+  }
 
   if ($opt_delete)
   {
