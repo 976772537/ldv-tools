@@ -44,15 +44,15 @@ sub get_opt();
 # retn: nothing.
 sub help();
 
+# Upload schema or and common data to KB.
+# args: no.
+# retn: nothing.
+sub init_kb();
+
 # Obtain needed files and dirs and check their presence.
 # args: no.
 # retn: nothing.
 sub prepare_files_and_dirs();
-
-# Upload schema or and common data to KB.
-# args: no.
-# retn: nothing.
-sub upload_to_kb();
 
 
 ################################################################################
@@ -74,6 +74,7 @@ my $mysql_connection;
 my @kb_ids_delete;
 my @kb_ids_new;
 my @kb_ids_update_pattern;
+my @kb_ids_update_pattern_script;
 my @kb_ids_update_result;
 
 # SQL script describing KB schema.
@@ -92,6 +93,7 @@ my $opt_init_schema;
 my $opt_new;
 my $opt_schema;
 my $opt_update_pattern;
+my $opt_update_pattern_script;
 my $opt_update_result;
 
 # A header and tail to be used for each executed script in KB cache (re)generating.
@@ -117,7 +119,7 @@ prepare_files_and_dirs();
 if ($opt_init_schema or $opt_init)
 {
   print_debug_normal("Upload KB schema or/and common KB data to the database");
-  upload_to_kb();
+  init_kb();
 }
 
 my $host;
@@ -143,6 +145,18 @@ if ($opt_delete)
 {
   print_debug_normal("Delete records from KB cache");
   delete_cache(\@kb_ids_delete);
+}
+
+if ($opt_update_pattern)
+{
+  print_debug_normal("Calculate KB cache for KB entities having updated pattern");
+  generate_cache(\@kb_ids_update_pattern);
+}
+
+if ($opt_update_pattern_script)
+{
+  print_debug_normal("Calculate KB cache for KB entities having updated pattern script");
+  generate_cache(\@kb_ids_update_pattern_script);
 }
 
 if ($opt_update_result)
@@ -181,21 +195,31 @@ sub generate_cache($)
 	my $kb_ids_ref = shift;
 	my $kb_ids_str = '';
 	my $kb_ids_in = '';
+	my @kb_ids;
 	
 	if ($kb_ids_ref)
 	{
-		my @kb_ids = @{$kb_ids_ref};
+		@kb_ids = @{$kb_ids_ref};
 		$kb_ids_str = " for KB ids '@kb_ids'";
 		$kb_ids_in = " AND kb.id in (@kb_ids) ";
   }
   
   print_debug_trace("Generate KB cache$kb_ids_str...");
 	
-  if ($opt_init_cache_db)
+  if ($opt_init_cache_db or $opt_update_pattern)
   {
-    # Just before fast initialization of the whole KB cache by means of db tools
-    # we need to delete the whole cache.
-    delete_cache(undef) if (!$kb_ids_ref);
+    # Before fast initialization of the whole KB cache by means of db tools
+    # we need to delete the whole cache. Also we need to delete those records
+    # from KB cache that corresponds to KB entities with updated patterns.
+    if ($kb_ids_ref)
+    {
+			delete_cache($kb_ids_ref)
+			  if ($opt_update_pattern);
+		}
+    else
+    {
+      delete_cache(undef);
+    }
 
     print_debug_trace("Begin to perform fast KB cache initialization$kb_ids_str...");
     $dbh->do(
@@ -215,8 +239,16 @@ sub generate_cache($)
 
   # This seems to require too much time. So, separate it from the fast cache
   # initialization.
-  if ($opt_init_cache_script)
+  if ($opt_init_cache_script or $opt_update_pattern_script)
   {
+		# Specify that KB cache recalculation by means of corresponding scripts is
+		# required.
+		if ($opt_update_pattern_script)
+		{
+			$dbh->do("UPDATE results_kb SET fit='Require script' WHERE kb_id in (@kb_ids)")
+			   or die($dbh->errstr);
+		}
+		
     print_debug_trace("Begin to perform KB cache initialization with scripts$kb_ids_str...");
     my $all_data = $dbh->selectall_arrayref(
       "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id
@@ -279,6 +311,7 @@ sub get_opt()
     'new=s' => \$opt_new,
     'schema=s' => \$opt_schema,
     'update-pattern=s' => \$opt_update_pattern,
+    'update-pattern-script=s' => \$opt_update_pattern_script,
     'update-result=s' => \$opt_update_result))
   {
     warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool.");
@@ -286,6 +319,11 @@ sub get_opt()
   }
 
   help() if ($opt_help);
+
+  # Check consistency.
+  die("Don't specify both --update-pattern or --update-pattern-script together with --init-cache or --init-cache-kb or --init-cache-script") 
+    if (($opt_update_pattern or $opt_update_pattern_script) 
+      and ($opt_init_cache or $opt_init_cache_db or $opt_init_cache_script));
 
   # Initialization implies KB schema uploading as well as KB data.
   $opt_init_schema = 1 if ($opt_init);
@@ -317,6 +355,11 @@ sub get_opt()
   {
     @kb_ids_update_pattern = split('/,/', $opt_update_pattern);
     print_debug_debug("KB ids with updated pattern '@kb_ids_update_pattern'");
+  }
+  if ($opt_update_pattern_script)
+  {
+    @kb_ids_update_pattern_script = split('/,/', $opt_update_pattern_script);
+    print_debug_debug("KB ids with updated pattern script '@kb_ids_update_pattern_script'");
   }
   if ($opt_update_result)
   {
@@ -365,6 +408,32 @@ EOM
   exit(1);
 }
 
+sub init_kb()
+{
+  if ($opt_init_schema)
+  {
+    my $schema = $kb_schema;
+    $schema = $opt_schema if ($opt_schema);
+    print_debug_info("Execute the command '$mysql_connection < $schema'");
+    `$mysql_connection < $schema`;
+
+    if (!$CHILD_ERROR and $opt_init)
+    {
+      my $common_data = $kb_common_data;
+      $common_data = $opt_common_data if ($opt_common_data);
+      print_debug_info("Execute the command '$mysql_connection < $common_data'");
+      `$mysql_connection < $common_data`;
+    }
+
+    die("There is no the mysql executable in your PATH!")
+      if (check_system_call() == -1);
+    # This is checked separately since mysql isn't the part of the LDV toolset but
+    # it's too important for toolset.
+    die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'")
+      if ($CHILD_ERROR >> 8);
+  }
+}
+
 sub prepare_files_and_dirs()
 {
   print_debug_trace("Check that database connection is setup");
@@ -402,31 +471,5 @@ sub prepare_files_and_dirs()
       print_debug_trace("Check presence of default common KB data");
       die("Common KB data '$kb_common_data' doesn't exist") if (!-f $kb_common_data);
     }
-  }
-}
-
-sub upload_to_kb()
-{
-  if ($opt_init_schema)
-  {
-    my $schema = $kb_schema;
-    $schema = $opt_schema if ($opt_schema);
-    print_debug_info("Execute the command '$mysql_connection < $schema'");
-    `$mysql_connection < $schema`;
-
-    if (!$CHILD_ERROR and $opt_init)
-    {
-      my $common_data = $kb_common_data;
-      $common_data = $opt_common_data if ($opt_common_data);
-      print_debug_info("Execute the command '$mysql_connection < $common_data'");
-      `$mysql_connection < $common_data`;
-    }
-
-    die("There is no the mysql executable in your PATH!")
-      if (check_system_call() == -1);
-    # This is checked separately since mysql isn't the part of the LDV toolset but
-    # it's too important for toolset.
-    die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'")
-      if ($CHILD_ERROR >> 8);
   }
 }
