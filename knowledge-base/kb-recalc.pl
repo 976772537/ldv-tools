@@ -27,10 +27,11 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 # retn: nothing.
 sub delete_cache($);
 
-# Generate cache that binds verification results with KB.
-# args: no.
+# Generate cache that binds verification results with KB in accordance with
+# specified KB ids..
+# args: reference to KB ids array or NULL (that implies all records).
 # retn: nothing.
-sub generate_cache();
+sub generate_cache($);
 
 # Process command-line options. To see detailed description of these options
 # run script with --help option.
@@ -126,20 +127,22 @@ $dbh = DBI->connect("DBI:mysql:database=$LDVDB;host=$host", $LDVUSER, $LDVDBPASS
 
 if ($opt_init_cache_db or $opt_init_cache_script)
 {
-  print_debug_normal("Start KB cache (re)generation");
-  generate_cache();
+  if ($opt_new)
+  {
+    print_debug_normal("Calculate KB cache for new KB entities");
+    generate_cache(\@kb_ids_new);
+  }
+  else
+  {
+    print_debug_normal("Start KB cache (re)generation");
+    generate_cache(undef);
+  }
 }
 
 if ($opt_delete)
 {
   print_debug_normal("Delete records from KB cache");
   delete_cache(\@kb_ids_delete);
-}
-
-if ($opt_new)
-{
-  print_debug_normal("Calculate KB cache for new KB entities");
-#  new_kb_ids_to_cache();
 }
 
 if ($opt_update_result)
@@ -156,11 +159,11 @@ print_debug_normal("Make all successfully");
 
 sub delete_cache($)
 {
-  my $kb_ids = shift;
+  my $kb_ids_ref = shift;
 
-  if ($kb_ids)
+  if ($kb_ids_ref)
   {
-    my @kb_ids = @{$kb_ids};
+    my @kb_ids = @{$kb_ids_ref};
     print_debug_trace("Delete records from KB cache with KB ids '@kb_ids'...");
     $dbh->do("DELETE FROM results_kb WHERE results_kb.kb_id in (@kb_ids)") or die($dbh->errstr);
     print_debug_debug("KB cache records were deleted successfully");
@@ -173,17 +176,28 @@ sub delete_cache($)
   }
 }
 
-sub generate_cache()
+sub generate_cache($)
 {
-  print_debug_trace("Generate KB cache...");
-
+	my $kb_ids_ref = shift;
+	my $kb_ids_str = '';
+	my $kb_ids_in = '';
+	
+	if ($kb_ids_ref)
+	{
+		my @kb_ids = @{$kb_ids_ref};
+		$kb_ids_str = " for KB ids '@kb_ids'";
+		$kb_ids_in = " AND kb.id in (@kb_ids) ";
+  }
+  
+  print_debug_trace("Generate KB cache$kb_ids_str...");
+	
   if ($opt_init_cache_db)
   {
-    # Just before fast initialization by means of db tools we need to delete
-    # the whole cache.
-    delete_cache(undef);
+    # Just before fast initialization of the whole KB cache by means of db tools
+    # we need to delete the whole cache.
+    delete_cache(undef) if (!$kb_ids_ref);
 
-    print_debug_trace("Begin to perform fast KB cache initialization...");
+    print_debug_trace("Begin to perform fast KB cache initialization$kb_ids_str...");
     $dbh->do(
       "INSERT INTO results_kb
        SELECT traces.id, kb.id, IF(kb.script IS NULL, 'Exact' , 'Require script')
@@ -194,7 +208,8 @@ sub generate_cache()
        WHERE traces.result='unsafe'
          AND IF(kb.model is NULL, 1, rule_models.name like kb.model) = 1
          AND IF(kb.module is NULL, 1, scenarios.executable like kb.module) = 1
-         AND IF(kb.main is NULL, 1, scenarios.main like kb.main) = 1") or die($dbh->errstr);
+         AND IF(kb.main is NULL, 1, scenarios.main like kb.main) = 1
+         $kb_ids_in") or die($dbh->errstr);
     print_debug_debug("Fast KB cache initialization was performed successfully");
   }
 
@@ -202,6 +217,7 @@ sub generate_cache()
   # initialization.
   if ($opt_init_cache_script)
   {
+    print_debug_trace("Begin to perform KB cache initialization with scripts$kb_ids_str...");
     my $all_data = $dbh->selectall_arrayref(
       "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id
        FROM launches
@@ -210,7 +226,8 @@ sub generate_cache()
          LEFT JOIN kb on kb.id=results_kb.kb_id
          LEFT JOIN rule_models on rule_models.id=launches.rule_model_id
          LEFT JOIN scenarios on scenarios.id=launches.scenario_id
-       WHERE results_kb.fit='Require script'") or die($dbh->errstr);
+       WHERE results_kb.fit='Require script'
+       $kb_ids_in") or die($dbh->errstr);
 
     foreach my $data (@{$all_data}) {
       my ($model, $module, $main, $script, $trace_id, $kb_id) = @{$data};
