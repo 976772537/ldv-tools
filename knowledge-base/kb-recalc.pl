@@ -22,10 +22,10 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 # Subroutine prototypes.
 ################################################################################
 
-# Drop the whole KB cache.
-# args: no.
+# Delete records from KB cache in accordance with specified KB ids.
+# args: reference to KB ids array or NULL (that implies all records).
 # retn: nothing.
-sub drop_cache();
+sub delete_cache($);
 
 # Generate cache that binds verification results with KB.
 # args: no.
@@ -95,7 +95,7 @@ my $opt_update_result;
 
 # A header and tail to be used for each executed script in KB cache (re)generating.
 my $script_header =
-"no warnings 'all';";
+"";
 my $script_tail =
 "0;";
 
@@ -130,6 +130,23 @@ if ($opt_init_cache_db or $opt_init_cache_script)
   generate_cache();
 }
 
+if ($opt_delete)
+{
+  print_debug_normal("Delete records from KB cache");
+  delete_cache(\@kb_ids_delete);
+}
+
+if ($opt_new)
+{
+  print_debug_normal("Calculate KB cache for new KB entities");
+#  new_kb_ids_to_cache();
+}
+
+if ($opt_update_result)
+{
+  print_debug_normal("Nothing will be done for KB entities with updated results (by design)");
+}
+
 print_debug_normal("Make all successfully");
 
 
@@ -137,37 +154,50 @@ print_debug_normal("Make all successfully");
 # Subroutines.
 ################################################################################
 
-sub drop_cache()
+sub delete_cache($)
 {
-  print_debug_trace("Drop KB cache...");
-  $dbh->do('DELETE FROM results_kb') or die($dbh->errstr);
-  print_debug_debug("KB cache was dropped successfully");
+  my $kb_ids = shift;
+
+  if ($kb_ids)
+  {
+    my @kb_ids = @{$kb_ids};
+    print_debug_trace("Delete records from KB cache with KB ids '@kb_ids'...");
+    $dbh->do("DELETE FROM results_kb WHERE results_kb.kb_id in (@kb_ids)") or die($dbh->errstr);
+    print_debug_debug("KB cache records were deleted successfully");
+  }
+  else
+  {
+    print_debug_trace("Drop the whole KB cache...");
+    $dbh->do('DELETE FROM results_kb') or die($dbh->errstr);
+    print_debug_debug("KB cache was dropped successfully");
+  }
 }
 
 sub generate_cache()
 {
   print_debug_trace("Generate KB cache...");
 
-  if ($opt_init_cache_db) 
+  if ($opt_init_cache_db)
   {
-		# Just before fast initialization by means of db tools we need to drop cache.
-    drop_cache();
-    
+    # Just before fast initialization by means of db tools we need to delete
+    # the whole cache.
+    delete_cache(undef);
+
     print_debug_trace("Begin to perform fast KB cache initialization...");
     $dbh->do(
       "INSERT INTO results_kb
-			 SELECT traces.id, kb.id, IF(kb.script IS NULL, 'Exact' , 'Require script')
-			 FROM kb, launches
-				 LEFT JOIN traces on traces.id=launches.trace_id
-				 LEFT JOIN rule_models on rule_models.id=launches.rule_model_id
-				 LEFT JOIN scenarios on scenarios.id=launches.scenario_id
-			 WHERE traces.result='unsafe'
-				 AND IF(kb.model is NULL, 1, rule_models.name like kb.model) = 1
-				 AND IF(kb.module is NULL, 1, scenarios.executable like kb.module) = 1
-				 AND IF(kb.main is NULL, 1, scenarios.main like kb.main) = 1") or die($dbh->errstr);
-		print_debug_debug("Fast KB cache initialization was performed successfully");
+       SELECT traces.id, kb.id, IF(kb.script IS NULL, 'Exact' , 'Require script')
+       FROM kb, launches
+         LEFT JOIN traces on traces.id=launches.trace_id
+         LEFT JOIN rule_models on rule_models.id=launches.rule_model_id
+         LEFT JOIN scenarios on scenarios.id=launches.scenario_id
+       WHERE traces.result='unsafe'
+         AND IF(kb.model is NULL, 1, rule_models.name like kb.model) = 1
+         AND IF(kb.module is NULL, 1, scenarios.executable like kb.module) = 1
+         AND IF(kb.main is NULL, 1, scenarios.main like kb.main) = 1") or die($dbh->errstr);
+    print_debug_debug("Fast KB cache initialization was performed successfully");
   }
-  
+
   # This seems to require too much time. So, separate it from the fast cache
   # initialization.
   if ($opt_init_cache_script)
@@ -211,8 +241,8 @@ sub generate_cache()
         print_debug_debug("Update KB cache record (change fit from 'Require script' to 'Exact') with trace id '$trace_id' and KB id '$kb_id'");
       }
     }
-    
-		print_debug_debug("KB cache initialization with scripts application was performed successfully");
+
+    print_debug_debug("KB cache initialization with scripts application was performed successfully");
   }
 
   print_debug_debug("KB cache was generated successfully");
