@@ -6,9 +6,10 @@ SHELL= /bin/sh
 BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh error-trace-visualizer
 ERROR_TRACE_VISUALIZER_SUBDIRS = error-trace-visualizer shared/perl
+KB_SUBDIRS = knowledge-base shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
 LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby
-STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) stats-visualizer kernel-rules shared/php
+STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) $(KB_SUBDIRS) stats-visualizer kernel-rules shared/php
 ONLINE_SUBDIRS = ldv-online 
 CLUSTER_SUBDIRS = cluster shared/ruby
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
@@ -60,6 +61,7 @@ distclean: clean
 # Let's instantiate rules for subdirs:
 $(foreach subdir,$(SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(ERROR_TRACE_VISUALIZER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(KB_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(DSCV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(LDV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(STATS_SUBDIRS),$(eval $(call mksubdir,$(subdir))))

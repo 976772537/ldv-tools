@@ -34,7 +34,7 @@ else {
                 , { 'KB id': kbId }
                 , function(results) {
                     if (results.errors != '')
-                      alert(results.errors);
+                      alert($.makeArray(results.errors).join('\\n'));
                   });
 
               return false;

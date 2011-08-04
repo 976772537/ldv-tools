@@ -232,12 +232,16 @@ class StatsController extends Zend_Controller_Action
 
   public function deleteKbRecordAction()
   {
+		// Find out database connection settings.
+    $statsMapper = new Application_Model_StatsMapper();
+    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+#print_r($dbConnection);exit;
     // Obtain the path to the kb-recalc script.
     $kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
     $kbRecalc = $kbRecalcConfig->script;
 
     // Delete KB id.
-    exec("LDV_DEBUG=30 $kbRecalc 2>&1 --delete=" . $this->_getParam('KB_id') , $output, $retCode);
+    exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --delete=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
      
     // TODO: it should be filed from the output.
     $result = ''; 
