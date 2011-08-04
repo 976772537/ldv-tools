@@ -16,9 +16,11 @@ while (<>){
 	/CPAchecker.run, SEVERE/ and print "SEVERE";
 	/java.lang.OutOfMemoryError: (.*)/ and print "Java OutOfmemory";
 	/java.lang.AssertionError/ and print "Assertion";
-	/org.sosy_lab.cpachecker.util.predicates.CtoFormulaConverter.buildLvalueTerm/ and print "CtoFormulaConverter";
-	/org.sosy_lab.cpachecker.cfa.ast.IASTBinaryExpression/ and print "IASTBinaryExpression";
+	#/org.sosy_lab.cpachecker.util.predicates.CtoFormulaConverter.buildLvalueTerm/ and print "CtoFormulaConverter"; collision with Out of memory
+	/java.lang.AssertionError: org.sosy_lab.cpachecker.cfa.ast.IASTBinaryExpression/ and print "IASTBinaryExpression";
 	/org.sosy_lab.cpachecker.util.predicates.mathsat.MathsatInterpolatingProver.getInterpolant/ and print "MathsatInterpolatingProver";
+	/No new predicates/ and print "NoNewPredicates"; #org.sosy_lab.cpachecker.exceptions.RefinementFailedException[No new predicates]
+	/cpa.sh: line (.*): (.*) Aborted/ and print "Aborted";
 }
 
 
