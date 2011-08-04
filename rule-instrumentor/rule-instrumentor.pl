@@ -506,6 +506,9 @@ sub create_configs($$)
   # If configuration was already done.
   return @config_dir if ($isconfig);
 
+  $conf_path =~ s/^$rel_dir//;
+  print_debug_trace("Relative path to config file is $conf_path");
+
   print_debug_trace("Check presence of configuration file");
   die("Can't find configuration file '$rel_dir/$conf_path'.")
     unless (-f "$rel_dir/$conf_path");
