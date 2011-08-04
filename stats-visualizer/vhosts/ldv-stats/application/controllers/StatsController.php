@@ -227,7 +227,7 @@ class StatsController extends Zend_Controller_Action
     $statsMapper = new Application_Model_StatsMapper();
     $results = $statsMapper->updateTaskDescription($this->_profileInfo, $params);
 
-    $this->view->entries = $results;
+    echo $results;
   }
 
   public function deleteKbRecordAction()
@@ -235,7 +235,7 @@ class StatsController extends Zend_Controller_Action
 		// Find out database connection settings.
     $statsMapper = new Application_Model_StatsMapper();
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
-#print_r($dbConnection);exit;
+
     // Obtain the path to the kb-recalc script.
     $kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
     $kbRecalc = $kbRecalcConfig->script;

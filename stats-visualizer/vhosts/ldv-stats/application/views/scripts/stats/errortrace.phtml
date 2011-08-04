@@ -18,7 +18,8 @@ else {
   echo "<script type='text/javascript'>
           $(document).ready(function() {
             $('.SETVKBDeleteKBRecord').click(function() {
-              var kbId = $(this).parent().parent().find('.SETVKBId').text();
+              var rowCur = $(this).parent().parent();
+              var kbId = rowCur.find('.SETVKBId').text();
 
               if (!kbId) {
                 alert('Can\'t find corresponding KB id for the record to be deleted');
@@ -33,7 +34,10 @@ else {
                 '" . $this->url(array('action' => 'delete-kb-record')) . "'
                 , { 'KB id': kbId }
                 , function(results) {
-                    if (results.errors != '')
+                    if (results.errors == '') {
+                      rowCur.remove();
+                    }
+                    else
                       alert($.makeArray(results.errors).join('\\n'));
                   });
 
