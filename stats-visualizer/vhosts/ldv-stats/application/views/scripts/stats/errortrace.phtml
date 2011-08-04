@@ -11,18 +11,48 @@ if (isset($this->error)) {
 }
 else {
   print_r($results['Error trace']->errorTrace);
-  
+
   // Print KB records relevant to a given error trace.
   $kbRecords = $results['Knowledge base'];
+
+  echo "<script type='text/javascript'>
+          $(document).ready(function() {
+            $('.SETVKBDeleteKBRecord').click(function() {
+              var kbId = $(this).parent().parent().find('.SETVKBId').text();
+
+              if (!kbId) {
+                alert('Can\'t find corresponding KB id for the record to be deleted');
+                return false;
+              }
+
+              $.ajaxSetup({ 'error': function() {
+                alert('Something goes wrong while KB record was deleted');
+              }});
+
+              $.getJSON(
+                '" . $this->url(array('action' => 'delete-kb-record')) . "'
+                , { 'KB id': kbId }
+                , function() {
+                    alert(1);
+                  });
+
+              return false;
+            });
+          });
+        </script>";
+
   echo "<table id='SETVKBTable' border='1'>";
-  echo '<tr>';
+  echo "<tr id='SETVKBTableFirstRow'>";
+  // Print auxiliary column that will contain delete action.
+  echo '<td></td>';
   foreach (array_keys($kbRecords[0]) as $columnName) {
     echo "<td>$columnName</td>";
   }
   foreach ($kbRecords as $kbRecord) {
     echo '<tr>';
+    echo "<td><a href='' class='SETVKBDeleteKBRecord' title='Delete KB record'>x</a></td>";
     foreach ($kbRecord as $columnName => $kbCellValue) {
-      echo "<td class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</td>";
+      echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
     }
     echo '</tr>';
   }

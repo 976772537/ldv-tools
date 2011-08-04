@@ -7,6 +7,12 @@ class StatsController extends Zend_Controller_Action
 
   public function init()
   {
+    // Disable rendering and layout printing for AJAX requests.
+    if ($this->getRequest()->isXmlHttpRequest()) {
+      $this->_helper->viewRenderer->setNoRender();
+      $this->_helper->layout->disableLayout();
+    }
+
     $this->_globals = array();
 
     // Obtain profile name from parameters.
@@ -216,14 +222,19 @@ class StatsController extends Zend_Controller_Action
 
   public function editTaskDescriptionAction()
   {
-    // To return just a new task description prevent layout printing.
-    $this->_helper->layout->disableLayout();
-
     $params = $this->_getAllParams();
 
     $statsMapper = new Application_Model_StatsMapper();
     $results = $statsMapper->updateTaskDescription($this->_profileInfo, $params);
 
     $this->view->entries = $results;
+  }
+
+  public function deleteKbRecordAction()
+  {
+    $statsMapper = new Application_Model_StatsMapper();
+    $statsMapper->deleteKBId($this->_profileInfo, $this->_getAllParams());
+
+#    echo Zend_Json::encode(array('result' => $results['result'], 'errors' => $results['errors']));
   }
 }
