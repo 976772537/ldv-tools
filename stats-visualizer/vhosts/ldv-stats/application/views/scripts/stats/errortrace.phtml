@@ -32,8 +32,9 @@ else {
               $.getJSON(
                 '" . $this->url(array('action' => 'delete-kb-record')) . "'
                 , { 'KB id': kbId }
-                , function() {
-                    alert(1);
+                , function(results) {
+                    if (results.errors != '')
+                      alert(results.errors);
                   });
 
               return false;

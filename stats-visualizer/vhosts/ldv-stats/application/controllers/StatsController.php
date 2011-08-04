@@ -232,9 +232,21 @@ class StatsController extends Zend_Controller_Action
 
   public function deleteKbRecordAction()
   {
-    $statsMapper = new Application_Model_StatsMapper();
-    $statsMapper->deleteKBId($this->_profileInfo, $this->_getAllParams());
+    // Obtain the path to the kb-recalc script.
+    $kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
+    $kbRecalc = $kbRecalcConfig->script;
 
-#    echo Zend_Json::encode(array('result' => $results['result'], 'errors' => $results['errors']));
+    // Delete KB id.
+    exec("LDV_DEBUG=30 $kbRecalc 2>&1 --delete=" . $this->_getParam('KB_id') , $output, $retCode);
+     
+    // TODO: it should be filed from the output.
+    $result = ''; 
+
+    // Show output in case of errors.
+    $error = '';
+    if ($retCode)
+      $error = $output;
+
+    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
 }
