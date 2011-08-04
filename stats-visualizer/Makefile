@@ -54,6 +54,7 @@ STATS_APPLICATION = application
 STATS_CONFIG = configs
 STATS_CONFIG_DATA = data.ini
 STATS_CONFIG_ERROR_TRACE_VISUALIZER = [error-trace-visualizer]
+STATS_CONFIG_KB_RECALC = [kb-recalc]
 STATS_CONFIG_SCRIPT = script=
 STATS_CONFIG_MODEL_DB = [model-database]
 STATS_CONFIG_RULE_DB = [rule-database]
@@ -61,6 +62,9 @@ STATS_CONFIG_FILE = file=
 
 # Error trace visualizer script. It's relative to the bin directory.
 ERROR_TRACE_VISUALIZER = error-trace-visualizer.pl
+
+# Knowledge base cache (re)generation script. It's relative to the bin directory.
+KB_RECALC = kb-recalc.pl
 
 # Model database xml file. It's relative to the prefix directory.
 STATS_CONFIG_MODEL_DB_FILE = kernel-rules/model-db.xml
@@ -124,9 +128,10 @@ install:
 	fi
 	@echo Add pathes to scripts and model/rule databases to the statistics server script configuration file
 	export ETV="$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)"; \
+	export KBR="$(STATS_CONFIG_KB_RECALC)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(KB_RECALC)"; \
 	export MODEL_DB="$(STATS_CONFIG_MODEL_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_MODEL_DB_FILE)"; \
 	export RULE_DB="$(STATS_CONFIG_RULE_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_RULE_DB_FILE)"; \
-	printf "$$ETV\n$$MODEL_DB\n$$RULE_DB\n" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
+	printf "$$ETV\n$$KBR\n$$MODEL_DB\n$$RULE_DB\n" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
 
 test:
 	@echo The statistics server doesn\'t have any test
