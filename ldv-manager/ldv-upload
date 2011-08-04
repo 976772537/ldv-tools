@@ -458,7 +458,7 @@ while not docs.end_of? 'reports' do
 	else
 		# Just skip non-ld nodes
 		$stderr.puts "Skipping #{docs.name}" if $debug
-		docs.consume
+		docs.skipping_next
 		next
 	end
 
@@ -470,7 +470,7 @@ while not docs.end_of? 'reports' do
 	if $kernel_filter_regexp
 		unless $kernel_filter_regexp.match(ld_kernel)
 			puts "Skipping ld #{ld_ref || 'UNKNOWN! ref is not set!'} because kernel #{ld_kernel} doesn't match the filter."
-			docs.consume
+			docs.skipping_next
 			next
 		end
 	end
