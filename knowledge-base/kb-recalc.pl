@@ -27,6 +27,11 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 # retn: nothing.
 sub delete_cache($);
 
+# Delete records from KB in accordance with specified KB ids.
+# args: reference to KB ids array or NULL (that implies all records).
+# retn: nothing.
+sub delete_kb($);
+
 # Generate cache that binds verification results with KB in accordance with
 # specified KB ids..
 # args: reference to KB ids array or NULL (that implies all records).
@@ -145,6 +150,10 @@ if ($opt_delete)
 {
   print_debug_normal("Delete records from KB cache");
   delete_cache(\@kb_ids_delete);
+  # We need to delete records from KB just after corresponding records were
+  # deleted from KB cache table because of foreign key constraint.
+  print_debug_normal("Delete records from KB");
+  delete_kb(\@kb_ids_delete);
 }
 
 if ($opt_update_pattern)
@@ -187,6 +196,25 @@ sub delete_cache($)
     print_debug_trace("Drop the whole KB cache...");
     $dbh->do('DELETE FROM results_kb') or die($dbh->errstr);
     print_debug_debug("KB cache was dropped successfully");
+  }
+}
+
+sub delete_kb($)
+{
+  my $kb_ids_ref = shift;
+
+  if ($kb_ids_ref)
+  {
+    my @kb_ids = @{$kb_ids_ref};
+    print_debug_trace("Delete records from KB with KB ids '@kb_ids'...");
+    $dbh->do("DELETE FROM kb WHERE id in (@kb_ids)") or die($dbh->errstr);
+    print_debug_debug("KB records were deleted successfully");
+  }
+  else
+  {
+    print_debug_trace("Drop the whole KB...");
+    $dbh->do('DELETE FROM kb') or die($dbh->errstr);
+    print_debug_debug("KB was dropped successfully");
   }
 }
 
