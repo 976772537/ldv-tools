@@ -101,9 +101,13 @@ class LibXML::XML::Reader
 		tags.flatten.index(name) ? name : nil
 	end
 
-	# Returns XML::Node of the current tag and reads up to the end of it
+	# Returns XML::Node of the current tag and reads up to the end of it.
 	def consume
-		node = self.expand
+		# We copy the element recursively to remove LibXML's ownership from it, and so that it is available after the reader is advanced
+		# See: https://github.com/xml4r/libxml-ruby/issues/28
+		node = self.expand.copy(true)
+		new_doc = XML::Document.new
+		new_doc.root = node
 		self.skipping_next
 		node
 	end
