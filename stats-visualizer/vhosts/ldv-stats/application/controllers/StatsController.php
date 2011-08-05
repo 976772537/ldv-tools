@@ -264,29 +264,42 @@ class StatsController extends Zend_Controller_Action
     $output = '';
 
     $statsMapper = new Application_Model_StatsMapper();
-    $dbConnection = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams());
 
-    if ($this->_getParam('KB_model') != $this->_getParam('KB_model_old')
-      or $this->_getParam('KB_module') != $this->_getParam('KB_module_old')
-      or $this->_getParam('KB_main') != $this->_getParam('KB_main')) {
-      // Regenerate KB cache by means of db tools for a given KB id.
-      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+    if ($this->_getParam('KB_new_record') == 'true') {
+      $results = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams(), true);
+      $dbConnection = $results['Database connection'];
+      
+      // TODO: I used --init-cache that may be too long.
+      // Regenerate KB cache by means of script application for a given KB id.
+      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
       $result = $output;
     }
+    else {
+      $results = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams());
+      $dbConnection = $results['Database connection'];
+      
+      if ($this->_getParam('KB_model') != $this->_getParam('KB_model_old')
+        or $this->_getParam('KB_module') != $this->_getParam('KB_module_old')
+        or $this->_getParam('KB_main') != $this->_getParam('KB_main')) {
+        // Regenerate KB cache by means of db tools for a given KB id.
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+        $result = $output;
+      }
 
-    if ($this->_getParam('KB_script') != $this->_getParam('KB_script_old')) {
-      // Regenerate KB cache by means of script application for a given KB id.
-      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern-script=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+      if ($this->_getParam('KB_script') != $this->_getParam('KB_script_old')) {
+        // Regenerate KB cache by means of script application for a given KB id.
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern-script=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+      }
+
+      if ($this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')
+        or $this->_getParam('KB_tags') != $this->_getParam('KB_tags_old')) {
+        // Regenerate KB cache for a given KB id (in fact nothing will be done).
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+      }
+
+      // Take KB (ge)nerator output if so as result at the moment;
+      $result = $output;
     }
-
-    if ($this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')
-      or $this->_getParam('KB_tags') != $this->_getParam('KB_tags_old')) {
-      // Regenerate KB cache for a given KB id (in fact nothing will be done).
-      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
-    }
-
-    // Take KB (ge)nerator output if so as result at the moment;
-    $result = $output;
 
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }

@@ -58,14 +58,15 @@ else {
         return radio[i].value;
   }
 
-  function updateKBRecord(id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, scriptOld, script, verdictOld, verdict, tagsOld, tags) {
+  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, scriptOld, script, verdictOld, verdict, tagsOld, tags) {
     $.ajaxSetup({ 'error': function() {
       alert('Something goes wrong while KB record was updated');
     }});
 
     $.getJSON(
       '<?php echo $this->url(array('action' => 'update-kb-record')); ?>'
-      , { 'KB id': id
+      , {'KB new record': isNew    
+          , 'KB id': id
           , 'KB name old': nameOld
           , 'KB name': name
           , 'KB public old': publicOld
@@ -93,6 +94,8 @@ else {
           $('#KBName, #KBTaskattributes, #KBModel, #KBModule, #KBMain, #KBScript, #KBTags').each(function() { $(this).replaceWith("<div class='SETV" + $(this).attr('id') + "'>" + $(this).val() + "</div>"); });
           $('#KBPublic:checked, #KBVerdict:checked').each(function() { $(this).parent().html("<div class='SETV" + $(this).attr('id') + "'>" + $(this).val() + "</div>"); });
           $('#UpdateKBRecord').parent().remove();
+          // TODO: at the moment just reload page, but then we can avoid this.
+          window.location.reload();
         }
         else
           alert($.makeArray(results.errors).join('\n'));
@@ -103,6 +106,7 @@ else {
   $(document).ready(function() {
     $('.SETVKBEditKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
+      var isNew = rowCur.attr('id') == '' ? false : true;
       var kbId = '';
       var kbNameOld = '';
       var kbPublicOld = '';
@@ -163,7 +167,7 @@ else {
           isTPChecked = 'checked';
         else if (kbVerdictOld == 'False positive')
           isFPChecked = 'checked';
-        else if (kbVerdictOld == 'Unknown')
+        else
           isUNKChecked = 'checked';
 
         $(this).html("<input type='radio' id='KBVerdict' name='KBVerdict' value='True positive' " + isTPChecked + " form='UpdateKBRecord' />True positive"
@@ -175,7 +179,9 @@ else {
         $(this).html("<input type='text' id='KBTags' size='30' value='" + kbTagsOld + "' form='UpdateKBRecord' />");
       });
 
+      kbId = "'" + kbId + "'";
       kbNameOld = "'" + kbNameOld + "'";
+      kbPublicOld = "'" + kbPublicOld + "'";
       kbTaskAttrsOld = "'" + kbTaskAttrsOld + "'";
       kbModelOld = "'" + kbModelOld + "'";
       kbModuleOld = "'" + kbModuleOld + "'";
@@ -185,8 +191,15 @@ else {
       kbVerdictOld = "'" + kbVerdictOld + "'";
       kbTagsOld = "'" + kbTagsOld + "'";
 
+      var submitText = '';
+      if (isNew)
+        submitText = 'Create a new KB record and generate KB cache for it';
+      else
+        submitText = 'Update KB record and regenerate KB cache for it';
+
       rowCur.append("<td>"
         + "<form id='UpdateKBRecord' onsubmit=\"updateKBRecord("
+          + isNew + ", "
           + kbId + ", "
           + kbNameOld + ", getElementById('KBName').value, "
           + kbPublicOld + ", getRadioValue(getElementsByName('KBPublic')), "
@@ -199,9 +212,28 @@ else {
           + kbTagsOld + ",  getElementById('KBTags').value);"
           + " return false;\">"
         + "</form>"
-        + "<input type='submit' value='Update KB record and regenerate KB cache' form='UpdateKBRecord' />"
+        + "<input type='submit' value='" + submitText + "' form='UpdateKBRecord' />"
         + "</td>");
 
+      return false;
+    });
+  });
+</script>
+<?php
+  // Plugin for new KB record creature.
+?>
+<script type='text/javascript'>
+  $(document).ready(function() {
+    $('#SETVKBCreateEmptyKBRecord').click(function() {
+      $('#SETVKBNewEmptyKBRecord').show().each(function() {
+        $(this).find('.SETVKBEditKBRecord').trigger('click');
+      });
+      return false;
+    });
+    $('#SETVKBCreateFilledKBRecord').click(function() {
+      $('#SETVKBNewFilledKBRecord').show().each(function() {
+        $(this).find('.SETVKBEditKBRecord').trigger('click');
+      });
       return false;
     });
   });
@@ -218,27 +250,46 @@ else {
   }
   foreach ($kbRecords as $kbRecord) {
     echo '<tr>';
-    echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record'>e</a></td>";
-    echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>x</a></td>";
+    echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record'>edit</a></td>";
+    echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
     foreach ($kbRecord as $columnName => $kbCellValue) {
       echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
     }
     echo '</tr>';
   }
-/*
-  // Print auxiliary row for KB record to be added.
-  echo "<tr id='SETVKBNewKBRecord'>";
-  // This corresponds to auxiliary column with delete action. It's empty of
-  // course for a new KB record.
+
+  // Print auxiliary row for a new empty KB record to be added.
+  echo "<tr id='SETVKBNewEmptyKBRecord'>";
+  // Auxiliary edit and delete columns.
+  echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
   echo "<td></td>";
   foreach (array_keys($kbRecords[0]) as $columnName) {
-    echo "<td>$columnName</td>";
+    echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'></div></td>";
   }
-  echo "<td colspan='" . (count($kbRecords[0]) + 1) . "'></td>";
-
   echo "</tr>";
-*/
+  
+  // Print auxiliary row for a new filled KB record to be added.
+  echo "<tr id='SETVKBNewFilledKBRecord'>";
+  // Auxiliary edit and delete columns.
+  echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
+  echo "<td></td>";
+  $restrictions = $results['Restrictions'];
+  foreach (array_keys($kbRecords[0]) as $columnName) {
+    $value = '';
+    
+    if ($columnName == 'Model')
+      $value = $restrictions['Rule name'];
+    else if ($columnName == 'Module')
+      $value = $restrictions['Module'];
+    else if ($columnName == 'Main')
+      $value = $restrictions['Entry point'];
+      
+    echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$value</div></td>";
+  }
+  echo "</tr>";
   echo '</table>';
+  echo "<a href='#' id='SETVKBCreateEmptyKBRecord'>Create empty KB record</a></td>";
+  echo " <a href='#' id='SETVKBCreateFilledKBRecord'>Create filled KB record</a></td>";
 }
 
 // Print show/hide plugin for error trace visualizer help. By default it isn't shown.

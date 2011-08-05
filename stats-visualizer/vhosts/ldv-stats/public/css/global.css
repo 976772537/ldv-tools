@@ -390,3 +390,8 @@ body
   white-space: pre;
   width: 300px;
 }
+
+#SETVKBNewEmptyKBRecord, #SETVKBNewFilledKBRecord
+{
+  display: none;
+}

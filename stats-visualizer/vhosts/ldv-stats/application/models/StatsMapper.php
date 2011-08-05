@@ -1345,9 +1345,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     return $value;
   }
 
-  public function updateKBRecord($profile, $params)
+  public function updateKBRecord($profile, $params, $isNew = false)
   {
-    $result = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+    $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
     if (!array_key_exists('KB_id', $params)) {
       die("KB id isn't specified");
@@ -1358,6 +1358,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       die("KB name isn't specified");
     }
     $name = $params['KB_name'];
+    if ($name == '')
+      die("KB name cannot be empty string");
 
     if (!array_key_exists('KB_public', $params)) {
       die("KB public isn't specified");
@@ -1411,7 +1413,23 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     if ($tags == '')
       $tags = new Zend_Db_Expr('NULL');
 
-    $this->_db->update('kb', array('name' => $name, 'public' => $public, 'task_attributes' => $taskAttrs, 'model' => $model, 'module' => $module, 'main' => $main, 'script' => $script, 'verdict' => $verdict, 'tags' => $tags), "id = $id");
+    // Data to be inserted or updated in KB.
+    $data = array(
+        'name' => $name
+      , 'public' => $public
+      , 'task_attributes' => $taskAttrs
+      , 'model' => $model
+      , 'module' => $module
+      , 'main' => $main
+      , 'script' => $script
+      , 'verdict' => $verdict
+      , 'tags' => $tags);
+    if ($isNew) {
+      $this->_db->insert('kb', $data);
+      $result['New KB id'] = $this->_db->lastInsertId();
+    }
+    else
+      $this->_db->update('kb', $data, "id = $id");
 
     return $result;
   }
