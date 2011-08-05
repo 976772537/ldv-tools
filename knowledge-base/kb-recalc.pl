@@ -279,7 +279,7 @@ sub generate_cache($)
 
     print_debug_trace("Begin to perform KB cache initialization with scripts$kb_ids_str...");
     my $all_data = $dbh->selectall_arrayref(
-      "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id
+      "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id, traces.error_trace, kb.error_trace
        FROM launches
          LEFT JOIN traces on traces.id=launches.trace_id
          LEFT JOIN results_kb on traces.id=results_kb.trace_id
@@ -290,9 +290,9 @@ sub generate_cache($)
        $kb_ids_in") or die($dbh->errstr);
 
     foreach my $data (@{$all_data}) {
-      my ($model, $module, $main, $script, $trace_id, $kb_id) = @{$data};
+      my ($model, $module, $main, $script, $trace_id, $kb_id, $error_trace, $kb_error_trace) = @{$data};
 
-      print_debug_trace("Execute script '$script' with model '$model', module '$module' and main '$main'");
+      print_debug_trace("Execute script '$script' with model '$model', module '$module', main '$main', error trace ... and KB error trace ...");
       my $ret = eval("$script_header\n$script\n$script_tail");
 
       if ($EVAL_ERROR)
