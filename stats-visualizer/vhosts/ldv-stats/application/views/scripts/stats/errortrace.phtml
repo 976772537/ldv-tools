@@ -105,7 +105,7 @@ else {
         return radio[i].value;
   }
 
-  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, scriptOld, script, verdictOld, verdict, tagsOld, tags) {
+  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, tagsOld, tags) {
     $.ajaxSetup({ 'error': function() {
       alert('Something goes wrong while KB record was updated');
     }});
@@ -126,6 +126,7 @@ else {
           , 'KB module': module
           , 'KB main old': mainOld
           , 'KB main': main
+          , 'KB error trace id': traceId
           , 'KB script old': unescape(scriptOld)
           , 'KB script': script
           , 'KB verdict old': verdictOld
@@ -161,6 +162,7 @@ else {
       var kbModelOld = '';
       var kbModuleOld = '';
       var kbMainOld = '';
+      var kbTraceId = '';
       var kbScriptOld = '';
       var kbVerdictOld = '';
       var kbTagsOld = '';
@@ -200,6 +202,9 @@ else {
         kbMainOld = $(this).text();
         $(this).html("<input type='text' id='KBMain' size='15' value='" + kbMainOld + "' form='UpdateKBRecord' />");
       });
+      rowCur.find('.SETVKBErrortrace').each(function() {
+        kbTraceId = $(this).text();
+      });
       rowCur.find('.SETVKBScript').parent().each(function() {
         kbScriptOld = $(this).text();
         $(this).html("<textarea id='KBScript' rows='3' cols='40' form='UpdateKBRecord'>" + kbScriptOld + "</textarea>");
@@ -233,6 +238,7 @@ else {
       kbModelOld = "'" + kbModelOld + "'";
       kbModuleOld = "'" + kbModuleOld + "'";
       kbMainOld = "'" + kbMainOld + "'";
+      kbTraceId = "'" + kbTraceId + "'";
       kbScriptOld = escape(kbScriptOld);
       kbScriptOld = "'" + kbScriptOld + "'";
       kbVerdictOld = "'" + kbVerdictOld + "'";
@@ -254,6 +260,7 @@ else {
           + kbModelOld + ",  getElementById('KBModel').value, "
           + kbModuleOld + ",  getElementById('KBModule').value, "
           + kbMainOld + ",  getElementById('KBMain').value, "
+          + kbTraceId + ", "
           + kbScriptOld + ",  getElementById('KBScript').value, "
           + kbVerdictOld + ",  getRadioValue(getElementsByName('KBVerdict')), "
           + kbTagsOld + ",  getElementById('KBTags').value);"
@@ -300,6 +307,8 @@ else {
     echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record'>edit</a></td>";
     echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
     foreach ($kbRecord as $columnName => $kbCellValue) {
+      if ($columnName == 'Error trace')
+        $kbCellValue = '';
       echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
     }
     echo '</tr>';
@@ -321,15 +330,17 @@ else {
   echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
   echo "<td></td>";
   $restrictions = $results['Restrictions'];
+
   foreach (array_keys($kbRecords[0]) as $columnName) {
     $value = '';
-
     if ($columnName == 'Model')
       $value = $restrictions['Rule name'];
     else if ($columnName == 'Module')
       $value = $restrictions['Module'];
     else if ($columnName == 'Main')
       $value = $restrictions['Entry point'];
+    else if ($columnName == 'Error trace')
+      $value = $results['Trace id'];
 
     echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$value</div></td>";
   }

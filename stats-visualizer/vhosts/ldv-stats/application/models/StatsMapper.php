@@ -869,6 +869,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       throw new Exception('Trace id is not specified');
     }
 
+    $result['Trace id'] = $trace_id;
+
     // Connect to the profile database and remember connection settings.
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
@@ -929,7 +931,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       ->select()->setIntegrityCheck(false);
     $select = $select
       ->from('kb',
-        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags'))
+        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags'))
       ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
       ->joinLeft('traces', "results_kb.trace_id=traces.id", array())
       ->where("traces.id = ?", $trace_id);
@@ -1394,6 +1396,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     if ($main == '')
       $main = new Zend_Db_Expr('NULL');
 
+    if (!array_key_exists('KB_error_trace_id', $params)) {
+      die("KB error trace id isn't specified");
+    }
+    $traceId = $params['KB_error_trace_id'];
+
     if (!array_key_exists('KB_script', $params)) {
       die("KB script isn't specified");
     }
@@ -1426,7 +1433,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       , 'tags' => $tags);
     if ($isNew) {
       $this->_db->insert('kb', $data);
-      $result['New KB id'] = $this->_db->lastInsertId();
+      $kbNewId = $result['New KB id'] = $this->_db->lastInsertId();
+      // Save corresponding error trace directly to KB if this is required.
+      if ($traceId) {
+			  $this->_db->query("UPDATE kb SET error_trace = (SELECT traces.error_trace FROM traces WHERE traces.id=$traceId) WHERE kb.id=$kbNewId");
+			}
     }
     else
       $this->_db->update('kb', $data, "id = $id");
