@@ -230,6 +230,26 @@ class StatsController extends Zend_Controller_Action
     echo $results;
   }
 
+  public function storeKbAction()
+  {
+    // Find out database connection settings.
+    $statsMapper = new Application_Model_StatsMapper();
+    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+
+    // Delete KB id.
+    exec("mysqldump -u$dbConnection[username] $dbConnection[dbname] kb results_kb -r'" . APPLICATION_PATH . "/../data/kb-dump.sql" . "' 2>&1" , $output, $retCode);
+
+    // TODO: it should be filed from the output.
+    $result = '';
+
+    // Show output in case of errors.
+    $error = '';
+    if ($retCode)
+      $error = $output;
+
+    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
+  }
+
   public function deleteKbRecordAction()
   {
     // Find out database connection settings.
@@ -268,7 +288,7 @@ class StatsController extends Zend_Controller_Action
     if ($this->_getParam('KB_new_record') == 'true') {
       $results = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams(), true);
       $dbConnection = $results['Database connection'];
-      
+
       // TODO: I used --init-cache that may be too long.
       // Regenerate KB cache by means of script application for a given KB id.
       exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
@@ -277,7 +297,7 @@ class StatsController extends Zend_Controller_Action
     else {
       $results = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams());
       $dbConnection = $results['Database connection'];
-      
+
       if ($this->_getParam('KB_model') != $this->_getParam('KB_model_old')
         or $this->_getParam('KB_module') != $this->_getParam('KB_module_old')
         or $this->_getParam('KB_main') != $this->_getParam('KB_main')) {
