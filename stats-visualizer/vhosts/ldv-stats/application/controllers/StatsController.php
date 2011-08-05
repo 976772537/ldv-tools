@@ -236,8 +236,28 @@ class StatsController extends Zend_Controller_Action
     $statsMapper = new Application_Model_StatsMapper();
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
 
-    // Delete KB id.
+    // Dump KB tables schemas and data.
     exec("mysqldump -u$dbConnection[username] $dbConnection[dbname] kb results_kb -r'" . APPLICATION_PATH . "/../data/kb-dump.sql" . "' 2>&1" , $output, $retCode);
+
+    // TODO: it should be filed from the output.
+    $result = '';
+
+    // Show output in case of errors.
+    $error = '';
+    if ($retCode)
+      $error = $output;
+
+    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
+  }
+
+  public function restoreKbAction()
+  {
+    // Find out database connection settings.
+    $statsMapper = new Application_Model_StatsMapper();
+    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+
+    // Upload KB tables schemas and data.
+    exec("mysql -u$dbConnection[username] $dbConnection[dbname] < " . APPLICATION_PATH . "/../data/kb-dump.sql" . " 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';

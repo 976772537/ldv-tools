@@ -38,6 +38,27 @@ else {
 
       return false;
     });
+    
+    $('#SETVKBRestore').click(function() {
+      $.ajaxSetup({ 'error': function() {
+        alert('Something goes wrong while KB was restored');
+      }});
+
+      $.getJSON(
+        '<?php echo $this->url(array('action' => 'restore-kb')); ?>'
+        , { }
+        , function(results) {
+          if (results.errors == '') {
+            alert('KB was restored successfully');
+            window.location.reload();
+          }
+          else
+            alert($.makeArray(results.errors).join('\\n'));
+        }
+      );
+
+      return false;
+    });
   });
 </script>
 <?php
@@ -317,6 +338,7 @@ else {
   echo "<a href='#' id='SETVKBCreateEmptyKBRecord'>Create empty KB record</a></td>";
   echo " <a href='#' id='SETVKBCreateFilledKBRecord'>Create filled KB record</a></td>";
   echo " <a href='#' id='SETVKBStore'>Store KB</a></td>";
+  echo " <a href='#' id='SETVKBRestore'>Restore KB</a></td>";
 }
 
 // Print show/hide plugin for error trace visualizer help. By default it isn't shown.
