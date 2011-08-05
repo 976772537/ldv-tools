@@ -232,7 +232,7 @@ class StatsController extends Zend_Controller_Action
 
   public function deleteKbRecordAction()
   {
-		// Find out database connection settings.
+    // Find out database connection settings.
     $statsMapper = new Application_Model_StatsMapper();
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
 
@@ -242,14 +242,51 @@ class StatsController extends Zend_Controller_Action
 
     // Delete KB id.
     exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --delete=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
-     
+
     // TODO: it should be filed from the output.
-    $result = ''; 
+    $result = '';
 
     // Show output in case of errors.
     $error = '';
     if ($retCode)
       $error = $output;
+
+    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
+  }
+
+  public function updateKbRecordAction()
+  {
+    // Obtain the path to the kb-recalc script.
+    $kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
+    $kbRecalc = $kbRecalcConfig->script;
+    $result = '';
+    $error = '';
+    $output = '';
+
+    $statsMapper = new Application_Model_StatsMapper();
+    $dbConnection = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams());
+
+    if ($this->_getParam('KB_model') != $this->_getParam('KB_model_old')
+      or $this->_getParam('KB_module') != $this->_getParam('KB_module_old')
+      or $this->_getParam('KB_main') != $this->_getParam('KB_main')) {
+      // Regenerate KB cache by means of db tools for a given KB id.
+      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+      $result = $output;
+    }
+
+    if ($this->_getParam('KB_script') != $this->_getParam('KB_script_old')) {
+      // Regenerate KB cache by means of script application for a given KB id.
+      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern-script=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+    }
+
+    if ($this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')
+      or $this->_getParam('KB_tags') != $this->_getParam('KB_tags_old')) {
+      // Regenerate KB cache for a given KB id (in fact nothing will be done).
+      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+    }
+
+    // Take KB (ge)nerator output if so as result at the moment;
+    $result = $output;
 
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }

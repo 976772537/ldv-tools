@@ -779,11 +779,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $resultPart['Knowledge base info'] = array();
       foreach ($knowledgeBaseKey as $knowledgeBaseKeyPart) {
-				$value = $launchesRow[$knowledgeBaseKeyPart];
-        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] 
+        $value = $launchesRow[$knowledgeBaseKeyPart];
+        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart]
           = null !== $value ? preg_split('/__;/', $value) : array();
       }
-      
+
       $resultPart['Tools info'] = array();
       foreach ($toolsKey as $toolsKeyPart) {
         $resultPart['Tools info'][$toolsKeyPart] = $launchesRow[$toolsKeyPart];
@@ -1343,5 +1343,76 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       die("Neither task id nor task name is specified");
 
     return $value;
+  }
+
+  public function updateKBRecord($profile, $params)
+  {
+    $result = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+    if (!array_key_exists('KB_id', $params)) {
+      die("KB id isn't specified");
+    }
+    $id = $params['KB_id'];
+
+    if (!array_key_exists('KB_name', $params)) {
+      die("KB name isn't specified");
+    }
+    $name = $params['KB_name'];
+
+    if (!array_key_exists('KB_public', $params)) {
+      die("KB public isn't specified");
+    }
+    $public = $params['KB_public'];
+
+    if (!array_key_exists('KB_task_attrs', $params)) {
+      die("KB task attributes aren't specified");
+    }
+    $taskAttrs = $params['KB_task_attrs'];
+    if ($taskAttrs == '')
+      $taskAttrs = new Zend_Db_Expr('NULL');
+
+    if (!array_key_exists('KB_model', $params)) {
+      die("KB model isn't specified");
+    }
+    $model = $params['KB_model'];
+    if ($model == '')
+      $model = new Zend_Db_Expr('NULL');
+
+    if (!array_key_exists('KB_module', $params)) {
+      die("KB module isn't specified");
+    }
+    $module = $params['KB_module'];
+    if ($module == '')
+      $module = new Zend_Db_Expr('NULL');
+
+    if (!array_key_exists('KB_main', $params)) {
+      die("KB main isn't specified");
+    }
+    $main = $params['KB_main'];
+    if ($main == '')
+      $main = new Zend_Db_Expr('NULL');
+
+    if (!array_key_exists('KB_script', $params)) {
+      die("KB script isn't specified");
+    }
+    $script = $params['KB_script'];
+    if ($script == '')
+      $script = new Zend_Db_Expr('NULL');
+
+    if (!array_key_exists('KB_verdict', $params)) {
+      die("KB verdict isn't specified");
+    }
+    $verdict = $params['KB_verdict'];
+
+    if (!array_key_exists('KB_tags', $params)) {
+      die("KB tags isn't specified");
+    }
+    $tags = $params['KB_tags'];
+    if ($tags == '')
+      $tags = new Zend_Db_Expr('NULL');
+
+    $this->_db->update('kb', array('name' => $name, 'public' => $public, 'task_attributes' => $taskAttrs, 'model' => $model, 'module' => $module, 'main' => $main, 'script' => $script, 'verdict' => $verdict, 'tags' => $tags), "id = $id");
+
+    return $result;
   }
 }
