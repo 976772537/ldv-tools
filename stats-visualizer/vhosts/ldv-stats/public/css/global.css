@@ -52,7 +52,7 @@ body
 }
 
 /* Statistics (comparison) table style. */
-#SSStatsTableTitle, #SCStatsComparisonTableTitle
+#SSStatsTableTitle, #SCStatsComparisonTableTitle, #SETVKBTableTitle
 {
   font-size: 12pt;
   font-weight: bold;
@@ -394,4 +394,64 @@ body
 #SETVKBNewEmptyKBRecord, #SETVKBNewFilledKBRecord
 {
   display: none;
+}
+
+.SETVKBAuxTitle
+{
+  background-color: #91C4CE;
+}
+
+#SETVKBId
+{
+  background-color: #00D1FB;
+}
+
+#SETVKBName, #SETVKBPublic
+{
+  background-color: #00AFD2;
+}
+
+#SETVKBTaskattributes, #SETVKBModel, #SETVKBModule, #SETVKBMain
+{
+  background-color: #55C5FF;
+}
+
+#SETVKBErrortrace
+{
+  background-color: #0D70DB;
+}
+
+#SETVKBScript
+{
+  background-color: #3C81FF;
+}
+
+#SETVKBVerdict
+{
+  background-color: #768DFF;
+}
+
+#SETVKBTags
+{
+  background-color: #7976FF;
+}
+
+.SETVKBTableRowOdd
+{
+  background-color: #D4FEFF;
+}
+
+.SETVKBTableRowEven
+{
+  background-color: #9BE8FF;
+}
+
+#SETVKBNewEmptyKBRecord
+{
+  background-color: #FFD3FA;
+}
+
+#SETVKBNewFilledKBRecord
+{
+  background-color: #FFB1F6;
 }

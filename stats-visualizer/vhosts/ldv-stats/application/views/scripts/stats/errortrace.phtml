@@ -293,16 +293,25 @@ else {
   });
 </script>
 <?php
+  // Plugin to paint KB table rows.
+?>
+<script type='text/javascript'>
+  $(document).ready(function() {
+    $('#SETVKBTable tr:odd').addClass('SETVKBTableRowOdd');
+    $('#SETVKBTable tr:even').addClass('SETVKBTableRowEven');
+  });
+</script>
+<?php
   echo "<div id='SETVKBTableTitle'>Knowledge base</div>";
   echo "<table id='SETVKBTable' border='1'>";
   echo "<tr id='SETVKBTableFirstRow'>";
   // Print auxiliary column that will contain edit action.
-  echo '<td></td>';
+  echo "<td class='SETVKBAuxTitle'></td>";
   // Print auxiliary column that will contain delete action.
-  echo '<td></td>';
+  echo "<td class='SETVKBAuxTitle'></td>";
   $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags');
   foreach ($columns as $columnName) {
-    echo "<td>$columnName</td>";
+    echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
   }
   foreach ($kbRecords as $kbRecord) {
     echo '<tr>';
