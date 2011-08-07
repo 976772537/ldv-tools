@@ -94,6 +94,8 @@ my $opt_init;
 my $opt_init_cache;
 my $opt_init_cache_db;
 my $opt_init_cache_script;
+my $opt_init_common_data;
+my $opt_init_kb;
 my $opt_init_schema;
 my $opt_new;
 my $opt_schema;
@@ -121,7 +123,7 @@ get_opt();
 print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
 prepare_files_and_dirs();
 
-if ($opt_init_schema or $opt_init)
+if ($opt_init_schema or $opt_init_common_data)
 {
   print_debug_normal("Upload KB schema or/and common KB data to the database");
   init_kb();
@@ -335,6 +337,8 @@ sub get_opt()
     'init-cache' => \$opt_init_cache,
     'init-cache-db' => \$opt_init_cache_db,
     'init-cache-script' => \$opt_init_cache_script,
+    'init-common-data' => \$opt_init_common_data,
+    'init-kb' => \$opt_init_kb,
     'init-schema' => \$opt_init_schema,
     'new=s' => \$opt_new,
     'schema=s' => \$opt_schema,
@@ -353,21 +357,20 @@ sub get_opt()
     if (($opt_update_pattern or $opt_update_pattern_script)
       and ($opt_init_cache or $opt_init_cache_db or $opt_init_cache_script));
 
-  # Initialization implies KB schema uploading as well as KB data.
-  $opt_init_schema = 1 if ($opt_init);
+  # Full initialization includes both KB and cache initializations.
+  $opt_init_kb = $opt_init_cache = 1 if ($opt_init);
+
+  # KB initialization implies KB schema uploading as well as KB data.
+  $opt_init_schema = $opt_init_common_data = 1 if ($opt_init_kb);
 
   print_debug_debug("KB schema will be uploaded to the specified database")
     if ($opt_init_schema);
 
   print_debug_debug("Common KB data will be uploaded to the specified database")
-    if ($opt_init);
+    if ($opt_init_common_data);
 
   # Both cache initializations will be performed in this case.
-  if ($opt_init_cache)
-  {
-    $opt_init_cache_db = 1;
-    $opt_init_cache_script = 1;
-  }
+  $opt_init_cache_db = $opt_init_cache_script = 1 if ($opt_init_cache);
 
   if ($opt_delete)
   {
@@ -422,8 +425,7 @@ OPTIONS
     Print this help and exit with a error.
 
   --init
-    Means that common data will be uploaded to KB. It turns on
-    --init-schema.
+    Means both KB and cache initializations.
   
   --init-cache
     Synonym for --init-cache-db and --init-cache-script.
@@ -435,7 +437,14 @@ OPTIONS
     Addition to the --init-cache-db option. Except database tools
     relevant scripts will be involved. After all either corresponding
     exact cache records will be obtained or they will be removed. 
-    
+     
+  --init-common-data
+    Upload common data to the specified KB.
+      
+  --init-kb
+    Means that common data will be uploaded to KB. It turns on
+    --init-schema.
+  
   --init-schema
     Upload KB schema to a specified database. Note that the given 
     database should contain statistics database schema uploaded.
@@ -496,7 +505,7 @@ sub init_kb()
     print_debug_info("Execute the command '$mysql_connection < $schema'");
     `$mysql_connection < $schema`;
 
-    if (!$CHILD_ERROR and $opt_init)
+    if (!$CHILD_ERROR and $opt_init_common_data)
     {
       my $common_data = $kb_common_data;
       $common_data = $opt_common_data if ($opt_common_data);
@@ -538,7 +547,7 @@ sub prepare_files_and_dirs()
     }
   }
 
-  if ($opt_init)
+  if ($opt_init_common_data)
   {
     if ($opt_common_data)
     {
