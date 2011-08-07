@@ -320,6 +320,8 @@ else {
     foreach ($kbRecord as $columnName => $kbCellValue) {
       if ($columnName == 'Error trace')
         $kbCellValue = '';
+      if ($columnName == 'Verdict')
+        $kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
       echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
     }
     echo '</tr>';
