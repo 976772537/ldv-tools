@@ -293,13 +293,15 @@ else {
   });
 </script>
 <?php
+  echo "<div id='SETVKBTableTitle'>Knowledge base</div>";
   echo "<table id='SETVKBTable' border='1'>";
   echo "<tr id='SETVKBTableFirstRow'>";
   // Print auxiliary column that will contain edit action.
   echo '<td></td>';
   // Print auxiliary column that will contain delete action.
   echo '<td></td>';
-  foreach (array_keys($kbRecords[0]) as $columnName) {
+  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags');
+  foreach ($columns as $columnName) {
     echo "<td>$columnName</td>";
   }
   foreach ($kbRecords as $kbRecord) {
@@ -319,7 +321,7 @@ else {
   // Auxiliary edit and delete columns.
   echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
   echo "<td></td>";
-  foreach (array_keys($kbRecords[0]) as $columnName) {
+  foreach ($columns as $columnName) {
     echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'></div></td>";
   }
   echo "</tr>";
@@ -331,7 +333,7 @@ else {
   echo "<td></td>";
   $restrictions = $results['Restrictions'];
 
-  foreach (array_keys($kbRecords[0]) as $columnName) {
+  foreach ($columns as $columnName) {
     $value = '';
     if ($columnName == 'Model')
       $value = $restrictions['Rule name'];
