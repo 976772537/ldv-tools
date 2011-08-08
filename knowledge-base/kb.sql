@@ -26,7 +26,7 @@ CREATE  TABLE IF NOT EXISTS `kb` (
   UNIQUE INDEX `ID` (`name` ASC, `public` ASC) )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
-COLLATE = utf8_unicode_ci;
+COLLATE = utf8_general_ci;
 
 
 -- -----------------------------------------------------
@@ -53,7 +53,7 @@ CREATE  TABLE IF NOT EXISTS `results_kb` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
-COLLATE = utf8_unicode_ci;
+COLLATE = utf8_general_ci;
 
 
 
