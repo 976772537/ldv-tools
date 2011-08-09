@@ -2,13 +2,10 @@ SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL';
 
-CREATE SCHEMA IF NOT EXISTS `kb` DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci ;
-USE `kb`;
-
 -- -----------------------------------------------------
--- Table `kb`.`kb`
+-- Table `kb`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `kb`.`kb` ;
+DROP TABLE IF EXISTS `kb` ;
 
 CREATE  TABLE IF NOT EXISTS `kb` (
   `id` INT NOT NULL AUTO_INCREMENT ,
@@ -30,9 +27,9 @@ COLLATE = utf8_general_ci;
 
 
 -- -----------------------------------------------------
--- Table `kb`.`results_kb`
+-- Table `results_kb`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `kb`.`results_kb` ;
+DROP TABLE IF EXISTS `results_kb` ;
 
 CREATE  TABLE IF NOT EXISTS `results_kb` (
   `trace_id` INT(10) UNSIGNED NOT NULL ,
