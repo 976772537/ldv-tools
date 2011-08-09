@@ -760,11 +760,11 @@ close $TMPFDS;
 
 Utils::open3_callbacks({
 	'err' => sub {my $line = shift;
-		print STDERR $line;
+		print STDERR "$line\n";
 	},
 	'out' => sub {my $line = shift;
 		chomp $line;
-		print STDOUT $line;
+		print STDOUT "$line\n";
 	},
 	'in_text' => $full_drivers_str
 },@cmdgen_cmd);

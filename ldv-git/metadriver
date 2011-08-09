@@ -32,6 +32,9 @@ my $stdin = '';
 # Skip drivers if file with commands already exists
 my $skip_existing = 1;
 
+
+$| = 1;
+
 use Getopt::Long;
 GetOptions(
 	'stdin' => \$stdin,
@@ -58,7 +61,7 @@ if (!$stdin){
 	# is it empty?
 	my $drivers = MetaUtils::meta_to_raw_hash_from_fh(\*STDIN);
 	for my $driver (keys %$drivers){
-		vsay 'NORMAL', "Generating commands for $driver...\n";
+		vsay('NORMAL',"Generating commands for $driver...\n");
 		my $driver_fname = catfile($target_dir,$driver,'commands.xml');
 		# Skip driver if cmdfile exists
 		$skip_existing && -f $driver_fname and next;
@@ -68,7 +71,7 @@ if (!$stdin){
 		my $OUTF; open $OUTF,">",catfile($target_dir,$driver,'commands.xml') or die "Can't open file".catfile($target_dir,$driver,'commands.xml').": $!";
 		cmd_for_driver($meta,$driver,$OUTF,@sources);
 		close $OUTF;
-		vsay 'NORMAL', "Commands for $driver generated.\n";
+		vsay('NORMAL',"Commands for $driver generated.\n");
 	}
 }
 
