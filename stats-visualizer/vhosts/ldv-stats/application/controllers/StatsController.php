@@ -237,7 +237,7 @@ class StatsController extends Zend_Controller_Action
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
 
     // Dump KB tables schemas and data.
-    exec("mysqldump -u$dbConnection[username] $dbConnection[dbname] kb results_kb -r'" . APPLICATION_PATH . "/../data/kb-dump.sql" . "' 2>&1" , $output, $retCode);
+    exec("mysqldump -u$dbConnection[username] $dbConnection[dbname] kb results_kb -r'" . APPLICATION_PATH . "/../data/trace/kb-dump.sql" . "' 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';
@@ -257,7 +257,7 @@ class StatsController extends Zend_Controller_Action
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
 
     // Upload KB tables schemas and data.
-    exec("mysql -u$dbConnection[username] $dbConnection[dbname] < " . APPLICATION_PATH . "/../data/kb-dump.sql" . " 2>&1" , $output, $retCode);
+    exec("mysql -u$dbConnection[username] $dbConnection[dbname] < " . APPLICATION_PATH . "/../data/trace/kb-dump.sql" . " 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';
