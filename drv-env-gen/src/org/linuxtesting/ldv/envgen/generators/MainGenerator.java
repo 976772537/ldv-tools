@@ -308,8 +308,14 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "/*###########################################################################*/\n");
 		sb.append("\n\n");
 		Logger.trace("Pre-main code:");
+
 		if(ctx.p.isInit())
-			sb.append("#include <linux/slab.h>");
+			sb.append("\n" + ctx.getIndent() + "#include <linux/slab.h>");
+
+		//sb.append("\n" + ctx.getIndent() + "/* " + ldvCommentTag 
+		//		+ " Special hack to remove no_instrument_function attribute*/");
+		//sb.append("\n" + ctx.getIndent() + "#define notrace \n");
+		
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_check_final_state(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");

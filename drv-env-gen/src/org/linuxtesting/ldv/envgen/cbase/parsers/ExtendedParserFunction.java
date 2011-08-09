@@ -212,6 +212,14 @@ public class ExtendedParserFunction extends ExtendedParser<TokenFunctionDecl> {
 		 * */
 		if(rettype!=null && rettype.length()>0) {
 			rettype = rettype.replaceAll("__init", "");
+			rettype = rettype.replaceAll("__exit", "");
+			rettype = rettype.replaceAll("__devinit", "");
+			rettype = rettype.replaceAll("__devexit", "");
+			rettype = rettype.replaceAll("__cpuinit", "");
+			rettype = rettype.replaceAll("__cpuexit", "");
+			rettype = rettype.replaceAll("__meminit", "");
+			rettype = rettype.replaceAll("__memexit", "");
+			/**/
 		}
 		return new NameAndType(functionName.substring(++endName, ++beginName),rettype);
 	}
