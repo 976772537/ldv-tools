@@ -28,9 +28,10 @@ sub current_date
 	return $elt_result;
 }
 
+# This sub inserts <launch_info> tag just before <build>.  Made this way in order not to process the whole <reports> tag!
 sub handle_report
 {
-	my ($twig, $cmdT) = @_;
+	my ($twig, $buildT) = @_;
 	my $launchT = XML::Twig::Elt->new('launch_info');
 	my $verifier = undef;
 	# Add more verifiers here if you want to override them
@@ -58,9 +59,10 @@ sub handle_report
 	XML::Twig::Elt->new('tag',{},$git_tag)->paste($launchT);
 	XML::Twig::Elt->new('sources',{},$sources_dir)->paste($launchT) if defined $sources_dir && -d $sources_dir;
 	XML::Twig::Elt->new('workdir',{},$work_dir)->paste($launchT) if defined $work_dir && -d $work_dir;
-	$launchT->paste($cmdT);
-	$cmdT->set_pretty_print('indented');
-	$cmdT->print();
+	$launchT->set_pretty_print('indented');
+	$launchT->print();
+	# Now print the <build> tag we wanted to insert in front of
+	$buildT->print();
 }
 
 use Cwd 'abs_path';
@@ -74,8 +76,9 @@ sub fix_trace
 	$trace_absolute = abs_path($trace_absolute);
 	$trace_absolute =~ s/^$work_dir\/*//;
 	$traceT->set_text($trace_absolute);
+	$traceT->print();
 }
 
-XML::Twig->new( twig_roots => { reports => \&handle_report, trace => \&fix_trace }, twig_print_outside_roots => \*STDOUT )->parsefile($report_xml);
+XML::Twig->new( twig_roots => { 'reports/build' => \&handle_report, trace => \&fix_trace }, twig_print_outside_roots => \*STDOUT )->parsefile($report_xml);
 
 
