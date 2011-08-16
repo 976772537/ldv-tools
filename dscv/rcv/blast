@@ -66,8 +66,8 @@ defined $mode or die "You should specify either --cmdfile or --rawcmdfile option
 
 # Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
-my $backend_dir = "$shared_dir/rcv/backends/blast";
-my $blast = "$backend_dir/bin/pblast.opt";
+my $backend_dir = $ENV{'BLAST_PATH'} || "$shared_dir/rcv/backends/blast/bin";
+my $blast = "$backend_dir/pblast.opt";
 my $workdir = $config->{workdir};
 
 # Resource limits processing
@@ -78,7 +78,7 @@ vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 -d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
-$ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
+$ENV{'PATH'} = "$backend_dir:".$ENV{'PATH'};
 
 #Check if blast is available
 #blast_quick_check();
