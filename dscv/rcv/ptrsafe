@@ -1,0 +1,484 @@
+#!/usr/bin/perl
+
+# RCV Frontend for BLAST tool.
+
+#======================================================================
+# PROCESS OPTIONS AND SET UP INITIAL VARIABLES
+#======================================================================
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
+
+use strict;
+use Pod::Usage;
+use Getopt::Long;
+use FindBin;
+
+# Project modules
+use LDV::Utils;
+use DSCV::RCV::Utils;
+use DSCV::Sanity;
+use Utils;
+
+# File modules
+use File::Basename;
+use File::Path qw(mkpath);
+
+#cycle buffer for storing last $sizeLimit lines of the error log
+my @limitedBuffer;
+my $sizeLimit = 100;
+my $bufferCounter=0;
+
+
+my $config={
+	cmdfile=>'',
+	rawcmdfile=>'',
+	watcher_key=>[],
+};
+
+my %optionSpecs = ();
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
+$config->{verbosity} = 10 unless defined $config->{verbosity};
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('rcv-ptrsafe');
+
+$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
+$optionSpecs{'workdir=s'} = \$config->{workdir};
+$optionSpecs{'sanity-dir=s'} = \$config->{sandir};
+$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
+my $watcher_keystr = '';
+$optionSpecs{'watcher-key=s'} = \$watcher_keystr;
+
+# test: is it the sanity that is problemous for cluster?
+my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
+
+GetOptions(%optionSpecs) or die("Unrecognized options!");
+
+$config->{watcher_key} = [split /,/,$watcher_keystr];
+
+my $mode = undef;
+$config->{cmdfile} and $mode = 'cmd';
+$config->{rawcmdfile} and $mode = 'raw';
+
+defined $mode or die "You should specify either --cmdfile or --rawcmdfile option!";
+
+# Prepare initial variables
+my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
+my $backend_dir = "$shared_dir/rcv/backends/ptrsafe";
+my $blast = "$backend_dir/bin/psa";
+my $workdir = $config->{workdir};
+
+# Resource limits processing
+my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
+vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
+
+-d $backend_dir or die "PSA's directory $backend_dir is not a directory";
+
+# Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
+$ENV{'PATH'} = "$backend_dir/bin:".$ENV{'PATH'};
+
+#Check if blast is available
+#blast_quick_check();
+
+#======================================================================
+# PREPARE CMDFILE TRAVERSERS AND RUN THEM
+#======================================================================
+use XML::Twig;
+
+#==== 
+# We should pack files for the parent task to process afterwards.  Use these functions
+my %files_for_parent = ();
+sub for_parent
+{ local $_; $files_for_parent{$_} = 1 for @_; }
+sub files_for_parent
+{ return keys %files_for_parent; }
+#==== 
+
+
+my $sanity = undef;
+
+if ($mode eq 'cmd'){
+	# Launch of RCV frontend, process CMDfile and spawn some raw verifier tasks
+
+	!-f $config->{cmdfile} and die "BLAST's command file $config->{cmdfile} is not found";
+	-x $blast or die "BLAST's toplevel executable $blast is not an executable file";
+	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
+
+	# Prepare sanity checks
+	$sanity = DSCV::Sanity->new($config->{sandir}) if $do_sanity;
+
+	# Base Dir of system being checked
+	my $base_dir = undef;
+	my $unbasedir = undef;
+
+	# Now all subroutines are initialized.  Let's start processing the cmdfile.
+	my $check_input_file = XML::Twig->new(
+		twig_handlers => {
+			basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
+			cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
+			ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_blast, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>0, archivated=>1),
+		}
+	);
+	$check_input_file->parsefile($config->{cmdfile});
+}elsif ($mode eq 'raw'){
+# Set up watcher directory, unless already set
+	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{work_dir}/watcher";
+	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+
+	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','dscv');
+	vsay ('DEBUG',"Got key string $key_str.\n");
+	my @watcher_key = split /,/,$key_str;
+
+	# Parse CMDfile for arguments, and launch RCV only
+	my %args = ();
+	!-f $config->{rawcmdfile} and die "BLAST's raw command file $config->{rawcmdfile} is not found";
+
+	# How we parse raw xml to %args hash
+	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
+
+	# in this mode work dir is passed as workdir
+	$workdir ||= $args{workdir};
+	-d $workdir or die "the workdir '$config->{workdir}' is not a directory!";
+
+	# Now we can call BLAST, finally
+	sub kill_watcher
+	{
+		vsay 20, "Shutting down watcher\n";
+		# Report failure to the watcher (reckon we've registered a key for our process?)
+		LDV::Utils::watcher_cmd('fail',@watcher_key);
+		die $@;
+	}
+
+	$SIG{QUIT} = \&kill_watcher;
+	# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+	$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+	# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
+	$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+	eval {
+		call_blast(%args);
+		1;
+	} or do {
+		vsay 4, "Exception occured: $@" if $@;
+		vsay 4, "Fatal error.  Stopping services before reporting...\n";
+		# FIXME: send sometimes in cluster mode
+		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
+		# We die in kill_watcher, no need to exit here... but just in case...
+		exit 1;
+	};
+
+	# Report success to the watcher
+	LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',files_for_parent());
+
+}else{
+	die "Assertion failed";
+}
+
+exit 0;
+# NO CODE AFTER THIS POINT!
+
+
+#======================================================================
+# BLAST-SPECIFIC ROUTINES
+#======================================================================
+
+sub verify_blast
+{
+	my %args = @_;
+	$args{report} or die;
+	# Since arguments alter depending on main, we should save them to temporary.
+	my %args_template = (%args);
+
+	for my $main (@{$args{mains}}){
+		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
+		if ($args{already_failed}){
+			# Print at once, without spawning task through watcher
+			mkpath(dirname($args{report}));
+			open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+			my $repT = XML::Twig::Elt->new('reports');
+
+			# Prepare a failure command
+			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
+			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
+
+			# HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
+			my $failmsg = $args{already_failed};
+
+			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
+			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
+			XML::Twig::Elt->new('desc',{},$failmsg)->paste($rcvResultT);
+
+			# Calculate and output time elapsed
+			XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
+
+			$rcvResultT->paste(last_child =>$cmdInstT);
+			$cmdInstT->paste($repT);
+
+			# Commit the report
+			$repT->set_pretty_print('indented');
+			$repT->print($BLAST_REPORT);
+			close $BLAST_REPORT;
+
+			# Report failure to the watcher
+			# We should first allocate key (to keep the allocate/free balance)
+			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
+			#vsay ('DEBUG',"Got key string $key_str.\n");
+			#my @watcher_key = split /,/,$key_str;
+			# But then we ignore this string, and use the watcher_key allocated by the parent DSCV for immediate success reporting
+			for_parent($args{report},$args{trace},$args{debug});
+			LDV::Utils::watcher_cmd('success','rcv',@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',files_for_parent());
+
+		}else{
+
+			# Sanity check (should be performed at DSCV's site)
+			$sanity->blast_called() if $do_sanity;
+
+			# Prepare files for child
+			# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
+			my @files_for_child = (@{$args{files}});
+
+			$args{main} = $main;
+			my $task_fname = "$config->{cmdfile}.for.$main";
+			vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
+			my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
+			Utils::hash_to_xml(\%args,'input',$TASK);
+			close $TASK;
+			vsay('INFO',"Written RCV single command to '$task_fname'\n");
+			$ENV{'RCV_FRONTEND_CMD'} = $0;
+			# FIXME: key is transferred through env variable.  RCV should be rewritten.
+			#                                            task        dir      >>>> the rest is the key to distinguis from others
+			LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',@files_for_child);
+		}
+
+	}
+}
+
+#cycle buffer for storing last $sizeLimit lines of the error log
+
+sub addToBuffer
+{
+	my $elem = shift;
+	$limitedBuffer[$bufferCounter]=$elem;
+	$bufferCounter += 1;
+	if ($bufferCounter>=$sizeLimit) 
+	{
+		$bufferCounter = 0;
+	}
+}
+
+sub getBuffer 
+{
+	my $result = "";
+	my $cnt = $bufferCounter;
+	do {
+		if(defined  $limitedBuffer[$cnt]) {
+			$result .= $limitedBuffer[$cnt];
+		}
+		$cnt++;
+		if($cnt>=$sizeLimit) { $cnt = 0; }
+	} while ($cnt!=$bufferCounter);
+	return $result;
+}
+
+
+# Call blast
+use IPC::Open3;
+use StreamAutomaton;
+use IO::Compress::Gzip qw($GzipError);
+use IO::Select;
+sub call_blast
+{
+	my %args = @_;
+	DSCV::RCV::Utils::ensure_args_folders(%args);
+	# Options that will be passed to the blast tool
+	my @blast_options = ("psa",@{$args{files}});
+
+	# External settings
+	push @blast_options,(split /\s+/,$ENV{'BLAST_OPTIONS'});
+
+	# Tell arguments
+	vsay ('NORMAL',"Running PTRSAFE for $args{dbg_target}, entry $args{main}...\n");
+	local $_;
+	vsay (20,(map {($_ eq '')? '""' : $_} @blast_options),"\n");
+
+	# Open file to redirect
+	# The streams will be printing GZIP-compressed text.
+	# TODO: Make it parallel.  Currently it's all processed inline, in the same thread.
+	my $BLAST_DEBUG = new IO::Compress::Gzip $args{debug} or die "gzip failed: $GzipError\n";
+	# Fork blast
+	local $"=" ";
+
+	vsay (20,"PTRSAFE debug trace will be written to $args{debug}\n");
+
+	my $info;
+
+	# Process output and redirect it to file
+	local $_;
+
+	my %child = Utils::open3_callbacks({
+		# Stdout callback
+		out => sub{ my $line = shift;
+			$info .= $line;
+			print $BLAST_DEBUG $line;
+		},
+		# Stderr callback
+		'err' => sub{ my $line = shift;
+			$info .= $line;
+			addToBuffer($line);
+			print $BLAST_DEBUG $line;
+		},
+		close_out=>sub{ vsay (40,"Child's stdout stream closed.\n");},
+		close_err=>sub{ vsay (40,"Child's stderr stream closed.\n");},
+		},
+		# BLAST call string
+		@blast_options
+	);
+	close $BLAST_DEBUG;
+
+	my $br = 'OK';
+	my $bv;
+	my $result = {};
+	$result->{'BLAST-detailed'} = $info;
+
+	vsay (40,"BLAST open3 return value: $?\n");
+	vsay (20,"BLAST return value: $?\n");
+	vsay (40,"BLAST stats: utime $child{'utime'}, stime $child{'stime'}\n");
+	my $blast_rv = $? >> 8;
+	# NOTE that exit code 2 is for OCaml unhandled exceptions
+	if ($blast_rv == 5){
+		# PTRSAFE says "unsafe"
+		$br = 'OK';
+		$bv = 'SAFE';
+		#mkpath(dirname($args{trace}));
+		#`echo "" >'$args{trace}'`;
+	}elsif($blast_rv == 0){
+		$br = 'OK';
+		$bv = 'SAFE';
+	}else{
+		vsay (4,"PTRSAFE failed with exit code $blast_rv.\n");
+		$br = 'FAILED';
+		$bv = 'UNKNOWN';
+		$result->{'BLAST-detailed'} .= "\n" . getBuffer();
+	}
+
+	# Add timing information into the result returned
+	$result->{'utime'} = $child{'utime'};
+	$result->{'stime'} = $child{'stime'};
+
+	# Assignments to port the old code
+	my $main = $args{main};
+
+	# We produce one report for each main file, because RCVs may be invoked concurrently
+	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
+	my $repT = XML::Twig::Elt->new('reports');
+
+	# Print verdict to console and to report 
+	vsay (10,"$main: PTRSAFE status: $br\n");
+	vsay (20,"$main: PTRSAFE verdict: $result->{'BLAST-detailed'}\n");
+
+	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
+	XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
+	XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
+	# Confess who is responsible for that mess
+	XML::Twig::Elt->new('verifier',{},'BLAST')->paste($cmdInstT);
+
+	my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'ptrsafe'});
+	XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
+	XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
+
+	# Calculate and output time elapsed
+		my $time_elt = XML::Twig::Elt->new('time',0);
+		$time_elt->set_att( name =>"ALL");
+		$time_elt->paste($rcvResultT);
+
+	$rcvResultT->paste(last_child =>$cmdInstT);
+	$cmdInstT->paste($repT);
+
+	$repT->set_pretty_print('indented');
+	vsay('DEBUG',"Writing report to '$args{report}'\n");
+	$repT->print($BLAST_REPORT);
+	close $BLAST_REPORT;
+
+	# Mark files that should be sent to parent
+	# You may skip this step if you're not going to run cluster
+	for_parent($args{report},$args{trace},$args{debug});
+
+	#return $result;
+}
+
+
+
+# Perform BLAST quick check before running any verifications
+sub blast_quick_check
+{
+	$" = ' ';      # For error reporting
+	vsay ('INFO', "Trying to run blast without arguments to see it it works...");
+	my @blast_args = ("pblast.opt","-help");
+	my $CHEW_BLAST_OUT;
+	my $fpid = open $CHEW_BLAST_OUT,"-|";
+	defined $fpid or die "Can't fork?  Wtf";
+	if ($fpid == 0){
+		# child
+		# Run blast
+		exec @blast_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
+		exit 1;
+	}
+	# Parent
+	# Ignore blast's output.
+	my %wpres = Utils::hard_wait($fpid,0);
+	# \n to complement previous message
+	$? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
+	# Ok, now we can close the pipe
+	close($CHEW_BLAST_OUT);
+
+	vsay ('INFO',"OK\n");
+}
+
+
+
+# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
+use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
+sub dumptrace
+{
+	my $fname = shift or die;
+	my $state = TRACE_WAIT;
+	my $current_fh;
+	return [1_000_000,sub {
+
+		my ($line) = @_;
+		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
+		return undef if $state == TRACE_DONE;
+
+		$line =~ /Error trace: \(final\)/ and do {$state = TRACE_READ; return undef;};
+		$line =~ /Error trace ends \(final\)/ and do {$state = TRACE_DONE; return undef;};
+
+		if ($state == TRACE_READ){
+			unless ($current_fh){
+				# Do not open for appending, open for writing instead (see bug #1264)
+				open $current_fh, ">", $fname or die;
+			}
+			print $current_fh $line;
+		}
+		return undef;
+	}];
+}
+
+# OCaml error detector
+sub ocaml_detect
+{
+	return [1_000,sub {
+
+		my ($line) = @_;
+		!defined $line and return undef;
+
+		if ($line =~ /(Fatal error: out of memory.)/){
+			return {'OCAML'=>"OCaml exception: $1"};
+		}
+
+		return undef;
+	}];
+}
+

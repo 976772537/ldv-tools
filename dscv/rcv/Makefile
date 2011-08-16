@@ -7,6 +7,10 @@ backends=
 endif
 frontends=blast cpachecker
 
+# PTRSAFE
+backends+=ptrsafe
+frontends+=ptrsafe
+
 # Compilation
 all: $(patsubst %,backends/%-subdir-all,$(backends))
 	@echo RCV backends don\'t require compilation
@@ -29,7 +33,12 @@ $(rcv_install_dir)/cpachecker: cpachecker
 	@mkdir -p $(@D)
 	cp $^ $@
 	@chmod +x $@
-	
+
+$(rcv_install_dir)/ptrsafe: ptrsafe
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
 define mksubdir
 $1-subdir-%:
 	prefix=$(rcv_install_dir)/$1 $$(MAKE) -C $1 $$*
