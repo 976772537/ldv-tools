@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 #
 
+use strict;
+
 use XML::Twig;
 use FindBin;
 use File::Find;
@@ -46,47 +48,44 @@ my $state_file = "";
 my $reports_list = "";
 my @reports;
 
+# Whether the input files are non-valid XMLs for faster concatenation
+my $batch = '';
+
 # 0. get options.
 get_ldv_opts();
 
-# 0.1 read all report files ant cut its to one temp report file
+# This reporter just concatenates all reports after DEG to one big report.
+# We will do it the quick way, without parsing at all (to save time).
 
-my $twig_inreport = XML::Twig->new();
-$twig_inreport->set_xml_version( '1.0');
-my $twig_inroot = XML::Twig::Elt->new($xml_reports);
-$twig_inreport->set_root($twig_inroot);
+use File::Cat qw(cat);
 
-# 0.2 get all reports files
+# All CSD report file names are stored in the special file
 @reports = get_reports();
-foreach my $file (@reports) { 
-	ldv_dprint("Grep file: \"$file\".");
-	my $ctwig=new XML::Twig();
-	$ctwig->parsefile($file);
-	my $croot=$ctwig->root;
-	my @childrens = $croot->children();
-	my @sections; 
-	foreach my $section (@childrens) {
-		@sections = ($section,@sections);
-#		$sections->move($twig_inroot)l
+
+# Start printing xml
+open OUT_REP, ">", $report_out;
+print OUT_REP "<?xml version=\"1.0\"?>\n<reports>\n";
+
+if ($batch) {
+	ldv_dprint("Printing the report in BATCH mode!");
+	# Catenate all other reports right here
+	cat($_,\*OUT_REP) for @reports;
+}else{
+	# Parse each file, and extract the children of <reports> root tag out of it.
+	# An exception "More than one root tag" will be thrown if "batch" files are passed as an input.
+	for my $report_fname (@reports){
+		my $twig_inreport = new XML::Twig();
+		$twig_inreport->set_pretty_print('indented');
+		$twig_inreport->parsefile($report_fname);
+		# 'indented' does not work on the following line (makes <cc> and <ld> tags disappear.  A bug in XML::Twig?)
+		$_->print(\*OUT_REP) for $twig_inreport->root->children;
 	}
-	foreach (@sections) {
-		$_->move($twig_inroot);
-	}
-};
+}
 
-# 1. read state file;
-open(FIL,$state_file); 
-my @states = <FIL>; 
-close(FIL);
+# Now close the tag
+print OUT_REP "\n</reports>\n";
+close OUT_REP;
 
-# 5. open input command stream
-my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream,
-			"$xml_cmd_stream/$xml_cmd_ld"      => \&hxml_cmdstream };
-my $twig_icmd= new XML::Twig(TwigHandlers => $twig_handlers);
-$twig_icmd->parsefile($cmdfile);
-
-$twig_inreport->set_pretty_print('indented');
-$twig_inreport->print_to_file($report_out);
 ldv_dprint("Report created successfully.");
 
 
@@ -94,86 +93,13 @@ ldv_dprint("Report created successfully.");
 # xml-functions
 #####################################################
 sub get_reports {
+	local $_;
 	open RLIST, $reports_list or die"$!";
-	my @reports_after_deg = ();
-	while(<RLIST>) {
-		chomp $_;
-		push @reports_after_deg, $_;
-	};
+	my @reports_after_deg = map {chomp; $_} (<RLIST>);
 	close RLIST;
 	return @reports_after_deg;
 }
 
-#sub search {  push (@filelist,$File::Find::name) if(!-d); }
-#sub get_reports {
-#	my @local_reports=();
-#	find(\&search, $reports_dir);
-#	my @out_reports=();
-#	foreach(@filelist) { if(/.*$report_name/) { push(@out_reports,$_); } }
-#	return @out_reports;
-#}
-
-#
-# find command-tag in input report file by id
-#
-sub get_cmd_tag_from_report_by_id {
-	my $lroot = $twig_inreport->root;
-	my @commands = ();
-	foreach my $command ($lroot->children($xml_reports_cc)) {
-		if($command->att($xml_reports_attr_ref) == $_[0]) { push(@commands, $command); };
-	};
-	foreach my $command ( $lroot->children($xml_reports_ld) ) {
-		if($command->att($xml_reports_attr_ref) == $_[0]) { push(@commands, $command); };
-	};
-	return @commands;
-}
-
-#####################################################
-# twig  handlers
-#####################################################
-
-sub hxml_cmdstream {
-	my $id=$_[1]->att($xml_cmd_attr_id);
-	my @commands = get_cmd_tag_from_report_by_id($id);
-	#
-	# TODO: test - if @command is empty, then create command 
-	#
-	if(scalar @commands == 0) {
-		my $lcommmand;
-		if ($_[1]->name eq $xml_cmd_cc) { 
-			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
-		} elsif ($_[1]->name eq $xml_cmd_ld) {
-			$lcommand = XML::Twig::Elt->new($xml_cmd_cc);
-			$lcommand->set_att($xml_reports_attr_ref=>$id);
-			foreach my $section ( $_[1]->children('out') ) {
-				if($section->has_atts && $section->att($xml_cmd_attr_check) eq 'true') {
-					XML::Twig::Elt->new($xml_reports_verdict,$verdict_unknown)->paste($lcommand);
-					next;
-				}
-			}
-		};
-		$lcommand->set_att($xml_reports_attr_ref => $id);
-		my $lroot = $twig_inreport->root;
-		$lcommand->paste($lroot);
-		push(@commands,$lcommand);		
-	}
-	foreach my $command (@commands) {
-# section that contains <cmd-stream-divider>....</..> - in ldv-manager not used
-#		my $instrument = XML::Twig::Elt->new($xml_instrument);
-#		XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
-#		XML::Twig::Elt->new($xml_instrument_time,get_state($id))->paste($instrument);
-#		XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-#	$instrument->paste('last_child',$command);
-	}
-}	
-
-sub get_state() {
-	foreach my $state (@states) {
-		if($state =~ m/^(\d+):(.*)$/ && $1 == $_[0]) {
-			return $2;
-		}
-	}
-}
 
 ######################################################
 # option test
@@ -183,7 +109,7 @@ sub get_ldv_opts
 	$log_level = $ENV{'LDV_DEBUG'};
 
 	# get all options
-	foreach $opt(@ARGV)
+	for my $opt (@ARGV)
 	{
 		if($opt =~ s/--cmdfile=(.*)/$1/)
 		{
@@ -204,6 +130,10 @@ sub get_ldv_opts
 		elsif($opt =~ s/--report-out=(.*)/$1/)
 		{
 			$report_out = $opt;
+		}
+		elsif($opt =~ /--batch/)
+		{
+			$batch = 1;
 		}
 		else
 		{
@@ -257,7 +187,7 @@ sub get_ldv_opts
 
 sub print_usage
 {
-	ldv_print("USAGE: $psuffix --reports-dir=reportsdir --cmdfile=cmdfile --report-out=reportfile --report-name=reportname --state-file=statefile ");
+	ldv_print("USAGE: $psuffix --reports-dir=reportsdir --cmdfile=cmdfile --report-out=reportfile --report-name=reportname --state-file=statefile [--batch]");
 }
 
 #######################################################
