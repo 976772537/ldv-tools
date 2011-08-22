@@ -8,8 +8,10 @@ endif
 frontends=blast cpachecker
 
 # PTRSAFE
+ifneq ($(LDV_PTRSAFE),)
 backends+=ptrsafe
 frontends+=ptrsafe
+endif
 
 # Compilation
 all: $(patsubst %,backends/%-subdir-all,$(backends))
