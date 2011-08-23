@@ -33,7 +33,7 @@ endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
-install: install-console-tools
+install: install-console-tools install-ldv-git
 
 install-all: $(call forall_subdirs,$(SUBDIRS),install)
 
