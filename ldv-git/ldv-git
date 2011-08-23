@@ -126,7 +126,7 @@ $optionSpecs{'cache!'} = \$cache;
 
 =over 8
 
-=item B<--rule=rule_id,rule_id>
+=item B<--rules=rule_id,rule_id>
 
 Check only the rules listed.  By default, checks the following rules: 32_7, 39_7, 77_1, 08_1, 29_1, 37_1, 43_1a, 68_1, 60_1.
 
@@ -251,7 +251,7 @@ if ($action eq 'plan'){
 
 =item B<drop-cache>
 
-Clears cache for the current commit and the current set of rules (see C<--rule>).
+Clears cache for the current commit and the current set of rules (see C<--rules>).
 
 For this purpose, if a special rule "all" is among the rules you've specified, then the cache for all rules is cleared.  This is useful when you've checked some rules beyond the default ones.
 
