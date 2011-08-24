@@ -5,33 +5,33 @@ my $instrumnet = 'ldv-task-reporter';
 
 use FindBin;
 BEGIN {
-        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
-        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+	push @INC,"$ENV{'LDV_HOME'}/shared/perl";
 	$LDV_ENVS_TARGET = $ENV{'LDV_ENVS_TARGET'} || " ";
 }
 
 sub usage{ print STDERR<<usage_ends;
 
 Usage:
-        $instrumnet -r reports-dir -f report-name -s state-file -o report-out
+	$instrumnet -r reports-dir -f report-name -s state-file -o report-out
 
 usage_ends
-        die;
+	die;
 }
 
 use Getopt::Long qw(:config require_order);
 
 my $config = {
-        'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
-        'error-trace-visualizer' => "$ENV{'LDV_HOME'}/bin/error-trace-visualizer.pl",
-        'kernel-manager' => "$ENV{'LDV_HOME'}/ldv/ldv-kmanager",
+	'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
+	'error-trace-visualizer' => "$ENV{'LDV_HOME'}/bin/error-trace-visualizer.pl",
+	'kernel-manager' => "$ENV{'LDV_HOME'}/ldv/ldv-kmanager",
 };
 
 GetOptions(
-        'reports-dir|d=s'=>\$config->{'reports-dir'},
-        'report-name|f=s'=>\$config->{'report-name'},
-        'state-file|s=s'=>\$config->{'state-file'},
-        'report-out|o=s'=>\$config->{'report-out'},
+	'reports-dir|d=s'=>\$config->{'reports-dir'},
+	'report-name|f=s'=>\$config->{'report-name'},
+	'state-file|s=s'=>\$config->{'state-file'},
+	'report-out|o=s'=>\$config->{'report-out'},
 ) or usage;
 
 use LDV::Utils;
@@ -56,42 +56,53 @@ sub hxml_cmdstream;
 ###################################################
 
 my @lstates = get_states($config);
-merge_reports($config, @lstates);
+
+# Open the file we'll print the result to.
+open OUT_RPT, ">", $config->{'report-out'};
+print OUT_RPT "<reports>\n";
+
+merge_reports(\*OUT_RPT,$config, @lstates);
+
+print OUT_RPT "\n</reports>\n";
+close OUT_RPT;
+
+vsay 'NORMAL', "Report created successfully.\n";
+
 exit;
 
 use XML::Twig;
 sub merge_reports {
-	my ($config, @states) = @_;
-
-	my $twig_inreport = XML::Twig->new();
-	$twig_inreport->set_xml_version( '1.0');
-	my $twig_inroot = XML::Twig::Elt->new('reports');
-	$twig_inreport->set_root($twig_inroot);
+	my ($out_fh,$config, @states) = @_;
 
 	@reports=get_reports($config);
-	foreach my $file (@reports) { 
+	foreach my $file (@reports) {
 		vsay 'DEBUG', "Process report from file: \"$file\".\n";
-		my $twig_report = new XML::Twig();
-		$twig_report->parsefile($file);
-		my $twig_report_root=$twig_report->root;
-		my @childrens = $twig_report_root->children();
-		my @sections;
-		local $_;
-		foreach (@childrens) {
-			$_->name =~ /cc|ld|build/ and hxml_cmdstream $_, $config, $file, @states;
-			if($_->name =~ /build/) { 
-				@sections = (@sections, $_) 
-			} else {
-				 @sections = ($_, @sections);
+		# we first need to find a build, and place it at the beginning--this is a requirement of the ldv-upload
+		XML::Twig->new(
+			twig_roots => { 'reports/build' => sub{
+				my ($t,$child) = @_;
+				hxml_cmdstream $child, $config, $file, @states;
+				$child->flush($out_fh,pretty_print=>'indented');
 			}
-			$_->name =~ /cc/ and @sections = (@sections, $_);
-		}
-		$_->move($twig_inroot) foreach @sections;
+		})->parsefile($file);
+		XML::Twig->new(
+			twig_roots => { 'reports/cc' => sub{
+				my ($t,$child) = @_;
+				hxml_cmdstream $child, $config, $file, @states;
+				$child->flush($out_fh,pretty_print=>'indented');
+			}
+		})->parsefile($file);
+		# Now, get all other elements
+		XML::Twig->new(
+			twig_roots => { 'reports/ld' => sub{
+				my ($t,$child) = @_;
+				# Builds are already printed
+				$child->name =~ /build/ and return;
+				$child->name =~ /cc|ld/ and hxml_cmdstream $child, $config, $file, @states;
+				$child->flush($out_fh,pretty_print=>'indented');
+			}
+		})->parsefile($file);
 	};
-
-	$twig_inreport->set_pretty_print('indented');
-	$twig_inreport->print_to_file($config->{'report-out'});
-	vsay 'NORMAL', "Report created successfully.\n";
 }
 
 
@@ -102,7 +113,7 @@ sub merge_reports {
 sub hxml_cmdstream {
 	my ($cmd, $config, $file, @states) = @_;
 	my $state = get_state($file, @states);
-	my $kernel = $state->{'env'};	
+	my $kernel = $state->{'env'};
 	$cmd->set_att('kernel'=>$kernel);
 	my $verdict_section = $cmd->first_child('verdict');
 	if($cmd->name eq 'ld' && $cmd->has_atts && $cmd->att('check') eq 'true') {
@@ -209,8 +220,7 @@ sub hxml_cmdstream {
 			}
 		}
 	}
-
-}	
+}
 
 sub get_state {
 	my ($ident,@states) = @_;

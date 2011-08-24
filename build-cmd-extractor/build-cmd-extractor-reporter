@@ -3,6 +3,8 @@
 use XML::Twig;
 use FindBin;
 
+use strict;
+
 my $deg_home = "$FindBin::Bin";
 
 # Xml nodes names.
@@ -33,6 +35,8 @@ my $xml_instrument_time = 'time';
 my $xml_instrument_desc = 'desc';
 
 sub get_state;
+
+my $state_file;
 #####################################################
 # log options
 #####################################################
@@ -56,68 +60,256 @@ close(FIL);
 my @astate = get_state();
 
 
-my %cc_times;
-my %average_times;
+# We will do two passes across the input report.
+# During the first pass, we'll gather the information about the time spent in instruments, and some total times and amounts (that's why it can't be one pass).
+# During the second pass, we will replace <time> tags with triplets, and output the final report.
+
+# First pass: get the time.
+
+my $cc_times = {};
+my %ld_times = ();
+my $average_times = {};
 my $ld_counter = 0;
 
 my @instruments = ('drv-env-gen','rcv','dscv','rule-instrumentor');
 
+# Context for "time" handlers
+# Current tag footprint (for storing times internally)
+my $footprint = undef;
+# Current model
+my $model = undef;
+# Whether we're inside <cc> or <ld> tag
+my $ccld = undef;
+# What instrument we're in (see @instruments)
+my $instrument;
 
-my $twig_handlers = {   "$xml_reports/$xml_cmd_cc"      => \&hxml_cmdstream_cc,
-			"$xml_reports/$xml_cmd_ld"      => \&hxml_cmdstream_ld };
-my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
-$twig_inreport->parsefile($report_in);
+sub mk_tag_footprint
+{
+	my ($name,$att) = @_;
+	if ($name eq 'ld'){
+		# This is an <ld> command, add footprint
+		# Undefined values (which may be model or main, if main was not generated) are treated as empty strings
+		$att->{'model'} ||= '';
+		$att->{'main'} ||= '';
+		return "$name|$att->{'driver_name'}|$att->{'module_name'}|$att->{'model'}|$att->{'model'}|$att->{'main'}|$att->{'ref'}";
+	}else{
+		# This is a <cc> command, no footprint is necessary!
+		return "JUNK";
+	}
+}
+
+# Somehow these context handlers in the Twig below get parsed Elt-s instead of raw tag names and attr hashes!  This contradicts the spec, but works...
+sub set_ccld_context
+{
+	my ($t, $tag, %att) = @_;
+
+	# Trigger adding missing times
+	if ($model && ($ccld eq 'ld')){
+		add_missing_patterns($footprint,$cc_times->{$model});
+		delete $cc_times->{$model};
+	}
+
+	$model = $tag->att('model') || 'unknown';
+	$ccld = $tag->name;
+	$ld_counter++ if ($ccld eq 'ld');
+	$footprint = mk_tag_footprint($ccld,$tag->atts);
+}
+
+sub set_instr_context
+{
+	my ($t, $tag) = @_;
+	$instrument = $tag->name;
+}
+
+# When the ld command is processed (we trigger it at the next ld command, or at the end of the file), we need to add the time information from <cc> commands that was not specified in <ld> commands (these are rule instrumentor's times, for instance)
+sub add_missing_patterns
+{
+	my ($footprint,$cc_model_times) = @_;
+	return unless $footprint;	# We're here for the first time: ignore.
+	for my $instrument (keys %{$cc_model_times}){
+		for my $pattern (keys %{$cc_model_times->{$instrument}}){
+			$ld_times{"$footprint|$instrument|$pattern"} = [0,$cc_model_times->{$instrument}->{$pattern},0];
+		}
+	}
+}
+
+# This handler relies on global variables $model and $instrument set by start_tag_handlers
+# We're reading <time> tag of an instrument
+sub hxml_cmdstream_instrument_time {
+	my ($t, $time_tag) = @_;
+	if ($ccld eq 'cc') {
+		local $_;
+		$average_times->{$instrument}->{$time_tag->att('name')} += $time_tag->text;
+		$cc_times->{$model}->{$instrument}->{$time_tag->att('name')}->{'time'} += $time_tag->text;
+		$ccld = 'cc';
+	}elsif ($ccld eq 'ld'){
+		my $pattern = $time_tag->att('name');
+		$ld_times{"$footprint|$instrument|$pattern"} = [$time_tag->text,$time_tag->text,$time_tag->text];
+
+		# Here we assume that between two <ld> tags only those <cc> are laid out that are relevant to the second <ld>
+		# So we assume that $cc_times hash is filled for the model, and we discard it for the next <ld> to work.
+		if (exists $cc_times->{$model}->{$instrument} && exists $cc_times->{$model}->{$instrument}->{$pattern}){
+			$ld_times{"$footprint|$instrument|$pattern"}->[1] += $cc_times->{$model}->{$instrument}->{$pattern}->{'time'};
+			# Discard instrument information from the cc_times
+			delete $cc_times->{$model}->{$instrument}->{$pattern};
+		}
+	}
+	$time_tag->purge();
+}
+
+# Read the times from the original report
+
+my $start_handlers = {(map {$_ => \&set_ccld_context} qw(cc ld)), (map {$_ => \&set_instr_context} @instruments)};
+my $twig_handlers = {};
+for my $i (@instruments){
+	$twig_handlers->{"cc/$i/time"} = \&hxml_cmdstream_instrument_time;
+	$twig_handlers->{"ld/$i/time"} = \&hxml_cmdstream_instrument_time;
+}
+
+XML::Twig->new(
+start_tag_handlers => $start_handlers,
+twig_handlers => $twig_handlers,
+)->parsefile($report_in);
 
 
-my $instrument = XML::Twig::Elt->new($xml_build);
-XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument);
+# Trigger add_missing_patterns after the last tag
+if ($model){
+	add_missing_patterns($footprint,$cc_times->{$model});
+}
+
+ldv_dprint("Times from the input report collected.\n");
+
+
+ldv_dprint("Now printing the new report\n");
+
+# First, we prepare the <build> tag ($instrument_tag) to attach to the whole cmdstream.  We will insert it at the beginning, with use of start_tag_handlers.
+
+my $instrument_tag = XML::Twig::Elt->new($xml_build);
+XML::Twig::Elt->new($xml_instrument_desc,"")->paste($instrument_tag);
 
 if ( -f "$stats_file" ) {
 	my %timestats;
-        open(STATS_FILE, '<', "$stats_file") or die "Can't open file with time statistics: \"$stats_file\", $!";
-        while(<STATS_FILE>) {
-	        /^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
-        	$timestats{$1} += $2;
-        }
-        close STATS_FILE;
-        foreach(keys %timestats) {
-                my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$timestats{$_});
-                $time_elt->set_att( name =>$_);
-                $time_elt->paste($instrument);
-        }
+	open(STATS_FILE, '<', "$stats_file") or die "Can't open file with time statistics: \"$stats_file\", $!";
+	while(<STATS_FILE>) {
+		/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
+		$timestats{$1} += $2;
+	}
+	close STATS_FILE;
+	foreach(keys %timestats) {
+		my $time_elt = XML::Twig::Elt->new($xml_instrument_time,$timestats{$_});
+		$time_elt->set_att( name =>$_);
+		$time_elt->paste($instrument_tag);
+	}
 } else {
-        my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
-        $time_elt->set_att( name =>"ALL");
-        $time_elt->paste($instrument);
+	my $time_elt = XML::Twig::Elt->new($xml_instrument_time,0);
+	$time_elt->set_att( name =>"ALL");
+	$time_elt->paste($instrument_tag);
 };
 
-XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument);
-$outreport_root = $twig_inreport->root;
-$instrument->paste('last_child',$outreport_root);
+# calculate average build time
+for my $time_tag ($instrument_tag->children('time')) {
+	$average_times->{'build'}->{$time_tag->att('name')} = ($ld_counter == 0)? 0 : $time_tag->text/$ld_counter;
+}
+
+# Prepare a <build> tag to insert to each <ld>
+my $build_fix_tag = XML::Twig::Elt->new('build');
+for my $build_time_fix_tag(keys %{$average_times->{'build'}}) {
+	my $build_time = $average_times->{'build'}->{$build_time_fix_tag};
+	my $build_time_tag = XML::Twig::Elt->new('time',"$build_time:$build_time:$build_time");
+	$build_time_tag->set_att('name',$build_time_fix_tag);
+	$build_time_tag->paste($build_fix_tag);
+}
+
+XML::Twig::Elt->new($xml_instrument_status,"OK")->paste($instrument_tag);
+
+open OUT_RPT, ">", $report_out;
+
+# Separate sub for time updates (to avoid closure)
+sub update_time
+{
+	my (undef, $time_tag) = @_;
+	# Adjust the times by taking the values from ld_times prepared hash
+	my $index = sprintf "%s|%s|%s", $footprint, $instrument, $time_tag->att('name');
+	# Add the average time for this instrument
+	$ld_times{$index}->[2] += ($average_times->{$instrument}->{$time_tag->att('name')} || 0) / $ld_counter;
+	# Flush the modified tag
+	$time_tag->set_text(sprintf "%.3f:%.3f:%.3f", @{$ld_times{$index}});
+	$time_tag->flush(\*OUT_RPT, pretty_print => 'indented');
+}
+
+# Context handlers
+# Somehow these context handlers in the Twig below get tag names and attr hashes, not parsed tags!
+sub set_ccld_context_nomod
+{
+	my ($t, $tagname, %atts) = @_;
+	$footprint = mk_tag_footprint($tagname,\%atts);
+}
+sub set_instr_context_nomod
+{
+	my ($t, $tag) = @_;
+	$instrument = $tag;
+}
+
+# NO <ld> here: we need a separate handler for it!
+my $more_start_handlers = {(map {$_ => \&set_ccld_context_nomod} qw(cc)), (map {$_ => \&set_instr_context_nomod} @instruments)};
+
+# Hooks to print <build> tags
+$more_start_handlers->{'reports'} = sub {
+	my ($t, $tag, %att) = @_;
+	# We assume that the <reports> does not have attributes
+	die if scalar %att;
+	# print the open tag
+	#print OUT_RPT "<$tag->name>\n";
+	# Print the build tag
+	$instrument_tag->set_pretty_print('indented');
+	$instrument_tag->print(\*OUT_RPT);#, pretty_print => 'indented');
+	# Show that we've printed the tag
+	0;
+};
+# Returns a string with an opening tag
+sub make_start_of_tag
+{
+	my ($name, %atts) = @_;
+	my $str = XML::Twig::Elt->new($name,\%atts)->outer_xml();
+	$str = reverse $str;
+	$str =~ s/>\//>/;
+	$str = reverse $str;
+	return $str;
+}
+$more_start_handlers->{'ld'} = sub {
+	my ($t,$name,%atts) = @_;
+	print OUT_RPT make_start_of_tag($name,%atts),"\n";
+	$build_fix_tag->set_pretty_print('indented');
+	$build_fix_tag->print(\*OUT_RPT);
+	set_ccld_context_nomod(undef,'ld',%atts);
+	0;
+};
 
 
+XML::Twig->new(
+	start_tag_handlers => $more_start_handlers,
+	twig_roots => { 'ld//time' => \&update_time },
+	twig_print_outside_roots => \*OUT_RPT,
+)->parsefile($report_in);
+
+close OUT_RPT;
+
+exit 0;
+
+
+#$outreport_root = $twig_inreport->root;
+#$instrument->paste('last_child',$outreport_root);
+
+
+
+my $twig_inreport;
 
 # set average time for all ld commands
 my $croot=$twig_inreport->root;
 my $children_build = $croot->first_child('build');
 
-# calculate average build time
-foreach ($children_build->children('time')) {
-	if($ld_counter != 0) {
-		$average_times->{'build'}->{$_->att('name')} = $_->text/$ld_counter;
-	} else {
-		$average_times->{'build'}->{$_->att('name')} = 0;
-	}
-}
 my @childrens_ld = $croot->children('ld');
 foreach my $entry(@childrens_ld) {
-	my $build_fix_tag = XML::Twig::Elt->new('build');
-	foreach my $build_time_fix_tag(keys %{$average_times->{'build'}}) {
-		my $build_time = $average_times->{'build'}->{$build_time_fix_tag};
-		my $build_time_tag = XML::Twig::Elt->new('time',"$build_time:$build_time:$build_time");
-		$build_time_tag->set_att('name',$build_time_fix_tag);
-		$build_time_tag->paste($build_fix_tag);
-	}
 	$build_fix_tag->paste($entry);
 	foreach my $instrument(@instruments) {
 	 	my $instrument_tag = $entry->first_child($instrument) or next;
@@ -135,61 +327,13 @@ $twig_inreport->set_pretty_print('indented');
 $twig_inreport->print_to_file($report_out);
 
 
-#####################################################
-# twig  handlers
-#####################################################
-sub hxml_cmdstream_cc {
-        my (undef, $entry) = @_; 
-	my $model = $entry->att('model') || 'unknown';
-        foreach (@instruments) {
-                my $instrumment_pattern = $entry->first_child($_) or next;
-                local $_; 
-                foreach ($instrumment_pattern->children('time')) {
-			$average_times->{$instrumment_pattern->name}->{$_->att('name')} += $_->text;
-                        $cc_times->{$model}->{$instrumment_pattern->name}->{$_->att('name')}->{'time'} += $_->text;
-                }   
-        } 
-}
-
-sub hxml_cmdstream_ld {
-	$ld_counter++;
-        my (undef, $entry) = @_;
-	my $model = $entry->att('model') || 'unknown';
-
-        foreach my $instrument(@instruments) {
-                my $instrument_tag = $entry->first_child($instrument) or next;
-                foreach my $time_tag($instrument_tag->children('time')) {
-			$time_tag->set_text($time_tag->text.':'.$time_tag->text.':'.$time_tag->text);
+sub get_state() {
+	foreach my $state (@states) {
+		if($state =~ m/^(\d+)$/) {
+			# time of work
+			return ($1);
 		}
 	}
-
-        foreach my $instrument(keys %{$cc_times->{$model}}) {
-                my $instrument_tag = $entry->first_child($instrument) or next;
-               foreach my $pattern(keys %{$cc_times->{$model}->{$instrument}}) {
-                        # find time with attribute equals pattern
-                        my $before = 0;
-                        foreach ($instrument_tag->children('time')) {
-                                $_->att('name') eq $pattern or next;
-                                $before = 1;
-				$_->text =~ /([0-9]*):([0-9]*):([0-9]*)/;
-				$_->set_text($1.':'.($1+$cc_times->{$model}->{$instrument}->{$pattern}->{'time'}).":$1");
-                        }   
-                        $before == 0 or next;
-                        my $newtime = XML::Twig::Elt->new('time','0:'.$cc_times->{$model}->{$instrument}->{$pattern}->{'time'}.":0");
-                        $newtime->set_atts('name', $pattern);
-                        $newtime->paste('last_child',$instrument_tag);
-                }   
-        } 
-	$cc_times->{$model} = undef;
-}	
-
-sub get_state() {
-        foreach my $state (@states) {
-                if($state =~ m/^(\d+)$/) {
-	                # time of work  
-                        return ($1);
-                }   
-        }   
 }
 
 ######################################################
@@ -197,10 +341,10 @@ sub get_state() {
 ######################################################
 sub get_ldv_opts
 {
-	$log_level = $ENV{'LDV_DEBUG'};
+	$log_level = $ENV{'LDV_DEBUG'} || 10;
 
 	# get all options
-	foreach $opt(@ARGV)
+	for my $opt(@ARGV)
 	{
 		if($opt =~ s/--state-file=(.*)/$1/)
 		{

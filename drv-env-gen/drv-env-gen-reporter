@@ -48,6 +48,9 @@ my $report_out = "";
 my $report_in = "";
 my $state_file = "";
 
+# Whether we print non-xmls for faster concatenation
+my $batch = 0;
+
 # 0. get options.
 get_ldv_opts();
 # 1. read state file;
@@ -79,9 +82,20 @@ my $twig_handlers = {   "$xml_cmd_stream/$xml_cmd_cc"      => \&hxml_cmdstream,
 my $twig_icmd= new XML::Twig(TwigHandlers => $twig_handlers);
 $twig_icmd->parsefile($cmdfile);
 
-$twig_inreport->set_xml_version('1.0');
-$twig_inreport->set_pretty_print('indented');
-$twig_inreport->print_to_file($report_out);
+if (not $batch) {
+	# Print a valid XML
+	$twig_inreport->set_xml_version('1.0');
+	$twig_inreport->set_pretty_print('indented');
+	$twig_inreport->print_to_file($report_out);
+}else{
+	# just print children, to catenate them
+	ldv_dprint("Printing the report in BATCH mode!");
+	open RAW_OUT,">",$report_out;
+	$twig_inreport->set_pretty_print('indented');
+	# 'indented' does not work on the following line (makes <cc> and <ld> tags disappear.  A bug in XML::Twig?)
+	$_->print(\*RAW_OUT) for $twig_inreport->root->children;
+	close RAW_OUT;
+}
 
 
 #####################################################
@@ -231,6 +245,10 @@ sub get_ldv_opts
 		{
 			$report_out = $opt;
 		}
+		elsif($opt =~ /--batch/)
+		{
+			$batch = 1;
+		}
 		else
 		{
 			ldv_eprint("Unknown option:\"$opt\".");
@@ -285,7 +303,7 @@ sub get_ldv_opts
 
 sub print_usage
 {
-	ldv_print("USAGE: $psuffix --cmdfile=cmdfile --report-out=reportfile --report-in=reportin --state-file=statefile ");
+	ldv_print("USAGE: $psuffix --cmdfile=cmdfile --report-out=reportfile --report-in=reportin --state-file=statefile [--batch]");
 }
 
 #######################################################

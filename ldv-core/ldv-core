@@ -336,7 +336,9 @@ sub csd_create_report {
 		'--report-name=report_after_deg.xml',
 		"--report-out=$config->{'csd_tempdir'}/report_after_csd.xml",
 		"--report-list=$config->{'csd_tempdir'}/list_of_deg_reports",
-		"--state-file=$config->{'csd_state'}"
+		"--state-file=$config->{'csd_state'}",
+		# An option to consume not valid XML files from drv-env-gen reporter, but catenate them fast
+		"--batch",
 	);
 			
 	vsay 'TRACE', "LDV_DEBUG=$ENV{'LDV_DEBUG'} WORK_DIR=$ENV{'WORK_DIR'} @csd_reporter_args\n";	 
@@ -359,7 +361,9 @@ sub deg_create_report {
 		"--cmdfile=$task_path/cmd_after_csd.xml",
 		"--report-in=$task_path/dscv_tempdir/report_after_dscv.xml",
 		"--report-out=$task_path/report_after_deg.xml",
-		"--state-file=$task_path/deg.state"
+		"--state-file=$task_path/deg.state",
+		# An option to prodube not valid XML files for CSD-reportet to handle them fast
+		"--batch",
 	);
 		
 	vsay 'TRACE', "LDV_DEBUG=$ENV{'LDV_DEBUG'} WORK_DIR=$ENV{'WORK_DIR'} @deg_reporter_args\n";	 
