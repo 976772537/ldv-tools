@@ -41,12 +41,12 @@ CREATE  TABLE IF NOT EXISTS `results_kb` (
   CONSTRAINT `fk_results_kb_1`
     FOREIGN KEY (`kb_id` )
     REFERENCES `kb` (`id` )
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_results_kb_2`
     FOREIGN KEY (`trace_id` )
     REFERENCES `traces` (`id` )
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
