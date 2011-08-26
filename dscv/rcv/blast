@@ -78,7 +78,10 @@ vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
 -d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
 
 # Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
-$ENV{'PATH'} = "$backend_dir:".$ENV{'PATH'};
+my $new_path = "$backend_dir:".$ENV{'PATH'};
+vsay 30,"Setting PATH to '$new_path'";
+$ENV{'PATH'} = $new_path;
+vsay 40,"CSIsat to be used is ".`which csisat`;
 
 #Check if blast is available
 #blast_quick_check();
@@ -294,7 +297,7 @@ sub call_blast
 	my %args = @_;
 	DSCV::RCV::Utils::ensure_args_folders(%args);
 	# Options that will be passed to the blast tool
-	my @blast_options = ("pblast.opt",@{$args{files}});
+	my @blast_options = ($blast,@{$args{files}});
 	# Set default options
 	# These are: -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0
 	push @blast_options,
