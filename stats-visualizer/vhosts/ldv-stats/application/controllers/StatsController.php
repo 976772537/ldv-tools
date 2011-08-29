@@ -307,12 +307,17 @@ class StatsController extends Zend_Controller_Action
 
     if ($this->_getParam('KB_new_record') == 'true') {
       $results = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams(), true);
-      $dbConnection = $results['Database connection'];
+  
+      if (empty($results['Errors'])) {
+        $dbConnection = $results['Database connection'];
 
-      // TODO: I used --init-cache that may be too long.
-      // Regenerate KB cache by means of script application for a given KB id.
-      exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
-      $result = $output;
+        // TODO: I used --init-cache that may be too long.
+        // Regenerate KB cache by means of script application for a given KB id.
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
+        $result = $output;
+      }
+      else
+        $error = $results['Errors'];
     }
     else {
       $results = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams());

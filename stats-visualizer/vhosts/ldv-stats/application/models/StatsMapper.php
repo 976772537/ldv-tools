@@ -1350,7 +1350,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
   public function updateKBRecord($profile, $params, $isNew = false)
   {
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
-
+    $result['Errors'] = array();
+    
     if (!array_key_exists('KB_id', $params)) {
       die("KB id isn't specified");
     }
@@ -1366,8 +1367,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
     $public = $params['KB_public'];
 
-    if ($public == 1 and $name == '')
-      die("KB name cannot be empty string");
+    if ($public == 1 and $name == '') {
+      $result['Errors'][] = "KB name cannot be an empty string for a public KB record";
+      return $result;
+    }
 
     if (!array_key_exists('KB_task_attrs', $params)) {
       die("KB task attributes aren't specified");
