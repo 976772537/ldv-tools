@@ -379,6 +379,30 @@ body
   color: #FF0000;
 }
 
+/* Style for KB summary row to be printed under unsafes page. */
+#SSKBSummaryRow
+{
+  background-color: #B9FFE8;
+  white-space: nowrap;
+}
+
+#SSKBSummaryTitle
+{
+  font-size: 12pt;
+  font-weight: bold;
+  text-align: center;
+}
+
+.SSKBSummaryName
+{
+  font-style: italic;
+}
+
+.SSKBSummaryValue
+{
+  font-weight: bold;
+}
+
 /* Style for KB included into error trace visualization.*/
 .SETVKBScript
 {
@@ -438,7 +462,7 @@ body
 
 .SETVKBTableRowOdd
 {
-  background-color: #D4FEFF;
+  background-color: #B9FFE8;
 }
 
 .SETVKBTableRowEven

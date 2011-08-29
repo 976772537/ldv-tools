@@ -320,9 +320,11 @@ if ($resultsNumb) {
     $statToolsKeyRowSpan++;
   }
 
+  $columnsUpToKBVerdictCount = 0;
   echo "<table id='SSStatsTable' border='1'>
           <tr id='SSStatsTableHeaderFirstRow'>";
   printData("    <td id='SSStatsTableHeaderRowCounter' rowspan='$statVerificationKeyRowSpan'>#</td>", '#');
+  $columnsUpToKBVerdictCount++;
   $isTaskPrinted = false;
   foreach ($statKeys as $statKey) {
     // Merge all task information to the one column.
@@ -333,6 +335,7 @@ if ($resultsNumb) {
           $taskColSpan = 2;
         }
         printData("    <td class='SSStatsTableHeaderTaskStatKey' rowspan='$statVerificationKeyRowSpan' colspan='$taskColSpan'>Task</td>", null);
+        $columnsUpToKBVerdictCount += $taskColSpan;
         $isTaskPrinted = true;
       }
       printData(null, $statKey);
@@ -348,6 +351,7 @@ if ($resultsNumb) {
       }
 
       printData("    <td class='SSStatsTableHeaderStatKeys' rowspan='$statVerificationKeyRowSpan'>$statKeyPrint</td>", $statKeyPrint);
+      $columnsUpToKBVerdictCount++;
     }
   }
   foreach ($verificationKeys as $verificationKey) {
@@ -358,6 +362,7 @@ if ($resultsNumb) {
       $verificationKey = 'Total';
     }
     printData("    <td class='SSStatsTableHeaderVerificationInfo' rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>", $verificationKey);
+    $columnsUpToKBVerdictCount++;
   }
   foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
     // We don't need knowledge base identifiers and fits to be printed explicitly.
@@ -442,6 +447,8 @@ if ($resultsNumb) {
 
   // Iterate over all results.
   $i = 1;
+  $kbStats['verdict'] = array();
+  $kbStats['tag'] = array();
   foreach ($stats as $result) {
     $dataCSVIndex++;
     echo "  <tr class='SSStatsTableRow' align='center'>";
@@ -720,9 +727,15 @@ if ($resultsNumb) {
           }
 
           // By default a current unsafe is marked as unknown.
-          if ($value == 'Unknown' or $value == '')
-            $value = '-';
+          if ($value == '')
+            $value = 'Unknown';
 
+          array_key_exists($value, $kbStats['verdict']) ? $kbStats['verdict'][$value]++ : $kbStats['verdict'][$value] = 1;
+
+          // Use '-' instead of 'Unknown' to correspond to the general schema.
+          if ($value == 'Unknown')
+            $value = '-';
+            
           // Calculate additional notes if so.
           $note = '';
           if ($tbd !== false) {
@@ -741,6 +754,10 @@ if ($resultsNumb) {
             if ($value[$i] == '')
               continue;
               
+            $tags = preg_split('/;/', $value[$i]);
+            foreach ($tags as $tag)
+              array_key_exists($tag, $kbStats['tag']) ? $kbStats['tag'][$tag]++ : $kbStats['tag'][$tag] = 1;
+            
             if (array_key_exists('KB ID', $result['Knowledge base info'])) {
               $verdictClass = '';
               if (array_key_exists('KB Verdict', $result['Knowledge base info']))
@@ -907,6 +924,29 @@ if ($resultsNumb) {
 
     echo "  </tr>";
   }
+  
+  // After all print an additional row with statistics on KB.
+  if (!empty($knowledgeBaseKeys)) {
+    echo "<tr id='SSKBSummaryRow'>";
+    echo "<td id='SSKBSummaryTitle' colspan='$columnsUpToKBVerdictCount'>Knowledge base summary</td>";
+    echo "<td>";
+    // Use predefined order of verdicts for convinience.
+    $verdicts = array('True positive', 'False positive', 'Unknown', 'Inconclusive');
+    foreach ($verdicts as $verdict) {
+      array_key_exists($verdict, $kbStats['verdict']) ? $count = $kbStats['verdict'][$verdict] : $count = 0;
+      echo "<div><span class='SSKBSummaryName'>$verdict</span>: <span class='SSKBSummaryValue'>$count</span></div>";
+    }
+    echo "</td>";
+    echo "<td>";
+    // Order tags by name.
+    ksort($kbStats['tag']);
+    foreach ($kbStats['tag'] as $tag => $count) {
+      echo "<div><span class='SSKBSummaryName'>$tag</span>: <span class='SSKBSummaryValue'>$count</span></div>";
+    }
+    echo "</td>";
+    echo "</tr>";
+  }
+
   echo "</table>";
 }
 
