@@ -107,7 +107,10 @@ else {
 
   function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, tagsOld, tags) {
     $.ajaxSetup({ 'error': function() {
-      alert('Something goes wrong while KB record was updated');
+      if (isNew)
+        alert('Something goes wrong while KB record was created');
+      else
+        alert('Something goes wrong while KB record was updated');
     }});
 
     $.getJSON(

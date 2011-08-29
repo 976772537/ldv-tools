@@ -1360,13 +1360,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       die("KB name isn't specified");
     }
     $name = $params['KB_name'];
-    if ($name == '')
-      die("KB name cannot be empty string");
-
+    
     if (!array_key_exists('KB_public', $params)) {
       die("KB public isn't specified");
     }
     $public = $params['KB_public'];
+
+    if ($public == 1 and $name == '')
+      die("KB name cannot be empty string");
 
     if (!array_key_exists('KB_task_attrs', $params)) {
       die("KB task attributes aren't specified");
