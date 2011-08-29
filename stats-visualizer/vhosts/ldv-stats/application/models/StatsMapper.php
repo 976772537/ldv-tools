@@ -270,7 +270,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
         // We use special separator to distinguish corresponding KB ids,
         // verdicts and tags later.
-        $knowledgeBaseInfo[$name] = "GROUP_CONCAT(`$tableColumn[tableShort]`.`$tableColumn[column]` SEPARATOR '__;')";
+        $knowledgeBaseInfo[$name] = "GROUP_CONCAT(IF(`$tableColumn[tableShort]`.`$tableColumn[column]` IS NULL, '', `$tableColumn[tableShort]`.`$tableColumn[column]`) SEPARATOR '__;')";
 
         $knowledgeBaseKey[] = $name;
       }
@@ -1371,6 +1371,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $result['Errors'][] = "KB name cannot be an empty string for a public KB record";
       return $result;
     }
+    
+    if ($name == '')
+      $name = new Zend_Db_Expr('NULL');
 
     if (!array_key_exists('KB_task_attrs', $params)) {
       die("KB task attributes aren't specified");

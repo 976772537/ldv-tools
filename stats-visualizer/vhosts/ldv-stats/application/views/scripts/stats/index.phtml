@@ -719,7 +719,8 @@ if ($resultsNumb) {
             $value = $value[0];
           }
 
-          if ($value == 'Unknown')
+          // By default a current unsafe is marked as unknown.
+          if ($value == 'Unknown' or $value == '')
             $value = '-';
 
           // Calculate additional notes if so.
@@ -736,6 +737,10 @@ if ($resultsNumb) {
         else if ($knowledgeBaseKey == 'KB Tags') {
           $items = array();
           for ($i = 0; array_key_exists($i, $value); $i++) {
+            // Skip empty tags.
+            if ($value[$i] == '')
+              continue;
+              
             if (array_key_exists('KB ID', $result['Knowledge base info'])) {
               $verdictClass = '';
               if (array_key_exists('KB Verdict', $result['Knowledge base info']))
