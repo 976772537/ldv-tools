@@ -10,3 +10,6 @@ with this:
     REFERENCES `traces` (`id` )
 (this is required since there is no information on 'traces' table in the
 knowledge base mysql workbench project).
+
+Also delete information on schema since this script is intended for an arbitrary
+database indeed. 
