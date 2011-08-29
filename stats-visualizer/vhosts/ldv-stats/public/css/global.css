@@ -383,6 +383,7 @@ body
 #SSKBSummaryRow
 {
   background-color: #B9FFE8;
+  vertical-align: top;
   white-space: nowrap;
 }
 
@@ -391,6 +392,7 @@ body
   font-size: 12pt;
   font-weight: bold;
   text-align: center;
+  vertical-align: middle;
 }
 
 .SSKBSummaryName
