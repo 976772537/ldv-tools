@@ -338,6 +338,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     $launches = $this->getDbTable('Application_Model_DbTable_Launches', NULL, $this->_db);
 
+    // This is required to obtain complete strings with KB data even for a lot 
+    // of entities. Nevertheless this should be avoid on pages that takes into
+    // account really large amount of data like 'Index' page.
+    $this->_db->query("SET SESSION group_concat_max_len = @@max_allowed_packet");
+
     // Prepare query to the statistics database to collect launch and
     // verification info.
     $select = $launches
