@@ -193,6 +193,29 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
           'knowledgeBaseInfoName' => $pagesKnowledgeBaseInfoRow['Name'],
           'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
         $this->_logger->log("The knowledge base information: $pagesKnowledgeBaseInfoRow[Name]", Zend_Log::DEBUG);
+        
+        // Get information on KB verdict.
+        if ($pagesKnowledgeBaseInfoRow['Name'] == 'KB Verdict') {
+          $kbVerdictInfo = $this->getProfilesDbTable('Application_Model_DbTable_KBVerdictInfo');
+          $kbVerdictInfoResultSet = $kbVerdictInfo->fetchAll($kbVerdictInfo
+            ->select()->setIntegrityCheck(false)
+            ->from(array('KBKB' => 'kb_kb_verdict_info'),
+              array('Name' => 'KB.name',
+                    'Order' => 'AU.order',
+                    'Presence' => 'AU.presence'))
+            ->joinLeft(array('KB' => 'kb_verdict_info'), 'KBKB.kb_verdict_id=KB.id', array())
+            ->joinLeft(array('AU' => 'aux_info'), 'KB.aux_info_id=AU.id', array())
+            ->where('kb_id = ?', $pagesKnowledgeBaseInfoRow['Id'])
+            ->order('AU.order'));
+
+          foreach($kbVerdictInfoResultSet as $kbVerdictInfoRow) {
+            $profilePageKBInfoVerdict = $profilePageKnowledgeBaseInfo->setVerdictOrder($kbVerdictInfoRow['Order']);
+            $profilePageKBInfoVerdict->setOptions(array(
+              'verdictName' => $kbVerdictInfoRow['Name'],
+              'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
+            $this->_logger->log("The knowledge base verdict information: $kbVerdictInfoRow[Name]", Zend_Log::DEBUG);
+          }
+        }
       }
 
       // Get information on tools in general.
