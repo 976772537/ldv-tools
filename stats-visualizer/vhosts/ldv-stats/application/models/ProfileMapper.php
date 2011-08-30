@@ -80,7 +80,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 
     foreach($profilePagesResultSet as $profilePagesRow) {
       $profilePage = $profile->setPageName($profilePagesRow['Name']);
-      $this->_logger->log("The current profile page: $profilePagesRow[Name]", Zend_Log::DEBUG);
+      $this->_logger->log("The current profile page: $profilePagesRow[Name] (with id: $profilePagesRow[Id])", Zend_Log::DEBUG);
 
       // Get information on the page.
       $pagesLaunchInfo = $this->getProfilesDbTable('Application_Model_DbTable_PagesLaunchInfo');
