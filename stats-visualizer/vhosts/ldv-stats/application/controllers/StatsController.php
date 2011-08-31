@@ -50,7 +50,7 @@ class StatsController extends Zend_Controller_Action
     // Try to use previously obtained information on a given profile.
     if ($global->profileCurrent['name']) {
       if (array_key_exists('profilename', $this->_globals) && $global->profileCurrent['name'] == $this->_globals['profilename']
-        || $global->profileCurrent['name'] == '__DEFAULT') {
+        || !array_key_exists('profilename', $this->_globals) && $global->profileCurrent['name'] == '__DEFAULT') {
         $this->_logger->log("Use previously obtained information on the given profile: '" . $global->profileCurrent['name'] . "'", Zend_Log::DEBUG);
         $this->_profileInfo = $global->profileCurrent['info'];
         return;
