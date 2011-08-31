@@ -49,7 +49,7 @@ MINIMAL PREREQUISITES
 		- gem activerecord
 		- gem mysql
 		- gem SysVIPC   (Warning: case-sensitive!)
-		- gem libxml-ruby (tested with 1.1.4)
+		- gem libxml-ruby (at least 2.1.1)
 		   * requires libxml2-devel
 		- gem bones
 	o gzip
