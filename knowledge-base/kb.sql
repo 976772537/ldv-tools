@@ -53,6 +53,27 @@ DEFAULT CHARACTER SET = utf8
 COLLATE = utf8_general_ci;
 
 
+-- -----------------------------------------------------
+-- Table `results_kb_calculated`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `results_kb_calculated` ;
+
+CREATE  TABLE IF NOT EXISTS `results_kb_calculated` (
+  `trace_id` INT(10) UNSIGNED NOT NULL ,
+  `Verdict` ENUM('False positive', 'True positive', 'Unknown', 'Inconclusive') NOT NULL DEFAULT 'Unknown' ,
+  `Tags` TEXT NULL DEFAULT NULL ,
+  PRIMARY KEY (`trace_id`) ,
+  INDEX `fk_results_kb_calculated_1` (`trace_id` ASC) ,
+  CONSTRAINT `fk_results_kb_calculated_1`
+    FOREIGN KEY (`trace_id` )
+    REFERENCES `results_kb` (`trace_id` )
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8
+COLLATE = utf8_general_ci;
+
+
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
