@@ -8,7 +8,7 @@ export dscv_install_dir=$(prefix)/dscv
 bindir?=$(prefix)/bin
 dscv_target=$(bindir)/dscv
 
-install: rcv-subdir-install $(dscv_target)
+install: rcv-subdir-install $(dscv_target) $(dscv_install_dir)/rcv-launcher
 
 clean: rcv-subdir-clean
 
@@ -17,6 +17,11 @@ $(dscv_target): dscv
 	cp $^ $@
 	@chmod +x $@
 	
+$(dscv_install_dir)/rcv-launcher: rcv-launcher
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
 define mksubdir
 $1-subdir-%:
 	$$(MAKE) -C $1 $$*

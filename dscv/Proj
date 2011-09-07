@@ -18,6 +18,7 @@
 
 dscv
 Makefile
+rcv-launcher
 rcv/
 	Makefile
   blast

@@ -1,0 +1,52 @@
+#!/usr/bin/perl
+
+
+## Common preamble: use modules, initialize library includes
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
+
+use strict;
+use Pod::Usage;
+use Getopt::Long;
+use FindBin;
+
+# Project modules
+use LDV::Utils;
+use DSCV::RCV::Utils;
+use DSCV::Sanity;
+use Utils;
+
+# File modules
+use File::Basename;
+use File::Path qw(mkpath);
+
+# Config
+my $config={
+	rawcmdfile=>'',
+	watcher_key=>[],
+};
+
+# Initialize logging
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
+$config->{verbosity} = 10 unless defined $config->{verbosity};
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('rcv-launcher');
+
+# STUB!
+
+printf "\n\n\nHello, world!\n\n\n";
+
+#TODO: set to info
+vsay ('NORMAL',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+
+my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
+#TODO: set to debug
+vsay ('NORMAL',"Got key string $key_str.\n");
+my @watcher_key = split /,/,$key_str;
+
+# Report success to the watcher
+LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',());
+
