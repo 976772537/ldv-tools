@@ -294,13 +294,15 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               $nameVerdict = $verdictInfo->verdictName;
               $tableColumnCond = $this->_knowledgeBaseVerdictInfoNameTableColumnMapper[$nameVerdict];
               $tableColumn = $this->getTableColumn($tableColumnCond);
+              // To distinguish with corresponding verification result.
+              if ($nameVerdict == 'Unknown')
+                $nameVerdict = 'KB Unknown';
               $knowledgeBaseVerdictInfo[$nameVerdict] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
               $knowledgeBaseVerdictKey[] = $nameVerdict;
             }
           }
           else if ($name == 'KB Tags') {
-            $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
-            $knowledgeBaseInfo[$name] = "GROUP_CONCAT(`$tableColumn[tableShort]`.`$tableColumn[column]` SEPARATOR ';')";
+            $knowledgeBaseInfo[$name] = "GROUP_CONCAT(`RECA`.`Tags` SEPARATOR ';')";
           }
 
           $knowledgeBaseKey[] = $name;
@@ -399,23 +401,27 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     // Join KB table through KB cache table if needed.
     if (!empty($knowledgeBaseKey)) {
-      $tableResultsKB = 'results_kb';
-      $tableResultsKBShort = $this->_tableMapper[$tableResultsKB];
-      $select = $select
-        ->joinLeft(array($tableResultsKBShort => $tableResultsKB)
-        , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBShort`.`trace_id`"
-        , array());
-      $tableKB = 'kb';
-      $select = $select
-        ->joinLeft(array($this->_tableMapper[$tableKB] => $tableKB)
-        , '`' . $this->_tableMapper[$tableKB] . "`.`id`=`$tableResultsKBShort`.`kb_id`"
-        , array());
-      $tableResultsKBCalculated = 'results_kb_calculated';
-      $tableResultsKBCalculatedShort = $this->_tableMapper[$tableResultsKBCalculated];
-      $select = $select
-        ->joinLeft(array($this->_tableMapper[$tableResultsKBCalculated] => $tableResultsKBCalculated)
-        , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBCalculatedShort`.`trace_id`"
-        , array());
+      if ($pageName == 'Unsafe') {
+        $tableResultsKB = 'results_kb';
+        $tableResultsKBShort = $this->_tableMapper[$tableResultsKB];
+        $select = $select
+          ->joinLeft(array($tableResultsKBShort => $tableResultsKB)
+          , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBShort`.`trace_id`"
+          , array());
+        $tableKB = 'kb';
+        $select = $select
+          ->joinLeft(array($this->_tableMapper[$tableKB] => $tableKB)
+          , '`' . $this->_tableMapper[$tableKB] . "`.`id`=`$tableResultsKBShort`.`kb_id`"
+          , array());
+      }
+      else {
+        $tableResultsKBCalculated = 'results_kb_calculated';
+        $tableResultsKBCalculatedShort = $this->_tableMapper[$tableResultsKBCalculated];
+        $select = $select
+          ->joinLeft(array($this->_tableMapper[$tableResultsKBCalculated] => $tableResultsKBCalculated)
+          , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBCalculatedShort`.`trace_id`"
+          , array());
+      }
     }
 
     // Join tools tables.

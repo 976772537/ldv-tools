@@ -406,8 +406,11 @@ if ($resultsNumb) {
     echo "<tr id='SSStatsTableHeaderThirdRow'>";
     if ($page != 'Unsafe') {
       if (in_array('KB Verdict', $knowledgeBaseKeys))
-        foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey)
+        foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
+          if ($knowledgeBaseVerdictKey == 'KB Unknown')
+            $knowledgeBaseVerdictKey = 'Unknown';
           printData("    <td class='SSStatsTableHeaderVerdict'>$knowledgeBaseVerdictKey</td>", null);
+        }
         foreach ($tagsKeys as $tagsKey)
           printData("    <td class='SSStatsTableHeaderTag'>$tagsKey</td>", null);
     }
@@ -810,7 +813,7 @@ if ($resultsNumb) {
             if ($value == 0)
               echo "-";
             else
-              echo $value[$knowledgeBaseVerdictKey];
+              echo $value;
             echo "</td>";
           }
         }
