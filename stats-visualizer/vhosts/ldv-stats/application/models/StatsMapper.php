@@ -34,6 +34,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'KB Verdict' => array('table' => 'kb', 'column' => 'verdict'),
     'KB Tags' => array('table' => 'kb', 'column' => 'tags'),
     'KB Fit' => array('table' => 'results_kb', 'column' => 'fit'));
+  protected $_knowledgeBaseVerdictInfoNameTableColumnMapper = array(
+    'True positive' => array('table' => 'results_kb_calculated', 'column' => 'Verdict', 'cond' => 'True positive'),
+    'False positive' => array('table' => 'results_kb_calculated', 'column' => 'Verdict', 'cond' => 'False positive'),
+    'Unknown' => array('table' => 'results_kb_calculated', 'column' => 'Verdict', 'cond' => 'Unknown'),
+    'Inconclusive' => array('table' => 'results_kb_calculated', 'column' => 'Verdict', 'cond' => 'Inconclusive'));
   protected $_toolsInfoNameTableColumnMapper = array(
     'BCE' => array('table' => 'stats', 'column' => 'build_id'),
     'DEG' => array('table' => 'stats', 'column' => 'maingen_id'),
@@ -60,6 +65,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     'processes' => 'PRO',
     'problems_stats' => 'PRST',
     'results_kb' => 'RE',
+    'results_kb_calculated' => 'RECA',
     'rule_models' => 'RU',
     'scenarios' => 'SC',
     'stats' => 'ST',
@@ -249,7 +255,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-#print_r($verificationInfo);exit;
+#print_r($verificationKey);print_r($verificationInfo);exit;
 
     // Obtain information on knowledge base info columns.
     $knowledgeBaseKey = array();
@@ -260,22 +266,48 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
     $knowledgeBaseInfo = array();
     $knowledgeBaseKey = array();
+    $knowledgeBaseVerdictInfo = array();
+    $knowledgeBaseVerdictKey = array();
     if (null !== $page->knowledgeBaseInfo) {
-      // Extract additionally KB ids to create prompts further.
-      $page->setKnowledgeBaseInfoOrder(1000)->setKnowledgeBaseInfoName('KB ID');
-      // Extract information on fit.
-      $page->setKnowledgeBaseInfoOrder(1001)->setKnowledgeBaseInfoName('KB Fit');
-      foreach ($page->knowledgeBaseInfo as $info) {
-        $name = $info->knowledgeBaseInfoName;
-        $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
-        // We use special separator to distinguish corresponding KB ids,
-        // verdicts and tags later.
-        $knowledgeBaseInfo[$name] = "GROUP_CONCAT(IF(`$tableColumn[tableShort]`.`$tableColumn[column]` IS NULL, '', `$tableColumn[tableShort]`.`$tableColumn[column]`) SEPARATOR '__;')";
+      if ($pageName == 'Unsafe') {
+        foreach ($page->knowledgeBaseInfo as $info) {
+          $name = $info->knowledgeBaseInfoName;
+          $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
+          // We use special separator to distinguish corresponding KB ids,
+          // verdicts and tags later.
+          $knowledgeBaseInfo[$name] = "GROUP_CONCAT(IF(`$tableColumn[tableShort]`.`$tableColumn[column]` IS NULL, '', `$tableColumn[tableShort]`.`$tableColumn[column]`) SEPARATOR '__;')";
+          $knowledgeBaseKey[] = $name;
+        }
 
-        $knowledgeBaseKey[] = $name;
+        // Extract additionally KB ids and fitness to create prompts further.
+        foreach (array('KB ID', 'KB Fit') as $name) {
+          $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
+          $knowledgeBaseInfo[$name] = "GROUP_CONCAT(IF(`$tableColumn[tableShort]`.`$tableColumn[column]` IS NULL, '', `$tableColumn[tableShort]`.`$tableColumn[column]`) SEPARATOR '__;')";
+          $knowledgeBaseKey[] = $name;
+        }
+      }
+      else {
+        foreach ($page->knowledgeBaseInfo as $info) {
+          $name = $info->knowledgeBaseInfoName;
+          if ($name == 'KB Verdict') {
+            foreach ($info->verdicts as $verdictInfo) {
+              $nameVerdict = $verdictInfo->verdictName;
+              $tableColumnCond = $this->_knowledgeBaseVerdictInfoNameTableColumnMapper[$nameVerdict];
+              $tableColumn = $this->getTableColumn($tableColumnCond);
+              $knowledgeBaseVerdictInfo[$nameVerdict] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
+              $knowledgeBaseVerdictKey[] = $nameVerdict;
+            }
+          }
+          else if ($name == 'KB Tags') {
+            $tableColumn = $this->getTableColumn($this->_knowledgeBaseInfoNameTableColumnMapper[$name]);
+            $knowledgeBaseInfo[$name] = "GROUP_CONCAT(`$tableColumn[tableShort]`.`$tableColumn[column]` SEPARATOR ';')";
+          }
+
+          $knowledgeBaseKey[] = $name;
+        }
       }
     }
-#print_r($knowledgeBaseKey);print_r($knowledgeBaseInfo);exit;
+#print_r($knowledgeBaseKey);print_r($knowledgeBaseInfo);print_r($knowledgeBaseVerdictKey);print_r($knowledgeBaseVerdictInfo);exit;
 
     // Obtain the list of tools info columns.
     $tools = array();
@@ -338,7 +370,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
     $launches = $this->getDbTable('Application_Model_DbTable_Launches', NULL, $this->_db);
 
-    // This is required to obtain complete strings with KB data even for a lot 
+    // This is required to obtain complete strings with KB data even for a lot
     // of entities. Nevertheless this should be avoid on pages that takes into
     // account really large amount of data like 'Index' page.
     $this->_db->query("SET SESSION group_concat_max_len = @@max_allowed_packet");
@@ -352,7 +384,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $tableMain = 'launches';
     $select = $select
       ->from(array($this->_tableMapper[$tableMain] => $tableMain),
-        array_merge($launchInfo, $verificationInfo, $verificationResultInfo, $knowledgeBaseInfo, $toolsInfo));
+        array_merge($launchInfo, $verificationInfo, $verificationResultInfo, $knowledgeBaseInfo, $knowledgeBaseVerdictInfo, $toolsInfo));
 
     // Join launches with related with statistics key tables. Note that traces
     // is always joined.
@@ -377,6 +409,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $select = $select
         ->joinLeft(array($this->_tableMapper[$tableKB] => $tableKB)
         , '`' . $this->_tableMapper[$tableKB] . "`.`id`=`$tableResultsKBShort`.`kb_id`"
+        , array());
+      $tableResultsKBCalculated = 'results_kb_calculated';
+      $tableResultsKBCalculatedShort = $this->_tableMapper[$tableResultsKBCalculated];
+      $select = $select
+        ->joinLeft(array($this->_tableMapper[$tableResultsKBCalculated] => $tableResultsKBCalculated)
+        , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBCalculatedShort`.`trace_id`"
         , array());
     }
 
@@ -750,6 +788,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Stats'] = array();
     // Remember all tool names.
     $result['Stats']['All tool names'] = array();
+    // Collect all KB tags that will be used in visualization.
+    $result['Stats']['All KB tags'] = array();
     // Collect all set of problems for a given tool that will be used in
     // visualization.
     $result['Stats']['All tool problems'] = array();
@@ -784,9 +824,29 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $resultPart['Knowledge base info'] = array();
       foreach ($knowledgeBaseKey as $knowledgeBaseKeyPart) {
-        $value = $launchesRow[$knowledgeBaseKeyPart];
-        $resultPart['Knowledge base info'][$knowledgeBaseKeyPart]
-          = null !== $value ? preg_split('/__;/', $value) : array();
+        if ($pageName == 'Unsafe') {
+          $value = $launchesRow[$knowledgeBaseKeyPart];
+          $resultPart['Knowledge base info'][$knowledgeBaseKeyPart]
+            = null !== $value ? preg_split('/__;/', $value) : array();
+        }
+        else {
+          if ($knowledgeBaseKeyPart == 'KB Verdict') {
+            foreach ($knowledgeBaseVerdictKey as $knowledgeBaseVerdictKeyPart)
+              $resultPart['Knowledge base info'][$knowledgeBaseKeyPart][$knowledgeBaseVerdictKeyPart] = $launchesRow[$knowledgeBaseVerdictKeyPart];
+          }
+          else if ($knowledgeBaseKeyPart == 'KB Tags') {
+            $value = $launchesRow[$knowledgeBaseKeyPart];
+            $values = array();
+            if ($value !== null) {
+              $values = preg_split('/;/', $value);
+              sort($values);
+            }
+            $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = $values;
+            foreach ($values as $value) {
+              $result['Stats']['All KB tags'][$value] = 1;
+            }
+          }
+        }
       }
 
       $resultPart['Tools info'] = array();
@@ -1356,7 +1416,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
   {
     $result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
     $result['Errors'] = array();
-    
+
     if (!array_key_exists('KB_id', $params)) {
       die("KB id isn't specified");
     }
@@ -1366,7 +1426,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       die("KB name isn't specified");
     }
     $name = $params['KB_name'];
-    
+
     if (!array_key_exists('KB_public', $params)) {
       die("KB public isn't specified");
     }
@@ -1376,7 +1436,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $result['Errors'][] = "KB name cannot be an empty string for a public KB record";
       return $result;
     }
-    
+
     if ($name == '')
       $name = new Zend_Db_Expr('NULL');
 
@@ -1448,8 +1508,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       $kbNewId = $result['New KB id'] = $this->_db->lastInsertId();
       // Save corresponding error trace directly to KB if this is required.
       if ($traceId) {
-			  $this->_db->query("UPDATE kb SET error_trace = (SELECT traces.error_trace FROM traces WHERE traces.id=$traceId) WHERE kb.id=$kbNewId");
-			}
+        $this->_db->query("UPDATE kb SET error_trace = (SELECT traces.error_trace FROM traces WHERE traces.id=$traceId) WHERE kb.id=$kbNewId");
+      }
     }
     else
       $this->_db->update('kb', $data, "id = $id");
