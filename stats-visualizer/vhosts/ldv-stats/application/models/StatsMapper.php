@@ -840,9 +840,10 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             if ($value !== null) {
               $values = preg_split('/;/', $value);
               sort($values);
+              $values = array_count_values($values);
             }
             $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = $values;
-            foreach ($values as $value) {
+            foreach (array_keys($values) as $value) {
               $result['Stats']['All KB tags'][$value] = 1;
             }
           }

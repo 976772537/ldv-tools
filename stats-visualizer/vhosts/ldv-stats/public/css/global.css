@@ -124,6 +124,26 @@ body
   background-color: #379471;
 }
 
+.SSStatsTableHeaderVerdictInfo
+{
+  background-color: #4CCEB5;
+}
+
+.SSStatsTableHeaderVerdict
+{
+  background-color: #6CE0CA;
+}
+
+.SSStatsTableHeaderTagsInfo
+{
+  background-color: #1EAF93;
+}
+
+.SSStatsTableHeaderTag
+{
+  background-color: #009D7F;
+}
+
 .SSStatsTableHeaderTools
 {
   background-color: #2A9326;

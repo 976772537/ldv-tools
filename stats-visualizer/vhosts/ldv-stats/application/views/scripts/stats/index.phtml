@@ -249,7 +249,9 @@ if ($resultsNumb) {
   $statKeys = array_keys($stats[0]['Stats key']);
   $verificationKeys = array_keys($stats[0]['Verification info']);
   $knowledgeBaseKeys = array_keys($stats[0]['Knowledge base info']);
+  $knowledgeBaseVerdictKeys = array_keys($stats[0]['Knowledge base info']['KB Verdict']);
   $toolKeys = array_keys($stats[0]['Tools info']);
+  $tagsKeys = array_keys($results['Stats']['All KB tags']);
   $problemKeys = array_keys($results['Stats']['All tool problems']);
   $toolNames = array_keys($results['Stats']['All tool names']);
   $timeKeys = array_keys($results['Stats']['All tool time']);
@@ -261,6 +263,7 @@ if ($resultsNumb) {
 #print_r($statKeys);print_r($verificationKeys);
 #print_r($problemKeys);
 #exit;
+#print_r($knowledgeBaseKeys);exit;
 
   // At first use a task id for grouping.
   $isTaskId = in_array('Task id', $statKeys);
@@ -371,12 +374,22 @@ if ($resultsNumb) {
       if ($knowledgeBaseKey != 'KB ID' and $knowledgeBaseKey != 'KB Fit')
         printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' rowspan='$statKnowledgeBaseKeyRowSpan'>$knowledgeBaseKey</td>", $knowledgeBaseKey);
     }
-
+  else {
+    if (!empty($knowledgeBaseKeys))
+        printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' colspan='" . (count($knowledgeBaseVerdictKeys) + count($tagsKeys)) . "'>Knowledge base</td>", null);
+  }
+      
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     printData("    <td class='SSStatsTableHeaderTools' colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>", null);
   }
   echo "  </tr>";
   echo "<tr id='SSStatsTableHeaderSecondRow'>";
+  if ($page != 'Unsafe') {
+    if (in_array('KB Verdict', $knowledgeBaseKeys))
+        printData("    <td class='SSStatsTableHeaderVerdictInfo' colspan='" . (count($knowledgeBaseVerdictKeys)) . "'>Verdicts</td>", null);
+    if (in_array('KB Tags', $knowledgeBaseKeys))
+        printData("    <td class='SSStatsTableHeaderTagsInfo' colspan='" . (count($tagsKeys)) . "'>Tags</td>", null);
+  }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
       printData("    <td class='SSStatsTableHeaderToolInfo' rowspan='$statToolsKeyRowSpan'>$toolInfo</td>", $toolInfo);
@@ -391,6 +404,13 @@ if ($resultsNumb) {
   echo "  </tr>";
   if (count($problemKeys) || count($childrenKeys)) {
     echo "<tr id='SSStatsTableHeaderThirdRow'>";
+    if ($page != 'Unsafe') {
+      if (in_array('KB Verdict', $knowledgeBaseKeys))
+        foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey)
+          printData("    <td class='SSStatsTableHeaderVerdict'>$knowledgeBaseVerdictKey</td>", null);
+        foreach ($tagsKeys as $tagsKey)
+          printData("    <td class='SSStatsTableHeaderTag'>$tagsKey</td>", null);
+    }
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
         printData("    <td class='SSStatsTableHeaderToolChild'>$toolChild</td>", $toolChild);
@@ -779,6 +799,27 @@ if ($resultsNumb) {
            
         print($value);
         echo "</td>";
+      }
+    }
+    else {
+      foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
+        if ($knowledgeBaseKey == 'KB Verdict') {
+          foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
+            $value = $result['Knowledge base info']['KB Verdict'][$knowledgeBaseVerdictKey];
+            if ($value == 0)
+              echo "<td>-</td>";
+            else
+              echo "<td>$value[$knowledgeBaseVerdictKey]</td>";
+          }
+        }
+        else if ($knowledgeBaseKey == 'KB Tags') {
+          foreach ($tagsKeys as $tagKey) {
+            if (array_key_exists($tagKey, $result['Knowledge base info']['KB Tags']))
+              echo "<td>" . $result['Knowledge base info']['KB Tags'][$tagKey] . "</td>";
+            else
+              echo "<td>-</td>";
+          }
+        }
       }
     }
     
