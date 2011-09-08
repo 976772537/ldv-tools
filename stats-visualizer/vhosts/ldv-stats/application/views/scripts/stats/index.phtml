@@ -806,18 +806,22 @@ if ($resultsNumb) {
         if ($knowledgeBaseKey == 'KB Verdict') {
           foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
             $value = $result['Knowledge base info']['KB Verdict'][$knowledgeBaseVerdictKey];
+            echo "<td class='SSAlignRight'>";
             if ($value == 0)
-              echo "<td>-</td>";
+              echo "-";
             else
-              echo "<td>$value[$knowledgeBaseVerdictKey]</td>";
+              echo $value[$knowledgeBaseVerdictKey];
+            echo "</td>";
           }
         }
         else if ($knowledgeBaseKey == 'KB Tags') {
           foreach ($tagsKeys as $tagKey) {
+            echo "<td class='SSAlignRight'>";
             if (array_key_exists($tagKey, $result['Knowledge base info']['KB Tags']))
-              echo "<td>" . $result['Knowledge base info']['KB Tags'][$tagKey] . "</td>";
+              echo $result['Knowledge base info']['KB Tags'][$tagKey];
             else
-              echo "<td>-</td>";
+              echo "-";
+            echo "</td>";
           }
         }
       }
