@@ -182,6 +182,14 @@ eval {
 		}
 	}
 
+	# So, the script has finished without exceptions, and we're to send files
+	my @files_for_parent = DSCV::RCV::Library::get_files();
+	local $_;
+	vsay("TRACE","Will send file: $_") for @files_for_parent;
+
+	# Report success to the watcher
+	LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',@files_for_parent);
+
 	# Otherwise, return 1 to not fall through to the exceptional path.
 	1;
 } or do {
@@ -192,9 +200,6 @@ eval {
 	# We die in kill_watcher, no need to exit here... but just in case...
 	exit 1;
 };
-
-# Report success to the watcher
-LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',());
 
 exit 0;
 

@@ -263,10 +263,8 @@ class RealSpawner < Spawner
 				@nlog.debug "Saved task to temporary file #{temp_file.path}"
 				@nlog.trace task['args']
 
-				# Set up the proper verifier, and call its backend
-				verifier = task['env']['RCV_VERIFIER'] || task['global']['env']['RCV_VERIFIER'] || 'blast'
-				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv',verifier)
-				@nlog.info "Using verifier #{verifier} located at #{verifier_wrapper_exe}"
+				# All verifiers are called via a common backend
+				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv-launcher')
 
 				fork_callback = proc do
 					set_common_env.call
