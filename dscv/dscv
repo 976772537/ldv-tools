@@ -644,6 +644,13 @@ for my $property (@properties){
 	my $cc_cmd_number = 0;
 	# Gather registry of .c files in each cc command
 	my $infiles_for_cc = {};
+	# Get basedir (it is a reference--due to closure)
+	my $basedir = undef;
+	my $bdr = \$basedir;
+	my $basedir_handler = sub {
+		my (undef,$bdT) = @_;
+		$$bdr = $bdT->text();
+	};
 	my $ccld_handler = sub{
 		my ($twig, $cmdT) = @_;
 
@@ -672,7 +679,7 @@ for my $property (@properties){
 
 			# For each <ld>/main pair there should be a separate name.  Since <ld>s differ by the file name, we'll use the file-inside-driver($target) as a discriminator.
 			my $out_file = $cmdT->first_child_text('out');
-			my $target = Utils::unbasedir_maker($cmdT->first_child_text('basedir'))->($out_file);
+			my $target = Utils::unbasedir_maker($basedir)->($out_file);
 
 			# Alias for the easy portinf of the older code
 			my $workdir = $verifier_dir;
@@ -689,14 +696,15 @@ for my $property (@properties){
 			# Get hints tag
 			my $hintsT = $cmdT->first_child('hints');
 			# Report file (the placeholders here and below will be replaced with main names)
-			my $report = DSCV::RCV::Utils::reports_dir($workdir)."/$target.%s.report";
+			my $in_main = "$workdir/main-%s";
+			my $report = "$in_main/reports/$target.report";
 			# Tool debug file (to dump the trace of the tool)
 			# NOTE that the actual debug file name may be different if the tool's frontend chooses to run the trace through the archiver.  This is not a problem in cluster, as the decision of what to send to the parent node doesn't rely on this subroutine.
-			my $debug = DSCV::RCV::Utils::reports_dir($workdir)."/$target.%s.debug";
+			my $debug = "$in_main/reports/$target.debug";
 			# Trace file (to dump the error trace)
-			my $trace = DSCV::RCV::Utils::reports_dir($workdir)."/$target.%s.trace";
+			my $trace = "$in_main/reports/$target.trace";
 			# Time stats file
-			my $timestats = DSCV::RCV::Utils::reports_dir($workdir)."/$target.%s.timestats.xml";
+			my $timestats = "$in_main/reports/$target.timestats.xml";
 
 			# Get all the cc commands relevant to this one
 			my @ld_infiles = $cmdT->children_text('in');
@@ -716,6 +724,9 @@ for my $property (@properties){
 			# Determine what engine we use
 			my $engine = $config->{verifier_override}->{rcv} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> s pecification, and --rcv-verifier option is not set";
 
+			# Save verifier information for error-trace-visualizer
+			$verifier_for{$property} = $engine;
+
 			# Common arguments for the verifier command
 			my %common_vercmd_args = (
 				cmd_id=>$cmdT->att('id'),
@@ -726,7 +737,7 @@ for my $property (@properties){
 				trace=>$trace,
 				debug=>$debug,
 				dbg_target=>$target,
-				workdir=>"$workdir/main-%s",
+				workdir=>$in_main,
 				timestats=>$timestats,
 				cc_ids => \@cc_cmds,
 				engine => $engine,
@@ -764,11 +775,10 @@ for my $property (@properties){
 			}
 		}
 	};
-	my $verify_Twig = XML::Twig->new( twig_handlers => { cc => $ccld_handler, ld=>$ccld_handler });
+	my $verify_Twig = XML::Twig->new( twig_handlers => { basedir=>$basedir_handler, cc => $ccld_handler, ld=>$ccld_handler });
 
 	$verify_Twig->parsefile($outfile);
 }
-
 
 #=~~~~~~~======~~~~~~======~~~~~~======~~~~~~======
 #              wait for all RCV tasks
@@ -891,6 +901,7 @@ for my $rule_id (@properties){
 				my ($twig,$traceT) = @_;
 				# Get files for the tracee  Used only in cluster mode to send all the files these traces refer to to another node.
 				# NOTE that trace may not exist (though referred to in the report)
+				# TODO: MOVE ETV TO THE RCV!!!
 				add_files_for_trace($traceT->text,$verifier_for{$rule_id}) if -f $traceT->text;
 			}
 		})->parsefile($report_file);

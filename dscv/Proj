@@ -11,6 +11,7 @@
 	DSCV/
 		Sanity.pm
 		RCV/Utils.pm
+		RCV/Library.pm
 	Utils.pm
 ../shared/sh/
 	ocaml_params

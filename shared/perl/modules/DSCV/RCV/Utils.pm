@@ -15,19 +15,12 @@ use Utils;
 # SHARED INFORMATION
 #======================================================================
 
-# Get folder that contains reports, based on wokring directory supplied to RCV
-sub reports_dir
-{
-	my $workdir = shift or Carp::confess;
-	return "$workdir/reports";
-}
-
 use File::Find;
 # Execute callback for each report file found
 sub foreach_report
 {
 	my ($work_dir, $callback) = @_;
-	find({no_chdir=>1, wanted=>sub{ /\.report$/ and $callback->($File::Find::name);}},reports_dir($work_dir));
+	find({no_chdir=>1, wanted=>sub{ /\.report$/ and $callback->($File::Find::name);}},$work_dir);
 }
 
 #======================================================================
