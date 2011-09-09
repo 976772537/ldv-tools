@@ -414,14 +414,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
           , '`' . $this->_tableMapper[$tableKB] . "`.`id`=`$tableResultsKBShort`.`kb_id`"
           , array());
       }
-      else {
-        $tableResultsKBCalculated = 'results_kb_calculated';
-        $tableResultsKBCalculatedShort = $this->_tableMapper[$tableResultsKBCalculated];
-        $select = $select
-          ->joinLeft(array($this->_tableMapper[$tableResultsKBCalculated] => $tableResultsKBCalculated)
-          , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBCalculatedShort`.`trace_id`"
-          , array());
-      }
+
+      $tableResultsKBCalculated = 'results_kb_calculated';
+      $tableResultsKBCalculatedShort = $this->_tableMapper[$tableResultsKBCalculated];
+      $select = $select
+        ->joinLeft(array($this->_tableMapper[$tableResultsKBCalculated] => $tableResultsKBCalculated)
+        , '`' . $this->_tableMapper[$tableAux] . "`.`id`=`$tableResultsKBCalculatedShort`.`trace_id`"
+        , array());
     }
 
     // Join tools tables.
@@ -494,6 +493,20 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
           $result['Restrictions'][$statKey] = $statKeyValue;
         }
+      }
+    }
+
+    // Restrict unsafes with a given KB verdict or/and tag.
+    if ($pageName == 'Unsafe') {
+      if (array_key_exists('KB verdict', $params)) {
+        $select = $select
+            ->where("RECA.Verdict LIKE ?", $params['KB verdict']);
+        $result['Restrictions']['KB verdict'] = $params['KB verdict'];
+      }
+      if (array_key_exists('KB tag', $params)) {
+        $select = $select
+            ->where("RECA.Tags LIKE ?", '%' . $params['KB tag'] . '%');
+        $result['Restrictions']['KB tag'] = $params['KB tag'];
       }
     }
 

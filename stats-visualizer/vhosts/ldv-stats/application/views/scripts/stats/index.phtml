@@ -249,7 +249,8 @@ if ($resultsNumb) {
   $statKeys = array_keys($stats[0]['Stats key']);
   $verificationKeys = array_keys($stats[0]['Verification info']);
   $knowledgeBaseKeys = array_keys($stats[0]['Knowledge base info']);
-  $knowledgeBaseVerdictKeys = array_keys($stats[0]['Knowledge base info']['KB Verdict']);
+  if (!empty($knowledgeBaseKeys))
+    $knowledgeBaseVerdictKeys = array_keys($stats[0]['Knowledge base info']['KB Verdict']);
   $toolKeys = array_keys($stats[0]['Tools info']);
   $tagsKeys = array_keys($results['Stats']['All KB tags']);
   $problemKeys = array_keys($results['Stats']['All tool problems']);
@@ -809,9 +810,28 @@ if ($resultsNumb) {
         if ($knowledgeBaseKey == 'KB Verdict') {
           foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
             $value = $result['Knowledge base info']['KB Verdict'][$knowledgeBaseVerdictKey];
+            if ($knowledgeBaseVerdictKey == 'KB Unknown')
+              $knowledgeBaseVerdictKey = 'Unknown';
             echo "<td class='SSAlignRight'>";
             if ($value == 0)
               echo "-";
+            else if (array_key_exists('Unsafe', $profilePages)) {
+              printData("<a href='"
+                . $this->url(
+                  array_merge(
+                    $globals,
+                    array(
+                      'controller' => 'stats',
+                      'action'     => 'index',
+                      'page' => 'Unsafe',
+                      'KB verdict' => $knowledgeBaseVerdictKey),
+                    $statKeysValues),
+                  'default',
+                  true)
+                . "'>"
+                . $value
+                . "</a>", $value);
+            }
             else
               echo $value;
             echo "</td>";
@@ -820,8 +840,28 @@ if ($resultsNumb) {
         else if ($knowledgeBaseKey == 'KB Tags') {
           foreach ($tagsKeys as $tagKey) {
             echo "<td class='SSAlignRight'>";
-            if (array_key_exists($tagKey, $result['Knowledge base info']['KB Tags']))
-              echo $result['Knowledge base info']['KB Tags'][$tagKey];
+            if (array_key_exists($tagKey, $result['Knowledge base info']['KB Tags'])) {
+              $value = $result['Knowledge base info']['KB Tags'][$tagKey];
+              if (array_key_exists('Unsafe', $profilePages)) {
+                printData("<a href='"
+                  . $this->url(
+                    array_merge(
+                      $globals,
+                      array(
+                        'controller' => 'stats',
+                        'action'     => 'index',
+                        'page' => 'Unsafe',
+                        'KB tag' => $tagKey),
+                      $statKeysValues),
+                    'default',
+                    true)
+                  . "'>"
+                  . $value
+                  . "</a>", $value);
+              }
+              else
+                echo $value;
+            }
             else
               echo "-";
             echo "</td>";
