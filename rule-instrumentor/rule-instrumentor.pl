@@ -405,15 +405,15 @@ my $skip_cache_without_restrict = '';
 # Specify debug level.
 get_debug_level($debug_name, $LDV_DEBUG, $LDV_RULE_INSTRUMENTOR_DEBUG);
 
-print_debug_normal("Obtain the absolute path of the current working directory");
+print_debug_debug("Obtain the absolute path of the current working directory");
 $tool_working_dir = Cwd::cwd()
   or die("Couldn't get current working directory");
 print_debug_debug("The current working directory is '$tool_working_dir'");
 
-print_debug_normal("Process the command-line options");
+print_debug_debug("Process the command-line options");
 get_opt();
 
-print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
+print_debug_debug("Check presence of needed files, executables and directories. Copy needed files and directories");
 prepare_files_and_dirs();
 
 print_debug_trace("Prepare a twig xml parser for the models database, the input commands and report");
@@ -430,11 +430,11 @@ if ($report_mode)
   close($file_report_xml_out)
     or die("Couldn't close file '$opt_report_out': $ERRNO\n");
 
-  print_debug_normal("Make the report successfully");
+  print_debug_debug("Make the report successfully");
   exit 0;
 }
 
-print_debug_normal("Get and store information on the required model");
+print_debug_debug("Get and store information on the required model");
 get_model_info();
 
 print_debug_normal("Create a general aspect if it's needed");
@@ -457,7 +457,7 @@ else
   print($file_xml_out "<$xml_cmd_root>");
 }
 
-print_debug_normal("Process the commands input file");
+print_debug_debug("Process the commands input file");
 process_cmds();
 
 if ($kind_isaspect)
@@ -478,7 +478,7 @@ close($file_cmds_log)
 close($file_xml_out)
   or die("Couldn't close file '$opt_cmd_xml_out': $ERRNO\n");
 
-print_debug_normal("Delete auxiliary files in the nondebug modes");
+print_debug_info("Delete auxiliary files in the nondebug modes");
 delete_aux_files();
 
 print_debug_normal("Make all successfully");

@@ -48,6 +48,7 @@ sub get_all_c_files_with_options
 
 # Input: sequence of preprocessors.  Returns the list of files that exist on disk with the preprocessed code according to the options.  If a preprocessor error has occured, it throws an exception (so, no user code is executed), and places the error into the report.
 # Available preprocessors: cpp (standard C preprocessor found on your system), cil (CIL preprocessor found on your system or in the LDV tools (see set_cil))
+	# You can't do CIL-merge without preprocessing!
 sub preprocess_all_files
 {
 	my @prep_seq = @_;
@@ -69,18 +70,32 @@ sub preprocess_all_files
 		cpp => \&preprocess_cpp,
 		cil => \&preprocess_cil,
 		cil_merge => \&preprocess_cil_merge,
+		'cil-merge' => \&preprocess_cil_merge,
 	);
+
+	# You can't do CIL-merge without preprocessing individual files!
+	my $cpp_ed = '';
+
+	my $basedir = $context->{basedir};
 
 	while (@prep_seq) {
 		# Get preprocessor
 		my $prep = shift @prep_seq;
+
+		# Check sanity
+		die "Before you CIL-merge, you should preprocess inidividual files with CIL or CPP" if ((($prep eq 'cil_merge') || ($prep eq 'cil-merge')) && !$cpp_ed);
+		$cpp_ed = 1;
 
 		# Set the output directory
 		my $out_dir = catfile(get_tmp_dir(),"preprocess","$prep_step-$prep");
 		mkpath($out_dir);
 
 		# Apply the preprocessor.  Get the new list of files and their options (which may be redundant).
-		($c_file_list,$c_file_opt) = $preps{$prep}->($c_file_list,$c_file_opt,$out_dir);
+		die(sprintf("Unknown preprocessor '$prep'.  You should specify one of: %s!",join(", ",keys %preps))) unless exists $preps{$prep};
+		($c_file_list,$c_file_opt) = $preps{$prep}->($c_file_list,$c_file_opt,$out_dir,$basedir);
+
+		# Adjust basedir, since on the next step we will have to strip the new path prefixes
+		$basedir = $out_dir;
 
 		$prep_step += 1;
 	}
@@ -89,15 +104,22 @@ sub preprocess_all_files
 	return @$c_file_list;
 }
 
+# Check if the exception thrown is a preprocessing error
+sub is_preprocess_error
+{
+	my $excn = shift;
+	return $excn =~ /^PREPROCESS ERROR|^CIL ERROR/;
+}
+
 sub preprocess_cpp
 {
-	my ($c_file_list,$c_file_opt,$out_dir) = @_;
+	my ($c_file_list,$c_file_opt,$out_dir,$base) = @_;
 
 	my $result_list = [];
 	my $result_opts = {};
 
 	for my $c_file (@$c_file_list){
-		my $local = local_name($c_file);
+		my $local = Utils::unbase($base,$c_file);
 		vsay ('TRACE',"Preprocessing the driver's file: ".$local."\n");
 
 		# Get the resultant file name
@@ -113,9 +135,59 @@ sub preprocess_cpp
 		# Get and adjust preprocessing options
 		my %opts = %{$c_file_opt->{$c_file}};
 
-		cpp_one_file(%opts, c_file => $c_file, i_file => $i_file) and do {
+		my ($errcode, @answer) = cpp_one_file(%opts, c_file => $c_file, i_file => $i_file);
+		if ($errcode != 0) {
 			vsay("WARNING", "PREPROCESS ERROR!  Terminating checker.\n");
-			die "PREPROCESSING ERROR!";
+			# Add the discriminator that it's a preprocess error trace to the description
+			unshift @answer,"PREPROCESS ERROR!\n";
+			$context->{preproces_error_log} = [@answer];
+			die "PREPROCESS ERROR!";
+		};
+
+		# Adjust result
+		push @$result_list, $i_file;
+		$result_opts->{$i_file} = $c_file_opt->{$c_file};
+	}
+
+	return ($result_list, $result_opts);
+} 
+
+sub preprocess_cil
+{
+	my ($c_file_list,$c_file_opt,$out_dir,$base) = @_;
+
+	my $result_list = [];
+	my $result_opts = {};
+
+	for my $c_file (@$c_file_list){
+		my $local = Utils::unbase($base,$c_file);
+		vsay ('TRACE',"Preprocessing with CIL the driver's file: ".$local."\n");
+
+		# Get the resultant file name
+		my $i_file = $local;
+		# Replace suffix (or add it)
+		$i_file =~ s/\.c$/.cil.i/ or $i_file.='.cil.i';
+		# Replace directories with dashes
+		$i_file =~ s/\//-/g;
+		# Put it into the proper folder
+		$i_file = catfile($out_dir,$i_file);
+		mkpath(dirname($i_file));
+
+		# Get and adjust preprocessing options
+		my %opts = %{$c_file_opt->{$c_file}};
+
+			# my $new_record = {cil_file=>"$workdir/cilly/out.cilf.c", i_file=>"$workdir/cilly/cil_extrafiles.list", cwd=>"$workdir/cilly/"};
+			#my (undef, $error) = cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps, is_list=>1);
+		my $cil_temps = "$i_file-tmpdir";
+		mkpath($cil_temps);
+
+		my ($errcode, @answer) = cil_one_file(%opts, cil_script => $context->{cil_script}, temps=>$cil_temps, c_file => $c_file, i_file => $i_file);
+		if ($errcode != 0) {
+			vsay("WARNING", "CIL ERROR!  Terminating checker.\n");
+			# Add the discriminator that it's a preprocess error trace to the description
+			unshift @answer,"CIL ERROR!\n(Didn't you forget to turn CPP before CIL?)";
+			$context->{preproces_error_log} = [@answer];
+			die "CIL ERROR!";
 		};
 
 		# Adjust result
@@ -126,9 +198,42 @@ sub preprocess_cpp
 	return ($result_list, $result_opts);
 }
 
+sub preprocess_cil_merge
+{
+	my ($c_file_list,$c_file_opt,$out_dir,$base) = @_;
+
+	my $result_list = [];
+	my $result_opts = {};
+
+	# Make an extrafile-list from the input files.
+	my $cil_efl = "$out_dir/cil_extrafiles.list";
+	my $cil_out = "$out_dir/cil.out.i";
+	my $cil_temps = "$out_dir/cil_extrafiles.list-tmpdir";
+
+	mkpath(dirname($cil_efl));
+	mkpath($cil_temps);
+
+	open FILE,">",$cil_efl or die "Can' open new cillist file '$cil_efl': $!";
+	print FILE $_."\n" for @$c_file_list;
+	close FILE or die "Can't close cillist file '$cil_efl': $!";
+	
+	vsay ('DEBUG',"Will merge all files with CIL into $cil_out\n");
+	# Note the is_list setting that means we're preprocessing a list instead of one file
+	my ($errcode, @answer) = cil_one_file(cwd=>$out_dir, cil_script => $context->{cil_script}, temps=>$cil_temps, c_file => $cil_efl, i_file => $cil_out, is_list => 1);
+	if ($errcode != 0) {
+		vsay("WARNING", "CIL ERROR!  Terminating checker.\n");
+		# Add the discriminator that it's a preprocess error trace to the description
+		unshift @answer,"CIL ERROR!\n";
+		$context->{preproces_error_log} = [@answer];
+		die "CIL ERROR!";
+	};
+
+	return ([$cil_out], []);
+}
+
 sub set_cil
 {
-	Carp::confess "TODO";
+	$context->{cil_script} = shift or Carp::confess;
 }
 
 sub set_limits
@@ -232,7 +337,13 @@ sub run
 	# Close gzipped trace
 	close $DEBUG_TRACE;
 
-	my $atmt_results = { %{$out_atmt->result()}, %{$err_atmt->result()}};
+	# Discard "undef" results and merge hashes
+	my %out_atmt_results = %{$out_atmt->result()};
+	do {delete $out_atmt_results{$_} unless defined $out_atmt_results{$_}} for keys %out_atmt_results;
+	my %err_atmt_results = %{$err_atmt->result()};
+	do {delete $err_atmt_results{$_} unless defined $err_atmt_results{$_}} for keys %err_atmt_results;
+
+	my $atmt_results = { %out_atmt_results, %err_atmt_results};
 
 	# Adjust re
 	my $result = 'OK';
@@ -286,9 +397,24 @@ sub result
 {
 	my %results = @_;
 
-	my $verdict = delete $results{verdict} or Carp::confess;
+	my $verdict = undef;
+	my $description = undef;
+
+	# Handle preprocessing error
+	if (delete $results{_preprocess_failure}){
+		$verdict = 'unknown';
+		# Log comes here unchomped; do not insert linebreaks
+		$description = join("",@{$context->{preproces_error_log}});
+	}elsif( my $excn = delete $results{_user_exception}){
+		$verdict = 'unknown';
+		# NOTE: this should match the problem description in ldv-manager/problems/rcv/generic
+		$description = "VERIFIER SCRIPT ERROR\n".$excn."\n";
+	}
+
+	$verdict ||= delete $results{verdict};
+	defined $verdict or Carp::confess;
+	$description ||= delete $results{description};
 	my $trace_file = delete $results{error_trace};
-	my $description = delete $results{description};
 
 	# The rest of the results hash are the files to send to the parent
 
@@ -383,58 +509,6 @@ sub result
 
 
 #======================================================================
-# BLAST-SPECIFIC ROUTINES
-#======================================================================
-
-#sub verify_blast
-#{
-	#my %args = @_;
-	#$args{report} or die;
-	## Since arguments alter depending on main, we should save them to temporary.
-	#my %args_template = (%args);
-
-	#for my $main (@{$args{mains}}){
-		#%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
-		#if ($args{already_failed}){
-			## Print at once, without spawning task through watcher
-			#mkpath(dirname($args{report}));
-			#open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-			#my $repT = XML::Twig::Elt->new('reports');
-
-			## Prepare a failure command
-			#my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-			#XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
-			#XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
-
-			## HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
-			#my $failmsg = $args{already_failed};
-
-			#my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
-			#XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
-			#XML::Twig::Elt->new('desc',{},$failmsg)->paste($rcvResultT);
-
-			## Calculate and output time elapsed
-			#XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
-
-			#$rcvResultT->paste(last_child =>$cmdInstT);
-			#$cmdInstT->paste($repT);
-
-			## Commit the report
-			#$repT->set_pretty_print('indented');
-			#$repT->print($BLAST_REPORT);
-			#close $BLAST_REPORT;
-
-			## Report failure to the watcher
-			## We should first allocate key (to keep the allocate/free balance)
-			#my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
-			##vsay ('DEBUG',"Got key string $key_str.\n");
-			##my @watcher_key = split /,/,$key_str;
-			## But then we ignore this string, and use the watcher_key allocated by the parent DSCV for immediate success reporting
-			#for_parent($args{report},$args{trace},$args{debug});
-			#LDV::Utils::watcher_cmd('success','rcv',@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',files_for_parent());
-
-
-#======================================================================
 # COMMON SUBROUTINES
 #======================================================================
 
@@ -476,35 +550,59 @@ sub cpp_one_file
 	my $current_dir = getcwd();
 	chdir $info->{cwd} or die;
 
+	LDV::Utils::push_instrument("cpp");
+
 	my @cpp_args = ("gcc","-E",
 		"-o","$info->{i_file}",	#Output file
 		"$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options
 	);
+
+	# Measure time of CPP as well.  Add it to the common timestat file.
+	@cpp_args = DSCV::RCV::Utils::set_up_timeout({
+		pattern => '.*,CPP',
+		output => $context->{timestats_file},
+		},@cpp_args
+	);
 	vsay ('DEBUG',"Preprocessor: ",@cpp_args,"\n");
 	local $"=' ';
-	my $result = system @cpp_args; 
+	my @prep_err;
+	my %child = Utils::open3_callbacks({
+		# Stdout callback
+		out => sub{},
+		# Stderr callback
+		'err' => sub{ my $line = shift;
+			push @prep_err,$line;
+			vsay("DEBUG",$line);
+		},
+		close_out=>sub{ vsay ('TRACE',"CPP's stdout stream closed.\n");},
+		close_err=>sub{ vsay ('TRACE',"CPP's stderr stream closed.\n");},
+		},
+		# Instrument call string
+		@cpp_args
+	);
 
+	my $result = $?;
+
+	LDV::Utils::pop_instrument();
 	chdir $current_dir;
-	return $result;
+	return ($result,@prep_err);
 }
 
 # Makes file through CIL in the directory given with the options given.  Returns what call to C<system> returned.
 # Usage:
-# 	cilly_file(cil_path="toolset_dir/cil", cwd=>'working/dir', cil_file => 'output.i', i_file => 'input.c', opts=> ['-D','SOMETHING'] )
+# 	cilly_file(cil_script="toolset_dir/cil/obj/x86_LINUX/cilly.asm.exe", cwd=>'working/dir', cil_file => 'output.i', i_file => 'input.c', opts=> ['-D','SOMETHING'] )
 use LDV::Utils;
-use IPC::Open3;
-sub cilly_file
+sub cil_one_file
 {
 	my $info = {@_};
-	my $cil_path = $info->{cil_path} or Carp::confess;
-	#my $cil_script = "$cil_path/bin/cilly";
-	my $cil_script = "$cil_path/obj/x86_LINUX/cilly.asm.exe";
+	my $cil_script = $info->{cil_script} or Carp::confess;
 	my $cil_temps = $info->{temps};
 	mkpath($cil_temps) if $cil_temps;
 	# Change dir to cwd; then change back
 	my $current_dir = getcwd();
 	chdir $info->{cwd} or Carp::confess;
+	LDV::Utils::push_instrument("CIL");
 
 	# Filter out "-c" from options -- we need just preprocessing from CIL
 	my @opts = undef;
@@ -514,8 +612,8 @@ sub cilly_file
 	}
 
 	my @extra_args = (#"-c",
-		"$info->{i_file}",	#Input file
-		"--out", "$info->{cil_file}",	#Output file
+		"$info->{c_file}",	#Input file
+		"--out", "$info->{i_file}",	#Output file
 		# However, for cill to REALLY output the file, GCC's preprocessr at some stage should print it.  We need the following line:
 		#"-o",$info->{cil_file},
 		# Default CIL options
@@ -536,28 +634,39 @@ sub cilly_file
 	# Add extra arguments
 	push @cil_args,(split /\s+/,$ENV{'CIL_OPTIONS'});
 
-	vsay ('DEBUG',"CIL: ",@cil_args,"\n");
-	local $"=' ';
-	my ($CIL_IN,$CIL_OUT,$CIL_ERR);
-	my $fpid = open3($CIL_IN,$CIL_OUT,$CIL_ERR,@cil_args) or die "INTEGRATION ERROR.	Can't open3. PATH=".$ENV{'PATH'}." Cmdline: @cil_args";
-	LDV::Utils::push_instrument("CIL");
-	my $errors = '';
-	while (<$CIL_OUT>) {
-		vsay ("DEBUG",$_);
-		# Cil prints errors to STDOUT as well :-(
-		$errors.=$_;
-	}
-	while (<$CIL_ERR>) {
-		print ("DEBUG",$_);
-		$errors.=$_;
-	}
-	my $result = Utils::hard_wait($fpid,0);
-	close $CIL_IN;
-	close $CIL_OUT;
-	LDV::Utils::pop_instrument();
+	# Measure time of CIL as well.  Add it to the common timestat file.
+	@cil_args = DSCV::RCV::Utils::set_up_timeout({
+		pattern => '.*,CIL',
+		output => $context->{timestats_file},
+		},@cil_args
+	);
 
+	vsay ('DEBUG',"Invoke: ",@cil_args,"\n");
+	local $"=' ';
+
+	my @prep_err = ();
+	my %child = Utils::open3_callbacks({
+		# Stdout callback
+		out => sub{my $line = shift;
+			vsay("TRACE",$line);
+		},
+		# Stderr callback
+		'err' => sub{ my $line = shift;
+			push @prep_err,$line;
+			vsay("DEBUG",$line);
+		},
+		close_out=>sub{ vsay ('TRACE',"CIL's stdout stream closed.\n");},
+		close_err=>sub{ vsay ('TRACE',"CIL's stderr stream closed.\n");},
+		},
+		# Instrument call string
+		@cil_args
+	);
+
+	my $result = $?;
+
+	LDV::Utils::pop_instrument();
 	chdir $current_dir;
-	return ($result, $errors);
+	return ($result, @prep_err);
 }
 
 #======================================================================

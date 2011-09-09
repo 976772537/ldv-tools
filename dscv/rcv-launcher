@@ -79,6 +79,15 @@ my $workdir = $task{workdir};
 mkpath($workdir);
 -d $workdir or die "Can't create workdir '$task{workdir}'!";
 
+# Cleanup trash that might have been left fro mthe previous run
+for my $to_kill ($task{debug}, $task{report}, $task{trace}, $task{timestats}) {
+	if (-f $to_kill) {
+		vsay('TRACE',"Removing '$to_kill' left from the previous run\n");
+		unlink $to_kill or die "Couldn't unlink '$to_kill': $!";
+	}
+}
+
+
 # Engine lookup
 my $engines_install_dir = "$shared_dir/rcv";
 sub lookup_engine
@@ -135,6 +144,9 @@ eval {
 	# Create the context in which the verifier code is executed
 	DSCV::RCV::Library::set_context(%task, engine => $engine_name);
 
+	# Set default CIL.  User may override it.
+	DSCV::RCV::Library::set_cil("$ENV{'DSCV_HOME'}/dscv/cil/obj/x86_LINUX/cilly.asm.exe");
+
 	# Set up default limits
 	DSCV::RCV::Library::set_limits(timelimit => $timelimit, memlimit => $memlimit);
 
@@ -152,11 +164,23 @@ eval {
 	# Call the frontend
 	eval $engine_source;
 
-	vsay 4, "Wrapper finished!";
+	vsay 'INFO', "Wrapper finished!";
 
 	# Die on integration error (TODO: make this unknown?)
 	# TODO: account for preprocessing errors!
-	die $@ if ($@);
+	if (my $wrapper_excn = $@) {
+		vsay 'WARNING', "Wrapper got an exception!";
+		if (DSCV::RCV::Library::is_preprocess_error($wrapper_excn)){
+			DSCV::RCV::Library::result(
+				_preprocess_failure => 1,
+			);
+		}else{
+			# It's a user scrtip error, report it as such!
+			DSCV::RCV::Library::result(
+				_user_exception => $wrapper_excn,
+			);
+		}
+	}
 
 	# Otherwise, return 1 to not fall through to the exceptional path.
 	1;

@@ -129,10 +129,15 @@ add_time_watch(
 
 # Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 
-add_automaton(ocaml_detect());
+add_automaton(safe_unsafe());
+
 my $error_trace = "$tmpdir/error_trace.txt";
 add_automaton(dumptrace($error_trace));
-add_automaton(safe_unsafe());
+
+add_automaton(ocaml_detect());
+
+# Dump the last 50 lines from stderr output of the tool
+add_automaton(tail_automaton(50),'stderr');
 
 my ($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
 
@@ -141,6 +146,14 @@ my $verdict = $automata_results->{VERDICT} || 'unknown';
 
 # You may not specify the description; however if there's something wrong, and you want to discriminate the issues in your tool in the statistics visualizer (or to gather the results for a scientific experiment), you might consider adding something here
 my $description = '';
+
+$description .= $automata_results->{'EXCEPTION'}."\n" if $automata_results->{'EXCEPTION'};
+
+# Add info on OCAML errors
+$description.=$automata_results->{'OCAML'}."\n" if $automata_results->{'OCAML'};
+
+# Add the stderr tail
+$description.= join ("\n",@{$automata_results->{'TAIL'}})."\n" if $automata_results->{'TAIL'};
 
 if ($errcode == 5){
 	# BLAST didn't find input file -- integration error
@@ -155,6 +168,10 @@ if ($errcode == 5){
 	vsay (20,"Failed with exit code $errcode by $result.  But who cares?\n");
 }
 
+
+# Describe the attributes of the current launch
+$description .= "=========== BLAST attrubutes ===========\n";
+
 # Add a stopsep information to description
 my $stopsep = "default stop-join"; 
 unless ($ENV{'BLAST_NOSTOPSEP'}) {
@@ -164,6 +181,10 @@ unless ($ENV{'BLAST_NOSTOPSEP'}) {
 		$stopsep = "stop-sep with default merge";
 	}
 }
+$description .= "$stopsep\n";
+
+#Add aliases info
+$description .= ($ENV{'BLAST_EXP_NOLATTICE'} ? "No lattice\n" : '').($ENV{'BLAST_ALIASES'} ? "With aliases\n" : '');
 
 result(
 	# verdict and description should be specified; an error trace is also required if the verdict is "unsafe"
@@ -185,6 +206,35 @@ sub safe_unsafe
 		my $l=shift or return undef;
 		$l=~/The system is safe/ and return {VERDICT=>'safe'};
 		$l=~/The system is unsafe/ and return {VERDICT=>'unsafe'};
+		return undef;
+	};
+}
+
+sub tail_automaton
+{
+	my $count = shift || 50;
+	my @buffer = ();
+	return sub{
+		my $l = shift;
+		if (defined $l){
+			# It's a real line
+			chomp $l;
+			push @buffer, $l;
+			shift @buffer if scalar @buffer > $count;
+			# Show that this automaton is still working
+			return undef;
+		}else{
+			# It's a past-the-end line
+			return {'TAIL' => \@buffer};
+		}
+	};
+}
+
+sub exception
+{
+	return sub {
+		my $l=shift or return undef;
+		$l=~/Ack! The gremlins again!: (.*)/ and return {'EXCEPTION' => "Exception: $1"};
 		return undef;
 	};
 }

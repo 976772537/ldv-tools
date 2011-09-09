@@ -752,14 +752,6 @@ for my $property (@properties){
 				# Only send one main (this may be revamped in the future)
 				$args{mains} = [$main];
 
-				# Remove files that may have been left from the previous run
-				for my $to_kill ($args{debug}, $args{report}, $args{trace}, $args{timestats}) {
-					if (-f $to_kill) {
-						vsay('TRACE',"Removing '$to_kill' left from the previous run\n");
-						unlink $to_kill or die "Couldn't unlink '$to_kill': $!";
-					}
-				}
-
 				my $task_fname = sprintf "%s/task-for-%s",$workdir,$main;
 				# Write the task to an xml file
 				vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
@@ -769,7 +761,7 @@ for my $property (@properties){
 				vsay('DEBUG',"Written RCV single command to '$task_fname'\n");
 
 				# Spawn the RCV command (STUB!)
-				vsay('NORMAL',"Spawning RCV with task $task_fname workdir $args{workdir} for ld $args{cmd_id}, main $main");
+				vsay('INFO',"Spawning RCV with task $task_fname workdir $args{workdir} for ld $args{cmd_id}, main $main");
 				$ENV{'RCV_FRONTEND_CMD'} = "$shared_dir/rcv-launcher";
 				LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$args{workdir},@watcher_key,'rcv',$property,$args{cmd_id},$main,'@@',@files);
 			}

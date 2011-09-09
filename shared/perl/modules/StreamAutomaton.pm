@@ -99,6 +99,10 @@ sub finish
 	}
 	$this->{accum} = add_hash($this->{accum},$tail_result);
 
+	# We also should do the same (pass "undef" value) to all all-trace filters
+	my $all_result = $this->{allfilter}->(undef);
+	$this->{accum} = add_hash($this->{accum},$all_result);
+
 	# Set finished flag
 	$this->{finished} = 1;
 }
