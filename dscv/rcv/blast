@@ -132,7 +132,8 @@ add_time_watch(
 add_automaton(safe_unsafe());
 
 my $error_trace = "$tmpdir/error_trace.txt";
-add_automaton(dumptrace($error_trace));
+# It's important to specify 'stdout' here, as the output to the stderr may clobber the trace and make the Error Trace Visualizer fail, yielding a "Script error" for this driver.
+add_automaton(dumptrace($error_trace),'stdout');
 
 add_automaton(ocaml_detect());
 
