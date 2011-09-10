@@ -91,4 +91,16 @@ $1-subdir-%:
 	$$(MAKE) -C $1 $$*
 endef
 
+# UnionFS installation
+$(eval $(call mksubdir,monotonic-unionfs))
+
+all: monotonic-unionfs-subdir-all
+
+unionfs_target=$(install_dir)/bin/unionfs
+# Native install is not configurable, use custon
+install: $(unionfs_target)
+$(unionfs_target): monotonic-unionfs-subdir-build
+	@mkdir -p $(@D)
+	cp monotonic-unionfs/src/unionfs $@
+	@chmod +x $@
 

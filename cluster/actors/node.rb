@@ -11,9 +11,14 @@ class Spawner
 	LOCAL_MOUNTS = File.join("mnt","local")
 	SSH_MOUNTS = File.join("mnt","ssh")
 
-	def initialize()
+	def initialize(ldv_home)
+		# Try to find our custom unionfs command
+		our_unionfs = File.join(ldv_home,'cluster','bin','unionfs')
+		if say_and_run(our_unionfs,'--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
+			@unionfs = our_unionfs
+		# OK, use the system's unionfs
 		# Determine the name of unionfs (in Ubuntu and SuSE it differs)
-		if say_and_run('unionfs','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
+		elsif say_and_run('unionfs','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
 			@unionfs='unionfs'
 		elsif say_and_run('unionfs-fuse','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
 			@unionfs='unionfs-fuse'
@@ -144,7 +149,7 @@ end
 
 class RealSpawner < Spawner
 	def initialize(ldv_home)
-		super()
+		super(ldv_home)
 		@home = ldv_home
 		@nlog = Logging.logger['Node']
 	end
@@ -296,7 +301,7 @@ end
 # TODO: refactor its code... but anyway, you'll not use it in production, even for testing purposes.  Debugging won't be performed on the cluster, and checking if your AMQP setting is OK works well with any output.
 class Player < Spawner
 	def initialize(ldv_home,fname)
-		super()
+		super(ldv_home)
 		@home = ldv_home
 		@scenarios = {}
 		File.new(fname).each do |line|
