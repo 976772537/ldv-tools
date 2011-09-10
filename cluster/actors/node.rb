@@ -15,13 +15,13 @@ class Spawner
 		# Try to find our custom unionfs command
 		our_unionfs = File.join(ldv_home,'cluster','bin','unionfs')
 		if say_and_run(our_unionfs,'--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
-			@unionfs = our_unionfs
+			@unionfs = [our_unionfs,'-o','monotonic']
 		# OK, use the system's unionfs
 		# Determine the name of unionfs (in Ubuntu and SuSE it differs)
 		elsif say_and_run('unionfs','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
-			@unionfs='unionfs'
+			@unionfs = ['unionfs']
 		elsif say_and_run('unionfs-fuse','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
-			@unionfs='unionfs-fuse'
+			@unionfs = ['unionfs-fuse']
 		else
 			raise "Can't find a proper unionfs command..."
 		end
@@ -104,7 +104,8 @@ class Spawner
 				# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
 				unless ip_localhost? host
 					# Ubuntu's unionfs doesn't work with relative paths... expand them!
-					unionfs_args = [@unionfs,"-o","cow","#{File.expand_path workdir}=RW:#{File.expand_path sshdir}=RO",root]
+					# (NOTE, that @unionfs is an array, as we may use our own, patched version, with extra options)
+					unionfs_args = @unionfs + ["-o","cow","#{File.expand_path workdir}=RW:#{File.expand_path sshdir}=RO",root]
 					unioned = say_and_run(*unionfs_args)
 					unless unioned && unioned == 0
 						raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"

@@ -228,6 +228,8 @@ static void print_help(const char *progname) {
 	"    -o chroot=path         chroot into this path. Use this if you \n"
         "                           want to have a union of \"/\" \n"
 	"    -o max_files=number    Increase the maximum number of open files\n"
+	"    -o monotonic           treat file system as monotonic (\"delete\""
+	"                                  nonexistent files)\n"
 	"\n",
 	progname);
 }
@@ -294,6 +296,9 @@ int unionfs_opt_proc(void *data, const char *arg, int key, struct fuse_args *out
 			return 0;
 		case KEY_COW:
 			uopt.cow_enabled = true;
+			return 0;
+		case KEY_MONOTONIC:
+			uopt.monotonic = true;
 			return 0;
 		case KEY_STATFS_OMIT_RO:
 			uopt.statfs_omit_ro = true;

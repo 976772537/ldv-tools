@@ -96,3 +96,27 @@ int unionfs_unlink(const char *path) {
 
 	return -res;
 }
+
+/**
+ * whiteout file on the first rw branch available
+ */
+void monotonic_unlink(const char* path)
+{
+	DBG_IN();
+	// monotonic check
+	if (!uopt.monotonic) return;
+	// save errno: if we can't whiteout, we should return -ENOENT anyway
+	int old_errno = errno;
+
+	// find the highest RW branch (yes, not a typo)
+	int j;
+	j = find_lowest_rw_branch(uopt.nbranches);
+
+	// All branches are RO... then just return the error
+	if (j == -1) return;
+
+	// Whiteout the file
+	hide_file(path, j);
+	// if creating the file with the hide tag failed, restore old errno
+	errno = old_errno;
+}

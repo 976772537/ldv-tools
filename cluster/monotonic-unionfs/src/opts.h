@@ -22,6 +22,7 @@ typedef struct {
 
 	bool stats_enabled;
 	bool cow_enabled;
+	bool monotonic;
 	bool statfs_omit_ro;
 	int doexit;
 	int retval;
@@ -32,6 +33,7 @@ typedef struct {
 enum {
 	KEY_STATS,
 	KEY_COW,
+	KEY_MONOTONIC,
 	KEY_STATFS_OMIT_RO,
 	KEY_NOINITGROUPS,
 	KEY_CHROOT,

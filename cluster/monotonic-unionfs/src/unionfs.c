@@ -57,6 +57,7 @@ static struct fuse_opt unionfs_opts[] = {
 	FUSE_OPT_KEY("-V", KEY_VERSION),
 	FUSE_OPT_KEY("stats", KEY_STATS),
 	FUSE_OPT_KEY("cow", KEY_COW),
+	FUSE_OPT_KEY("monotonic", KEY_MONOTONIC),
 	FUSE_OPT_KEY("noinitgroups", KEY_NOINITGROUPS),
 	FUSE_OPT_KEY("statfs_omit_ro", KEY_STATFS_OMIT_RO),
 	FUSE_OPT_KEY("chroot=%s,", KEY_CHROOT),
@@ -188,6 +189,10 @@ static int unionfs_getattr(const char *path, struct stat *stbuf) {
 	}
 
 	int i = find_rorw_branch(path);
+
+	// If we got an ENOENT, and we assume a monotonic FS, then we should whiteout this file
+	if (i == -1 && errno == ENOENT) monotonic_unlink(path);
+
 	if (i == -1) return -errno;
 
 	char p[PATHLEN_MAX];
@@ -334,6 +339,9 @@ static int unionfs_open(const char *path, struct fuse_file_info *fi) {
 	} else {
 		i = find_rorw_branch(path);
 	}
+
+	// If we got an ENOENT, and we assume a monotonic FS, then we should whiteout this file
+	if (i == -1 && errno == ENOENT) monotonic_unlink(path);
 
 	if (i == -1) return -errno;
 
