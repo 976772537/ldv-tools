@@ -273,7 +273,7 @@ sub run
 
 	my $timeout_idstr = "DSCV_TIMEOUT ";
 	# Guard the command line with the timeout script
-	my $time_pattern = join(',',map{ sprintf("%s,%s",$context->{timewatches}->{$_},$_) } keys %{$context->{timewatches}});
+	my $time_pattern = join(';',map{ sprintf("%s,%s",$context->{timewatches}->{$_},$_) } keys %{$context->{timewatches}});
 	@args = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $context->{limits}->{timelimit},
 		memlimit => $context->{limits}->{memlimit},
