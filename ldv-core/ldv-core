@@ -410,6 +410,8 @@ sub wait_for_all_verified {
 			vsay 'NORMAL', "Successfully waited for subprocess with id \"$cid\"\n";
 			vsay 'DEBUG', "Command N \"$cid\" from \"$tasks->{$cid}->{path}\"\n";
 			vsay 'DEBUG', "Unpacking '$contents' to '$path'\n";
+			# NOTE: unlike in DSCV, we do not try to collect the file names to send to the parent, as the reports are propagated through a chain of tools (for instance, the reports for several cores should be merged), and the information should be kept outside the script.
+			# Instead, the "package" script in ldv-manager will collect the file names from <file> tags, which is where this information is originally stored.
 			LDV::Utils::watcher_cmd('unpack', $path, $contents);
 			# find corresponding task descriptor and set status to 'verified'
 			vsay 'TRACE', "Set status 'verified' to task id \"$cid\"\n";

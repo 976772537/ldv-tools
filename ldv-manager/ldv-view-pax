@@ -198,7 +198,7 @@ builds = {}
 potential_master = []
 
 # Do not report warnings if these tags are encountered in <ld> tags
-tags_to_ignore = %w(model-kind in out cwd opt)
+tags_to_ignore = %w(model-kind in out cwd opt file)
 
 while not docs.end_of? 'reports' do
 	# This should read one of the children of 'reports' tag
