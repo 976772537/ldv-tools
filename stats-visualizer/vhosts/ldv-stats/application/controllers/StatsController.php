@@ -352,8 +352,10 @@ class StatsController extends Zend_Controller_Action
       }
 
       if ($this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')
-        or $this->_getParam('KB_tags') != $this->_getParam('KB_tags_old')) {
+        or $this->_getParam('KB_tags') != $this->_getParam('KB_tags_old')
+        or $this->_getParam('KB_comment') != $this->_getParam('KB_comment_old')) {
         // Regenerate KB cache for a given KB id (in fact nothing will be done).
+        // KB comment is also assigned to result here.
         exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
       }
 

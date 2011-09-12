@@ -1016,7 +1016,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       ->select()->setIntegrityCheck(false);
     $select = $select
       ->from('kb',
-        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags'))
+        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment'))
       ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
       ->joinLeft('traces', "results_kb.trace_id=traces.id", array())
       ->where("traces.id = ?", $trace_id);
@@ -1512,6 +1512,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     if ($tags == '')
       $tags = new Zend_Db_Expr('NULL');
 
+    if (!array_key_exists('KB_comment', $params)) {
+      die("KB comment isn't specified");
+    }
+    $comment = $params['KB_comment'];
+    if ($comment == '')
+      $comment = new Zend_Db_Expr('NULL');
+
     // Data to be inserted or updated in KB.
     $data = array(
         'name' => $name
@@ -1522,7 +1529,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       , 'main' => $main
       , 'script' => $script
       , 'verdict' => $verdict
-      , 'tags' => $tags);
+      , 'tags' => $tags
+      , 'comment' => $comment);
     if ($isNew) {
       $this->_db->insert('kb', $data);
       $kbNewId = $result['New KB id'] = $this->_db->lastInsertId();

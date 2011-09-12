@@ -452,6 +452,16 @@ body
   width: 300px;
 }
 
+.SETVKBComment
+{
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 300px;
+}
+
 #SETVKBNewEmptyKBRecord, #SETVKBNewFilledKBRecord
 {
   display: none;
@@ -495,6 +505,11 @@ body
 #SETVKBTags
 {
   background-color: #7976FF;
+}
+
+#SETVKBComment
+{
+  background-color: #9476FF;
 }
 
 .SETVKBTableRowOdd

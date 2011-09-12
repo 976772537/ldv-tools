@@ -38,7 +38,7 @@ else {
 
       return false;
     });
-    
+
     $('#SETVKBRestore').click(function() {
       $.ajaxSetup({ 'error': function() {
         alert('Something goes wrong while KB was restored');
@@ -105,7 +105,7 @@ else {
         return radio[i].value;
   }
 
-  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, tagsOld, tags) {
+  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, tagsOld, tags, commentOld, comment) {
     $.ajaxSetup({ 'error': function() {
       if (isNew)
         alert('Something goes wrong while KB record was created');
@@ -136,13 +136,15 @@ else {
           , 'KB verdict': verdict
           , 'KB tags old': tagsOld
           , 'KB tags': tags
+          , 'KB comment old': commentOld
+          , 'KB comment': comment
         }
       , function(results) {
         if (results.errors == '') {
           if (results.result != '')
             alert($.makeArray(results.result).join('\n') + "\n\nTODO: Here will be shown affected KB cache records...");
           // Reset form related with KB record update.
-          $('#KBName, #KBTaskattributes, #KBModel, #KBModule, #KBMain, #KBScript, #KBTags').each(function() { $(this).replaceWith("<div class='SETV" + $(this).attr('id') + "'>" + $(this).val() + "</div>"); });
+          $('#KBName, #KBTaskattributes, #KBModel, #KBModule, #KBMain, #KBScript, #KBTags, #KBComment').each(function() { $(this).replaceWith("<div class='SETV" + $(this).attr('id') + "'>" + $(this).val() + "</div>"); });
           $('#KBPublic:checked, #KBVerdict:checked').each(function() { $(this).parent().html("<div class='SETV" + $(this).attr('id') + "'>" + $(this).val() + "</div>"); });
           $('#UpdateKBRecord').parent().remove();
           // TODO: at the moment just reload page, but then we can avoid this.
@@ -169,6 +171,7 @@ else {
       var kbScriptOld = '';
       var kbVerdictOld = '';
       var kbTagsOld = '';
+      var kbCommentOld = '';
 
       rowCur.find('.SETVKBId').each(function() {
         kbId = $(this).text();
@@ -233,6 +236,10 @@ else {
         kbTagsOld = $(this).text();
         $(this).html("<input type='text' id='KBTags' size='30' value='" + kbTagsOld + "' form='UpdateKBRecord' />");
       });
+      rowCur.find('.SETVKBComment').parent().each(function() {
+        kbCommentOld = $(this).text();
+        $(this).html("<textarea id='KBComment' rows='3' cols='40' form='UpdateKBRecord'>" + kbCommentOld + "</textarea>");
+      });
 
       kbId = "'" + kbId + "'";
       kbNameOld = "'" + kbNameOld + "'";
@@ -246,6 +253,8 @@ else {
       kbScriptOld = "'" + kbScriptOld + "'";
       kbVerdictOld = "'" + kbVerdictOld + "'";
       kbTagsOld = "'" + kbTagsOld + "'";
+      kbCommentOld = escape(kbCommentOld);
+      kbCommentOld = "'" + kbCommentOld + "'";
 
       var submitText = '';
       if (isNew)
@@ -266,7 +275,8 @@ else {
           + kbTraceId + ", "
           + kbScriptOld + ",  getElementById('KBScript').value, "
           + kbVerdictOld + ",  getRadioValue(getElementsByName('KBVerdict')), "
-          + kbTagsOld + ",  getElementById('KBTags').value);"
+          + kbTagsOld + ",  getElementById('KBTags').value, "
+          + kbCommentOld + ",  getElementById('KBComment').value);"
           + " return false;\">"
         + "</form>"
         + "<input type='submit' value='" + submitText + "' form='UpdateKBRecord' />"
@@ -312,7 +322,7 @@ else {
   echo "<td class='SETVKBAuxTitle'></td>";
   // Print auxiliary column that will contain delete action.
   echo "<td class='SETVKBAuxTitle'></td>";
-  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags');
+  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment');
   foreach ($columns as $columnName) {
     echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
   }
