@@ -20,6 +20,7 @@ CREATE  TABLE IF NOT EXISTS `kb` (
   `script` TEXT NULL DEFAULT NULL ,
   `verdict` ENUM('False positive', 'True positive', 'Unknown', 'Inconclusive') NOT NULL DEFAULT 'Unknown' ,
   `tags` TEXT NULL DEFAULT NULL ,
+  `comment` MEDIUMTEXT NULL DEFAULT NULL ,
   PRIMARY KEY (`id`) )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
