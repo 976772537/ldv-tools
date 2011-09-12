@@ -19,6 +19,10 @@ if (!isGit($results)) {
 $this->formPrintCSV->setAction($this->url());
 echo $this->formPrintCSV;
 
+// Print the form for the profiles update.
+$this->formUpdateProfiles->setAction($this->url());
+echo $this->formUpdateProfiles;
+
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];

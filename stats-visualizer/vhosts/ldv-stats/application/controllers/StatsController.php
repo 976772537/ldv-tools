@@ -98,6 +98,9 @@ class StatsController extends Zend_Controller_Action
     // Make a form for the tasks comparison.
     $formTasksComparison = new Application_Form_TasksComparison();
 
+    // Make a form for the profiles update.
+    $formUpdateProfiles = new Application_Form_UpdateProfiles();
+
     if ($this->getRequest()->isPost()) {
       if ($formTasksComparison->isValid($request->getPost())) {
         $taskIdsStr = $formTasksComparison->getValue('SSTaskIds');
@@ -114,9 +117,21 @@ class StatsController extends Zend_Controller_Action
             array('task ids' => $taskIdsStr)
             , $this->_globals));
       }
+      else if ($formUpdateProfiles->isValid($request->getPost())) {
+        // Delete a stored information on a profile.
+        $global = new Zend_Session_Namespace();
+      #  print_r($global->profileCurrent);exit;
+        unset($global->profileCurrent);
+        return $this->_helper->redirector->gotoSimple(
+          'index'
+          , 'stats'
+          , null
+          , $params);
+      }
     }
 
     $this->view->formTasksComparison = $formTasksComparison;
+    $this->view->formUpdateProfiles = $formUpdateProfiles;
 
     // Make a form for the csv export.
     $formPrintCSV = new Application_Form_PrintCSV();
@@ -307,7 +322,7 @@ class StatsController extends Zend_Controller_Action
 
     if ($this->_getParam('KB_new_record') == 'true') {
       $results = $statsMapper->updateKBRecord($this->_profileInfo, $this->_getAllParams(), true);
-  
+
       if (empty($results['Errors'])) {
         $dbConnection = $results['Database connection'];
 
