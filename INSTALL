@@ -114,6 +114,15 @@ may get huge.  10Mb is enough; just add the following lines to /etc/my.cnf:
 	[mysqld]
 	max_allowed_packet = 10M
 
+To upload knowledge base triggers to databases you need to set up following 
+variable from super user mysql console:
+	SET GLOBAL log_bin_trust_function_creators = 1;
+This definition works until mysql server is stopped.
+Following lines inside /etc/my.cnf (openSUSE) in section [mysqld] works everytime:
+	# This allows nonsuper users to create triggers and functions
+	log_bin_trust_function_creators = 1
+
+
 INSTALLING LDV
 
 First, install a prerequisites listed above, according to the path of LDV you
