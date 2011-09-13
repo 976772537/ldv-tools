@@ -155,6 +155,7 @@ eval {
 
 	# Set up variables for the user
 	my $installed_backends_dir = "$ENV{'DSCV_HOME'}/dscv/rcv/backends";
+	my $installed_frontends_dir = "$ENV{'DSCV_HOME'}/dscv/rcv";
 	my @errlocs = @{$task{errlocs}};
 	my @mains = @{$task{mains}};
 	my $hints_tag = $task{hints};

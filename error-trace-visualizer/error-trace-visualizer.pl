@@ -343,6 +343,7 @@ if ($opt_reqs_out)
   {
     foreach my $dep (keys(%dependencies))
     {
+      # *.i filtering was to rule out the BLAST_INITIALIZE function dependencies, as they introduce large--and unused--files
       print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
     }
   }
@@ -350,7 +351,7 @@ if ($opt_reqs_out)
   {
     foreach my $dep (keys(%dependencies))
     {
-      print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+      print($file_reqs_out "$dep\n");
     }
   }
 }

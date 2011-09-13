@@ -2,612 +2,214 @@
 
 # RCV Frontend for CPAchecker tool.
 
+set_tool_name("CPAchecker");
+
 # Available options:
 # NO_CIL
 # CPACHECKER (defaults to cpa.sh)
 # CPACHECKER_CONFIG
 # CPACHECKER_OPTIONS
 
-#======================================================================
-# PROCESS OPTIONS AND SET UP INITIAL VARIABLES
-#======================================================================
-use FindBin;
-
-BEGIN {
-	$ENV{'LDV_HOME'} ||= "$FindBin::Bin/../../";
-	# Add the lib directory to the @INC to be able to include local modules.
-	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
-}
-
-use strict;
-use Pod::Usage;
-use Getopt::Long;
-
-# Project modules
-use LDV::Utils;
-use DSCV::RCV::Utils;
-use DSCV::Sanity;
-use Utils;
-
-# File modules
-use File::Basename;
-use File::Path qw(mkpath);
-
-my $config={
-	cmdfile=>'',
-	rawcmdfile=>'',
-	watcher_key=>[],
-};
-
-my %optionSpecs = ();
-$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'} || 10;
-LDV::Utils::set_verbosity($config->{verbosity});
-LDV::Utils::push_instrument('rcv-cpachecker');
-
-$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
-$optionSpecs{'workdir=s'} = \$config->{workdir};
-$optionSpecs{'sanity-dir=s'} = \$config->{sandir};
-$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
-my $watcher_keystr = '';
-$optionSpecs{'watcher-key=s'} = \$watcher_keystr;
-
-my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
-
-GetOptions(%optionSpecs) or die("Unrecognized options!");
-
-$config->{watcher_key} = [split /,/,$watcher_keystr];
-
-my $mode = undef;
-$config->{cmdfile} and $mode = 'cmd';
-$config->{rawcmdfile} and $mode = 'raw';
-
-defined $mode or die "You should specify either --cmdfile or --rawcmdfile option!";
-
 # Prepare initial variables
 my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
 my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
-my $configs_dir = "$shared_dir/rcv/etc/";
-my $workdir = $config->{workdir};
+my $configs_dir = "$installed_frontends_dir/etc/";
 
 my $cpachecker_config = $ENV{'CPACHECKER_CONFIG'};
 
-my $cil_dir = "$shared_dir/cil";
 
-# Resource limits processing
-my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You shouldn't be able to run checker without one
 # CPAchecker itself does set a memory limit (as of today, the default is 1200 Mbs of Java heap size.)  However, if it just doesn't work, we don't want our machine to get stuck, so we set up a limit of ~2.2 Gb by default.... well, just in case.  The "cases" we observed (char/ipmi/ipmi_watchdog.ko) demonstrate that this is a good estimate of 1.0 Gb of the actual resident memory taken.
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || 2_200_000;
-vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
+set_limits(
+	memlimit => 2_200_000,
+	# Signal that CPAchecker should be killed with SIGKILL, instead of TERM-wait-KILL sequence.  This is a bug in LDV tools, to be fixed.
+	kill_at_once => 1,
+);
 
-# Check if we launch CIL before the verifier
-my $cilly = 1;
-if ($ENV{'NO_CIL'}){
-	vsay(10,"CIL skipped because NO_CIL environment variable is set\n");
-	$cilly='';
-}
+# CPAchecker requires the files to be processed by CIL before.  We ship CIL by default with the toolset, and this functionality is already adjusted.  You only need to specify it.
+my @files = preprocess_all_files('cpp','cil','cil-merge');
 
-#Check if cpachecker is available
-#cpachecker_quick_check();
+my @cpachecker_options = ($cpachecker,@files);
 
-#======================================================================
-# PREPARE CMDFILE TRAVERSERS AND RUN THEM
-#======================================================================
-use XML::Twig;
+# MANAGE CONFIGURATION FILES ADJUSTMENTS
+# The way LDV instruments properties requires the config files to be adjusted.
 
-#==== 
-# We should pack files for the parent task to process afterwards.  Use these functions
-my %files_for_parent = ();
-sub for_parent
-{ local $_; $files_for_parent{$_} = 1 for @_; }
-sub files_for_parent
-{ return keys %files_for_parent; }
-#==== 
+# If no config file is specified, create a temporary one
+my $cpa_cfg_original = $cpachecker_config || "$configs_dir/cpa.cfg.pattern";
+my $cpa_cfg_new = "$tmpdir/cpa.cfg";
+# Create a temporary config file.  Config is based on our local config, or on user-defined one
+my $CPA_CFG; open $CPA_CFG, ">", $cpa_cfg_new or die;
+my $LDV_errloc_autom = "$tmpdir/errloc_automaton.txt";
 
-my $sanity = undef;
+vsay 40, "copy config from $configs_dir/cpa.cfg.pattern\n";
+open ORIG_CFG, $cpa_cfg_original or die "$!";
+my @orig_lines = <ORIG_CFG>;
+close ORIG_CFG;
 
-if ($mode eq 'cmd'){
-	# Launch of RCV frontend, process CMDfile and spawn some raw verifier tasks
-
-	-f $config->{cmdfile} or die "RCV's command file $config->{cmdfile} is not found";
-#-x $cpachecker or die "RCV's toplevel executable $cpachecker is not an executable file";
-	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
-	-d $configs_dir or die "CPAchecker configs directory $configs_dir is not a directory";
-	!$cpachecker_config || -f $cpachecker_config or die "CPAchecker configuration '$cpachecker_config' is specified but not readable!";
-
-	# Prepare sanity checks
-	$sanity = DSCV::Sanity->new($config->{sandir}) if $do_sanity;
-
-	# Base Dir of system being checked
-	my $base_dir = undef;
-	my $unbasedir = undef;
-
-	# Now all subroutines are initialized.  Let's start processing the cmdfile.
-	my $check_input_file = XML::Twig->new(
-		twig_handlers => {
-			basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
-			cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-			ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_cpachecker, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>$cilly, cilly_once=>$cilly, cil_path=>$cil_dir, cil_temps=>"$workdir/cil_temps"),
-		}
-	);
-	$check_input_file->parsefile($config->{cmdfile});
-}elsif ($mode eq 'raw'){
-
-	# Set up watcher directory, unless already set
-	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{work_dir}/watcher";
-	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
-
-	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
-	vsay ('DEBUG',"Got key string $key_str.\n");
-	my @watcher_key = split /,/,$key_str;
-
-	# Parse CMDfile for arguments, and launch RCV only
-	my %args = ();
-	!-f $config->{rawcmdfile} and die "CPACHECKER's raw command file $config->{rawcmdfile} is not found";
-
-	# How we parse raw xml to %args hash
-	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
-
-	# in this mode work dir is passed as workdir
-	$workdir ||= $args{workdir};
-	-d $workdir or die "the workdir '$config->{workdir}' is not a directory!";
-
-	sub kill_watcher
-	{
-		vsay 20, "Shutting down watcher\n";
-		# Report failure to the watcher (reckon we've registered a key for our process?)
-		LDV::Utils::watcher_cmd('fail',@watcher_key);
-		die $@;
+my $spec_state = 0;
+my $rifel_state = 0;
+foreach my $oline (@orig_lines) {
+	if($oline =~ /\bspecification\s*=\s*.*/) {
+		$spec_state = 1;
+		$oline = "#The following line was automatically replaced by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
 	}
-
-	$SIG{QUIT} = \&kill_watcher;
-	# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
-	$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
-	# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
-	$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
-
-	eval {
-		call_cpachecker(%args);
-		1;
-	} or do {
-		vsay 4, "Exception occured: $@" if $@;
-		vsay 4, "Fatal error.  Stopping services before reporting...\n";
-		# FIXME: send sometimes in cluster mode
-		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
-		# We die in kill_watcher, no need to exit here... but just in case...
-		exit 1;
-	};
-
-	# Report success to the watcher
-	LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',files_for_parent());
-
-}else{
-	die "Assertion failed";
+	if($oline =~ /\bcfa.removeIrrelevantForErrorLocations\s*=\s*.*/) {
+		$rifel_state = 1;
+		$oline = "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
+	}
+	vsay 'TRACE', "$oline";
+	print $CPA_CFG $oline;
 }
+# If settings aren't specified in the config, just print them
+if ($spec_state == 0) {
+	# Automaton specification is not in the config file.  Add our own.
+	print $CPA_CFG "\n#The following line was automatically added by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
+}
+if($rifel_state == 0) {
+	print $CPA_CFG "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
+}
+close $CPA_CFG;
 
-exit 0;
-# NO CODE AFTER THIS POINT!
+# For now, we only support one location
+(scalar @errlocs > 1) and die;
+my $errloc = $errlocs[0];
 
+# Copy Automaton and replace label name with the one we need
 
-#======================================================================
-# CPACHECKER-SPECIFIC ROUTINES
-#======================================================================
+open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
+my @errloc_lines = <ERRLOC>;
+close ERRLOC;
 
-sub verify_cpachecker
-{
-	my %args = @_;
-	$args{report} or die;
-	# Since arguments alter depending on main, we should save them to temporary.
-	my %args_template = (%args);
+my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
+my $state = 0;
+foreach my $oeline (@errloc_lines) {
+	if($oeline =~ /(.*)CPALABEL(.*)/) {
+		$state = 1;
+		$oeline = "$1\[$errloc\]$2";
+	}
+	vsay 'TRACE', "$oeline";
+	print $ERRLOC_AUT $oeline;
+}
+close $LDV_errloc_autom;
 
-	for my $main (@{$args{mains}}){
-		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
-		if ($args{already_failed}){
-			# Print at once, without spawning task through watcher
-			mkpath(dirname($args{report}));
-			open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-			my $repT = XML::Twig::Elt->new('reports');
+# Add config option to cpachecker call line
+push @cpachecker_options,
+	"-config","$cpa_cfg_new"
+;
 
-			# Prepare a failure command
-			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
-			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
+# Set the option for the entry point
+my $main = $mains[0];
+# Add mains
+push @cpachecker_options, "-entryfunction",$main if $main;
 
-			# HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
-			my $failmsg = $args{already_failed};
-			$failmsg =~ s/Fatal error: exception Errormsg.Error//g;
-			$failmsg =~ s/Errormsg.Error/\n/g;
+#write ErrorPath.txt and other files to outputpath
+my $outputpath = "$tmpdir/cpa-tmp";
+push @cpachecker_options, "-outputpath",$outputpath;
 
-			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
-			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
-			XML::Twig::Elt->new('desc',{},$failmsg)->paste($rcvResultT);
+# Additional options
+push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
 
-			# Calculate and output time elapsed
-			XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
+add_time_watch(
+	'JAVA' => '.*java.*'
+);
 
-			$rcvResultT->paste(last_child =>$cmdInstT);
-			$cmdInstT->paste($repT);
+# In CPAchecker, the trace is stored in the separate file in the output path.
+my $orig_trace_fname = "$outputpath/ErrorPath.txt";
 
-			# Commit the report
-			$repT->set_pretty_print('indented');
-			$repT->print($CPACHECKER_REPORT);
-			close $CPACHECKER_REPORT;
+# We will need to adjust the trace for seamless integration with LDV, so we'll copy the trace here
+my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 
-			# Report failoure to the watcher
-			# TODO: we only implemented success only, so let it be here as is
-			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
-			vsay ('DEBUG',"Got key string $key_str.\n");
-			my @watcher_key = split /,/,$key_str;
-			for_parent($args{report},$args{trace},$args{debug});
-			LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'rcv',$args{cmd_id},$main,'@@',files_for_parent());
+# Create verdict calculator
+add_automaton(cpachecker_verdict());
+# Detect JAVA's native OOM errors
+add_automaton(java_oom());
+# Check
+add_automaton(cpachecker_syntax());
+# Dump the last 50 lines from stderr output of the tool into the 'TAIL' bucket
+add_automaton(tail_automaton(50),'stderr');
 
+my ($result, $errcode, $automata_results, $debug_trace) = run(@cpachecker_options);
+
+my $verdict = $automata_results->{VERDICT} || 'unknown';
+
+my $description = '';
+
+if ($verdict eq 'unknown') {
+	my @errbuf = @{$automata_results->{'TAIL'}};
+	# Add error buffers on unknown.  But first, filter some useless things out of them
+	# CPAchecker's trace is divided into blocks by empty lines.  Some blocks are not interesting to us, and we want the mremoved.
+	local $_;
+	my $cpaerrmsg = '';
+	my $removing = '';	#if we're removingall stuf until the next empty line
+	for my $ln (@errbuf){
+		$removing=1 if $ln=~/Dead code detected/;
+		$removing=1 if $ln=~/Ignoring inline assembler/;
+		if ($ln =~ /^$/){
+			$removing = '';
 		}else{
-			# Sanity check
-			$sanity->blast_called() if $do_sanity;
-
-			# Prepare files for child
-			# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
-			my @files_for_child = (@{$args{files}});
-
-			$args{main} = $main;
-			my $task_fname = "$config->{cmdfile}.for.$main";
-			vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
-			my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
-			Utils::hash_to_xml(\%args,'input',$TASK);
-			close $TASK;
-			vsay('INFO',"Written RCV single command to '$task_fname'\n");
-			$ENV{'RCV_FRONTEND_CMD'} = $0;
-			# FIXME: key is transferred through env variable.  RCV should be rewritten.
-			#                                            task        dir      >>>> the rest is the key to distinguis from others
-			LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',@files_for_child);
+			$cpaerrmsg.=$ln unless $removing;
 		}
 	}
+	$description .= $cpaerrmsg."\n";
 }
 
-# Call cpachecker
-use IPC::Open3;
-use StreamAutomaton;
-use File::Copy;
-use IO::Select;
-sub call_cpachecker
-{
-	my %args = @_;
-	# Options that will be passed to the cpachecker tool
-	my @cpachecker_options = ($cpachecker,@{$args{files}});
-
-	# Set default options
-	# If no config file is specified, create a temporary one
-	my $cpa_cfg_original = $cpachecker_config || "$configs_dir/cpa.cfg.pattern";
-	my $cpa_cfg_new = "$args{workdir}/cpa.cfg";
-	# Create a temporary config file.  Config is based on our local config, or on user-defined one
-	my $CPA_CFG; open $CPA_CFG, ">", $cpa_cfg_new or die;
-	my $LDV_errloc_autom = "$args{workdir}/errloc_automaton.txt";
-
-	vsay 40, "copy config from $configs_dir/cpa.cfg.pattern\n";
-	open ORIG_CFG, $cpa_cfg_original or die "$!";
-	my @orig_lines = <ORIG_CFG>;
-	close ORIG_CFG;
-
-	my $spec_state = 0;
-	my $rifel_state = 0;
-	foreach my $oline (@orig_lines) {
-		if($oline =~ /\bspecification\s*=\s*.*/) {
-			$spec_state = 1;
-			$oline = "#The following line was automatically replaced by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
-		}
-		if($oline =~ /\bcfa.removeIrrelevantForErrorLocations\s*=\s*.*/) {
-			$rifel_state = 1;
-			$oline = "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
-		}
-		vsay 'TRACE', "$oline";
-		print $CPA_CFG $oline;
+# Add "Src " declarations to the trace.  LDV tool that adjusts the error trace for CPAchecker will use them.
+local $_;
+if ($verdict eq 'unsafe') {
+	open(ORIG_TRACE_FILE, '<', $orig_trace_fname) or die "Can't open file with cpachecker trace: \"$orig_trace_fname\", $!";
+	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cpachecker trace: \"$adjusted_trace_fname\", $!";
+	print TRACE_FILE "Src $_: " for @files;
+	while (<ORIG_TRACE_FILE>) {
+		print TRACE_FILE $_;
 	}
-	# If settings aren't specified in the config, just print them
-	if ($spec_state == 0) {
-		# Automaton specification is not in the config file.  Add our own.
-		print $CPA_CFG "\n#The following line was automatically added by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
-	}
-	if($rifel_state == 0) {
-		print $CPA_CFG "#The following line was automatically replaced by LDV tools!\ncfa.removeIrrelevantForErrorLocations = false\n";
-	}
-	close $CPA_CFG;
-
-	# For now, only one error location is supported by CPACHECKER
-	(scalar @{$args{errlocs}} > 1) and die;
-	my $errloc = (@{$args{errlocs}})[0];
-
-
-	# Copy Automaton and replace label name with the one we need
-
-	open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
-	my @errloc_lines = <ERRLOC>;
-	close ERRLOC;
-
-	my $ERRLOC_AUT;  open $ERRLOC_AUT, ">", $LDV_errloc_autom or die;
-	my $state = 0;
-	foreach my $oeline (@errloc_lines) {
-		if($oeline =~ /(.*)CPALABEL(.*)/) {
-			$state = 1;
-			$oeline = "$1\[$errloc\]$2";
-		}
-		vsay 'TRACE', "$oeline";
-		print $ERRLOC_AUT $oeline;
-	}
-	close $LDV_errloc_autom;
-
-	# Add config option to cpachecker call line
-	push @cpachecker_options,
-		"-config","$cpa_cfg_new"
-	;
-
-	# Add mains and error locations
-	push @cpachecker_options, "-entryfunction",$args{main} if $args{main};
-
-	#write ErrorPath.txt and other files to outputpath
-	my $outputpath = "$args{debug}-stuff";
-	push @cpachecker_options, "-outputpath",$outputpath;
-
-	# For now we do not interpret hints.  We will be generating/copying certain config files for that
-	my $hintsT = $args{hints};
-
-	# Additional options
-	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
-
-	# TODO rerouting like in blast
-
-	# Resources limit.  We don't set memlimit--see below
-	@cpachecker_options = DSCV::RCV::Utils::set_up_timeout({
-		timelimit => $timelimit,
-		memlimit => $memlimit,
-		pattern => ".*,ALL;.*java.*,JAVA-PROC;".($ENV{'CPACHECKER_TIMEWATCH'} ? ";".$ENV{'CPACHECKER_TIMEWATCH'} : "") ,
-		output => $args{timestats},
-		id_str => "DSCV_TIMEOUT ",
-		kill_at_once => 1,
-		},@cpachecker_options
-	);
-
-	# Set memory limit.
-	if ($memlimit) {
-		# We set memory limit with Java native capabilities.  We use -Xmx and set it to the value supplied by user.  Thus, the memory limit can be overflew a bit, but in return the exception will be native.
-		my $memlimit_kb = int($memlimit / 1024);
-		$ENV{'JAVA_VM_ARGUMENTS'} .= " -Xmx${memlimit_kb}m";
-	}
-
-	vsay ('NORMAL',"Running CPACHECKER for $args{dbg_target}, entry $args{main}...\n");
-	vsay (20,@cpachecker_options,"\n");
-
-	# Fork and run CPACHECKER in a child process.	Redirect its output (std and err) to a file
-	# Open file to redirect
-	mkpath(dirname($args{debug}));
-	my $CPACHECKER_DEBUG;
-	open $CPACHECKER_DEBUG, ">", $args{debug} or die "Can't open file $args{debug}: $!";
-	# Fork cpachecker
-	local $"=" ";
-
-	vsay (20,"CPACHECKER debug trace is being written to $args{debug}\n");
-
-	# In CPAchecker trace is in the separate file.  We'll just copy it to $args{trace} at the end
-	my $trace_fname = "$outputpath/ErrorPath.txt";
-	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),cpachecker_verdict(),java_oom(),cpachecker_syntax()]);
-
-	# Store last lines of the log to add them to the report
-	my @errbuf = ();
-	my $errbuf_sz = 50;
-
-	my %child = Utils::open3_callbacks({
-		# Stdout callback
-		out => sub{ my $line = shift;
-			$verdictor->chew_line($line);
-			print $CPACHECKER_DEBUG $line;
-		},
-		# Stderr callback
-		'err' => sub{ my $line = shift;
-			$verdictor->chew_line($line);
-			push @errbuf, $line;
-			shift @errbuf if scalar @errbuf > $errbuf_sz;
-			print $CPACHECKER_DEBUG $line;
-		},
-		close_out=>sub{ vsay (40,"Child's stdout stream closed.\n");},
-		close_err=>sub{ vsay (40,"Child's stderr stream closed.\n");},
-		},
-		# BLAST call string
-		@cpachecker_options
-	);
-	close $CPACHECKER_DEBUG;
-
-  vsay (40,"CPACHECKER open3 return value: $?\n");
-	vsay (20,"CPACHECKER return value: $?\n");
-	vsay (40,"CPACHECKER stats: utime $child{'utime'}, stime $child{'stime'}\n");
-	my $cpachecker_rv = $? >> 8;
-	my $cpachecker_rv_full = $?;
-	if($? == 0){
-		vsay (20,"CPACHECKER OK\n");
-	}else{
-		vsay ('WARNING',"CPACHECKER failed with exit code $cpachecker_rv.  We consider it fatal\n");
-	}
-
-	my $result = {%{$verdictor->result()}};
-	# Don't set it up--it should be set by CPAchecker
-	# $result->{'CPACHECKER'} = "yes";
-	# Post limits and verdict on different lines!
-	$result->{'CPACHECKER-detailed'} = join "\n",(grep {$_} ($result->{'CPACHECKER-detailed'},$result->{'LIMITS'}));
-
-	# Verdict
-	my $bv = $result->{'CPACHECKER-detailed'};
-	if ($bv =~ /\bsafe\b/) {
-		$bv='SAFE';
-	}elsif($bv =~ /\bunsafe\b/){
-		$bv='UNSAFE';
-	}else{
-		$bv='UNKNOWN';
-		# Add error buffers on unknown.  But first, filter some useless things out of them
-		# CPAchecker's trace is divided into blocks by empty lines.  Some blocks are not interesting to us, and we want the mremoved.
-		local $_;
-		my $cpaerrmsg = '';
-		my $removing = '';	#if we're removingall stuf until the next empty line
-		for my $ln (@errbuf){
-			$removing=1 if $ln=~/Dead code detected/;
-			$removing=1 if $ln=~/Ignoring inline assembler/;
-			if ($ln =~ /^$/){
-				$removing = '';
-			}else{
-				$cpaerrmsg.=$ln unless $removing;
-			}
-		}
-		$result->{'CPACHECKER-detailed'} = $cpaerrmsg . $result->{'CPACHECKER-detailed'};
-	}
-	# Result is derived from verdict
-	my $br = $result->{'CPACHECKER'};
-	vsay (40, "CPACHECKER status is $br\n");
-	if($br =~ /\bno\b/i){
-		$br='FAILED';
-	}elsif (($br =~ /\byes\b/i) && ($bv ne 'UNKNOWN') ) {
-		$br='OK';
-	}else{
-		$br='FAILED';
-	}
-
-	# Add timing information into the result returned
-	$result->{'utime'} = $child{'utime'};
-	$result->{'stime'} = $child{'stime'};
-
-	# Copy back trace if it exists
-	if (-r $trace_fname) {
-		copy($trace_fname,$args{trace}) or die;
-	}
-
-	# Add information about limits to result
-	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
-	my $ml4rep = $memlimit ? "$memlimit Kb" : "not set";
-	# TODO: check of there is --version-like option to CPAchecker
-	#my $ver4rep = `pbast.opt --version`;
-	my $ver4rep = "";
-	$result->{'CPACHECKER-detailed'} .= <<EOR ;
-
-=========== Launch information ===========
-Verifier: CPAchecker ($ver4rep)
-Time Limit: $tl4rep
-Memory Limit: $ml4rep (average)
-Additional options: $ENV{'CPACHECKER_OPTIONS'}
-=========== Launch inform ends ===========
-EOR
-
-	# OK, CPAchecker finished, and now we print small XML report for it
-
-	# Assignments to port the old code
-	my $main = $args{main};
-
-	open my $CPACHECKER_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-	my $repT = XML::Twig::Elt->new('reports');
-
-	# Print verdict to console and to report
-	vsay (10,"$main: CPACHECKER status: $result->{'CPACHECKER'}\n");
-	vsay (20,"$main: CPACHECKER verdict: $result->{'CPACHECKER-detailed'}\n");
-
-	# Write source files to trace. This is needed since cpachecker
-	# doesn't provide good location and just print links to lines of a
-	# preprocessed cill file. At least add this file to trace.
-	# I can't secure that there is a trace for each unsafe verdict so check it.
-	if ($bv eq 'UNSAFE' and -f $args{trace}) {
-		open(TRACE_FILE, '<', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
-		my @cpachecker_trace = <TRACE_FILE>;
-		close TRACE_FILE;
-		open(TRACE_FILE, '>', $args{trace}) or die "Can't open file with cpachecker trace: \"$args{trace}\", $!";
-		my @cpachecker_src_files = @{$args{files}};
-		my $cpachecker_src_file = shift(@cpachecker_src_files);
-		print TRACE_FILE "Src $cpachecker_src_file: ";
-		foreach (@cpachecker_trace) {
-			print TRACE_FILE $_;
-		}
-		close TRACE_FILE;
-	}
-
-	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-	XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-	XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
-	# Confess who is responsible for that mess
-	XML::Twig::Elt->new('verifier',{},'CPAchecker')->paste($cmdInstT);
-
-	my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'cpachecker'});
-	XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
-	XML::Twig::Elt->new('desc',{},$result->{'CPACHECKER-detailed'})->paste($rcvResultT);
-
-	# Calculate and output time elapsed
-	# Read file with time statistics
-	# copied from blast script
-	# TODO(time): check it
-	my $timestats_fname = $args{timestats};
-	if ( -f $timestats_fname && ! -z $timestats_fname ) {
-		my %timestats;
-		open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: \"$timestats_fname\", $!";
-		while(<STATS_FILE>) {
-			/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
-			$timestats{$1} += $2;
-		}
-		close STATS_FILE;
-		foreach(keys %timestats) {
-			my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
-			$time_elt->set_att( name =>$_);
-			$time_elt->paste($rcvResultT);
-		}
-	} else {
-		my $time_elt = XML::Twig::Elt->new('time',0);
-		$time_elt->set_att( name =>"ALL");
-		$time_elt->paste($rcvResultT);
-	}
-
-	$rcvResultT->paste(last_child =>$cmdInstT);
-	$cmdInstT->paste($repT);
-
-	$repT->set_pretty_print('indented');
-	$repT->print($CPACHECKER_REPORT);
-	close $CPACHECKER_REPORT;
-
-	# Mark files that should be sent to parent
-	# You may skip this step if you're not going to run cluster
-	for_parent($args{report},$args{trace},$args{debug});
-
+	close TRACE_FILE;
+	close ORIG_TRACE_FILE;
 }
 
+# Return results
+result(
+	verdict => $verdict,
+	description => $description,
+	error_trace => $adjusted_trace_fname,
+);
 
 
-# This subroutine used to
-# Perform CPACHECKER quick check before running any verifications
-# But it was suppressed because CPAchecker takes too much time to start.
-sub cpachecker_quick_check
-{
-}
+# CPAchecker wrapper ends
+
+#===================
+#  AUTOMATA
+#===================
 
 sub java_oom
 {
-	return[10_000,sub{
+	return sub{
 		my $l=shift or return undef;
+		# NOTE that this overrides the LIMITS bucket, which is used internally
 		$l=~/^Exception.*OutOfMemory/i and return {'LIMITS'=>'Memory Limit Exceeded'};
 		return undef;
-	}];
+	};
 }
 
 sub cpachecker_verdict
 {
-	return[100_000,sub{
+	return sub{
 		my $l=shift or return undef;
 		# Old versions of CPAchecker print somthing like this...
-		$l =~ /Error location\(s\) reached\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
-		$l =~ /Error location\(s\) reached\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
+		$l =~ /Error location\(s\) reached\? NO/ and return {'VERDICT' => 'safe'};
+		$l =~ /Error location\(s\) reached\? YES/ and return {'VERDICT' => 'unsafe'};
 		# Newer versions choose more generic terms
-		$l =~ /Given specification violated\? NO/ and return {'CPACHECKER-detailed' => 'The system is safe.', 'CPACHECKER'=>'yes'};
-		$l =~ /Given specification violated\? YES/ and return {'CPACHECKER-detailed' => 'The system is unsafe.', 'CPACHECKER'=>'yes'};
+		$l =~ /Given specification violated\? NO/ and return {'VERDICT' => 'safe'};
+		$l =~ /Given specification violated\? YES/ and return {'VERDICT' => 'unsafe'};
 
-		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'CPACHECKER-detailed' => "The system is safe.  Error location is not reachable.", 'CPACHECKER'=>'yes'};
+		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'VERDICT' => "safe"};
 		return undef;
-	}];
+	};
 }
 
 sub cpachecker_syntax
 {
 	my $found_syntax_error = '';
 	my $parse_errormsg = '';
-	return[10_000,sub{
+	return sub{
 		my $l=shift;
 		$l =~ /Syntax error in line / and do { $found_syntax_error = 1;};
 		return undef unless $found_syntax_error;
@@ -616,31 +218,9 @@ sub cpachecker_syntax
 			$parse_errormsg .= "$l";
 		}else{
 			# Last line of a trace, return what we've accumulated
-			return {'CPACHECKER-detailed' => "CPAchecker couldn't parse file:\n$parse_errormsg\n", 'CPACHECKER'=>'no'};
+			return {'SYNTAX' => "CPAchecker couldn't parse file:\n$parse_errormsg\n", 'VERDICT'=>'unknown'};
 		}
 		return undef;
-	}];
-}
-
-# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
-use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
-my $current_fh;
-sub dumptrace
-{
-	my $fname = shift or die;
-	# In CPAchecker, the whole file is the trace
-	my $state = TRACE_READ;
-	my $current_fh;
-	return [1_000_000,sub {
-		my ($line) = @_;
-		if ($state == TRACE_READ){
-			unless ($current_fh){
-				# Do not open for appending, open for writing instead (see bug #1264)
-				open $current_fh, ">", $fname or die;
-			}
-			print $current_fh $line;
-		}
-		return undef;
-	}];
+	};
 }
 
