@@ -146,7 +146,7 @@ if ($verdict eq 'unknown') {
 		if ($ln =~ /^$/){
 			$removing = '';
 		}else{
-			$cpaerrmsg.=$ln unless $removing;
+			$cpaerrmsg.=$ln."\n" unless $removing;
 		}
 	}
 	$description .= $cpaerrmsg."\n";

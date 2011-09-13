@@ -607,9 +607,9 @@ for my $property (@properties){
 		$ri_basedir_for_rule = './'
 	}
 
-	vsay ('NORMAL',"CMDFILE    : ".$config->{cmdfile}."\n");
-	vsay ('NORMAL',"CMDFILE-OUT: ".$outfile."\n");
-	vsay ('NORMAL',"BASEDIR: ".$ri_basedir_for_rule."\n");
+	vsay ('DEBUG',"CMDFILE    : ".$config->{cmdfile}."\n");
+	vsay ('DEBUG',"CMDFILE-OUT: ".$outfile."\n");
+	vsay ('TRACE',"BASEDIR: ".$ri_basedir_for_rule."\n");
 	my @rule_instr_args = (
         #	$config->{timestats},
 	#      	"--pattern=.*,ALL",

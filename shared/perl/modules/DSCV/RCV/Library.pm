@@ -55,6 +55,8 @@ sub preprocess_all_files
 {
 	my @prep_seq = @_;
 
+	vsay ("NORMAL",sprintf("Preprocessing files with %s",join(", ",@prep_seq)));
+
 	local $_;
 
 	# Load files and their options (list of small array refs)
@@ -230,7 +232,7 @@ sub preprocess_cil_merge
 		die "CIL ERROR!";
 	};
 
-	return ([$cil_out], []);
+	return ([$cil_out], {$cil_out => { cwd => $out_dir, opts => []}});
 }
 
 sub set_cil
@@ -354,6 +356,9 @@ sub run
 	$errcode >>= 8;
 	# Check if limits were violated
 	$result = 'LIMITS' if $atmt_results->{'LIMITS'};
+
+	# Just say something to the user
+	vsay('NORMAL',sprintf("Finished with code %d term by %s. %s",$errcode,$result,((defined $atmt_results->{'LIMITS'})? $atmt_results->{'LIMITS'}: '')));
 
 	# Prepare a description boilerplate
 	# NOTE that we _rewrite_ the description if it's not the first run!  Motivation: if the first run has failed due to an artificially set up time limit, we do not want this time limit message to get into the final report.
@@ -560,7 +565,8 @@ sub cpp_one_file
 
 	LDV::Utils::push_instrument("cpp");
 
-	my @cpp_args = ("gcc","-E",
+	# We add "-x c" here to make GCC preprocess the input file even if it ends with ".i" suffix.  By default, GCC doesn't preprocess such files.  Moreover, we can't use the bare "cpp" here, as the options are for gcc compiler, and the bare preprocessor will report errors.
+	my @cpp_args = ("gcc","-E","-x","c",
 		"-o","$info->{i_file}",	#Output file
 		"$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options

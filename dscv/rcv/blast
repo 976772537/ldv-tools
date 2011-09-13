@@ -145,16 +145,8 @@ my ($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
 # BLAST prints the verdict into the standard output.  It was read by the relevant automaton.
 my $verdict = $automata_results->{VERDICT} || 'unknown';
 
-# You may not specify the description; however if there's something wrong, and you want to discriminate the issues in your tool in the statistics visualizer (or to gather the results for a scientific experiment), you might consider adding something here
+# You may skip specifying the description; however if there's something wrong, and you want to discriminate the issues in your tool in the statistics visualizer (or to gather the results for a scientific experiment), you might consider adding something here
 my $description = '';
-
-$description .= $automata_results->{'EXCEPTION'}."\n" if $automata_results->{'EXCEPTION'};
-
-# Add info on OCAML errors
-$description.=$automata_results->{'OCAML'}."\n" if $automata_results->{'OCAML'};
-
-# Add the stderr tail
-$description.= join ("\n",@{$automata_results->{'TAIL'}})."\n" if $automata_results->{'TAIL'};
 
 if ($errcode == 5){
 	# BLAST didn't find input file -- integration error
@@ -169,9 +161,18 @@ if ($errcode == 5){
 	vsay (20,"Failed with exit code $errcode by $result.  But who cares?\n");
 }
 
+$description .= $automata_results->{'EXCEPTION'}."\n" if $automata_results->{'EXCEPTION'};
+
+# Add info on OCAML errors
+$description.=$automata_results->{'OCAML'}."\n" if $automata_results->{'OCAML'};
+
+# Add the stderr tail
+$description.= join ("\n",@{$automata_results->{'TAIL'}})."\n" if $automata_results->{'TAIL'};
+
+
 
 # Describe the attributes of the current launch
-$description .= "=========== BLAST attrubutes ===========\n";
+$description .= "\n=========== BLAST attrubutes ===========\n";
 
 # Add a stopsep information to description
 my $stopsep = "default stop-join"; 
@@ -208,26 +209,6 @@ sub safe_unsafe
 		$l=~/The system is safe/ and return {VERDICT=>'safe'};
 		$l=~/The system is unsafe/ and return {VERDICT=>'unsafe'};
 		return undef;
-	};
-}
-
-sub tail_automaton
-{
-	my $count = shift || 50;
-	my @buffer = ();
-	return sub{
-		my $l = shift;
-		if (defined $l){
-			# It's a real line
-			chomp $l;
-			push @buffer, $l;
-			shift @buffer if scalar @buffer > $count;
-			# Show that this automaton is still working
-			return undef;
-		}else{
-			# It's a past-the-end line
-			return {'TAIL' => \@buffer};
-		}
 	};
 }
 
