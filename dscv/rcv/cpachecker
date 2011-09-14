@@ -1,50 +1,87 @@
 #!/usr/bin/perl
-
 # RCV Frontend for CPAchecker tool.
 
-set_tool_name("CPAchecker");
+use strict;
 
 # Available options:
-# NO_CIL
 # CPACHECKER (defaults to cpa.sh)
-# CPACHECKER_CONFIG
-# CPACHECKER_OPTIONS
+# CPACHECKER_CONFIG (config file for CPAchecker; it will be patched a bit to conform to our rule instrumentation)
+# CPACHECKER_OPTIONS (additional option string to pass to the $CPACHECKER script)
 
-# Prepare initial variables
-my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
-my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
+# This frontend is documented so that you may base your own frontend on it.
+
+# A tool LDV frontend is a "wrapper" script that gets as an input the files, entry points and error location to check, runs a certain verification engine (referred to as a "backend"), and reports results to the LDV in a generic manner.  This wrapper should request a certain kind of preprocessing (CIL and CPP are built-in), or may opt for a tool-specific preprocessing.  The wrapper may use the built-in LDV capabilities of invoking a backend in a controlled environment with time and memory limitig; the automatic interpretation of the results (whether the input program was safe or unsafe) is also included here.
+
+# The input of the wrapper is a number of global variables the caller sets up for him:
+#
+#   @errlocs - error labels that designate the error locations (currently, the array contains only one)
+#   @mains - entry points to the program (currently, the array contains only one)
+#   $hints_tag - an XML tag from the rule database with some hints to the verifiers on what functionality is required for an efficient verification of the instrumented property (such as "alias analysis should be on").  Currently contains no useful information; sSee the documentation to Kernel rules on the description of the options when they appear.  The tag may be accessed with XML::Twig::Elt functions.
+#   $tmpdir - writable temporary directory, unique for this verification task.  You may not have a write access outside of it.
+#
+# The wrapper has access to a number of tools and options the LDV backend provides, they will be described later, as they're used.
+
+# To distinguish when the wrapper works in logs, set up a unique name for the verifier.
+set_tool_name("CPAchecker");
+
+
+# The LDV distribution of CPAchecker contains some additional files that are installed alongside the whole toolset.  The paths to these places are accessed via pre-set variables $installed_frontends_dir and $installed_backends_dir.
+# Initialize the directory where the default config files reside
 my $configs_dir = "$installed_frontends_dir/etc/";
 
+# Get a path to the user-specified config, if any, via Perl's ENV hash for environemnt variables.  If the user has hot specified the environment variable, the value of $cpachecker_config will be undef;
 my $cpachecker_config = $ENV{'CPACHECKER_CONFIG'};
 
+# Load the path to the cpachecker script itself.  Unless the user specified the variable, the wrapper will search for "cpa.sh" in the system's $PATH.
+my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
 
-# CPAchecker itself does set a memory limit (as of today, the default is 1200 Mbs of Java heap size.)  However, if it just doesn't work, we don't want our machine to get stuck, so we set up a limit of ~2.2 Gb by default.... well, just in case.  The "cases" we observed (char/ipmi/ipmi_watchdog.ko) demonstrate that this is a good estimate of 1.0 Gb of the actual resident memory taken.
-set_limits(
-	memlimit => 2_200_000,
-	# Signal that CPAchecker should be killed with SIGKILL, instead of TERM-wait-KILL sequence.  This is a bug in LDV tools, to be fixed.
-	kill_at_once => 1,
+# The interface to get files to analyze for this particular task is preprocess_all_files.  This function gets a list of preprocessors to apply, and returns a list of preprocessed files to analyze.  If you specify certain preprocessors, such a list will only have one file.  If you specify no preprocessors, you'll get a list of original files.  The available  preprocessors include:
+#
+#   * 'cpp' - standard system C preprocessor
+#   * 'cil' - preprocess each file separately with CIL preprocessor; the files should already be preprocessed by CPP!  CIL is shipped with LDV by default, but you may specify your own CIL executable.  See also, set_cil_options and set_cil
+#   * 'cil-merge' - preprocess all files with CIL preprocessor, and merge them into one; the files should already be preprocessed by CPP!
+
+# CPAchecker requires the files to be processed by CIL before passing.  We ship CIL by default with the toolset, and its path is already adjusted.  You may redefine it to your own executable before you invoke preprocess_all_files().  Note that you should specify "cilly.asm.exe" instead of simple "cilly" script.
+
+#set_cil("/my/path/cil/obj/x86_LINUX/cilly.asm.exe");
+
+# The options that control input and output files are automatically prepared by LDV internals. You should just specify the rest here. 
+set_cil_options(
+	"--printCilAsIs",
+	"--domakeCFG",
+	# The option --dosimplify is doing annoying thing. It make pointers from explicit calls. We do not use it by default.
+	#"--dosimplify",
 );
 
-# CPAchecker requires the files to be processed by CIL before.  We ship CIL by default with the toolset, and this functionality is already adjusted.  You only need to specify it.
-my @files = preprocess_all_files('cpp','cil','cil-merge');
+# Now, as CIL script and options are prepared, let's invoke the preprocessing.
+my @files = preprocess_all_files('cpp','cil-merge');
 
+# If you need more preprocessing, just invoke your own preprocessor here.
+# As we've specified 'cil-merge', the @files array now contains one file.
+
+# If an error has occured during preprocessing, the script will terminate, and the further commands won't be executed.  LDV tools will handle and report the preprocessing error, if any.
+
+# Since we now got the files (one file, to be exact), we may start to form a command line for CPAchecker.
 my @cpachecker_options = ($cpachecker,@files);
 
-# MANAGE CONFIGURATION FILES ADJUSTMENTS
-# The way LDV instruments properties requires the config files to be adjusted.
 
-# If no config file is specified, create a temporary one
+# MANAGE CONFIGURATION FILES ADJUSTMENTS
+# The way LDV instruments properties requires the config files to be adjusted.  If the user has specified config via environment variable, we copy that config into a temporary folder, and patch it.  Otherwise, we copy the default CPAchecker config shipped with LDV.
+
+# If no config file is specified ($cpachecker_config, which was set up at the beginning of the script), create a temporary one
 my $cpa_cfg_original = $cpachecker_config || "$configs_dir/cpa.cfg.pattern";
 my $cpa_cfg_new = "$tmpdir/cpa.cfg";
-# Create a temporary config file.  Config is based on our local config, or on user-defined one
+# Create a temporary config file.  $tmpdir is a preset variable with temporary dir for this verification task.
 my $CPA_CFG; open $CPA_CFG, ">", $cpa_cfg_new or die;
 my $LDV_errloc_autom = "$tmpdir/errloc_automaton.txt";
 
 vsay 40, "copy config from $configs_dir/cpa.cfg.pattern\n";
+# Load the lines of config file into array @orig_lines.
 open ORIG_CFG, $cpa_cfg_original or die "$!";
 my @orig_lines = <ORIG_CFG>;
 close ORIG_CFG;
 
+# Fix the config in @orig_lines
 my $spec_state = 0;
 my $rifel_state = 0;
 foreach my $oline (@orig_lines) {
@@ -59,7 +96,7 @@ foreach my $oline (@orig_lines) {
 	vsay 'TRACE', "$oline";
 	print $CPA_CFG $oline;
 }
-# If settings aren't specified in the config, just print them
+# If settings we wanted to patch aren't specified in the config at all, just print them
 if ($spec_state == 0) {
 	# Automaton specification is not in the config file.  Add our own.
 	print $CPA_CFG "\n#The following line was automatically added by LDV tools!  We need this automaton!\nspecification = $LDV_errloc_autom\n";
@@ -69,12 +106,12 @@ if($rifel_state == 0) {
 }
 close $CPA_CFG;
 
-# For now, we only support one location
+# The array @errlocs contains a sindle error location.  This may be changed in the future.
+# NOTE that the error locations may vary from property to property.  That's why we can't just carve it here.
 (scalar @errlocs > 1) and die;
 my $errloc = $errlocs[0];
 
-# Copy Automaton and replace label name with the one we need
-
+# As we now know the error location, we form an error location automaton for CPAchecker.  Copy the sample Automaton shipped with LDV and replace label name with the one we need.
 open ERRLOC, "$configs_dir/errloc_automaton.txt" or die"$!";
 my @errloc_lines = <ERRLOC>;
 close ERRLOC;
@@ -101,38 +138,85 @@ my $main = $mains[0];
 # Add mains
 push @cpachecker_options, "-entryfunction",$main if $main;
 
+# We should specify the path for result and temporary files in cpachecker, since the directory it is invoked is unknown, and may be not writeable at all.  Besides, we want to know the exact location of the error path.
 #write ErrorPath.txt and other files to outputpath
 my $outputpath = "$tmpdir/cpa-tmp";
 push @cpachecker_options, "-outputpath",$outputpath;
 
-# Additional options
+# Additional options a user may specify (watch for the spaces in options!)
 push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
 
-add_time_watch(
-	'JAVA' => '.*java.*'
-);
 
-# In CPAchecker, the trace is stored in the separate file in the output path.
+# In CPAchecker, the trace is stored in the separate file in the output path, and we know its name.
 my $orig_trace_fname = "$outputpath/ErrorPath.txt";
 
 # We will need to adjust the trace for seamless integration with LDV, so we'll copy the trace here
 my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 
-# Create verdict calculator
+
+## RUNNING THE TOOL
+# The LDV tools run verifiers in a controlled environment via a special run() library functions we provide.  The tools may be limited in time and memory they may expand to.  Run function also captures and archivates the tool's console output, and provides a way to access it via simple "event machines" as the tool yields it.
+
+# CONTROLLING TIME AND MEMORY LIMITS
+# By default, limits are controlled via RCV_TIMELIMIT (CPY+SYS time limit in seconds) and RCV_MEMLIMIT (virtual memory limit in megabytes). The limits from these variables have already been preset.  However, you might want to adjust them.
+
+# CPAchecker itself sets up its own memory limit (as of today, the default is 1200 Mbs of Java heap size.)  However, if it just doesn't work, we don't want our machine to get stuck, so we set up a limit of ~2.2 Gb by default.... well, just in case.  The "cases" we observed (char/ipmi/ipmi_watchdog.ko) demonstrate that this is a good estimate of 1.0 Gb of the actual resident memory taken.
+set_limits(
+	memlimit => 2_200_000,
+	# Signal that CPAchecker should be killed with SIGKILL, instead of TERM-wait-KILL sequence.  This is a bug in LDV tools, to be fixed.
+	kill_at_once => 1,
+);
+
+# Time limiting script may breakdown the time the verifier was running into buckets.  If you use a separate solver, you might try to add a specific bucket.
+# Each bucket is a regular expression that should match a process in a tool's process tree.  The bucket name sums the runtimes of all the processes that matched the regular expression.
+# However, for processes that live for a very short time (if you use an external verifiers), the toolset can't calculate this time precisely.  However, if such processes are all children of a speific process (such as solvers are children of java process, or of the smtlibServer in BLAST), you may specify 'CHILD:.*parent.*' regexp as a pattern.  See BLAST's frontend for an example.
+add_time_watch(
+	'JAVA' => '.*java.*',
+);
+
+
+# HANDLING THE OUTPUT
+# As mentioned above, the access to the tool output is provided as a registry of several state machines.
+# A state machine is a perl subroutine reference, maintaining its internal state via closure mechanism.  It takes a line printed by the tool as an input, changes its internal state, and returns either an undef, or a hash reference to several KEY=>VALUE pairs.
+# For all machines in the registry, the hashes are merged into one, and you may access it after the run has accomplished. 
+
+# State machines are generated by subroutines that you may find at the end of the file.
+
+# Create verdict calculator.  CPAchecker prints the verdict to the console, and we fill the VERDICT bucked with this result, if any.
 add_automaton(cpachecker_verdict());
-# Detect JAVA's native OOM errors
+# Detect JAVA's native OOM errors, and fill LIMITS bucket (usual time and memory limit violations go there as well).
 add_automaton(java_oom());
-# Check
+# Check if CPAchecker has detected any syntax errors, and fille the SYNTAX bucket.
 add_automaton(cpachecker_syntax());
-# Dump the last 50 lines from stderr output of the tool into the 'TAIL' bucket
+# Dump the last 50 lines from stderr output of the tool into the 'TAIL' bucket.  tail_automaton is a library function; you may find the sources in shared/perl/modules/DSCV/RCV/Library.pm
+# Note the 'stderr' after the automaton.  It means that it is only applied to the standard error stream.  You may specify 'stdout' here as well or instead.  Here, we're more interested in any exceptions the verifier produces
 add_automaton(tail_automaton(50),'stderr');
 
+# Now the limits are set and automatons are added.  We may run the tool (specified by the command line we have already prepared).  As an output, we'll get:
+#   * the result of the run ('OK', 'SIGNAL', or 'LIMITS'), OK meaning that the tool was not interrupted, but, possibly, returned a nonzero code
+#   * the return code itself
+#   * the merged hash of the automata added.
+#   * the file where gzip-ped debug trace resides
 my ($result, $errcode, $automata_results, $debug_trace) = run(@cpachecker_options);
 
+# NOTE that you should re-add automata with a fresh state if you plan to perform more runs.
+
+
+# The result of the run is
+#   * verdict (safe, unsafe, or unknown);
+#   * error trace file;
+#   * description with arbitrary text information.  It's a good idea to include some scientific statistics here.
+#   * more files you might want to collect from all verification tasks.
+
+
+# Now calculate the description and verdict.
+# Verdict was calculated by our automaton (if it succeeded).  However, if CPAchecker has been terminated abnormally, the relevant bucket contains an undefined value; assume an unknown verdict
 my $verdict = $automata_results->{VERDICT} || 'unknown';
 
+# Let's prepare the description string step-by-step
 my $description = '';
 
+# If something has prevented CPAchecker from getting a verdict, we micht want to know if there was an exception.  Therefore, we'll add the exception to description.
 if ($verdict eq 'unknown') {
 	my @errbuf = @{$automata_results->{'TAIL'}};
 	# Add error buffers on unknown.  But first, filter some useless things out of them
@@ -152,6 +236,10 @@ if ($verdict eq 'unknown') {
 	$description .= $cpaerrmsg."\n";
 }
 
+# This part should adjust the trace so that it resembles BLAST format.
+# For now, we have implemented a special converter for CPAchecker, but for any other tool, a converter should be implemented here.
+
+# For our CPAchecker converter to work, we just need to add the source file address.
 # Add "Src " declarations to the trace.  LDV tool that adjusts the error trace for CPAchecker will use them.
 local $_;
 if ($verdict eq 'unsafe') {
@@ -165,7 +253,8 @@ if ($verdict eq 'unsafe') {
 	close ORIG_TRACE_FILE;
 }
 
-# Return results
+# Return results.  The "verdict", "description", and "error_trace" are obligatory.
+# You may add more hash entries, the values should contain files, and the keys will distinguish these files by meaning.  The files you've specified this way will be stored in the package with results and associated with the respective launches that generated them.
 result(
 	verdict => $verdict,
 	description => $description,
@@ -174,6 +263,7 @@ result(
 
 
 # CPAchecker wrapper ends
+# DO NOT INVOKE "exit" FROM HERE!!!
 
 #===================
 #  AUTOMATA

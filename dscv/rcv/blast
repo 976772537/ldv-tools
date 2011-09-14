@@ -2,6 +2,10 @@
 
 # RCV frontend for BLAST tool.
 
+# For elaborate description of writing the verifiers, please, refer to CPAchecker's wrapper located in dscv/rcv/cpachecker.
+#
+# In this file you may see examples of how to use $hints, and how to attach additional files to the report.  You may also see more automata examples here.
+
 set_tool_name("BLAST");
 
 # locate blast

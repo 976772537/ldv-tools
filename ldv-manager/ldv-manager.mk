@@ -28,7 +28,7 @@ endif
 ifeq ($(RCV_VERIFIER),)
 Verifier=
 else
-Verifier=$(delim)$(RCV_VERIFIER)
+Verifier=$(delim)$(notdir $(RCV_VERIFIER))
 endif
 
 

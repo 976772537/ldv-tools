@@ -361,8 +361,9 @@ if $online
 	end
 end
 
+# Do not do this as user might want to examine the error traces.
 # Remove temporary directory on success (keep it if something failed, we might want to examine it!)
-FileUtils.remove_dir(tmpdir) if tmpdir
+#FileUtils.remove_dir(tmpdir) if tmpdir
 
 
 ensure

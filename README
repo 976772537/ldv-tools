@@ -122,28 +122,39 @@ HOW TO USE
 
       VIEW RESULTS
 
-  To view verification results and some auxiliary information, you should
-  install the stats visualizer tool.  The tool is implemented as a web server,
-  and can be run by Apache and mod_php. To learn how to set it up, please, see:
-    SOURCE_DIR/stats-visualizer/INSTALL
+  To view verification results and some auxiliary information, your best option
+  is to install the stats visualizer tool.  The tool is implemented as a web
+  server, and can be run by Apache and mod_php. To learn how to set it up,
+  please, see:
+     SOURCE_DIR/stats-visualizer/INSTALL
 
   Note that also you should set up a MySQL database:
     - Install MySQL if it is not installed.
     - Create your database and user with write privileges.
-    - Upload the database schema to the created database. The schema is there:
+    - Upload the database schema to the created database. The schema is here:
         INSTALL_DIR/ldv-manager/results_schema.sql
 
   LDV tools results are uploaded to the database as in the following instruction:
+
     SOURCE_DIR/ldv-tools/ldv-manager/README
 
   In a nutshell, having set the proper environment variables that specify your
   database connection parameters (user, host, database, etc), you just run:
+
     ldv-upload finished/package.pax
 
   where package.pax is the package named after your driver.
 
   The statistics server will be available trough your browser. To see it you must
   specify database connection options in URL.
+
+  An alternative option would be to run "ldv-manager" with LDV_VIEV=y.  You need
+  to set up a database and adjust the environment variables as well, but nothing
+  will be written to the database.
+
+  An even more alternative way is just to unpack the XML file from the PAX
+  archive (or even open the archive itself as a text file) and look for
+	<verdict> tags.
 
       EXAMPLES
 

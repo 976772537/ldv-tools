@@ -9,7 +9,7 @@ use DSCV::RCV::Utils;
 use strict;
 use vars qw(@ISA @EXPORT_OK @EXPORT);
 # List here the functions available to the user (don't forget the & in front of them)
-@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &add_automaton &result &tail_automaton &set_limits);
+@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &add_automaton &result &tail_automaton &set_limits &set_cil_options);
 use base qw(Exporter);
 
 use LDV::Utils;
@@ -55,7 +55,7 @@ sub preprocess_all_files
 {
 	my @prep_seq = @_;
 
-	vsay ("NORMAL",sprintf("Preprocessing files with %s",join(", ",@prep_seq)));
+	vsay ("INFO",sprintf("Will use preprocessors: %s",join(", ",@prep_seq)));
 
 	local $_;
 
@@ -85,6 +85,8 @@ sub preprocess_all_files
 	while (@prep_seq) {
 		# Get preprocessor
 		my $prep = shift @prep_seq;
+
+		vsay ("NORMAL",sprintf("Preprocessing %d files with %s",(scalar @$c_file_list),$prep));
 
 		# Check sanity
 		die "Before you CIL-merge, you should preprocess inidividual files with CIL or CPP" if ((($prep eq 'cil_merge') || ($prep eq 'cil-merge')) && !$cpp_ed);
@@ -177,11 +179,12 @@ sub preprocess_cil
 		$i_file = catfile($out_dir,$i_file);
 		mkpath(dirname($i_file));
 
+		# NOTE that in this script the preprocessing is ignored!  The options are replaced with the user-specified options!
 		# Get and adjust preprocessing options
 		my %opts = %{$c_file_opt->{$c_file}};
+		# Add common CIL options set up by user
+		$opts{opts} = $context->{cil_options};
 
-			# my $new_record = {cil_file=>"$workdir/cilly/out.cilf.c", i_file=>"$workdir/cilly/cil_extrafiles.list", cwd=>"$workdir/cilly/"};
-			#my (undef, $error) = cilly_file(%$new_record, cil_path=>$cil_path, temps=>$cil_temps, is_list=>1);
 		my $cil_temps = "$i_file-tmpdir";
 		mkpath($cil_temps);
 
@@ -221,9 +224,10 @@ sub preprocess_cil_merge
 	print FILE $_."\n" for @$c_file_list;
 	close FILE or die "Can't close cillist file '$cil_efl': $!";
 	
+	vsay ('DEBUG',`cat $cil_efl`);
 	vsay ('DEBUG',"Will merge all files with CIL into $cil_out\n");
 	# Note the is_list setting that means we're preprocessing a list instead of one file
-	my ($errcode, @answer) = cil_one_file(cwd=>$out_dir, cil_script => $context->{cil_script}, temps=>$cil_temps, c_file => $cil_efl, i_file => $cil_out, is_list => 1);
+	my ($errcode, @answer) = cil_one_file(cwd=>$out_dir, cil_script => $context->{cil_script}, temps=>$cil_temps, c_file => $cil_efl, i_file => $cil_out, is_list => 1, opts=>$context->{cil_options});
 	if ($errcode != 0) {
 		vsay("WARNING", "CIL ERROR!  Terminating checker.\n");
 		# Add the discriminator that it's a preprocess error trace to the description
@@ -238,6 +242,11 @@ sub preprocess_cil_merge
 sub set_cil
 {
 	$context->{cil_script} = shift or Carp::confess;
+}
+
+sub set_cil_options
+{
+	$context->{cil_options} = [@_] or Carp::confess;
 }
 
 sub set_limits
@@ -619,26 +628,17 @@ sub cil_one_file
 	LDV::Utils::push_instrument("CIL");
 
 	# Filter out "-c" from options -- we need just preprocessing from CIL
-	my @opts = undef;
+	my @opts = ();
 	if($info->{opts}) {
 		@opts = @{$info->{opts}};
 		@opts = grep {!/^-c$/} @opts;
 	}
 
-	my @extra_args = (#"-c",
+	my @extra_args = (
 		"$info->{c_file}",	#Input file
 		"--out", "$info->{i_file}",	#Output file
-		# However, for cill to REALLY output the file, GCC's preprocessr at some stage should print it.  We need the following line:
-		#"-o",$info->{cil_file},
-		# Default CIL options
-		# The option --dosimplify is doing annoying thing. It make pointers from explicit calls. So comment it
-		#"--dosimplify",
-		"--printCilAsIs",
-		"--domakeCFG",
-		#($info->{temps}?("--save-temps=$info->{temps}"):()),
 		# User-supplied options
-		# @opts,
-		#"-U","__LP64__"
+		@opts,
 	);
 
 	my @cil_args = ($cil_script);
@@ -789,6 +789,8 @@ sub set_context
 		'stderr_automata' => [],
 		'stdout_automata' => [],
 		'engine' => undef,
+		'cil_script' => undef,
+		'cil_options' => [],
 	};
 
 	my $process_basedir = sub{

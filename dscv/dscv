@@ -304,6 +304,7 @@ $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->
 
 # INLINE mode preparation
 
+use File::Copy;
 use File::Path qw(mkpath rmtree);
 use File::Spec;
 # If we're in inline mode, we should create appropriate cmdfile in the working dir and use it as such.
@@ -377,9 +378,12 @@ if ($mode eq 'inline'){
 	#Prepare usual DSCV options and proceed to the rest of the script
 	$config->{cmdfile}=$cmdfile_name;
 	if ($defprop){
-		my $default_rule_model = $config->{inline_aspect}?'BZ_1':'BZ_2';
+		my $default_rule_model = $config->{inline_aspect}?'NONE':'BZ_2';
 		$config->{properties}=[$default_rule_model];
 	}
+
+	# Place report for easier user access
+	$config->{report} = "$config->{work_dir}/report.xml";
 }
  
 # Sanity check
@@ -990,7 +994,8 @@ $big_reportT->set_pretty_print('indented');
 $big_reportT->print($BIG_REPORT);
 close $BIG_REPORT;
 
-vsay 20,"Final report is written to $config->{report}\n";
+my $report_verbosity = ($mode ne 'inline') ? 'INFO' : 'NORMAL';
+vsay $report_verbosity,"Final report is written to $config->{report}\n";
 
 1;
 } or do {
