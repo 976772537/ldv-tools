@@ -91,4 +91,18 @@ $1-subdir-%:
 	$$(MAKE) -C $1 $$*
 endef
 
+# UnionFS installation
+$(eval $(call mksubdir,monotonic-unionfs))
+
+all: monotonic-unionfs-subdir-build
+
+unionfs_target=$(install_dir)/bin/unionfs
+# Native install is not configurable, use custon
+install: $(unionfs_target)
+$(unionfs_target): monotonic-unionfs-subdir-build
+	@mkdir -p $(@D)
+	# NOTE: we remove the target executable, as it still may be invoked and maintaining a file system.  OS forbids overwriting of the executables, so we unlink it first.
+	rm -rf $@
+	cp monotonic-unionfs/src/unionfs $@
+	@chmod +x $@
 

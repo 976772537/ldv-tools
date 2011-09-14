@@ -15,19 +15,12 @@ use Utils;
 # SHARED INFORMATION
 #======================================================================
 
-# Get folder that contains reports, based on wokring directory supplied to RCV
-sub reports_dir
-{
-	my $workdir = shift or Carp::confess;
-	return "$workdir/reports";
-}
-
 use File::Find;
 # Execute callback for each report file found
 sub foreach_report
 {
 	my ($work_dir, $callback) = @_;
-	find({no_chdir=>1, wanted=>sub{ /\.report$/ and $callback->($File::Find::name);}},reports_dir($work_dir));
+	find({no_chdir=>1, wanted=>sub{ /\.report$/ and $callback->($File::Find::name);}},$work_dir);
 }
 
 #======================================================================
@@ -54,7 +47,7 @@ sub set_up_timeout
 	unshift @cmdline,"-p",$pattern if $pattern;
 	unshift @cmdline,"-o",$output if $output;
 	unshift @cmdline,"--just-kill" if $resource_spec->{kill_at_once};
-	unshift @cmdline,$timeout if $timelimit || $memlimit;
+	unshift @cmdline,$timeout;
 
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
 
@@ -411,7 +404,7 @@ sub args_for_main
 	my %new_args = (%args);
 
 	local $_;
-	$new_args{$_} = sprintf ($args{$_},$main) for qw(debug trace main timestats report);
+	$new_args{$_} = sprintf ($args{$_},$main) for qw(debug trace timestats report workdir);
 	return %new_args;
 }
 

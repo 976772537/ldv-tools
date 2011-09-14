@@ -11,12 +11,17 @@ class Spawner
 	LOCAL_MOUNTS = File.join("mnt","local")
 	SSH_MOUNTS = File.join("mnt","ssh")
 
-	def initialize()
+	def initialize(ldv_home)
+		# Try to find our custom unionfs command
+		our_unionfs = File.join(ldv_home,'cluster','bin','unionfs')
+		if say_and_run(our_unionfs,'--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
+			@unionfs = [our_unionfs,'-o','monotonic']
+		# OK, use the system's unionfs
 		# Determine the name of unionfs (in Ubuntu and SuSE it differs)
-		if say_and_run('unionfs','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
-			@unionfs='unionfs'
+		elsif say_and_run('unionfs','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
+			@unionfs = ['unionfs']
 		elsif say_and_run('unionfs-fuse','--help',:no_capture_stdout => true, :no_capture_stderr => true) == 0
-			@unionfs='unionfs-fuse'
+			@unionfs = ['unionfs-fuse']
 		else
 			raise "Can't find a proper unionfs command..."
 		end
@@ -99,7 +104,8 @@ class Spawner
 				# If remote host is actually a local host, tham means that we shouldn't mount, as it won't work, and, most likely, it's planned to be like this.
 				unless ip_localhost? host
 					# Ubuntu's unionfs doesn't work with relative paths... expand them!
-					unionfs_args = [@unionfs,"-o","cow","#{File.expand_path workdir}=RW:#{File.expand_path sshdir}=RO",root]
+					# (NOTE, that @unionfs is an array, as we may use our own, patched version, with extra options)
+					unionfs_args = @unionfs + ["-o","cow","#{File.expand_path workdir}=RW:#{File.expand_path sshdir}=RO",root]
 					unioned = say_and_run(*unionfs_args)
 					unless unioned && unioned == 0
 						raise "UNION failed #{unionfs_args.inspect}.  Did you install unionfs-fuse?  Are all the folders created properly?"
@@ -144,7 +150,7 @@ end
 
 class RealSpawner < Spawner
 	def initialize(ldv_home)
-		super()
+		super(ldv_home)
 		@home = ldv_home
 		@nlog = Logging.logger['Node']
 	end
@@ -263,10 +269,8 @@ class RealSpawner < Spawner
 				@nlog.debug "Saved task to temporary file #{temp_file.path}"
 				@nlog.trace task['args']
 
-				# Set up the proper verifier, and call its backend
-				verifier = task['env']['RCV_VERIFIER'] || task['global']['env']['RCV_VERIFIER'] || 'blast'
-				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv',verifier)
-				@nlog.info "Using verifier #{verifier} located at #{verifier_wrapper_exe}"
+				# All verifiers are called via a common backend
+				verifier_wrapper_exe = File.join(ldv_home,'dscv','rcv-launcher')
 
 				fork_callback = proc do
 					set_common_env.call
@@ -298,7 +302,7 @@ end
 # TODO: refactor its code... but anyway, you'll not use it in production, even for testing purposes.  Debugging won't be performed on the cluster, and checking if your AMQP setting is OK works well with any output.
 class Player < Spawner
 	def initialize(ldv_home,fname)
-		super()
+		super(ldv_home)
 		@home = ldv_home
 		@scenarios = {}
 		File.new(fname).each do |line|

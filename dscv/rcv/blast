@@ -1,653 +1,229 @@
 #!/usr/bin/perl
 
-# RCV Frontend for BLAST tool.
+# RCV frontend for BLAST tool.
 
-#======================================================================
-# PROCESS OPTIONS AND SET UP INITIAL VARIABLES
-#======================================================================
+# For elaborate description of writing the verifiers, please, refer to CPAchecker's wrapper located in dscv/rcv/cpachecker.
+#
+# In this file you may see examples of how to use $hints, and how to attach additional files to the report.  You may also see more automata examples here.
 
-BEGIN {
-	# Add the lib directory to the @INC to be able to include local modules.
-	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
-}
+set_tool_name("BLAST");
 
-use strict;
-use Pod::Usage;
-use Getopt::Long;
-use FindBin;
+# locate blast
+my $blast_bin_dir = $ENV{'BLAST_PATH'} || "$installed_backends_dir/blast/bin";
+my $blast_exe = "$blast_bin_dir/pblast.opt";
 
-# Project modules
-use LDV::Utils;
-use DSCV::RCV::Utils;
-use DSCV::Sanity;
-use Utils;
+-d $blast_bin_dir or die "The selected BLAST's backend directory '$blast_bin_dir' is not a directory";
 
-# File modules
-use File::Basename;
-use File::Path qw(mkpath);
-
-#cycle buffer for storing last $sizeLimit lines of the error log
-my @limitedBuffer;
-my $sizeLimit = 100;
-my $bufferCounter=0;
-
-
-my $config={
-	cmdfile=>'',
-	rawcmdfile=>'',
-	watcher_key=>[],
-};
-
-my %optionSpecs = ();
-$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
-$config->{verbosity} = 10 unless defined $config->{verbosity};
-LDV::Utils::set_verbosity($config->{verbosity});
-LDV::Utils::push_instrument('rcv-blast');
-
-$optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
-$optionSpecs{'workdir=s'} = \$config->{workdir};
-$optionSpecs{'sanity-dir=s'} = \$config->{sandir};
-$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
-my $watcher_keystr = '';
-$optionSpecs{'watcher-key=s'} = \$watcher_keystr;
-
-# test: is it the sanity that is problemous for cluster?
-my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
-
-GetOptions(%optionSpecs) or die("Unrecognized options!");
-
-$config->{watcher_key} = [split /,/,$watcher_keystr];
-
-my $mode = undef;
-$config->{cmdfile} and $mode = 'cmd';
-$config->{rawcmdfile} and $mode = 'raw';
-
-defined $mode or die "You should specify either --cmdfile or --rawcmdfile option!";
-
-# Prepare initial variables
-my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
-my $backend_dir = $ENV{'BLAST_PATH'} || "$shared_dir/rcv/backends/blast/bin";
-my $blast = "$backend_dir/pblast.opt";
-my $workdir = $config->{workdir};
-
-# Resource limits processing
-my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
-vsay 40,"Time limit is set to: $timelimit; memory limit is set to $memlimit.\n";
-
--d $backend_dir or die "BLAST's directory $backend_dir is not a directory";
-
-# Add path for blast's supplementary scripts.  Prepending to system's to override other PATHs.
-my $new_path = "$backend_dir:".$ENV{'PATH'};
+# Add path for BLAST's supplementary scripts.  Prepending to system's to override other PATHs.
+my $new_path = "$blast_bin_dir:".$ENV{'PATH'};
 vsay 30,"Setting PATH to '$new_path'";
 $ENV{'PATH'} = $new_path;
 vsay 40,"CSIsat to be used is ".`which csisat`;
 
-#Check if blast is available
-#blast_quick_check();
+my @files = preprocess_all_files('cpp');
 
-#======================================================================
-# PREPARE CMDFILE TRAVERSERS AND RUN THEM
-#======================================================================
-use XML::Twig;
+# Options that will be passed to the blast tool
+my @blast_options = ($blast_exe,@files);
 
-#==== 
-# We should pack files for the parent task to process afterwards.  Use these functions
-my %files_for_parent = ();
-sub for_parent
-{ local $_; $files_for_parent{$_} = 1 for @_; }
-sub files_for_parent
-{ return keys %files_for_parent; }
-#==== 
+# Set default options
+# These are: -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2
+push @blast_options,
+	"-predH","7","-craig","2",	# Default heuristics on
+	"-ignoredupfn", # Ignore duplicated functions when constructing CFA
+	"-nosserr", # Ignore "combining structure and non-structure values" error.  LLVM emits such nasty code.
+	"-skipnorm",# Do not try to normalize predicates within BLAST.  Solvers do it much faster.
+	"-enable-recursion",# Allow recursive call graphs, but cut out the actual recursive calls
+;
 
+# Check the number of entry points 
+die "You can only specify one main for BLAST!" if (scalar @mains != 1);
 
-my $sanity = undef;
+# Set the option for the entry point
+my $main = $mains[0];
+push @blast_options, "-main",$main;
 
-if ($mode eq 'cmd'){
-	# Launch of RCV frontend, process CMDfile and spawn some raw verifier tasks
+# Check the number of error locations
+die "You can only specify one error label for BLAST!" if (scalar @errlocs != 1);
+my $errloc = $errlocs[0];
+push @blast_options, "-L",$errloc;
 
-	!-f $config->{cmdfile} and die "BLAST's command file $config->{cmdfile} is not found";
-	-x $blast or die "BLAST's toplevel executable $blast is not an executable file";
-	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
-
-	# Prepare sanity checks
-	$sanity = DSCV::Sanity->new($config->{sandir}) if $do_sanity;
-
-	# Base Dir of system being checked
-	my $base_dir = undef;
-	my $unbasedir = undef;
-
-	# Now all subroutines are initialized.  Let's start processing the cmdfile.
-	my $check_input_file = XML::Twig->new(
-		twig_handlers => {
-			basedir=>DSCV::RCV::Utils::get_base_dir_maker(\$base_dir,\$unbasedir),
-			cc => DSCV::RCV::Utils::cc_maker(\$unbasedir,$workdir),
-			ld=> DSCV::RCV::Utils::ld_maker(verifier=>\&verify_blast, unbasedir_ref=>\$unbasedir, workdir=>$workdir, preprocess=>1, cilly=>0, archivated=>1),
-		}
-	);
-	$check_input_file->parsefile($config->{cmdfile});
-}elsif ($mode eq 'raw'){
-# Set up watcher directory, unless already set
-	$ENV{'LDV_WATCHER_SRV'} ||= "$config->{work_dir}/watcher";
-	vsay ('INFO',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
-
-	my ($key_str,undef) = LDV::Utils::watcher_cmd('key','dscv');
-	vsay ('DEBUG',"Got key string $key_str.\n");
-	my @watcher_key = split /,/,$key_str;
-
-	# Parse CMDfile for arguments, and launch RCV only
-	my %args = ();
-	!-f $config->{rawcmdfile} and die "BLAST's raw command file $config->{rawcmdfile} is not found";
-
-	# How we parse raw xml to %args hash
-	%args = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs)], to_xml => [qw(hints)]});
-
-	# in this mode work dir is passed as workdir
-	$workdir ||= $args{workdir};
-	-d $workdir or die "the workdir '$config->{workdir}' is not a directory!";
-
-	# Now we can call BLAST, finally
-	sub kill_watcher
-	{
-		vsay 20, "Shutting down watcher\n";
-		# Report failure to the watcher (reckon we've registered a key for our process?)
-		LDV::Utils::watcher_cmd('fail',@watcher_key);
-		die $@;
-	}
-
-	$SIG{QUIT} = \&kill_watcher;
-	# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
-	$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
-	# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
-	$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
-	eval {
-		call_blast(%args);
-		1;
-	} or do {
-		vsay 4, "Exception occured: $@" if $@;
-		vsay 4, "Fatal error.  Stopping services before reporting...\n";
-		# FIXME: send sometimes in cluster mode
-		kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
-		# We die in kill_watcher, no need to exit here... but just in case...
-		exit 1;
-	};
-
-	# Report success to the watcher
-	LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',files_for_parent());
-
+# Interpret hints
+# Cldepth
+if (my $cld = $hints_tag->first_child_text('cldepth')){
+	push @blast_options,"-cldepth",$cld;
 }else{
-	die "Assertion failed";
+	# Temporarly set cldepth to zero
+	push @blast_options,"-cldepth","0";
 }
+# Aliases may be explicitely required by the model
+my $do_aliases = $hints_tag->first_child_text('alias');
 
-exit 0;
-# NO CODE AFTER THIS POINT!
-
-
-#======================================================================
-# BLAST-SPECIFIC ROUTINES
-#======================================================================
-
-sub verify_blast
-{
-	my %args = @_;
-	$args{report} or die;
-	# Since arguments alter depending on main, we should save them to temporary.
-	my %args_template = (%args);
-
-	for my $main (@{$args{mains}}){
-		%args = DSCV::RCV::Utils::args_for_main($main, %args_template);
-		if ($args{already_failed}){
-			# Print at once, without spawning task through watcher
-			mkpath(dirname($args{report}));
-			open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-			my $repT = XML::Twig::Elt->new('reports');
-
-			# Prepare a failure command
-			my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-			XML::Twig::Elt->new('trace',{},"")->paste($cmdInstT);
-			XML::Twig::Elt->new('verdict',{},'UNKNOWN')->paste($cmdInstT);
-
-			# HACK: fix failure description, so that BLAST's parse errors and CPAchecker errors are not mingled
-			my $failmsg = $args{already_failed};
-
-			my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
-			XML::Twig::Elt->new('status',{},'FAILED')->paste($rcvResultT);
-			XML::Twig::Elt->new('desc',{},$failmsg)->paste($rcvResultT);
-
-			# Calculate and output time elapsed
-			XML::Twig::Elt->new('time',{'name'=>'ALL'},0)->paste($rcvResultT);
-
-			$rcvResultT->paste(last_child =>$cmdInstT);
-			$cmdInstT->paste($repT);
-
-			# Commit the report
-			$repT->set_pretty_print('indented');
-			$repT->print($BLAST_REPORT);
-			close $BLAST_REPORT;
-
-			# Report failure to the watcher
-			# We should first allocate key (to keep the allocate/free balance)
-			my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
-			#vsay ('DEBUG',"Got key string $key_str.\n");
-			#my @watcher_key = split /,/,$key_str;
-			# But then we ignore this string, and use the watcher_key allocated by the parent DSCV for immediate success reporting
-			for_parent($args{report},$args{trace},$args{debug});
-			LDV::Utils::watcher_cmd('success','rcv',@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',files_for_parent());
-
-		}else{
-
-			# Sanity check (should be performed at DSCV's site)
-			$sanity->blast_called() if $do_sanity;
-
-			# Prepare files for child
-			# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
-			my @files_for_child = (@{$args{files}});
-
-			$args{main} = $main;
-			my $task_fname = "$config->{cmdfile}.for.$main";
-			vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
-			my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
-			Utils::hash_to_xml(\%args,'input',$TASK);
-			close $TASK;
-			vsay('INFO',"Written RCV single command to '$task_fname'\n");
-			$ENV{'RCV_FRONTEND_CMD'} = $0;
-			# FIXME: key is transferred through env variable.  RCV should be rewritten.
-			#                                            task        dir      >>>> the rest is the key to distinguis from others
-			LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$workdir,@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',@files_for_child);
-		}
-
-	}
-}
-
-#cycle buffer for storing last $sizeLimit lines of the error log
-
-sub addToBuffer
-{
-	my $elem = shift;
-	$limitedBuffer[$bufferCounter]=$elem;
-	$bufferCounter += 1;
-	if ($bufferCounter>=$sizeLimit) 
-	{
-		$bufferCounter = 0;
-	}
-}
-
-sub getBuffer 
-{
-	my $result = "";
-	my $cnt = $bufferCounter;
-	do {
-		if(defined  $limitedBuffer[$cnt]) {
-			$result .= $limitedBuffer[$cnt];
-		}
-		$cnt++;
-		if($cnt>=$sizeLimit) { $cnt = 0; }
-	} while ($cnt!=$bufferCounter);
-	return $result;
-}
-
-
-# Call blast
-use IPC::Open3;
-use StreamAutomaton;
-use IO::Compress::Gzip qw($GzipError);
-use IO::Select;
-sub call_blast
-{
-	my %args = @_;
-	DSCV::RCV::Utils::ensure_args_folders(%args);
-	# Options that will be passed to the blast tool
-	my @blast_options = ($blast,@{$args{files}});
-	# Set default options
-	# These are: -predH 7 -lattice -include-lattice symb -include-lattice list -craig 2 -cldepth 0
+# We may also activate the aliases via env var.
+$do_aliases ||= $ENV{'BLAST_ALIASES'};
+if ($do_aliases){
+	vsay ('NORMAL',"Running BLAST with alias analysis (this may take longer).\n");
 	push @blast_options,
-		"-predH","7","-craig","2",	# Default heuristics on
-		"-ignoredupfn", # Ignore duplicated functions when constructing CFA
-		"-nosserr", # Ignore "combining structure and non-structure values" error.  LLVM emits such nasty code.
-		"-skipnorm",# Do not try to normalize predicates within BLAST.  Solvers do it much faster.
-		"-enable-recursion",# Allow recursive call graphs, but cut out the actual recursive calls
+		"-alias","bdd",	# Turn alias analysis on
+		"-cref",	#"Complete REFinement", performs alias iterations, implies alias analysis
+		"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
 	;
+}else{
+	vsay ('DEBUG',"Running BLAST without alias analysis.\n");
+	push @blast_options, "-alias","";	# Turn alias analysis off
+}
 
-	# Add mains and error locations
-	push @blast_options, "-main",$args{main} if $args{main};
-	# For now, only one error location is supported by BLAST
-	(scalar @{$args{errlocs}} > 1) and die;
-	my $errloc = (@{$args{errlocs}})[0];
-	push @blast_options, "-L",$errloc if $errloc;
+# Show a warning if an obsolete variable to trigger alias analysis is used
+vsay('WARNING',"Use of BLAST_EXP_NOALIAS is obsolete!!\n") if $ENV{'BLAST_EXP_NOALIAS'};
 
-	# Interpret hints
-	my $hintsT = $args{hints};
-	# Cldepth
-	if (defined $hintsT
-		&& ( my $cld = $hintsT->first_child_text('cldepth')))
-	{
-		push @blast_options,"-cldepth",$cld;
-	}else{
-		# Temporarly set cldepth to zero
-		push @blast_options,"-cldepth","0";
-	}
-	# Alias hint
-	my $do_aliases =
-		# Aliases may be hinted by the model
-		(defined $hintsT && ($hintsT->first_child_text('alias')))
-		# But now we don't perform the analysis
-		;
-	# Special "aliases" switch may be activated (BLAST_EXP_NOALIAS is obsolete now)
-	vsay('WARNING',"Use of BLAST_EXP_NOALIAS is obsolete!!\n") if $ENV{'BLAST_EXP_NOALIAS'};
-	$do_aliases ||= $ENV{'BLAST_ALIASES'};
-	if ($do_aliases){
-		vsay ('NORMAL',"Running BLAST with alias analysis (this may take longer).\n");
-		push @blast_options,
-			"-alias","bdd",	# Turn alias analysis on
-			"-cref",	#"Complete REFinement", performs alias iterations, implies alias analysis
-			"-nomusts","-const",	#Aliasing heuristics implemented in ISPRAS
-		;
-	}else{
-		vsay ('NORMAL',"Running BLAST without alias analysis.\n");
-		push @blast_options,
-			"-alias","";	# Turn alias analysis off
-	}
-	# Filter also lattices if specified
-	unless ($ENV{'BLAST_EXP_NOLATTICE'}){
-		push @blast_options,
-			"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
-		;
-	}
-	
-	# Filter stopsep
-	unless ($ENV{'BLAST_NOSTOPSEP'}){
-		push @blast_options,
-			"-stop-sep", # Use stop-sep instead of stop-join
-		;
-		unless ($ENV{'BLAST_MERGE'}){
-			push @blast_options,
-				"-merge","bdd", 	# Merge at equiv bdds, default
-			;
-		} else {
-			push @blast_options,
-				"-merge", $ENV{'BLAST_MERGE'},
-			;
-		}
-	}
+# Filter also lattices if specified
+unless ($ENV{'BLAST_EXP_NOLATTICE'}){
+	push @blast_options,
+		"-lattice","-include-lattice","symb", 	# Symbolic-store lattice
+	;
+}
 
-	# Rerouting functionality enabling
-	my $rerouteT = $hintsT ? $hintsT->first_child('rerouter') : undef;
-	if ($rerouteT){
-		my @reroute_map = $rerouteT->children_text('map');
-		my @reroute_map2 = $rerouteT->children_text('map2');
-		my @reroute_foreach = $rerouteT->children_text('foreach');
-		my $placeholder = $rerouteT->first_child_text('placeholder');
-		# Skip if there's not map and foreach handlers
-		if (@reroute_map || @reroute_foreach){
-			push @blast_options,"-reroute";
-			if($rerouteT->first_child('first_only')) {
-				push @blast_options,"-reroute-first";
-			}
-			local $_;
-			push @blast_options,"-reroute-map",$_ for @reroute_map;
-			push @blast_options,"-reroute-map2",$_ for @reroute_map2;
-			push @blast_options,"-reroute-foreach",$_ for @reroute_foreach;
-			push @blast_options,"-reroute-placeholder",$placeholder if $placeholder;
-		}
-	}
-
-
-	# External settings
-	push @blast_options,(split /\s+/,$ENV{'BLAST_OPTIONS'});
-	# Solver
-	push @blast_options,"-smt" if $ENV{'BLAST_SOLVER'};
-
-	# Adjust timewatch if a supported solver is set (it should begin with a semicolon if not empty!)
-	my $solver_timewatch = '';
-	if (my $slv = $ENV{'BLAST_SOLVER'}){
-		if ($slv eq 'yices'){
-			$solver_timewatch = ';.*yices.*,YICES';
-		}
-	}
-
-	# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
-	# To Limit resources for BLAST we use timeout script.
-	@blast_options = DSCV::RCV::Utils::set_up_timeout({
-		timelimit => $timelimit,
-		memlimit => $memlimit,
-		pattern => ".*,ALL;CHILD:.*,ALL;.*pblast\.opt.*,PBLAST.OPT;.*smtlibServer.*,SMTSERVER;CHILD:.*smtlibServer.*,CVC3".$solver_timewatch.($ENV{'BLAST_TIMEWATCH'} ? ";".$ENV{'BLAST_TIMEWATCH'} : "") ,
-		output => $args{timestats},
-		id_str => "DSCV_TIMEOUT ",
-		},@blast_options
-	);
-	# Identification to distinguish timeout's messages from other stuff
-
-	# Tune OCaml runtime options, if necessary
-	# (this option will be default soon)
-	unless ($ENV{'BLAST_NOOCAMLTUNE'}){
-		my $ocamltune = "$ENV{'DSCV_HOME'}/shared/sh/ocaml_params";
-		-x $ocamltune or die "Executable ocaml_params script needed but $ocamltune given!";
-		my $params = `$ocamltune $memlimit`; chomp $params;
-		if ($?){
-			vsay ('WARNING',"OCaml machine-specific tuning ($ocamltune) failed!!!  No params set.\n");
-		}else{
-			$ENV{'OCAMLRUNPARAM'} = $params;
-		}
-		vsay ('INFO',sprintf("OCaml machine-specific tuning is performed!  OCAMLRUNPARAM='%s'\n",($ENV{'OCAMLRUNPARAM'}||'')));
-	}else{
-		vsay ('INFO',sprintf("OCaml machine-specific tuning is not performed.  OCAMLRUNPARAM='%s'\n",($ENV{'OCAMLRUNPARAM'}||'')));
-	}
-
-	# Tell arguments
-	vsay ('NORMAL',"Running BLAST for $args{dbg_target}, entry $args{main}...\n");
-	local $_;
-	vsay (20,(map {($_ eq '')? '""' : $_} @blast_options),"\n");
-
-	# Open file to redirect
-	# The streams will be printing GZIP-compressed text.
-	# TODO: Make it parallel.  Currently it's all processed inline, in the same thread.
-	my $BLAST_DEBUG = new IO::Compress::Gzip $args{debug} or die "gzip failed: $GzipError\n";
-	# Fork blast
-	local $"=" ";
-
-	vsay (20,"BLAST debug trace will be written to $args{debug}\n");
-
-	# Create trace printer
-	my $dumptrace = dumptrace($args{trace});
-	# Create verdict calculator
-	my $verdictor = StreamAutomaton->new([StreamAutomaton::limits_check($ENV{'TIMEOUT_IDSTR'}),ocaml_detect()]);
-	# Verdictor that chews only the lines that BLAST prints to STDOUT.  This does not let STDERR lines to mingle with error trace.
-	my $verdictor_out = StreamAutomaton->new([$dumptrace]);
-
-	# Process output and redirect it to file
-	local $_;
-
-	my %child = Utils::open3_callbacks({
-		# Stdout callback
-		out => sub{ my $line = shift;
-			$verdictor->chew_line($line);
-			$verdictor_out->chew_line($line);
-			print $BLAST_DEBUG $line;
-		},
-		# Stderr callback
-		'err' => sub{ my $line = shift;
-			$verdictor->chew_line($line);
-			addToBuffer($line);
-			print $BLAST_DEBUG $line;
-		},
-		close_out=>sub{ vsay (40,"Child's stdout stream closed.\n");},
-		close_err=>sub{ vsay (40,"Child's stderr stream closed.\n");},
-		},
-		# BLAST call string
-		@blast_options
-	);
-	close $BLAST_DEBUG;
-
-	vsay (40,"BLAST open3 return value: $?\n");
-	vsay (20,"BLAST return value: $?\n");
-	vsay (40,"BLAST stats: utime $child{'utime'}, stime $child{'stime'}\n");
-	my $blast_rv = $? >> 8;
-	# NOTE that exit code 2 is for OCaml unhandled exceptions
-	if ($blast_rv == 5){
-		# BLAST didn't find input file -- integration error
-		die "BLAST couldn't find some input files";
-	}elsif($blast_rv == 3){
-		vsay (4, "BLAST couldn't find entry point/error location!");
-	}elsif($? == 0){
-		vsay (20,"BLAST OK\n");
-	}else{
-		vsay (20,"BLAST failed with exit code $blast_rv.  But who cares?\n");
-	}
-
-	# We do not store the output of $verdictor_out, as it was used only to read the trace, but we should call result() for it to actually yield the trace
-	$verdictor_out->result();
-	my $result = {%{$verdictor->result()}};
-	# Post limits and verdict on different lines!
-	$result->{'BLAST-detailed'} = join "\n",(grep {$_} ($result->{'BLAST-detailed'},$result->{'LIMITS'},$result->{'OCAML'}));
-	# Add timing information into the result returned
-	$result->{'utime'} = $child{'utime'};
-	$result->{'stime'} = $child{'stime'};
-
-	# If BLAST failed to find an entry point or an error location, tell that:
-	if ($blast_rv == 3){
-		$result->{'BLAST-detailed'} = 'No entry point or error location found';
-	}
-
-	# Add information about limits to result
-	my $tl4rep = $timelimit ? "$timelimit sec" : "not set";
-	my $ml4rep = $memlimit ? "$memlimit Kb" : "not set";
-	# Should be like this, but BLAST doesn't support it...
-	#my $ver4rep = `pbast.opt --version`;
-	my $ver4rep = "";
-	my $stopsep = "default stop-join"; 
-	unless ($ENV{'BLAST_NOSTOPSEP'}) {
-		if($ENV{'BLAST_MERGE'}) {
-			$stopsep = "stop-sep with merge at $ENV{'BLAST_MERGE'}";
-		} else {
-			$stopsep = "stop-sep with default merge";
-		}
-	}
-	# Ok, BLAST finished, and we now print the small XML report for it
-
-	# Assignments to port the old code
-	my $main = $args{main};
-
-	# We produce one report for each main file, because RCVs may be invoked concurrently
-	open my $BLAST_REPORT, ">", $args{report} or die "Can't open file $args{report}: $!";
-	my $repT = XML::Twig::Elt->new('reports');
-
-	# Print verdict to console and to report 
-	vsay (10,"$main: BLAST status: $result->{'BLAST'}\n");
-	vsay (20,"$main: BLAST verdict: $result->{'BLAST-detailed'}\n");
-
-	my $br = $result->{'BLAST'};
-	if ($br =~ /\byes\b/i) {
-		$br='OK';
-	}elsif($br =~ /\bno\b/i){
-		$br='FAILED';
-	}else{
-		$br='FAILED';
-	}
-
-	my $bv = $result->{'BLAST-detailed'};
-	if (($br eq 'OK') && ($bv =~ /AAAA: safe\b/)) {
-		$bv='SAFE';
-	}elsif(($br eq 'OK') && ($bv =~ /AAAA: unsafe\b/)){
-		$bv='UNSAFE';
-	}else{
-		$bv='UNKNOWN';
-		$result->{'BLAST-detailed'} .= "\n" . getBuffer();
-	}
-
-	$result->{'BLAST-detailed'} .= <<EOR ;
-
-=========== Launch information ===========
-Verifier: BLAST ($ver4rep)
-Time Limit: $tl4rep
-Memory Limit: $ml4rep
-Additional options: $ENV{'BLAST_OPTIONS'}
-Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
-@{[$ENV{'BLAST_EXP_NOLATTICE'} ? 'No lattice\n' : '']}@{[$ENV{'BLAST_ALIASES'} ? 'With aliases\n' : '']}
-Using $stopsep
-=========== Launch inform ends ===========
-EOR
-
-
-	my $cmdInstT = XML::Twig::Elt->new('ld',{'ref'=>$args{cmd_id}, main=>$main});
-	XML::Twig::Elt->new('trace',{},$args{trace})->paste($cmdInstT);
-	XML::Twig::Elt->new('verdict',{},$bv)->paste($cmdInstT);
-	# Confess who is responsible for that mess
-	XML::Twig::Elt->new('verifier',{},'BLAST')->paste($cmdInstT);
-
-	my $rcvResultT = XML::Twig::Elt->new('rcv',{'verifier'=>'blast'});
-	XML::Twig::Elt->new('status',{},$br)->paste($rcvResultT);
-	XML::Twig::Elt->new('desc',{},$result->{'BLAST-detailed'})->paste($rcvResultT);
-
-	# Calculate and output time elapsed
-	# Read file with time statistics
-	# TODO: this is the hack for name generation.  A more generic mechanism should superseed it later.
-	my $timestats_fname = $args{timestats};
-	if ( -f $timestats_fname && ! -z $timestats_fname) {
-		my %timestats;
-		# TODO: for fuck's sake, replace it with actual XML parsing!
-		open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
-		while(<STATS_FILE>) {
-			/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
-			$timestats{$1} += $2;
-			#my $time_elt = XML::Twig::Elt->new('time',$2);
-			#$time_elt->set_att( name =>$1);
-			#$time_elt->paste($rcvResultT);
-		}
-		close STATS_FILE;
-		foreach(keys %timestats) {
-			my $time_elt = XML::Twig::Elt->new('time',$timestats{$_});
-			$time_elt->set_att( name =>$_);
-			$time_elt->paste($rcvResultT);
-		}
+# Filter stopsep
+unless ($ENV{'BLAST_NOSTOPSEP'}){
+	push @blast_options, "-stop-sep"; # Use stop-sep instead of stop-join
+	unless ($ENV{'BLAST_MERGE'}){
+		push @blast_options, "-merge","bdd"; 	# Merge at equiv bdds, default
 	} else {
-		my $time_elt = XML::Twig::Elt->new('time',0);
-		$time_elt->set_att( name =>"ALL");
-		$time_elt->paste($rcvResultT);
-	};
-
-	$rcvResultT->paste(last_child =>$cmdInstT);
-	$cmdInstT->paste($repT);
-
-	$repT->set_pretty_print('indented');
-	vsay('DEBUG',"Writing report to '$args{report}'\n");
-	$repT->print($BLAST_REPORT);
-	close $BLAST_REPORT;
-
-	# Mark files that should be sent to parent
-	# You may skip this step if you're not going to run cluster
-	for_parent($args{report},$args{trace},$args{debug});
-
-	#return $result;
-}
-
-
-
-# Perform BLAST quick check before running any verifications
-sub blast_quick_check
-{
-	$" = ' ';      # For error reporting
-	vsay ('INFO', "Trying to run blast without arguments to see it it works...");
-	my @blast_args = ("pblast.opt","-help");
-	my $CHEW_BLAST_OUT;
-	my $fpid = open $CHEW_BLAST_OUT,"-|";
-	defined $fpid or die "Can't fork?  Wtf";
-	if ($fpid == 0){
-		# child
-		# Run blast
-		exec @blast_args or die "INTEGRATION ERROR. PATH=".$ENV{'PATH'}." Cmdline: @blast_args";
-		exit 1;
+		push @blast_options, "-merge", $ENV{'BLAST_MERGE'};
 	}
-	# Parent
-	# Ignore blast's output.
-	my %wpres = Utils::hard_wait($fpid,0);
-	# \n to complement previous message
-	$? == 0 or die "\nINTEGRATION ERROR.  BLAST test exited with non-zero return code $?.";
-	# Ok, now we can close the pipe
-	close($CHEW_BLAST_OUT);
-
-	vsay ('INFO',"OK\n");
 }
 
+# Rerouting functionality enabling
+my $rerouteT = $hints_tag->first_child('rerouter');
+if ($rerouteT){
+	my @reroute_map = $rerouteT->children_text('map');
+	my @reroute_map2 = $rerouteT->children_text('map2');
+	my @reroute_foreach = $rerouteT->children_text('foreach');
+	my $placeholder = $rerouteT->first_child_text('placeholder');
+	# Skip if there's not map and foreach handlers
+	if (@reroute_map || @reroute_foreach){
+		push @blast_options,"-reroute";
+		if($rerouteT->first_child('first_only')) {
+			push @blast_options,"-reroute-first";
+		}
+		local $_;
+		push @blast_options,"-reroute-map",$_ for @reroute_map;
+		push @blast_options,"-reroute-map2",$_ for @reroute_map2;
+		push @blast_options,"-reroute-foreach",$_ for @reroute_foreach;
+		push @blast_options,"-reroute-placeholder",$placeholder if $placeholder;
+	}
+}
+
+# External settings
+push @blast_options,(split /\s+/,$ENV{'BLAST_OPTIONS'});
+# If an SMT solver is specified via environment, make sure that BLAST uses SMTlib solvers
+push @blast_options,"-smt" if $ENV{'BLAST_SOLVER'};
+
+# Use BLAST's ocamltune script to tune OCaml's performance
+unless ($ENV{'BLAST_NOOCAMLTUNE'}){
+	unshift @blast_options, "ocamltune";
+	vsay ('DEBUG',sprintf("OCaml machine-specific tuning is performed!"));
+}else{
+	vsay ('NORMAL',sprintf("OCaml machine-specific tuning is not performed."));
+}
+
+add_time_watch(
+	'PBLAST.OPT' => '.*pblast\.opt.*',
+	'SMT_SOLVER' => 'CHILD:.*smtlibServer.*',
+);
+
+# Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
+
+add_automaton(safe_unsafe());
+
+my $error_trace = "$tmpdir/error_trace.txt";
+# It's important to specify 'stdout' here, as the output to the stderr may clobber the trace and make the Error Trace Visualizer fail, yielding a "Script error" for this driver.
+add_automaton(dumptrace($error_trace),'stdout');
+
+add_automaton(ocaml_detect());
+
+# Dump the last 50 lines from stderr output of the tool
+add_automaton(tail_automaton(50),'stderr');
+
+my ($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
+
+# BLAST prints the verdict into the standard output.  It was read by the relevant automaton.
+my $verdict = $automata_results->{VERDICT} || 'unknown';
+
+# You may skip specifying the description; however if there's something wrong, and you want to discriminate the issues in your tool in the statistics visualizer (or to gather the results for a scientific experiment), you might consider adding something here
+my $description = '';
+
+if ($errcode == 5){
+	# BLAST didn't find input file -- integration error
+	$description = "BLAST couldn't find some input files";
+	$verdict = 'unknown';
+}elsif($errcode == 3){
+	vsay ('WARNING', "BLAST couldn't find entry point/error location!");
+	$description = 'No entry point or error location found';
+}elsif($errcode == 0 && $result eq 'OK'){
+	vsay (20,"Finished.\n");
+}else{
+	vsay (20,"Failed with exit code $errcode by $result.  But who cares?\n");
+}
+
+$description .= $automata_results->{'EXCEPTION'}."\n" if $automata_results->{'EXCEPTION'};
+
+# Add info on OCAML errors
+$description.=$automata_results->{'OCAML'}."\n" if $automata_results->{'OCAML'};
+
+# Add the stderr tail
+$description.= join ("\n",@{$automata_results->{'TAIL'}})."\n" if $automata_results->{'TAIL'};
+
+
+
+# Describe the attributes of the current launch
+$description .= "\n=========== BLAST attrubutes ===========\n";
+
+# Add a stopsep information to description
+my $stopsep = "default stop-join"; 
+unless ($ENV{'BLAST_NOSTOPSEP'}) {
+	if($ENV{'BLAST_MERGE'}) {
+		$stopsep = "stop-sep with merge at $ENV{'BLAST_MERGE'}";
+	} else {
+		$stopsep = "stop-sep with default merge";
+	}
+}
+$description .= "$stopsep\n";
+
+#Add aliases info
+$description .= ($ENV{'BLAST_EXP_NOLATTICE'} ? "No lattice\n" : '').($ENV{'BLAST_ALIASES'} ? "With aliases\n" : '');
+
+result(
+	# verdict and description should be specified; an error trace is also required if the verdict is "unsafe"
+	verdict => $verdict,
+	description => $description,
+	error_trace => $error_trace,
+	# Additional files that are important
+	verifier_out => $debug_trace,
+);
+
+#===================
+#  AUTOMATA
+#===================
+
+# Verdict check automaton
+sub safe_unsafe
+{
+	return sub {
+		my $l=shift or return undef;
+		$l=~/The system is safe/ and return {VERDICT=>'safe'};
+		$l=~/The system is unsafe/ and return {VERDICT=>'unsafe'};
+		return undef;
+	};
+}
+
+sub exception
+{
+	return sub {
+		my $l=shift or return undef;
+		$l=~/Ack! The gremlins again!: (.*)/ and return {'EXCEPTION' => "Exception: $1"};
+		return undef;
+	};
+}
 
 
 # Trace dumper.  Usage:  my $dumper = dumptrace(filename);
@@ -657,9 +233,9 @@ sub dumptrace
 	my $fname = shift or die;
 	my $state = TRACE_WAIT;
 	my $current_fh;
-	return [1_000_000,sub {
+	return sub {
+		my $line = shift;
 
-		my ($line) = @_;
 		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
 		return undef if $state == TRACE_DONE;
 
@@ -674,15 +250,14 @@ sub dumptrace
 			print $current_fh $line;
 		}
 		return undef;
-	}];
+	};
 }
 
 # OCaml error detector
 sub ocaml_detect
 {
-	return [1_000,sub {
-
-		my ($line) = @_;
+	return sub {
+		my $line = shift;
 		!defined $line and return undef;
 
 		if ($line =~ /(Fatal error: out of memory.)/){
@@ -690,6 +265,28 @@ sub ocaml_detect
 		}
 
 		return undef;
-	}];
+	};
 }
+
+__END__
+
+TODO:
+- OCaml exceptions
+- More detailed description
+
+# Post limits and verdict on different lines!
+$result->{'BLAST-detailed'} = join "\n",(grep {$_} ($result->{'BLAST-detailed'},$result->{'LIMITS'},$result->{'OCAML'}));
+
+$result->{'BLAST-detailed'} .= <<EOR ;
+
+=========== Launch information ===========
+Verifier: BLAST ($ver4rep)
+Time Limit: $tl4rep
+Memory Limit: $ml4rep
+Additional options: $ENV{'BLAST_OPTIONS'}
+Solver: @{[ $ENV{'BLAST_SOLVER'} || 'default' ]}
+@{[$ENV{'BLAST_EXP_NOLATTICE'} ? 'No lattice\n' : '']}@{[$ENV{'BLAST_ALIASES'} ? 'With aliases\n' : '']}
+Using $stopsep
+=========== Launch inform ends ===========
+EOR
 

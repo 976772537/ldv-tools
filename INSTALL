@@ -88,7 +88,7 @@ CLUSTER PREREQUISITES
 	o sudo gem install rspec
 	o sudo gem install json
 	o apt-get install -y libopenssl-ruby (required on Ubuntu systems)
-	o unionfs (FUSE version)
+	o FUSE development headers (fuse-devel/libfuse-dev)
 	o sshfs (FUSE)
 	o logrotate
 	o Ruby ruby 1.9.2p180 (older versions might not work)

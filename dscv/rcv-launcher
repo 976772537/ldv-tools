@@ -1,0 +1,206 @@
+#!/usr/bin/perl
+
+## Common preamble: use modules, initialize library includes
+
+BEGIN {
+	# Add the lib directory to the @INC to be able to include local modules.
+	push @INC,"$ENV{'DSCV_HOME'}/shared/perl";
+}
+
+use strict;
+use Pod::Usage;
+use Getopt::Long;
+use FindBin;
+
+# Project modules
+use LDV::Utils;
+use DSCV::RCV::Utils;
+use DSCV::RCV::Library;
+use Utils;
+
+# Misc
+use File::Basename;
+use File::Path qw(mkpath);
+use XML::Twig;
+
+# Config and options processing
+my %optionSpecs = ();
+my $config={
+	rawcmdfile=>'',
+	engine_file=>undef,
+	watcher_key=>[],
+};
+
+# RCV-launcher is an auxillary script that gets all the information from its raw task file.
+$optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
+$optionSpecs{'engine=s'} = \$config->{engine_file};
+GetOptions(%optionSpecs) or die("Unrecognized options!");
+
+# Check if the option was specified.  This is a severe integration error, we do not even try to notify the watcher here.
+defined $config->{rawcmdfile} or die "You should specify the --rawcmdfile option!";
+
+# Prepare information on folders
+my $shared_dir = "$ENV{'DSCV_HOME'}/dscv" or die;
+
+# Initialize logging
+$config->{verbosity} = $ENV{'DSCV_DEBUG'} || $ENV{'LDV_DEBUG'};
+$config->{verbosity} = 10 unless defined $config->{verbosity};
+LDV::Utils::set_verbosity($config->{verbosity});
+LDV::Utils::push_instrument('rcv-launcher');
+
+# Process resource limits
+my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
+vsay 40,"Default time limit is: $timelimit; memory limit is: $memlimit.\n";
+
+# Prepare file sending functionality
+
+#====
+# We should pack files for the parent task to process afterwards.  Use these functions
+my %files_for_parent = ();
+sub for_parent
+{ local $_; $files_for_parent{$_} = 1 for @_; }
+sub files_for_parent
+{ return keys %files_for_parent; }
+#====
+
+# Connect to the watcher
+vsay ('TRACE',"Watcher server is $ENV{'LDV_WATCHER_SRV'}\n");
+my ($key_str,undef) = LDV::Utils::watcher_cmd('key','rcv');
+vsay ('DEBUG',"Got key string $key_str.\n");
+my @watcher_key = split /,/,$key_str;
+
+# Parse the arguments from the taskfile
+my %task = Utils::xml_to_hash($config->{rawcmdfile},{to_array => [qw(files errlocs cc_ids mains)], to_xml => [qw(hints)]});
+
+# Check if the workdir exists
+# in this mode work dir is passed as workdir
+my $workdir = $task{workdir};
+mkpath($workdir);
+-d $workdir or die "Can't create workdir '$task{workdir}'!";
+
+# Cleanup trash that might have been left fro mthe previous run
+for my $to_kill ($task{debug}, $task{report}, $task{trace}, $task{timestats}) {
+	if (-f $to_kill) {
+		vsay('TRACE',"Removing '$to_kill' left from the previous run\n");
+		unlink $to_kill or die "Couldn't unlink '$to_kill': $!";
+	}
+}
+
+
+# Engine lookup
+my $engines_install_dir = "$shared_dir/rcv";
+sub lookup_engine
+{
+	my $engine = shift or return undef;
+	# Try as a file
+	vsay 'TRACE', "Trying '$engine' as engine";
+	return $engine if (-f $engine);
+	# Try as an installed backend
+	my $ek = "$engines_install_dir/$engine";
+	vsay 'TRACE', "Trying '$ek' as engine";
+	return $ek if -f $ek;
+	# Not found :-(
+	return undef;
+}
+
+# Correct shutdown procedure.  We should "disconnect" from watcher and notify it about an integration error on a severe failure or interruption
+sub kill_watcher
+{
+	vsay 20, "Shutting down watcher\n";
+	# Report failure to the watcher (reckon we've registered a key for our process?)
+	LDV::Utils::watcher_cmd('fail',@watcher_key);
+	die $@;
+}
+
+$SIG{QUIT} = \&kill_watcher;
+# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
+$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
+
+eval {
+
+	# Determine what engine we use.
+	# First, we try to find a file named as in the --engine option.  Then we try to locate it among the installed backends directory.  Then, we use <engine> in the task file.
+	my $engine = lookup_engine($config->{engine});
+	$engine ||= lookup_engine($task{engine});
+
+	my $engine_name = $config->{engine} || $task{engine};
+
+	die "couldn't find the proper engine for '$config->{engine}' and '$task{engine}'" unless defined $engine;
+	vsay 'DEBUG', "Will use engine: $engine";
+
+
+	# Now evaluate the verification engine as if it was a part of our script
+	# First, read it into memory
+
+	open WRA,"<",$engine or die "$!";
+	my $engine_source = join('',<WRA>);
+	close WRA;
+
+	LDV::Utils::push_instrument('user-rcv-wrapper');
+	# Perform preparations before transforming to the user's wrapper
+	# Create the context in which the verifier code is executed
+	DSCV::RCV::Library::set_context(%task, engine => $engine_name);
+
+	# Set default CIL.  User may override it.
+	DSCV::RCV::Library::set_cil("$ENV{'DSCV_HOME'}/dscv/cil/obj/x86_LINUX/cilly.asm.exe");
+
+	# Set up default limits
+	DSCV::RCV::Library::set_limits(timelimit => $timelimit, memlimit => $memlimit);
+
+	# Create folders
+	DSCV::RCV::Utils::ensure_args_folders(%task);
+
+	# Set up variables for the user
+	my $installed_backends_dir = "$ENV{'DSCV_HOME'}/dscv/rcv/backends";
+	my $installed_frontends_dir = "$ENV{'DSCV_HOME'}/dscv/rcv";
+	my @errlocs = @{$task{errlocs}};
+	my @mains = @{$task{mains}};
+	my $hints_tag = $task{hints};
+	my $tmpdir = $task{workdir};
+	#my $ldv_error_trace_file = $task{
+
+	# Call the frontend
+	eval $engine_source;
+
+	vsay 'INFO', "Wrapper finished!";
+
+	# Die on integration error (TODO: make this unknown?)
+	# TODO: account for preprocessing errors!
+	if (my $wrapper_excn = $@) {
+		vsay 'WARNING', "Wrapper got an exception!";
+		if (DSCV::RCV::Library::is_preprocess_error($wrapper_excn)){
+			DSCV::RCV::Library::result(
+				_preprocess_failure => 1,
+			);
+		}else{
+			# It's a user scrtip error, report it as such!
+			DSCV::RCV::Library::result(
+				_user_exception => $wrapper_excn,
+			);
+		}
+	}
+
+	# So, the script has finished without exceptions, and we're to send files
+	my @files_for_parent = DSCV::RCV::Library::get_files();
+	local $_;
+	vsay("TRACE","Will send file: $_") for @files_for_parent;
+
+	# Report success to the watcher
+	LDV::Utils::watcher_cmd('success','rcv',@watcher_key,'@@',@files_for_parent);
+
+	# Otherwise, return 1 to not fall through to the exceptional path.
+	1;
+} or do {
+	vsay 4, "Exception occured: $@" if $@;
+	vsay 4, "Fatal error.  Stopping services before reporting...\n";
+	# FIXME: send sometimes in cluster mode as well!
+	kill_watcher() unless $ENV{'LDV_IN_CLUSTER'};
+	# We die in kill_watcher, no need to exit here... but just in case...
+	exit 1;
+};
+
+exit 0;
+

@@ -21,23 +21,14 @@ my $DEFAULT = 'BLAST-detailed';
 
 sub mk_tailfilters
 {
-	my @heuristics = (bad_archive(),limits_check(),safe_unsafe(),exception(),bad_simplify());
-
-	# Add this heuristics if you want to dump tails of files to tails/ folder
-	#unshift @heuristics, dumptail(100);
-
-	# Add this to cat files to stdout.
-	#unshift @heuristics, &cat;
-	return @heuristics;
+	# Used to contain default BLAST automatons.  They have been moved to RCV blast plugin--or deleted
+	return ();
 }
 
 sub mk_headfilters
 {
-	my @head_filters = ();
-	# Filters that apply from head.  Current implementation SLOWS DOWN PROCESS WHEN YOU USE IT!  HANDLE WITH CARE!
-	#unshift @head_filters, dump_alias_stats('aliases/');
-
-	return @head_filters;
+	# Used to contain default BLAST automatons.  They have been moved to RCV blast plugin--or deleted
+	return ();
 }
 
 sub new
@@ -47,13 +38,16 @@ sub new
 	$tail_filters = [mk_tailfilters(), @$tail_filters];
 	my $head_filters = shift || [];
 	$head_filters = [mk_headfilters(), @$head_filters];
+	my $all_filters = shift || [];
 	my ($tail_filter,$tail) = main_filter(@$tail_filters);
 	my ($head_filter,$head) = main_filter(@$head_filters);
+	my ($all_filter,undef) = main_filter(@$all_filters);
 	my $this = {
 		tailfilter => $tail_filter,
 		tail => $tail,
 		headfilter => $head_filter,
 		head => $head,
+		allfilter => $all_filter,
 		accum => {},
 		accum_tail_array => [],
 		tail_autom => {},
@@ -86,6 +80,8 @@ sub chew_line
 	if (defined $this->{headfilter} && $heads_to_process-- > 0 ){
 		$result = $this->{headfilter}->($line);
 	}
+	# Process "all" filters that work through the whole trace
+	$result = $this->{allfilter}->($line);
 	# Return result 
 	$this->{accum} = add_hash($this->{accum},$result);
 }
@@ -103,6 +99,10 @@ sub finish
 	}
 	$this->{accum} = add_hash($this->{accum},$tail_result);
 
+	# We also should do the same (pass "undef" value) to all all-trace filters
+	my $all_result = $this->{allfilter}->(undef);
+	$this->{accum} = add_hash($this->{accum},$all_result);
+
 	# Set finished flag
 	$this->{finished} = 1;
 }
@@ -113,33 +113,6 @@ sub result
 	my $this = shift or carp;
 	$this->finish() unless $this->{finished};
 	return {%{$this->{accum}}};
-}
-
-# Signs of incorerct model
-sub bad_model
-{
-	return [1000,sub {
-		my $l=shift or return undef;
-		$l=~/mutex_lock_interruptible/i and return {$DEFAULT=>'MODEL: mutex_lock_interruptible'};
-		return undef;
-	}];
-}
-
-# Signs of incorerct model
-# We try to count number of cases where FAIL happens due to IN_INTERRUPT value being unset
-#    Pred(IN_INTERRUPT  !=  0)
-#    __blast_assert()
-#  would be the vest sign of failure
-sub bad_model_IN_INTERRUPT
-{
-	my $assert_means_fail = '';
-	return [10000,sub {
-		my $l=shift or return undef;
-		$l=~/Pred.*IN_INTERRUPT.*0/i and do {$assert_means_fail = 1; return {$DEFAULT=>undef}; };
-		$assert_means_fail and $l=~/__blast_assert/i and do {return {$DEFAULT=>'MODEL: IN_INTERRUPT unset!'}; };
-		$assert_means_fail = '';
-		return undef;
-	}];
 }
 
 # Limits check
@@ -155,54 +128,6 @@ sub limits_check
 	}];
 }
 
-# out of memory via ulimit -- DEPRECATED in favor of limits_check
-sub oom_ulimit
-{
-	return [100,sub {
-		my $l=shift or return undef;
-		$l=~/out of memory/i and return {$DEFAULT=>'LIM: memory limit', 'BLAST'=>'LIM: memory limit'};
-		return undef;
-	}];
-}
-
-# out of memory via ulimit
-sub time_limit
-{
-	return [100,sub {
-		my $l=shift or return undef;
-		$l=~/Time limit exceeded \((.*) sec/ and return {$DEFAULT=>"LIM: time limit ($1 sec)", 'BLAST'=>'LIM: time limit'};
-		return undef;
-	}];
-}
- 
-sub safe_unsafe
-{
-	return [100,sub {
-		my $l=shift or return undef;
-		$l=~/The system is safe/ and return {$DEFAULT=>'AAAA: safe', 'BLAST'=>'YES'};
-		$l=~/The system is unsafe/ and return {$DEFAULT=>'AAAA: unsafe', 'BLAST'=>'YES'};
-		return undef;
-	}];
-}
-
-sub exception
-{
-	return [20,sub {
-		my $l=shift or return undef;
-		$l=~/Ack! The gremlins again!: (.*)/ and return {$DEFAULT=>"ZZZ: Exception: $1", 'BLAST'=>'Exception'};
-		return undef;
-	}];
-}
-
-sub bad_simplify
-{
-	return [20,sub {
-		my $l=shift or return undef;
-		$l=~/(Simplify raised exception.*)/ and return {$DEFAULT=>"Z SIMPLIFY: $1"};
-		return undef;
-	}];
-}
-
 sub bad_archive
 {
 	return [1,sub {
@@ -212,7 +137,6 @@ sub bad_archive
 		return undef;
 	}];
 }
-
 
 sub cat
 {
@@ -425,189 +349,4 @@ sub main_filter
 }
 
 1; 
-
-# The rest of code is from collect_reports script.  Maybe I'll use it some day.  TO_DELETE anyway
-
-#int main()
-
-#my $outfile = undef;
-#my $alltraces = '';
-## User-specified filters to be ran
-#my @filters = ();
-## User-specified headfilters to be ran
-#my @headfilters = ();
-## Additional .pm modules to be sources
-#my @plugins = ();
-## Section to dump to outfile
-#my $dump_section = $DEFAULT;;
-#
-#my %opts=(
-#	'outfile=s' => \$outfile,
-#	'all-traces' => \$alltraces,
-#	'filter=s' => \@filters,
-#	'headfilter=s' => \@headfilters,
-#	'plugin=s' => \@plugins,
-#	'dump-section=s' => \$dump_section,
-#);
-#
-#use Getopt::Long;
-#
-## Let's decide what filters we run.
-## Assign default values first.
-#my $tailfilters = sub { return mk_tailfilters(@_); };
-#my $headfilters = sub { return mk_headfilters(@_); };
-## If user has specified filters on the command-line, we should make our own functions.  Otherwise, use default.
-#if (@filters){
-#	# Attach plugins
-#	load_plugin($_) for @plugins;
-#	# Process comma-separated filters
-#	@filters = split /,/,(join ",",@filters);
-#	@headfilters = split /,/,(join ",",@headfilters);
-#	# Maker function that returns subroutines like mk_tailfilters.
-#	my $mkfilters = sub { 
-#		my @filters = @_;
-#		return sub{
-#			my @result = ();
-#			local $_;
-#			for (@filters){
-#				unshift @result,eval;
-#				die if $@;
-#			}
-#			return @result;
-#		}
-#	};
-#	# Make a function with them
-#	$tailfilters = $mkfilters->(@filters);
-#	$headfilters = $mkfilters->(@headfilters);
-#}
-#
-## Get input file list
-#my @files = @ARGV;
-## If none found, read standard input
-#@files = <> unless @files;
-#
-##Filter debug traces for filew who have normal
-#if ($alltraces){
-#	# List of normal traces
-#	my %normal = ();
-#	for my $fname (@files) {
-#		$fname =~ /rep\.(?!debug\.)/ and $normal{$fname}=1;
-#	}
-#	# Now fetch those debug traces that don't have corresponding normal trace
-#	# Stable filter!
-#	my @newfiles = ();
-#	for my $f (@files) {
-#		my $nondebug = $f;
-#		# Make normal name out of debug file name; if it failed, then it's a normal trace and should be added to list.
-#		$nondebug =~ s/\.debug(?=\.)// or do {push @newfiles, $f; next};
-#		# Add to list if normal trace doesn't exist
-#		push @newfiles, $f unless exists $normal{$nondebug};
-#	}
-#	@files = @newfiles
-#}
-#
-##Hash that stores results
-#my %results = ();
-#
-## Pretty-printing percentage
-#my $fnum = 0;
-#my $total = scalar @files;
-#my $step = 10; # step in percents
-#my $tier = 0; # last printed percentage
-## Traverse all files supplied
-#for my $fname (@files){
-#	$fnum++;
-#	chomp $fname;
-#	unless (-f $fname){
-#		$results{$fname}='Does not exist';
-#		next;
-#	}
-#	# Process file
-#	$results{$fname} = unpack_and_process($fname,main_filter($tailfilters->()),main_filter($headfilters->()));
-#	# Some interactiveness
-#	# Close dangling filehandle if applicable
-#	close $current_fh if $current_fh;
-#	$current_fh=undef;
-#}continue{
-#		#Some pretty characters
-#		print STDERR symb_for($results{$fname}->{$DEFAULT});
-#		my $percent = int ($fnum/$total*100);
-#		if ($percent - $tier >= $step ){
-#			$tier = $percent;
-#			print STDERR " $tier% ";
-#		}
-#}
-#
-#
-#BEGIN { $SIG{'INT'} = sub { stats_print(); exit 1;};}
-##Function to print statistics.
-#sub stats_print
-#{
-#	# No files given.  Maybe, called incorrectly?
-#	unless (scalar keys %results){
-#		print STDERR "\nYou've specified no files in command line, neither have you supplied several to stdin!\nI'll do nothing.\n$usage\n";
-#		exit 1;
-#	}
-#	# Some files are still unprocessed.
-#	unless ($fnum == $total){
-#		print STDERR "\nInterrrupted!\n"
-#	}
-#	# print number of files processed
-#	print "\n$fnum out of $total files processed!\n\n\n";
-#	# Print comprehensive stats to outfile
-#	open my $OUTF, ">", $outfile or die;
-#	for my $fname (keys %results){
-#		printf $OUTF $fname." == ".($results{$fname}->{$dump_section} || 'UNKNOWN')."\n";
-#	}
-#	close $OUTF;
-#
-#	# Let's calculate histogram
-#	# To calculate it with different categories, we construct a big array of tuples:
-#	# 	[file,category,verdict]
-#	# ...and then re-pach it in category->verdict->count hash.
-#	# We also build category->count hash.
-#	my @flat = ();
-#	for my $filename (keys %results){
-#		for my $category (keys %{$results{$filename}}){
-#			my $verdict = $results{$filename}->{$category};
-#			push @flat, [$filename,$category,$verdict] if defined $verdict;
-#		}
-#	}
-#
-#	# Collect statistics from @flat array into these:
-#	my $histogram = {};
-#	my $counts = {};
-#
-#	for my $item (@flat){
-#		my ($filename,$category,$verdict) = @$item;
-#		$histogram->{$category}->{$verdict}++;
-#		$counts   ->{$category}            ++;
-#	}
-#
-#
-#	for my $category (sort keys %$histogram){
-#		# Reference for less keystrokes
-#		my $errors = $histogram->{$category};
-#
-#		#Print group statistics
-#		print "\bGroup $category: ".$counts->{$category}.sprintf (" (%.1f",( $counts->{$category} / $fnum*100))."%)"." acknowledged out of ".$fnum. " total: \n";
-#
-#		# If less items belong to the category, than the overall amount of files, specify them as UNKNOWN.
-#		$errors->{'UNKNOWN'} = $fnum - $counts->{$category} if $counts->{$category} < $fnum;
-#
-#		for my $bucket (sort keys %$errors){
-#			# print bucket name, amount of files in it and percentage of total files _processed_ (not of amount of files that fall into this category)
-#			print "\t$bucket -> $errors->{$bucket} (".(sprintf ("%.1f",( $errors->{$bucket} / $fnum*100)))."%)\n";
-#		}
-#
-#		print "\n\n";
-#
-#	}
-#	print <<END;
-#
-#More comprehensive stats are dumped into $outfile
-#
-#END
-#}
-#stats_print();
 

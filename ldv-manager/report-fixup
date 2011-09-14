@@ -79,6 +79,6 @@ sub fix_trace
 	$traceT->print();
 }
 
-XML::Twig->new( twig_roots => { 'reports/build' => \&handle_report, trace => \&fix_trace }, twig_print_outside_roots => \*STDOUT )->parsefile($report_xml);
+XML::Twig->new( twig_roots => { 'reports/build' => \&handle_report, trace => \&fix_trace, 'file' => \&fix_trace }, twig_print_outside_roots => \*STDOUT )->parsefile($report_xml);
 
 

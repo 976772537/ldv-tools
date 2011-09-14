@@ -322,10 +322,10 @@ my $syntax_colors = {
 # Obtain the debug level.
 get_debug_level($debug_name, $LDV_DEBUG, $LDV_ERROR_TRACE_VISUALIZER_DEBUG);
 
-print_debug_normal("Process the command-line options");
+print_debug_debug("Process the command-line options");
 get_opt();
 
-print_debug_normal("Process trace");
+print_debug_normal("Processing trace");
 my $tree_root = process_error_trace();
 
 if ($opt_report_out)
@@ -343,6 +343,7 @@ if ($opt_reqs_out)
   {
     foreach my $dep (keys(%dependencies))
     {
+      # *.i filtering was to rule out the BLAST_INITIALIZE function dependencies, as they introduce large--and unused--files
       print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
     }
   }
@@ -350,7 +351,7 @@ if ($opt_reqs_out)
   {
     foreach my $dep (keys(%dependencies))
     {
-      print($file_reqs_out "$dep\n") unless ($dep =~ /\.i$/);
+      print($file_reqs_out "$dep\n");
     }
   }
 }

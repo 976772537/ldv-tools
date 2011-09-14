@@ -304,6 +304,7 @@ $config->{properties} = [split (/,/,join(',',(@{$config->{property}},@{$config->
 
 # INLINE mode preparation
 
+use File::Copy;
 use File::Path qw(mkpath rmtree);
 use File::Spec;
 # If we're in inline mode, we should create appropriate cmdfile in the working dir and use it as such.
@@ -377,9 +378,12 @@ if ($mode eq 'inline'){
 	#Prepare usual DSCV options and proceed to the rest of the script
 	$config->{cmdfile}=$cmdfile_name;
 	if ($defprop){
-		my $default_rule_model = $config->{inline_aspect}?'BZ_1':'BZ_2';
+		my $default_rule_model = $config->{inline_aspect}?'NONE':'BZ_2';
 		$config->{properties}=[$default_rule_model];
 	}
+
+	# Place report for easier user access
+	$config->{report} = "$config->{work_dir}/report.xml";
 }
  
 # Sanity check
@@ -580,7 +584,7 @@ $" = ' ';	# For error reporting
 
 my $out_cmd_dir = "$dscv_base_dir/cmdfiles";
 mkpath ($out_cmd_dir);
-my $for_rcv_dir = "$dscv_base_dir/cmdfiles/rcv";
+my $for_rcv_dir = "$dscv_base_dir/rcv";
 mkpath ($for_rcv_dir);
 
 my $ri_basedir = "$dscv_base_dir/ri";
@@ -607,9 +611,9 @@ for my $property (@properties){
 		$ri_basedir_for_rule = './'
 	}
 
-	vsay ('NORMAL',"CMDFILE    : ".$config->{cmdfile}."\n");
-	vsay ('NORMAL',"CMDFILE-OUT: ".$outfile."\n");
-	vsay ('NORMAL',"BASEDIR: ".$ri_basedir_for_rule."\n");
+	vsay ('DEBUG',"CMDFILE    : ".$config->{cmdfile}."\n");
+	vsay ('DEBUG',"CMDFILE-OUT: ".$outfile."\n");
+	vsay ('TRACE',"BASEDIR: ".$ri_basedir_for_rule."\n");
 	my @rule_instr_args = (
         #	$config->{timestats},
 	#      	"--pattern=.*,ALL",
@@ -627,66 +631,148 @@ for my $property (@properties){
 	vsay (20,@rule_instr_args,"\n");
 	system @rule_instr_args and die "INTEGRATION ERROR.  Cmdline:  @rule_instr_args";
 	#system "cp $config->{cmdfile} $outfile";
+
 	# Call C verifier
 
-	# Understand what C verfifier to call.
-	# For now, just for integration purposes, we assume that the first verifier found is what we need.
-	my $get_verifier_handler = sub{
-		my $dir = shift or die;
-		return sub{
-			my ($twig, $cmdT_) = @_;
-			my $cmdT = $cmdT_->copy();
-			my $id = $cmdT->att('id');
-			# Get verifier from command and override it if necessary
-			# TODO: for now all our verifiers are Reachability C verifiers.  When more verifier classes will be added, more verifiers should be supplied here.
-			my $verifier = $config->{verifier_override}->{rcv} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> specification, and --rcv-verifier option is not set";
-			if (defined $cmdT->first_child('engine')){
-				$cmdT->first_child('engine')->set_text($verifier);
-			}else{
-				XML::Twig::Elt->new('engine',{},$verifier)->paste($cmdT);
-			}
-			$verifier_for{$property} = $verifier;
+	# In this loop, we should convey to RCV the following information:
+	# - The ld command and its entry point to verify
+	# - The list of cc commands (in the order they are in the original cmdstream) related to this ld command
+	# - The task file with all the necessary information from the rule model database, and with the filenames to put the results to.
 
-			# Sanity check
-			if ($cmdT->tag eq 'ld') {
-				$rule_instr_mains += scalar $cmdT->children("main");
-			}
-
-			# Enwrap tag into <cmdstream> and add <basedir>
-			my $streamT = XML::Twig::Elt->new("cmdstream");
-			$cmdT->paste($streamT);
-			# WARNING: It's important to put <basedir> tag before anything else.
-			XML::Twig::Elt->new("basedir",{},$ri_basedir_for_rule)->paste($streamT);
-			# Print tag to temporary file
-			my $cmdfile = "$dir/model$property-$verifier-$id.xml";
-			my $tmp_FH; open $tmp_FH,">",$cmdfile or die "Couldn't create temporary file for RCV's command!";
-		        $streamT->set_pretty_print('indented');
-		        $streamT->print($tmp_FH);
-			close $tmp_FH;
-			# Run RCV
-			my @rcv_args = (
-			#	$config->{timestats},
-			#	"--pattern=.*,ALL",
-			#	"--output=$dir/stats.xml",
-			#	"--reference=$id",
-				"$rcv_frontends_dir/$verifier",
-				"--cmdfile=$cmdfile",
-				"--workdir=$dir",
-				"--sanity-dir=$dscv_base_dir",
-				"--watcher-key=".join(",",@watcher_key,'dscv',$property),
-			);
-			vsay ('NORMAL',"Calling RCV $verifier backend for @{[$cmdT->tag]} command $id...\n");
-			vsay (20, "@rcv_args\n");
-			system @rcv_args and die "INTEGRATION ERROR.  Cmdline:  @rcv_args";
-		};
-	};
 	my $verifier_dir = "$for_rcv_dir/$property";
 	mkpath($verifier_dir);
-	my $verify_Twig = XML::Twig->new( twig_handlers => { cc => $get_verifier_handler->($verifier_dir), ld=>$get_verifier_handler->($verifier_dir) });
+
+	my $dir = $verifier_dir;
+	# Mapping between the outfile for a CC command and its ID.  Grepping this will provide us with the list of CC command ids relevant to the LD command.  Note that as we need to preserve the ordering, we'll also keep the number of CC command.
+	my $id_for_cc_outfile = {};
+	my $cc_cmd_number = 0;
+	# Gather registry of .c files in each cc command
+	my $infiles_for_cc = {};
+	# Get basedir (it is a reference--due to closure)
+	my $basedir = undef;
+	my $bdr = \$basedir;
+	my $basedir_handler = sub {
+		my (undef,$bdT) = @_;
+		$$bdr = $bdT->text();
+	};
+	my $ccld_handler = sub{
+		my ($twig, $cmdT) = @_;
+
+		my $id = $cmdT->att('id');
+
+		if ($cmdT->name eq 'cc'){
+			# Add the info about this cmd to be found via <ld> inputfiles
+			for my $outf ($cmdT->children_text('out')){
+				$id_for_cc_outfile->{$outf} = [$cc_cmd_number++, $id];
+			}
+			# Add the info about the C files (will be used to send them to RCV node in distributed runs)
+			for my $inf ($cmdT->children_text('in')){
+				$infiles_for_cc->{$id} ||= [];
+				push @{$infiles_for_cc->{$id}}, $inf;
+			}
+		}elsif ($cmdT->name eq 'ld'){
+			# Now form the taskfile for each main in this LD command
+
+			# For each <ld>/main pair there should be a separate name.  Since <ld>s differ by the file name, we'll use the file-inside-driver($target) as a discriminator.
+			my $out_file = $cmdT->first_child_text('out');
+			my $target = Utils::unbasedir_maker($basedir)->($out_file);
+
+			# Alias for the easy portinf of the older code
+			my $workdir = $verifier_dir;
+
+			# Get entry points
+			my @mains = $cmdT->children_text('main');
+			@mains or vsay("WARNING", "No mains specified for file ".$out_file."\n");
+
+			# We do not need to do anything else if there are no entry points. Note that this returns from the sub, and keeps checking the further <cc> and <ld> cmds.
+			return unless @mains;
+
+			# List of error locations
+			my @errlocs = $cmdT->children_text('error');
+			# Get hints tag
+			my $hintsT = $cmdT->first_child('hints');
+			# Report file (the placeholders here and below will be replaced with main names)
+			my $in_main = "$workdir/main-%s";
+			my $report = "$in_main/reports/$target.report";
+			# Tool debug file (to dump the trace of the tool)
+			# NOTE that the actual debug file name may be different if the tool's frontend chooses to run the trace through the archiver.  This is not a problem in cluster, as the decision of what to send to the parent node doesn't rely on this subroutine.
+			my $debug = "$in_main/reports/$target.debug";
+			# Trace file (to dump the error trace)
+			my $trace = "$in_main/reports/$target.trace";
+			# Time stats file
+			my $timestats = "$in_main/reports/$target.timestats.xml";
+
+			# Get all the cc commands relevant to this one
+			my @ld_infiles = $cmdT->children_text('in');
+			local $_;
+			my @cc_cmds = map {$id_for_cc_outfile->{$_}} @ld_infiles;
+			# Sort them in the order they occured in the stream, and strip the index
+			@cc_cmds = sort { $a->[0] <=> $b->[0] } @cc_cmds;
+			@cc_cmds = map {$_->[1]} @cc_cmds;
+
+
+			# Determine what engine we use
+			my $engine = $config->{verifier_override}->{rcv} || $cmdT->first_child_text('engine') or die "Command $id is without <engine> s pecification, and --rcv-verifier option is not set";
+
+			# Save verifier information for error-trace-visualizer
+			$verifier_for{$property} = $engine;
+
+			# Common arguments for the verifier command
+			my %common_vercmd_args = (
+				cmd_id=>$cmdT->att('id'),
+				hints=>$hintsT,
+				mains=>\@mains,
+				errlocs=>\@errlocs,
+				report=>$report,
+				trace=>$trace,
+				debug=>$debug,
+				dbg_target=>$target,
+				workdir=>$in_main,
+				timestats=>$timestats,
+				cc_ids => \@cc_cmds,
+				engine => $engine,
+				cmdfile => $outfile,
+			);
+
+			# Now spawn an RCV for each main in this <ld>
+			for my $main (@mains){
+				# Put the main name instead of the placeholders
+				my %args = DSCV::RCV::Utils::args_for_main($main, %common_vercmd_args);
+
+				# Only send one main (this may be revamped in the future)
+				$args{mains} = [$main];
+
+				my $task_fname = sprintf "%s/task-for-%s",$workdir,$main;
+				# Write the task to an xml file
+				vsay('TRACE',"Writing command for a single RCV to '$task_fname'\n");
+				my $TASK; open $TASK, ">", $task_fname or die "Can't open '$task_fname': $!";
+				Utils::hash_to_xml(\%args,'input',$TASK);
+				close $TASK;
+				vsay('DEBUG',"Written RCV single command to '$task_fname'\n");
+
+				# Spawn the RCV command
+				vsay('INFO',"Spawning RCV with task $task_fname workdir $args{workdir} for ld $args{cmd_id}, main $main");
+				$ENV{'RCV_FRONTEND_CMD'} = "$shared_dir/rcv-launcher";
+
+				# CLUSTER OPERATIONS
+
+				# Notify about the number of RCVs the DSCV is to expect
+				$rule_instr_mains += 1;
+
+				# The files to send:
+				# - cmdfile
+				# - Instrumented driver (and model) sources from $ri_basedir_for_rule (because some files from it, such as headers, are only indirectly referenced!  .c files are not enough).
+				# - do NOT send .c files from <cc> commands, as they'll be sent in the prevopis point
+				# - Rule-instrumentor's tempdir (autoconf is there, as well as some other files may be).  TODO check if it can be shrunk.
+
+				LDV::Utils::watcher_cmd_noread('queue','rcv',$task_fname,$args{workdir},@watcher_key,'rcv',$property,$args{cmd_id},$main,'@@',$args{cmdfile}, $ri_basedir_for_rule, "$ENV{'WORK_DIR'}/rule-instrumentor/$property");
+			}
+		}
+	};
+	my $verify_Twig = XML::Twig->new( twig_handlers => { basedir=>$basedir_handler, cc => $ccld_handler, ld=>$ccld_handler });
 
 	$verify_Twig->parsefile($outfile);
 }
-
 
 #=~~~~~~~======~~~~~~======~~~~~~======~~~~~~======
 #              wait for all RCV tasks
@@ -746,37 +832,7 @@ while ($rcvs_consumed < $rule_instr_mains) {
 	$rcvs_consumed += LDV::Utils::watcher_cmd_callback($more,$process_rcv_result,'wait','rcv',@watcher_key,'#');
 }
 
-# Get files for trace.
-# Warning!  This is not reentrant (bad usage of $temp_file)!
-sub add_files_for_trace
-{
-	# Check all the traces we have, and add the relevant source code files to the package for our parents
-	# I would like to add only the files that are generated by DSCV, but the code for path fixups is a mess, see ldv/ldv-task-reporter.  So I'll just add all the files here, and just notify you with FIXME. :-)
-	my $trace_fname = shift or die;
-	my $verifier = shift or die;
-	vsay('INFO', "Getting files for trace $trace_fname with ETV for parent package.\n");
-	my $temp_file = "$dscv_base_dir/etv.tmp";
-	my @etv = ("$ENV{'DSCV_HOME'}/bin/error-trace-visualizer.pl",
-		"--engine=$verifier",
-		"--report=$trace_fname",
-		"--reqs-out=$temp_file"
-	);
-	local $"=" ";
-	vsay('DEBUG', "Calling error-trace-visualizer: @etv\n");
-	system(@etv) and die("Error trace visualizer (@etv) failed\n");
-
-	# add all the files printed to reqs-out file to the package for parent
-	my $TRACE_READ; open $TRACE_READ, "<", $temp_file or die;
-	local $_;
-	while (<$TRACE_READ>){
-		chomp;
-		vsay('DEBUG', "ETV returns file: $_\n");
-		for_parent_if_exists($_);
-	}
-	close $TRACE_READ;
-	vsay('DEBUG', "Calling error-trace-visualizer: @etv\n");
-}
-
+vsay('INFO',sprintf("Results from %d RCVs are here.  Processing...\n",$rule_instr_mains));
 
 # Ok, now all sub-commands are waited for, and their xml reports reside in our workdir
 
@@ -805,12 +861,6 @@ for my $rule_id (@properties){
 				local $_;
 				$_->copy->paste($bigRepT) for $repT->children;
 			},
-			'trace' => sub {
-				my ($twig,$traceT) = @_;
-				# Get files for the tracee  Used only in cluster mode to send all the files these traces refer to to another node.
-				# NOTE that trace may not exist (though referred to in the report)
-				add_files_for_trace($traceT->text,$verifier_for{$rule_id}) if -f $traceT->text;
-			}
 		})->parsefile($report_file);
 		not_for_parent($report_file)
 	};
@@ -944,7 +994,8 @@ $big_reportT->set_pretty_print('indented');
 $big_reportT->print($BIG_REPORT);
 close $BIG_REPORT;
 
-vsay 20,"Final report is written to $config->{report}\n";
+my $report_verbosity = ($mode ne 'inline') ? 'INFO' : 'NORMAL';
+vsay $report_verbosity,"Final report is written to $config->{report}\n";
 
 1;
 } or do {

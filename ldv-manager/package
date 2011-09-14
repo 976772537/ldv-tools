@@ -33,10 +33,19 @@ sub read_trace
 	push @traces, $cmdT->text() if $cmdT->text();
 }
 
+my @userfiles = ();
+sub read_userfile
+{
+	my ($twig, $cmdT) = @_;
+	push @userfiles, $cmdT->text() if $cmdT->text();
+}
+
 XML::Twig->new( twig_roots => {
 	'reports/launch_info/sources' => read_to(\$source_dir),
 	'reports/launch_info/workdir' => read_to(\$work_dir),
 	'ld/trace' => \&read_trace,
+	# Process <file>-s the used specified in the same manner as traces
+	'ld/file' => \&read_userfile,
 })->parsefile($report_xml);
 
 my @archive = ($report_xml);
@@ -52,13 +61,21 @@ if (defined $source_dir) {
 	# Pack all files
 	print("pax -O -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ","\n");
 	system("pax -O -w -x cpio $source_sed ".join(" ",map {"\Q$_\E"} @ARGV)." '".join("' '",@archive)."' >'$target_pax' ") and die;
-	print("Packing traces: \n");
+	print("Packing traces: \n") if @traces;
 	for my $trace (@traces){
 		my $trace_absolute = "$work_dir/$trace";
 		# Traces are also shown in report (but not in filesystem!) even for SAFE files!  That's a bug, but we workaround it here for now.
 		next unless -f $trace_absolute;
 		print("pax -O -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' \n");
 		system("pax -O -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|traces\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$trace_absolute."' ") and die;
+	}
+	print("Packing user files: \n") if @userfiles;
+	for my $file (@userfiles){
+		my $file_absolute = "$work_dir/$file";
+		# Traces are also shown in report (but not in filesystem!) even for SAFE files!  That's a bug, but we workaround it here for now.
+		next unless -f $file_absolute;
+		print("pax -O -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|files\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$file_absolute."' \n");
+		system("pax -O -w -x cpio -a -f '$target_pax' -s '|^\Q$work_dir\E\\\/*|files\/|' ".join(" ",map {"\Q$_\E"} @ARGV)." '".$file_absolute."' ") and die;
 	}
 
 

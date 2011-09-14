@@ -198,7 +198,7 @@ builds = {}
 potential_master = []
 
 # Do not report warnings if these tags are encountered in <ld> tags
-tags_to_ignore = %w(model-kind in out cwd opt)
+tags_to_ignore = %w(model-kind in out cwd opt file)
 
 while not docs.end_of? 'reports' do
 	# This should read one of the children of 'reports' tag
@@ -361,8 +361,9 @@ if $online
 	end
 end
 
+# Do not do this as user might want to examine the error traces.
 # Remove temporary directory on success (keep it if something failed, we might want to examine it!)
-FileUtils.remove_dir(tmpdir) if tmpdir
+#FileUtils.remove_dir(tmpdir) if tmpdir
 
 
 ensure

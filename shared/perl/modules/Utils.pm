@@ -35,6 +35,15 @@ sub unbasedir_maker
 	}
 }
 
+# unbase(prefix,fname) just strips the prefix from the filename if matches
+sub unbase{
+	my $base_dir = shift or die;
+	my $from = shift or die;
+	my $rslt = $from;
+	$rslt =~ s/^$base_dir\/*//;
+	return $rslt;
+}
+
 # Usage: relpath($base, $to);
 # Return path that would be reached if you wrote "cd $base; cd $to" in the shell.
 sub relpath

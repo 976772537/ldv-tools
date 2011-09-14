@@ -106,3 +106,6 @@ under the Apache License, Version 2.0.
 
 Portions of this software include Logging gem by Tim Pease.
 
+Portions of this software include unionfs-fuse.  Copyright (c) 2008,
+Radek Podgorny, Bernd Schubert All rights reserved.
+
