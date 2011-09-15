@@ -1074,7 +1074,7 @@ sub process_error_trace_blast()
 {
   my $et_processed = parse_error_trace({'engine' => 'blast', 'error trace file handler' => $file_report_in});
 
-  %dependencies = %{$et_processed->{'dependcies'}};
+  %dependencies = %{$et_processed->{'dependencies'}};
   %files_long_name = %{$et_processed->{'files long name'}};
   %files_short_name = %{$et_processed->{'files short name'}};
 

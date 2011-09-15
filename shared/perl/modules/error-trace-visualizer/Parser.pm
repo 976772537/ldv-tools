@@ -54,6 +54,9 @@ sub read_locals($);
 # retn: a processed path to a file and a line number or undef if it can't be read.
 sub read_location($);
 
+# Parse a given error trace and convert it into internal representation (tree).
+# args: reference to a parameters hash (error trace, engine, etc.).
+# retn: reference to a result hash (root node of a tree, dependencies, etc.).
 sub parse_error_trace($);
 
 
@@ -280,7 +283,7 @@ sub parse_error_trace($)
   # Return the error trace tree root node and collected auxiliary information.
   return {
       'error trace tree root node' => $parents[0]
-    , 'dependcies' => \%dependencies
+    , 'dependencies' => \%dependencies
     , 'files long name' => \%files_long_name
     , 'files short name' => \%files_short_name};
 }
