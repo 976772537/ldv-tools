@@ -367,6 +367,8 @@ else {
       $value = $restrictions['Entry point'];
     else if ($columnName == 'Error trace')
       $value = $results['Trace id'];
+    else if ($columnName == 'Script')
+      $value = "return 1 if (call_stacks_ne(\$et, \$kb_et));";
 
     echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$value</div></td>";
   }

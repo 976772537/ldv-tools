@@ -293,7 +293,7 @@ sub generate_cache($)
        $kb_ids_in") or die($dbh->errstr);
 
     foreach my $data (@{$all_data}) {
-      my ($model, $module, $main, $script, $trace_id, $kb_id, $error_trace, $kb_error_trace) = @{$data};
+      my ($model, $module, $main, $script, $trace_id, $kb_id, $et, $kb_et) = @{$data};
 
       print_debug_trace("Execute script '$script' with model '$model', module '$module', main '$main', error trace ... and KB error trace ...");
       my $ret = eval("$script_header\n$script\n$script_tail");
