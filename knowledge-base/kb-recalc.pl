@@ -10,9 +10,10 @@ Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../shared/perl", "$FindBin::RealBin/../shared/perl/error-trace-visualizer");
 
 # Add some nonstandard local Perl packages.
+use Browser qw(call_stacks_eq call_stacks_ne);
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level
   check_system_call);
@@ -417,63 +418,63 @@ OPTIONS
   --common-data <file>
     Path to user defined common data to be uploaded to KB instead of
     the default one.
-    
+
   --delete <ids>
     KB ids for which corresponding KB cache records will be deleted.
-  
+
   -h, --help
     Print this help and exit with a error.
 
   --init
     Means both KB and cache initializations.
-  
+
   --init-cache
     Synonym for --init-cache-db and --init-cache-script.
-    
+
   --init-cache-db
     Fast initialization of KB cache by means of database tools.
-    
+
   --init-cache-script
     Addition to the --init-cache-db option. Except database tools
     relevant scripts will be involved. After all either corresponding
-    exact cache records will be obtained or they will be removed. 
-     
+    exact cache records will be obtained or they will be removed.
+
   --init-common-data
     Upload common data to the specified KB.
-      
+
   --init-kb
     Means that common data will be uploaded to KB. It turns on
     --init-schema.
-  
+
   --init-schema
-    Upload KB schema to a specified database. Note that the given 
+    Upload KB schema to a specified database. Note that the given
     database should contain statistics database schema uploaded.
-        
+
   --new <ids>
-    New KB ids for which corresponding KB cache records will be 
+    New KB ids for which corresponding KB cache records will be
     calculated in depence on --init-cache-db and --init-cache-script
     options.
-    
+
   --schema <file>
     Path to user defined KB schema to be uploaded to KB instead of
     the default one.
-         
+
   --update-pattern <ids>
     KB ids with updated patterns. For them corresponding KB cache
     records will be recalculated just in the fast manner. Don't use
     --init-cache, --init-cache-db and --init-cache-script together
     with the given option.
-             
+
   --update-pattern-script <ids>
     KB ids with updated pattern scripts. For them corresponding KB
     cache records will be recalculated with help of scripts. Don't use
     --init-cache, --init-cache-db and --init-cache-script together
     with the given option.
-    
+
   --update-result <ids>
     Cache (re)generation isn't required in this case, so, nothing will
     be done.
-              
+
 ENVIRONMENT VARIABLES
 
   LDV_DEBUG
