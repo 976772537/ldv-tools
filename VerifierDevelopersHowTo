@@ -67,7 +67,7 @@ LDV_DEBUG=20
 	want to).
 
 RCV_TIMELIMIT=900    (seconds)
-RCV_MEMLIMIT=0       (megabytes)
+RCV_MEMLIMIT=0       (kilobytes)
 	Reachability C Verifiers are run under inspection.  If they violate time- or
 	memory limit, they're terminated.  The number of violations of time and memory
 	limits is calculated and can be viewed in final statistics.
