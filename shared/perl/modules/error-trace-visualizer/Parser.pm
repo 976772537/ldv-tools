@@ -33,8 +33,9 @@ sub read_equal_int($);
 # retn: a corresponding source code file path or undef if it can't be read.
 sub read_equal_src($);
 
-# Read a next line from a specified file handler and process it a bit.
-# args: a file handler from where a new line will be read.
+# Read a next line from a specified error trace and process it a bit.
+# args: a reference to array of strings representing a given error trace and an
+#       index in this array.
 # retn: a processed line or undef when there is no more lines.
 sub read_line($);
 
@@ -109,7 +110,8 @@ sub parse_error_trace($)
   my $params = shift;
 
   my $engine = $params->{'engine'};
-  my $fh = $params->{'error trace file handler'};
+  my $et = $params->{'error trace'};
+  my $et_pos = {'error trace' => $et, 'line number' => 0};
 
   # The list of current parents.
   my @parents = ();
@@ -142,7 +144,7 @@ sub parse_error_trace($)
     while ($iselement_read == 0)
     {
       # Read a part of a given element with simple processing.
-      my $element_part = read_line($fh);
+      my $element_part = read_line($et_pos);
 
       unless (defined($element_part))
       {
@@ -156,6 +158,10 @@ sub parse_error_trace($)
         $iselement_read = -1;
         last;
       }
+
+      # Increase a line number into a specified error trace after successfull
+      # reading.
+      $et_pos->{'line number'}++;
 
       # Empty lines are meanigless so just skip them.
       next unless($element_part);
@@ -351,10 +357,10 @@ sub read_equal_src($)
 
 sub read_line($)
 {
-  my $file_report_in = shift;
+  my $et_pos = shift;
 
-  # Try to read a next line from a specified error trace file handler.
-  return undef unless (defined(my $line = <$file_report_in>));
+  # Try to read a next line.
+  return undef unless (defined(my $line = ${$et_pos->{'error trace'}}[$et_pos->{'line number'}]));
 
   # Remove the end of line.
   chomp($line);
