@@ -9,7 +9,6 @@
 	LDV/
 		Utils.pm
 	DSCV/
-		Sanity.pm
 		RCV/Utils.pm
 		RCV/Library.pm
 	Utils.pm

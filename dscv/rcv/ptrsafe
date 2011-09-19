@@ -19,7 +19,6 @@ use FindBin;
 # Project modules
 use LDV::Utils;
 use DSCV::RCV::Utils;
-use DSCV::Sanity;
 use Utils;
 
 # File modules
@@ -46,13 +45,9 @@ LDV::Utils::push_instrument('rcv-ptrsafe');
 
 $optionSpecs{'cmdfile=s'} = \$config->{cmdfile};
 $optionSpecs{'workdir=s'} = \$config->{workdir};
-$optionSpecs{'sanity-dir=s'} = \$config->{sandir};
 $optionSpecs{'rawcmdfile=s'} = \$config->{rawcmdfile};
 my $watcher_keystr = '';
 $optionSpecs{'watcher-key=s'} = \$watcher_keystr;
-
-# test: is it the sanity that is problemous for cluster?
-my $do_sanity = not $ENV{'LDV_DSCV_NO_SANITY'};
 
 GetOptions(%optionSpecs) or die("Unrecognized options!");
 
@@ -98,17 +93,12 @@ sub files_for_parent
 #==== 
 
 
-my $sanity = undef;
-
 if ($mode eq 'cmd'){
 	# Launch of RCV frontend, process CMDfile and spawn some raw verifier tasks
 
 	!-f $config->{cmdfile} and die "BLAST's command file $config->{cmdfile} is not found";
 	-x $blast or die "BLAST's toplevel executable $blast is not an executable file";
 	-d $workdir or die "--workdir=$config->{workdir} is not a directory!";
-
-	# Prepare sanity checks
-	$sanity = DSCV::Sanity->new($config->{sandir}) if $do_sanity;
 
 	# Base Dir of system being checked
 	my $base_dir = undef;
@@ -232,9 +222,6 @@ sub verify_blast
 			LDV::Utils::watcher_cmd('success','rcv',@{$config->{watcher_key}},'rcv',$args{cmd_id},$main,'@@',files_for_parent());
 
 		}else{
-
-			# Sanity check (should be performed at DSCV's site)
-			$sanity->blast_called() if $do_sanity;
 
 			# Prepare files for child
 			# FIXME: This won't work if no preprocessing (CPP or CIL) is on!  Make sure to copy the driver itself in the full version.
