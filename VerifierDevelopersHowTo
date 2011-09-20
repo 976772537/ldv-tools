@@ -4,14 +4,14 @@
 
 
 One of the aims of the LDV program is helping developers of Static Analysis
-tools ("verifiers") to create better tools.  Driver sources aren't hard to
+tools ("verifiers") to create better instruments.  Driver sources aren't hard to
 verify, and their varying size fits well the purpose of scalability testing.
-This file lists the options the developers of analysis tools have, and provides
-help for those who might want to use CPAchecker with our tools.
+This file lists the options the developers of verifiers have, and provides help
+for those who might want to use CPAchecker with our tools.
 
-Modular architecture of LDV tools makes it possible to replace one static code
-checker with another, as long as the tool can solve reachability problem for C
-language.  We call such tools "Reachability C Verifiers" (or, RCVs).
+Modular architecture of LDV tools makes it possible to replace one verifier with
+another, as long as the tool can solve reachability problem for C language.  We
+call such tools "Reachability C Verifiers" (or, RCVs).
 
 We have developed an interface to plug in such verifiers into the LDV tools.
 The interface hides all the LDV implementation details from the user.  What
@@ -26,30 +26,51 @@ tools.  You may study and copy-paste them to write a good wrapper for your tool.
 HOW TO WRITE A WRAPPER
 ======================
 
-The wrapper to invoke is controlled by RCV_VERIFIER environment variable.  Just
-assign an absolute path to your wrapper to it, and invoke LDV tools as usual
-(you may find common instructions in README and TUTORIAL).
+Before you start, you should install the LDV tools.  For installation
+instructions, please, refer to INSTALL and TUTORIAL files.  If you do not plan
+to use the default BLAST verifier, you may avoid compiling it (and installing
+prerequisites for it!) by specifying an additional environment variable
+"no_blast=y" when you run "make install".
 
 A wrapper is a Perl script that is evaluated in the context of another Perl
-script.  To develop a wrapper, you may take an extensively commented CPAchecker
-wrapper as an example (it resides in dscv/rcv/cpachecker).
+script.  To develop a wrapper, you may copy an extensively commented CPAchecker
+wrapper, which resides in dscv/rcv/cpachecker, and adjust it to call your tool
+instead.
 
 Whenever you want to check if you wrote the wrapper correctly, just create a
 small C file with main() as an entry point and ERROR label as an error location,
-and run:
+and run the DSCV script from the previously installed LDV tools:
 
-  dscv --rcv-verifier=/path/to/wrapper --rule-model=BZ_0 inline files your_file.c
+  dscv --rcv-verifier=/path/to/wrapper inline files your_file.c
 
 Then examine the report or the console log (increasing verbosity might help; see
 the next section) for errors in your wrapper script. (Note that statistics
 visualizer in browser won't help you here.)
 
-It could be a good idea to make your wrapper configurable with use of config
-variables and external files.  This way, you won't have to change it each time
-you need to try a new configurartion.  Launch several verification tasks on the
-same toolset, but with different configs, and examine the difference between
-verifier's performance in the web interface (stats-visualization).  If you see
-too much numbers, try adding "profile/rcv/" to the URL.
+
+HOW TO CARRY ON EXPERIMENTS WITH YOUR TOOL AND LINUX DRIVERS
+============================================================
+
+After you finished the development of the wrapper, you may run some experiments,
+applying your verifier to the kernel drivers.  To do this, invoke the
+"ldv-manager" script (as described in README and TUTORIAL files), specifying the
+environment variable RCV_VERIFIER with an absolute path to your wrapper assigned
+to it.
+
+Most likely, you want to compare one configuration of your verifier against
+another one.  You don't have to create separate wrappers for it.  Instead, you
+may make your wrapper configurable with use of environment variables and
+external config files (see how it's done in CPAchecker wrapper).  This way, you
+won't have to change the wrapper each time you need to try a new configuration.
+
+After you've obtained the experimental data, upload them to the database, and
+compare via the Web interface (stats-visualizer) in LDV.  In the web interface,
+you may compare the verdicts or examine the difference between performance of
+two configurations.  If you see too many numbers, try adding "profile/rcv/" to
+the URL.
+
+There are some built-in options to configure verifiers with.  See the next
+section.
 
 Good luck in your development!
 
@@ -57,26 +78,27 @@ Good luck in your development!
 COMMON OPTIONS THAT AFFECT VERIFIERS
 ====================================
 
-Some options are interpreted internally in LDV, and do not depend you the
-wrapper you use.
+Some options are interpreted internally in LDV, and do not depend on the wrapper
+you use.
 
 LDV_DEBUG=20
-	To see the exact command lines, LDV invokes external tools with you mightwant
-	to increase the verbosity level.  Level of 20 is enough to see calls to
-	external instruments; you may increase it up to 100 (but you might not really
-	want to).
+  To see the exact command lines, LDV invokes external tools with you mightwant
+  to increase the verbosity level.  Level of 20 is enough to see calls to
+  external instruments; you may increase it up to 100 (but you might not really
+  want to).
 
-RCV_TIMELIMIT=900    (seconds)
-RCV_MEMLIMIT=0       (kilobytes)
-	Reachability C Verifiers are run under inspection.  If they violate time- or
-	memory limit, they're terminated.  The number of violations of time and memory
-	limits is calculated and can be viewed in final statistics.
+RCV_TIMELIMIT=900     (seconds)
+RCV_MEMLIMIT=1000     (kilobytes)
+  Reachability C Verifiers are run under inspection.  If they violate time- or
+  memory limit, they're terminated.  The number of violations of time and memory
+  limits is calculated and can be viewed in final statistics.
 
-	You may override these limits.  For instance, since CPAchecker already
-	contains memory limiting mechanism, memory limit is not set by default
-	(the CPAchecker's wrapper contains Java memory error detection mechanism by
-	examining an output).  Time is limited with 15 minutes.  You can decrease,
-	increase or unset the time limit to adjust performance of your tools.
+	Time is limited with 15 minutes.  You can decrease, increase or unset the time
+	limit to adjust performance of your tools.
+
+  You may override these limits.  For instance, since CPAchecker already
+	contains a tool-specific memory limiting mechanism, setting up a generic
+	memory limit controlled by LDV tools is redundant.
 
 
 
@@ -88,34 +110,32 @@ few optional actions to perform.  Refer to INSTALL file, but you may skip those
 prerequisites which refer to "BLAST" verifier shipped by default.  If you skip
 them, you must use "no_blast=y" option when installing the toolset.
 
-Install the following components: install-visualization, install-testing.
-
 You most likely would want to run all drivers in a kernel, or run the "general"
 regression test set (this test set contains "interesting" drivers of various
-sizes).  The only difference with default workflow (about which you can read in
-README and TUTORIAL) is that you should set some additional environment
-variables before you run the tools.  Here's the list of them:
+sizes; for tests to be available, run "make install-testing" in addition to the
+usual "make install").  The only difference with default workflow (about which
+you can read in README and TUTORIAL) is that you should set some additional
+environment variables before you run the tools.  Here's the list of them:
 
 RCV_VERIFIER=cpachecker
-	Use CPAchecker as RCV.  If you don't specify it, the tools will default
-	to using BLAST (and fail if you don't have it installed).
+  Use CPAchecker as RCV.  If you don't specify it, the LDV tools will default
+  to using BLAST (and fail if you don't have it installed).
 
 CPACHECKER=/path/to/cpa.sh
-	Specify location of CPAchecker cpa.sh script.  By default, it runs
-	"cpa.sh" found in your PATH environment variable.
+  Specify location of CPAchecker's run script.  By default, LDV tools run
+  "cpa.sh" found in your PATH environment variable.
 
 CPACHECKER_CONFIG=/path/to/config.cfg
-	If yon don't want to use the default config (which is found in
-	dscv/rcv/cpachecker.config/cpa.cfg.pattern), you may specify your own
-	through this variable.  Note that it will be copied, and some options will be
-	adjusted in it!
-	Sorry, the file name must be absolute.
+  If yon don't want to use the default config (which is found in
+  dscv/rcv/cpachecker.config/cpa.cfg.pattern), you may specify your own
+  through this variable.  Note that it will be copied, and some options will be
+  adjusted in it!
+  Sorry, the file name must be absolute.
 
 CPACHECKER_OPTIONS=
-	Additional options for CPAchecker.  You should not set "-config" option
-	here.
+  Additional options for CPAchecker.  You should not set "-config" option
+  here.
 
 It could be a good idea to add these options to a file and just use "source"
 shell command to apply them to the current environment.
-
 
