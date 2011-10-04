@@ -26,10 +26,12 @@ install: $(patsubst %,backends/%-subdir-install,$(backends)) $(foreach frontend,
 
 clean: $(patsubst %,backends/%-subdir-clean,$(backends))
 
-$(rcv_install_dir)/blast: blast
+$(rcv_install_dir)/blast: blast blast-et-conv.pl
 	@mkdir -p $(@D)
-	cp $^ $@
+	cp $< $@
 	@chmod +x $@
+	cp blast-et-conv.pl $(rcv_install_dir)
+	@chmod +x $(rcv_install_dir)/blast-et-conv.pl
 
 $(rcv_install_dir)/cpachecker: cpachecker
 	@mkdir -p $(@D)

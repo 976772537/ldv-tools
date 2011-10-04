@@ -6,6 +6,8 @@
 perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm File/Cat.pm error-trace-visualizer/Entity.pm error-trace-visualizer/Annotation.pm error-trace-visualizer/CPAchecker.pm Text/Highlight.pm Text/Highlight/CPP.pm MetaUtils.pm \
 	DSCV/RCV/Utils.pm \
 	DSCV/RCV/Library.pm \
+	DSCV/RCV/Annotation.pm \
+	DSCV/RCV/Entity.pm
 
 
 perl_src_dir=modules
