@@ -350,7 +350,7 @@ sub get_opt()
 
   unless ($out)
   {
-    warn("You must specify either the option --report-out|o in the command-line");
+    warn("You must specify the option --report-out|o in the command-line");
     help();
   }
 
