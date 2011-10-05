@@ -528,12 +528,12 @@ OPTIONS
 
   --new <ids>
     New KB ids for which corresponding KB cache records will be
-    calculated in depence on --init-cache-db and --init-cache-script
+    calculated in depend on --init-cache-db and --init-cache-script
     options.
 
   --new-launch [<ids>]
     Results launch ids for which corresponding KB cache records will
-    be calculated in depence on --init-cache-db and
+    be calculated in depend on --init-cache-db and
     --init-cache-script options. Ids are obtained from STDIN when they
     aren't specified by means of <ids>. Empty line is considered as
     stop of reading. Don't use --delete, --new, --update-pattern,
