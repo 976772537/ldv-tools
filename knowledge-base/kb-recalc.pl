@@ -24,9 +24,11 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 ################################################################################
 
 # Delete records from KB cache in accordance with specified KB ids.
-# args: reference to KB ids array or NULL (that implies all records).
+# args: reference to KB ids array or NULL (that implies all records);
+#       reference to launch ids array or NULL (that implies no launches at all).
+#       These arguments can not be both defined at the same time.
 # retn: nothing.
-sub delete_cache($);
+sub delete_cache($$);
 
 # Delete records from KB in accordance with specified KB ids.
 # args: reference to KB ids array or NULL (that implies all records).
@@ -34,10 +36,12 @@ sub delete_cache($);
 sub delete_kb($);
 
 # Generate cache that binds verification results with KB in accordance with
-# specified KB ids..
-# args: reference to KB ids array or NULL (that implies all records).
+# specified KB ids.
+# args: reference to KB ids array or NULL (that implies all records);
+#       reference to launch ids array or NULL (that implies no launches at all).
+#       These arguments can not be both defined at the same time.
 # retn: nothing.
-sub generate_cache($);
+sub generate_cache($$);
 
 # Process command-line options. To see detailed description of these options
 # run script with --help option.
@@ -82,6 +86,8 @@ my @kb_ids_new;
 my @kb_ids_update_pattern;
 my @kb_ids_update_pattern_script;
 my @kb_ids_update_result;
+# A set of new launch ids.
+my @launch_ids_new;
 
 # SQL script describing KB schema.
 my $kb_schema = "$FindBin::RealBin/../knowledge-base/kb.sql";
@@ -99,6 +105,7 @@ my $opt_init_common_data;
 my $opt_init_kb;
 my $opt_init_schema;
 my $opt_new;
+my $opt_new_launch;
 my $opt_schema;
 my $opt_update_pattern;
 my $opt_update_pattern_script;
@@ -140,19 +147,24 @@ if ($opt_init_cache_db or $opt_init_cache_script)
   if ($opt_new)
   {
     print_debug_normal("Calculate KB cache for new KB entities");
-    generate_cache(\@kb_ids_new);
+    generate_cache(\@kb_ids_new, undef);
+  }
+  elsif (defined($opt_new_launch))
+  {
+    print_debug_normal("Calculate KB cache for new launches");
+    generate_cache(undef, \@launch_ids_new);
   }
   else
   {
     print_debug_normal("Start KB cache (re)generation");
-    generate_cache(undef);
+    generate_cache(undef, undef);
   }
 }
 
 if ($opt_delete)
 {
   print_debug_normal("Delete records from KB cache");
-  delete_cache(\@kb_ids_delete);
+  delete_cache(\@kb_ids_delete, undef);
   # We need to delete records from KB just after corresponding records were
   # deleted from KB cache table because of foreign key constraint.
   print_debug_normal("Delete records from KB");
@@ -162,13 +174,13 @@ if ($opt_delete)
 if ($opt_update_pattern)
 {
   print_debug_normal("Calculate KB cache for KB entities having updated pattern");
-  generate_cache(\@kb_ids_update_pattern);
+  generate_cache(\@kb_ids_update_pattern, undef);
 }
 
 if ($opt_update_pattern_script)
 {
   print_debug_normal("Calculate KB cache for KB entities having updated pattern script");
-  generate_cache(\@kb_ids_update_pattern_script);
+  generate_cache(\@kb_ids_update_pattern_script, undef);
 }
 
 if ($opt_update_result)
@@ -183,15 +195,31 @@ print_debug_normal("Make all successfully");
 # Subroutines.
 ################################################################################
 
-sub delete_cache($)
+sub delete_cache($$)
 {
   my $kb_ids_ref = shift;
+  my $launch_ids_ref = shift;
 
   if ($kb_ids_ref)
   {
     my @kb_ids = @{$kb_ids_ref};
     print_debug_trace("Delete records from KB cache with KB ids '@kb_ids'...");
     $dbh->do("DELETE FROM results_kb WHERE results_kb.kb_id in (@kb_ids)") or die($dbh->errstr);
+    print_debug_debug("KB cache records were deleted successfully");
+  }
+  elsif ($launch_ids_ref)
+  {
+    my @launch_ids = @{$launch_ids_ref};
+    print_debug_trace("Delete records from KB cache corresponding to launch ids '@launch_ids'...");
+    $dbh->do("
+      DELETE
+      FROM results_kb
+      WHERE results_kb.trace_id in (
+        SELECT traces.id
+        FROM traces
+          LEFT JOIN launches ON traces.id=launches.trace_id
+        WHERE launches.id in (@launch_ids)
+      )") or die($dbh->errstr);
     print_debug_debug("KB cache records were deleted successfully");
   }
   else
@@ -221,18 +249,30 @@ sub delete_kb($)
   }
 }
 
-sub generate_cache($)
+sub generate_cache($$)
 {
   my $kb_ids_ref = shift;
+  my $launch_ids_ref = shift;
+
   my $kb_ids_str = '';
   my $kb_ids_in = '';
   my @kb_ids;
+  my $launch_ids_str = '';
+  my $launch_ids_in = '';
+  my @launch_ids;
 
+  # Note that they cannot be both specified by design.
   if ($kb_ids_ref)
   {
     @kb_ids = @{$kb_ids_ref};
     $kb_ids_str = " for KB ids '@kb_ids'";
     $kb_ids_in = " AND kb.id in (@kb_ids) ";
+  }
+  elsif ($launch_ids_ref)
+  {
+    @launch_ids = @{$launch_ids_ref};
+    $launch_ids_str = " for launch ids '@launch_ids'";
+    $launch_ids_in = " AND launches.id in (@launch_ids) ";
   }
 
   print_debug_trace("Generate KB cache$kb_ids_str...");
@@ -241,18 +281,23 @@ sub generate_cache($)
   {
     # Before fast initialization of the whole KB cache by means of db tools
     # we need to delete the whole cache. Also we need to delete those records
-    # from KB cache that corresponds to KB entities with updated patterns.
+    # from KB cache that corresponds to KB entities with updated patterns or
+    # to new launches.
     if ($kb_ids_ref)
     {
-      delete_cache($kb_ids_ref)
+      delete_cache($kb_ids_ref, undef)
         if ($opt_update_pattern);
+    }
+    elsif ($launch_ids_ref)
+    {
+      delete_cache(undef, $launch_ids_ref)
     }
     else
     {
-      delete_cache(undef);
+      delete_cache(undef, undef);
     }
 
-    print_debug_trace("Begin to perform fast KB cache initialization$kb_ids_str...");
+    print_debug_trace("Begin to perform fast KB cache initialization$kb_ids_str$launch_ids_str...");
     $dbh->do(
       "INSERT INTO results_kb
        SELECT traces.id, kb.id, IF(kb.script IS NULL, 'Exact' , 'Require script')
@@ -264,7 +309,7 @@ sub generate_cache($)
          AND IF(kb.model is NULL, 1, rule_models.name like kb.model) = 1
          AND IF(kb.module is NULL, 1, scenarios.executable like kb.module) = 1
          AND IF(kb.main is NULL, 1, scenarios.main like kb.main) = 1
-         $kb_ids_in") or die($dbh->errstr);
+         $kb_ids_in$launch_ids_in") or die($dbh->errstr);
     print_debug_debug("Fast KB cache initialization was performed successfully");
   }
 
@@ -280,7 +325,7 @@ sub generate_cache($)
          or die($dbh->errstr);
     }
 
-    print_debug_trace("Begin to perform KB cache initialization with scripts$kb_ids_str...");
+    print_debug_trace("Begin to perform KB cache initialization with scripts$kb_ids_str$launch_ids_str...");
     my $all_data = $dbh->selectall_arrayref(
       "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id, traces.error_trace, kb.error_trace
        FROM launches
@@ -290,7 +335,7 @@ sub generate_cache($)
          LEFT JOIN rule_models on rule_models.id=launches.rule_model_id
          LEFT JOIN scenarios on scenarios.id=launches.scenario_id
        WHERE results_kb.fit='Require script'
-       $kb_ids_in") or die($dbh->errstr);
+       $kb_ids_in$launch_ids_in") or die($dbh->errstr);
 
     foreach my $data (@{$all_data}) {
       my ($model, $module, $main, $script, $trace_id, $kb_id, $et, $kb_et) = @{$data};
@@ -342,6 +387,7 @@ sub get_opt()
     'init-kb' => \$opt_init_kb,
     'init-schema' => \$opt_init_schema,
     'new=s' => \$opt_new,
+    'new-launch:s' => \$opt_new_launch,
     'schema=s' => \$opt_schema,
     'update-pattern=s' => \$opt_update_pattern,
     'update-pattern-script=s' => \$opt_update_pattern_script,
@@ -357,6 +403,9 @@ sub get_opt()
   die("Don't specify both --update-pattern or --update-pattern-script together with --init-cache or --init-cache-kb or --init-cache-script")
     if (($opt_update_pattern or $opt_update_pattern_script)
       and ($opt_init_cache or $opt_init_cache_db or $opt_init_cache_script));
+  die("Don't specify both --new-launch together with --delete or --new or --update-pattern or --update-pattern-script or --update-pattern-result")
+    if (($opt_new_launch)
+      and ($opt_delete or $opt_new or $opt_update_pattern or $opt_update_pattern_script or $opt_update_result));
 
   # Full initialization includes both KB and cache initializations.
   $opt_init_kb = $opt_init_cache = 1 if ($opt_init);
@@ -382,6 +431,18 @@ sub get_opt()
   {
     @kb_ids_new = split('/,/', $opt_new);
     print_debug_debug("New KB ids are '@kb_ids_new'");
+  }
+  if (defined($opt_new_launch))
+  {
+    if ($opt_new_launch)
+    {
+      @launch_ids_new = split('/,/', $opt_new_launch);
+      print_debug_debug("New launch ids are '@launch_ids_new'")
+    }
+    else
+    {
+      print_debug_debug("New launch ids will be obtained from STDIN")
+    }
   }
   if ($opt_update_pattern)
   {
@@ -454,6 +515,14 @@ OPTIONS
     New KB ids for which corresponding KB cache records will be
     calculated in depence on --init-cache-db and --init-cache-script
     options.
+
+  --new-launch [<ids>]
+    Results launch ids for which corresponding KB cache records will
+    be calculated in depence on --init-cache-db and
+    --init-cache-script options. Ids are taken from STDIN when they
+    aren't specified by means of <ids>. Don't use --delete, --new,
+    --update-pattern, --update-pattern-script and
+    --update-pattern-result together with the given option.
 
   --schema <file>
     Path to user defined KB schema to be uploaded to KB instead of
