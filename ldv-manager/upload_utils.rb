@@ -68,6 +68,7 @@ class Recalcer
 		end
 	end
 
+	# It's buggy.  Race conditions everywhere around it!
 	def dead?
 		return ! (@result.nil?)
 	end
