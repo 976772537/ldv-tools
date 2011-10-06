@@ -56,8 +56,7 @@ end
 #  - kill the knowledge base cache recalc process
 
 # Zero means that the handler will be invoked prior to a terminating signal
-Kernel.trap(0, kill_recalcer)
-Kernel.trap(0, print_warnings)
+Kernel.trap(0, proc {kill_recalcer[]; print_warnings[] })
 
 
 ### CONNECT TO DB
