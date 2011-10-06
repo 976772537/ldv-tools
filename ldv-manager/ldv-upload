@@ -29,7 +29,8 @@ $recalcer = nil
 # Update KB cache for the id given
 push_recalc = proc do |id|
 	unless $no_kb
-		$recalcer ||= Recalcer.new(INSERT_KB_SCRIPT_NAME_HERE,:fork_callback => proc { ENV['fuck'] = 'shit '})
+		# KB recalculator is run with full cache initialization and waiting for new launch ids from STDIN.
+		$recalcer ||= Recalcer.new('kb-recalc.pl --init-cache --new-launch',:fork_callback => proc { ENV['LDV_DEBUG'] = ENV['LDV_DEBUG'] })
 		# Check if the recalcer is dead
 		begin
 			# Now push (race condition here, but don't care).
