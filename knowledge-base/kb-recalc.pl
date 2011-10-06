@@ -161,9 +161,13 @@ if ($opt_init_cache_db or $opt_init_cache_script)
       while (1)
       {
         print_debug_normal("Please enter new launch id for which KB cache should be calculated");
-        my $launch_id_new = <STDIN>;
+        last if (!(my $launch_id_new = <STDIN>));
         chomp($launch_id_new);
-        last if (!$launch_id_new);
+        if ($launch_id_new !~ /\d+/)
+        {
+          print_debug_warning("Specified launch id '$launch_id_new' isn't an integer number");
+          next;
+        }
         @launch_ids_new = ($launch_id_new);
         generate_cache(undef, \@launch_ids_new);
       }
@@ -534,11 +538,10 @@ OPTIONS
   --new-launch [<ids>]
     Results launch ids for which corresponding KB cache records will
     be calculated in depend on --init-cache-db and
-    --init-cache-script options. Ids are obtained from STDIN when they
-    aren't specified by means of <ids>. Empty line is considered as
-    stop of reading. Don't use --delete, --new, --update-pattern,
-    --update-pattern-script and --update-pattern-result together with
-    the given option.
+    --init-cache-script options. Ids are obtained from STDIN until EOF
+    when they aren't specified by means of <ids>. Don't use --delete,
+    --new, --update-pattern, --update-pattern-script and
+    --update-pattern-result together with the given option.
 
   --schema <file>
     Path to user defined KB schema to be uploaded to KB instead of
