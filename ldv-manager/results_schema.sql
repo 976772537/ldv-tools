@@ -10,6 +10,8 @@ drop table if exists sources;
 drop table if exists problems_stats;
 drop table if exists problems;
 drop table if exists stats;
+drop table if exists results_kb_calculated; 
+drop table if exists results_kb;
 drop table if exists traces;
 drop table if exists launches;
 drop table if exists tasks;
@@ -19,8 +21,6 @@ drop table if exists rule_models;
 drop table if exists drivers ;
 drop table if exists environments ;
 drop table if exists kb;
-drop table if exists results_kb;
-drop table if exists results_kb_calculated; 
 
 -- Environments table holds kernels
 create table environments (
@@ -464,4 +464,4 @@ delimiter ;
 -- ----------------------------
 -- INSERT DATABASE PARAMETERS
 -- ----------------------------
-insert into db_properties (name, value) values ("version","3");
+insert into db_properties (name, value) values ("version","4");
