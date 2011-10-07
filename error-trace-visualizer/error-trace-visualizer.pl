@@ -18,6 +18,7 @@ use LDV::Utils;
 require Entity;
 require Annotation;
 require CPAchecker;
+use Parser qw(parse_error_trace);
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
@@ -112,42 +113,6 @@ sub process_error_trace_unknown();
 # retn: nothing.
 sub process_source_code_files();
 
-# Read something placed into brackets.
-# args: some string.
-# retn: the content of brackets or undef if it can't be read.
-sub read_brackets($);
-
-# Read equality and integer number (line number in source).
-# args: some string.
-# retn: the corresponding integer line number or undef if it can't be read.
-sub read_equal_int($);
-
-# Read equality and path to source file.
-# args: some string.
-# retn: the corresponding source file path or undef if it can't be read.
-sub read_equal_src($);
-
-# Read ldv comment.
-# args: some string.
-# retn: the processed ldv comment or undef if it can't be read.
-sub read_ldv_comment($);
-
-# Read the next line and possibly process it a bit.
-# args: a flag that says whether a processing is needed.
-# retn: a processed line or undef when no lines is rest.
-sub read_line($);
-
-# Read locals (function parameter names).
-# args: some string.
-# retn: the processed names or undef if it can't be read.
-sub read_locals($);
-
-# Read location. Location includes an useless location, a path to the source
-# file and a line number.
-# args: some string.
-# retn: the processed path to file and line number or undef if it can't be read.
-sub read_location($);
-
 # Make needed visualization of the error trace.
 # args: the tree root node.
 # retn: nothing.
@@ -158,39 +123,8 @@ sub visualize_error_trace($);
 # Global variables.
 ################################################################################
 
-# Blast error trace tree nodes, annotations and their processing functions:
-#   tree node
-#     Block
-#     FunctionCall
-#     Pred
-#     Skip
-#   annotation
-#     LDV
-#     Location
-#     Locals
-my %blast = (
-  'tree node' => {
-    my $element_kind_block = 'Block', \&read_brackets,
-    my $element_kind_func_call = 'FunctionCall', \&read_brackets,
-    my $element_kind_cond = 'Pred', \&read_brackets,
-    my $element_kind_skip = 'Skip', ''
-  },
-  'annotation' => {
-    my $element_kind_ldv_comment = 'LDV', \&read_ldv_comment,
-    my $element_kind_params = 'Locals', \&read_locals,
-    my $element_kind_location = 'Location', \&read_location
-  });
-
 # Prefix for all debug messages.
 my $debug_name = 'error-trace-visualizer';
-
-# Hash that keeps all dependencies required by the given error trace. Keys are
-# pathes to corresponding dependencies files.
-our %dependencies;
-# Values of previously processed source code file and line number. They are
-# needed in cases when a current entity location isn't processed successfully.
-my $src_prev;
-my $line_prev;
 
 # Engine to be used during processing and printing of an error trace.
 my $engine = '';
@@ -212,17 +146,22 @@ my %engines = (my $engine_blast = 'blast' =>
 my $entity_line = 0;
 my $entity_src = '';
 
+# Hash that keeps all dependencies required by the given error trace. Keys are
+# pathes to corresponding dependencies files.
+my %dependencies;
+
+# From a error trace we'll obtain absolute pathes as well as relative ones.
+# From verification results database we'll obtain corresponding long names
+# with deleted prefix. But we'll show just short names consisting of a file
+# name in titles and tab names.
+my %files_long_name;
+my %files_short_name;
+
 # File handlers.
 my $file_report_in;
 my $file_report_out;
 my $file_reqs_out;
 my $file_src_files;
-
-# From trace we obtain the full name (absolute pathes). From database we obtain
-# corresponding long names with deleted prefix. But we show just short names
-# consisting just of file name in titles and tab names.
-my %files_long_name;
-my %files_short_name;
 
 # The unique html tags identifier.
 my $html_id = 0;
@@ -262,9 +201,6 @@ my $opt_report_out;
 my $opt_reqs_out;
 my $opt_src_files;
 
-# Some usefull reqular expressions.
-my $regexp_element_kind = '^([^=\(:]+)';
-
 # Global show/hide classes and their defaults.
 my %show_hide_global = (
     1 => {'class', my $entity_class_entry_point = 'ETVEntryPoint', 'name', 'Entry point', 'main', 0, 'show', 1}
@@ -280,7 +216,7 @@ my %show_hide_global = (
   , 11 => {'class', my $entity_class_return_val = 'ETVReturnValue', 'name', 'Return values', 'main', 0, 'show', 1}
   , 12 => {'class', my $entity_class_assert = 'ETVAssert', 'name', 'Asserts', 'main', 0, 'show', 1}
   , 13 => {'class', my $entity_class_assert_cond = 'ETVAssertCondition', 'name', 'Assert conditions', 'main', 0, 'show', 1}
-  , 14 => {'class', my $entity_class_ident = 'ETVIdentation', 'name', 'Identation', 'main', 0, 'show', 1}
+  , 14 => {'class', my $entity_class_ident = 'ETVI', 'name', 'Identation', 'main', 0, 'show', 1}
   , 15 => {'class', my $entity_class_driver_env_init = 'ETVDriverEnvInit', 'name', 'Driver environment initialization', 'main', 0, 'show', 0}
   , 16 => {'class', my $entity_class_driver_env_func_call = 'ETVDriverEnvFunctionCall', 'name', 'Driver environment function calls', 'main', 0, 'show', 1}
   , 17 => {'class', my $entity_class_driver_env_func_body = 'ETVDriverEnvFunctionBody', 'name', 'Driver environment function bodies', 'main', 0, 'show', 1}
@@ -308,12 +244,16 @@ my %srcs;
 
 # The colors to be used in highlighting.
 my $syntax_colors = {
-  comment => 'ETVSrcComment',
+  comment => 'ETVSrcC',
   string  => 'ETVSrcString',
   number  => 'ETVSrcNumber',
-  key1    => 'ETVSrcCKeywords',
-  key2    => 'ETVSrcCPPKeywords',
+  key1    => 'ETVSrcCK',
+  key2    => 'ETVSrcCPPK',
 };
+
+# Those source code file names and lines that are reffered by error trace.
+my %reffered_locations;
+
 
 ################################################################################
 # Main section.
@@ -714,17 +654,17 @@ sub print_error_trace_node_blast($$)
   if (${$tree_node->{'values'}}[0])
   {
     my $value = ${$tree_node->{'values'}}[0];
-    
+
     # Remove names scope for all tree nodes.
     $value =~ s/@\w+//g;
-    
+
     # Add spaces around some operators.
     $value = add_mising_spaces($value);
-    
+
     # Add some simple replacements.
     $value =~ s/ \)/\)/g;
     $value =~ s/\* \(/\*\(/g;
-    
+
     # Replace 'A foffset B' with '&(A)->B' in the "recursive" way.
     while ($value =~ /(\w+|&\(\w+\))\s+foffset\s+\w+/)
     {
@@ -737,16 +677,16 @@ sub print_error_trace_node_blast($$)
         $text_for_replacement = $1;
         push(@foffset_ops, $2);
         my $str_end = $POSTMATCH;
-        
+
         while (1)
         {
           if ($str_end =~ /^(\w+)/)
           {
             $text_for_replacement .= $1;
             push(@foffset_ops, $1);
-          
+
             $str_end = $POSTMATCH;
-          
+
             if ($str_end =~ /^(\s+foffset\s+)/)
             {
               $text_for_replacement .= $1;
@@ -757,7 +697,7 @@ sub print_error_trace_node_blast($$)
               last;
             }
           }
-          else 
+          else
           {
             print_debug_warning("Trace format isn't supported");
           }
@@ -767,7 +707,7 @@ sub print_error_trace_node_blast($$)
         {
           my $op1 = shift(@foffset_ops);
           my $op2 = shift(@foffset_ops);
-          
+
           unshift(@foffset_ops, "\&($op1)->$op2");
         }
         # Replace initial string with the obtained one.
@@ -974,7 +914,7 @@ sub print_error_trace_node_blast($$)
     my $fdepth = '?';
     $fdepth = $tree_node->{'fdepth'} if ($tree_node->{'fdepth'});
     print($file_report_out ${$tree_node->{'values'}}[0], "  { /* The function call is skipped to reduce time of verification according to '-fdepth $fdepth' option. */ };</div>");
-  } 
+  }
   elsif ($tree_node->{'kind'} eq 'Block')
   {
     # Split expressions joined together into one block.
@@ -988,11 +928,11 @@ sub print_error_trace_node_blast($$)
     {
       print_spaces($indent);
       print_show_hide_local("ETV$html_id") if ($isshow_hide);
-      print($file_report_out $expr, ";<br />");
+      print($file_report_out $expr, ";<br />\n");
 
       if ($isshow_hide)
       {
-        print($file_report_out "\n<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
+        print($file_report_out "<span class='ETVBlockContinue' id='ETV", ($html_id++), "'>");
         $isshow_hide = 0;
       }
     }
@@ -1046,7 +986,7 @@ sub print_spaces($)
   # occupies more than one line then following to the first line fields are
   # filled with spaces. Because of there is spaces indentation before each line
   # this is done here.
-  print($file_report_out "<span class='ETVLineNumber'>");
+  print($file_report_out "<span class='ETVLN'>");
   if ($entity_line and $entity_src)
   {
     # Generate a link to the source code line if so.
@@ -1055,8 +995,8 @@ sub print_spaces($)
     if ($files_long_name{$entity_src})
     {
       my $file_link = convert_file_to_link($files_long_name{$entity_src});
-
       $entity_line_str =~ s/(\d+)/<a href='#$file_link:$entity_line'>$1<\/a>/;
+      $reffered_locations{"$file_link:$entity_line"} = 1;
       print($file_report_out $entity_line_str)
     }
     else
@@ -1119,7 +1059,7 @@ sub print_show_hide_local($)
   my $entity_id = shift;
 
   print($file_report_out
-    "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>\n");
+    "<a id='${entity_id}ShowHide' href='#' class='ETVShowHide'>-</a>");
 }
 
 sub process_error_trace()
@@ -1133,170 +1073,15 @@ sub process_error_trace()
 
 sub process_error_trace_blast()
 {
-  # The list of current parents.
-  my @parents = ();
+  my @et = <$file_report_in>;
+  my $et_processed = parse_error_trace({'engine' => 'blast', 'error trace' => \@et});
 
-  # Currently processed entity and annotation.
-  my $entity;
-  my $annotation;
-
-  # Stored pre annotations.
-  my @pre_annotations = ();
-
-  # Create the tree root corresponding to the entry point or main.
-  $entity = Entity->new({'engine' => 'blast', 'kind' => 'Root'});
-  push(@parents, $entity);
-
-  while(1)
-  {
-    # Read some element, either tree node (like function call) or annotation
-    # (like source code file path). Note that some elements may be divided into
-    # several lines so process all needed lines. Finish when there is no more
-    # lines.
-    my $iselement_read = 0;
-    my $element = '';
-    while ($iselement_read == 0)
-    {
-      # Read line with some processing.
-      my $element_part = read_line(1);
-
-      unless (defined($element_part))
-      {
-        # Without this message users may obtain incomplete error trace and
-        # won't understand what has happend.
-        if ($element)
-        {
-          print_debug_warning("You can obtain incomplete error trace! EOF was reached but some element wasn't still read!");
-        }
-
-        $iselement_read = -1;
-        last;
-      }
-
-      # Empty lines are meanigless.
-      next unless($element_part);
-
-      # Add extra space to separate different parts of a given element from
-      # each other. Further it should helps to print nice expressions.
-      $element .= " " if ($element);
-      $element .= "$element_part";
-      
-      # Detect the element kind and call the corresponding handler to read it.
-      die("Can't find the element '$element' kind.") unless ($element =~ /$regexp_element_kind/);
-      my $element_kind = $1;
-      my $element_content = $POSTMATCH;
-
-      die("The element kind '$element_kind' belongs neither to tree nodes nor to annotations.")
-        unless ($element_kind
-          or defined($blast{'tree node'}{$element_kind})
-          or defined($blast{'annotation'}{$element_kind}));
-
-      # When handler is available then run it. If an element is processed
-      # successfully then a handler returns some defined value.
-      if ($blast{'tree node'}{$element_kind})
-      {
-        if (defined(my $element_value = $blast{'tree node'}{$element_kind}->($element_content)))
-        {
-          print_debug_trace("Process the '$element_kind' tree node");
-
-          # Ignore skips at all.
-          if ($element_value)
-          {
-            $entity = Entity->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
-
-            # Some nodes are processed in a special way.
-            if ($entity->{'kind'} ne $element_kind)
-            {
-              print_debug_trace("The tree node kind was changed to the '" . $entity->{'kind'} . "'");
-            }
-
-            # Process entities as tree.
-            $entity->set_parent($parents[$#parents])
-              if (@parents);
-              
-            if ($entity->ismay_have_children())
-            {
-              push(@parents, $entity);
-              print_debug_trace("Increase the parent stack because of entity may have children");
-            }
-            
-            if ($entity->isparent_end())
-            {
-              pop(@parents);
-              print_debug_trace("Decrease the parent stack due to entity kind");
-            }
-
-            # Add pre annotations.
-            $entity->set_pre_annotations(@pre_annotations);
-            @pre_annotations = ();
-          }
-        }
-        # The following line is needed. So read it and concatenate with the
-        # previous one(s).
-        else
-        {
-          next;
-        }
-      }
-      elsif ($blast{'annotation'}{$element_kind})
-      {
-        if (defined(my $element_value = $blast{'annotation'}{$element_kind}->($element_content)))
-        {
-          print_debug_trace("Process the '$element_kind' annotation");
-
-          # Ignore arificial locations at all.
-          if ($element_value)
-          {
-            # Story dependencies. TODO make it entity specific!!!!!!!!!!!!!!!!!!!!!!!
-            if ($element_kind eq $element_kind_location)
-            {
-              my ($src, $line) = @{$element_value};
-              if(defined($line))
-              {
-                $dependencies{$src} = 1;
-              }
-              $files_long_name{$src} = 0;
-              $src =~ /([^\/]*)$/;
-              $files_short_name{$src} = $1;
-              print_debug_trace("The full name '$src' was related with the short name '$1'");
-            }
-
-            $annotation = Annotation->new({'engine' => 'blast', 'kind' => $element_kind, 'values' => $element_value});
-
-            # Process annotation in depend on whether it pre or post.
-            push(@pre_annotations, $annotation)
-              if ($annotation->ispre_annotation());
-            if ($annotation->ispost_annotation())
-            {
-              $entity->set_post_annotations(($annotation));
-
-              # Update parents since post annotation may change the entity kind.
-              if ($entity->isparent_end())
-              {
-                pop(@parents);
-                print_debug_trace("Decrease the parent stack due to post annotation");
-              }
-            }
-          }
-        }
-        # The following line is needed. So read it and concatenate with the
-        # previous one(s). Does it happen whenever for annotations?
-        else
-        {
-          next;
-        }
-      }
-
-      # Element was read sucessfully.
-      $iselement_read = 1;
-    }
-
-    # All was read.
-    last if ($iselement_read == -1);
-  }
+  %dependencies = %{$et_processed->{'dependencies'}};
+  %files_long_name = %{$et_processed->{'files long name'}};
+  %files_short_name = %{$et_processed->{'files short name'}};
 
   # Return the tree root node.
-  return $parents[0];
+  return $et_processed->{'error trace tree root node'};
 }
 
 sub process_error_trace_cpachecker()
@@ -1400,10 +1185,10 @@ sub process_source_code_files()
           print_debug_warning ("Incorrect format of the model comment '$line'");
           next;
         }
-        
+
         my $comment = $PREMATCH;
         print_debug_trace ("Catch the model comment '$comment' corresponding to '$ldv_model_comment_names{$ldv_model_comment_alias}'");
-        
+
         # Attributes hash. Keys are attribute names, values are corresponding
         # attribute values.
         my %attrs;
@@ -1466,196 +1251,6 @@ sub process_source_code_files()
   }
 }
 
-sub read_brackets($)
-{
-  my $line = shift;
-
-  # Check that line begins with open bracket. It'll be so if there is no
-  # critical error in trace.
-  return undef unless ($line =~ /^\(/);
-
-  # Check that line finishes with close bracket. If it's not so then additional
-  # line must be read. It seems that every time close bracket will be found
-  # after all.
-  return undef unless ($line =~ /\)$/);
-
-  # Check the balance of open and close brackets. If it isn't correct
-  # then additional strings are needed. This is required since an usual string
-  # can end with close bracket although it isn't an end of an element to be
-  # read.
-  # We also need to ensure that brackets inside quotes are ignored! So just
-  # remove all strings from a given line before we will count the number of
-  # brackets. Don't forget about escaped quotes inside stings.
-  my $line_without_strings = $line;
-  $line_without_strings =~ s/\\"//g;
-  $line_without_strings =~ s/"[^"]*"//g;
-  my $open_bracket_numb = ($line_without_strings =~ tr/\(//);
-  my $close_bracket_numb = ($line_without_strings =~ tr/\)//);
-  return undef if ($open_bracket_numb != $close_bracket_numb);
-
-  # Remove brackets surrounding the line.
-  $line =~ /^\(/;
-  $line = $POSTMATCH;
-  $line =~ /\)$/;
-  $line = $PREMATCH;
-
-  my @content = ($line);
-
-  return \@content;
-}
-
-sub read_equal_int($)
-{
-  my $line = shift;
-
-  # Check that line begins with equality and consists just of integer digits.
-  # It'll be so if there is no critical error in trace.
-  return undef unless ($line =~ /^=\d+$/);
-
-  # Remove equality beginning the line.
-  $line =~ /^=/;
-  $line = $POSTMATCH;
-
-  return $line;
-}
-
-sub read_equal_src($)
-{
-  my $line = shift;
-
-  # Check that line begins with equality and open double quote. It'll be so if
-  # there is no critical error in trace.
-  return undef unless ($line =~ /^="/);
-
-  # Check that line finishes with close quote and semicolon. If it's not so then
-  # additional line must be read. It seems that every time close bracket will be
-  # found after all. And it seems that it isn't actual for the source annotation
-  # at all.
-  return undef unless ($line =~ /";$/);
-
-  # Remove equality, semicolon and quotes surrounding the line.
-  $line =~ /^="/;
-  $line = $POSTMATCH;
-  $line =~ /";$/;
-  $line = $PREMATCH;
-
-  # We don't consider an empty string as a correct source code file name.
-  return undef unless ($line);
-
-  return $line;
-}
-
-sub read_ldv_comment($)
-{
-  my $line = shift;
-
-  # Check that line begins with colon. It'll be so if there is no critical error
-  # in trace.
-  return undef unless ($line =~ /^:/);
-
-  # Remove colon beginning the line and all formatting spaces and tabs placed at the beginning of the line.
-  $line =~ /^:[\s]*/;
-  $line = $POSTMATCH;
-
-  # LDV comments are splited by colons.
-  my @comments = split(/:/, $line);
-
-  return \@comments;
-}
-
-sub read_line($)
-{
-  my $is_processing = shift;
-
-  # Read the next line from the input report file if so.
-  return undef unless (defined(my $line = <$file_report_in>));
-
-  # Make processing just in case when it's needed.
-  if ($is_processing)
-  {
-    # Remove the end of line.
-    chomp($line);
-    # Remove all formatting spaces and tabs placed at the beginning of the line.
-    $line =~ /^[\s]*/;
-    $line = $POSTMATCH;
-  }
-
-  # Return the processed line.
-  return $line;
-}
-
-sub read_locals($)
-{
-  my $line = shift;
-
-  # Check that line begins with colon. It'll be so if there is no critical error
-  # in trace.
-  return undef unless ($line =~ /^:/);
-
-  # Remove colon beginning the line and all formatting spaces and tabs placed at the beginning of the line.
-  $line =~ /^:[\s]*/;
-  $line = $POSTMATCH;
-
-  # Function parameters names are splited by spaces.
-  my @params = split(/\s+/, $line);
-
-  return \@params;
-}
-
-sub read_location($)
-{
-  my $line = shift;
-
-  # Location isn't interesting for visualization. So just ignore it.
-  return undef unless ($line =~ /^: id=\d+#\d+/);
-  $line = $POSTMATCH;
-  $line = $POSTMATCH if ($line =~ /^ \(Artificial\)/);
-
-  # Remove all formatting spaces and tabs placed at the beginning of the line.
-  $line =~ /^[\s]*/;
-  $line = $POSTMATCH;
-
-  # There may be no source file and line number (for artificial locations).
-  return '' unless ($line);
-
-  # The rest path of location contains path to the source file and line number.
-  my @location = split(/\s+/, $line);
-
-  die("Can't find a source path in the '$location[0]'.")
-    unless ($location[0] =~ /$regexp_element_kind/);
-  my $src_content = $POSTMATCH;
-  my $src = read_equal_src($src_content);
-
-  if (defined($src))
-  {
-    $src_prev = $src; 
-  }
-  else
-  {
-    print_debug_warning("Source code file '$src_content' wasn't processed. Use a previosly obtained value '$src_prev' for a given source code file");
-    $src = $src_prev;
-  }
-
-  die("Can't find a line number in the $line '$location[1]'.")
-    unless ($location[1] =~ /$regexp_element_kind/);
-  my $line_numb_content = $POSTMATCH;
-  my $line_numb = read_equal_int($line_numb_content);
-
-  if (defined($line_numb))
-  {
-    $line_prev = $line_numb;
-  }
-  else
-  {
-    print_debug_warning("Line number '$line_numb_content' wasn't processed. Use a previosly obtained value '$line_prev' for a given line number");
-    $line_numb = $line_prev;
-  }
-
-  @location = ($src, $line_numb);
-
-  return \@location;
-}
-
 sub visualize_error_trace($)
 {
   my $tree_root = shift;
@@ -1697,7 +1292,7 @@ sub visualize_error_trace($)
   print($file_report_out
       "\n<script type='text/javascript'>"
     , "\n  \$(document).ready(function() {"
-    , "\n    \$('.ETVLineNumber a').click(function() {"
+    , "\n    \$('.ETVLN a').click(function() {"
     , "\n      \$('#ETVTabs ul li').removeClass('ETVActive');"
     , "\n      var currentLink = \$(this).attr('href');"
     , "\n      var linkPosition = currentLink.lastIndexOf('#');"
@@ -1735,15 +1330,6 @@ sub visualize_error_trace($)
     , "\n    });"
     , "\n  });"
     , "\n</script>");
-
-  # Print short ETV help.
-  print($file_report_out
-      "\n  <div class='ETVHelp'>"
-    , "\n    <p>Here is the <i>explanation</i> of the rule violation arisen in your driver for the corresponding kernel.</p>"
-    , "\n    <p>Note that there may be <i>no</i> error indeed. Please <i>see</i> on error trace and source code to <i>understand</i> whether there is an error in your driver.</p>"
-    , "\n    <p>The <b>Error trace</b> column contains the <i>path</i> on which rule is violated. You can choose some <i>entity classes</i> to be <i>shown</i> or <i>hiden</i> by clicking on the corresponding <i>checkboxes</i> or in the advanced <i>Others</i> menu. Also you can <i>show</i> or <i>hide</i> each <i>particular entity</i> by clicking on the corresponding <i>-</i> or <i>+</i>. In <i>hovering</i> on some <i>entities</i> you can see their <i>descriptions</i> and <i>meaning</i>. Also the <i>error trace</i> is binded with the <i>source code</i>. <i>Line numbers</i> are shown as <i>links</i> on the left. You can <i>click</i> on them to open the <i>corresponding line</i> in <i>source code</i>. <i>Line numbers</i> and <i>file names</i> are shown in <i>entity descriptions</i>.</p>"
-    , "\n    <p>The <b>Source code</b> column contains <i>content</i> of <i>files related</i> with the <i>error trace</i>. There are your <i>driver</i> (<i>note</i> that there are some <i>our modifications</i> at the end), <i>kernel headers</i> and <i>rule</i> source code. <i>Tabs</i> show the currently opened file and other available files. In <i>hovering</i> you can see <i>file names</i> in <i>titles</i>. On <i>clicking</i> the corresponding <i>file content</i> will be shown.</p>"
-    , "\n  </div>");
 
   # Create the table having two cells. The first cell is for the error trace and
   # the second is for the tabed source code.
@@ -1784,7 +1370,11 @@ sub visualize_error_trace($)
     my $line_numb = 1;
     foreach my $line (@src_highlighted)
     {
-      printf($file_report_out "<span class='ETVSrcLineNumber'><a name='" . convert_file_to_link($src) . ":$line_numb'></a>%5d </span>", $line_numb);
+      my $anchor = '';
+      my $link_to_file = convert_file_to_link($src);
+      $anchor = "<a name='$link_to_file:$line_numb'></a>"
+        if (defined($reffered_locations{"$link_to_file:$line_numb"}));
+      printf($file_report_out "<span class='ETVSrcLN'>$anchor%5d </span>", $line_numb);
       print($file_report_out "$line");
       $line_numb++;
       print($file_report_out "\n") if ($line_numb <= scalar(@src_highlighted));
@@ -1799,4 +1389,13 @@ sub visualize_error_trace($)
     , "\n  </td>"
     , "\n</tr>"
     , "\n</table>\n");
+
+  # Print short ETV help after error trace visualized.
+  print($file_report_out
+      "\n  <div class='ETVHelp'>"
+    , "\n    <p>Here is the <i>explanation</i> of the rule violation arisen in your driver for the corresponding kernel.</p>"
+    , "\n    <p>Note that there may be <i>no</i> error indeed. Please <i>see</i> on error trace and source code to <i>understand</i> whether there is an error in your driver.</p>"
+    , "\n    <p>The <b>Error trace</b> column contains the <i>path</i> on which rule is violated. You can choose some <i>entity classes</i> to be <i>shown</i> or <i>hiden</i> by clicking on the corresponding <i>checkboxes</i> or in the advanced <i>Others</i> menu. Also you can <i>show</i> or <i>hide</i> each <i>particular entity</i> by clicking on the corresponding <i>-</i> or <i>+</i>. In <i>hovering</i> on some <i>entities</i> you can see their <i>descriptions</i> and <i>meaning</i>. Also the <i>error trace</i> is binded with the <i>source code</i>. <i>Line numbers</i> are shown as <i>links</i> on the left. You can <i>click</i> on them to open the <i>corresponding line</i> in <i>source code</i>. <i>Line numbers</i> and <i>file names</i> are shown in <i>entity descriptions</i>.</p>"
+    , "\n    <p>The <b>Source code</b> column contains <i>content</i> of <i>files related</i> with the <i>error trace</i>. There are your <i>driver</i> (<i>note</i> that there are some <i>our modifications</i> at the end), <i>kernel headers</i> and <i>rule</i> source code. <i>Tabs</i> show the currently opened file and other available files. In <i>hovering</i> you can see <i>file names</i> in <i>titles</i>. On <i>clicking</i> the corresponding <i>file content</i> will be shown.</p>"
+    , "\n  </div>");
 }

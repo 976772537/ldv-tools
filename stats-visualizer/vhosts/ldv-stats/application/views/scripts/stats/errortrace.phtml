@@ -11,7 +11,388 @@ if (isset($this->error)) {
 }
 else {
   print_r($results['Error trace']->errorTrace);
+
+  // Print KB records relevant to a given error trace.
+  $kbRecords = $results['Knowledge base'];
+
+  // Plugin for KB store/restore.
+?>
+<script type='text/javascript'>
+  $(document).ready(function() {
+    $('#SETVKBStore').click(function() {
+      $.ajaxSetup({ 'error': function() {
+        alert('Something goes wrong while KB was stored');
+      }});
+
+      $.getJSON(
+        '<?php echo $this->url(array('action' => 'store-kb')); ?>'
+        , { }
+        , function(results) {
+          if (results.errors == '') {
+            alert('KB was stored successfully');
+          }
+          else
+            alert($.makeArray(results.errors).join('\\n'));
+        }
+      );
+
+      return false;
+    });
+
+    $('#SETVKBRestore').click(function() {
+      $.ajaxSetup({ 'error': function() {
+        alert('Something goes wrong while KB was restored');
+      }});
+
+      $.getJSON(
+        '<?php echo $this->url(array('action' => 'restore-kb')); ?>'
+        , { }
+        , function(results) {
+          if (results.errors == '') {
+            alert('KB was restored successfully');
+            window.location.reload();
+          }
+          else
+            alert($.makeArray(results.errors).join('\\n'));
+        }
+      );
+
+      return false;
+    });
+  });
+</script>
+<?php
+  // Plugin for KB record delete action.
+?>
+<script type='text/javascript'>
+  $(document).ready(function() {
+    $('.SETVKBDeleteKBRecord').click(function() {
+      var rowCur = $(this).parent().parent();
+      var kbId = rowCur.find('.SETVKBId').text();
+
+      if (!kbId) {
+        alert('Can\'t find corresponding KB id for the record to be deleted');
+        return false;
+      }
+
+      $.ajaxSetup({ 'error': function() {
+        alert('Something goes wrong while KB record was deleted');
+      }});
+
+      $.getJSON(
+        '<?php echo $this->url(array('action' => 'delete-kb-record')); ?>'
+        , { 'KB id': kbId }
+        , function(results) {
+          if (results.errors == '') {
+            rowCur.remove();
+          }
+          else
+            alert($.makeArray(results.errors).join('\\n'));
+        }
+      );
+
+      return false;
+    });
+  });
+</script>
+<?php
+  // Plugin for KB record edit action.
+?>
+<script type='text/javascript'>
+  function getRadioValue(radio) {
+    for (var i = 0; i < radio.length; i++)
+      if (radio[i].checked)
+        return radio[i].value;
+  }
+
+  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, tagsOld, tags, commentOld, comment) {
+    $.ajaxSetup({ 'error': function() {
+      if (isNew)
+        alert('Something goes wrong while KB record was created');
+      else
+        alert('Something goes wrong while KB record was updated');
+    }});
+
+    $.getJSON(
+      '<?php echo $this->url(array('action' => 'update-kb-record')); ?>'
+      , {'KB new record': isNew
+          , 'KB id': id
+          , 'KB name old': nameOld
+          , 'KB name': name
+          , 'KB public old': publicOld
+          , 'KB public': public
+          , 'KB task attrs old': taskAttrsOld
+          , 'KB task attrs': taskAttrs
+          , 'KB model old': modelOld
+          , 'KB model': model
+          , 'KB module old': moduleOld
+          , 'KB module': module
+          , 'KB main old': mainOld
+          , 'KB main': main
+          , 'KB error trace id': traceId
+          , 'KB script old': unescape(scriptOld)
+          , 'KB script': script
+          , 'KB verdict old': verdictOld
+          , 'KB verdict': verdict
+          , 'KB tags old': tagsOld
+          , 'KB tags': tags
+          , 'KB comment old': commentOld
+          , 'KB comment': comment
+        }
+      , function(results) {
+        if (results.errors == '') {
+          if (results.result != '')
+            alert($.makeArray(results.result).join('\n') + "\n\nTODO: Here will be shown affected KB cache records...");
+          // Reset form related with KB record update.
+          $('#KBName, #KBTaskattributes, #KBModel, #KBModule, #KBMain, #KBScript, #KBTags, #KBComment').each(function() { $(this).replaceWith("<div class='SETV" + $(this).attr('id') + "'>" + $(this).val() + "</div>"); });
+          $('#KBPublic:checked, #KBVerdict:checked').each(function() { $(this).parent().html("<div class='SETV" + $(this).attr('id') + "'>" + $(this).val() + "</div>"); });
+          $('#UpdateKBRecord').parent().remove();
+          // TODO: at the moment just reload page, but then we can avoid this.
+          window.location.reload();
+        }
+        else
+          alert($.makeArray(results.errors).join('\n'));
+      }
+    );
+  }
+
+  $(document).ready(function() {
+    $('.SETVKBEditKBRecord').click(function() {
+      var rowCur = $(this).parent().parent();
+      var isNew = rowCur.attr('id') == '' ? false : true;
+      var kbId = '';
+      var kbNameOld = '';
+      var kbPublicOld = '';
+      var kbTaskAttrsOld = '';
+      var kbModelOld = '';
+      var kbModuleOld = '';
+      var kbMainOld = '';
+      var kbTraceId = '';
+      var kbScriptOld = '';
+      var kbVerdictOld = '';
+      var kbTagsOld = '';
+      var kbCommentOld = '';
+
+      rowCur.find('.SETVKBId').each(function() {
+        kbId = $(this).text();
+      });
+      rowCur.find('.SETVKBName').parent().each(function() {
+        kbNameOld = $(this).text();
+        $(this).html("<input type='text' id='KBName' size='20' value='" + kbNameOld + "' form='UpdateKBRecord' />");
+      });
+      rowCur.find('.SETVKBPublic').parent().each(function() {
+        var isYesChecked = '';
+        var isNoChecked = '';
+
+        kbPublicOld = $(this).text();
+        if (kbPublicOld == '1')
+          isYesChecked = 'checked';
+        else
+          isNoChecked = 'checked';
+        $(this).html("<input type='radio' id='KBPublic' name='KBPublic' value='1' " + isYesChecked + " form='UpdateKBRecord' />yes"
+          + "<br /><input type='radio' id='KBPublic' name='KBPublic' value='0' " + isNoChecked + " form='UpdateKBRecord' />no");
+      });
+      rowCur.find('.SETVKBTaskattributes').parent().each(function() {
+        kbTaskAttrsOld = $(this).text();
+        $(this).html("<input type='text' id='KBTaskattributes' size='30' value='" + kbTaskAttrsOld + "' form='UpdateKBRecord' />");
+      });
+      rowCur.find('.SETVKBModel').each(function() {
+        kbModelOld = $(this).text();
+        $(this).html("<input type='text' id='KBModel' size='15' value='" + kbModelOld + "' form='UpdateKBRecord' />");
+      });
+      rowCur.find('.SETVKBModule').each(function() {
+        kbModuleOld = $(this).text();
+        $(this).html("<input type='text' id='KBModule' size='15' value='" + kbModuleOld + "' form='UpdateKBRecord' />");
+      });
+      rowCur.find('.SETVKBMain').each(function() {
+        kbMainOld = $(this).text();
+        $(this).html("<input type='text' id='KBMain' size='15' value='" + kbMainOld + "' form='UpdateKBRecord' />");
+      });
+      rowCur.find('.SETVKBErrortrace').each(function() {
+        kbTraceId = $(this).text();
+      });
+      rowCur.find('.SETVKBScript').parent().each(function() {
+        kbScriptOld = $(this).text();
+        $(this).html("<textarea id='KBScript' rows='3' cols='40' form='UpdateKBRecord'>" + kbScriptOld + "</textarea>");
+      });
+      rowCur.find('.SETVKBVerdict').parent().each(function() {
+        var isTPChecked = '';
+        var isFPChecked = '';
+        var isUNKChecked = '';
+
+        kbVerdictOld = $(this).text();
+        if (kbVerdictOld == 'True positive')
+          isTPChecked = 'checked';
+        else if (kbVerdictOld == 'False positive')
+          isFPChecked = 'checked';
+        else
+          isUNKChecked = 'checked';
+
+        $(this).html("<input type='radio' id='KBVerdict' name='KBVerdict' value='True positive' " + isTPChecked + " form='UpdateKBRecord' />True positive"
+          + "<input type='radio' id='KBVerdict' name='KBVerdict' value='False positive' " + isFPChecked + " form='UpdateKBRecord' />False positive"
+          + "<input type='radio' id='KBVerdict' name='KBVerdict' value='Unknown' " + isUNKChecked + " form='UpdateKBRecord' />Unknown");
+      });
+      rowCur.find('.SETVKBTags').parent().each(function() {
+        kbTagsOld = $(this).text();
+        $(this).html("<input type='text' id='KBTags' size='30' value='" + kbTagsOld + "' form='UpdateKBRecord' />");
+      });
+      rowCur.find('.SETVKBComment').parent().each(function() {
+        kbCommentOld = $(this).text();
+        $(this).html("<textarea id='KBComment' rows='3' cols='40' form='UpdateKBRecord'>" + kbCommentOld + "</textarea>");
+      });
+
+      kbId = "'" + kbId + "'";
+      kbNameOld = "'" + kbNameOld + "'";
+      kbPublicOld = "'" + kbPublicOld + "'";
+      kbTaskAttrsOld = "'" + kbTaskAttrsOld + "'";
+      kbModelOld = "'" + kbModelOld + "'";
+      kbModuleOld = "'" + kbModuleOld + "'";
+      kbMainOld = "'" + kbMainOld + "'";
+      kbTraceId = "'" + kbTraceId + "'";
+      kbScriptOld = escape(kbScriptOld);
+      kbScriptOld = "'" + kbScriptOld + "'";
+      kbVerdictOld = "'" + kbVerdictOld + "'";
+      kbTagsOld = "'" + kbTagsOld + "'";
+      kbCommentOld = escape(kbCommentOld);
+      kbCommentOld = "'" + kbCommentOld + "'";
+
+      var submitText = '';
+      if (isNew)
+        submitText = 'Create';
+      else
+        submitText = 'Update';
+
+      rowCur.append("<td>"
+        + "<form id='UpdateKBRecord' onsubmit=\"updateKBRecord("
+          + isNew + ", "
+          + kbId + ", "
+          + kbNameOld + ", getElementById('KBName').value, "
+          + kbPublicOld + ", getRadioValue(getElementsByName('KBPublic')), "
+          + kbTaskAttrsOld + ", getElementById('KBTaskattributes').value, "
+          + kbModelOld + ",  getElementById('KBModel').value, "
+          + kbModuleOld + ",  getElementById('KBModule').value, "
+          + kbMainOld + ",  getElementById('KBMain').value, "
+          + kbTraceId + ", "
+          + kbScriptOld + ",  getElementById('KBScript').value, "
+          + kbVerdictOld + ",  getRadioValue(getElementsByName('KBVerdict')), "
+          + kbTagsOld + ",  getElementById('KBTags').value, "
+          + kbCommentOld + ",  getElementById('KBComment').value);"
+          + " return false;\">"
+        + "</form>"
+        + "<input type='submit' value='" + submitText + "' form='UpdateKBRecord' />"
+        + "</td>");
+
+      return false;
+    });
+  });
+</script>
+<?php
+  // Plugin for new KB record creature.
+?>
+<script type='text/javascript'>
+  $(document).ready(function() {
+    $('#SETVKBCreateEmptyKBRecord').click(function() {
+      $('#SETVKBNewEmptyKBRecord').show().each(function() {
+        $(this).find('.SETVKBEditKBRecord').trigger('click');
+      });
+      return false;
+    });
+    $('#SETVKBCreateFilledKBRecord').click(function() {
+      $('#SETVKBNewFilledKBRecord').show().each(function() {
+        $(this).find('.SETVKBEditKBRecord').trigger('click');
+      });
+      return false;
+    });
+  });
+</script>
+<?php
+  // Plugin to paint KB table rows.
+?>
+<script type='text/javascript'>
+  $(document).ready(function() {
+    $('#SETVKBTable tr:odd').addClass('SETVKBTableRowOdd');
+    $('#SETVKBTable tr:even').addClass('SETVKBTableRowEven');
+  });
+</script>
+<?php
+  echo "<div id='SETVKBTableTitle'>Knowledge base</div>";
+  echo "<table id='SETVKBTable' border='1'>";
+  echo "<tr id='SETVKBTableFirstRow'>";
+  // Print auxiliary column that will contain edit action.
+  echo "<td class='SETVKBAuxTitle'></td>";
+  // Print auxiliary column that will contain delete action.
+  echo "<td class='SETVKBAuxTitle'></td>";
+  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment');
+  foreach ($columns as $columnName) {
+    echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
+  }
+  foreach ($kbRecords as $kbRecord) {
+    echo '<tr>';
+    echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record'>edit</a></td>";
+    echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
+    foreach ($kbRecord as $columnName => $kbCellValue) {
+      if ($columnName == 'Error trace')
+        $kbCellValue = '';
+      if ($columnName == 'Verdict')
+        $kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
+      echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
+    }
+    echo '</tr>';
+  }
+
+  // Print auxiliary row for a new empty KB record to be added.
+  echo "<tr id='SETVKBNewEmptyKBRecord'>";
+  // Auxiliary edit and delete columns.
+  echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
+  echo "<td></td>";
+  foreach ($columns as $columnName) {
+    echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'></div></td>";
+  }
+  echo "</tr>";
+
+  // Print auxiliary row for a new filled KB record to be added.
+  echo "<tr id='SETVKBNewFilledKBRecord'>";
+  // Auxiliary edit and delete columns.
+  echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
+  echo "<td></td>";
+  $restrictions = $results['Restrictions'];
+
+  foreach ($columns as $columnName) {
+    $value = '';
+    if ($columnName == 'Model')
+      $value = $restrictions['Rule name'];
+    else if ($columnName == 'Module')
+      $value = $restrictions['Module'];
+    else if ($columnName == 'Main')
+      $value = $restrictions['Entry point'];
+    else if ($columnName == 'Error trace')
+      $value = $results['Trace id'];
+    else if ($columnName == 'Script')
+      $value = "return 1 if (call_stacks_ne(\$et, \$kb_et));";
+
+    echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$value</div></td>";
+  }
+  echo "</tr>";
+  echo '</table>';
+  echo "<a href='#' id='SETVKBCreateEmptyKBRecord'>Create empty KB record</a></td>";
+  echo " <a href='#' id='SETVKBCreateFilledKBRecord'>Create filled KB record</a></td>";
+  echo " <a href='#' id='SETVKBStore'>Store KB</a></td>";
+  echo " <a href='#' id='SETVKBRestore'>Restore KB</a></td>";
 }
+
+// Print show/hide plugin for error trace visualizer help. By default it isn't shown.
+echo "<script type='text/javascript'>
+        $(document).ready(function() {
+          $('.ETVHelp').before('<div id=\"SETVHelpShowHide\"><a href=\"#\" id=\"SETVHelpShowHideLink\">Error trace visualizer help</a></div>');
+          $('#SETVHelpShowHideLink').toggle(function() {
+            $('.ETVHelp').show();
+            return false;
+          } , function() {
+            $('.ETVHelp').hide();
+            return false;
+          });
+        });
+      </script>";
 
 // Print show/hide plugin for error trace visualizer log. By default it isn't shown.
 echo "<script type='text/javascript'>

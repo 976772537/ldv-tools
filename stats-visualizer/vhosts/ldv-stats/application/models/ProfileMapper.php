@@ -2,9 +2,14 @@
 
 class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 {
+  public function getProfilesDbTable($tableName)
+  {
+    return $this->getDbTable($tableName, 'profiles');
+  }
+
   public function getProfiles()
   {
-    $profiles = $this->getDbTable('Application_Model_DbTable_Profiles');
+    $profiles = $this->getProfilesDbTable('Application_Model_DbTable_Profiles');
     $resultSet = $profiles->fetchAll($profiles
       ->select()
       ->order('user')
@@ -44,7 +49,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 
     // Add information from db for the current profile.
     // Obtain information on the database connection.
-    $profileDatabases = $this->getDbTable('Application_Model_DbTable_ProfilesDatabases');
+    $profileDatabases = $this->getProfilesDbTable('Application_Model_DbTable_ProfilesDatabases');
     $profileDatabasesRow = $profileDatabases->fetchRow($profileDatabases
       ->select()->setIntegrityCheck(false)
       ->from(array('PRDA' => 'profiles_databases'),
@@ -63,7 +68,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
     $this->_logger->log("The current profile database connection: $profileDatabasesRow[Host] (host), $profileDatabasesRow[Name] (name), $profileDatabasesRow[User] (user), $profileDatabasesRow[Password] (password)", Zend_Log::DEBUG);
 
     // Get the current profile pages.
-    $profilePages = $this->getDbTable('Application_Model_DbTable_ProfilesPages');
+    $profilePages = $this->getProfilesDbTable('Application_Model_DbTable_ProfilesPages');
     $profilePagesResultSet = $profilePages->fetchAll($profilePages
       ->select()->setIntegrityCheck(false)
       ->from(array('PRPA' => 'profiles_pages'),
@@ -75,10 +80,10 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 
     foreach($profilePagesResultSet as $profilePagesRow) {
       $profilePage = $profile->setPageName($profilePagesRow['Name']);
-      $this->_logger->log("The current profile page: $profilePagesRow[Name]", Zend_Log::DEBUG);
+      $this->_logger->log("The current profile page: $profilePagesRow[Name] (with id: $profilePagesRow[Id])", Zend_Log::DEBUG);
 
       // Get information on the page.
-      $pagesLaunchInfo = $this->getDbTable('Application_Model_DbTable_PagesLaunchInfo');
+      $pagesLaunchInfo = $this->getProfilesDbTable('Application_Model_DbTable_PagesLaunchInfo');
       $pagesLaunchInfoResultSet = $pagesLaunchInfo->fetchAll($pagesLaunchInfo
         ->select()->setIntegrityCheck(false)
         ->from(array('PALA' => 'pages_launch_info'),
@@ -100,7 +105,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         $this->_logger->log("The launch information: $pagesLaunchInfoRow[Name]", Zend_Log::DEBUG);
 
         // Get information on filters.
-        $launchFiltersInfo = $this->getDbTable('Application_Model_DbTable_LaunchFiltersInfo');
+        $launchFiltersInfo = $this->getProfilesDbTable('Application_Model_DbTable_LaunchFiltersInfo');
         $launchFiltersInfoResultSet = $launchFiltersInfo->fetchAll($launchFiltersInfo
           ->select()->setIntegrityCheck(false)
           ->from(array('LAFI' => 'launch_filters_info'),
@@ -124,7 +129,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
       }
 
       // Get information on verification.
-      $pagesVerificationInfo = $this->getDbTable('Application_Model_DbTable_PagesVerificationInfo');
+      $pagesVerificationInfo = $this->getProfilesDbTable('Application_Model_DbTable_PagesVerificationInfo');
       $pagesVerificationInfoResultSet = $pagesVerificationInfo->fetchAll($pagesVerificationInfo
         ->select()->setIntegrityCheck(false)
         ->from(array('PAVE' => 'pages_verification_info'),
@@ -146,7 +151,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 
         // Get information on verification result.
         if ($pagesVerificationInfoRow['Name'] == 'Result') {
-          $verificationResultInfo = $this->getDbTable('Application_Model_DbTable_VerificationResultInfo');
+          $verificationResultInfo = $this->getProfilesDbTable('Application_Model_DbTable_VerificationResultInfo');
           $verificationResultInfoResultSet = $verificationResultInfo->fetchAll($verificationResultInfo
             ->select()->setIntegrityCheck(false)
             ->from(array('VERE' => 'verification_result_info'),
@@ -168,8 +173,53 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         }
       }
 
+      // Get information on knowledge base.
+      $pagesKnowledgeBaseInfo = $this->getProfilesDbTable('Application_Model_DbTable_PagesKnowledgeBaseInfo');
+      $pagesKnowledgeBaseInfoResultSet = $pagesKnowledgeBaseInfo->fetchAll($pagesKnowledgeBaseInfo
+        ->select()->setIntegrityCheck(false)
+        ->from(array('PAKB' => 'pages_kb_info'),
+            array('Name' => 'KB.name',
+                  'Id' => 'KB.id',
+                  'Order' => 'AU.order',
+                  'Presence' => 'AU.presence'))
+        ->joinLeft(array('KB' => 'kb_info'), 'PAKB.kb_info_id=KB.id', array())
+        ->joinLeft(array('AU' => 'aux_info'), 'KB.aux_info_id=AU.id', array())
+        ->where('pages_id = ?', $profilePagesRow['Id'])
+        ->order('AU.order'));
+
+      foreach($pagesKnowledgeBaseInfoResultSet as $pagesKnowledgeBaseInfoRow) {
+        $profilePageKnowledgeBaseInfo = $profilePage->setKnowledgeBaseInfoOrder($pagesKnowledgeBaseInfoRow['Order']);
+        $profilePageKnowledgeBaseInfo->setOptions(array(
+          'knowledgeBaseInfoName' => $pagesKnowledgeBaseInfoRow['Name'],
+          'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
+        $this->_logger->log("The knowledge base information: $pagesKnowledgeBaseInfoRow[Name]", Zend_Log::DEBUG);
+        
+        // Get information on KB verdict.
+        if ($pagesKnowledgeBaseInfoRow['Name'] == 'KB Verdict') {
+          $kbVerdictInfo = $this->getProfilesDbTable('Application_Model_DbTable_KBVerdictInfo');
+          $kbVerdictInfoResultSet = $kbVerdictInfo->fetchAll($kbVerdictInfo
+            ->select()->setIntegrityCheck(false)
+            ->from(array('KBKB' => 'kb_kb_verdict_info'),
+              array('Name' => 'KB.name',
+                    'Order' => 'AU.order',
+                    'Presence' => 'AU.presence'))
+            ->joinLeft(array('KB' => 'kb_verdict_info'), 'KBKB.kb_verdict_id=KB.id', array())
+            ->joinLeft(array('AU' => 'aux_info'), 'KB.aux_info_id=AU.id', array())
+            ->where('kb_id = ?', $pagesKnowledgeBaseInfoRow['Id'])
+            ->order('AU.order'));
+
+          foreach($kbVerdictInfoResultSet as $kbVerdictInfoRow) {
+            $profilePageKBInfoVerdict = $profilePageKnowledgeBaseInfo->setVerdictOrder($kbVerdictInfoRow['Order']);
+            $profilePageKBInfoVerdict->setOptions(array(
+              'verdictName' => $kbVerdictInfoRow['Name'],
+              'auxInfo' => array('auxInfoPresence' => $pagesLaunchInfoRow['Presence'])));
+            $this->_logger->log("The knowledge base verdict information: $kbVerdictInfoRow[Name]", Zend_Log::DEBUG);
+          }
+        }
+      }
+
       // Get information on tools in general.
-      $pagesToolsInfo = $this->getDbTable('Application_Model_DbTable_PagesToolsInfo');
+      $pagesToolsInfo = $this->getProfilesDbTable('Application_Model_DbTable_PagesToolsInfo');
       $pagesToolsInfoResultSet = $pagesToolsInfo->fetchAll($pagesToolsInfo
         ->select()->setIntegrityCheck(false)
         ->from(array('PATO' => 'pages_tools_info'),
@@ -190,7 +240,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
         $this->_logger->log("The tools information: $pagesToolsInfoRow[Name]", Zend_Log::DEBUG);
 
         // Get information on every tool.
-        $toolsToolInfo = $this->getDbTable('Application_Model_DbTable_ToolsToolInfo');
+        $toolsToolInfo = $this->getProfilesDbTable('Application_Model_DbTable_ToolsToolInfo');
         $toolsToolInfoResultSet = $toolsToolInfo->fetchAll($toolsToolInfo
           ->select()->setIntegrityCheck(false)
           ->from(array('TOTO' => 'tools_tool_info'),
@@ -212,7 +262,7 @@ class Application_Model_ProfileMapper extends Application_Model_GeneralMapper
 
           // Get information on tool time.
           if ($toolsToolInfoRow['Name'] == 'Time') {
-            $toolTimeInfo = $this->getDbTable('Application_Model_DbTable_ToolTimeInfo');
+            $toolTimeInfo = $this->getProfilesDbTable('Application_Model_DbTable_ToolTimeInfo');
             $toolTimeInfoResultSet = $toolTimeInfo->fetchAll($toolTimeInfo
               ->select()->setIntegrityCheck(false)
               ->from(array('TOTI' => 'tool_time_info'),

@@ -12,7 +12,6 @@ $:.unshift File.join(ENV['LDV_SRVHOME'],'shared','ruby','lib')
 
 # Due to a huge size of a log, it's not useful to print warnings as they appear.  Instead, we just save them here.
 warnings = []
-
 print_warnings = proc do
 	unless warnings.empty?
 		$stderr.puts "\nWARNINGS (#{warnings.length}):"
@@ -21,7 +20,47 @@ print_warnings = proc do
 	end
 end
 
-Kernel.trap('INT', print_warnings)
+# KB cache recalculator.
+# It is initialized and written to in after_save callback of Launch class; its status is polled there as well.
+# (The variable is global because it will be accessed from class methods).
+# If $no_kb is set, do not use recalcer, and keep it NIL.
+$recalcer = nil
+
+# Update KB cache for the id given
+push_recalc = proc do |id|
+	unless $no_kb
+		# KB recalculator is run with full cache initialization and waiting for new launch ids from STDIN.
+		$recalcer ||= Recalcer.new('kb-recalc.pl --init-cache --new-launch',:fork_callback => proc { ENV['LDV_DEBUG'] = ENV['LDV_DEBUG'] })
+		# Check if the recalcer is dead
+		begin
+			# Now push (race condition here, but don't care).
+			$recalcer.push(id)
+		rescue Errno::EPIPE
+			raise "Can't write to KB cache recalcer.  Perhaps, it has died; check error log, please."
+		end
+	end
+end
+
+kill_recalcer = proc do
+	if $recalcer
+		$stderr.puts "\nKilling KB cache recalculator..."
+		$recalcer.terminate
+		$stderr.puts "KB cache recalculator is (hopefully) dead."
+	end
+end
+
+
+### PREPARE
+#
+# Setup signal handlers with Kernel.trap.  We should:
+#  - print warnings that appeared during the processing
+#  - kill the knowledge base cache recalc process
+
+# Zero means that the handler will be invoked prior to a terminating signal
+Kernel.trap(0, proc {kill_recalcer[]; print_warnings[] })
+
+
+### CONNECT TO DB
 
 require File.join(manhome,"upload_utils.rb")
 ldv_db_connect
@@ -116,6 +155,11 @@ class Trace
 	end
 end
 
+
+## FACTORY
+#
+# This and other factories get global parameters (foreign keys) at initialization; then they read tags from XML stream, and yield DB records that correspond to what they have read lately.
+
 class StatsStreamFactory
 	def initialize(tag_name)
 		@stats = Stats.new
@@ -194,6 +238,10 @@ def simplify_path(path)
 		abs_ish.sub(/^\//,'')
 	end
 end
+
+## FACTORY
+#
+# This and other factories get global parameters (foreign keys) at initialization; then they read tags from XML stream, and yield DB records that correspond to what they have read lately.
 
 class LaunchStreamFactory
 
@@ -310,6 +358,10 @@ OptionParser.new do |opts|
 
 	opts.on "--rule-filter regexp", "Only load modules that have the model satisfying the regexp specified" do |str|
 		options[:model_filter_regexp] = Regexp.new(str)
+	end
+
+	opts.on "--no-kb", "Do not update KB" do
+		$no_kb = true
 	end
 
 	opts.on "--debug", "Debug output" do |xml_fname|
@@ -458,6 +510,10 @@ while not docs.end_of? 'reports' do
 
 			# Because of :autosave property, recursively saves all records
 			launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+
+			# Update KB cache
+			push_recalc[launch.id]
+
 			# TODO: upload time of a failed build!
 			masters.fix failed_build_launch_loader.kernel_name, failed_build_launch_loader.local_driver_name, failed_build_launch_loader.rule_model_name
 		end
@@ -555,6 +611,10 @@ while not docs.end_of? 'reports' do
 
 		# Because of :autosave property, recursively saves all records
 		launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
+
+		# Update KB cache
+		push_recalc[launch.id]
+
 		masters.fix launch_loader.kernel_name, launch_loader.local_driver_name, launch_loader.rule_model_name
 		next
 	end
@@ -618,6 +678,9 @@ while not docs.end_of? 'reports' do
 	# Because of :autosave property, recursively saves all records
 	launch.save or $stderr.write "VALIDATION ERROR: #{launch.errors.full_messages.join("\n")}\n"
 
+	# Update KB cache
+	push_recalc[launch.id]
+
 	# Save this launch as a potential master launch.  We'll update master launches at the end of processing, to avoid flipping statuses to "finished" and back to "failed"
 	potential_master << launch_loader if $online
 end
@@ -640,6 +703,12 @@ end
 
 # Remove temporary directory on success (keep it if something failed, we might want to examine it!)
 FileUtils.remove_dir(tmpdir) if tmpdir
+
+# Stop recalcer's process
+if $recalcer
+	$stdout.puts "Waiting for KB-recalc to finish..."
+	$recalcer.wait
+end
 
 
 ensure

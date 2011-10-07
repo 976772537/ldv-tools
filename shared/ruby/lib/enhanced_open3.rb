@@ -92,10 +92,16 @@ module EnhancedOpen3
 				end
 				if r[1].include? cin
 					begin
-						unless cin_callback[pid,cin]
-							# TODO: Add more precise status, and only close if it's necessary
+						# If cin_callback is nil, we wouldn't have get here: cin is instantly closed before polling; see above
+						case cin_callback[pid,cin]
+						when :close
+							# Close the output
 							cin.close_write
 							in_ss = []
+						when :detach
+							# Do not close, but do not poll as well
+							in_ss = []
+						# Otherwise, we have written something to CIN, do nothnig
 						end
 					rescue EOFError
 						in_ss = []
@@ -159,21 +165,30 @@ module EnhancedOpen3
 
 		# standard input backend
 		cin_buf = ''
+		# cin_status may be :read (call the procedure and get string or a new status), or :close (close stdin and do not call the proc anymore), or :detach (do not close cin, and do not handle it anymore: something else will close it).
+		cin_status = :read
 		cin_backend = cin_callback.nil?? nil : proc do |pid,cin|
 			# If the buffer is empty, call the procedure back
-			if cin_buf.empty?
-				cin_buf += ( cin_callback[] || '')
+			# We intentionally supply the stream handler to the callback, as, most likely, the callback would like to access it directly
+			if cin_buf.empty? && cin_status == :read
+				cb = cin_callback[pid,cin]
+				if cb.is_a? String
+					cin_buf += cb
+				else
+					# Treat nil as :close
+					cin_status = cb || :close
+				end
 			end
 			# If the buffer is still empty, return nil, showing that cin is temporarly excluded from polling
-			if cin_buf.empty?
-				nil
+			if cin_buf.empty? && cin_status != :read
+				cin_status
 			else
 				# Something is in the buffer.  Print a portion of it.
 				to_print, cin_buf = cin_buf[0..some-1],cin_buf[some..cin_buf.length-1]
 				cin_buf ||= ''	# the previous line would null-ify the buffer if it's less than some
 				#$stderr.puts "Length: to_print: #{to_print.length}, buf: #{cin_buf.length}"
 				cin.write to_print
-				true
+				:read
 			end
 		end
 
