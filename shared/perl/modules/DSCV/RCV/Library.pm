@@ -293,6 +293,7 @@ sub run
 		pattern => $time_pattern,
 		output => $context->{timestats_file},
 		id_str => $timeout_idstr,
+		kill_at_once => $context->{limits}->{kill_at_once},
 		},@args
 	);
 	# NOTE that the timestats file is common for several runs! This is done to get the statistics on all the runs in one place.

@@ -292,6 +292,9 @@ sub cpachecker_verdict
 		# Newer versions choose more generic terms
 		$l =~ /Given specification violated\? NO/ and return {'VERDICT' => 'safe'};
 		$l =~ /Given specification violated\? YES/ and return {'VERDICT' => 'unsafe'};
+		# Even more newer versions change the format again...
+		$l =~ /Verification result: UNSAFE/ and return {'VERDICT' => 'unsafe'};
+		$l =~ /Verification result: SAFE/ and return {'VERDICT' => 'safe'};
 
 		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'VERDICT' => "safe"};
 		return undef;

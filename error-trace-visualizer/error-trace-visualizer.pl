@@ -148,7 +148,8 @@ my $entity_src = '';
 
 # Hash that keeps all dependencies required by the given error trace. Keys are
 # pathes to corresponding dependencies files.
-my %dependencies;
+# NOTE: added "our" to let CPAchecker module write to this hash.
+our %dependencies;
 
 # From a error trace we'll obtain absolute pathes as well as relative ones.
 # From verification results database we'll obtain corresponding long names
