@@ -122,6 +122,9 @@ my $script_tail =
 # Main section.
 ################################################################################
 
+# Since this tool uses standard streams interactively, make Perl flush everything early
+$OUTPUT_AUTOFLUSH = 1;
+
 # Obtain the debug level.
 get_debug_level($debug_name, $LDV_DEBUG, $LDV_KB_RECALC_DEBUG);
 
