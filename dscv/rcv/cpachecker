@@ -49,8 +49,11 @@ my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
 set_cil_options(
 	"--printCilAsIs",
 	"--domakeCFG",
-	# The option --dosimplify is doing annoying thing. It make pointers from explicit calls. We do not use it by default.
-	#"--dosimplify",
+	# The option --dosimplify was doing annoying thing. It make pointers from explicit calls.  We patched CIL and added more options here.
+	"--dosimplify",
+	"--no-convert-direct-calls",
+	# This option still generated bad code sometimes, we'll turn it off for now.
+	#"--no-convert-field-offset",
 );
 
 # Now, as CIL script and options are prepared, let's invoke the preprocessing.
