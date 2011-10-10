@@ -19,6 +19,10 @@ if (!isGit($results)) {
 $this->formPrintCSV->setAction($this->url());
 echo $this->formPrintCSV;
 
+// Print the form for the profiles update.
+$this->formUpdateProfiles->setAction($this->url());
+echo $this->formUpdateProfiles;
+
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
@@ -37,6 +41,14 @@ $page = $results['Page'];
 if ($page == 'Result') {
   $page = 'Total';
 }
+
+// Relation between KB verdicts and classes for CSS.
+$knowledgeBaseVerdictCSS = array(
+  'True positive' => 'SSKBTruepositive',
+  'False positive' => 'SSKBFalsepositive',
+  'Unknown' => 'SSKBUnknown',
+  '-' => 'SSKBUnknown',
+  'Inconclusive' => 'SSKBInconclusive');
 
 // Stats data converted to CSV format.
 global $dataCSV, $dataCSVIndex;
@@ -195,36 +207,28 @@ if ($resultsNumb) {
                   statKeysClasses[statKeyClass] = true;
                 })
               })
-            })
+            });
             $('.SSStatsTableRow').mouseout(function() {
-              $('.SSStatsTableColorOver').removeClass('SSStatsTableColorOver');
-            })
+              $('.SSStatsTableColorOver').not('.SSStatsTableColorOverFreeze').removeClass('SSStatsTableColorOver');
+            });
+            $('.SSStatsTableRow').click(function() {
+              if ($(this).hasClass('SSStatsTableColorOverFreeze'))
+                $('.SSStatsTableColorOver').removeClass('SSStatsTableColorOverFreeze').removeClass('SSStatsTableColorOver');
+              else
+                $('.SSStatsTableColorOver').addClass('SSStatsTableColorOverFreeze');
+            });
           });
         </script>";
 
   // Print large text bubble plugin.
   echo "<script type='text/javascript'>
           $(document).ready(function() {
-            $('.SSStatsTableDescription').each(function() {
-              // Add bubble just for really large descriptions that have a
-              // scroolbar either on Ox or Oy direction.
-              var elem = $(this).get(0);
-              if (elem.clientWidth != elem.scrollWidth || elem.clientHeight != elem.scrollHeight) {
-                var html = $(this).parent().html();
-                var text = $(this).text();
-                html = \"<div class='SSStatsTableDescriptionBubbleShowHide'><a href='#' class='SSStatsTableDescriptionBubbleShowHideLink'>...</a></div>\" + html;
-                $(this).parent().html(html);
-              }
-            })
-          });
-        </script>";
-  echo "<script type='text/javascript'>
-          $(document).ready(function() {
-            $('.SSStatsTableDescriptionBubbleShowHideLink').toggle(function() {
-              var bubbleText = $(this).parent().next().text();
-              $(\"<div class='SSBubble'>\" + bubbleText + '</div>').insertAfter($(this).parent());
+            $('.SSStatsTableDescription').toggle(function() {
+              $(this).removeClass('SSStatsTableDescription').addClass('SSBubble');
+              $('<div class=\"SSStatsTableDescription\">Stub</div>').insertAfter($(this));
             }, function() {
-              $(this).parent().next().remove();
+              $(this).next().remove();
+              $(this).removeClass('SSBubble').addClass('SSStatsTableDescription');
             })
           });
         </script>";
@@ -248,7 +252,11 @@ if ($resultsNumb) {
 
   $statKeys = array_keys($stats[0]['Stats key']);
   $verificationKeys = array_keys($stats[0]['Verification info']);
+  $knowledgeBaseKeys = array_keys($stats[0]['Knowledge base info']);
+  if (!empty($knowledgeBaseKeys))
+    $knowledgeBaseVerdictKeys = array_keys($stats[0]['Knowledge base info']['KB Verdict']);
   $toolKeys = array_keys($stats[0]['Tools info']);
+  $tagsKeys = array_keys($results['Stats']['All KB tags']);
   $problemKeys = array_keys($results['Stats']['All tool problems']);
   $toolNames = array_keys($results['Stats']['All tool names']);
   $timeKeys = array_keys($results['Stats']['All tool time']);
@@ -260,6 +268,7 @@ if ($resultsNumb) {
 #print_r($statKeys);print_r($verificationKeys);
 #print_r($problemKeys);
 #exit;
+#print_r($knowledgeBaseKeys);exit;
 
   // At first use a task id for grouping.
   $isTaskId = in_array('Task id', $statKeys);
@@ -306,6 +315,7 @@ if ($resultsNumb) {
 #print_r($tools);exit;
 
   $statVerificationKeyRowSpan = 1;
+  $statKnowledgeBaseKeyRowSpan = 1;
   $statToolsKeyRowSpan = 1;
 
   if (count($tools)) {
@@ -314,12 +324,15 @@ if ($resultsNumb) {
 
   if (count($problemKeys) || count($childrenKeys)) {
     $statVerificationKeyRowSpan++;
+    $statKnowledgeBaseKeyRowSpan++;
     $statToolsKeyRowSpan++;
   }
 
+  $columnsUpToKBVerdictCount = 0;
   echo "<table id='SSStatsTable' border='1'>
           <tr id='SSStatsTableHeaderFirstRow'>";
   printData("    <td id='SSStatsTableHeaderRowCounter' rowspan='$statVerificationKeyRowSpan'>#</td>", '#');
+  $columnsUpToKBVerdictCount++;
   $isTaskPrinted = false;
   foreach ($statKeys as $statKey) {
     // Merge all task information to the one column.
@@ -330,6 +343,7 @@ if ($resultsNumb) {
           $taskColSpan = 2;
         }
         printData("    <td class='SSStatsTableHeaderTaskStatKey' rowspan='$statVerificationKeyRowSpan' colspan='$taskColSpan'>Task</td>", null);
+        $columnsUpToKBVerdictCount += $taskColSpan;
         $isTaskPrinted = true;
       }
       printData(null, $statKey);
@@ -345,6 +359,7 @@ if ($resultsNumb) {
       }
 
       printData("    <td class='SSStatsTableHeaderStatKeys' rowspan='$statVerificationKeyRowSpan'>$statKeyPrint</td>", $statKeyPrint);
+      $columnsUpToKBVerdictCount++;
     }
   }
   foreach ($verificationKeys as $verificationKey) {
@@ -355,12 +370,31 @@ if ($resultsNumb) {
       $verificationKey = 'Total';
     }
     printData("    <td class='SSStatsTableHeaderVerificationInfo' rowspan='$statVerificationKeyRowSpan'>$verificationKey</td>", $verificationKey);
+    $columnsUpToKBVerdictCount++;
   }
+
+  if ($page == 'Unsafe')
+    foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
+      // We don't need knowledge base identifiers and fits to be printed explicitly.
+      if ($knowledgeBaseKey != 'KB ID' and $knowledgeBaseKey != 'KB Fit')
+        printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' rowspan='$statKnowledgeBaseKeyRowSpan'>$knowledgeBaseKey</td>", $knowledgeBaseKey);
+    }
+  else {
+    if (!empty($knowledgeBaseKeys))
+        printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' colspan='" . (count($knowledgeBaseVerdictKeys) + count($tagsKeys)) . "'>Knowledge base</td>", null);
+  }
+
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     printData("    <td class='SSStatsTableHeaderTools' colspan='" . (count($toolInfoTimeProblems['Info'])+ count($toolInfoTimeProblems['Children time']) + count($toolInfoTimeProblems['Problems'])) . "'>$toolName</td>", null);
   }
   echo "  </tr>";
   echo "<tr id='SSStatsTableHeaderSecondRow'>";
+  if ($page != 'Unsafe') {
+    if (in_array('KB Verdict', $knowledgeBaseKeys))
+        printData("    <td class='SSStatsTableHeaderVerdictInfo' colspan='" . (count($knowledgeBaseVerdictKeys)) . "'>Verdicts</td>", null);
+    if (in_array('KB Tags', $knowledgeBaseKeys))
+        printData("    <td class='SSStatsTableHeaderTagsInfo' colspan='" . (count($tagsKeys)) . "'>Tags</td>", null);
+  }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
     foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
       printData("    <td class='SSStatsTableHeaderToolInfo' rowspan='$statToolsKeyRowSpan'>$toolInfo</td>", $toolInfo);
@@ -375,6 +409,33 @@ if ($resultsNumb) {
   echo "  </tr>";
   if (count($problemKeys) || count($childrenKeys)) {
     echo "<tr id='SSStatsTableHeaderThirdRow'>";
+    if ($page != 'Unsafe') {
+      if (in_array('KB Verdict', $knowledgeBaseKeys))
+        foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
+          if ($knowledgeBaseVerdictKey == 'KB Unknown')
+            $knowledgeBaseVerdictKey = 'Unknown';
+
+          if ($knowledgeBaseVerdictKey == 'True positive') {
+            $knowledgeBaseVerdictKeyShort = 'True';
+            $classAux = 'SSStatsTableHeaderVerdictTrue';
+          }
+          else if ($knowledgeBaseVerdictKey == 'False positive') {
+            $knowledgeBaseVerdictKeyShort = 'False';
+            $classAux = 'SSStatsTableHeaderVerdictFalse';
+          }
+          else if ($knowledgeBaseVerdictKey == 'Unknown') {
+            $knowledgeBaseVerdictKeyShort = '?';
+            $classAux = 'SSStatsTableHeaderVerdictUnknown';
+          }
+          else {
+            $knowledgeBaseVerdictKeyShort = '&#8623;';
+            $classAux = 'SSStatsTableHeaderVerdictInconclusive';
+          }
+          printData("    <td class='SSStatsTableHeaderVerdict $classAux' title='$knowledgeBaseVerdictKey'>$knowledgeBaseVerdictKeyShort</td>", null);
+        }
+        foreach ($tagsKeys as $tagsKey)
+          printData("    <td class='SSStatsTableHeaderTag'>$tagsKey</td>", null);
+    }
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach (array_keys($toolInfoTimeProblems['Children time']) as $toolChild) {
         printData("    <td class='SSStatsTableHeaderToolChild'>$toolChild</td>", $toolChild);
@@ -434,6 +495,8 @@ if ($resultsNumb) {
 
   // Iterate over all results.
   $i = 1;
+  $kbStats['verdict'] = array();
+  $kbStats['tag'] = array();
   foreach ($stats as $result) {
     $dataCSVIndex++;
     echo "  <tr class='SSStatsTableRow' align='center'>";
@@ -665,6 +728,169 @@ if ($resultsNumb) {
       echo "</td>";
     }
 
+    if ($page == 'Unsafe') {
+      foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
+        if ($knowledgeBaseKey == 'KB ID' or $knowledgeBaseKey == 'KB Fit')
+          continue;
+
+        echo "    <td class='SSAlignRight'>";
+
+        $value = $result['Knowledge base info'][$knowledgeBaseKey];
+
+        // I.e. when there is relevant to the given launch information in KB.
+        if (count($value)) {
+          if ($knowledgeBaseKey == 'KB Verdict') {
+            // First of all remember an extent of fit between a given launch and KB.
+            $fit = array();
+            if (array_key_exists('KB Fit', $result['Knowledge base info'])) {
+              for ($i = 0; array_key_exists($i, $value); $i++) {
+                $fit[] = $result['Knowledge base info']['KB Fit'][$i];
+              }
+            }
+            $tbd = array_search('TBD', $fit);
+            $require_script = array_search('Require script', $fit);
+
+            if (count($value) > 1) {
+              // Reduce multiple verdicts in accordance with the following table:
+              //     TP  FP  UNK
+              // TP  TP  INC TP
+              // FP  INC FP  FP
+              // UNK TP  FP  UNK
+              // where TP is True positive, FP is False positive, UNK is Unknown and
+              // INC is Inconclusive (the last cannot be specified by a user).
+              $fp = array_search('False positive', $value);
+              $tp = array_search('True positive', $value);
+              $unk = array_search('Unknown', $value);
+
+              if ($tp !== false and $fp === false)
+                $value = 'True positive';
+              else if ($fp !== false and $tp === false)
+                $value = 'False positive';
+              else if ($tp !== false and $fp !== false)
+                $value = 'Inconclusive';
+              else
+                $value = 'Unknown';
+            }
+            else {
+              $value = $value[0];
+            }
+
+            // By default a current unsafe is marked as unknown.
+            if ($value == '')
+              $value = 'Unknown';
+
+            array_key_exists($value, $kbStats['verdict']) ? $kbStats['verdict'][$value]++ : $kbStats['verdict'][$value] = 1;
+
+            // Use '-' instead of 'Unknown' to correspond to the general schema.
+            if ($value == 'Unknown')
+              $value = '-';
+
+            // Calculate additional notes if so.
+            $note = '';
+            if ($tbd !== false) {
+              $note .= '*';
+            }
+            if ($require_script !== false) {
+              $note .= '**';
+            }
+
+            $value = "<div class='$knowledgeBaseVerdictCSS[$value]'>$value<span class='SSKBFitNote'>$note</span></div>";
+          }
+          else if ($knowledgeBaseKey == 'KB Tags') {
+            $items = array();
+            for ($i = 0; array_key_exists($i, $value); $i++) {
+              // Skip empty tags.
+              if ($value[$i] == '')
+                continue;
+
+              $tags = preg_split('/;/', $value[$i]);
+              foreach ($tags as $tag)
+                array_key_exists($tag, $kbStats['tag']) ? $kbStats['tag'][$tag]++ : $kbStats['tag'][$tag] = 1;
+
+              if (array_key_exists('KB ID', $result['Knowledge base info'])) {
+                $verdictClass = '';
+                if (array_key_exists('KB Verdict', $result['Knowledge base info']))
+                  $verdictClass = "class ='" . $knowledgeBaseVerdictCSS[$result['Knowledge base info']['KB Verdict'][$i]] . "'";
+                $items[] = "<div $verdictClass title='" . $result['Knowledge base info']['KB ID'][$i] . "'>$value[$i]</div>";
+              }
+              else
+                $items[] = $value[$i];
+            }
+            $value = implode($items);
+          }
+        }
+        else
+          $value = '-';
+
+        print($value);
+        echo "</td>";
+      }
+    }
+    else {
+      foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
+        if ($knowledgeBaseKey == 'KB Verdict') {
+          foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
+            $value = $result['Knowledge base info']['KB Verdict'][$knowledgeBaseVerdictKey];
+            if ($knowledgeBaseVerdictKey == 'KB Unknown')
+              $knowledgeBaseVerdictKey = 'Unknown';
+            echo "<td class='SSAlignRight'>";
+            if ($value == 0)
+              echo "-";
+            else if (array_key_exists('Unsafe', $profilePages)) {
+              printData("<a href='"
+                . $this->url(
+                  array_merge(
+                    $globals,
+                    array(
+                      'controller' => 'stats',
+                      'action'     => 'index',
+                      'page' => 'Unsafe',
+                      'KB verdict' => $knowledgeBaseVerdictKey),
+                    $statKeysValues),
+                  'default',
+                  true)
+                . "'>"
+                . $value
+                . "</a>", $value);
+            }
+            else
+              echo $value;
+            echo "</td>";
+          }
+        }
+        else if ($knowledgeBaseKey == 'KB Tags') {
+          foreach ($tagsKeys as $tagKey) {
+            echo "<td class='SSAlignRight'>";
+            if (array_key_exists($tagKey, $result['Knowledge base info']['KB Tags'])) {
+              $value = $result['Knowledge base info']['KB Tags'][$tagKey];
+              if (array_key_exists('Unsafe', $profilePages)) {
+                printData("<a href='"
+                  . $this->url(
+                    array_merge(
+                      $globals,
+                      array(
+                        'controller' => 'stats',
+                        'action'     => 'index',
+                        'page' => 'Unsafe',
+                        'KB tag' => $tagKey),
+                      $statKeysValues),
+                    'default',
+                    true)
+                  . "'>"
+                  . $value
+                  . "</a>", $value);
+              }
+              else
+                echo $value;
+            }
+            else
+              echo "-";
+            echo "</td>";
+          }
+        }
+      }
+    }
+
     foreach ($tools as $toolName => $toolInfoTimeProblems) {
       foreach ($toolInfoTimeProblems['Info'] as $toolInfo) {
         $classAux = '';
@@ -812,6 +1038,29 @@ if ($resultsNumb) {
 
     echo "  </tr>";
   }
+
+  // After all print an additional row with statistics on KB just on 'Unsafe' page.
+  if ($page == 'Unsafe' and !empty($knowledgeBaseKeys)) {
+    echo "<tr id='SSKBSummaryRow'>";
+    echo "<td id='SSKBSummaryTitle' colspan='$columnsUpToKBVerdictCount'>Knowledge base summary</td>";
+    echo "<td>";
+    // Use predefined order of verdicts for convinience.
+    $verdicts = array('True positive', 'False positive', 'Unknown', 'Inconclusive');
+    foreach ($verdicts as $verdict) {
+      array_key_exists($verdict, $kbStats['verdict']) ? $count = $kbStats['verdict'][$verdict] : $count = 0;
+      echo "<div><span class='SSKBSummaryName'>$verdict</span>: <span class='SSKBSummaryValue'>$count</span></div>";
+    }
+    echo "</td>";
+    echo "<td>";
+    // Order tags by name.
+    ksort($kbStats['tag']);
+    foreach ($kbStats['tag'] as $tag => $count) {
+      echo "<div><span class='SSKBSummaryName'>$tag</span>: <span class='SSKBSummaryValue'>$count</span></div>";
+    }
+    echo "</td>";
+    echo "</tr>";
+  }
+
   echo "</table>";
 }
 

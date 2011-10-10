@@ -20,6 +20,83 @@ def ldv_report_link
   "http://localhost:8999/stats/index/#{verifiers_add}name/#{ENV['LDVDB']}/host/#{(ENV['LDVDBHOST'] || 'localhost')}/user/#{ENV['LDVUSER']}/password/#{ENV['LDVDBPASSWD'] || 'no'}"
 end
 
+## KB cache recalculator
+# A process that recalcualtes KB cache.  It runs in a background and may be pushed a launch_id to recalculate.  The push interface doesn't block; to communicate the status to the parent process, recalcer should be polled occasionally if it has failed.
+class Recalcer
+	# Last argument may be a hash. For instance, :fork_callback => proc; unless nil, it's executed in the context of child process.
+	def initialize(*args)
+		# Result of the process
+		@result = nil
+		# Recalc's input pipe handler
+		@input_pipe = nil
+		# Mutex to disallow push before pipe is opened
+		@pipe_guard = Mutex.new
+		# Abort the thread on exception
+		Thread.abort_on_exception = true
+
+		# Start a thread that will watch for KB recalc
+		@thread = Thread.new do
+			# Spawn recalcer and install handlers
+			cerr_handler = proc do |line|
+				$stderr.write "KB-RECALC: ERROR: #{line}\n"
+			end
+			cout_handler = proc do |line|
+				$stdout.write "#{line}\n"
+			end
+			cin_handler = proc do |pid,cin|
+				# Save pid (there's no other way to get it)
+				@pid = pid
+				# Save the input pipe and signal that it should not be waited for
+				@input_pipe = cin
+				# Unlock "write" call
+				@pipe_guard.unlock
+				# Transfer control over input pipe to this script
+				:detach
+			end
+
+			# The mutex will block "write" until everything is initialized
+			@pipe_guard.lock
+			@result = EnhancedOpen3.open3_linewise(cin_handler,cout_handler,cerr_handler,*args)
+		end
+	end
+
+	def push(launch_id)
+		@pipe_guard.synchronize do
+			#If there's a lot of launch id's in the input already, this will block.  But that's OK, it will merely balance the load.
+			@input_pipe.write "#{launch_id}\n";
+			@input_pipe.flush
+		end
+	end
+
+	# It's buggy.  Race conditions everywhere around it!
+	def dead?
+		return ! (@result.nil?)
+	end
+
+	def terminate
+		# Stop the thread
+		@thread.exit
+		# There may be a small race condition if the process has been spawned, but the pipe and pid haven't got here.
+		@input_pipe.close if @input_pipe
+		@input_pipe = nil
+
+		Process.kill('TERM',@pid) if @pid
+		@pid = nil
+	end
+
+	def wait
+		# Signal that there's no more input
+		@input_pipe.close
+		# Wait for thread termination (which is terminated after the cache recalc terminates)
+		@thread.join
+		# Reset status
+		@input_pipe = nil
+		@pid = nil
+		# Return process status
+		return @result
+	end
+end
+
 ## Convenience functions for REXML
 class REXML::Element
 	# Get text of the first element statisfying xpath

@@ -165,11 +165,13 @@ eval {
 	# Call the frontend
 	eval $engine_source;
 
+	my $wrapper_excn = $@;
+
 	vsay 'INFO', "Wrapper finished!";
 
 	# Die on integration error (TODO: make this unknown?)
 	# TODO: account for preprocessing errors!
-	if (my $wrapper_excn = $@) {
+	if ($wrapper_excn) {
 		vsay 'WARNING', "Wrapper got an exception!";
 		if (DSCV::RCV::Library::is_preprocess_error($wrapper_excn)){
 			DSCV::RCV::Library::result(

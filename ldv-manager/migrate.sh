@@ -101,6 +101,12 @@ if [ -d "$LDV_MANAGER_MIGRATES_DIR" ]; then
 					echo "ERROR: Can't apply updates from SQL-script \"$i\"";
 					exit 1;
 				fi;
+				echo "Update database version to: \"$gnumber\".";
+				$DBRUN -e "UPDATE db_properties SET value='$gnumber' WHERE name='version';";
+				if [ $? -ne 0 ]; then
+					echo "ERROR: Can't update database version";
+					exit 1;
+				fi;
 				echo "Database successfully updated to $gnumber version.";
 			done;
                 else

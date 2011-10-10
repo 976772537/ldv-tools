@@ -52,15 +52,15 @@ body
 }
 
 /* Statistics (comparison) table style. */
-#SSStatsTableTitle, #SCStatsComparisonTableTitle
+#SSStatsTableTitle, #SCStatsComparisonTableTitle, #SETVKBTableTitle
 {
   font-size: 12pt;
   font-weight: bold;
   padding: 5px 5px 5px 0px;
 }
 
-#SSStatsTable, #SCStatsComparisonTable, .SCStatsComparisonSubTableTotal,
-.SCStatsComparisonSubTable
+#SSStatsTable, #SCStatsComparisonTable, #SETVKBTable,
+.SCStatsComparisonSubTableTotal, .SCStatsComparisonSubTable
 {
   border-collapse: collapse;
 }
@@ -76,7 +76,7 @@ body
   border: 2px ridge #3B6656;
 }
 
-#SSStatsTableHeaderFirstRow, #SCStatsComparisonTableHeaderFirstRow,
+#SSStatsTableHeaderFirstRow, #SCStatsComparisonTableHeaderFirstRow, #SETVKBTableFirstRow,
 .SCStatsComparisonSubTableHeaderTotalFirstRow, .SCStatsComparisonSubTableHeaderFirstRow
 {
   font-weight: bold;
@@ -117,6 +117,46 @@ body
 .SSStatsTableHeaderVerificationInfo
 {
   background-color: #47B48B;
+}
+
+.SSStatsTableHeaderKnowledgeBaseInfo
+{
+  background-color: #379471;
+}
+
+.SSStatsTableHeaderVerdictInfo
+{
+  background-color: #4CCEB5;
+}
+
+.SSStatsTableHeaderVerdict
+{
+  background-color: #6CE0CA;
+}
+
+.SSStatsTableHeaderVerdictFalse
+{
+  background-color: #E6A96D;
+}
+
+.SSStatsTableHeaderVerdictUnknown
+{
+  background-color: #FC864C;
+}
+
+.SSStatsTableHeaderVerdictInconclusive
+{
+  background-color: #E25448;
+}
+
+.SSStatsTableHeaderTagsInfo
+{
+  background-color: #1EAF93;
+}
+
+.SSStatsTableHeaderTag
+{
+  background-color: #009D7F;
 }
 
 .SSStatsTableHeaderTools
@@ -244,6 +284,11 @@ body
   background-color: #EFB9E0;
 }
 
+.SSStatsTableColorOverFreeze, .SSStatsComparisonSubTableColorOverFreeze
+{
+  background-color: #DE92C9;
+}
+
 /* Statistics comparison table style. */
 .SCStatsComparisonTableHeaderTotalChanges
 {
@@ -305,7 +350,7 @@ body
 }
 
 /* Statistics error trace visualizer style. */
-#SETVLogShowHide
+#SETVHelpShowHide, #SETVLogShowHide
 {
   font-size: 12pt;
   padding: 10px 0px 0px 0px;
@@ -322,7 +367,7 @@ body
 #SSInfoShowHide
 {
   font-size: 12pt;
-  padding: 30px 0px 0px 0px;
+  padding: 10px 0px 0px 0px;
 }
 
 #SSInfo
@@ -341,4 +386,148 @@ body
   font-size: 10pt;
   font-weight: bold;
   padding: 5px 0px 0px 0px;
+}
+
+.SSKBTruepositive
+{
+  color: #00A100;
+}
+
+.SSKBFalsepositive
+{
+  color: #D68A00;
+}
+
+.SSKBInconclusive
+{
+  color: #CF0000;
+  font-weight: bold;
+}
+
+.SSKBUnknown
+{
+  color: #9200ED;
+}
+
+.SSKBFitNote
+{
+  color: #FF0000;
+}
+
+/* Style for KB summary row to be printed under unsafes page. */
+#SSKBSummaryRow
+{
+  background-color: #B9FFE8;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+#SSKBSummaryTitle
+{
+  font-size: 12pt;
+  font-weight: bold;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.SSKBSummaryName
+{
+  font-style: italic;
+}
+
+.SSKBSummaryValue
+{
+  font-weight: bold;
+}
+
+/* Style for KB included into error trace visualization.*/
+.SETVKBScript
+{
+  font-family: monospace;
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 300px;
+}
+
+.SETVKBComment
+{
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 300px;
+}
+
+#SETVKBNewEmptyKBRecord, #SETVKBNewFilledKBRecord
+{
+  display: none;
+}
+
+.SETVKBAuxTitle
+{
+  background-color: #91C4CE;
+}
+
+#SETVKBId
+{
+  background-color: #00D1FB;
+}
+
+#SETVKBName, #SETVKBPublic
+{
+  background-color: #00AFD2;
+}
+
+#SETVKBTaskattributes, #SETVKBModel, #SETVKBModule, #SETVKBMain
+{
+  background-color: #55C5FF;
+}
+
+#SETVKBErrortrace
+{
+  background-color: #0D70DB;
+}
+
+#SETVKBScript
+{
+  background-color: #3C81FF;
+}
+
+#SETVKBVerdict
+{
+  background-color: #768DFF;
+}
+
+#SETVKBTags
+{
+  background-color: #7976FF;
+}
+
+#SETVKBComment
+{
+  background-color: #9476FF;
+}
+
+.SETVKBTableRowOdd
+{
+  background-color: #B9FFE8;
+}
+
+.SETVKBTableRowEven
+{
+  background-color: #9BE8FF;
+}
+
+#SETVKBNewEmptyKBRecord
+{
+  background-color: #FFD3FA;
+}
+
+#SETVKBNewFilledKBRecord
+{
+  background-color: #FFB1F6;
 }
