@@ -21,6 +21,15 @@ while (<>){
 	/org.sosy_lab.cpachecker.util.predicates.mathsat.MathsatInterpolatingProver.getInterpolant/ and print "MathsatInterpolatingProver";
 	/No new predicates/ and print "NoNewPredicates"; #org.sosy_lab.cpachecker.exceptions.RefinementFailedException[No new predicates]
 	/cpa.sh: line (.*): (.*) Aborted/ and print "Aborted";
+
+	# CIL errors
+	# subtypes of CIL_parse_error
+	# Error: global static initializer
+	# Error: There were errors during merging
+	# subtypes of Parsing errors
+	# Cannot compute sizeof: abstract type: (.*)
+	# different number of fields in
+	# The name (.*) is used for two distinct globals
 }
 
 
