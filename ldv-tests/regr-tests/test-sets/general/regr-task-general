@@ -280,6 +280,7 @@ driver=test-0032-hdpvr-core-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.1
 driver=test-0032-hdpvr-video-safe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=32_1;module=drivers/test-0032-hdpvr-video-safe/hdpvr-video.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=test-0032-hdpvr-video-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=32_1;module=drivers/test-0032-hdpvr-video-unsafe/hdpvr-video.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=test-0032-isapnp.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=Compile error
+driver=test-0032-net-wireless-ath-carl9170-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=NULL;module=NULL;main=NULL;verdict=unknown;BCE_status=fail;problems=Compile error
 driver=test-0032-radio-gemtek-pci-safe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=32_1;module=drivers/test-0032-radio-gemtek-pci-safe/radio-gemtek-pci.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=test-0032-radio-gemtek-pci-unsafe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=32_1;module=drivers/test-0032-radio-gemtek-pci-unsafe/radio-gemtek-pci.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=test-0032-serial-safe.tar.bz2;origin=external;kernel=linux-2.6.32.15;model=32_1;module=drivers/test-0032-serial-safe/serial.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
