@@ -513,7 +513,7 @@ function view_task_status($task_id,$number) {
                                         </td>
 
 
-				<td align="center" title="Verification in progress..."><img src="ldv/images/load.gif"/></td>
+				<td align="center" title="Verification in progress..."><img src="<?php echo path_to_includes(); ?>/images/load.gif"/></td>
 			</tr>
 
 
@@ -676,22 +676,22 @@ else if ($action == "get_status" && !$exit)
         $rule_id = request_var('rule_id','');
         view_rule_by_number($rule_id);
 	?>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shCore.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushCSharp.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushPhp.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushJScript.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushJava.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushVb.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushSql.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushXml.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushDelphi.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushPython.js"></script>
-	<script class="javascript" src="ldv/incldue/syntaxhighlighter/Scripts/shBrushRuby.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushCss.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushCpp.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushScala.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushGroovy.js"></script>
-	<script class="javascript" src="ldv/include/syntaxhighlighter/Scripts/shBrushBash.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shCore.js"></script>                                                                                                                            
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushCSharp.js"></script>                                                                                                                     
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushPhp.js"></script>                                                                                                                        
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushJScript.js"></script>                                                                                                                    
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushJava.js"></script>                                                                                                                       
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushVb.js"></script>                                                                                                                         
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushSql.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushXml.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushDelphi.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushPython.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/incldue/syntaxhighlighter/Scripts/shBrushRuby.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushCss.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushCpp.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushScala.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushGroovy.js"></script>
+	<script class="javascript" src="<?php echo path_to_includes(); ?>/include/syntaxhighlighter/Scripts/shBrushBash.js"></script>
 	<script class="javascript"> dp.SyntaxHighlighter.HighlightAll('code'); </script>
 	<?php
 }
