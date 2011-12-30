@@ -36,7 +36,7 @@ function myself() {
     return $_SERVER['PHP_SELF'];
 }*/
 
-
+  
 function short_myself() {
     return $_SERVER['PHP_SELF'];
 }
@@ -48,6 +48,8 @@ function getservname() {
 
 
 function myself() {
+	// Myself means this script itself, why do we need such a complex manipulation?..                                     
+	return '';//getservname().short_myself(); 
 	return getservname().short_myself();
 }
 
