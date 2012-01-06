@@ -1048,13 +1048,15 @@ sub bce_ldv_report {
 # Find unused port for CSD server
 #
 sub find_unused_port {
-        for($testport = 8080; $testport<8090; $testport++) {
+        for($trynum = 0; $trynum<20; $trynum++) {
+                # Select random port to reduce probability of race #833
+                $testport = 8080 + int(rand(20));
                 vsay 'DEBUG', "Test port: \"$testport\".\n";
                 $testsocket = new IO::Socket::INET(LocalPort => $testport) and close $testsocket and return $testport;
                 vsay 'DEBUG', "Failed to capture the port: \"$testport\": $!\n";
                 vsay 'DEBUG', "Try next port...\n";
         }
-        die"Can't find free ports from 8080 to 8090!";
+        die"Can't find free ports from 8080 to 8100!";
 }
 
 sub findFiles {
