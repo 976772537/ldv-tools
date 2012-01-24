@@ -256,7 +256,13 @@ if ($resultsNumb) {
   if (!empty($knowledgeBaseKeys))
     $knowledgeBaseVerdictKeys = array_keys($stats[0]['Knowledge base info']['KB Verdict']);
   $toolKeys = array_keys($stats[0]['Tools info']);
+
+  $verdictsKeys = array_keys($results['Stats']['All KB verdicts']);
   $tagsKeys = array_keys($results['Stats']['All KB tags']);
+  # Understand whether Knowledge Base is required at all.
+  $is_kb = true;
+  if (empty($verdictsKeys) and empty($tagsKeys))
+    $is_kb = false;
   $problemKeys = array_keys($results['Stats']['All tool problems']);
   $toolNames = array_keys($results['Stats']['All tool names']);
   $timeKeys = array_keys($results['Stats']['All tool time']);
@@ -268,7 +274,6 @@ if ($resultsNumb) {
 #print_r($statKeys);print_r($verificationKeys);
 #print_r($problemKeys);
 #exit;
-#print_r($knowledgeBaseKeys);exit;
 
   // At first use a task id for grouping.
   $isTaskId = in_array('Task id', $statKeys);
@@ -380,8 +385,8 @@ if ($resultsNumb) {
         printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' rowspan='$statKnowledgeBaseKeyRowSpan'>$knowledgeBaseKey</td>", $knowledgeBaseKey);
     }
   else {
-    if (!empty($knowledgeBaseKeys))
-        printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' colspan='" . (count($knowledgeBaseVerdictKeys) + count($tagsKeys)) . "'>Knowledge base</td>", null);
+    if (!empty($verdictsKeys) or !empty($tagsKeys))
+        printData("    <td class='SSStatsTableHeaderKnowledgeBaseInfo' colspan='" . (count($verdictsKeys) + count($tagsKeys)) . "'>Knowledge base</td>", null);
   }
 
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
@@ -390,9 +395,9 @@ if ($resultsNumb) {
   echo "  </tr>";
   echo "<tr id='SSStatsTableHeaderSecondRow'>";
   if ($page != 'Unsafe') {
-    if (in_array('KB Verdict', $knowledgeBaseKeys))
-        printData("    <td class='SSStatsTableHeaderVerdictInfo' colspan='" . (count($knowledgeBaseVerdictKeys)) . "'>Verdicts</td>", null);
-    if (in_array('KB Tags', $knowledgeBaseKeys))
+    if (!empty($verdictsKeys))
+        printData("    <td class='SSStatsTableHeaderVerdictInfo' colspan='" . (count($verdictsKeys)) . "'>Verdicts</td>", null);
+    if (!empty($tagsKeys))
         printData("    <td class='SSStatsTableHeaderTagsInfo' colspan='" . (count($tagsKeys)) . "'>Tags</td>", null);
   }
   foreach ($tools as $toolName => $toolInfoTimeProblems) {
@@ -410,29 +415,31 @@ if ($resultsNumb) {
   if (count($problemKeys) || count($childrenKeys)) {
     echo "<tr id='SSStatsTableHeaderThirdRow'>";
     if ($page != 'Unsafe') {
-      if (in_array('KB Verdict', $knowledgeBaseKeys))
-        foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
-          if ($knowledgeBaseVerdictKey == 'KB Unknown')
-            $knowledgeBaseVerdictKey = 'Unknown';
+      if (!empty($verdictsKeys))
+        foreach ($verdictsKeys as $verdictKey) {
+          if ($verdictKey == 'KB Unknown')
+            $verdictKey = 'Unknown';
 
-          if ($knowledgeBaseVerdictKey == 'True positive') {
-            $knowledgeBaseVerdictKeyShort = 'True';
+          if ($verdictKey == 'True positive') {
+            $verdictKeyShort = 'True';
             $classAux = 'SSStatsTableHeaderVerdictTrue';
           }
-          else if ($knowledgeBaseVerdictKey == 'False positive') {
-            $knowledgeBaseVerdictKeyShort = 'False';
+          else if ($verdictKey == 'False positive') {
+            $verdictKeyShort = 'False';
             $classAux = 'SSStatsTableHeaderVerdictFalse';
           }
-          else if ($knowledgeBaseVerdictKey == 'Unknown') {
-            $knowledgeBaseVerdictKeyShort = '?';
+          else if ($verdictKey == 'Unknown') {
+            $verdictKeyShort = '?';
             $classAux = 'SSStatsTableHeaderVerdictUnknown';
           }
           else {
-            $knowledgeBaseVerdictKeyShort = '&#8623;';
+            $VerdictKeyShort = '&#8623;';
             $classAux = 'SSStatsTableHeaderVerdictInconclusive';
           }
-          printData("    <td class='SSStatsTableHeaderVerdict $classAux' title='$knowledgeBaseVerdictKey'>$knowledgeBaseVerdictKeyShort</td>", null);
+          printData("    <td class='SSStatsTableHeaderVerdict $classAux' title='$verdictKey'>$verdictKeyShort</td>", null);
         }
+
+      if (!empty($tagsKeys))
         foreach ($tagsKeys as $tagsKey)
           printData("    <td class='SSStatsTableHeaderTag'>$tagsKey</td>", null);
     }
@@ -827,67 +834,61 @@ if ($resultsNumb) {
       }
     }
     else {
-      foreach ($knowledgeBaseKeys as $knowledgeBaseKey) {
-        if ($knowledgeBaseKey == 'KB Verdict') {
-          foreach ($knowledgeBaseVerdictKeys as $knowledgeBaseVerdictKey) {
-            $value = $result['Knowledge base info']['KB Verdict'][$knowledgeBaseVerdictKey];
-            if ($knowledgeBaseVerdictKey == 'KB Unknown')
-              $knowledgeBaseVerdictKey = 'Unknown';
-            echo "<td class='SSAlignRight'>";
-            if ($value == 0)
-              echo "-";
-            else if (array_key_exists('Unsafe', $profilePages)) {
-              printData("<a href='"
-                . $this->url(
-                  array_merge(
-                    $globals,
-                    array(
-                      'controller' => 'stats',
-                      'action'     => 'index',
-                      'page' => 'Unsafe',
-                      'KB verdict' => $knowledgeBaseVerdictKey),
-                    $statKeysValues),
-                  'default',
-                  true)
-                . "'>"
-                . $value
-                . "</a>", $value);
-            }
-            else
-              echo $value;
-            echo "</td>";
-          }
+      foreach ($verdictsKeys as $verdictKey) {
+        $value = $result['Knowledge base info']['KB Verdict'][$verdictKey];
+        if ($verdictKey == 'KB Unknown')
+          $verdictKey = 'Unknown';
+        echo "<td class='SSAlignRight'>";
+        if ($value == 0)
+          echo "-";
+        else if (array_key_exists('Unsafe', $profilePages)) {
+          printData("<a href='"
+            . $this->url(
+              array_merge(
+                $globals,
+                array(
+                  'controller' => 'stats',
+                  'action'     => 'index',
+                  'page' => 'Unsafe',
+                  'KB verdict' => $verdictKey),
+                $statKeysValues),
+              'default',
+              true)
+            . "'>"
+            . $value
+            . "</a>", $value);
         }
-        else if ($knowledgeBaseKey == 'KB Tags') {
-          foreach ($tagsKeys as $tagKey) {
-            echo "<td class='SSAlignRight'>";
-            if (array_key_exists($tagKey, $result['Knowledge base info']['KB Tags'])) {
-              $value = $result['Knowledge base info']['KB Tags'][$tagKey];
-              if (array_key_exists('Unsafe', $profilePages)) {
-                printData("<a href='"
-                  . $this->url(
-                    array_merge(
-                      $globals,
-                      array(
-                        'controller' => 'stats',
-                        'action'     => 'index',
-                        'page' => 'Unsafe',
-                        'KB tag' => $tagKey),
-                      $statKeysValues),
-                    'default',
-                    true)
-                  . "'>"
-                  . $value
-                  . "</a>", $value);
-              }
-              else
-                echo $value;
-            }
-            else
-              echo "-";
-            echo "</td>";
+        else
+          echo $value;
+        echo "</td>";
+      }
+      foreach ($tagsKeys as $tagKey) {
+        echo "<td class='SSAlignRight'>";
+        if (array_key_exists($tagKey, $result['Knowledge base info']['KB Tags'])) {
+          $value = $result['Knowledge base info']['KB Tags'][$tagKey];
+          if (array_key_exists('Unsafe', $profilePages)) {
+            printData("<a href='"
+              . $this->url(
+                array_merge(
+                  $globals,
+                  array(
+                    'controller' => 'stats',
+                    'action'     => 'index',
+                    'page' => 'Unsafe',
+                    'KB tag' => $tagKey),
+                  $statKeysValues),
+                'default',
+                true)
+              . "'>"
+              . $value
+              . "</a>", $value);
           }
+          else
+            echo $value;
         }
+        else
+          echo "-";
+        echo "</td>";
       }
     }
 

@@ -822,6 +822,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Stats'] = array();
     // Remember all tool names.
     $result['Stats']['All tool names'] = array();
+    // Collect all KB verdicts that will be used in visualization.
+    $result['Stats']['All KB verdicts'] = array();
     // Collect all KB tags that will be used in visualization.
     $result['Stats']['All KB tags'] = array();
     // Collect all set of problems for a given tool that will be used in
@@ -865,8 +867,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
         else {
           if ($knowledgeBaseKeyPart == 'KB Verdict') {
-            foreach ($knowledgeBaseVerdictKey as $knowledgeBaseVerdictKeyPart)
+            foreach ($knowledgeBaseVerdictKey as $knowledgeBaseVerdictKeyPart) {
               $resultPart['Knowledge base info'][$knowledgeBaseKeyPart][$knowledgeBaseVerdictKeyPart] = $launchesRow[$knowledgeBaseVerdictKeyPart];
+              if ($launchesRow[$knowledgeBaseVerdictKeyPart])
+                $result['Stats']['All KB verdicts'][$knowledgeBaseVerdictKeyPart] = 1;
+            }
           }
           else if ($knowledgeBaseKeyPart == 'KB Tags') {
             $value = $launchesRow[$knowledgeBaseKeyPart];
