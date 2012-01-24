@@ -878,7 +878,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             $values = array();
             if ($value !== null) {
               $values = preg_split('/;/', $value);
-              sort($values);
               $values = array_count_values($values);
             }
             $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = $values;
@@ -951,6 +950,24 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $result['Stats']['Row info'][] = $resultPart;
     }
+
+    // Order KB verdicts and tags after all.
+    if (!empty($result['Stats']['All KB verdicts'])) {
+      $verdicts = array();
+      foreach ($this->_knowledgeBaseVerdictInfoNameTableColumnMapper as $verdict => $value) {
+        if ($verdict == 'Unknown')
+          $verdict = 'KB Unknown';
+        if (array_key_exists($verdict, $result['Stats']['All KB verdicts']))
+          $verdicts[$verdict] = 1;
+      }
+      $result['Stats']['All KB verdicts'] = $verdicts;
+    }
+
+    $kb_tags = array_keys($result['Stats']['All KB tags']);
+    sort($kb_tags);
+    $result['Stats']['All KB tags'] = array();
+    foreach ($kb_tags as $kb_tag)
+      $result['Stats']['All KB tags'][$kb_tag] = 1;
 
 #foreach ($result as $res) {echo "<br>";print_r($res);} exit;
 #print_r($result); exit;
