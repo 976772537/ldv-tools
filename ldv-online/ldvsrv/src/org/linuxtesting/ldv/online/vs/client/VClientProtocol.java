@@ -61,27 +61,33 @@ public class VClientProtocol {
                 		e.printStackTrace();
                 } finally {
                 		try {
-							in.close();
+							// There is a path where in may be null, so check it.
+							if (in != null)
+								in.close();
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
             			try {
-							out.close();
+							if (out != null)
+								out.close();
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
                     	try {
-							ois.close();
+							if (ois != null)
+								ois.close();
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
                     	try {
-							oos.close();
+							if (oos != null)
+								oos.close();
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
                         try {
-							socket.close();
+							if (socket != null)
+								socket.close();
 						} catch (IOException e) {
 							e.printStackTrace();
 						}

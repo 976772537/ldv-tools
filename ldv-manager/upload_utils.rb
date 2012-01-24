@@ -31,6 +31,8 @@ class Recalcer
 		@input_pipe = nil
 		# Mutex to disallow push before pipe is opened
 		@pipe_guard = Mutex.new
+		# Guard to ensure that watcher thread is started
+		@init_guard = false
 		# Abort the thread on exception
 		Thread.abort_on_exception = true
 
@@ -56,7 +58,12 @@ class Recalcer
 
 			# The mutex will block "write" until everything is initialized
 			@pipe_guard.lock
+			@init_guard = true
 			@result = EnhancedOpen3.open3_linewise(cin_handler,cout_handler,cerr_handler,*args)
+		end
+		# Wait while watcher thread locks @pipe_guard
+		while !@init_guard
+			sleep 0.001
 		end
 	end
 

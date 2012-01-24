@@ -294,10 +294,20 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               $nameVerdict = $verdictInfo->verdictName;
               $tableColumnCond = $this->_knowledgeBaseVerdictInfoNameTableColumnMapper[$nameVerdict];
               $tableColumn = $this->getTableColumn($tableColumnCond);
-              // To distinguish with corresponding verification result.
-              if ($nameVerdict == 'Unknown')
+
+              // Count Unknowns among Unsafes in a special way:
+              // 1. Distinguish with corresponding verification result Unknown.
+              // 2. Take into account implicit Unknowns among Unsafes (issue #1639).
+              if ($nameVerdict == 'Unknown') {
                 $nameVerdict = 'KB Unknown';
-              $knowledgeBaseVerdictInfo[$nameVerdict] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
+                // Unknowns among Unsafes are those Unsafes, that aren't True or
+                // False positives and Inconclusives. Information on implicit
+                // Unknowns isn't calculated for KB cache.
+                $knowledgeBaseVerdictInfo[$nameVerdict] = "SUM(IF(`TR`.`result`='Unsafe', 1, 0)) - SUM(IF(`RECA`.`Verdict`='True positive', 1, 0)) - SUM(IF(`RECA`.`Verdict`='False positive', 1, 0)) - SUM(IF(`RECA`.`Verdict`='Inconclusive', 1, 0))";
+              }
+              else
+                $knowledgeBaseVerdictInfo[$nameVerdict] = "SUM(IF(`$tableColumn[tableShort]`.`$tableColumn[column]`='$tableColumnCond[cond]', 1, 0))";
+
               $knowledgeBaseVerdictKey[] = $nameVerdict;
             }
           }
@@ -499,7 +509,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Restrict unsafes with a given KB verdict or/and tag.
     if ($pageName == 'Unsafe') {
       if (array_key_exists('KB verdict', $params)) {
-        $select = $select
+        // Take into account implicit Unknowns among Unsafes (issue #1639).
+        if ($params['KB verdict'] == 'Unknown')
+          $select = $select
+            ->where("(RECA.Verdict LIKE ? OR RECA.Verdict IS NULL)", $params['KB verdict']);
+        else
+          $select = $select
             ->where("RECA.Verdict LIKE ?", $params['KB verdict']);
         $result['Restrictions']['KB verdict'] = $params['KB verdict'];
       }
@@ -807,6 +822,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $result['Stats'] = array();
     // Remember all tool names.
     $result['Stats']['All tool names'] = array();
+    // Collect all KB verdicts that will be used in visualization.
+    $result['Stats']['All KB verdicts'] = array();
     // Collect all KB tags that will be used in visualization.
     $result['Stats']['All KB tags'] = array();
     // Collect all set of problems for a given tool that will be used in
@@ -850,15 +867,17 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         }
         else {
           if ($knowledgeBaseKeyPart == 'KB Verdict') {
-            foreach ($knowledgeBaseVerdictKey as $knowledgeBaseVerdictKeyPart)
+            foreach ($knowledgeBaseVerdictKey as $knowledgeBaseVerdictKeyPart) {
               $resultPart['Knowledge base info'][$knowledgeBaseKeyPart][$knowledgeBaseVerdictKeyPart] = $launchesRow[$knowledgeBaseVerdictKeyPart];
+              if ($launchesRow[$knowledgeBaseVerdictKeyPart])
+                $result['Stats']['All KB verdicts'][$knowledgeBaseVerdictKeyPart] = 1;
+            }
           }
           else if ($knowledgeBaseKeyPart == 'KB Tags') {
             $value = $launchesRow[$knowledgeBaseKeyPart];
             $values = array();
             if ($value !== null) {
               $values = preg_split('/;/', $value);
-              sort($values);
               $values = array_count_values($values);
             }
             $resultPart['Knowledge base info'][$knowledgeBaseKeyPart] = $values;
@@ -931,6 +950,24 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
       $result['Stats']['Row info'][] = $resultPart;
     }
+
+    // Order KB verdicts and tags after all.
+    if (!empty($result['Stats']['All KB verdicts'])) {
+      $verdicts = array();
+      foreach ($this->_knowledgeBaseVerdictInfoNameTableColumnMapper as $verdict => $value) {
+        if ($verdict == 'Unknown')
+          $verdict = 'KB Unknown';
+        if (array_key_exists($verdict, $result['Stats']['All KB verdicts']))
+          $verdicts[$verdict] = 1;
+      }
+      $result['Stats']['All KB verdicts'] = $verdicts;
+    }
+
+    $kb_tags = array_keys($result['Stats']['All KB tags']);
+    sort($kb_tags);
+    $result['Stats']['All KB tags'] = array();
+    foreach ($kb_tags as $kb_tag)
+      $result['Stats']['All KB tags'][$kb_tag] = 1;
 
 #foreach ($result as $res) {echo "<br>";print_r($res);} exit;
 #print_r($result); exit;

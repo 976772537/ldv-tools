@@ -150,6 +150,25 @@ function view_upload_driver_form() {
                 </ul>
         </ul>
 	</div>
+	<!-- This obfuscated email addres was obtained by means of http://www.addressmunger.com -->
+	<script language="javascript">
+	<!--
+		function pNvgkzdRhsSLHIY()
+		{
+			/* SAYS "Contact us" */
+			var rJeQDwKhKPULwbP=["x6c","100","x76","x2d","x70","114","x6f","x6a","x65","x63","x74","x40","105","x73","x70","114","97","x73","46","114","117"];
+			var SoEKPfcuGhkknKs=['?','s','u','b','j','e','c','t','=','&','c','c','=','&','b','c','c','=','&','b','o','d','y','='];
+			var amRMCjUCeXSunRo=["99","111","110","x74","x61","99","116","32","x75","x73"];
+			document.write("<br><p>Feel free to <b><a href=\"&#x6d;&#x61;&#000105;&#x6c;&#x74;&#111;&#x3a;");
+			for (i=0; i<rJeQDwKhKPULwbP.length; i++) document.write('&#'+rJeQDwKhKPULwbP[i]+';');
+			for (i=0; i<SoEKPfcuGhkknKs.length; i++) document.write(SoEKPfcuGhkknKs[i]);
+			document.write('" style="" class="" id="">');
+			for (i=0; i<amRMCjUCeXSunRo.length; i++) document.write('&#'+amRMCjUCeXSunRo[i]+';');
+			document.write('</a></b> if you have any questions</p>');
+		}
+		pNvgkzdRhsSLHIY();
+	//-->
+	</script>
 	</form>
 	<?php
 }

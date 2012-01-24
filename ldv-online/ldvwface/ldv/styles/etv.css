@@ -301,7 +301,7 @@
 
 .ETVFunctionStackOverflow
 {
-  color: #F0994F;
+  color: #D0813D;
   font-size: 10px;
   font-style: italic;
   font-weight: normal;
@@ -323,7 +323,8 @@
   font-weight: normal;
 }
 
-.ETVIdentation
+/* Abbreviation for line identation */
+.ETVI
 {
   font-size: 12px;
   font-style: normal;
@@ -331,7 +332,8 @@
   white-space: pre;
 }
 
-.ETVLineNumber
+/* Abbreviation for line number */
+.ETVLN
 {
   background-color: #F3F3F3;
   color: black;
@@ -428,25 +430,29 @@
 }
 
 /* Source code style. */
-.ETVSrcCKeywords
+/* Abbreviation for C keywords */
+.ETVSrcCK
 {
   color: #003399;
   font-weight: bold;
 }
 
-.ETVSrcCPPKeywords
+/* Abbreviation for preprocessor keywords */
+.ETVSrcCPPK
 {
   color: #248E72;
   font-weight: bold;
 }
 
-.ETVSrcComment
+/* Abbreviation for comment */
+.ETVSrcC
 {
   color: #9E9E9E;
   font-style: italic;
 }
 
-.ETVSrcLineNumber
+/* Abbreviation for line number */
+.ETVSrcLN
 {
   background-color: #F3F3F3;
   color: black;
