@@ -3,9 +3,9 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = rule-instrumentor error-trace-visualizer cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
-LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh error-trace-visualizer
-ERROR_TRACE_VISUALIZER_SUBDIRS = error-trace-visualizer shared/perl
+BUILD_SUBDIRS = rule-instrumentor etv cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
+LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh etv
+ERROR_TRACE_VISUALIZER_SUBDIRS = etv shared/perl
 KB_SUBDIRS = knowledge-base shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
 LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) $(KB_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby

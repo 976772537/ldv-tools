@@ -3,7 +3,7 @@
 
 # Installation
 # Perl modules config
-perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm File/Cat.pm error-trace-visualizer/Entity.pm error-trace-visualizer/Annotation.pm error-trace-visualizer/CPAchecker.pm error-trace-visualizer/Parser.pm error-trace-visualizer/Browser.pm Text/Highlight.pm Text/Highlight/CPP.pm MetaUtils.pm \
+perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm File/Cat.pm Text/Highlight.pm Text/Highlight/CPP.pm MetaUtils.pm \
 	DSCV/RCV/Utils.pm \
 	DSCV/RCV/Library.pm \
 	DSCV/RCV/Annotation.pm \
