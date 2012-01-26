@@ -9,8 +9,7 @@ Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../../shared/perl");
-
+use lib("$FindBin::RealBin/../../shared/perl", "$FindBin::RealBin/../../shared/perl/DSCV/RCV");
 
 # Add some nonstandard local Perl packages.
 use Entity;
