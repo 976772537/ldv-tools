@@ -9,11 +9,11 @@ Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../../shared/perl", "$FindBin::RealBin/../../shared/perl/DSCV/RCV");
+use lib("$FindBin::RealBin/../../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use Entity;
-use Annotation;
+use DSCV::RCV::Entity;
+use DSCV::RCV::Annotation;
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
@@ -424,7 +424,7 @@ sub parse_error_trace($)
   my %files_short_name;
 
   # Create the tree root corresponding to the entry point or main.
-  $entity = Entity->new({'engine' => $engine, 'kind' => $et_root});
+  $entity = DSCV::RCV::Entity->new({'engine' => $engine, 'kind' => $et_root});
   push(@parents, $entity);
 
   while(1)
@@ -489,7 +489,7 @@ sub parse_error_trace($)
           # all.
           if ($element_value)
           {
-            $entity = Entity->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
+            $entity = DSCV::RCV::Entity->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
 
             # Some nodes are processed in a special way, so report it.
             print_debug_trace("A tree node kind was changed from '$element_kind' to '" . $entity->{'kind'} . "'")
@@ -546,7 +546,7 @@ sub parse_error_trace($)
               print_debug_trace("A full path to a source code file '$src' was related with the short one '$1'");
             }
 
-            $annotation = Annotation->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
+            $annotation = DSCV::RCV::Annotation->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
 
             # Process annotation in depend on whether it pre or post.
             push(@pre_annotations, $annotation)

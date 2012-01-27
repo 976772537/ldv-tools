@@ -1,4 +1,4 @@
-package Annotation;
+package DSCV::RCV::Annotation;
 
 use English;
 use strict;

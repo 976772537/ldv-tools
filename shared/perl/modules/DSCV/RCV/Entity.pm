@@ -1,9 +1,9 @@
-package Entity;
+package DSCV::RCV::Entity;
 
 use English;
 use strict;
 
-use Annotation;
+use DSCV::RCV::Annotation;
 
 
 my $engine_blast = 'blast';
