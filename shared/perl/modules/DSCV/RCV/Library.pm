@@ -722,7 +722,7 @@ sub add_files_for_trace
 	my $verifier = $context->{engine};
 	vsay('INFO', "Getting files for trace $trace_fname with ETV for parent package.\n");
 	my $temp_file = "$context->{tmpdir}/etv.tmp";
-	my @etv = ("$ENV{'DSCV_HOME'}/bin/error-trace-visualizer.pl",
+	my @etv = ("$ENV{'DSCV_HOME'}/bin/etv",
 		"--engine=$verifier",
 		"--report=$trace_fname",
 		"--reqs-out=$temp_file"
