@@ -110,7 +110,7 @@ ensure that it's tweaked correctly.
 MySQL
 
 Extend "maximal packet size".  LDV uploads source files to database, and they
-may get huge.  10Mb is enough; just add the following lines to /etc/my.cnf:
+may get huge. 10Mb is enough; just add the following lines to /etc/my.cnf:
 	[mysqld]
 	max_allowed_packet = 10M
 
@@ -122,6 +122,12 @@ Following lines inside /etc/my.cnf (openSUSE) in section [mysqld] works everytim
 	# This allows nonsuper users to create triggers and functions
 	log_bin_trust_function_creators = 1
 
+LDV tools causes mysql to create big binary logs during their work. To avoid this
+one can limit these logs by adding to section [mysqld] following lines:
+	# To clean up old binary logs automatically
+	expire_logs_days=7
+or disable mysql binary logs at all by commenting a log-bin variable setting.
+For more details you can see http://forge.ispras.ru/issues/2316.
 
 INSTALLING LDV
 
