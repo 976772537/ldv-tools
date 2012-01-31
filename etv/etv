@@ -24,8 +24,14 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 # Process command-line options. To see detailed description of these options
 # run script with --help option.
 # args: no.
-# retn: nothing.
+# retn: hash corresponding to options.
 sub get_opt();
+
+# For a given node obtain a list of files required for error trace
+# visualization.
+# args: node of error trace hash, requirements hash.
+# retn: list of requirements.
+sub get_reqs($$);
 
 # Print help message on the screen and exit.
 # args: no.
@@ -45,6 +51,22 @@ my $opts = get_opt();
 
 print_debug_debug("Parse an error trace specified");
 my $et = ETV::Library::parse_et($opts->{'fh in'});
+
+# There are two modes of error trace visualizer work: collect requirements or
+# visualize error trace.
+if ($opts->{'fh reqs out'})
+{
+  # Hash for requirements (to atomatically remove duplicates).
+  my %reqs;
+  # Obtain requirements recursively.
+  get_reqs($et, \%reqs);
+
+  $OUTPUT_FIELD_SEPARATOR = "\n";
+  print({$opts->{'fh reqs out'}} keys(%reqs));
+}
+else
+{
+}
 
 
 ################################################################################
@@ -123,7 +145,27 @@ sub get_opt()
 
   print_debug_debug("Command-line options were processed successfully");
 
-  return {'fh in' => $fh_in, 'fh out' => $fh_out, 'fh reqs out' => $fh_reqs_out, 'fh srcs' => $fh_srcs};
+  return {'fh in' => $fh_in
+    , 'fh out' => $fh_out
+    , 'fh reqs out' => $fh_reqs_out
+    , 'fh srcs' => $fh_srcs};
+}
+
+sub get_reqs($$)
+{
+  my $node_ref = shift;
+  my $reqs = shift;
+
+  my %node = %{$node_ref};
+
+  # Keep a requirement of a node itself.
+  ${$reqs}{$node{'file'}} = 1 if ($node{'file'});
+
+  # Walk throught node childrens.
+  foreach my $child (@{$node{'children'}})
+  {
+    get_reqs($child, $reqs);
+  }
 }
 
 sub help()
