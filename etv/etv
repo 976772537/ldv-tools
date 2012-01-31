@@ -2,10 +2,175 @@
 
 
 use English;
-use Env qw(LDV_DEBUG LDV_ERROR_TRACE_VISUALIZER_DEBUG);
+use Env qw(LDV_DEBUG LDV_ETV_DEBUG);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 
-print "Hie!";
+# Add some local Perl packages.
+use lib("$FindBin::RealBin/../shared/perl");
+
+# Add some nonstandard local Perl packages.
+use ETV::Library;
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level);
+
+
+################################################################################
+# Subroutine prototypes.
+################################################################################
+
+# Process command-line options. To see detailed description of these options
+# run script with --help option.
+# args: no.
+# retn: nothing.
+sub get_opt();
+
+# Print help message on the screen and exit.
+# args: no.
+# retn: nothing.
+sub help();
+
+
+################################################################################
+# Main section.
+################################################################################
+
+# Obtain the debug level.
+get_debug_level('etv', $LDV_DEBUG, $LDV_ETV_DEBUG);
+
+print_debug_debug('Process command-line options');
+my $opts = get_opt();
+
+ETV::Library::parse_et($opts->{'fh in'});
+
+
+################################################################################
+# Subroutines.
+################################################################################
+
+sub get_opt()
+{
+  if (scalar(@ARGV) == 0)
+  {
+    warn("No options were specified through the command-line. Please see help"
+      . " to understand how to use this tool");
+    help();
+  }
+  print_debug_trace("Options '@ARGV' were passed through the command-line");
+
+  my ($help, $in, $out, $reqs_out, $srcs);
+  my ($fh_in, $fh_out, $fh_reqs_out, $fh_srcs);
+
+  unless (GetOptions(
+    'help|h' => \$help,
+    'report|c=s' => \$in,
+    'report-out|o=s' => \$out,
+    'reqs-out=s' => \$reqs_out,
+    'src-files=s' => \$srcs))
+  {
+    warn("Incorrect options may completely change the meaning! Please see help"
+      . " to understand how to use this tool");
+    help();
+  }
+
+  help() if ($help);
+
+  unless ($in)
+  {
+    warn("You should specify command-line option --report (-c)");
+    help();
+  }
+
+  open($fh_in, '<', "$in")
+    or die("Can't open file '$in' specified through --report-in (-c) for read:"
+      . " $ERRNO");
+  print_debug_debug("Error trace to be processed is '$in'");
+
+  unless ($out or $reqs_out)
+  {
+    warn("You should specify command line option either --report-out (-o) or"
+      . " --reqs-out");
+    help();
+  }
+
+  if ($out)
+  {
+    open($fh_out, '>', "$out")
+      or die("Can't open file '$out' specified through --report-out (-o) for"
+        . " write: $ERRNO");
+    print_debug_debug("A proccessed error trace wilb be put to '$out'");
+
+    if ($srcs)
+    {
+      open($fh_srcs, '<', "$srcs")
+        or die("Can't open file '$srcs' specified through --src-files for"
+          . " read: $ERRNO");
+      print_debug_debug("Related to the given error trace source code is"
+        . " '$srcs'");
+    }
+  }
+  else
+  {
+    open($fh_reqs_out, '>', "$reqs_out")
+      or die("Can't open file '$reqs_out' specified through --reqs-out for"
+        . " write: $ERRNO");
+    print_debug_debug("Paths to files required by the given error trace will be"
+      . " put to '$reqs_out'");
+  }
+
+  print_debug_debug("Command-line options were processed successfully");
+
+  return {'fh in' => $fh_in, 'fh out' => $fh_out, 'fh reqs out' => $fh_reqs_out, 'fh srcs' => $fh_srcs};
+}
+
+sub help()
+{
+    print(STDERR << "EOM");
+
+NAME
+  $PROGRAM_NAME: visualizes error traces presented in the common format.
+
+SYNOPSIS
+  $PROGRAM_NAME [option...]
+
+OPTIONS
+
+  -h, --help
+    Print this help and exit with 1.
+
+  -c, --report <path>
+    <path> to a file with an error trace to be processed.
+
+  -o, --report-out <path>
+    <path> to a file where an error trace visualized will be put.
+
+  --reqs-out <path>
+    <path> to a file where a list of files required for error trace
+    visualization will be put.
+
+  --src-files <path>
+    <path> to a file containing a program source code referenced by a
+    given error trace. It's optional. Without this option there won't
+    be source code visualization. The file should contain a content of
+    files with source code as is separated with:
+    -------path/to/file/with/source/code-------
+
+
+ENVIRONMENT VARIABLES
+
+  LDV_DEBUG
+    It's an optional environment variable that specifies a debug
+    level. It uses the standard designatures to distinguish different
+    debug information printings. Each next level includes all previous
+    levels and its own messages.
+
+  LDV_ETV_DEBUG
+    Like LDV_DEBUG but it has more priority. It specifies a debug
+    level just for this tool.
+
+EOM
+
+  exit(1);
+}

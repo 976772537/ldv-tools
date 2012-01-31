@@ -7,7 +7,9 @@ perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm Fil
 	DSCV/RCV/Utils.pm \
 	DSCV/RCV/Library.pm \
 	DSCV/RCV/Annotation.pm \
-	DSCV/RCV/Entity.pm
+	DSCV/RCV/Entity.pm \
+	ETV/Parser.pm \
+	ETV/Library.pm
 
 perl_src_dir=modules
 

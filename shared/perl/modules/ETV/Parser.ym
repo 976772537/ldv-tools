@@ -1,0 +1,106 @@
+%{
+use English;
+%}
+
+%%
+input:  #empty
+        | input str
+{
+  # Create artificial root tree node to keep first-level children.
+  if (!$ARG[1])
+  {
+    $ARG[1] = {
+      'line' => undef
+      , 'file' => undef
+      , 'type' => 'ROOT'
+      , 'kind' => undef
+      , 'skip_reason' => undef
+      , 'formal_arg_names' => undef
+      , 'text' => undef};
+  }
+
+  push(@{$ARG[1]->{'children'}}, $ARG[2]) if ($ARG[2]);
+
+  return $ARG[1];
+}
+;
+str:    node '\n' { return $ARG[1]; }
+;
+node:   line file type kind skip_reason formal_arg_names_list text
+{
+  my $parser = $ARG[0];
+
+  my %node = (
+    'line' => $ARG[1]
+    , 'file' => $ARG[2]
+    , 'type' => $ARG[3]
+    , 'kind' => $ARG[4]
+    , 'skip_reason' => $ARG[5]
+    , 'formal_arg_names' => $ARG[6]
+    , 'text' => $ARG[7]);
+
+  # Do nothing when we encounter a line consisting just of whitespaces.
+  return undef
+    if (!$node{'line'} and !$node{'file'} and !$node{'type'} and !$node{'kind'} and !$node{'skip_reason'} and !$node{'foramal_arg_names'} and !$node{'text'});
+
+  # Kind attribute can be specified just for CALL type.
+  if ($node{'kind'} and (!$node{'type'} or $node{'type'} ne 'CALL'))
+  {
+    $parser->YYData->{ERRMSG} = "Kind '$node{kind}' is specified but type isn't 'CALL' (it's '$node{type}').\n";
+    $parser->YYError;
+    return undef;
+  }
+
+  # Update children for a current parent.
+  push(@{${$parser->YYData->{PARENTS}}[-1]->{'children'}}, \%node)
+    if ($parser->YYData->{PARENTS} and scalar(@{$parser->YYData->{PARENTS}}));
+
+  # Just 'CALL' nodes can be parents.
+  if ($node{'type'} and $node{'type'} eq 'CALL')
+  {
+    # 'ENTRY' finishes initialization section.
+    if ($node{'kind'} and $node{'kind'} eq 'ENTRY')
+    {
+      pop(@{$parser->YYData->{PARENTS}});
+    }
+
+    # 'SKIP' doesn't start a parent.
+    if (!$node{'kind'} or ($node{'kind'} and $node{'kind'} ne 'SKIP'))
+    {
+      push(@{$parser->YYData->{PARENTS}}, \%node);
+    }
+  }
+
+  # 'RETURN' node finishes a current parent.
+  pop(@{$parser->YYData->{PARENTS}})
+   if ($node{'type'} and $node{'type'} eq 'RETURN');
+
+  return \%node;
+};
+line:   #empty
+        | LINE { return $ARG[1]; }
+;
+file:   #empty
+        | FILE { return $ARG[1]; }
+;
+type:   #empty
+        | TYPE { return $ARG[1]; }
+;
+kind:   #empty
+        | KIND { return $ARG[1]; }
+;
+skip_reason:   #empty
+        | SKIP_REASON { return $ARG[1]; }
+;
+formal_arg_names_list: #empty
+        | formal_arg_names { return $ARG[1]; }
+;
+formal_arg_names: formal_arg_names arg_name { my @formal_arg_names = (@{$ARG[1]}, $ARG[2]); return \@formal_arg_names; }
+        | arg_name { my @formal_arg_names = ($ARG[1]); return \@formal_arg_names; }
+;
+arg_name: ARG_NAME { return $ARG[1]; };
+text:   #empty
+        | TEXT { return $ARG[1]; }
+;
+%%
+
