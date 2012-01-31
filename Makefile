@@ -5,11 +5,11 @@ SHELL= /bin/sh
 
 BUILD_SUBDIRS = rule-instrumentor etv cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh etv
-ERROR_TRACE_VISUALIZER_SUBDIRS = etv shared/perl
+ETV_SUBDIRS = etv shared/perl
 KB_SUBDIRS = knowledge-base shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
-LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ERROR_TRACE_VISUALIZER_SUBDIRS) $(KB_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby
-STATS_SUBDIRS = $(ERROR_TRACE_VISUALIZER_SUBDIRS) $(KB_SUBDIRS) stats-visualizer kernel-rules shared/php
+LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ETV_SUBDIRS) $(KB_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby
+STATS_SUBDIRS = $(ETV_SUBDIRS) $(KB_SUBDIRS) stats-visualizer kernel-rules shared/php
 ONLINE_SUBDIRS = ldv-online 
 CLUSTER_SUBDIRS = cluster shared/ruby
 TESTS_SUBDIRS = ldv-tests $(LDV_MANAGER_SUBDIRS)
@@ -42,6 +42,9 @@ install-console-tools: pre_tests ocaml_is_installed ant_is_installed java_is_ins
 
 install-verifiers: pre_tests ocaml_is_installed $(call forall_subdirs,$(DSCV_SUBDIRS),install)
 
+# Install only error trace visualizer
+install-etv: pre_tests $(call forall_subdirs,$(ETV_SUBDIRS),install)
+
 # Install only statistics server
 install-visualization: pre_tests $(call forall_subdirs,$(STATS_SUBDIRS),install)
 
@@ -60,7 +63,7 @@ distclean: clean
 
 # Let's instantiate rules for subdirs:
 $(foreach subdir,$(SUBDIRS),$(eval $(call mksubdir,$(subdir))))
-$(foreach subdir,$(ERROR_TRACE_VISUALIZER_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(ETV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(KB_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(DSCV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(LDV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))

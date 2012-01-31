@@ -154,6 +154,9 @@ before installing '6' and '7'.
   7. To install cluster (both node and server):
      prefix=/path/to/your/installation/directory make install-ldv-cluster
 
+  8. To install error trace visualizer:
+     prefix=/path/to/your/installation/directory make install-etv
+
 For some tools that use LDV to work, you need to add directory with binaries to
 your path:
 
