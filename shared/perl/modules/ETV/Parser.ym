@@ -6,6 +6,8 @@ use English;
 input:  #empty
         | input str
 {
+  my $parser = $ARG[0];
+
   # Create artificial root tree node to keep first-level children.
   if (!$ARG[1])
   {
@@ -17,9 +19,9 @@ input:  #empty
       , 'skip_reason' => undef
       , 'formal_arg_names' => undef
       , 'text' => undef};
-  }
 
-  push(@{$ARG[1]->{'children'}}, $ARG[2]) if ($ARG[2]);
+    push(@{$parser->YYData->{PARENTS}}, $ARG[1]);
+  }
 
   return $ARG[1];
 }
@@ -55,7 +57,7 @@ node:   line file type kind skip_reason formal_arg_names_list text
   push(@{${$parser->YYData->{PARENTS}}[-1]->{'children'}}, \%node)
     if ($parser->YYData->{PARENTS} and scalar(@{$parser->YYData->{PARENTS}}));
 
-  # Just 'CALL' nodes can be parents.
+  # Just 'CALL' nodes except 'ROOT' can be parents.
   if ($node{'type'} and $node{'type'} eq 'CALL')
   {
     # 'ENTRY' finishes initialization section.
