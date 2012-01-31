@@ -1,5 +1,8 @@
 %{
 use English;
+
+# A currently processed file.
+my $file = undef;
 %}
 
 %%
@@ -32,14 +35,18 @@ node:   line file type kind skip_reason formal_arg_names_list text
 {
   my $parser = $ARG[0];
 
+  # Change a currently processed file if a new path is specified.
+  $file = $ARG[2] if ($ARG[2]);
+
   my %node = (
     'line' => $ARG[1]
-    , 'file' => $ARG[2]
+    , 'file' => $file
     , 'type' => $ARG[3]
     , 'kind' => $ARG[4]
     , 'skip_reason' => $ARG[5]
     , 'formal_arg_names' => $ARG[6]
     , 'text' => $ARG[7]);
+
 
   # Do nothing when we encounter a line consisting just of whitespaces.
   return undef
