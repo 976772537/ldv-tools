@@ -40,10 +40,11 @@ sub help();
 # Obtain the debug level.
 get_debug_level('etv', $LDV_DEBUG, $LDV_ETV_DEBUG);
 
-print_debug_debug('Process command-line options');
+print_debug_debug("Process command-line options");
 my $opts = get_opt();
 
-ETV::Library::parse_et($opts->{'fh in'});
+print_debug_debug("Parse an error trace specified");
+my $et = ETV::Library::parse_et($opts->{'fh in'});
 
 
 ################################################################################

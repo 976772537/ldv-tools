@@ -69,12 +69,12 @@ sub _Error($)
 
   if (my $errmsg = $parser->YYData->{ERRMSG})
   {
-    print($errmsg);
+    print_debug_warning($errmsg);
     delete $parser->YYData->{ERRMSG};
     return;
   };
 
-  print("Syntax error near token '" . $parser->YYCurtok . "' with current value '" . $parser->YYCurval . "'.\n");
+  print_debug_warning("Syntax error near token '" . $parser->YYCurtok . "' with current value '" . $parser->YYCurval . "'");
 }
 
 sub parse_et($)

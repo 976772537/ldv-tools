@@ -690,7 +690,7 @@ sub
   # Kind attribute can be specified just for CALL type.
   if ($node{'kind'} and (!$node{'type'} or $node{'type'} ne 'CALL'))
   {
-    $parser->YYData->{ERRMSG} = "Kind '$node{kind}' is specified but type isn't 'CALL' (it's '$node{type}').\n";
+    $parser->YYData->{ERRMSG} = "Node kind '$node{kind}' is specified but node type isn't 'CALL' (it's '$node{type}')";
     $parser->YYError;
     return undef;
   }
