@@ -38,6 +38,11 @@ sub get_reqs($$);
 # retn: nothing.
 sub help();
 
+# Make visualization of a error trace specified.
+# args: node of error trace hash.
+# retn: reference to array containing error trace visualized.
+sub visualize_et($);
+
 
 ################################################################################
 # Main section.
@@ -51,6 +56,12 @@ my $opts = get_opt();
 
 print_debug_debug("Parse an error trace specified");
 my $et = ETV::Library::parse_et($opts->{'fh in'});
+
+if (!$et)
+{
+  print_debug_warning("Error trace wasn't parsed");
+  exit(1);
+}
 
 # There are two modes of error trace visualizer work: collect requirements or
 # visualize error trace.
@@ -66,7 +77,10 @@ if ($opts->{'fh reqs out'})
 }
 else
 {
+  my $etv = visualize_et($et);
 
+  $OUTPUT_FIELD_SEPARATOR = "\n";
+  print({$opts->{'fh out'}} @{$etv});
 }
 
 print_debug_debug("Close file handlers");
@@ -245,4 +259,13 @@ ENVIRONMENT VARIABLES
 EOM
 
   exit(1);
+}
+
+sub visualize_et($)
+{
+  my $node_ref = shift;
+
+  my %node = %{$node_ref};
+
+  return [$node{'type'}];
 }

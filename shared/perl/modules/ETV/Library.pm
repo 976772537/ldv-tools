@@ -84,6 +84,8 @@ sub parse_et($)
   my $parser = ETV::Parser->new();
   $parser->YYData->{FH}= $fh;
   my $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
+
+  return $et;
 }
 
 
