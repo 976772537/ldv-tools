@@ -58,7 +58,7 @@ sub _Lexer($)
     s/^(INIT|ENTRY|SKIP)// and return ('KIND', $1);
     s/^\(\"([^\"]+)\"\)// and return ('SKIP_REASON', $1);
     s/^\'([^\']+)\'// and return ('ARG_NAME', $1);
-    s/^\:\s*(.*)\s*\n$/\n/ and return ('TEXT', $1);
+    s/^\:\s*(.*)\s*\n?$/\n/ and return ('TEXT', $1);
     s/^(.)//s and return ($1, $1);
   }
 }
