@@ -16,6 +16,7 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 sub _Lexer($);
 sub _Error($);
 sub parse_et($);
+sub read_next_line($);
 
 
 ################################################################################
@@ -26,10 +27,8 @@ sub _Lexer($)
 {
   my $parser = shift;
 
-  my $fh = $parser->YYData->{FH};
-
   $parser->YYData->{INPUT}
-    or $parser->YYData->{INPUT} = <$fh>
+    or $parser->YYData->{INPUT} = read_next_line($parser)
     or return ('', undef);
 
   $parser->YYData->{INPUT} =~ s/^[ \t]//;
@@ -42,9 +41,10 @@ sub _Lexer($)
     # Multi-line comments, '/* ... */'.
     if ($parser->YYData->{INPUT} =~ /^\/\*/)
     {
-      while (!($parser->YYData->{INPUT} =~ s/.*\*\///))
+      while ($parser->YYData->{INPUT}
+        and !($parser->YYData->{INPUT} =~ s/.*\*\///))
       {
-        $parser->YYData->{INPUT} = <$fh>;
+        $parser->YYData->{INPUT} = read_next_line($parser);
       }
     }
   }
@@ -74,7 +74,10 @@ sub _Error($)
     return;
   };
 
-  print_debug_warning("Syntax error near token '" . $parser->YYCurtok . "' with current value '" . $parser->YYCurval . "'");
+  print_debug_warning("Syntax error near token '"
+    . $parser->YYCurtok . "' with current value '"
+    . $parser->YYCurval . "' at line '"
+    . $parser->YYData->{LINE} . "'");
 }
 
 sub parse_et($)
@@ -82,17 +85,28 @@ sub parse_et($)
   my $fh = shift;
 
   my $parser = ETV::Parser->new();
-  $parser->YYData->{FH}= $fh;
+  $parser->YYData->{FH} = $fh;
+  $parser->YYData->{LINE} = 0;
   my $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
 
   return $et;
 }
 
+sub read_next_line($)
+{
+  my $parser = shift;
+
+  my $fh = $parser->YYData->{FH};
+
+  $parser->YYData->{LINE}++;
+
+  return <$fh>;
+}
 
 
 
 
-
+# FIXME!!!
 
 sub call_stacks_eq($$);
 sub call_substacks_eq($$);
