@@ -38,10 +38,16 @@ sub get_reqs($$);
 # retn: nothing.
 sub help();
 
+# Process a file containing all source code files related with an error trace
+# specified.
+# args: corresponding file handler.
+# retn: hash with information on files, lines, comments, etc.
+sub process_srcs($);
+
 # Make visualization of a error trace specified.
-# args: node of error trace hash.
+# args: node of error trace hash, information on source code files.
 # retn: reference to array containing error trace visualized.
-sub visualize_et($);
+sub visualize_et($$);
 
 
 ################################################################################
@@ -69,7 +75,8 @@ if ($opts->{'fh reqs out'})
 {
   # Hash for requirements (to atomatically remove duplicates).
   my %reqs;
-  # Obtain requirements recursively.
+
+  print_debug_debug("Obtain requirements for a specified error trace");
   get_reqs($et, \%reqs);
 
   $OUTPUT_FIELD_SEPARATOR = "\n";
@@ -77,7 +84,16 @@ if ($opts->{'fh reqs out'})
 }
 else
 {
-  my $etv = visualize_et($et);
+  my $srcs_info;
+
+  if ($opts->{'fh srcs'})
+  {
+    print_debug_debug("Process source code files related with a given error trace");
+    $srcs_info = process_srcs($opts->{'fh srcs'});
+  }
+
+  print_debug_debug("Visualize an error trace specified");
+  my $etv = visualize_et($et, $srcs_info);
 
   $OUTPUT_FIELD_SEPARATOR = "\n";
   print({$opts->{'fh out'}} @{$etv});
@@ -261,11 +277,142 @@ EOM
   exit(1);
 }
 
-sub visualize_et($)
+sub process_srcs($)
+{
+  my $fh_srcs = shift;
+
+  # A current location in a source code file processed.
+  my $file_name;
+  my $line_numb;
+
+  # Create hashes for:
+  # 1. Relations between file names, lines and their content as is.
+  # 2. Model comments.
+  # 3. Model function definitions.
+  # 4. Driver environment generator comments.
+  my %srcs;
+  my %model_comments;
+  my %model_func_defs;
+  my %deg_comments;
+  while (<$fh_srcs>)
+  {
+    my $line = $_;
+    chomp($line);
+
+    # Each source code file should have such the header:
+    # -------path/to/file/with/source/code-------
+    if ($line =~ /^-------(.*)-------/)
+    {
+      $file_name = $1;
+      print_debug_trace("File '$file_name' is related with a error trace"
+        . " visualized");
+      $line_numb = 1;
+      next;
+    }
+
+    print_debug_warning("Source code files related with a error trace processed"
+      . " have incorrect format. No file name is specified by means of"
+      . " '-------path/to/file/with/source/code-------'")
+      unless ($file_name);
+
+    # Read model comments.
+
+    foreach my $model_comment_type (('LDV_COMMENT_ASSERT'
+      , 'LDV_COMMENT_CHANGE_STATE'
+      , 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION'
+      , 'LDV_COMMENT_MODEL_FUNCTION_CALL'
+      , 'LDV_COMMENT_MODEL_STATE'
+      , 'LDV_COMMENT_OTHER'
+      , 'LDV_COMMENT_RETURN'))
+    {
+      if ($line =~ /^\s*\/\*\s*$model_comment_type\s*/)
+      {
+        if ($POSTMATCH !~ /\*\/\s*$/)
+        {
+          print_debug_warning("Model comment '$line' has incorrect format");
+          next;
+        }
+
+        my $comment = $PREMATCH;
+        print_debug_trace("Catch model comment '$comment' corresponding to '$model_comment_type'");
+
+        my %comment_attrs;
+
+        # Read comment attributes. They should be in the format:
+        # (attr1 = 'attr1 value', attr2 = 'attr2 value', ...)
+        # Note that there may be ')' inside ''.
+        if ($comment =~ /\((.*')\s*(?=\))\)\s*/)
+        {
+          my $attr_all = $1;
+          $comment = $POSTMATCH;
+
+          my @attrs = split(/,/, $attr_all);
+          # Read attribute name and value for each attribute.
+          foreach my $attr (@attrs)
+          {
+            # Attributes must have the correct format.
+            if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
+            {
+              $comment_attrs{$1} = $2;
+              print_debug_trace("Read model comment attibute '$1=$2'");
+            }
+            else
+            {
+              print_debug_warning("Model comment attribute '$attr' has incorrect format");
+            }
+          }
+        }
+
+        $model_comments{$file_name}{$line_numb}
+          = {'type' => $model_comment_type, 'comment' => $comment, 'attrs' => \%comment_attrs};
+
+        # Remember placement of model function definitions.
+        if ($model_comment_type eq 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION')
+        {
+          # All model functions definitions must have a name attribute.
+          if ($comment_attrs{'name'})
+          {
+            $model_func_defs{$comment_attrs{'name'}} = {'src' => $file_name, 'line' => $line_numb};
+          }
+          else
+          {
+            print_debug_warning("Model function definition hasn't 'name' attribute");
+          }
+        }
+      }
+    }
+
+    # Read driver environment generator comments.
+    foreach my $deg_comment_type (('LDV_COMMENT_BEGIN_MAIN'
+      , 'LDV_COMMENT_END_MAIN'
+      , 'LDV_COMMENT_FUNCTION_CALL'
+      , 'LDV_COMMENT_VAR_INIT'))
+    {
+      if ($line =~ /^\s*\/\*\s*$deg_comment_type\s*([^\*\/]*)\*\/\s*$/)
+      {
+        $deg_comments{$file_name}{$line_numb}
+          = {'type' => $deg_comment_type, 'comment' => $1};
+        print_debug_trace("Catch DEG comment '$1' corresponding to '$deg_comment_type'");
+      }
+    }
+
+    push(@{$srcs{$file_name}}, "$line");
+    $line_numb++;
+  }
+
+  return {'srcs' => \%srcs
+    , 'model comments' => \%model_comments
+    , 'model function definitions' => \%model_func_defs
+    , 'deg comments' => \%deg_comments};
+}
+
+sub visualize_et($$)
 {
   my $node_ref = shift;
+  my $srcs_info_ref = shift;
 
   my %node = %{$node_ref};
+  my %srcs_info = %{$srcs_info_ref};
 
   return [$node{'type'}];
 }
