@@ -218,7 +218,8 @@ sub get_reqs($$)
   my %node = %{$node_ref};
 
   # Keep a requirement of a node itself.
-  ${$reqs}{$node{'file'}} = 1 if ($node{'file'});
+  # Don't take into account entities that haven't line specified.
+  ${$reqs}{$node{'file'}} = 1 if ($node{'file'} and $node{'line'});
 
   # Walk throught node childrens.
   foreach my $child (@{$node{'children'}})
