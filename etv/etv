@@ -7,6 +7,7 @@ use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
+use URI::Escape;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl");
@@ -20,6 +21,17 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+# Obtain html code that allows local expanding of entities.
+# args: current id.
+# retn: string with corresponding html code.
+sub get_expand_local($);
+
+# Obtain link to source code if so and indentation spaces corresponding to a
+# given indentation level.
+# args: names of reffered file and line, current indentation level.
+# retn: string with link to source code and indentation spaces.
+sub get_line_title($$$);
 
 # Process command-line options. To see detailed description of these options
 # run script with --help option.
@@ -45,9 +57,16 @@ sub help();
 sub process_srcs($);
 
 # Make visualization of a error trace specified.
-# args: node of error trace hash, information on source code files.
+# args: root node of error trace hash, information on source code files,
+#       visualization information, current id.
 # retn: reference to array containing error trace visualized.
-sub visualize_et($$);
+sub visualize_et($$$$);
+
+# Make visualization of a error trace node specified.
+# args: node of error trace hash, information on source code files,
+#       visualization information, current id.
+# retn: reference to array containing an error trace node visualized.
+sub visualize_et_node($$$$);
 
 
 ################################################################################
@@ -84,7 +103,7 @@ if ($opts->{'fh reqs out'})
 }
 else
 {
-  my $srcs_info;
+  my $srcs_info = {};
 
   if ($opts->{'fh srcs'})
   {
@@ -93,9 +112,9 @@ else
   }
 
   print_debug_debug("Visualize an error trace specified");
-  my $etv = visualize_et($et, $srcs_info);
+  my $etv = visualize_et($et, $srcs_info, {'indent' => 0}, {'id' => 0});
 
-  $OUTPUT_FIELD_SEPARATOR = "\n";
+  $OUTPUT_FIELD_SEPARATOR = '';
   print({$opts->{'fh out'}} @{$etv});
 }
 
@@ -127,6 +146,60 @@ print_debug_normal("Make all successfully");
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub get_expand_local($)
+{
+  my $id = shift;
+
+  return "<a id='ETVExpand$id' href='#' class='ETVExpand'>-</a>";
+}
+
+sub get_line_title($$$)
+{
+  my $file = shift;
+  my $line = shift;
+  my $indent_level = shift;
+
+  my @line_title;
+
+  # In accordance with empirical study usually less then 10^5 numbers are used
+  # as line numbers for drivers verified. So use corresponding format.
+  # Print a corresponding source code line number as a link to a place in source
+  # code at the begining of each line.
+  push(@line_title, "<span class='ETVLN'>");
+  if ($line)
+  {
+    my $line_str = sprintf("%5d", $line);
+
+    # Generate a link to a corresponding source code if so.
+    if ($file)
+    {
+      $file = uri_escape($file);
+      # Make just a line number itself as a link to avoid underlining of spaces.
+      $line_str =~ s/(\d+)/<a href='#$file:$line'>$1<\/a>/;
+    }
+
+    push(@line_title, $line_str);
+  }
+  else
+  {
+    push(@line_title, '     ');
+  }
+  # Print one extra space at the end to separate more clearly a line number from
+  # a following text.
+  push(@line_title, " </span>");
+
+  # Print identation spaces.
+  push(@line_title, "<span class='ETVI'>");
+  for (my $i = 1; $i <= $indent_level; $i++)
+  {
+    # Two extra spaces will be print for each next indentation level.
+    push(@line_title, '  ');
+  }
+  push(@line_title, "</span>");
+
+  return \@line_title;
+}
 
 sub get_opt()
 {
@@ -316,84 +389,86 @@ sub process_srcs($)
       . " '-------path/to/file/with/source/code-------'")
       unless ($file_name);
 
-    # Read model comments.
-
-    foreach my $model_comment_type (('LDV_COMMENT_ASSERT'
-      , 'LDV_COMMENT_CHANGE_STATE'
-      , 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION'
-      , 'LDV_COMMENT_MODEL_FUNCTION_CALL'
-      , 'LDV_COMMENT_MODEL_STATE'
-      , 'LDV_COMMENT_OTHER'
-      , 'LDV_COMMENT_RETURN'))
+    if ($line =~ /LDV_COMMENT/)
     {
-      if ($line =~ /^\s*\/\*\s*$model_comment_type\s*/)
+      # Read model comments.
+      foreach my $model_comment_type (('LDV_COMMENT_ASSERT'
+        , 'LDV_COMMENT_CHANGE_STATE'
+        , 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION'
+        , 'LDV_COMMENT_MODEL_FUNCTION_CALL'
+        , 'LDV_COMMENT_MODEL_STATE'
+        , 'LDV_COMMENT_OTHER'
+        , 'LDV_COMMENT_RETURN'))
       {
-        if ($POSTMATCH !~ /\*\/\s*$/)
+        if ($line =~ /^\s*\/\*\s*$model_comment_type\s*/)
         {
-          print_debug_warning("Model comment '$line' has incorrect format");
-          next;
-        }
-
-        my $comment = $PREMATCH;
-        print_debug_trace("Catch model comment '$comment' corresponding to '$model_comment_type'");
-
-        my %comment_attrs;
-
-        # Read comment attributes. They should be in the format:
-        # (attr1 = 'attr1 value', attr2 = 'attr2 value', ...)
-        # Note that there may be ')' inside ''.
-        if ($comment =~ /\((.*')\s*(?=\))\)\s*/)
-        {
-          my $attr_all = $1;
-          $comment = $POSTMATCH;
-
-          my @attrs = split(/,/, $attr_all);
-          # Read attribute name and value for each attribute.
-          foreach my $attr (@attrs)
+          if ($POSTMATCH !~ /\*\/\s*$/)
           {
-            # Attributes must have the correct format.
-            if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
+            print_debug_warning("Model comment '$line' has incorrect format");
+            next;
+          }
+
+          my $comment = $PREMATCH;
+          print_debug_trace("Catch model comment '$comment' corresponding to '$model_comment_type'");
+
+          my %comment_attrs;
+
+          # Read comment attributes. They should be in the format:
+          # (attr1 = 'attr1 value', attr2 = 'attr2 value', ...)
+          # Note that there may be ')' inside ''.
+          if ($comment =~ /\((.*')\s*(?=\))\)\s*/)
+          {
+            my $attr_all = $1;
+            $comment = $POSTMATCH;
+
+            my @attrs = split(/,/, $attr_all);
+            # Read attribute name and value for each attribute.
+            foreach my $attr (@attrs)
             {
-              $comment_attrs{$1} = $2;
-              print_debug_trace("Read model comment attibute '$1=$2'");
+              # Attributes must have the correct format.
+              if ($attr =~ /^([^\s]+)\s*=\s*'([^']*)'\s*$/)
+              {
+                $comment_attrs{$1} = $2;
+                print_debug_trace("Read model comment attibute '$1=$2'");
+              }
+              else
+              {
+                print_debug_warning("Model comment attribute '$attr' has incorrect format");
+              }
+            }
+          }
+
+          $model_comments{$file_name}{$line_numb}
+            = {'type' => $model_comment_type, 'comment' => $comment, 'attrs' => \%comment_attrs};
+
+          # Remember placement of model function definitions.
+          if ($model_comment_type eq 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION')
+          {
+            # All model functions definitions must have a name attribute.
+            if ($comment_attrs{'name'})
+            {
+              $model_func_defs{$comment_attrs{'name'}} = {'src' => $file_name, 'line' => $line_numb};
             }
             else
             {
-              print_debug_warning("Model comment attribute '$attr' has incorrect format");
+              print_debug_warning("Model function definition hasn't 'name' attribute");
             }
           }
         }
-
-        $model_comments{$file_name}{$line_numb}
-          = {'type' => $model_comment_type, 'comment' => $comment, 'attrs' => \%comment_attrs};
-
-        # Remember placement of model function definitions.
-        if ($model_comment_type eq 'LDV_COMMENT_MODEL_FUNCTION_DEFINITION')
-        {
-          # All model functions definitions must have a name attribute.
-          if ($comment_attrs{'name'})
-          {
-            $model_func_defs{$comment_attrs{'name'}} = {'src' => $file_name, 'line' => $line_numb};
-          }
-          else
-          {
-            print_debug_warning("Model function definition hasn't 'name' attribute");
-          }
-        }
       }
-    }
 
-    # Read driver environment generator comments.
-    foreach my $deg_comment_type (('LDV_COMMENT_BEGIN_MAIN'
-      , 'LDV_COMMENT_END_MAIN'
-      , 'LDV_COMMENT_FUNCTION_CALL'
-      , 'LDV_COMMENT_VAR_INIT'))
-    {
-      if ($line =~ /^\s*\/\*\s*$deg_comment_type\s*([^\*\/]*)\*\/\s*$/)
+      # Read driver environment generator comments.
+      foreach my $deg_comment_type (('LDV_COMMENT_BEGIN_MAIN'
+        , 'LDV_COMMENT_END_MAIN'
+        , 'LDV_COMMENT_FUNCTION_CALL'
+        , 'LDV_COMMENT_VAR_INIT'))
       {
-        $deg_comments{$file_name}{$line_numb}
-          = {'type' => $deg_comment_type, 'comment' => $1};
-        print_debug_trace("Catch DEG comment '$1' corresponding to '$deg_comment_type'");
+        if ($line =~ /^\s*\/\*\s*$deg_comment_type\s*([^\*\/]*)\*\/\s*$/)
+        {
+          $deg_comments{$file_name}{$line_numb}
+            = {'type' => $deg_comment_type, 'comment' => $1};
+          print_debug_trace("Catch DEG comment '$1' corresponding to '$deg_comment_type'");
+        }
       }
     }
 
@@ -407,13 +482,346 @@ sub process_srcs($)
     , 'deg comments' => \%deg_comments};
 }
 
-sub visualize_et($$)
+sub visualize_et($$$$)
 {
   my $node_ref = shift;
-  my $srcs_info_ref = shift;
+  my $srcs_ref = shift;
+  my $visual_ref = shift;
+  my $id_ref = shift;
+
+  return visualize_et_node($node_ref, $srcs_ref, $visual_ref, $id_ref);
+}
+
+sub visualize_et_node($$$$)
+{
+  my $node_ref = shift;
+  my $srcs_ref = shift;
+  my $visual_ref = shift;
+  my $id_ref = shift;
 
   my %node = %{$node_ref};
-  my %srcs_info = %{$srcs_info_ref};
+  my %srcs = %{$srcs_ref};
+  my %visual = %{$visual_ref};
 
-  return [$node{'type'}];
+  my %model_func_defs = %{$srcs{'model function definitions'}};
+  # Id for a currently processed entity.
+  my $id = ${$id_ref}{'id'}++;
+
+  # Visualized representation for a given node.
+  my @node_visualized = ();
+
+  # Don't forget that each element of a given node is optional!
+  # To avoid warnings about usage of uninitialized values in strings replace
+  # undefs with ''.
+  my $file = $node{'file'} || '';
+  my $line = $node{'line'} || 0;
+  my $type = $node{'type'} || '';
+  my $kind = $node{'kind'} || '';
+  my $formal_arg_names = $node{'formal_arg_names'} || [];
+  my $skip_reason = $node{'skip_reason'} || '';
+  my $text = $node{'text'} || '';
+
+  # Get short name and related sources name of a node file.
+  $file =~ /([^\/]*)$/;
+  my $file_short = $1;
+  my $file_srcs = '';
+  foreach my $srcs_file (keys(%{$srcs{'srcs'}}))
+  {
+    # A node file is either an absolute or a relative path but it always bigger
+    # then corresponding related sources file name.
+    if ($file =~ /\Q$srcs_file\E$/)
+    {
+      if ($file_srcs)
+      {
+        print_debug_warning("A given node file matches more then one sources"
+          . " a file name");
+      }
+      else
+      {
+        $file_srcs = $srcs_file;
+      }
+    }
+  }
+
+  # Get a title for a currently printed line.
+  my $title = get_line_title($file_srcs, $line, $visual{'indent'});
+
+  # This hint will be shown for all major entities.
+  my $hint = "$file_short:$line";
+
+  # Style class of an entity processed.
+  my $class = '';
+
+  # Process special model and driver environment comments.
+  if (my $model_comment = $srcs{'model comments'}{$file_srcs}{($line - 1)})
+  {
+    my $model_event = 'unknown';
+
+    if ($model_comment->{'type'} eq 'LDV_COMMENT_ASSERT')
+    {
+      $class = 'ETVModelAssert';
+      $model_event = 'assert'
+    }
+    elsif ($model_comment->{'type'} eq 'LDV_COMMENT_CHANGE_STATE')
+    {
+      $class = 'ETVModelChangeState';
+      $model_event = 'state change';
+    }
+    elsif ($model_comment->{'type'} eq 'LDV_COMMENT_MODEL_FUNCTION_CALL')
+    {
+      $class = 'ETVModelCallCall';
+      $model_event = 'function function call';
+    }
+    elsif ($model_comment->{'type'} eq 'LDV_COMMENT_OTHER')
+    {
+      $class = 'ETVModelOther';
+      $model_event = 'other';
+    }
+    elsif ($model_comment->{'type'} eq 'LDV_COMMENT_RETURN')
+    {
+      $class = 'ETVModelRet';
+      $model_event = 'return';
+    }
+
+    $hint .= ": Model "
+      . $model_event
+      . " - "
+      . $model_comment->{'comment'} || '';
+  }
+
+  if ($type eq 'CALL')
+  {
+    # Try to get a name of a called function to understand whether a given
+    # function is a model function..
+    my $func_name;
+    if ($text =~ /=\s*([^\(]+)/ or $text =~ /\s*([^\(]+)/)
+    {
+      $func_name = $1;
+
+      foreach my $model_func_name
+        (keys(%model_func_defs))
+      {
+        if ($func_name =~ /$model_func_name/)
+        {
+          print_debug_trace("Find a call to a model function '$func_name'");
+          $class = 'ETVModelCall';
+
+          # Try to get corresponding model comment.
+          if (my $model_comment = $srcs{'model comments'}{$model_func_defs{$model_func_name}{'src'}}{$model_func_defs{$model_func_name}{'line'}})
+          {
+            $hint .= ": Model function call - "
+              . $model_comment->{'comment'} || '';
+          }
+          else
+          {
+            print_debug_warning("Can't find a corresponding model comment for"
+              . " a model function '$func_name'");
+          }
+        }
+      }
+    }
+  }
+
+  if (my $deg_comment = $srcs{'deg comments'}{$file_srcs}{($line - 1)})
+  {
+    my $deg_event = 'unknown';
+
+    if ($deg_comment->{'type'} eq 'LDV_COMMENT_FUNCTION_CALL')
+    {
+      $class = 'ETVDEGCall';
+      $deg_event = 'function call';
+    }
+    elsif ($deg_comment->{'type'} eq 'LDV_COMMENT_VAR_INIT')
+    {
+      $class = 'ETVDEGInit';
+      $deg_event = 'initialization';
+    }
+
+    $hint .= ": DEG "
+      . $deg_event
+      . " - "
+      . $deg_comment->{'comment'} || '';
+
+  }
+
+  if ($type eq 'ROOT')
+  {
+    # Print nothing for this artificial tree node. Just walk through its
+    # children.
+  }
+  elsif ($type eq 'CALL')
+  {
+    my $body_class = 'ETVCallBody';
+
+    if ($class eq 'ETVModelCall')
+    {
+      $body_class = 'ETVModelCallBody';
+    }
+    elsif ($class eq 'ETVModelCallCall')
+    {
+      $body_class = 'ETVModelCallCallBody';
+    }
+    # TODO: are they really the same?
+    elsif ($class eq 'ETVDEGInit')
+    {
+      $body_class = 'ETVDEGInit';
+    }
+    elsif ($class eq 'ETVDEGCall')
+    {
+      $body_class = 'ETVDEGCall';
+    }
+    else
+    {
+      $class = 'ETVCall';
+
+      if ($kind eq 'INIT')
+      {
+        $class = 'ETVCallInit';
+        $body_class = 'ETVCallInitBody';
+      }
+      elsif ($kind eq 'ENTRY')
+      {
+        $class = 'ETVCallEntry';
+        $body_class = 'ETVCallEntryBody';
+      }
+      elsif ($kind eq 'SKIP')
+      {
+        $class = 'ETVCallSkip';
+      }
+    }
+
+    push(@node_visualized, "<div class='$class' title='$hint' id='ETV$id'>"
+      ,  @{$title});
+
+    # Add comments with formal parameter names.
+    my $pos = 0;
+    foreach my $name (@{$formal_arg_names})
+    {
+      # Comment to be inserted after an actual parameter value.
+      my $comment = " /* $name */";
+      my $comment_length = length($comment);
+
+      my $pos_cur;
+
+      # An actual parameter is finished with ',' or ')' that fineshes a function
+      # call. This is a heuristics indeed.
+      if (($pos_cur = index($text, ',', $pos)) != -1
+        or ($pos_cur = rindex($text, ')')) != -1)
+      {
+        $text = substr($text, 0, $pos_cur)
+          . $comment
+          . substr($text, $pos_cur);
+        $pos = $pos_cur + $comment_length + 1;
+        next;
+      }
+
+      last;
+    }
+    # Add style for all previously inserted comments.
+    $text =~ s/(\/\*[^\*\/]*\*\/)/<span class='ETVCallFormalParamName'>$1<\/span>/g;
+
+    if ($kind eq 'SKIP')
+    {
+      push(@node_visualized, $text, " { /* $skip_reason */");
+    }
+    else
+    {
+      # A function call itself serves as a header for expanding of a function
+      # body.
+      my $id_body = ${$id_ref}{'id'}++;
+      push(@node_visualized, get_expand_local($id_body));
+
+      push(@node_visualized, "$text</div>");
+
+      # Start a function body with an open brace.
+      my $title_open_brace = get_line_title('', 0, $visual{'indent'});
+      push(@node_visualized, "<div class='$body_class' title='$hint' id='ETV$id_body'>"
+        ,  @{$title_open_brace}
+        , '{<br />');
+    }
+  }
+  elsif ($type eq 'BLOCK')
+  {
+    $class = 'ETVBlock' unless ($class);
+
+    push(@node_visualized, "<div class='$class' title='$hint' id='ETV$id'>"
+      ,  @{$title});
+
+    # Split expressions joined together into one block.
+    my @exprs = split(/;/, $text);
+
+    if (scalar(@exprs) > 1)
+    {
+      # A first expression also serves as a header for expanding of a block
+      # "body".
+      my $id_block_body = ${$id_ref}{'id'}++;
+      push(@node_visualized, get_expand_local($id_block_body)
+        , "$exprs[0];");
+
+      # Print other expressions of a block processed (block "body").
+      push(@node_visualized, "<span class='ETVBlockBody' id='ETV$id_block_body'>");
+      for (my $i = 1; $exprs[$i]; $i++)
+      {
+        # These expressions haven't links to sources.
+        my $title_block_body = get_line_title('', 0, $visual{'indent'});
+        push(@node_visualized, '<br />', @{$title_block_body}, "$exprs[$i];");
+      }
+      push(@node_visualized, "</span>");
+    }
+    else
+    {
+      push(@node_visualized, "$exprs[0];");
+    }
+
+    push(@node_visualized, '</div>');
+  }
+  elsif ($type eq 'RETURN')
+  {
+    $class = 'ETVRet' unless ($class);
+
+    push(@node_visualized, "<div class='$class' title='$hint' id='ETV$id'>"
+      , @{$title}
+      , "return <span class='ETVRetVal'>$text</span>;"
+      , '</div>');
+  }
+  elsif ($type eq 'ASSUME')
+  {
+    $class = 'ETVAssume' unless ($class);
+
+    push(@node_visualized, "<div class='$class' title='$hint' id='ETV$id'>"
+      , @{$title}
+      , "assume(<span class='ETVAssumeCond'>$text</span>);"
+      , '</div>');
+  }
+
+  # Print all tree node children with enlarged indentation.
+  if ($node{'children'})
+  {
+    my $indent = $type eq 'ROOT' ? $visual{'indent'}: $visual{'indent'} + 1;
+    foreach my $child (@{$node{'children'}})
+    {
+      my $child_visualized_ref = visualize_et_node($child, $srcs_ref
+        , {'indent' => $visual{'indent'} + 1}, $id_ref);
+      push(@node_visualized, @{$child_visualized_ref});
+    }
+  }
+
+  # Finish a function call with a close brace.
+  if ($type eq 'CALL')
+  {
+    # Place close brace at the same string as function call itself if there
+    # isn't a function body.
+    if ($kind eq 'SKIP')
+    {
+      push(@node_visualized, '}</div>');
+    }
+    else
+    {
+      my $title_close_brce = get_line_title('', 0, $visual{'indent'});
+      push(@node_visualized, @{$title_close_brce}
+        , '}</div>');
+    }
+  }
+
+  return \@node_visualized;
 }
