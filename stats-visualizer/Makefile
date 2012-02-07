@@ -61,7 +61,7 @@ STATS_CONFIG_RULE_DB = [rule-database]
 STATS_CONFIG_FILE = file=
 
 # Error trace visualizer script. It's relative to the bin directory.
-ERROR_TRACE_VISUALIZER = error-trace-visualizer.pl
+ERROR_TRACE_VISUALIZER = etv
 
 # Knowledge base cache (re)generation script. It's relative to the bin directory.
 KB_RECALC = kb-recalc.pl

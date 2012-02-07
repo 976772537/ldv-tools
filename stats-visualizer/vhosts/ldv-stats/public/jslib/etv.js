@@ -156,8 +156,6 @@ $.each(showEntityClass, function(entity_class, isshow) {
     if (!isshow)
       $('#' + entity_class + 'Menu').change().attr('checked', false);
   });
-
-  document.write("<a id='" + entity_class + "Expand' href='#'></a>");
 });
 
 
@@ -195,5 +193,3 @@ $(document).ready(function() {
     });
   });
 });
-
-document.write("<a id='ETVIntellectualCallBodyExpand' href='#'></a>");

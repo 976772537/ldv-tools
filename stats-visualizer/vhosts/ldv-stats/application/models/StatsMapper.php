@@ -1006,7 +1006,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $tableMain = 'traces';
     $select = $select
       ->from($tableMain,
-        array($pageName => "$tableMain.error_trace", 'Engine' => "$tableMain.verifier"));
+        array($pageName => "$tableMain.error_trace"));
     $select = $select
       ->where("$tableMain.id = ?", $trace_id);
 
@@ -1014,7 +1014,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 #exit;
 
     $errorTraceRow = $traces->fetchRow($select);
-    $errorTrace = new Application_Model_ErrorTrace(array('errorTraceRaw' => $errorTraceRow[$pageName], 'engine' => $errorTraceRow['Engine']));
+    $errorTrace = new Application_Model_ErrorTrace(array('errorTraceRaw' => $errorTraceRow[$pageName]));
 
     $sources = $this->getDbTable('Application_Model_DbTable_Sources', NULL, $this->_db);
 
