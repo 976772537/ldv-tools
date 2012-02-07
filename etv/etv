@@ -538,7 +538,6 @@ sub visualize_et($$$$)
   %main_entities = (
       'ETVCallBody' => 'Function bodies'
     , 'ETVBlock' => 'Blocks');
-  print(keys(%main_entities));
   foreach my $entity_class (keys(%main_entities))
   {
     push(@et_visualized
@@ -590,6 +589,13 @@ sub visualize_et($$$$)
     , "    </li>"
     , "  </ul>"
     , "</div>");
+
+  # Print hidden links to take menu into effects.
+  foreach my $entity_class ((keys(%main_entities), keys(%other_entities)))
+  {
+    push(@et_visualized
+    , "<a id='${entity_class}Expand' href='#'></a>");
+  }
 
   print_debug_debug("Visualize an error trace itself");
   # Remember visited locations to simplify source code references.
