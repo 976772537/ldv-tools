@@ -12,6 +12,8 @@ use URI::Escape;
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl");
 
+use Text::Highlight;
+
 # Add some nonstandard local Perl packages.
 use ETV::Library;
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
@@ -29,9 +31,10 @@ sub get_expand_local($);
 
 # Obtain link to source code if so and indentation spaces corresponding to a
 # given indentation level.
-# args: names of reffered file and line, current indentation level.
+# args: names of reffered file and line, current indentation level,
+#       visited locations.
 # retn: string with link to source code and indentation spaces.
-sub get_line_title($$$);
+sub get_line_title($$$$);
 
 # Process command-line options. To see detailed description of these options
 # run script with --help option.
@@ -64,9 +67,9 @@ sub visualize_et($$$$);
 
 # Make visualization of a error trace node specified.
 # args: node of error trace hash, information on source code files,
-#       visualization information, current id.
+#       visualization information, current id, visited locations.
 # retn: reference to array containing an error trace node visualized.
-sub visualize_et_node($$$$);
+sub visualize_et_node($$$$$);
 
 
 ################################################################################
@@ -154,11 +157,12 @@ sub get_expand_local($)
   return "<a id='ETVExpand$id' href='#' class='ETVExpand'>-</a>";
 }
 
-sub get_line_title($$$)
+sub get_line_title($$$$)
 {
   my $file = shift;
   my $line = shift;
   my $indent_level = shift;
+  my $locs = shift;
 
   my @line_title;
 
@@ -177,6 +181,8 @@ sub get_line_title($$$)
       $file = uri_escape($file);
       # Make just a line number itself as a link to avoid underlining of spaces.
       $line_str =~ s/(\d+)/<a href='#$file:$line'>$1<\/a>/;
+      # Remember that we do reference to the given location.
+      ${$locs}{$file}{$line} = 1;
     }
 
     push(@line_title, $line_str);
@@ -484,20 +490,118 @@ sub process_srcs($)
 
 sub visualize_et($$$$)
 {
-  my $node_ref = shift;
+  my $root_ref = shift;
   my $srcs_ref = shift;
   my $visual_ref = shift;
   my $id_ref = shift;
 
-  return visualize_et_node($node_ref, $srcs_ref, $visual_ref, $id_ref);
+  my %srcs = %{$srcs_ref};
+
+  # Visualized representation for a given error trace.
+  my @et_visualized = ();
+
+  # Create a general visualization table with two cells. The first cell is for
+  # an error trace itself and the second is for tabed related source code.
+  push(@et_visualized
+    , "<table id='ETVGeneralWindow'>"
+    , "<tr>"
+    , "  <td id='ETVErrorTraceWindow'>"
+    , "    <div class='ETVGeneralWindowHeader'>"
+    , "      Error trace"
+    , "    </div>");
+
+  print_debug_debug("Visualize an error trace itself");
+  # Remember visited locations to simplify source code references.
+  my %locs;
+  my $etv = visualize_et_node($root_ref, $srcs_ref, $visual_ref, $id_ref, \%locs);
+  push(@et_visualized
+    , "    <div id='ETVErrorTrace'>"
+    , @{$etv}
+    , "    </div>");
+  push(@et_visualized
+    , "  </td>"
+    , "  <td id='ETVSrcWindow'>"
+    , "    <div class='ETVGeneralWindowHeader'>"
+    , "      Source code"
+    , "    </div>"
+    , "    <div id='ETVTabs'>"
+    , "      <ul id='ETVTabsHeader'>");
+
+  print_debug_debug("Visualize a source code related with an error trace");
+  # Print source code tabs.
+  foreach my $file (sort(keys(%{$srcs{'srcs'}})))
+  {
+    $file =~ /([^\/]*)$/;
+    my $file_short = $1;
+    push(@et_visualized
+    , "        <li><a title='$file_short' href='#"
+      . uri_escape($file) . "'>$file_short</a></li>");
+  }
+  push(@et_visualized
+    , "      </ul>");
+
+  foreach my $file (sort(keys(%{$srcs{'srcs'}})))
+  {
+    my $file_link = uri_escape($file);
+    push(@et_visualized, "      <div id='$file_link' class='ETVSrc'>");
+
+    # Make syntax highlighting of the source code.
+    my $syntax_highlighter = new Text::Highlight(
+      'colors' => {
+        comment => 'ETVSrcC',
+        string  => 'ETVSrcString',
+        number  => 'ETVSrcNumber',
+        key1    => 'ETVSrcCK',
+        key2    => 'ETVSrcCPPK',
+      }, wrapper => "%s");
+    my $src = join("\n", @{${$srcs{'srcs'}}{$file}});
+    my $src_highlighted = $syntax_highlighter->highlight('CPP', $src);
+    my @src_highlighted = split(/\n/, $src_highlighted);
+    my $line_numb = 1;
+    foreach my $line (@src_highlighted)
+    {
+      my $anchor = '';
+      $anchor = "<a name='$file_link:$line_numb'></a>"
+        if ($locs{$file_link}{$line_numb});
+      # We assume here that the number of LOCs is less then 10^5.
+      my $title = sprintf("%5d", $line_numb);
+      $title =~ s/(\d+)/<span class='ETVSrcLN'>$anchor$1 <\/span>/;
+      push(@et_visualized
+        , $title
+        , $line);
+      $line_numb++;
+      push(@et_visualized, "\n") if ($line_numb <= scalar(@src_highlighted));
+    }
+
+    push(@et_visualized
+    , "      </div>");
+  }
+
+  push(@et_visualized
+    , "    </div>"
+    , "  </td>"
+    , "</tr>"
+    , "</table>");
+
+  ## Print short ETV help after error trace visualized.
+  #print($file_report_out
+      #"\n  <div class='ETVHelp'>"
+    #, "\n    <p>Here is the <i>explanation</i> of the rule violation arisen in your driver for the corresponding kernel.</p>"
+    #, "\n    <p>Note that there may be <i>no</i> error indeed. Please <i>see</i> on error trace and source code to <i>understand</i> whether there is an error in your driver.</p>"
+    #, "\n    <p>The <b>Error trace</b> column contains the <i>path</i> on which rule is violated. You can choose some <i>entity classes</i> to be <i>shown</i> or <i>hiden</i> by clicking on the corresponding <i>checkboxes</i> or in the advanced <i>Others</i> menu. Also you can <i>show</i> or <i>hide</i> each <i>particular entity</i> by clicking on the corresponding <i>-</i> or <i>+</i>. In <i>hovering</i> on some <i>entities</i> you can see their <i>descriptions</i> and <i>meaning</i>. Also the <i>error trace</i> is binded with the <i>source code</i>. <i>Line numbers</i> are shown as <i>links</i> on the left. You can <i>click</i> on them to open the <i>corresponding line</i> in <i>source code</i>. <i>Line numbers</i> and <i>file names</i> are shown in <i>entity descriptions</i>.</p>"
+    #, "\n    <p>The <b>Source code</b> column contains <i>content</i> of <i>files related</i> with the <i>error trace</i>. There are your <i>driver</i> (<i>note</i> that there are some <i>our modifications</i> at the end), <i>kernel headers</i> and <i>rule</i> source code. <i>Tabs</i> show the currently opened file and other available files. In <i>hovering</i> you can see <i>file names</i> in <i>titles</i>. On <i>clicking</i> the corresponding <i>file content</i> will be shown.</p>"
+    #, "\n  </div>");
+
+  return \@et_visualized;
 }
 
-sub visualize_et_node($$$$)
+sub visualize_et_node($$$$$)
 {
   my $node_ref = shift;
   my $srcs_ref = shift;
   my $visual_ref = shift;
   my $id_ref = shift;
+  my $locs_ref = shift;
 
   my %node = %{$node_ref};
   my %srcs = %{$srcs_ref};
@@ -544,7 +648,7 @@ sub visualize_et_node($$$$)
   }
 
   # Get a title for a currently printed line.
-  my $title = get_line_title($file_srcs, $line, $visual{'indent'});
+  my $title = get_line_title($file_srcs, $line, $visual{'indent'}, $locs_ref);
 
   # This hint will be shown for all major entities.
   my $hint = "$file_short:$line";
@@ -681,6 +785,8 @@ sub visualize_et_node($$$$)
       }
       elsif ($kind eq 'ENTRY')
       {
+        # Use an artificial name for an entry point if there isn't.
+        $text = 'entry_point()' unless $text;
         $class = 'ETVCallEntry';
         $body_class = 'ETVCallEntryBody';
       }
@@ -734,7 +840,7 @@ sub visualize_et_node($$$$)
       push(@node_visualized, "$text</div>");
 
       # Start a function body with an open brace.
-      my $title_open_brace = get_line_title('', 0, $visual{'indent'});
+      my $title_open_brace = get_line_title('', 0, $visual{'indent'}, '');
       push(@node_visualized, "<div class='$body_class' title='$hint' id='ETV$id_body'>"
         ,  @{$title_open_brace}
         , '{<br />');
@@ -763,7 +869,7 @@ sub visualize_et_node($$$$)
       for (my $i = 1; $exprs[$i]; $i++)
       {
         # These expressions haven't links to sources.
-        my $title_block_body = get_line_title('', 0, $visual{'indent'});
+        my $title_block_body = get_line_title('', 0, $visual{'indent'}, '');
         push(@node_visualized, '<br />', @{$title_block_body}, "$exprs[$i];");
       }
       push(@node_visualized, "</span>");
@@ -801,7 +907,7 @@ sub visualize_et_node($$$$)
     foreach my $child (@{$node{'children'}})
     {
       my $child_visualized_ref = visualize_et_node($child, $srcs_ref
-        , {'indent' => $visual{'indent'} + 1}, $id_ref);
+        , {'indent' => $visual{'indent'} + 1}, $id_ref, $locs_ref);
       push(@node_visualized, @{$child_visualized_ref});
     }
   }
@@ -817,7 +923,7 @@ sub visualize_et_node($$$$)
     }
     else
     {
-      my $title_close_brce = get_line_title('', 0, $visual{'indent'});
+      my $title_close_brce = get_line_title('', 0, $visual{'indent'}, '');
       push(@node_visualized, @{$title_close_brce}
         , '}</div>');
     }
