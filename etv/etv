@@ -652,7 +652,7 @@ sub visualize_et($$$$)
         if ($locs{$file_link}{$line_numb});
       # We assume here that the number of LOCs is less then 10^5.
       my $title = sprintf("%5d", $line_numb);
-      $title =~ s/(\d+)/<span class='ETVSrcLN'>$anchor$1 <\/span>/;
+      $title = "<span class='ETVSrcLN'>$anchor$title <\/span>";
       push(@et_visualized
         , $title
         , $line);
