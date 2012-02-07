@@ -7,6 +7,7 @@ use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
+use Tie::Hash::Indexed;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl");
@@ -527,6 +528,69 @@ sub visualize_et($$$$)
     , "      Error trace"
     , "    </div>");
 
+  # Print ETV menu.
+  push(@et_visualized
+    , "<div id='ETVErrorTraceHeader'>"
+    # Menu for expanding of main entities.
+    , "  <div id='ETVMenuMain'>"
+    , "    <form>");
+  tie my %main_entities, 'Tie::Hash::Indexed';
+  %main_entities = (
+      'ETVCallBody' => 'Function bodies'
+    , 'ETVBlock' => 'Blocks');
+  print(keys(%main_entities));
+  foreach my $entity_class (keys(%main_entities))
+  {
+    push(@et_visualized
+    , "      <div class='ETVMenuMainItem'><input type='checkbox' id='${entity_class}Menu' />$main_entities{$entity_class}</div>")
+  }
+  push(@et_visualized
+    , "    </form>"
+    , "  </div>");
+  # Others entities expanding is available through the advanced menu.
+  push(@et_visualized
+    , "  <ul id='ETVMenuOthers'>"
+    , "    <li><div>Others...</div>"
+    , "      <form style='display: none;'>");
+
+  tie my %other_entities, 'Tie::Hash::Indexed';
+  %other_entities = (
+      'ETVIntellectualCallBody' => 'Function bodies without model function calls'
+    , 'ETVCallInit' => 'Initialization function calls'
+    , 'ETVCallInitBody' => 'Initialization function bodies'
+    , 'ETVCallEntry' => 'Entry point'
+    , 'ETVCallEntryBody' => 'Entry point body'
+    , 'ETVCall' => 'Function calls'
+    , 'ETVCallSkip' => 'Skipped function calls'
+    , 'ETVCallFormalParamName' => 'Formal parameter names'
+    , 'ETVAssume' => 'Assumes'
+    , 'ETVAssumeCond' => 'Assume conditions'
+    , 'ETVRet' => 'Returns'
+    , 'ETVRetVal' => 'Return values'
+    , 'ETVDEGInit' => 'DEG initialization'
+    , 'ETVDEGCall' => 'DEG function calls'
+    , 'ETVModelCall' => 'Model function calls'
+    , 'ETVModelCallBody' => 'Model function bodies'
+    , 'ETVModelAssert' => 'Model asserts'
+    , 'ETVModelChangeState' => 'Model state changes'
+    , 'ETVModelCallCall' => 'Model function function calls'
+    , 'ETVModelCallCallBody' => 'Model function function bodies'
+    , 'ETVModelRet' => 'Model returns'
+    , 'ETVModelOther' => 'Model others'
+    , 'ETVI' => 'Identation'
+    , 'ETVLN' => 'Line numbers'
+    , 'ETVExpand' => 'Expand signs');
+  foreach my $entity_class (keys(%other_entities))
+  {
+    push(@et_visualized
+    , "        <input type='checkbox' id='${entity_class}Menu' />$other_entities{$entity_class}<br />")
+  }
+  push(@et_visualized
+    , "      </form>"
+    , "    </li>"
+    , "  </ul>"
+    , "</div>");
+
   print_debug_debug("Visualize an error trace itself");
   # Remember visited locations to simplify source code references.
   my %locs;
@@ -824,7 +888,7 @@ sub visualize_et_node($$$$$)
       elsif ($kind eq 'ENTRY')
       {
         # Use an artificial name for an entry point if there isn't.
-        $text = 'entry_point()' unless $text;
+        $text = 'entry_point' unless $text;
         $class = 'ETVCallEntry';
         $body_class = 'ETVCallEntryBody';
       }
