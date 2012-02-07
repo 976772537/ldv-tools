@@ -112,7 +112,7 @@ my @processed_trace;
 
 # cpa trace format is taken as
 # Line <number>: (N<number> -{<body>}-> N<number>)\n
-my $format_cpa_trace = 'Line (\d+): \(N(\d+) -\{(.*)\}-> N(\d+)\)\n';
+my $format_cpa_trace = 'Line (\d+):\s*\(?\s*N(\d+)\s*-\s*\{(.*)\}\s*->\s*N(\d+)\s*\)?\s*\n';
 
 # keeps identifier format
 my $format_name = '[a-zA-z_]\w+';
@@ -253,7 +253,8 @@ sub add_return($)
   unless (defined($tmp) and ($tmp =~ /$format_cpa_trace/) and ($3 =~ /^$format_node{'return edge'}$/))
   {
     print_error('Return edge was expected on trace line '.$trace_line_number.', but found '."'".$tmp."'");
-    unget_line($tmp);
+    # cpachecker changes its error trace format a bit, so just warn about this.
+    #unget_line($tmp);
   }
 }
 
