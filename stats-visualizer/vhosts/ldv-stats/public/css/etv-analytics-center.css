@@ -1,4 +1,4 @@
-/* Linuxtesting.org bindings. */
+/* LDV Analytics Center bindings. */
 #ETVErrorTrace
 {
   height: 450px;
@@ -8,30 +8,31 @@
 .ETVHelp
 {
   color: #000000;
-  display: none;
+  display: block;
   font-size: 12px;
   font-style: normal;
-  font-weight: normal; 
-  width: 1000px; 
+  font-weight: normal;
+  width: 1000px;
 }
 
-#ETVTabs 
+#ETVTabs
 {
   width: 600px;
 }
 
-#ETVShowHideMenuOthers li 
+#ETVShowHideMenuOthers li
 {
   width: 146px;
 }
 
-#ETVTabsHeader li.ETVActive 
+#ETVTabsHeader li.ETVActive
 {
   width: 200px;
 }
 
-#ETVTabs div 
+#ETVTabs div
 {
-  height: 450px;  
+  height: 450px;
 }
+
 
