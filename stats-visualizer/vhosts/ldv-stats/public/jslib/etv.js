@@ -150,14 +150,7 @@ $.each(showEntityClass, function(entity_class, isshow) {
       $('a.#' + entity_class + 'Expand').click();
     });
   });
-
-  // Hide those elements of error trace that aren't very usefull.
-  $(document).ready(function() {
-    if (!isshow)
-      $('#' + entity_class + 'Menu').change().attr('checked', false);
-  });
 });
-
 
 // Print intellectual global expanding plugin that allows to collapse all
 // function bodies that don't contain model function calls at any level of
@@ -173,7 +166,7 @@ $(document).ready(function() {
       });
       if (!isFuncBodyHasModelFuncCall) {
         if ($(this).css('display') != 'none') {
-          $('#' + $(this).attr('id') + 'Expand').click();
+          $('#ETVExpand' + getIdOfExpandEntity($(this))).click();
         }
       }
     });
@@ -187,9 +180,17 @@ $(document).ready(function() {
       });
       if (!isFuncBodyHasModelFuncCall) {
         if ($(this).css('display') == 'none') {
-          $('#' + $(this).attr('id') + 'Expand').click();
+          $('#ETVExpand' + getIdOfExpandEntity($(this))).click();
         }
       }
     });
+  });
+});
+
+// Hide those elements of error trace that aren't very usefull.
+$.each(showEntityClass, function(entity_class, isshow) {
+  $(document).ready(function() {
+    if (!isshow)
+      $('#' + entity_class + 'Menu').change().attr('checked', false);
   });
 });
