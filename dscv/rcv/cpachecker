@@ -165,7 +165,7 @@ my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 
 # CPAchecker itself sets up its own memory limit (as of today, the default is 1200 Mbs of Java heap size.)  However, if it just doesn't work, we don't want our machine to get stuck, so we set up a limit of ~2.2 Gb by default.... well, just in case.  The "cases" we observed (char/ipmi/ipmi_watchdog.ko) demonstrate that this is a good estimate of 1.0 Gb of the actual resident memory taken.
 set_limits(
-	memlimit => 2_200_000,
+	# memlimit => 2_200_000, #RCV_MEMLIMIT does not work if this limit is set up
 	# Signal that CPAchecker should be killed with SIGKILL, instead of TERM-wait-KILL sequence.  This is a bug in LDV tools, to be fixed.
 	kill_at_once => 1,
 );
