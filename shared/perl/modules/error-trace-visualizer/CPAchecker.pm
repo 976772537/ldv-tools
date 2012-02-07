@@ -135,7 +135,7 @@ my %format_node = (
     'function call' => '((.*\W)?'.$format_name.' *\(.*)',
     'init' => 'INIT GLOBAL VARS',
     'pred' => '\[(.*)\]',
-    'return edge' => 'Return Edge to (\d+)',
+    'return edge' => 'Return edge from (.*) to (.*)',
     'start edge' => 'Function start dummy edge'
   );
 
