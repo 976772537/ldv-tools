@@ -739,9 +739,8 @@ sub visualize_et_node($$$$$)
   my $file_srcs = '';
   foreach my $srcs_file (keys(%{$srcs{'srcs'}}))
   {
-    # A node file is either an absolute or a relative path but it always bigger
-    # then corresponding related sources file name.
-    if ($file =~ /\Q$srcs_file\E$/)
+    # We assume that a node file corresponds just to one related sources file.
+    if ($file =~ /\Q$srcs_file\E$/ or $srcs_file =~ /\Q$file\E$/)
     {
       if ($file_srcs)
       {
