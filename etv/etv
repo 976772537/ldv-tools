@@ -7,7 +7,6 @@ use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
-use URI::Escape;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl");
@@ -23,6 +22,13 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+# Replace some characters into a given file path to make a correct link from it.
+# Note that it should be accepted by jquery as well (see
+# http://api.jquery.com/category/selectors/).
+# args: a file path.
+# retn: a link corresponding to the given file path.
+sub convert_file_to_link($);
 
 # Obtain html code that allows local expanding of entities.
 # args: current id.
@@ -150,6 +156,17 @@ print_debug_normal("Make all successfully");
 # Subroutines.
 ################################################################################
 
+sub convert_file_to_link($)
+{
+  my $file_path = shift;
+
+  # Replace slashes and points with '_'.
+  $file_path =~ s/\//_/g;
+  $file_path =~ s/\./_/g;
+
+  return $file_path;
+}
+
 sub get_expand_local($)
 {
   my $id = shift;
@@ -178,7 +195,7 @@ sub get_line_title($$$$)
     # Generate a link to a corresponding source code if so.
     if ($file)
     {
-      $file = uri_escape($file);
+      $file = convert_file_to_link($file);
       # Make just a line number itself as a link to avoid underlining of spaces.
       $line_str =~ s/(\d+)/<a href='#$file:$line'>$1<\/a>/;
       # Remember that we do reference to the given location.
@@ -535,14 +552,14 @@ sub visualize_et($$$$)
     my $file_short = $1;
     push(@et_visualized
     , "        <li><a title='$file_short' href='#"
-      . uri_escape($file) . "'>$file_short</a></li>");
+      . convert_file_to_link($file) . "'>$file_short</a></li>");
   }
   push(@et_visualized
     , "      </ul>");
 
   foreach my $file (sort(keys(%{$srcs{'srcs'}})))
   {
-    my $file_link = uri_escape($file);
+    my $file_link = convert_file_to_link($file);
     push(@et_visualized, "      <div id='$file_link' class='ETVSrc'>");
 
     # Make syntax highlighting of the source code.
