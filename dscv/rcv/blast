@@ -31,7 +31,6 @@ push @blast_options,
 	"-predH","7","-craig","2",	# Default heuristics on
 	"-ignoredupfn", # Ignore duplicated functions when constructing CFA
 	"-nosserr", # Ignore "combining structure and non-structure values" error.  LLVM emits such nasty code.
-	"-skipnorm",# Do not try to normalize predicates within BLAST.  Solvers do it much faster.
 	"-enable-recursion",# Allow recursive call graphs, but cut out the actual recursive calls
 ;
 
