@@ -9,6 +9,10 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
 
+# Error trace common format supported version.
+my $et_supported_format = '0.1';
+
+
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
@@ -16,6 +20,7 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 sub _Lexer($);
 sub _Error($);
 sub parse_et($);
+sub parse_et_non_common($);
 sub read_next_line($);
 
 
@@ -84,12 +89,68 @@ sub parse_et($)
 {
   my $fh = shift;
 
-  my $parser = ETV::Parser->new();
-  $parser->YYData->{FH} = $fh;
-  $parser->YYData->{LINE} = 0;
-  my $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
+  my $et;
+
+  print_debug_trace("Check that a given error trace is in the common format of"
+    . " the supported format");
+  my $header = <$fh>;
+  if (defined($header))
+  {
+    if ($header =~ /^Error trace common format v(.+)\n$/
+      and $1 eq $et_supported_format)
+    {
+      print_debug_debug("A given error trace is in the common format of"
+        . " the supported format ('$et_supported_format')");
+      my $parser = ETV::Parser->new();
+      $parser->YYData->{FH} = $fh;
+      $parser->YYData->{LINE} = 1;
+      $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
+    }
+    else
+    {
+      my $version = $1 || '';
+      print_debug_warning("A given error trace isn't in the common format of"
+        . " the supported format ('$et_supported_format'). '$version' version"
+        . " is specified");
+      my @et = ($header, <$fh>);
+      $et = parse_et_non_common(\@et);
+    }
+  }
 
   return $et;
+}
+
+sub parse_et_non_common($)
+{
+  my $et = shift;
+
+  # Create ROOT node just as well for error traces in the common format.
+  my $root = {
+      'line' => undef
+    , 'file' => undef
+    , 'type' => 'ROOT'
+    , 'kind' => undef
+    , 'skip_reason' => undef
+    , 'formal_arg_names' => undef
+    , 'text' => undef};
+
+  # All error trace lines are simply children of this node.
+  my @children;
+  foreach my $line (@{$et})
+  {
+    my $child = {
+        'line' => undef
+      , 'file' => undef
+      , 'type' => undef
+      , 'kind' => undef
+      , 'skip_reason' => undef
+      , 'formal_arg_names' => undef
+      , 'text' => $line};
+    push(@children, $child);
+  }
+  $root->{'children'} = \@children;
+
+  return $root;
 }
 
 sub read_next_line($)

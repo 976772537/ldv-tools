@@ -154,6 +154,7 @@ my $et_conv = convert_error_trace_to_common($et_parsed);
 print_debug_debug("Error trace was converted to the common format successfully");
 my $str = join("\n", @{$et_conv});
 print_debug_info("Print common error trace");
+print({$opts->{'fh out'}} "Error trace common format v0.1\n");
 print({$opts->{'fh out'}} $str);
 print_debug_debug("Common error trace was printed successfully");
 
