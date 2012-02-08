@@ -191,20 +191,6 @@ $description .= "$stopsep\n";
 #Add aliases info
 $description .= ($ENV{'BLAST_EXP_NOLATTICE'} ? "No lattice\n" : '').($ENV{'BLAST_ALIASES'} ? "With aliases\n" : '');
 
-# Convert obtained error trace to the common format. Also keep the original one.
-my $error_trace_original = $error_trace;
-my $error_trace_common = $error_trace_original . '.common';
-my @et_conv = ("$installed_frontends_dir/blast-et-conv.pl",
-	"--report=$error_trace",
-	"--report-out=$error_trace_common");
-local $"=" ";
-vsay('INFO', "Calling BLAST error trace converter: @et_conv\n");
-system(@et_conv);
-die("BLAST error trace converter (@et_conv) failed\n")
-	if (check_system_call());
-# From now error trace is in the common format.
-$error_trace = $error_trace_common;
-
 result(
 	# verdict and description should be specified; an error trace is also required if the verdict is "unsafe"
 	verdict => $verdict,
@@ -212,7 +198,6 @@ result(
 	error_trace => $error_trace,
 	# Additional files that are important
 	verifier_out => $debug_trace,
-	error_trace_original => $error_trace_original,
 );
 
 #===================
