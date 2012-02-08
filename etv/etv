@@ -1122,7 +1122,7 @@ sub visualize_et_node($$$$$)
   # Visualize error traces that aren't in the well-built common format.
   if (!$type)
   {
-    push(@node_visualized, "$text<br />");
+    push(@node_visualized, @{$title}, "$text<br />");
   }
 
   return \@node_visualized;
