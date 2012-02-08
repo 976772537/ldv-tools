@@ -101,7 +101,7 @@ convert_et_to_common($opts);
 print_debug_debug("Parse the error trace in the common format");
 my $et = ETV::Library::parse_et($opts->{'fh in'});
 
-if (!$et)
+if (!defined($et))
 {
   print_debug_warning("Error trace wasn't parsed");
   exit(1);

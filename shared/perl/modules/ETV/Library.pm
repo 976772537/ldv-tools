@@ -101,10 +101,18 @@ sub parse_et($)
     {
       print_debug_debug("A given error trace is in the common format of"
         . " the supported format ('$et_supported_format')");
-      my $parser = ETV::Parser->new();
-      $parser->YYData->{FH} = $fh;
-      $parser->YYData->{LINE} = 1;
-      $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
+      if (eof($fh))
+      {
+        print_debug_warning("Error trace is empty");
+        $et = {};
+      }
+      else
+      {
+        my $parser = ETV::Parser->new();
+        $parser->YYData->{FH} = $fh;
+        $parser->YYData->{LINE} = 1;
+        $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
+      }
     }
     else
     {
