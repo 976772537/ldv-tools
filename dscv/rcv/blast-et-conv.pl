@@ -280,16 +280,70 @@ sub convert_tree_node_to_common($)
     $context = '';
   }
 
+  # Remove so-called BLASTisms and make a given error trace to look nicer.
   if (my $val = ${$node->{'values'}}[0])
   {
     # Remove entities scope.
     $val =~ s/@\w+//g;
 
-    # Replace ' +' with ' ', ' )' with ')' and '* (' with '*('.
+    # Replace multiple spaces with ' ', ' )' with ')' and '* (' with '*('.
     $val =~ s/ +/ /g;
-    # TODO is this required?
     $val =~ s/ \)/\)/g;
     $val =~ s/\* \(/\*\(/g;
+
+    # Replace 'A foffset B' with '&(A)->B' in the "recursive" way.
+    while ($val =~ /(\w+|&\(\w+\))\s+foffset\s+\w+/)
+    {
+      # Collect all foffset operands for a given expression. Note that just the
+      # first can be '&(...)' while others are simple identifiers.
+      my @foffset_ops = ();
+      my $text_for_replacement;
+      if ($val =~ /((\w+|&\(\w+\))\s+foffset\s+)/)
+      {
+        $text_for_replacement = $1;
+        push(@foffset_ops, $2);
+        my $str_end = $POSTMATCH;
+
+        while (1)
+        {
+          if ($str_end =~ /^(\w+)/)
+          {
+            $text_for_replacement .= $1;
+            push(@foffset_ops, $1);
+
+            $str_end = $POSTMATCH;
+
+            if ($str_end =~ /^(\s+foffset\s+)/)
+            {
+              $text_for_replacement .= $1;
+              $str_end = $POSTMATCH
+            }
+            else
+            {
+              last;
+            }
+          }
+          else
+          {
+            print_debug_warning("Trace format isn't supported");
+          }
+        }
+        # Make required conversion.
+        while (scalar(@foffset_ops) > 1)
+        {
+          my $op1 = shift(@foffset_ops);
+          my $op2 = shift(@foffset_ops);
+
+          unshift(@foffset_ops, "\&($op1)->$op2");
+        }
+        # Replace initial string with the obtained one.
+        $val =~ s/\Q$text_for_replacement\E/$foffset_ops[0]/;
+      }
+      else
+      {
+        print_debug_warning("Trace format isn't supported");
+      }
+    }
 
     $node_common .= ": $val";
   }
