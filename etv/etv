@@ -17,12 +17,19 @@ use Text::Highlight;
 # Add some nonstandard local Perl packages.
 use ETV::Library;
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
-  print_debug_debug print_debug_trace print_debug_all get_debug_level);
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
+  check_system_call);
 
 
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+# Convert a given error trace to the common format in depend on an engine
+# specified.
+# args: options hash.
+# retn: nothing.
+sub convert_et_to_common($);
 
 # Replace some characters into a given file path to make a correct link from it.
 # Note that it should be accepted by jquery as well (see
@@ -89,7 +96,10 @@ get_debug_level('etv', $LDV_DEBUG, $LDV_ETV_DEBUG);
 print_debug_debug("Process command-line options");
 my $opts = get_opt();
 
-print_debug_debug("Parse an error trace specified");
+print_debug_debug("Convert an error trace specified to the common format");
+convert_et_to_common($opts);
+
+print_debug_debug("Parse the error trace in the common format");
 my $et = ETV::Library::parse_et($opts->{'fh in'});
 
 if (!$et)
@@ -130,7 +140,7 @@ else
 
 print_debug_debug("Close file handlers");
 close($opts->{'fh in'})
-  or die("Can't close file handler for '" . $opts->{'fh in'} . "': $ERRNO\n");
+  or die("Can't close file handler for '" . $opts->{'in'} . "': $ERRNO\n");
 if ($opts->{'fh reqs out'})
 {
   close($opts->{'fh reqs out'})
@@ -156,6 +166,37 @@ print_debug_normal("Make all successfully");
 ################################################################################
 # Subroutines.
 ################################################################################
+
+sub convert_et_to_common($)
+{
+  my $opts = shift;
+
+  my $engine = $opts->{'engine'};
+
+  my $etv_conv = "$FindBin::RealBin/../etv/converters/$engine";
+  if (-x $etv_conv)
+  {
+    my $in_common = $opts->{'in'} . '.common';
+
+    # Convert a given error trace.
+    my @args = ($etv_conv, "-c", $opts->{'in'}, "-o", $in_common);
+    print_debug_info("Execute command '@args'");
+    system(@args);
+    die("'$engine' converter fails") if (check_system_call());
+
+    # From now use a error trace in the common format.
+    open(my $fh_in_common, '<', $in_common)
+      or die("Can't open file '$in_common' for read: $ERRNO");
+
+    $opts->{'fh in'} = $fh_in_common;
+    $opts->{'in'} = $in_common;
+  }
+  else
+  {
+    print_debug_warning("Converter for engine '$engine' doesn't exist");
+    # Thus visualize a error trace specified as is.
+  }
+}
 
 sub convert_file_to_link($)
 {
@@ -259,6 +300,7 @@ sub get_opt()
       . " option --engine");
     help();
   }
+  print_debug_debug("'$engine' error trace engine is specified");
 
   unless ($in)
   {
@@ -306,7 +348,8 @@ sub get_opt()
 
   print_debug_debug("Command-line options were processed successfully");
 
-  return {'in' => $in
+  return {'engine' => $engine
+    , 'in' => $in
     , 'fh in' => $fh_in
     , 'out' => $out
     , 'fh out' => $fh_out
