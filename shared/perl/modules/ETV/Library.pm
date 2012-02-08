@@ -89,7 +89,7 @@ sub parse_et($)
 {
   my $fh = shift;
 
-  my $et;
+  my $et = {};
 
   print_debug_trace("Check that a given error trace is in the common format of"
     . " the supported format");
@@ -104,7 +104,6 @@ sub parse_et($)
       if (eof($fh))
       {
         print_debug_warning("Error trace is empty");
-        $et = {};
       }
       else
       {
