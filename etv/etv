@@ -817,8 +817,7 @@ sub visualize_et_node($$$$$)
   if ($file)
   {
     $file =~ /([^\/]*)$/;
-    my $file_short = $1;
-    my $file_srcs = '';
+    $file_short = $1;
 
     foreach my $srcs_file (keys(%{$srcs{'srcs'}}))
     {
