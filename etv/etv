@@ -746,23 +746,29 @@ sub visualize_et_node($$$$$)
   my $skip_reason = $node{'skip_reason'} || '';
   my $text = $node{'text'} || '';
 
-  # Get short name and related sources name of a node file.
-  $file =~ /([^\/]*)$/;
-  my $file_short = $1;
+  # Get short name and related sources name for a node file if so.
+  my $file_short = '';
   my $file_srcs = '';
-  foreach my $srcs_file (keys(%{$srcs{'srcs'}}))
+  if ($file)
   {
-    # We assume that a node file corresponds just to one related sources file.
-    if ($file =~ /\Q$srcs_file\E$/ or $srcs_file =~ /\Q$file\E$/)
+    $file =~ /([^\/]*)$/;
+    my $file_short = $1;
+    my $file_srcs = '';
+
+    foreach my $srcs_file (keys(%{$srcs{'srcs'}}))
     {
-      if ($file_srcs)
+      # We assume that a node file corresponds just to one related sources file.
+      if ($file =~ /\Q$srcs_file\E$/ or $srcs_file =~ /\Q$file\E$/)
       {
-        print_debug_warning("A given node file matches more then one sources"
-          . " a file name");
-      }
-      else
-      {
-        $file_srcs = $srcs_file;
+        if ($file_srcs)
+        {
+          print_debug_warning("A given node file matches more then one sources"
+            . " a file name");
+        }
+        else
+        {
+          $file_srcs = $srcs_file;
+        }
       }
     }
   }
