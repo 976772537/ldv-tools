@@ -108,10 +108,16 @@ sub parse_et($)
     }
     else
     {
-      my $version = $1 || '';
-      print_debug_warning("A given error trace isn't in the common format of"
-        . " the supported format ('$et_supported_format'). '$version' version"
-        . " is specified");
+      if ($1)
+      {
+        print_debug_warning("A given error trace isn't in the common format of"
+          . " the supported format ('$et_supported_format'). Version '$1' is"
+          . " specified");
+      }
+      else
+      {
+        print_debug_warning("A given error trace isn't in the common format");
+      }
       my @et = ($header, <$fh>);
       $et = parse_et_non_common(\@et);
     }
