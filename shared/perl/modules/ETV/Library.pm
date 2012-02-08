@@ -36,7 +36,10 @@ sub _Lexer($)
     or $parser->YYData->{INPUT} = read_next_line($parser)
     or return ('', undef);
 
-  $parser->YYData->{INPUT} =~ s/^[ \t]//;
+  # Elimate all formatting characters from the beginning of string considered.
+  $parser->YYData->{INPUT} =~ s/^[ \t]+//;
+  # Check whether EOF is reached. In this case finish a current line with EOL.
+  return ("\n", "\n") if (!$parser->YYData->{INPUT});
 
   # Skip comments elsewhere except in TEXT. Comments may be in php style.
   if ($parser->YYData->{INPUT} !~ /^\:/)
