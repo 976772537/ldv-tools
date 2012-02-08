@@ -235,10 +235,11 @@ sub get_opt()
   }
   print_debug_trace("Options '@ARGV' were passed through the command-line");
 
-  my ($help, $in, $out, $reqs_out, $srcs);
+  my ($engine, $help, $in, $out, $reqs_out, $srcs);
   my ($fh_in, $fh_out, $fh_reqs_out, $fh_srcs);
 
   unless (GetOptions(
+    'engine=s' => \$engine,
     'help|h' => \$help,
     'report|c=s' => \$in,
     'report-out|o=s' => \$out,
@@ -252,9 +253,17 @@ sub get_opt()
 
   help() if ($help);
 
+  unless ($engine)
+  {
+    warn("You should specify a error trace engine by means of command-line"
+      . " option --engine");
+    help();
+  }
+
   unless ($in)
   {
-    warn("You should specify command-line option --report (-c)");
+    warn("You should specify a error trace to be processed by means of"
+      . "command-line option --report (-c)");
     help();
   }
 
@@ -330,12 +339,16 @@ sub help()
     print(STDERR << "EOM");
 
 NAME
-  $PROGRAM_NAME: visualizes error traces presented in the common format.
+  $PROGRAM_NAME: visualizes error traces of different verifiers.
 
 SYNOPSIS
   $PROGRAM_NAME [option...]
 
 OPTIONS
+
+  --engine <id>
+    <id> is an engine identifier (like 'blast' and so on) that
+    specifies a format of a given error trace.
 
   -h, --help
     Print this help and exit with 1.
