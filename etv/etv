@@ -202,8 +202,8 @@ sub convert_et_to_common($)
 
     if ($EVAL_ERROR)
     {
-      print_debug_warning("Couldn't convert error trace by means of"
-        ." '$etv_conv': $EVAL_ERROR");
+      print_debug_warning("Can't convert error trace by means of"
+        ." '$etv_conv_script': $EVAL_ERROR");
       return;
     }
 
