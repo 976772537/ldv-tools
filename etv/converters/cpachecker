@@ -5,6 +5,56 @@ use Env qw(LDV_CPACHECKER_ET_CONV_DEBUG);
 # retn: file, line, value.
 sub get_loc_and_val($);
 
+# We'd like to relate a given CPAchecker error trace with original source code,
+# not with the CIL one. So first of all build a map between sources.
+# Read a CIL source file from the beginning of the error trace.
+my %src_map;
+my $header = <$fh_in>;
+if (defined($header))
+{
+  if ($header =~ /^-------(.*)-------$/)
+  {
+    print_debug_debug("Process '$1' CIL source file");
+  }
+  else
+  {
+    print_debug_warning("A CIL source file isn't specified for a CPAchecker"
+      . " error trace processed");
+    exit(1);
+  }
+
+  my $src_cur = '';
+  my $src_line_cur = 0;
+  my $cil_line_cur = 1;
+  while (1)
+  {
+    my $str = <$fh_in>;
+    last if (!defined($str));
+
+    chomp($str);
+    last if ($str eq "--------------");
+
+    if ($str =~ /^#line (\d+) "([^"]+)"$/)
+    {
+      $src_line_cur = $1;
+      $src_cur = $2;
+    }
+    elsif ($str =~ /^#line (\d+)$/)
+    {
+      $src_line_cur = $1;
+    }
+    else
+    {
+      $src_map{$cil_line_cur} = {
+          'file' => $src_cur
+        , 'line' => $src_line_cur};
+      $src_line_cur++;
+    }
+
+    $cil_line_cur++;
+  }
+}
+
 # Read the whole error trace specified.
 my @et_raw = <$fh_in>;
 # Here a converted to the common format error trace will be written to.
@@ -95,11 +145,11 @@ while (@et_raw)
     {
       # Remove braces.
       $1 =~ /^\((.*)\)$/;
-      $text = ": $1;";
+      $text = ": $1";
     }
     else
     {
-      $text = ": ;";
+      $text = ": ";
     }
   }
   # Declaration is everything that ends with ';' except function calls, blocks
@@ -146,20 +196,6 @@ sub get_loc_and_val($)
   # At the beginning a node value equals to a node string.
   my $val = $str;
 
-  # Try to get a source code file reference.
-  my $src = '';
-  if ($val =~ /^\s*Src\s*([^:]+):/)
-  {
-    $val = $POSTMATCH;
-    # Use a corresponding path just in case when it exists and differs from the
-    # previous one.
-    if ($1 and $1 ne $src_prev)
-    {
-      $src = '"' . $1 . '"';
-      $src_prev = $1;
-    }
-  }
-
   # Try to get a corresponding line number.
   my $line = '';
   if ($val =~ /^\s*Line\s*([^:]+):/)
@@ -177,7 +213,31 @@ sub get_loc_and_val($)
   {
     print_debug_warning("A CPAchecker error trace specified has unsupported"
      . " format");
-    next;
+    exit(1);
+  }
+
+  # Try to get a corresponding source code location.
+  my $src = '';
+  if ($src_map{$line})
+  {
+    # Use a corresponding path just in case when it exists and differs from the
+    # previous one.
+    my $file = $src_map{$line}{'file'};
+    if ($file ne $src_prev)
+    {
+      $src = '"' . $file . '"';
+      $src_prev = $file;
+    }
+
+    # Also fix up a line number.
+    $line = $src_map{$line}{'line'};
+  }
+  # Do not treat zero line.
+  elsif ($line)
+  {
+    print_debug_warning("Can't find a corresponding source code for line"
+      . " '$line'");
+    exit(1);
   }
 
   return ($src, $line, $val);

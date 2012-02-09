@@ -242,13 +242,21 @@ if ($verdict eq 'unknown') {
 # This part should adjust the trace so that it resembles BLAST format.
 # For now, we have implemented a special converter for CPAchecker, but for any other tool, a converter should be implemented here.
 
-# For our CPAchecker converter to work, we just need to add the source file address.
-# Add "Src " declarations to the trace.  LDV tool that adjusts the error trace for CPAchecker will use them.
+# For our CPAchecker converter to work, we just need to add the source file to the trace.
+# LDV tool that adjusts the error trace for CPAchecker will use it.
 local $_;
 if ($verdict eq 'unsafe') {
 	open(ORIG_TRACE_FILE, '<', $orig_trace_fname) or die "Can't open file with cpachecker trace: \"$orig_trace_fname\", $!";
 	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cpachecker trace: \"$adjusted_trace_fname\", $!";
-	print TRACE_FILE "Src $_: " for @files;
+	for (@files) {    
+		open(SRC_FILE, '<', $_) or die "Can't open the source file: \"$_\", $!";    
+		print TRACE_FILE "-------$_-------\n";    
+		while(<SRC_FILE>) {      
+			print TRACE_FILE  $_    
+		}    
+		print TRACE_FILE "\n--------------\n";    
+		close(SRC_FILE);  
+	}
 	while (<ORIG_TRACE_FILE>) {
 		print TRACE_FILE $_;
 	}
