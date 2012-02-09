@@ -1,9 +1,9 @@
 use Env qw(LDV_CPACHECKER_ET_CONV_DEBUG);
 
 # Get from a string given a node location (file and line) and a node value.
-# args: a node string.
+# args: a node string, flag says whether a source reference should be updated.
 # retn: file, line, value.
-sub get_loc_and_val($);
+sub get_loc_and_val($$);
 
 # We'd like to relate a given CPAchecker error trace with original source code,
 # not with the CIL one. So first of all build a map between sources.
@@ -72,7 +72,7 @@ while (@et_raw)
   chomp($str);
   next if ($str =~ /^\s*$/);
 
-  my ($src, $line, $val) = get_loc_and_val($str);
+  my ($src, $line, $val) = get_loc_and_val($str, 1);
 
   # Do not treat empty nodes.
   next if ($val =~ /^\s*$/);
@@ -115,7 +115,7 @@ while (@et_raw)
     # See next line to understand whether a given function call is skipped.
     if (my $str_next = shift(@et_raw))
     {
-      my ($src_next, $line_next, $val_next) = get_loc_and_val($str_next);
+      my ($src_next, $line_next, $val_next) = get_loc_and_val($str_next, 0);
 
       if ($val_next eq 'Function start dummy edge')
       {
@@ -189,9 +189,10 @@ print_debug_info("Print common error trace");
 print($fh_common "Error trace common format v0.1\n");
 print($fh_common join("\n", @et_conv));
 
-sub get_loc_and_val($)
+sub get_loc_and_val($$)
 {
   my $str = shift;
+  my $issrc_prev_update = shift;
 
   # At the beginning a node value equals to a node string.
   my $val = $str;
@@ -223,11 +224,10 @@ sub get_loc_and_val($)
     # Use a corresponding path just in case when it exists and differs from the
     # previous one.
     my $file = $src_map{$line}{'file'};
-
     if ($file ne $src_prev)
     {
       $src = '"' . $file . '"';
-      $src_prev = $file;
+      $src_prev = $file if ($issrc_prev_update);
     }
 
     # Also fix up a line number.
