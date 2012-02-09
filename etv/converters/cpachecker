@@ -1,0 +1,182 @@
+use Env qw(LDV_CPACHECKER_ET_CONV_DEBUG);
+
+# Get from a string given a node location (file and line) and a node value.
+# args: a node string.
+# retn: file, line, value.
+sub get_loc_and_val($);
+
+# Read the whole error trace specified.
+my @et_raw = <$fh_in>;
+# Here a converted to the common format error trace will be written to.
+my @et_conv;
+
+# Print a path to source code file just one time if it isn't changed.
+my $src_prev = '';
+# To extract initialization section.
+my $isinit = 0;
+
+# Convert a raw error trace into the common format line by line.
+while (@et_raw)
+{
+  my $str = shift(@et_raw);
+  chomp($str);
+  next if ($str =~ /^\s*$/);
+
+  my ($src, $line, $val) = get_loc_and_val($str);
+
+  # Do not treat empty nodes.
+  next if ($val =~ /^\s*$/);
+
+  my $type = '';
+  my $kind = '';
+  my $skip_reason = '';
+  my $text = '';
+
+  # Begin an artificial initialization function call.
+  if ($val eq 'INIT GLOBAL VARS')
+  {
+    $type = 'CALL';
+    $kind = 'INIT';
+    $text = ': __CPAchecker_initialize()';
+    $isinit = 1;
+  }
+  elsif ($val eq 'Function start dummy edge')
+  {
+    # Begin an entry point that finishes a current initialization function call.
+    if ($isinit)
+    {
+      push(@et_conv, join(' ', (0, $src, 'RETURN', '', '')));
+      $type = 'CALL';
+      $kind = 'ENTRY';
+      $isinit = 0;
+    }
+  }
+  elsif ($val =~ /^\[(.*)\]$/)
+  {
+    $type = 'ASSUME';
+    $text = ": $1";
+  }
+  # Function call is either 'func(...)' or 'var = func(...);'.
+  elsif ($val =~ /^([_A-Za-z][_A-Za-z0-9]*\(.*\))$/
+    or $val =~ /^.* = ([_A-Za-z][_A-Za-z0-9]*\(.*\));$/)
+  {
+    $type = 'CALL';
+
+    # See next line to understand whether a given function call is skipped.
+    if (my $str_next = shift(@et_raw))
+    {
+      my ($src_next, $line_next, $val_next) = get_loc_and_val($str_next);
+
+      if ($val_next eq 'Function start dummy edge')
+      {
+        # Just ignore this string at all.
+      }
+      else
+      {
+        $skip_reason = 'SKIP("Function call is skipped due to function is undefined")';
+      }
+    }
+
+    $text = ": $1";
+  }
+  # Block is everything that contains ' = ' and finishes with ';' except
+  # function calls that contains an assignment.
+  elsif ($val =~ /^(.*) = (.*);$/)
+  {
+    $type = 'BLOCK';
+    $text = ": $1 = $2;";
+  }
+  elsif ($val =~ /^return\s*(.*);$/)
+  {
+    $type = 'RETURN';
+    if ($1)
+    {
+      # Remove braces.
+      $1 =~ /^\((.*)\)$/;
+      $text = ": $1;";
+    }
+    else
+    {
+      $text = ": ;";
+    }
+  }
+  # Declaration is everything that ends with ';' except function calls, blocks
+  # and returns.
+  # TODO see http://forge.ispras.ru/issues/2404.
+  elsif ($val =~ /^(.*);$/)
+  {
+    $type = 'BLOCK';
+    $text = ": $1;";
+  }
+  # Treat labels and gotos as usual blocks.
+  elsif ($val =~ /^Label: (.*)$/)
+  {
+    $type = 'BLOCK';
+    $text = ": $1:";
+  }
+  elsif ($val =~ /^Goto: (.*)$/)
+  {
+    $type = 'BLOCK';
+    $text = ": goto $1;";
+  }
+  elsif ($val =~ /^Return edge/)
+  {
+    next;
+  }
+  else
+  {
+    print_debug_warning("CPAchecker node value '$val' wasn't recognized");
+    $text = ": $val";
+  }
+
+  push(@et_conv, join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
+}
+
+print_debug_info("Print common error trace");
+# Add such the header to distinguish error traces in the common format.
+print($fh_common "Error trace common format v0.1\n");
+print($fh_common join("\n", @et_conv));
+
+sub get_loc_and_val($)
+{
+  my $str = shift;
+
+  # At the beginning a node value equals to a node string.
+  my $val = $str;
+
+  # Try to get a source code file reference.
+  my $src = '';
+  if ($val =~ /^\s*Src\s*([^:]+):/)
+  {
+    $val = $POSTMATCH;
+    # Use a corresponding path just in case when it exists and differs from the
+    # previous one.
+    if ($1 and $1 ne $src_prev)
+    {
+      $src = '"' . $1 . '"';
+      $src_prev = $1;
+    }
+  }
+
+  # Try to get a corresponding line number.
+  my $line = '';
+  if ($val =~ /^\s*Line\s*([^:]+):/)
+  {
+    $val = $POSTMATCH;
+    $line = $1 if (defined($1));
+  }
+
+  # Elimanate "brackets" from the rest part of a string.
+  if ($val =~ /^\s*N\d+\s*-\s*{\s*(.*)\s*}\s*-\s*>\s*N\d+$/)
+  {
+    $val = $1;
+  }
+  else
+  {
+    print_debug_warning("A CPAchecker error trace specified has unsupported"
+     . " format");
+    next;
+  }
+
+  return ($src, $line, $val);
+}
