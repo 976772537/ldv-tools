@@ -831,6 +831,8 @@ sub visualize_et_node($$$$$)
         }
         else
         {
+          print_debug_debug("A given node file '$file' matches '$srcs_file'"
+            . " sources file");
           $file_srcs = $srcs_file;
         }
       }
