@@ -223,6 +223,7 @@ sub get_loc_and_val($)
     # Use a corresponding path just in case when it exists and differs from the
     # previous one.
     my $file = $src_map{$line}{'file'};
+
     if ($file ne $src_prev)
     {
       $src = '"' . $file . '"';

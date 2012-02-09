@@ -388,6 +388,16 @@ sub get_reqs($$)
 
   my %node = %{$node_ref};
 
+  # Skip initialization dependencies since they refer to a large amount of
+  # sources. For instance, for BLAST error traces they refer to preprocessed
+  # sources while for CPAchecker error traces they refer to a lot of kernel
+  # headers.
+  if ($node{'type'} and $node{'type'} eq 'CALL'
+    and $node{'kind'} and $node{'kind'} eq 'INIT')
+  {
+    return;
+  }
+
   # Keep a requirement of a node itself.
   # Don't take into account entities that haven't line specified.
   ${$reqs}{$node{'file'}} = 1 if ($node{'file'} and $node{'line'});
