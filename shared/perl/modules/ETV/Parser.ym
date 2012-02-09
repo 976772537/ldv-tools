@@ -13,9 +13,9 @@ input:  #empty
     return ${$parser->YYData->{PARENTS}}[0];
   }
 }
-
+;
 str:    node '\n' { return $ARG[1]; }
-
+;
 node:   line file type kind skip_reason formal_arg_names_list text
 {
   my $parser = $ARG[0];
@@ -84,32 +84,32 @@ node:   line file type kind skip_reason formal_arg_names_list text
 
   return \%node;
 }
-
+;
 line:   #empty
         | LINE { return $ARG[1]; }
-
+;
 file:   #empty
         | FILE { return $ARG[1]; }
-
+;
 type:   #empty
         | TYPE { return $ARG[1]; }
-
+;
 kind:   #empty
         | KIND { return $ARG[1]; }
-
+;
 skip_reason:   #empty
         | SKIP_REASON { return $ARG[1]; }
-
+;
 formal_arg_names_list: #empty
         | formal_arg_names { return $ARG[1]; }
-
+;
 formal_arg_names: formal_arg_names arg_name { my @formal_arg_names = (@{$ARG[1]}, $ARG[2]); return \@formal_arg_names; }
         | arg_name { my @formal_arg_names = ($ARG[1]); return \@formal_arg_names; }
-
+;
 arg_name: ARG_NAME { return $ARG[1]; }
-
+;
 text:   #empty
         | TEXT { return $ARG[1]; }
-
+;
 %%
 
