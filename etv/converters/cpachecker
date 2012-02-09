@@ -56,9 +56,9 @@ while (@et_raw)
     $type = 'ASSUME';
     $text = ": $1";
   }
-  # Function call is either 'func(...)' or 'var = func(...);'.
-  elsif ($val =~ /^([_A-Za-z][_A-Za-z0-9]*\(.*\))$/
-    or $val =~ /^.* = ([_A-Za-z][_A-Za-z0-9]*\(.*\));$/)
+  # Function call is either 'func(...);?' or 'var = func(...);'.
+  elsif ($val =~ /^([_A-Za-z][_A-Za-z0-9]*\(.*\));?$/
+    or $val =~ /^(.* = [_A-Za-z][_A-Za-z0-9]*\(.*\));$/)
   {
     $type = 'CALL';
 
@@ -74,6 +74,8 @@ while (@et_raw)
       else
       {
         $skip_reason = 'SKIP("Function call is skipped due to function is undefined")';
+        # Return the next string back.
+        unshift(@et_raw, $str_next);
       }
     }
 
