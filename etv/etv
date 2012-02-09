@@ -814,13 +814,13 @@ sub visualize_et_node($$$$$)
   # Don't forget that each element of a given node is optional!
   # To avoid warnings about usage of uninitialized values in strings replace
   # undefs with ''.
-  my $file = $node{'file'} || '';
-  my $line = $node{'line'} || 0;
-  my $type = $node{'type'} || '';
-  my $kind = $node{'kind'} || '';
-  my $formal_arg_names = $node{'formal_arg_names'} || [];
-  my $skip_reason = $node{'skip_reason'} || '';
-  my $text = $node{'text'} || '';
+  my $file = $node{'file'} // '';
+  my $line = $node{'line'} // 0;
+  my $type = $node{'type'} // '';
+  my $kind = $node{'kind'} // '';
+  my $formal_arg_names = $node{'formal_arg_names'} // [];
+  my $skip_reason = $node{'skip_reason'} // '';
+  my $text = $node{'text'} // '';
 
   # Get short name and related sources name for a node file if so.
   my $file_short = '';
