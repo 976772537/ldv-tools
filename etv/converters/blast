@@ -1,4 +1,4 @@
-use Env qw(LDV_BLAST_ET_CONV_DEBUG);
+use Env qw(LDV_DEBUG LDV_BLAST_ET_CONV_DEBUG);
 
 # Add some nonstandard local Perl packages.
 use DSCV::RCV::Entity;

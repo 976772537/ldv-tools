@@ -1,4 +1,4 @@
-use Env qw(LDV_CPACHECKER_ET_CONV_DEBUG);
+use Env qw(LDV_DEBUG LDV_CPACHECKER_ET_CONV_DEBUG);
 
 # Get from a string given a node location (file and line) and a node value.
 # args: a node string, flag says whether a source reference should be updated.

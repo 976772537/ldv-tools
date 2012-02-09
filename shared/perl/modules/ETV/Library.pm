@@ -1,5 +1,9 @@
 package ETV::Library;
 
+require Exporter;
+@ISA = qw(Exporter);
+@EXPORT = qw(call_stacks_eq call_stacks_ne);
+
 use English;
 use strict;
 
@@ -17,9 +21,21 @@ my $et_supported_format = '0.1';
 # Subroutine prototypes.
 ################################################################################
 
+sub call_stacks_eq($$);
+sub call_substacks_eq($$);
+sub call_stacks_ne($$);
+sub get_call_substack($);
+
+# Convert a given error trace to the common format in depend on an engine
+# specified.
+# args: options hash.
+# retn: nothing.
+sub convert_et_to_common($);
+
 sub _Lexer($);
 sub _Error($);
 sub parse_et($);
+sub parse_et_array($);
 sub parse_et_non_common($);
 sub read_next_line($);
 
@@ -92,11 +108,20 @@ sub parse_et($)
 {
   my $fh = shift;
 
+  my @et = <$fh>;
+
+  return parse_et_array(\@et);
+}
+
+sub parse_et_array($)
+{
+  my $et_array_ref = shift;
+
   my $et = {};
 
   print_debug_trace("Check that a given error trace is in the common format of"
     . " the supported format");
-  my $header = <$fh>;
+  my $header = ${$et_array_ref}[0];
   if (defined($header))
   {
     if ($header =~ /^Error trace common format v(.+)\n$/
@@ -104,14 +129,17 @@ sub parse_et($)
     {
       print_debug_debug("A given error trace is in the common format of"
         . " the supported format ('$et_supported_format')");
-      if (eof($fh))
+      if (!${$et_array_ref}[1])
       {
         print_debug_warning("Error trace is empty");
       }
       else
       {
         my $parser = ETV::Parser->new();
-        $parser->YYData->{FH} = $fh;
+        $parser->YYData->{FH} = {
+            'et array ref' => $et_array_ref
+          , 'index' => 1
+        };
         $parser->YYData->{LINE} = 1;
         $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
       }
@@ -128,8 +156,7 @@ sub parse_et($)
       {
         print_debug_warning("A given error trace isn't in the common format");
       }
-      my @et = ($header, <$fh>);
-      $et = parse_et_non_common(\@et);
+      $et = parse_et_non_common($et_array_ref);
     }
   }
 
@@ -173,22 +200,63 @@ sub read_next_line($)
 {
   my $parser = shift;
 
-  my $fh = $parser->YYData->{FH};
+  my $et = $parser->YYData->{FH};
 
   $parser->YYData->{LINE}++;
 
-  return <$fh>;
+  return ${$et->{'et array ref'}}[$et->{'index'}++];
 }
 
+sub convert_et_to_common($)
+{
+  my $opts = shift;
 
+  my $engine = $opts->{'engine'};
 
+  my $etv_conv_script = "$FindBin::RealBin/../etv/converters/$engine";
+  if (-f $etv_conv_script)
+  {
+    open(ETV_CONV, '<', $etv_conv_script)
+      or die("Can't open file '$etv_conv_script' for read: $ERRNO");
+    my $etv_conv = join("", <ETV_CONV>);
+    close(ETV_CONV)
+      or die("Can't close file handler for '$etv_conv_script': $ERRNO\n");
 
-# FIXME!!!
+    # Open a file where an error trace in the common format will be written to.
+    my $in = $opts->{'in'};
+    my $fh_in = $opts->{'fh in'};
+    my $common = "$in.common";
+    open(my $fh_common, '>', $common)
+      or die("Can't open file '$common' for write: $ERRNO");
+    print_debug_debug("An error trace in the common format will be written to"
+      . " '$common'");
 
-sub call_stacks_eq($$);
-sub call_substacks_eq($$);
-sub call_stacks_ne($$);
-sub get_call_substack($);
+    print_debug_info("Evaluate '$engine' converter '$etv_conv_script'");
+    my $ret = eval("$etv_conv\n0;");
+
+    close($fh_common)
+      or die("Can't close file handler for '$common': $ERRNO\n");
+
+    if ($EVAL_ERROR)
+    {
+      print_debug_warning("Can't convert error trace by means of"
+        ." '$etv_conv_script': $EVAL_ERROR");
+      return;
+    }
+
+    # From now use a error trace in the common format.
+    open(my $fh_in_common, '<', $common)
+      or die("Can't open file '$common' for read: $ERRNO");
+
+    $opts->{'fh in'} = $fh_in_common;
+    $opts->{'in'} = $common;
+  }
+  else
+  {
+    print_debug_warning("Converter for engine '$engine' doesn't exist");
+    # Thus visualize a error trace specified as is.
+  }
+}
 
 
 sub call_stacks_eq($$)
@@ -200,16 +268,13 @@ sub call_stacks_eq($$)
   my @et2 = split(/\n/, $et2);
 
   # First of all obtain trees representing both error traces.
-  # TODO We hardcode 'blast' engine here but this should be fixed!
-  my $et1_processed = parse_error_trace({'engine' => 'blast', 'error trace' => \@et1});
-  my $et1_tree_root = $et1_processed->{'error trace tree root node'};
-  my $et2_processed = parse_error_trace({'engine' => 'blast', 'error trace' => \@et2});
-  my $et2_tree_root = $et2_processed->{'error trace tree root node'};
+  my $et1_root = parse_et_array(\@et1);
+  my $et2_root = parse_et_array(\@et2);
   print_debug_debug("Error traces were parsed successfully");
 
   # Then obtain function call stacks from obtained trees.
-  my $et1_call_stack = get_call_substack($et1_tree_root);
-  my $et2_call_stack = get_call_substack($et2_tree_root);
+  my $et1_call_stack = get_call_substack($et1_root);
+  my $et2_call_stack = get_call_substack($et2_root);
   print_debug_debug("Error trace call stacks were obtained successfully");
 
   if (call_substacks_eq($et1_call_stack, $et2_call_stack))
@@ -272,24 +337,27 @@ sub get_call_substack($)
 
   # We are interesting just in function calls.
   return undef
-    if ($tree_node->{'kind'} ne 'Root' and $tree_node->{'kind'} !~ /^FunctionCall/);
+    if ($tree_node->{'type'}
+      and $tree_node->{'type'} ne 'ROOT'
+      and $tree_node->{'type'} ne 'CALL');
 
-  # Obtain a called function name. Note that artificial root tree node hasn't a name.
-  if ($tree_node->{'kind'} eq 'Root')
+  # Obtain a called function name. Note that artificial root tree node hasn't a
+  # name.
+  if ($tree_node->{'type'} and $tree_node->{'type'} eq 'ROOT')
   {
-    $call_stack{'name'} = '';
+    $call_stack{'name'} = 'undefined';
   }
   else
   {
-    my $val = ${$tree_node->{'values'}}[0];
-
-    if ($val =~ /=\s*([^\(]+)/ or $val =~ /\s*([^\(]+)/)
+    my $text = $tree_node->{'text'} // '';
+    if ($text =~ /=\s*([^\(]+)/ or $text =~ /\s*([^\(]+)/)
     {
       $call_stack{'name'} = $1;
     }
     else
     {
-      print_debug_warning("Can't find a function name in '$val'");
+      $call_stack{'name'} = 'undefined';
+      print_debug_warning("Can't find a function name in '$text'. '$call_stack{name}' is used instead");
     }
   }
 

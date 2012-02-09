@@ -24,12 +24,6 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 # Subroutine prototypes.
 ################################################################################
 
-# Convert a given error trace to the common format in depend on an engine
-# specified.
-# args: options hash.
-# retn: nothing.
-sub convert_et_to_common($);
-
 # Replace some characters into a given file path to make a correct link from it.
 # Note that it should be accepted by jquery as well (see
 # http://api.jquery.com/category/selectors/).
@@ -96,7 +90,7 @@ print_debug_debug("Process command-line options");
 my $opts = get_opt();
 
 print_debug_debug("Convert an error trace specified to the common format");
-convert_et_to_common($opts);
+ETV::Library::convert_et_to_common($opts);
 
 print_debug_debug("Parse the error trace in the common format");
 my $et = ETV::Library::parse_et($opts->{'fh in'});
@@ -165,60 +159,6 @@ print_debug_normal("Make all successfully");
 ################################################################################
 # Subroutines.
 ################################################################################
-
-sub convert_et_to_common($)
-{
-  my $opts = shift;
-
-  my $engine = $opts->{'engine'};
-
-  my $etv_conv_script = "$FindBin::RealBin/../etv/converters/$engine";
-  if (-f $etv_conv_script)
-  {
-    open(ETV_CONV, '<', $etv_conv_script)
-      or die("Can't open file '$etv_conv_script' for read: $ERRNO");
-    my $etv_conv = join("", <ETV_CONV>);
-    close(ETV_CONV)
-      or die("Can't close file handler for '$etv_conv_script': $ERRNO\n");
-
-    # Open a file where an error trace in the common format will be written to.
-    my $in = $opts->{'in'};
-    my $fh_in = $opts->{'fh in'};
-    my $common = "$in.common";
-    open(my $fh_common, '>', $common)
-      or die("Can't open file '$common' for write: $ERRNO");
-    print_debug_debug("An error trace in the common format will be written to"
-      . " '$common'");
-
-    print_debug_info("Evaluate '$engine' converter '$etv_conv_script'");
-    my $ret = eval("$etv_conv\n0;");
-
-    close($fh_common)
-      or die("Can't close file handler for '$common': $ERRNO\n");
-
-    # Obtain the debug level again since an evaluated script can change it.
-    get_debug_level('etv', $LDV_DEBUG, $LDV_ETV_DEBUG);
-
-    if ($EVAL_ERROR)
-    {
-      print_debug_warning("Can't convert error trace by means of"
-        ." '$etv_conv_script': $EVAL_ERROR");
-      return;
-    }
-
-    # From now use a error trace in the common format.
-    open(my $fh_in_common, '<', $common)
-      or die("Can't open file '$common' for read: $ERRNO");
-
-    $opts->{'fh in'} = $fh_in_common;
-    $opts->{'in'} = $common;
-  }
-  else
-  {
-    print_debug_warning("Converter for engine '$engine' doesn't exist");
-    # Thus visualize a error trace specified as is.
-  }
-}
 
 sub convert_file_to_link($)
 {
