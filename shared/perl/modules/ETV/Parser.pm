@@ -648,34 +648,22 @@ sub
 {
   my $parser = $ARG[0];
 
-  # Create artificial root tree node to keep first-level children.
-  if (!$ARG[1])
+  if ($parser->YYData->{PARENTS})
   {
-    $ARG[1] = {
-      'line' => undef
-      , 'file' => undef
-      , 'type' => 'ROOT'
-      , 'kind' => undef
-      , 'skip_reason' => undef
-      , 'formal_arg_names' => undef
-      , 'text' => undef};
-
-    push(@{$parser->YYData->{PARENTS}}, $ARG[1]);
+    return ${$parser->YYData->{PARENTS}}[0];
   }
-
-  return $ARG[1];
 }
 	],
 	[#Rule 3
 		 'str', 2,
 sub
-#line 32 "shared/perl/modules/ETV/Parser.ym"
+#line 20 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 4
 		 'node', 7,
 sub
-#line 35 "shared/perl/modules/ETV/Parser.ym"
+#line 23 "shared/perl/modules/ETV/Parser.ym"
 {
   my $parser = $ARG[0];
 
@@ -691,7 +679,6 @@ sub
     , 'formal_arg_names' => $ARG[6]
     , 'text' => $ARG[7]);
 
-
   # Do nothing when we encounter a line consisting just of whitespaces.
   return undef
     if (!$node{'line'} and !$node{'file'} and !$node{'type'} and !$node{'kind'} and !$node{'skip_reason'} and !$node{'foramal_arg_names'} and !$node{'text'});
@@ -704,19 +691,40 @@ sub
     return undef;
   }
 
+  # Create artificial root tree node to keep first-level children.
+  if (!$parser->YYData->{PARENTS})
+  {
+    my $root = {
+      'line' => undef
+      , 'file' => undef
+      , 'type' => 'ROOT'
+      , 'kind' => undef
+      , 'skip_reason' => undef
+      , 'formal_arg_names' => undef
+      , 'text' => undef};
+
+    push(@{$parser->YYData->{PARENTS}}, $root);
+  }
+
+for (my $i = 0; defined(${$parser->YYData->{PARENTS}}[$i]); $i++)
+{print("!" . ${${$parser->YYData->{PARENTS}}[$i]}{'type'})}
+print(" $ARG[7]\n");
+
   # Update children for a current parent.
-  push(@{${$parser->YYData->{PARENTS}}[-1]->{'children'}}, \%node)
-    if ($parser->YYData->{PARENTS} and scalar(@{$parser->YYData->{PARENTS}}));
+  if ($parser->YYData->{PARENTS} and scalar(@{$parser->YYData->{PARENTS}}))
+  {
+    push(@{${$parser->YYData->{PARENTS}}[-1]->{'children'}}, \%node)
+  }
+  else
+  {
+    $parser->YYData->{ERRMSG} = "Node parents are unbalanced";
+    $parser->YYError;
+    return undef;
+  }
 
   # Just 'CALL' nodes except 'ROOT' can be parents.
   if ($node{'type'} and $node{'type'} eq 'CALL')
   {
-    # 'ENTRY' finishes initialization section.
-    if ($node{'kind'} and $node{'kind'} eq 'ENTRY')
-    {
-      pop(@{$parser->YYData->{PARENTS}});
-    }
-
     # 'SKIP' doesn't start a parent.
     if (!$node{'kind'} or ($node{'kind'} and $node{'kind'} ne 'SKIP'))
     {
@@ -737,7 +745,7 @@ sub
 	[#Rule 6
 		 'line', 1,
 sub
-#line 90 "shared/perl/modules/ETV/Parser.ym"
+#line 98 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 7
@@ -746,7 +754,7 @@ sub
 	[#Rule 8
 		 'file', 1,
 sub
-#line 93 "shared/perl/modules/ETV/Parser.ym"
+#line 101 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 9
@@ -755,7 +763,7 @@ sub
 	[#Rule 10
 		 'type', 1,
 sub
-#line 96 "shared/perl/modules/ETV/Parser.ym"
+#line 104 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 11
@@ -764,7 +772,7 @@ sub
 	[#Rule 12
 		 'kind', 1,
 sub
-#line 99 "shared/perl/modules/ETV/Parser.ym"
+#line 107 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 13
@@ -773,7 +781,7 @@ sub
 	[#Rule 14
 		 'skip_reason', 1,
 sub
-#line 102 "shared/perl/modules/ETV/Parser.ym"
+#line 110 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 15
@@ -782,25 +790,25 @@ sub
 	[#Rule 16
 		 'formal_arg_names_list', 1,
 sub
-#line 105 "shared/perl/modules/ETV/Parser.ym"
+#line 113 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 17
 		 'formal_arg_names', 2,
 sub
-#line 107 "shared/perl/modules/ETV/Parser.ym"
+#line 115 "shared/perl/modules/ETV/Parser.ym"
 { my @formal_arg_names = (@{$ARG[1]}, $ARG[2]); return \@formal_arg_names; }
 	],
 	[#Rule 18
 		 'formal_arg_names', 1,
 sub
-#line 108 "shared/perl/modules/ETV/Parser.ym"
+#line 116 "shared/perl/modules/ETV/Parser.ym"
 { my @formal_arg_names = ($ARG[1]); return \@formal_arg_names; }
 	],
 	[#Rule 19
 		 'arg_name', 1,
 sub
-#line 110 "shared/perl/modules/ETV/Parser.ym"
+#line 118 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 20
@@ -809,7 +817,7 @@ sub
 	[#Rule 21
 		 'text', 1,
 sub
-#line 112 "shared/perl/modules/ETV/Parser.ym"
+#line 120 "shared/perl/modules/ETV/Parser.ym"
 { return $ARG[1]; }
 	]
 ],
@@ -817,7 +825,7 @@ sub
     bless($self,$class);
 }
 
-#line 114 "shared/perl/modules/ETV/Parser.ym"
+#line 122 "shared/perl/modules/ETV/Parser.ym"
 
 
 

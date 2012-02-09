@@ -1,8 +1,5 @@
 %{
 use English;
-
-# A currently processed file.
-my $file = undef;
 %}
 
 %%
@@ -11,42 +8,26 @@ input:  #empty
 {
   my $parser = $ARG[0];
 
-  # Create artificial root tree node to keep first-level children.
-  if (!$ARG[1])
+  if ($parser->YYData->{PARENTS})
   {
-    $ARG[1] = {
-      'line' => undef
-      , 'file' => undef
-      , 'type' => 'ROOT'
-      , 'kind' => undef
-      , 'skip_reason' => undef
-      , 'formal_arg_names' => undef
-      , 'text' => undef};
-
-    push(@{$parser->YYData->{PARENTS}}, $ARG[1]);
+    return ${$parser->YYData->{PARENTS}}[0];
   }
-
-  return $ARG[1];
 }
-;
+
 str:    node '\n' { return $ARG[1]; }
-;
+
 node:   line file type kind skip_reason formal_arg_names_list text
 {
   my $parser = $ARG[0];
 
-  # Change a currently processed file if a new path is specified.
-  $file = $ARG[2] if ($ARG[2]);
-
   my %node = (
     'line' => $ARG[1]
-    , 'file' => $file
+    , 'file' => $ARG[2]
     , 'type' => $ARG[3]
     , 'kind' => $ARG[4]
     , 'skip_reason' => $ARG[5]
     , 'formal_arg_names' => $ARG[6]
     , 'text' => $ARG[7]);
-
 
   # Do nothing when we encounter a line consisting just of whitespaces.
   return undef
@@ -60,19 +41,36 @@ node:   line file type kind skip_reason formal_arg_names_list text
     return undef;
   }
 
+  # Create artificial root tree node to keep first-level children.
+  if (!$parser->YYData->{PARENTS})
+  {
+    my $root = {
+      'line' => undef
+      , 'file' => undef
+      , 'type' => 'ROOT'
+      , 'kind' => undef
+      , 'skip_reason' => undef
+      , 'formal_arg_names' => undef
+      , 'text' => undef};
+
+    push(@{$parser->YYData->{PARENTS}}, $root);
+  }
+
   # Update children for a current parent.
-  push(@{${$parser->YYData->{PARENTS}}[-1]->{'children'}}, \%node)
-    if ($parser->YYData->{PARENTS} and scalar(@{$parser->YYData->{PARENTS}}));
+  if ($parser->YYData->{PARENTS} and scalar(@{$parser->YYData->{PARENTS}}))
+  {
+    push(@{${$parser->YYData->{PARENTS}}[-1]->{'children'}}, \%node)
+  }
+  else
+  {
+    $parser->YYData->{ERRMSG} = "Node parents are unbalanced";
+    $parser->YYError;
+    return undef;
+  }
 
   # Just 'CALL' nodes except 'ROOT' can be parents.
   if ($node{'type'} and $node{'type'} eq 'CALL')
   {
-    # 'ENTRY' finishes initialization section.
-    if ($node{'kind'} and $node{'kind'} eq 'ENTRY')
-    {
-      pop(@{$parser->YYData->{PARENTS}});
-    }
-
     # 'SKIP' doesn't start a parent.
     if (!$node{'kind'} or ($node{'kind'} and $node{'kind'} ne 'SKIP'))
     {
@@ -85,31 +83,33 @@ node:   line file type kind skip_reason formal_arg_names_list text
    if ($node{'type'} and $node{'type'} eq 'RETURN');
 
   return \%node;
-};
+}
+
 line:   #empty
         | LINE { return $ARG[1]; }
-;
+
 file:   #empty
         | FILE { return $ARG[1]; }
-;
+
 type:   #empty
         | TYPE { return $ARG[1]; }
-;
+
 kind:   #empty
         | KIND { return $ARG[1]; }
-;
+
 skip_reason:   #empty
         | SKIP_REASON { return $ARG[1]; }
-;
+
 formal_arg_names_list: #empty
         | formal_arg_names { return $ARG[1]; }
-;
+
 formal_arg_names: formal_arg_names arg_name { my @formal_arg_names = (@{$ARG[1]}, $ARG[2]); return \@formal_arg_names; }
         | arg_name { my @formal_arg_names = ($ARG[1]); return \@formal_arg_names; }
-;
-arg_name: ARG_NAME { return $ARG[1]; };
+
+arg_name: ARG_NAME { return $ARG[1]; }
+
 text:   #empty
         | TEXT { return $ARG[1]; }
-;
+
 %%
 
