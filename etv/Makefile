@@ -31,7 +31,7 @@ install:
 	mkdir -p $(mandir)
 	cp $(ETV) $(bindir)
 	mkdir -p $(prefix)/$(ETV_DIR)/$(CONVERTERS)
-	cp -r $(CONVERTERS) $(prefix)/$(ETV_DIR)/$(CONVERTERS)
+	cp -r $(CONVERTERS)/* $(prefix)/$(ETV_DIR)/$(CONVERTERS)
 
 test:
 	@echo The error trace visualizer doesn\'t have any test
