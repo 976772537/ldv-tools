@@ -30,7 +30,8 @@ install:
 	mkdir -p $(bindir)
 	mkdir -p $(mandir)
 	cp $(ETV) $(bindir)
-	cp -r --parents $(CONVERTERS) $(prefix)/$(ETV_DIR)
+	mkdir -p $(prefix)/$(ETV_DIR)/$(CONVERTERS)
+	cp -r $(CONVERTERS) $(prefix)/$(ETV_DIR)/$(CONVERTERS)
 
 test:
 	@echo The error trace visualizer doesn\'t have any test
