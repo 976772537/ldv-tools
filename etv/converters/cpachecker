@@ -154,11 +154,10 @@ while (@et_raw)
   }
   # Declaration is everything that ends with ';' except function calls, blocks
   # and returns.
-  # TODO see http://forge.ispras.ru/issues/2404.
   elsif ($val =~ /^(.*);$/)
   {
-    $type = 'BLOCK';
-    $text = ": $1;";
+    $type = 'DECLARATION';
+    $text = ": $1";
   }
   # Treat labels and gotos as usual blocks.
   elsif ($val =~ /^Label: (.*)$/)

@@ -650,6 +650,7 @@ sub visualize_et($$$$)
     , 'ETVCall' => 'Function calls'
     , 'ETVCallSkip' => 'Skipped function calls'
     , 'ETVCallFormalParamName' => 'Formal parameter names'
+    , 'ETVDecl' => 'Declarations'
     , 'ETVAssume' => 'Assumes'
     , 'ETVAssumeCond' => 'Assume conditions'
     , 'ETVRet' => 'Returns'
@@ -841,7 +842,7 @@ sub visualize_et_node($$$$$)
         }
         else
         {
-          print_debug_debug("A given node file '$file' matches '$srcs_file'"
+          print_debug_trace("A given node file '$file' matches '$srcs_file'"
             . " sources file");
           $file_srcs = $srcs_file;
         }
@@ -1100,6 +1101,19 @@ sub visualize_et_node($$$$$)
       , @{$title}
       , "assume(<span class='ETVAssumeCond'>$text</span>);"
       , '</div>');
+  }
+  elsif ($type eq 'DECLARATION')
+  {
+    $class = 'ETVDecl' unless ($class);
+
+    push(@node_visualized, "<div class='$class' title='$hint' id='ETV$id'>"
+      , @{$title}
+      , "$text;"
+      , '</div>');
+  }
+  elsif ($type)
+  {
+    print_debug_warning("Node type '$type' can't be processed");
   }
 
   # Print all tree node children with enlarged indentation.

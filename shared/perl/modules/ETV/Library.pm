@@ -62,7 +62,7 @@ sub _Lexer($)
   {
     s/^(\d+)// and return ('LINE', $1);
     s/^\"([^\"]+)\"// and return ('FILE', $1);
-    s/^(BLOCK|CALL|ASSUME|RETURN|NOP)// and return ('TYPE', $1);
+    s/^(BLOCK|DECLARATION|CALL|ASSUME|RETURN|NOP)// and return ('TYPE', $1);
     s/^(INIT|ENTRY|SKIP)// and return ('KIND', $1);
     s/^\(\"([^\"]+)\"\)// and return ('SKIP_REASON', $1);
     s/^\'([^\']+)\'// and return ('ARG_NAME', $1);

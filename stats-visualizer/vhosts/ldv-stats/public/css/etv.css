@@ -291,6 +291,14 @@
   font-weight: normal;
 }
 
+.ETVDecl
+{
+  color: #A3652A;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: normal;
+}
+
 .ETVRet
 {
   color: #9A5C0B;

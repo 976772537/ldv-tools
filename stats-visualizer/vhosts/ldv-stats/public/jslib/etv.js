@@ -106,6 +106,7 @@ var showEntityClass = {
   , 'ETVCall' : 1
   , 'ETVCallSkip' : 1
   , 'ETVCallFormalParamName' : 1
+  , 'ETVDecl': 0
   , 'ETVAssume' : 1
   , 'ETVAssumeCond' : 1
   , 'ETVRet' : 1
