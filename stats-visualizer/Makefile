@@ -43,6 +43,7 @@ STATS_DB = db
 STATS_PROFILE_DB = profile.db
 STATS_TRACE = trace
 STATS_TRACE_ORIGINAL = original
+STATS_TRACE_COMMON = $(STATS_TRACE_ORIGINAL).common
 STATS_TRACE_PROCESSED = processed
 STATS_SRC = src
 
@@ -126,7 +127,7 @@ install:
 	@echo Give the correct access to the needed files to the statistics server
 	@if [ ! -n "$(LDV_STATS_USER)" -o ! -n "$(LDV_STATS_GROUP)" ]; then echo 'Specify the LDV_STATS_USER and LDV_STATS_GROUP variable values if you want to grant the correct access to the statistics server!'; \
 	  else echo 'LDV_STATS_USER is $(LDV_STATS_USER)'; echo 'LDV_STATS_GROUP is $(LDV_STATS_GROUP)'; \
-	    chown $(LDV_STATS_USER):$(LDV_STATS_GROUP) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_SRC) || exit 1; \
+	    chown $(LDV_STATS_USER):$(LDV_STATS_GROUP) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_DB)/$(STATS_PROFILE_DB) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_ORIGINAL) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_COMMON) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_TRACE_PROCESSED) $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_DATA)/$(STATS_TRACE)/$(STATS_SRC) || exit 1; \
 	fi
 	@echo Add pathes to scripts and model/rule databases to the statistics server script configuration file
 	export ETV="$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)"; \
