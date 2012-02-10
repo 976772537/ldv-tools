@@ -9,7 +9,7 @@ sub get_loc_and_val($$);
 # not with the CIL one. So first of all build a map between sources.
 # Read a CIL source file from the beginning of the error trace.
 my %src_map;
-my $header = <$fh_in>;
+my $header = shift(@et_array);
 if (defined($header))
 {
   if ($header =~ /^-------(.*)-------$/)
@@ -26,10 +26,9 @@ if (defined($header))
   my $src_cur = '';
   my $src_line_cur = 0;
   my $cil_line_cur = 1;
-  while (1)
+  while (scalar(@et_array))
   {
-    my $str = <$fh_in>;
-    last if (!defined($str));
+    my $str = shift(@et_array);
 
     chomp($str);
     last if ($str eq "--------------");
@@ -56,9 +55,10 @@ if (defined($header))
 }
 
 # Read the whole error trace specified.
-my @et_raw = <$fh_in>;
-# Here a converted to the common format error trace will be written to.
-my @et_conv;
+my @et_raw = @et_array;
+
+# Add such the header to distinguish error traces in the common format.
+push(@et_conv_array, "Error trace common format v0.1\n");
 
 # Print a path to source code file just one time if it isn't changed.
 my $src_prev = '';
@@ -95,7 +95,7 @@ while (@et_raw)
     # Begin an entry point that finishes a current initialization function call.
     if ($isinit)
     {
-      push(@et_conv, join(' ', (0, $src, 'RETURN', '', '')));
+      push(@et_conv_array, join(' ', (0, $src, 'RETURN', '', '')));
       $type = 'CALL';
       $kind = 'ENTRY';
       $isinit = 0;
@@ -198,13 +198,9 @@ while (@et_raw)
     $text = ": $val";
   }
 
-  push(@et_conv, join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
+  push(@et_conv_array
+    , join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
 }
-
-print_debug_info("Print common error trace");
-# Add such the header to distinguish error traces in the common format.
-print($fh_common "Error trace common format v0.1\n");
-print($fh_common join("\n", @et_conv));
 
 sub get_loc_and_val($$)
 {

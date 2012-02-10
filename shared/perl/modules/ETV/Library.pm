@@ -21,9 +21,9 @@ my $et_supported_format = '0.1';
 # Subroutine prototypes.
 ################################################################################
 
-sub call_stacks_eq($$);
+sub call_stacks_eq($$$$);
 sub call_substacks_eq($$);
-sub call_stacks_ne($$);
+sub call_stacks_ne($$$$);
 sub get_call_substack($);
 
 # Convert a given error trace to the common format in depend on an engine
@@ -31,6 +31,8 @@ sub get_call_substack($);
 # args: options hash.
 # retn: nothing.
 sub convert_et_to_common($);
+
+sub convert_et_to_common_array($$);
 
 sub _Lexer($);
 sub _Error($);
@@ -213,6 +215,42 @@ sub convert_et_to_common($)
 
   my $engine = $opts->{'engine'};
 
+  # Open a file where an error trace in the common format will be written to.
+  my $in = $opts->{'in'};
+  my $fh_in = $opts->{'fh in'};
+  my $common = "$in.common";
+  open(my $fh_common, '>', $common)
+    or die("Can't open file '$common' for write: $ERRNO");
+  print_debug_debug("An error trace in the common format will be written to"
+    . " '$common'");
+
+  my @et_array = <$fh_in>;
+  my $et_conv_array_ref = convert_et_to_common_array($engine, \@et_array);
+
+  print($fh_common join("\n", @{$et_conv_array_ref}));
+
+  close($fh_common)
+    or die("Can't close file handler for '$common': $ERRNO\n");
+
+  # From now use a error trace in the common format.
+  open(my $fh_in_common, '<', $common)
+    or die("Can't open file '$common' for read: $ERRNO");
+
+  $opts->{'fh in'} = $fh_in_common;
+  $opts->{'in'} = $common;
+}
+
+sub convert_et_to_common_array($$)
+{
+  my $engine = shift;
+  my $et_array_ref = shift;
+
+  # An original error trace.
+  my @et_array = @{$et_array_ref};
+
+  # Here a converted error trace should be written to.
+  my @et_conv_array;
+
   my $etv_conv_script = "$FindBin::RealBin/../etv/converters/$engine";
   if (-f $etv_conv_script)
   {
@@ -222,54 +260,44 @@ sub convert_et_to_common($)
     close(ETV_CONV)
       or die("Can't close file handler for '$etv_conv_script': $ERRNO\n");
 
-    # Open a file where an error trace in the common format will be written to.
-    my $in = $opts->{'in'};
-    my $fh_in = $opts->{'fh in'};
-    my $common = "$in.common";
-    open(my $fh_common, '>', $common)
-      or die("Can't open file '$common' for write: $ERRNO");
-    print_debug_debug("An error trace in the common format will be written to"
-      . " '$common'");
-
     print_debug_info("Evaluate '$engine' converter '$etv_conv_script'");
     my $ret = eval("$etv_conv\n0;");
-
-    close($fh_common)
-      or die("Can't close file handler for '$common': $ERRNO\n");
 
     if ($EVAL_ERROR)
     {
       print_debug_warning("Can't convert error trace by means of"
-        ." '$etv_conv_script': $EVAL_ERROR");
-      return;
+        . " '$etv_conv_script': $EVAL_ERROR. So use an error trace in the"
+        . " original representation");
+      return $et_array_ref;
     }
 
-    # From now use a error trace in the common format.
-    open(my $fh_in_common, '<', $common)
-      or die("Can't open file '$common' for read: $ERRNO");
-
-    $opts->{'fh in'} = $fh_in_common;
-    $opts->{'in'} = $common;
+    print_debug_debug("An error trace was converted successfully");
+    return \@et_conv_array;
   }
   else
   {
-    print_debug_warning("Converter for engine '$engine' doesn't exist");
-    # Thus visualize a error trace specified as is.
+    print_debug_warning("Converter for engine '$engine' doesn't exist. So use"
+      . " an error trace in the original representation");
+    return $et_array_ref;
   }
 }
 
 
-sub call_stacks_eq($$)
+sub call_stacks_eq($$$$)
 {
   my $et1 = shift;
+  my $engine1 = shift;
   my $et2 = shift;
+  my $engine2 = shift;
 
   my @et1 = split(/\n/, $et1);
   my @et2 = split(/\n/, $et2);
 
   # First of all obtain trees representing both error traces.
-  my $et1_root = parse_et_array(\@et1);
-  my $et2_root = parse_et_array(\@et2);
+  my $et1_conv = convert_et_to_common_array($engine1, \@et1);
+  my $et1_root = parse_et_array($et1_conv);
+  my $et2_conv = convert_et_to_common_array($engine2, \@et2);
+  my $et2_root = parse_et_array($et2_conv);
   print_debug_debug("Error traces were parsed successfully");
 
   # Then obtain function call stacks from obtained trees.
@@ -325,9 +353,9 @@ sub call_substacks_eq($$)
   }
 }
 
-sub call_stacks_ne($$)
+sub call_stacks_ne($$$$)
 {
-  return !call_stacks_eq($ARG[0], $ARG[1]);
+  return !call_stacks_eq($ARG[0], $ARG[1], $ARG[2], $ARG[3]);
 }
 
 sub get_call_substack($)

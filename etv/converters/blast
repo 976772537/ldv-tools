@@ -115,19 +115,17 @@ my $context = 'entry';
 # Obtain the debug level.
 get_debug_level('blast-et-conv', $LDV_DEBUG, $LDV_BLAST_ET_CONV_DEBUG);
 
-my @et = <$fh_in>;
 print_debug_info("Begin to parse error trace specified");
-my $et_parsed = parse_error_trace(\@et);
+my $et_parsed = parse_error_trace(\@et_array);
 print_debug_debug("Error trace was parsed successfully");
 print_debug_info("Begin to convert error trace to the common format");
 my $et_conv = convert_error_trace_to_common($et_parsed);
 print_debug_debug("Error trace was converted to the common format successfully");
-my $str = join("\n", @{$et_conv});
-print_debug_info("Print common error trace");
+
 # Add such the header to distinguish error traces in the common format.
-print($fh_common "Error trace common format v0.1\n");
-print($fh_common $str);
-print_debug_debug("Common error trace was printed successfully");
+push(@et_conv_array, "Error trace common format v0.1\n");
+
+push(@et_conv_array, @{$et_conv});
 
 
 ################################################################################
