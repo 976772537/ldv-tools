@@ -383,7 +383,7 @@ OPTIONS
     given error trace. It's optional. Without this option there won't
     be source code visualization. The file should contain a content of
     files with source code as is separated with:
-    -------path/to/file/with/source/code-------
+    ---LDV---path/to/file/with/source/code---LDV---
 
 
 ENVIRONMENT VARIABLES
@@ -426,8 +426,8 @@ sub process_srcs($)
     chomp($line);
 
     # Each source code file should have such the header:
-    # -------path/to/file/with/source/code-------
-    if ($line =~ /^-------(.*)-------/)
+    # ---LDV---path/to/file/with/source/code---LDV---
+    if ($line =~ /^---LDV---(.*)---LDV---/)
     {
       $file_name = $1;
       print_debug_trace("File '$file_name' is related with a error trace"
@@ -438,7 +438,7 @@ sub process_srcs($)
 
     print_debug_warning("Source code files related with a error trace processed"
       . " have incorrect format. No file name is specified by means of"
-      . " '-------path/to/file/with/source/code-------'")
+      . " '---LDV---path/to/file/with/source/code---LDV---'")
       unless ($file_name);
 
     if ($line =~ /LDV_COMMENT/)

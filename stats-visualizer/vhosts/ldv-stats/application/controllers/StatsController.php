@@ -180,7 +180,7 @@ class StatsController extends Zend_Controller_Action
     // Remove previous content of the given file before writing.
     ftruncate($handleSrc, 0)
       or die ("Can't truncate the file '$sourceCodeFile'");
-    $fileSeparator = '-------';
+    $fileSeparator = '---LDV---';
     foreach ($results['Error trace']->sourceCodeFiles as $fileName => $sourceCode) {
       fwrite($handleSrc, "$fileSeparator$fileName$fileSeparator\n$sourceCode\n")
         or die("Can't write source code to the file '$sourceCodeFile'");
