@@ -111,6 +111,7 @@ while (@et_raw)
     or $val =~ /^(.* = [_A-Za-z][_A-Za-z0-9]*\(.*\));$/)
   {
     $type = 'CALL';
+    my $call = $1;
 
     # See next line to understand whether a given function call is skipped.
     if (my $str_next = shift(@et_raw))
@@ -129,7 +130,7 @@ while (@et_raw)
       }
     }
 
-    $text = ": $1";
+    $text = ": $call";
   }
   # Block is everything that contains ' = ' and finishes with ';' except
   # function calls that contains an assignment.
@@ -151,6 +152,22 @@ while (@et_raw)
     {
       $text = ": ";
     }
+
+    # See next line to remove remove edge.
+    if (my $str_next = shift(@et_raw))
+    {
+      my ($src_next, $line_next, $val_next) = get_loc_and_val($str_next, 0);
+
+      if ($val_next =~ /^Return edge/)
+      {
+        # Just ignore this string at all.
+      }
+      else
+      {
+        # Return the next string back.
+        unshift(@et_raw, $str_next);
+      }
+    }
   }
   # Declaration is everything that ends with ';' except function calls, blocks
   # and returns.
@@ -159,7 +176,7 @@ while (@et_raw)
     $type = 'DECLARATION';
     $text = ": $1";
   }
-  # Treat labels and gotos as usual blocks.
+  # Treat labels, gotos and whiles as usual blocks.
   elsif ($val =~ /^Label: (.*)$/)
   {
     $type = 'BLOCK';
@@ -170,9 +187,10 @@ while (@et_raw)
     $type = 'BLOCK';
     $text = ": goto $1;";
   }
-  elsif ($val =~ /^Return edge/)
+  elsif ($val =~ /^while$/)
   {
-    next;
+    $type = 'BLOCK';
+    $text = ": while;";
   }
   else
   {
@@ -215,6 +233,9 @@ sub get_loc_and_val($$)
      . " format");
     exit(1);
   }
+
+  # Do not get a source code reference for empty nodes.
+  return ('', $line, $val) if ($val =~ /^\s*$/);
 
   # Try to get a corresponding source code location.
   my $src = '';
