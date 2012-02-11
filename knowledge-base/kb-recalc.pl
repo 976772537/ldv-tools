@@ -140,8 +140,8 @@ if ($opt_init_schema or $opt_init_common_data)
   init_kb();
 }
 
-my $host;
-$LDVDBHOST ? $host = $LDVDBHOST : $host = 'localhost';
+my $host = 'localhost';
+$host = $LDVDBHOST if ($LDVDBHOST);
 print_debug_debug("Host to be used in connection to a database is '$host'");
 $dbh = DBI->connect("DBI:mysql:$LDVDB:$host", $LDVUSER, $LDVDBPASSWD)
     or die("Couldn't connect to database: " . DBI->errstr);
