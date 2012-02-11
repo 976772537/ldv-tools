@@ -38,6 +38,7 @@ MINIMAL PREREQUISITES
 		- File::MimeInfo
 		- File::Basename
 		- Text::Highlight
+		- Tie::Hash::Indexed
 		- XML::Twig
 		- XML::Writer
 		- SOAP::Lite
