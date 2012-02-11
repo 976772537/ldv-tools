@@ -14,7 +14,7 @@ if (defined($header))
 {
   if ($header =~ /^-------(.*)-------$/)
   {
-    print_debug_debug("Process '$1' CIL source file");
+    print_debug_trace("Process '$1' CIL source file");
   }
   else
   {

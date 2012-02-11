@@ -385,7 +385,6 @@ sub get_call_substack($)
     else
     {
       $call_stack{'name'} = 'undefined';
-      print_debug_warning("Can't find a function name in '$text'. '$call_stack{name}' is used instead");
     }
   }
 
