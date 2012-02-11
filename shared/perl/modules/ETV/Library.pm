@@ -21,6 +21,7 @@ my $et_supported_format = '0.1';
 # Subroutine prototypes.
 ################################################################################
 
+# TODO document this!
 sub call_stacks_eq($$$$);
 sub call_substacks_eq($$);
 sub call_stacks_ne($$$$);
