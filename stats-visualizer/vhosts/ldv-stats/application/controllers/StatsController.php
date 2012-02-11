@@ -296,7 +296,7 @@ class StatsController extends Zend_Controller_Action
     $kbRecalc = $kbRecalcConfig->script;
 
     // Delete KB id.
-    exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --delete=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+    exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] LDVDBHOST=$dbConnection[host] $kbRecalc --delete=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';
