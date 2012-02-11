@@ -15,42 +15,43 @@ if (defined($header))
   if ($header =~ /^-------(.*)-------$/)
   {
     print_debug_trace("Process '$1' CIL source file");
+
+    my $src_cur = '';
+    my $src_line_cur = 0;
+    my $cil_line_cur = 1;
+    while (scalar(@et_array))
+    {
+      my $str = shift(@et_array);
+
+      chomp($str);
+      last if ($str eq "--------------");
+
+      if ($str =~ /^#line (\d+) "([^"]+)"$/)
+      {
+        $src_line_cur = $1;
+        $src_cur = $2;
+      }
+      elsif ($str =~ /^#line (\d+)$/)
+      {
+        $src_line_cur = $1;
+      }
+      else
+      {
+        $src_map{$cil_line_cur} = {
+            'file' => $src_cur
+          , 'line' => $src_line_cur};
+        $src_line_cur++;
+      }
+
+      $cil_line_cur++;
+    }
   }
   else
   {
     print_debug_warning("A CIL source file isn't specified for a CPAchecker"
       . " error trace processed");
-    exit(1);
-  }
-
-  my $src_cur = '';
-  my $src_line_cur = 0;
-  my $cil_line_cur = 1;
-  while (scalar(@et_array))
-  {
-    my $str = shift(@et_array);
-
-    chomp($str);
-    last if ($str eq "--------------");
-
-    if ($str =~ /^#line (\d+) "([^"]+)"$/)
-    {
-      $src_line_cur = $1;
-      $src_cur = $2;
-    }
-    elsif ($str =~ /^#line (\d+)$/)
-    {
-      $src_line_cur = $1;
-    }
-    else
-    {
-      $src_map{$cil_line_cur} = {
-          'file' => $src_cur
-        , 'line' => $src_line_cur};
-      $src_line_cur++;
-    }
-
-    $cil_line_cur++;
+    # Return the first line of an error trace processed back.
+    unshift(@et_array, $header);
   }
 }
 
