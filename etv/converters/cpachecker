@@ -260,9 +260,8 @@ sub get_loc_and_val($$)
   # Do not treat zero line.
   elsif ($line)
   {
-    print_debug_warning("Can't find a corresponding source code for line"
+    print_debug_trace("Can't find a corresponding source code for line"
       . " '$line'");
-    exit(1);
   }
 
   return ($src, $line, $val);
