@@ -328,7 +328,7 @@ class StatsController extends Zend_Controller_Action
 
         // TODO: I used --init-cache that may be too long.
         // Regenerate KB cache by means of script application for a given KB id.
-        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] LDVDBHOST=$dbConnection[host] $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
         $result = $output;
       }
       else
@@ -342,13 +342,13 @@ class StatsController extends Zend_Controller_Action
         or $this->_getParam('KB_module') != $this->_getParam('KB_module_old')
         or $this->_getParam('KB_main') != $this->_getParam('KB_main')) {
         // Regenerate KB cache by means of db tools for a given KB id.
-        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] LDVDBHOST=$dbConnection[host] $kbRecalc --update-pattern=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
         $result = $output;
       }
 
       if ($this->_getParam('KB_script') != $this->_getParam('KB_script_old')) {
         // Regenerate KB cache by means of script application for a given KB id.
-        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-pattern-script=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] LDVDBHOST=$dbConnection[host] $kbRecalc --update-pattern-script=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
       }
 
       if ($this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')
@@ -356,7 +356,7 @@ class StatsController extends Zend_Controller_Action
         or $this->_getParam('KB_comment') != $this->_getParam('KB_comment_old')) {
         // Regenerate KB cache for a given KB id (in fact nothing will be done).
         // KB comment is also assigned to result here.
-        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+        exec("LDV_DEBUG=30 LDVDB=$dbConnection[dbname] LDVUSER=$dbConnection[username] LDVDBHOST=$dbConnection[host] $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
       }
 
       // Take KB (ge)nerator output if so as result at the moment;
