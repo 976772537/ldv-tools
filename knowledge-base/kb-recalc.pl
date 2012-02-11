@@ -142,7 +142,7 @@ if ($opt_init_schema or $opt_init_common_data)
 
 my $host;
 $LDVDBHOST ? $host = $LDVDBHOST : $host = 'localhost';
-$dbh = DBI->connect("DBI:mysql:database=$LDVDB;host=$host", $LDVUSER, $LDVDBPASSWD)
+$dbh = DBI->connect("DBI:mysql:$LDVDB:$host", $LDVUSER, $LDVDBPASSWD)
     or die("Couldn't connect to database: " . DBI->errstr);
 
 if ($opt_init_cache_db or $opt_init_cache_script)
