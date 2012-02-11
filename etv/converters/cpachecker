@@ -49,7 +49,7 @@ if (defined($header))
   else
   {
     print_debug_warning("A CIL source file isn't specified for a CPAchecker"
-      . " error trace processed");
+      . " error trace processed. A first line is '$header'");
     # Return the first line of an error trace processed back.
     unshift(@et_array, $header);
   }
