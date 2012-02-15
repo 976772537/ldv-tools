@@ -5,6 +5,7 @@ $\ = "\n";
 $, = "\n";
 while (<>){
 	chomp;
+	/Error: Parsing failed \(unknown character literal in line (\d+): '\\v'/ and print "\\v";
 	/Syntax error in line / and print "Syntax_error";
 	/Expression is not free of side-effects/ and print "Side";
 	/Invalid configuration: Function ldv_main(.*) not found!/ and print "Main not found";
