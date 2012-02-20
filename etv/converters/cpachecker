@@ -216,13 +216,6 @@ sub get_loc_and_val($$)
   # At the beginning a node value equals to a node string.
   my $val = $str;
 
-  # TODO THIS IS ADDED JUST FOR BACKWARD COMPATIBILITY WITH LAST OBTAINED
-  # RESULTS. REMOVE THIS!!!
-  if ($val =~ /^\s*Src\s*([^:]+):/)
-  {
-    $val = $POSTMATCH;
-  }
-
   # Try to get a corresponding line number.
   my $line = '';
   if ($val =~ /^\s*Line\s*([^:]+):/)
