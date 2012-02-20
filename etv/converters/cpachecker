@@ -234,8 +234,9 @@ sub get_loc_and_val($$)
   else
   {
     print_debug_warning("A CPAchecker error trace specified has unsupported"
-     . " format");
-    exit(1);
+     . " format in sting '$str'");
+    # So don't process this string further.
+    return ('', $line, '');
   }
 
   # Do not get a source code reference for empty nodes.
