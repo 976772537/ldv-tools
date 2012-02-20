@@ -89,17 +89,8 @@ get_debug_level('etv', $LDV_DEBUG, $LDV_ETV_DEBUG);
 print_debug_debug("Process command-line options");
 my $opts = get_opt();
 
-print_debug_debug("Convert an error trace specified to the common format");
-ETV::Library::convert_et_to_common($opts);
-
-print_debug_debug("Parse the error trace in the common format");
+print_debug_debug("Parse a error trace specified");
 my $et = ETV::Library::parse_et($opts->{'fh in'});
-
-if (!defined($et))
-{
-  print_debug_warning("Error trace wasn't parsed");
-  exit(1);
-}
 
 # There are two modes of error trace visualizer work: collect requirements or
 # visualize error trace.
@@ -325,6 +316,9 @@ sub get_reqs($$)
 {
   my $node_ref = shift;
   my $reqs = shift;
+
+  # This case can arise when a error trace is empty.
+  return if (!$node_ref);
 
   my %node = %{$node_ref};
 
@@ -740,6 +734,12 @@ sub visualize_et_node($$$$$)
   my $id_ref = shift;
   my $locs_ref = shift;
 
+  # Visualized representation for a given node.
+  my @node_visualized = ();
+
+  # This case can arise when a error trace is empty.
+  return \@node_visualized if (!$node_ref);
+
   my %node = %{$node_ref};
   my %srcs = %{$srcs_ref};
   my %visual = %{$visual_ref};
@@ -747,9 +747,6 @@ sub visualize_et_node($$$$$)
   my %model_func_defs = %{$srcs{'model function definitions'}};
   # Id for a currently processed entity.
   my $id = ${$id_ref}{'id'}++;
-
-  # Visualized representation for a given node.
-  my @node_visualized = ();
 
   # Don't forget that each element of a given node is optional!
   # To avoid warnings about usage of uninitialized values in strings replace

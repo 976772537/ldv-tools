@@ -13,8 +13,11 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level);
 
 
-# Error trace common format supported version.
-my $et_supported_format = '0.1';
+# A supported version of the error trace common format.
+my $etc_format = '0.1';
+# Supported versions of verifiers error traces.
+my $etcpachecker_format = '1.1';
+my $etblast_format = '2.7';
 
 
 ################################################################################
@@ -27,19 +30,13 @@ sub call_substacks_eq($$);
 sub call_stacks_ne($$$$);
 sub get_call_substack($);
 
-# Convert a given error trace to the common format in depend on an engine
-# specified.
-# args: options hash.
-# retn: nothing.
-sub convert_et_to_common($);
-
 sub convert_et_to_common_array($$);
 
 sub _Lexer($);
 sub _Error($);
 sub parse_et($);
 sub parse_et_array($);
-sub parse_et_non_common($);
+sub parse_et_as_text($);
 sub read_next_line($);
 
 
@@ -51,14 +48,14 @@ sub _Lexer($)
 {
   my $parser = shift;
 
-  $parser->YYData->{INPUT}
-    or $parser->YYData->{INPUT} = read_next_line($parser)
-    or return ('', undef);
+  if (!$parser->YYData->{INPUT})
+  {
+    $parser->YYData->{INPUT} = read_next_line($parser);
+    return ('', undef) if (!defined($parser->YYData->{INPUT}));
+  }
 
   # Elimate all formatting characters from the beginning of string considered.
   $parser->YYData->{INPUT} =~ s/^[ \t]+//;
-  # Check whether EOF is reached. In this case finish a current line with EOL.
-  return ("\n", "\n") if (!$parser->YYData->{INPUT});
 
   # Skip comments elsewhere except in TEXT. Comments may be in php style.
   if ($parser->YYData->{INPUT} !~ /^\:/)
@@ -120,53 +117,73 @@ sub parse_et_array($)
 {
   my $et_array_ref = shift;
 
+  my $et_conv_array_ref;
   my $et = {};
 
   print_debug_trace("Check that a given error trace is in the common format of"
     . " the supported format");
-  my $header = ${$et_array_ref}[0];
+  my $header = shift(@{$et_array_ref});
   if (defined($header))
   {
     if ($header =~ /^Error trace common format v(.+)\n$/
-      and $1 eq $et_supported_format)
+      and $1 eq $etc_format)
     {
       print_debug_debug("A given error trace is in the common format of"
-        . " the supported format ('$et_supported_format')");
-      if (!${$et_array_ref}[1])
-      {
-        print_debug_warning("Error trace is empty");
-      }
-      else
-      {
-        my $parser = ETV::Parser->new();
-        $parser->YYData->{FH} = {
-            'et array ref' => $et_array_ref
-          , 'index' => 1
-        };
-        $parser->YYData->{LINE} = 1;
-        $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
-      }
+        . " the supported format ('$etc_format')");
+
+      # Create and initialize a special common format parser.
+      my $parser = ETV::Parser->new();
+      $parser->YYData->{ET} = $et_array_ref;
+      $parser->YYData->{LINE} = 1;
+
+      # Parse a error trace in the common format.
+      $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
+    }
+    elsif ($header =~ /^BLAST error trace v(.+)\n$/
+      and $1 eq $etblast_format)
+    {
+      print_debug_debug("A given error trace of BLAST has supported format"
+        . " ('$etblast_format')");
+
+      $et_conv_array_ref
+        = convert_et_to_common_array('blast', $et_array_ref);
+
+      return parse_et_array($et_conv_array_ref);
+    }
+    elsif ($header =~ /^CPAchecker error trace v(.+)\n$/
+      and $1 eq $etcpachecker_format)
+    {
+      print_debug_debug("A given error trace of CPAchecker has supported format"
+        . " ('$etcpachecker_format')");
+
+      $et_conv_array_ref
+        = convert_et_to_common_array('cpachecker', $et_array_ref);
+
+      return parse_et_array($et_conv_array_ref);
     }
     else
     {
       if ($1)
       {
-        print_debug_warning("A given error trace isn't in the common format of"
-          . " the supported format ('$et_supported_format'). Version '$1' is"
-          . " specified");
+        print_debug_warning("A given error trace format ('$header') isn't"
+          . " supported. So it'll be treated as text");
       }
       else
       {
-        print_debug_warning("A given error trace isn't in the common format");
+        print_debug_warning("A given error trace hasn't a header and will be"
+          . " treated as text");
+        # Return back a first line since it isn't a standard header.
+        unshift(@{$et_array_ref}, $header);
       }
-      $et = parse_et_non_common($et_array_ref);
+
+      $et = parse_et_as_text($et_array_ref);
     }
   }
 
   return $et;
 }
 
-sub parse_et_non_common($)
+sub parse_et_as_text($)
 {
   my $et = shift;
 
@@ -203,42 +220,12 @@ sub read_next_line($)
 {
   my $parser = shift;
 
-  my $et = $parser->YYData->{FH};
-
   $parser->YYData->{LINE}++;
 
-  return ${$et->{'et array ref'}}[$et->{'index'}++];
-}
+  my $next_line = shift(@{$parser->YYData->{ET}});
 
-sub convert_et_to_common($)
-{
-  my $opts = shift;
-
-  my $engine = $opts->{'engine'};
-
-  # Open a file where an error trace in the common format will be written to.
-  my $in = $opts->{'in'};
-  my $fh_in = $opts->{'fh in'};
-  my $common = "$in.common";
-  open(my $fh_common, '>', $common)
-    or die("Can't open file '$common' for write: $ERRNO");
-  print_debug_debug("An error trace in the common format will be written to"
-    . " '$common'");
-
-  my @et_array = <$fh_in>;
-  my $et_conv_array_ref = convert_et_to_common_array($engine, \@et_array);
-
-  print($fh_common join("\n", @{$et_conv_array_ref}));
-
-  close($fh_common)
-    or die("Can't close file handler for '$common': $ERRNO\n");
-
-  # From now use a error trace in the common format.
-  open(my $fh_in_common, '<', $common)
-    or die("Can't open file '$common' for read: $ERRNO");
-
-  $opts->{'fh in'} = $fh_in_common;
-  $opts->{'in'} = $common;
+  return undef unless (defined($next_line));
+  return "$next_line\n";
 }
 
 sub convert_et_to_common_array($$)
@@ -295,10 +282,8 @@ sub call_stacks_eq($$$$)
   my @et2 = split(/\n/, $et2);
 
   # First of all obtain trees representing both error traces.
-  my $et1_conv = convert_et_to_common_array($engine1, \@et1);
-  my $et1_root = parse_et_array($et1_conv);
-  my $et2_conv = convert_et_to_common_array($engine2, \@et2);
-  my $et2_root = parse_et_array($et2_conv);
+  my $et1_root = parse_et_array(\@et1);
+  my $et2_root = parse_et_array(\@et2);
   print_debug_debug("Error traces were parsed successfully");
 
   # Then obtain function call stacks from obtained trees.

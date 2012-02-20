@@ -239,7 +239,7 @@ sub get_loc_and_val($$)
   else
   {
     print_debug_warning("A CPAchecker error trace specified has unsupported"
-     . " format in sting '$str'");
+     . " format in string '$str'");
     # So don't process this string further.
     return ('', $line, '');
   }
