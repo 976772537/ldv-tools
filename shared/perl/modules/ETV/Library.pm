@@ -108,7 +108,13 @@ sub parse_et($)
 {
   my $fh = shift;
 
-  my @et = <$fh>;
+  my @et;
+
+  while (<$fh>)
+  {
+    chomp($ARG);
+    push(@et, $ARG);
+  }
 
   return parse_et_array(\@et);
 }
@@ -125,7 +131,7 @@ sub parse_et_array($)
   my $header = shift(@{$et_array_ref});
   if (defined($header))
   {
-    if ($header =~ /^Error trace common format v(.+)\n$/
+    if ($header =~ /^Error trace common format v(.+)$/
       and $1 eq $etc_format)
     {
       print_debug_debug("A given error trace is in the common format of"
@@ -139,7 +145,7 @@ sub parse_et_array($)
       # Parse a error trace in the common format.
       $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
     }
-    elsif ($header =~ /^BLAST error trace v(.+)\n$/
+    elsif ($header =~ /^BLAST error trace v(.+)$/
       and $1 eq $etblast_format)
     {
       print_debug_debug("A given error trace of BLAST has supported format"
@@ -150,7 +156,7 @@ sub parse_et_array($)
 
       return parse_et_array($et_conv_array_ref);
     }
-    elsif ($header =~ /^CPAchecker error trace v(.+)\n$/
+    elsif ($header =~ /^CPAchecker error trace v(.+)$/
       and $1 eq $etcpachecker_format)
     {
       print_debug_debug("A given error trace of CPAchecker has supported format"
@@ -170,8 +176,8 @@ sub parse_et_array($)
       }
       else
       {
-        print_debug_warning("A given error trace hasn't a header and will be"
-          . " treated as text");
+        print_debug_warning("A given error trace hasn't a header (first line is
+          '$header'). So it will be treated as text");
         # Return back a first line since it isn't a standard header.
         unshift(@{$et_array_ref}, $header);
       }
@@ -254,8 +260,9 @@ sub convert_et_to_common_array($$)
     if ($EVAL_ERROR)
     {
       print_debug_warning("Can't convert error trace by means of"
-        . " '$etv_conv_script': $EVAL_ERROR. So use an error trace in the"
-        . " original representation");
+        . " '$etv_conv_script': $EVAL_ERROR");
+      print_debug_debug("So use an error trace in the original"
+        . " representation");
       return $et_array_ref;
     }
 

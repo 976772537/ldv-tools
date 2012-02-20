@@ -100,8 +100,8 @@ my $et_element_kind = '^([^=\(:]+)';
 # A previously processed path to a source code file and a line number. They are
 # needed in cases when a current entity location can't be processed
 # successfully.
-my $src_prev;
-my $line_prev;
+my $src_prev = '';
+my $line_prev = 0;
 
 # Specifies a current context. In fact it's required just to determine where an
 # entry point starts, because of there is no explicit entry point in BLAST.
@@ -670,8 +670,8 @@ sub read_location($)
     $src = $src_prev;
   }
 
-  die("Can't find a line number in location '$location[1]'.")
-    unless ($location[1] =~ /$et_element_kind/);
+  die("Can't find a line number in location")
+    unless ($location[1] and $location[1] =~ /$et_element_kind/);
   my $line_numb_content = $POSTMATCH;
   my $line_numb = read_equal_int($line_numb_content);
 
