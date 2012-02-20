@@ -121,15 +121,12 @@ sub hxml_cmdstream {
 			vsay 'DEBUG', "Command have verdict: \"".$verdict_section->text."\"\n";
 			my $model =$cmd->att('model');
 			my $rcv_section = $cmd->first_child('rcv');
-			my $verifier=$rcv_section->att('verifier');
-			vsay 'DEBUG', "Verifier: \"$verifier\".\n";
 			my $trace_section = $cmd->first_child('trace');
 			my $trace = $trace_section->text;
 			my $temp_file = $config->{'report-out'}.'.tmp';
 			system('rm','-f',$temp_file);
 			# call visualizer
 			@etv_arg = ($config->{'etv'},
-					"--engine=$verifier",
 					"--report=$trace",
 					"--reqs-out=$temp_file");
 			vsay 'TRACE', "Calling error-trace-visualizer: @etv_arg\n";

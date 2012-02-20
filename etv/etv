@@ -270,7 +270,7 @@ sub get_opt()
     open($fh_out, '>', "$out")
       or die("Can't open file '$out' specified through --report-out (-o) for"
         . " write: $ERRNO");
-    print_debug_debug("A proccessed error trace wilb be put to '$out'");
+    print_debug_debug("A proccessed error trace will be put to '$out'");
 
     if ($srcs)
     {
