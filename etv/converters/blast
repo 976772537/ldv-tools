@@ -132,6 +132,11 @@ push(@et_conv_array, @{$et_conv});
 # Subroutines.
 ################################################################################
 
+{
+# Supress warnings like 'Subroutine get_loc_and_val redefined' in the manner
+# recommended at http://perldoc.perl.org/perldiag.html.
+no warnings 'redefine';
+
 sub convert_error_trace_to_common($)
 {
   my $et_parsed = shift;
@@ -688,4 +693,6 @@ sub read_location($)
   @location = ($src, $line_numb);
 
   return \@location;
+}
+
 }
