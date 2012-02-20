@@ -203,6 +203,11 @@ while (@et_raw)
     , join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
 }
 
+{
+# Supress warnings like 'Subroutine get_loc_and_val redefined' in the manner
+# recommended at http://perldoc.perl.org/perldiag.html.
+no warnings 'redefine';
+
 sub get_loc_and_val($$)
 {
   my $str = shift;
@@ -266,4 +271,5 @@ sub get_loc_and_val($$)
   }
 
   return ($src, $line, $val);
+}
 }
