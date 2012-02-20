@@ -25,9 +25,9 @@ my $etblast_format = '2.7';
 ################################################################################
 
 # TODO document this!
-sub call_stacks_eq($$$$);
+sub call_stacks_eq($$);
 sub call_substacks_eq($$);
-sub call_stacks_ne($$$$);
+sub call_stacks_ne($$);
 sub get_call_substack($);
 
 sub convert_et_to_common_array($$);
@@ -271,12 +271,10 @@ sub convert_et_to_common_array($$)
 }
 
 
-sub call_stacks_eq($$$$)
+sub call_stacks_eq($$)
 {
   my $et1 = shift;
-  my $engine1 = shift;
   my $et2 = shift;
-  my $engine2 = shift;
 
   my @et1 = split(/\n/, $et1);
   my @et2 = split(/\n/, $et2);
@@ -339,9 +337,9 @@ sub call_substacks_eq($$)
   }
 }
 
-sub call_stacks_ne($$$$)
+sub call_stacks_ne($$)
 {
-  return !call_stacks_eq($ARG[0], $ARG[1], $ARG[2], $ARG[3]);
+  return !call_stacks_eq($ARG[0], $ARG[1]);
 }
 
 sub get_call_substack($)
