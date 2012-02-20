@@ -135,6 +135,10 @@ add_time_watch(
 add_automaton(safe_unsafe());
 
 my $error_trace = "$tmpdir/error_trace.txt";
+
+# We will need to adjust the trace for seamless integration with LDV, so we'll copy the trace here
+my $adjusted_trace = "$tmpdir/error_trace_m.txt";
+
 # It's important to specify 'stdout' here, as the output to the stderr may clobber the trace and make the Error Trace Visualizer fail, yielding a "Script error" for this driver.
 add_automaton(dumptrace($error_trace),'stdout');
 
@@ -191,11 +195,24 @@ $description .= "$stopsep\n";
 #Add aliases info
 $description .= ($ENV{'BLAST_EXP_NOLATTICE'} ? "No lattice\n" : '').($ENV{'BLAST_ALIASES'} ? "With aliases\n" : '');
 
+# To convert BLAST error traces to the common format add a header
+local $_;
+if ($verdict eq 'unsafe') {
+	open(ORIG_TRACE_FILE, '<', $error_trace) or die "Can't open file with blast trace: \"$error_trace\", $!";
+	open(TRACE_FILE, '>', $adjusted_trace) or die "Can't open file with adjsuted blast trace: \"$adjusted_trace\", $!";
+	print TRACE_FILE "BLAST error trace v2.7\n";    
+	while (<ORIG_TRACE_FILE>) {
+		print TRACE_FILE $_;
+	}
+	close TRACE_FILE;
+	close ORIG_TRACE_FILE;
+}
+
 result(
 	# verdict and description should be specified; an error trace is also required if the verdict is "unsafe"
 	verdict => $verdict,
 	description => $description,
-	error_trace => $error_trace,
+	error_trace => $adjusted_trace,
 	# Additional files that are important
 	verifier_out => $debug_trace,
 );

@@ -242,15 +242,17 @@ if ($verdict eq 'unknown') {
 # This part should adjust the trace so that it resembles BLAST format.
 # For now, we have implemented a special converter for CPAchecker, but for any other tool, a converter should be implemented here.
 
-# For our CPAchecker converter to work, we just need to add the source file to the trace.
-# LDV tool that adjusts the error trace for CPAchecker will use it.
+# To convert CPAchecker error traces to the common format and visualize them 
+# together with related source code add a header and corresponding CIL source
+# files.
 local $_;
 if ($verdict eq 'unsafe') {
 	open(ORIG_TRACE_FILE, '<', $orig_trace_fname) or die "Can't open file with cpachecker trace: \"$orig_trace_fname\", $!";
 	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cpachecker trace: \"$adjusted_trace_fname\", $!";
 	for (@files) {    
 		open(SRC_FILE, '<', $_) or die "Can't open the source file: \"$_\", $!";    
-		print TRACE_FILE "-------$_-------\n";    
+		print TRACE_FILE "CPAchecker error trace v1.1\n";    
+		print TRACE_FILE "-------$_-------\n";
 		while(<SRC_FILE>) {      
 			print TRACE_FILE  $_    
 		}    
