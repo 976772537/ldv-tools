@@ -1,8 +1,5 @@
 %{
 use English;
-
-# A currently processed file.
-my $file = undef;
 %}
 
 %%
@@ -24,11 +21,11 @@ node:   line file type kind skip_reason formal_arg_names_list text
   my $parser = $ARG[0];
 
   # Change a currently processed file if a new path is specified.
-  $file = $ARG[2] if ($ARG[2]);
+  $parser->YYData->{FILE} = $ARG[2] if ($ARG[2]);
 
   my %node = (
     'line' => $ARG[1]
-    , 'file' => $file
+    , 'file' => $parser->YYData->{FILE}
     , 'type' => $ARG[3]
     , 'kind' => $ARG[4]
     , 'skip_reason' => $ARG[5]

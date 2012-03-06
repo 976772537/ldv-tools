@@ -141,6 +141,7 @@ sub parse_et_array($)
       my $parser = ETV::Parser->new();
       $parser->YYData->{ET} = $et_array_ref;
       $parser->YYData->{LINE} = 1;
+      $parser->YYData->{FILE} = undef;
 
       # Parse a error trace in the common format.
       $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
