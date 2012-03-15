@@ -361,6 +361,12 @@ sub get_call_subtree($)
       and $tree_node->{'type'} ne 'ROOT'
       and $tree_node->{'type'} ne 'CALL');
 
+  # Skip initialization function calls since they are verifier specific and
+  # shouldn't affect call trees matching.
+  return undef
+    if ($tree_node->{'kind'}
+      and $tree_node->{'kind'} eq 'INIT');
+
   # Obtain a called function name. Note that artificial root tree node hasn't a
   # name.
   if ($tree_node->{'type'} and $tree_node->{'type'} eq 'ROOT')
