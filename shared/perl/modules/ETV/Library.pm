@@ -2,7 +2,7 @@ package ETV::Library;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(call_stacks_eq call_stacks_ne);
+@EXPORT = qw(call_trees_eq call_trees_ne);
 
 use English;
 use strict;
@@ -25,10 +25,10 @@ my $etblast_format = '2.7';
 ################################################################################
 
 # TODO document this!
-sub call_stacks_eq($$);
-sub call_substacks_eq($$);
-sub call_stacks_ne($$);
-sub get_call_substack($);
+sub call_trees_eq($$);
+sub call_subtrees_eq($$);
+sub call_trees_ne($$);
+sub get_call_subtree($);
 
 sub convert_et_to_common_array($$);
 
@@ -279,7 +279,7 @@ sub convert_et_to_common_array($$)
 }
 
 
-sub call_stacks_eq($$)
+sub call_trees_eq($$)
 {
   my $et1 = shift;
   my $et2 = shift;
@@ -292,68 +292,68 @@ sub call_stacks_eq($$)
   my $et2_root = parse_et_array(\@et2);
   print_debug_debug("Error traces were parsed successfully");
 
-  # Then obtain function call stacks from obtained trees.
-  my $et1_call_stack = get_call_substack($et1_root);
-  my $et2_call_stack = get_call_substack($et2_root);
-  print_debug_debug("Error trace call stacks were obtained successfully");
+  # Then obtain function call trees from obtained trees.
+  my $et1_call_tree = get_call_subtree($et1_root);
+  my $et2_call_tree = get_call_subtree($et2_root);
+  print_debug_debug("Error trace call trees were obtained successfully");
 
-  if (call_substacks_eq($et1_call_stack, $et2_call_stack))
+  if (call_subtrees_eq($et1_call_tree, $et2_call_tree))
   {
-    print_debug_debug("Error trace call stacks are the same");
+    print_debug_debug("Error trace call trees are the same");
     return 1;
   }
 
-  print_debug_debug("Error trace call stacks aren't the same");
+  print_debug_debug("Error trace call trees aren't the same");
   return 0;
 }
 
-sub call_substacks_eq($$)
+sub call_subtrees_eq($$)
 {
-  my $call_substack1 = shift;
-  my $call_substack2 = shift;
+  my $call_subtree1 = shift;
+  my $call_subtree2 = shift;
 
-  # Substacks aren't equal in case when node names aren't the same.
-  if ($call_substack1->{'name'} ne $call_substack2->{'name'})
+  # Subtrees aren't equal in case when node names aren't the same.
+  if ($call_subtree1->{'name'} ne $call_subtree2->{'name'})
   {
-    print_debug_debug("Call substack names aren't the same: '" . $call_substack1->{'name'} . "' and '" . $call_substack2->{'name'} . "'");
+    print_debug_debug("Call subtree names aren't the same: '" . $call_subtree1->{'name'} . "' and '" . $call_subtree2->{'name'} . "'");
     return 0;
   }
 
-  # If the name is the same then compare substacks for each child.
+  # If the name is the same then compare subtrees for each child.
   for (my $i = 0; ; $i++)
   {
-    my $call_substack1_child = ${$call_substack1->{'children'}}[$i];
-    my $call_substack2_child = ${$call_substack2->{'children'}}[$i];
+    my $call_subtree1_child = ${$call_subtree1->{'children'}}[$i];
+    my $call_subtree2_child = ${$call_subtree2->{'children'}}[$i];
 
     # All children are the same.
-    return 1 if (!$call_substack1_child and !$call_substack2_child);
+    return 1 if (!$call_subtree1_child and !$call_subtree2_child);
 
     # The numbers of children don't coincide.
-    if ($call_substack1_child and !$call_substack2_child
-      or !$call_substack1_child and $call_substack2_child)
+    if ($call_subtree1_child and !$call_subtree2_child
+      or !$call_subtree1_child and $call_subtree2_child)
     {
-      print_debug_debug("The numbers of call substacks children don't coincide");
+      print_debug_debug("The numbers of call subtrees children don't coincide");
       return 0;
     }
 
-    # Compare call substacks of children.
-    if (!call_substacks_eq($call_substack1_child, $call_substack2_child))
+    # Compare call subtrees of children.
+    if (!call_subtrees_eq($call_subtree1_child, $call_subtree2_child))
     {
-      print_debug_debug("Call substacks children don't match each other");
+      print_debug_debug("Call subtrees children don't match each other");
       return 0;
     }
   }
 }
 
-sub call_stacks_ne($$)
+sub call_trees_ne($$)
 {
-  return !call_stacks_eq($ARG[0], $ARG[1]);
+  return !call_trees_eq($ARG[0], $ARG[1]);
 }
 
-sub get_call_substack($)
+sub get_call_subtree($)
 {
   my $tree_node = shift;
-  my %call_stack;
+  my %call_tree;
 
   # We are interesting just in function calls.
   return undef
@@ -365,39 +365,39 @@ sub get_call_substack($)
   # name.
   if ($tree_node->{'type'} and $tree_node->{'type'} eq 'ROOT')
   {
-    $call_stack{'name'} = 'undefined';
+    $call_tree{'name'} = 'undefined';
   }
   else
   {
     my $text = $tree_node->{'text'} // '';
     if ($text =~ /=\s*([^\(]+)/ or $text =~ /\s*([^\(]+)/)
     {
-      $call_stack{'name'} = $1;
+      $call_tree{'name'} = $1;
     }
     else
     {
-      $call_stack{'name'} = 'undefined';
+      $call_tree{'name'} = 'undefined';
     }
   }
 
-  print_debug_trace("Call substack will be extracted for '$call_stack{name}'");
+  print_debug_trace("Call subtree will be extracted for '$call_tree{name}'");
 
-  # If a given tree node has children then obtain recursively their call stacks.
+  # If a given tree node has children then obtain recursively their call trees.
   if ($tree_node->{'children'})
   {
     my @children = ();
     foreach my $child (@{$tree_node->{'children'}})
     {
-      if (my $call_substack = get_call_substack($child))
+      if (my $call_subtree = get_call_subtree($child))
       {
-        push(@children, $call_substack);
+        push(@children, $call_subtree);
       }
     }
 
-    $call_stack{'children'} = \@children;
+    $call_tree{'children'} = \@children;
   }
 
-  return \%call_stack;
+  return \%call_tree;
 }
 
 1;

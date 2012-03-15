@@ -13,7 +13,7 @@ use strict;
 use lib("$FindBin::RealBin/../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use ETV::Library qw(call_stacks_eq call_stacks_ne);
+use ETV::Library qw(call_trees_eq call_trees_ne);
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level
   check_system_call);
