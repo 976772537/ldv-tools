@@ -35,6 +35,11 @@ class StatsController extends Zend_Controller_Action
       $this->_globals['password'] =  $this->_getParam('password');
     }
 
+    // Get information on an url-specified filter.
+    if ($this->_hasParam('filter')) {
+      $this->_globals['filter'] =  $this->_getParam('filter');
+    }
+
     // Use session global variables just for unimportant time counting.
     $global = new Zend_Session_Namespace();
 

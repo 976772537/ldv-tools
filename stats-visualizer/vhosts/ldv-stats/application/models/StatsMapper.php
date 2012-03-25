@@ -531,6 +531,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         ->where($launchInfoScreened['Task name'] . " IN ('" . join("','", $tasks) . "')");
     }
 
+    // Restrict to a filter specified through url.
+    if (array_key_exists('filter', $params)) {
+      $select = $select
+        ->where($params['filter']);
+    }
+
     // Group by the launch information.
     foreach ($groupBy as $group) {
       $select = $select->group($group);
@@ -646,6 +652,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
                       ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
                   }
                 }
+              }
+
+              // Restrict to a filter specified through url.
+              if (array_key_exists('filter', $params)) {
+                $select = $select
+                  ->where($params['filter']);
               }
 
               // Group by the launch information.
@@ -764,6 +776,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
               ->where("$launchInfoScreened[$statKey] = ?", $statKeyValue);
           }
         }
+      }
+
+      // Restrict to a filter specified through url.
+      if (array_key_exists('filter', $params)) {
+        $select = $select
+          ->where($params['filter']);
       }
 
       // Group by the launch information.
@@ -1176,6 +1194,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     // Restrict to the necessary task ids.
     $select = $select
       ->where($launchInfoScreened['Task id'] . " IN ('" . join("','", $taskIds) . "')");
+
+    // Restrict to a filter specified through url.
+    if (array_key_exists('filter', $params)) {
+      $select = $select
+        ->where($params['filter']);
+    }
 
     // Order by the launch information.
     foreach ($orderBy as $order) {
