@@ -9,16 +9,15 @@ use DSCV::RCV::Annotation;
 # Subroutine prototypes.
 ################################################################################
 
-# Convert a parsed error trace to the common format.
-# args: reference to a parsing result hash (root node of a tree, dependencies,
-#       etc.).
-# retn: reference to array of common error trace lines.
-sub convert_error_trace_to_common($);
-
 # Convert a given tree node from internal representation to the common format.
 # args: tree node.
 # retn: reference to array of common error trace lines.
 sub convert_tree_node_to_common($);
+
+# Parse a given error trace and convert it into internal representation (tree).
+# args: reference to array of error trace lines.
+# retn: tree root node.
+sub parse_error_trace($);
 
 # Read something placed into brackets.
 # args: some string.
@@ -56,11 +55,6 @@ sub read_locals($);
 # args: some string.
 # retn: a processed path to a file and a line number or undef if it can't be read.
 sub read_location($);
-
-# Parse a given error trace and convert it into internal representation (tree).
-# args: reference to array of error trace lines.
-# retn: reference to a result hash (root node of a tree, dependencies, etc.).
-sub parse_error_trace($);
 
 
 ################################################################################
@@ -116,10 +110,10 @@ my $context = 'entry';
 get_debug_level('blast-et-conv', $LDV_DEBUG, $LDV_BLAST_ET_CONV_DEBUG);
 
 print_debug_info("Begin to parse error trace specified");
-my $et_parsed = parse_error_trace(\@et_array);
+my $et_tree_root_node = parse_error_trace(\@et_array);
 print_debug_debug("Error trace was parsed successfully");
 print_debug_info("Begin to convert error trace to the common format");
-my $et_conv = convert_error_trace_to_common($et_parsed);
+my $et_conv = convert_tree_node_to_common($et_tree_root_node);
 print_debug_debug("Error trace was converted to the common format successfully");
 
 # Add such the header to distinguish error traces in the common format.
@@ -136,16 +130,6 @@ push(@et_conv_array, @{$et_conv});
 # Supress warnings like 'Subroutine get_loc_and_val redefined' in the manner
 # recommended at http://perldoc.perl.org/perldiag.html.
 no warnings 'redefine';
-
-sub convert_error_trace_to_common($)
-{
-  my $et_parsed = shift;
-
-  my $et_root = $et_parsed->{'error trace tree root node'};
-
-  $src_prev = '';
-  return convert_tree_node_to_common($et_root);
-}
 
 sub convert_tree_node_to_common($)
 {
@@ -359,11 +343,6 @@ sub parse_error_trace($)
   # Stored pre annotations.
   my @pre_annotations = ();
 
-  # These variables are described in the main script.
-  my %dependencies;
-  my %files_long_name;
-  my %files_short_name;
-
   # Create the tree root corresponding to the entry point or main.
   $entity = DSCV::RCV::Entity->new({'engine' => $engine, 'kind' => $et_root});
   push(@parents, $entity);
@@ -473,20 +452,6 @@ sub parse_error_trace($)
           # Ignore arificial locations at all.
           if ($element_value)
           {
-            # Store dependencies. TODO make it entity specific!!!
-            if ($element_kind eq $et_location)
-            {
-              my ($src, $line) = @{$element_value};
-              if(defined($line))
-              {
-                $dependencies{$src} = 1;
-              }
-              $files_long_name{$src} = 0;
-              $src =~ /([^\/]*)$/;
-              $files_short_name{$src} = $1;
-              print_debug_trace("A full path to a source code file '$src' was related with the short one '$1'");
-            }
-
             $annotation = DSCV::RCV::Annotation->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
 
             # Process annotation in depend on whether it pre or post.
@@ -522,12 +487,8 @@ sub parse_error_trace($)
     last if ($iselement_read == -1);
   }
 
-  # Return the error trace tree root node and collected auxiliary information.
-  return {
-      'error trace tree root node' => $parents[0]
-    , 'dependencies' => \%dependencies
-    , 'files long name' => \%files_long_name
-    , 'files short name' => \%files_short_name};
+  # Return the error trace tree root node.
+  return $parents[0];
 }
 
 sub read_brackets($)
