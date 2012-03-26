@@ -39,7 +39,8 @@ sub call_trees_eq($$);
 sub call_trees_ne($$);
 # Try to convert a given error trace with help of an engine converter.
 # args: engine and reference to array containing error trace lines.
-# retn: reference to array with a error trace in the common format or undef.
+# retn: reference to array with a error trace in the common format or reference
+#       to array specified if corresponding converter can't be found.
 sub convert_et_to_common($$);
 # Obtain a call subtree for a given common error trace node.
 # args: node of a common error trace.
