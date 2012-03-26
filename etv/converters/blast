@@ -1,8 +1,8 @@
 use Env qw(LDV_DEBUG LDV_BLAST_ET_CONV_DEBUG);
 
 # Add some nonstandard local Perl packages.
-use DSCV::RCV::Entity;
-use DSCV::RCV::Annotation;
+use ETV::Entity;
+use ETV::Annotation;
 
 
 ################################################################################
@@ -341,7 +341,7 @@ sub parse_error_trace($)
   my @pre_annotations = ();
 
   # Create the tree root corresponding to the entry point or main.
-  $entity = DSCV::RCV::Entity->new({'engine' => $engine, 'kind' => $et_root});
+  $entity = ETV::Entity->new({'engine' => $engine, 'kind' => $et_root});
   push(@parents, $entity);
 
   while(1)
@@ -362,7 +362,7 @@ sub parse_error_trace($)
       {
         # Without this message users can obtain incomplete error trace html
         # representation and won't understand what has happend.
-        print_debug_warning("You obtain incomplete error trace representation! End of file was reached but some elements weren't still processed!");
+        print_debug_warning("You obtain incomplete error trace representation! End of file was reached but some elements weren't still processed!")
           if ($element);
 
         $iselement_read = -1;
@@ -400,7 +400,7 @@ sub parse_error_trace($)
           # all.
           if ($element_value)
           {
-            $entity = DSCV::RCV::Entity->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
+            $entity = ETV::Entity->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
 
             # Some nodes are processed in a special way, so report it.
             print_debug_trace("A tree node kind was changed from '$element_kind' to '" . $entity->{'kind'} . "'")
@@ -443,7 +443,7 @@ sub parse_error_trace($)
           # Ignore arificial locations at all.
           if ($element_value)
           {
-            $annotation = DSCV::RCV::Annotation->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
+            $annotation = ETV::Annotation->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
 
             # Process annotation in depend on whether it pre or post.
             push(@pre_annotations, $annotation)
