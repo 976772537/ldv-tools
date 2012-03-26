@@ -35,8 +35,7 @@ sub read_equal_int($);
 sub read_equal_src($);
 
 # Read a next line from a specified error trace and process it a bit.
-# args: a reference to array of strings representing a given error trace and an
-#       index in this array.
+# args: a reference to array of strings representing a given error trace.
 # retn: a processed line or undef when there is no more lines.
 sub read_line($);
 
@@ -331,8 +330,6 @@ sub parse_error_trace($)
 {
   my $et = shift;
 
-  my $et_pos = {'error trace' => $et, 'line number' => 0};
-
   # The list of current parents.
   my @parents = ();
 
@@ -359,24 +356,18 @@ sub parse_error_trace($)
     while ($iselement_read == 0)
     {
       # Read a part of a given element with simple processing.
-      my $element_part = read_line($et_pos);
+      my $element_part = read_line($et);
 
       unless (defined($element_part))
       {
         # Without this message users can obtain incomplete error trace html
         # representation and won't understand what has happend.
-        if ($element)
-        {
-          print_debug_warning("You obtain incomplete error trace representation! End of file was reached but some elements weren't still processed!");
-        }
+        print_debug_warning("You obtain incomplete error trace representation! End of file was reached but some elements weren't still processed!");
+          if ($element);
 
         $iselement_read = -1;
         last;
       }
-
-      # Increase a line number into a specified error trace after successfull
-      # reading.
-      $et_pos->{'line number'}++;
 
       # Empty lines are meanigless so just skip them.
       next unless($element_part);
@@ -554,10 +545,10 @@ sub read_equal_src($)
 
 sub read_line($)
 {
-  my $et_pos = shift;
+  my $et = shift;
 
   # Try to read a next line.
-  return undef unless (defined(my $line = ${$et_pos->{'error trace'}}[$et_pos->{'line number'}]));
+  return undef unless (defined(my $line = shift(@{$et})));
 
   # Remove the end of line.
   chomp($line);
