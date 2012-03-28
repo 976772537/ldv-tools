@@ -32,7 +32,7 @@ package org.linuxtesting.ldv.envgen.cbase.parsers.options;
  *  должна отвечать за то, как будет воспринято сообщение и как
  *  будет сконфигурирован паттерн.
  *  
- * @author iceberg
+ * @author Alexander Strakh
  *
  */
 public abstract class Options {

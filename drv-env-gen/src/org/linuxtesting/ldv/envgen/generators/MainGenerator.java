@@ -56,7 +56,7 @@ import org.linuxtesting.ldv.envgen.generators.fungen.GenerateOptions;
 
 /**
  *
- * Changed on Nov 2010: iceberg
+ * Changed on Nov 2010: Alexander Strakh
  * Pattern for search function parameters was changed to resolve the 
  * issue with "void __user* var". It was recognized as void.
  *

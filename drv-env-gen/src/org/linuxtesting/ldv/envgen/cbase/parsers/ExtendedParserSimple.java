@@ -29,7 +29,7 @@ import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDeclSimple;
  * парсер для поиска init и exit макросов и токенов функций
  * в соответствующих макросах
  *
- * @author iceberg
+ * @author Alexander Strakh
  *
  */
 public class ExtendedParserSimple extends ExtendedParser<TokenFunctionDeclSimple> {

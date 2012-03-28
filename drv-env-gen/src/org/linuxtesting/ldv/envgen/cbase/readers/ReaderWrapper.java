@@ -26,7 +26,7 @@ import org.linuxtesting.ldv.envgen.cbase.filters.CodeFilter;
 
 /**
  *
- *  * @author iceberg
+ *  * @author Alexander Strakh
  *
  *  Класс служит для того, чтобы парсить входной поток.
  *

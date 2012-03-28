@@ -35,7 +35,7 @@ import org.linuxtesting.ldv.envgen.cbase.tokens.Token;
  * 	  добавление опций производится в конструкторе
  * 2. реализует функцию парсера контента
  *
- * @author iceberg
+ * @author Alexander Strakh
  *
  */
 public abstract class ExtendedParser<T extends Token> implements ParserInterface<T> {

@@ -29,7 +29,7 @@ import org.linuxtesting.ldv.envgen.cbase.tokens.TokenFunctionDecl;
 
 /**
  *
- * @author iceberg
+ * @author Alexander Strakh
  *
  * Парсер функций - открывает файл и ищет в нем все возможные
  * функции, код, которых находится в этом файле.

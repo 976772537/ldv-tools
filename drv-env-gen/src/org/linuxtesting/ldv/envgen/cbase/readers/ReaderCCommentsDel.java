@@ -27,7 +27,7 @@ import org.linuxtesting.ldv.envgen.cbase.filters.CodeFilterCCommentsDel;
  * в списко добавляются фильтры и ридер последовательно по ним проходится
  * -- БАГ в реализации метода read
  * 
- * @author iceberg
+ * @author Alexander Strakh
  *
  */
 public class ReaderCCommentsDel extends ReaderWrapper {

@@ -17,7 +17,7 @@
 package org.linuxtesting.ldv.envgen.cbase.filters;
 
 /**
- *  *  * @author iceberg
+ *  *  * @author Alexander Strakh
  *	классы-фильтры, 
  *	метод filter - возвращает номер действия по символу,
  *  класс может хранить текущее состояние,

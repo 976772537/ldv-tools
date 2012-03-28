@@ -24,7 +24,7 @@ package org.linuxtesting.ldv.envgen.cbase.readers;
  * TODO: сделать фабрику объектов, реализующих интерфейс ReaderInterface, желательно
  * на основе instanceOf
  *
- * @author root
+ * @author Alexander Strakh
  *
  */
 public class ReaderWrapperForString implements ReaderInterface {
