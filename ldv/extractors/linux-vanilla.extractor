@@ -56,6 +56,8 @@ else
 	                tar xzpf$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
 	        application/x-tar)
 	                tar xpf$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
+	        application/x-directory)
+	                cp -pr $DSCR_SOURCE $DSCR_DEST;;
 	        *)
 	                ldv_print "ERROR: Unknown source type:\"$SOURCE_TYPE\".";
 	                exit 1;;
