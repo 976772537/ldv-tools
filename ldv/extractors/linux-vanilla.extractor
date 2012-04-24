@@ -57,7 +57,7 @@ else
 	        application/x-tar)
 	                tar xpf$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
 	        application/x-directory)
-	                cp -pr $DSCR_SOURCE $DSCR_DEST;;
+	                rsync -pr --links --exclude='.git' $DSCR_SOURCE $DSCR_DEST;;
 	        *)
 	                ldv_print "ERROR: Unknown source type:\"$SOURCE_TYPE\".";
 	                exit 1;;
