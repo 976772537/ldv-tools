@@ -121,6 +121,15 @@ else {
         return radio[i].value;
   }
 
+  function trimTags(tags) {
+    var tagsArray = tags.split(';');
+
+    for (var i = 0; i < tagsArray.length; i++)
+      tagsArray[i] = $.trim(tagsArray[i]);
+
+    return tagsArray.join(';');
+  }
+
   function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, tagsOld, tags, commentOld, comment) {
     $.ajaxSetup({ 'error': function() {
       if (isNew)
@@ -278,20 +287,22 @@ else {
       else
         submitText = 'Update';
 
+      // Remove spaces before and after strings except script and comment.
+      // As for tags, split them initialy and do this for each tag. Issue #1748.
       rowCur.append("<td>"
         + "<form id='UpdateKBRecord' onsubmit=\"updateKBRecord("
           + isNew + ", "
           + kbId + ", "
-          + kbNameOld + ", getElementById('KBName').value, "
+          + kbNameOld + ", $.trim(getElementById('KBName').value), "
           + kbPublicOld + ", getRadioValue(getElementsByName('KBPublic')), "
-          + kbTaskAttrsOld + ", getElementById('KBTaskattributes').value, "
-          + kbModelOld + ",  getElementById('KBModel').value, "
-          + kbModuleOld + ",  getElementById('KBModule').value, "
-          + kbMainOld + ",  getElementById('KBMain').value, "
+          + kbTaskAttrsOld + ", $.trim(getElementById('KBTaskattributes').value), "
+          + kbModelOld + ", $.trim(getElementById('KBModel').value), "
+          + kbModuleOld + ",  $.trim(getElementById('KBModule').value), "
+          + kbMainOld + ",  $.trim(getElementById('KBMain').value), "
           + kbTraceId + ", "
           + kbScriptOld + ",  getElementById('KBScript').value, "
           + kbVerdictOld + ",  getRadioValue(getElementsByName('KBVerdict')), "
-          + kbTagsOld + ",  getElementById('KBTags').value, "
+          + kbTagsOld + ",  trimTags(getElementById('KBTags').value), "
           + kbCommentOld + ",  getElementById('KBComment').value);"
           + " return false;\">"
         + "</form>"
