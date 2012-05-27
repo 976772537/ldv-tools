@@ -24,21 +24,6 @@ $results = $this->entries;
 // Get the statistics information part.
 $stats = $results['Stats']['Row info'];
 
-// Don't use comparison for git mode.
-if (!isGit($results)) {
-  // Print the form for the tasks comparison.
-  $this->formTasksComparison->setAction($this->url());
-  echo $this->formTasksComparison;
-}
-
-// Print the form for the tasks comparison.
-$this->formPrintCSV->setAction($this->url());
-echo $this->formPrintCSV;
-
-// Print the form for the profiles update.
-$this->formUpdateProfiles->setAction($this->url());
-echo $this->formUpdateProfiles;
-
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
 $profilePages = $results['Profile pages'];
@@ -86,12 +71,10 @@ function printData($str, $data) {
 }
 
 $resultsNumb = count($stats);
-echo "<div id='SSStatsTableTitle'>Statistics for the page '$page' (" . $resultsNumb . " rows)</div>";
+echo "<div id='SSStatsTableTitle'>Statistics for '$page' page (" . $resultsNumb . " rows)</div>";
 
 // Print general statistics table if so.
 if ($resultsNumb) {
-  echo "<div class='SSNote'>Time is shown in seconds.</div>";
-
   // At the beginning print javascript plugin to relate comparison interfaces.
   if (!isGit($results)) {
     echo "<script type='text/javascript'>
@@ -1079,6 +1062,18 @@ if ($resultsNumb) {
   }
 
   echo "</table>";
+  echo "<div class='SSNote'>Time is shown in seconds</div>";
+
+  // Don't use comparison for git mode.
+  if (!isGit($results)) {
+    // Print the form for the tasks comparison.
+    $this->formTasksComparison->setAction($this->url());
+    echo $this->formTasksComparison;
+  }
+
+  // Print the form for the tasks comparison.
+  $this->formPrintCSV->setAction($this->url());
+  echo $this->formPrintCSV;
 }
 
 printInfo($results);
