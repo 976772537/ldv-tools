@@ -39,6 +39,13 @@ body
   padding: 5px;
 }
 
+#SSHeaderMenu
+{
+  float: right;
+  font-size: 14pt;
+  padding: 5px;
+}
+
 /* Comparison menu style. */
 #SSTaskIds-label
 {

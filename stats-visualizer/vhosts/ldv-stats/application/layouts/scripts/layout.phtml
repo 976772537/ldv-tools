@@ -43,14 +43,12 @@ echo $this->doctype(), "\n"
 <body>
 <div id="SSHeader">
   <div id="SSHeaderLogo"><?php echo toolNameVersion() ?></div>
-<!-- There is no action implemented at the moment.
-  <div id="SSHeaderNavigation" style="float: right">
-    <a href="<?php /*echo $this->url(
-      array('controller'=>'index'),
-      'default',
-      true)*/ ?>">Choose profile</a>
+  <div id="SSHeaderMenu" >
+    <!--<a href="<?php echo $this->url(array('controller'=>'stats', 'action'=>'index'), 'default', true) ?>">Show statistics</a> &nbsp &nbsp-->
+    <!--<a href="<?php echo $this->url(array('controller'=>'stats', 'action'=>'signdb'), 'default', true) ?>">Sign database connection</a> &nbsp &nbsp-->
+    <a href="<?php echo $this->url(array('controller'=>'index', 'action'=>'index'), 'default', true) ?>">Help</a> &nbsp &nbsp
+    <a href="mailto:joker@ispras.ru?subject=Questions about <?php echo toolNameVersion() ?>">Support</a>
   </div>
--->
 </div>
 
 <?php echo $this->layout()->content ?>
