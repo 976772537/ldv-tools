@@ -1,4 +1,4 @@
-<?php 
+<?php
 /*
  * Copyright (C) 2010-2012
  * Institute for System Programming, Russian Academy of Sciences (ISPRAS).
@@ -15,6 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+function toolNameVersion()
+{
+  $version = '0.1';
+  return "LDV Analytics Center $version";
+}
 
 echo $this->doctype(), "\n"
 ?>
@@ -22,7 +27,7 @@ echo $this->doctype(), "\n"
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>Linux driver verification statistics</title>
+  <title><?php echo toolNameVersion() ?></title>
   <?php
     $baseUrl = $this->baseUrl();
     $this->headLink()->appendStylesheet("$baseUrl/css/global.css");
@@ -37,7 +42,7 @@ echo $this->doctype(), "\n"
 </head>
 <body>
 <div id="SSHeader">
-  <div id="SSHeaderLogo">Linux driver verification statistics</div>
+  <div id="SSHeaderLogo"><?php echo toolNameVersion() ?></div>
 <!-- There is no action implemented at the moment.
   <div id="SSHeaderNavigation" style="float: right">
     <a href="<?php /*echo $this->url(
