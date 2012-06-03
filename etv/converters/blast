@@ -117,6 +117,9 @@ my $line_prev = 0;
 # entry point starts, because of there is no explicit entry point in BLAST.
 my $context = 'entry';
 
+# Keep cil auxliary variables and their values to eventually remove them.
+my %cil_vars;
+
 
 ################################################################################
 # Main section.
@@ -272,14 +275,6 @@ sub convert_tree_node_to_common($)
     #   cil_30 = &((*iface_desc).endpoint[i + 1]);
     $val =~ s/=\s*\*\s*\(([^\)]+)\)\.([^\s]+)\s+offset\s+([^;]+);/= &\(\(\*$1\).$2\[$3\]\);/;
 
-    # Remove artificial CIL variables 'cil_\d+'.
-   # if ($val =~ /((cil_\d+) = ([^;]+);)/)
-   # {
-   #   print("$1 - $2 - $3\n");
-      #$val =~ s/$1//;
-      #$val =~ s/$2/$3/;
-   # }
-
     # Replace 'A foffset B' with '&(A)->B' in the "recursive" way.
     while ($val =~ /(\w+|&\(\w+\))\s+foffset\s+\w+/)
     {
@@ -332,6 +327,30 @@ sub convert_tree_node_to_common($)
       {
         print_debug_warning("Trace format isn't supported");
       }
+    }
+
+    # Remove and propogate artificial CIL variables 'cil_\d+'.
+    if ($val =~ /((cil_\d+) = ([^;]+);)/)
+    {
+      my $cil_expr = $1;
+      my $cil_var = $2;
+      my $cil_var_val = $3;
+
+      $cil_vars{$cil_var} = $cil_var_val;
+
+      # Remove artificial CIL variable definition.
+      $val =~ s/\Q$cil_expr\E//;
+
+      # Usually auxiliary CIL variables are defined and used in scope of one
+      # block, so replace them with their values.
+      $val =~ s/$cil_var/$cil_var_val/;
+    }
+
+    # Sometimes auxiliary CIL variables are defined and used in scope of
+    # different blocks.
+    foreach my $cil_var (keys(%cil_vars))
+    {
+      $val =~ s/\Q$cil_var\E/$cil_vars{$cil_var}/;
     }
 
     $node_common .= ": $val";
