@@ -265,16 +265,20 @@ sub convert_tree_node_to_common($)
     $val =~ s/ \)/\)/g;
     $val =~ s/\* \(/\*\(/g;
 
-    # Replace 'A offset B' with '&(A)[i]'.
-    $val =~ s/([^\s]+)\s+offset\s+(\w+)/&\($1\)\[$2\]/;
+    # Replace '= *(A).B offset C;' with '= &((*A).B[C])'.
+    # For instance:
+    #   cil_30 = * (iface_desc ).endpoint  offset i  + 1;
+    # becomes:
+    #   cil_30 = &((*iface_desc).endpoint[i + 1]);
+    $val =~ s/=\s*\*\s*\(([^\)]+)\)\.([^\s]+)\s+offset\s+([^;]+);/= &\(\(\*$1\).$2\[$3\]\);/;
 
     # Remove artificial CIL variables 'cil_\d+'.
-    if ($val =~ /((cil_\d+) = ([^;]+);)/)
-    {
-      print("$1 - $2 - $3\n");
+   # if ($val =~ /((cil_\d+) = ([^;]+);)/)
+   # {
+   #   print("$1 - $2 - $3\n");
       #$val =~ s/$1//;
       #$val =~ s/$2/$3/;
-    }
+   # }
 
     # Replace 'A foffset B' with '&(A)->B' in the "recursive" way.
     while ($val =~ /(\w+|&\(\w+\))\s+foffset\s+\w+/)
