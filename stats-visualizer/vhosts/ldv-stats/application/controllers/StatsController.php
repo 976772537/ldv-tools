@@ -1,4 +1,20 @@
 <?php
+/*
+ * Copyright (C) 2010-2012
+ * Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 class StatsController extends Zend_Controller_Action
 {
@@ -33,6 +49,11 @@ class StatsController extends Zend_Controller_Action
     }
     if ($this->_hasParam('password')) {
       $this->_globals['password'] =  $this->_getParam('password');
+    }
+
+    // Get information on an url-specified filter.
+    if ($this->_hasParam('filter')) {
+      $this->_globals['filter'] =  $this->_getParam('filter');
     }
 
     // Use session global variables just for unimportant time counting.
@@ -251,7 +272,7 @@ class StatsController extends Zend_Controller_Action
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
 
     // Dump KB tables schemas and data.
-    exec("mysqldump -u$dbConnection[username] $dbConnection[dbname] kb results_kb -r'" . APPLICATION_PATH . "/../data/trace/kb-dump.sql" . "' 2>&1" , $output, $retCode);
+    exec("mysqldump -u$dbConnection[username] $dbConnection[dbname] kb results_kb -r'" . APPLICATION_PATH . "/../data/kb-dump.sql" . "' 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';
@@ -271,7 +292,7 @@ class StatsController extends Zend_Controller_Action
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
 
     // Upload KB tables schemas and data.
-    exec("mysql -u$dbConnection[username] $dbConnection[dbname] < " . APPLICATION_PATH . "/../data/trace/kb-dump.sql" . " 2>&1" , $output, $retCode);
+    exec("mysql -u$dbConnection[username] $dbConnection[dbname] < " . APPLICATION_PATH . "/../data/kb-dump.sql" . " 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';

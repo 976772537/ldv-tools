@@ -1,24 +1,40 @@
+################################################################################
+# Copyright (C) 2012
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
 use Env qw(LDV_DEBUG LDV_BLAST_ET_CONV_DEBUG);
 
 # Add some nonstandard local Perl packages.
-use DSCV::RCV::Entity;
-use DSCV::RCV::Annotation;
+use ETV::Entity;
+use ETV::Annotation;
 
 
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
 
-# Convert a parsed error trace to the common format.
-# args: reference to a parsing result hash (root node of a tree, dependencies,
-#       etc.).
-# retn: reference to array of common error trace lines.
-sub convert_error_trace_to_common($);
-
 # Convert a given tree node from internal representation to the common format.
 # args: tree node.
 # retn: reference to array of common error trace lines.
 sub convert_tree_node_to_common($);
+
+# Parse a given error trace and convert it into internal representation (tree).
+# args: reference to array of error trace lines.
+# retn: tree root node.
+sub parse_error_trace($);
 
 # Read something placed into brackets.
 # args: some string.
@@ -36,8 +52,7 @@ sub read_equal_int($);
 sub read_equal_src($);
 
 # Read a next line from a specified error trace and process it a bit.
-# args: a reference to array of strings representing a given error trace and an
-#       index in this array.
+# args: a reference to array of strings representing a given error trace.
 # retn: a processed line or undef when there is no more lines.
 sub read_line($);
 
@@ -56,11 +71,6 @@ sub read_locals($);
 # args: some string.
 # retn: a processed path to a file and a line number or undef if it can't be read.
 sub read_location($);
-
-# Parse a given error trace and convert it into internal representation (tree).
-# args: reference to array of error trace lines.
-# retn: reference to a result hash (root node of a tree, dependencies, etc.).
-sub parse_error_trace($);
 
 
 ################################################################################
@@ -116,10 +126,10 @@ my $context = 'entry';
 get_debug_level('blast-et-conv', $LDV_DEBUG, $LDV_BLAST_ET_CONV_DEBUG);
 
 print_debug_info("Begin to parse error trace specified");
-my $et_parsed = parse_error_trace(\@et_array);
+my $et_tree_root_node = parse_error_trace(\@et_array);
 print_debug_debug("Error trace was parsed successfully");
 print_debug_info("Begin to convert error trace to the common format");
-my $et_conv = convert_error_trace_to_common($et_parsed);
+my $et_conv = convert_tree_node_to_common($et_tree_root_node);
 print_debug_debug("Error trace was converted to the common format successfully");
 
 # Add such the header to distinguish error traces in the common format.
@@ -136,16 +146,6 @@ push(@et_conv_array, @{$et_conv});
 # Supress warnings like 'Subroutine get_loc_and_val redefined' in the manner
 # recommended at http://perldoc.perl.org/perldiag.html.
 no warnings 'redefine';
-
-sub convert_error_trace_to_common($)
-{
-  my $et_parsed = shift;
-
-  my $et_root = $et_parsed->{'error trace tree root node'};
-
-  $src_prev = '';
-  return convert_tree_node_to_common($et_root);
-}
 
 sub convert_tree_node_to_common($)
 {
@@ -358,8 +358,6 @@ sub parse_error_trace($)
 {
   my $et = shift;
 
-  my $et_pos = {'error trace' => $et, 'line number' => 0};
-
   # The list of current parents.
   my @parents = ();
 
@@ -370,13 +368,8 @@ sub parse_error_trace($)
   # Stored pre annotations.
   my @pre_annotations = ();
 
-  # These variables are described in the main script.
-  my %dependencies;
-  my %files_long_name;
-  my %files_short_name;
-
   # Create the tree root corresponding to the entry point or main.
-  $entity = DSCV::RCV::Entity->new({'engine' => $engine, 'kind' => $et_root});
+  $entity = ETV::Entity->new({'engine' => $engine, 'kind' => $et_root});
   push(@parents, $entity);
 
   while(1)
@@ -391,24 +384,18 @@ sub parse_error_trace($)
     while ($iselement_read == 0)
     {
       # Read a part of a given element with simple processing.
-      my $element_part = read_line($et_pos);
+      my $element_part = read_line($et);
 
       unless (defined($element_part))
       {
         # Without this message users can obtain incomplete error trace html
         # representation and won't understand what has happend.
-        if ($element)
-        {
-          print_debug_warning("You obtain incomplete error trace representation! End of file was reached but some elements weren't still processed!");
-        }
+        print_debug_warning("You obtain incomplete error trace representation! End of file was reached but some elements weren't still processed!")
+          if ($element);
 
         $iselement_read = -1;
         last;
       }
-
-      # Increase a line number into a specified error trace after successfull
-      # reading.
-      $et_pos->{'line number'}++;
 
       # Empty lines are meanigless so just skip them.
       next unless($element_part);
@@ -441,7 +428,7 @@ sub parse_error_trace($)
           # all.
           if ($element_value)
           {
-            $entity = DSCV::RCV::Entity->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
+            $entity = ETV::Entity->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
 
             # Some nodes are processed in a special way, so report it.
             print_debug_trace("A tree node kind was changed from '$element_kind' to '" . $entity->{'kind'} . "'")
@@ -484,21 +471,7 @@ sub parse_error_trace($)
           # Ignore arificial locations at all.
           if ($element_value)
           {
-            # Store dependencies. TODO make it entity specific!!!
-            if ($element_kind eq $et_location)
-            {
-              my ($src, $line) = @{$element_value};
-              if(defined($line))
-              {
-                $dependencies{$src} = 1;
-              }
-              $files_long_name{$src} = 0;
-              $src =~ /([^\/]*)$/;
-              $files_short_name{$src} = $1;
-              print_debug_trace("A full path to a source code file '$src' was related with the short one '$1'");
-            }
-
-            $annotation = DSCV::RCV::Annotation->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
+            $annotation = ETV::Annotation->new({'engine' => $engine, 'kind' => $element_kind, 'values' => $element_value});
 
             # Process annotation in depend on whether it pre or post.
             push(@pre_annotations, $annotation)
@@ -533,12 +506,8 @@ sub parse_error_trace($)
     last if ($iselement_read == -1);
   }
 
-  # Return the error trace tree root node and collected auxiliary information.
-  return {
-      'error trace tree root node' => $parents[0]
-    , 'dependencies' => \%dependencies
-    , 'files long name' => \%files_long_name
-    , 'files short name' => \%files_short_name};
+  # Return the error trace tree root node.
+  return $parents[0];
 }
 
 sub read_brackets($)
@@ -604,10 +573,10 @@ sub read_equal_src($)
 
 sub read_line($)
 {
-  my $et_pos = shift;
+  my $et = shift;
 
   # Try to read a next line.
-  return undef unless (defined(my $line = ${$et_pos->{'error trace'}}[$et_pos->{'line number'}]));
+  return undef unless (defined(my $line = shift(@{$et})));
 
   # Remove the end of line.
   chomp($line);

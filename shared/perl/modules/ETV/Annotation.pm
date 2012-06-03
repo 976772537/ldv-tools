@@ -1,7 +1,5 @@
-#!/usr/bin/perl -w
-
 ################################################################################
-# Copyright (C) 2011-2012
+# Copyright (C) 2010-2012
 # Institute for System Programming, Russian Academy of Sciences (ISPRAS).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,25 +14,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+package ETV::Annotation;
 
-use XML::Twig;
-use SOAP::Lite;
+use English;
+use strict;
 
-my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
 
-sub xml_cmdstream;
+my $engine_blast = 'blast';
 
-my $twig_handlers = {   "cmdstream/cc"      => \&xml_cmdstream,
-                        "cmdstream/ld"      => \&xml_cmdstream };
-my $twig_inreport = new XML::Twig(TwigHandlers => $twig_handlers);
+my %post_annotations = ($engine_blast => {'LDV' => 1, 'Locals' => 1});
+my %pre_annotations = ($engine_blast => {'Location' => 1});
 
-$twig_inreport->parsefile($ARGV[0]);
-exit;
 
-sub xml_cmdstream {
-       	my $cmdstream = XML::Twig::Elt->new('cmdstream');
-	$_[1]->move($cmdstream);
-	$cmdstream->set_pretty_print('indented');
-	$cmdstream->print();
-	$csd->sendCommand(SOAP::Data-> type ("string") -> name ("arg0") -> value ($cmdstream->sprint));
+sub new($$)
+{
+  my ($class, $data) = @ARG;
+
+  my $init = ${$data}{'engine'};
+  my $init_func = \&$init;
+
+  my $self = $init_func->($data);
+  bless $self, $class;
+
+  return $self;
 }
+
+sub blast($)
+{
+  my $init = shift;
+
+  return $init;
+}
+
+sub ispost_annotation($)
+{
+  my $self = shift;
+
+  return defined($post_annotations{$self->{'engine'}}{$self->{'kind'}});
+}
+
+sub ispre_annotation($)
+{
+  my $self = shift;
+
+  return defined($pre_annotations{$self->{'engine'}}{$self->{'kind'}});
+}
+
+1;

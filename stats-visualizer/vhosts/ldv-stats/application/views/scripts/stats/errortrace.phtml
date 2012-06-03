@@ -1,4 +1,20 @@
 <?php
+/*
+ * Copyright (C) 2010-2012
+ * Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 include 'general.php';
 
@@ -103,6 +119,15 @@ else {
     for (var i = 0; i < radio.length; i++)
       if (radio[i].checked)
         return radio[i].value;
+  }
+
+  function trimTags(tags) {
+    var tagsArray = tags.split(';');
+
+    for (var i = 0; i < tagsArray.length; i++)
+      tagsArray[i] = $.trim(tagsArray[i]);
+
+    return tagsArray.join(';');
   }
 
   function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, tagsOld, tags, commentOld, comment) {
@@ -262,20 +287,22 @@ else {
       else
         submitText = 'Update';
 
+      // Remove spaces before and after strings except script and comment.
+      // As for tags, split them initialy and do this for each tag. Issue #1748.
       rowCur.append("<td>"
         + "<form id='UpdateKBRecord' onsubmit=\"updateKBRecord("
           + isNew + ", "
           + kbId + ", "
-          + kbNameOld + ", getElementById('KBName').value, "
+          + kbNameOld + ", $.trim(getElementById('KBName').value), "
           + kbPublicOld + ", getRadioValue(getElementsByName('KBPublic')), "
-          + kbTaskAttrsOld + ", getElementById('KBTaskattributes').value, "
-          + kbModelOld + ",  getElementById('KBModel').value, "
-          + kbModuleOld + ",  getElementById('KBModule').value, "
-          + kbMainOld + ",  getElementById('KBMain').value, "
+          + kbTaskAttrsOld + ", $.trim(getElementById('KBTaskattributes').value), "
+          + kbModelOld + ", $.trim(getElementById('KBModel').value), "
+          + kbModuleOld + ",  $.trim(getElementById('KBModule').value), "
+          + kbMainOld + ",  $.trim(getElementById('KBMain').value), "
           + kbTraceId + ", "
           + kbScriptOld + ",  getElementById('KBScript').value, "
           + kbVerdictOld + ",  getRadioValue(getElementsByName('KBVerdict')), "
-          + kbTagsOld + ",  getElementById('KBTags').value, "
+          + kbTagsOld + ",  trimTags(getElementById('KBTags').value), "
           + kbCommentOld + ",  getElementById('KBComment').value);"
           + " return false;\">"
         + "</form>"
@@ -368,7 +395,7 @@ else {
     else if ($columnName == 'Error trace')
       $value = $results['Trace id'];
     else if ($columnName == 'Script')
-      $value = "return 1 if (call_stacks_ne(\$et, \$kb_et));";
+      $value = "return 1 if (call_trees_ne(\$et, \$kb_et));";
 
     echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$value</div></td>";
   }

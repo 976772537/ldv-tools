@@ -666,6 +666,9 @@ function WSGetTaskReport($task_id) {
 		}
 	}
 	// Sort by groups safe/unsafe/unknown etc
+	// Recalculate a progress.
+	$count = 0;
+	$finished = 0;
 	foreach($task['envs'] as $env_key => $env) {
 		foreach($env['rules'] as $rule_key => $rule) {
 			// calculate SAFE/UNSAFE/UNKNOWN
@@ -680,6 +683,16 @@ function WSGetTaskReport($task_id) {
 				else if ($result['status'] == 'unknown')
 					array_push($unknowns,$result);
 			}
+			
+			// One more workaround to ldv-online... See issue #2153.
+			// Update general environment-rule status. Otherwise it'll be 'running' forever.
+			if (count($unsafes) > 0 or count($safes) > 0 or count($unknowns) > 0)
+			{
+				$task['envs'][$env_key]['rules'][$rule_key]['status'] = 'finished';
+				$finished++;
+			}
+			$count++;
+			
 			if(count($unsafes)>0) 
 				$task['envs'][$env_key]['rules'][$rule_key]['results'] = $unsafes;
 			else if(count($safes)>0)	
@@ -688,6 +701,17 @@ function WSGetTaskReport($task_id) {
 				$task['envs'][$env_key]['rules'][$rule_key]['results'] = array($unknowns[0]);
 		}
 	}
+	
+	if($finished == $count) {
+		$task['progress'] = 100;
+		$task['status'] = 'finished';
+	} else if ($finished == 0) {
+		$task['progress'] = 1;
+	} else {
+		$task['progress'] = round($finished*(100/$count));
+	}
+	$task['finished'] = $finished;
+
 	WSStatsDisconnect($conn);
 	return $task;
 }

@@ -1,4 +1,20 @@
 <?php
+/*
+ * Copyright (C) 2010-2012
+ * Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 include 'general.php';
 
@@ -7,21 +23,6 @@ $results = $this->entries;
 
 // Get the statistics information part.
 $stats = $results['Stats']['Row info'];
-
-// Don't use comparison for git mode.
-if (!isGit($results)) {
-  // Print the form for the tasks comparison.
-  $this->formTasksComparison->setAction($this->url());
-  echo $this->formTasksComparison;
-}
-
-// Print the form for the tasks comparison.
-$this->formPrintCSV->setAction($this->url());
-echo $this->formPrintCSV;
-
-// Print the form for the profiles update.
-$this->formUpdateProfiles->setAction($this->url());
-echo $this->formUpdateProfiles;
 
 // Get information on all current profile page names. For them links will be
 // generated inside the statistics table cells below.
@@ -70,12 +71,10 @@ function printData($str, $data) {
 }
 
 $resultsNumb = count($stats);
-echo "<div id='SSStatsTableTitle'>Statistics for the page '$page' (" . $resultsNumb . " rows)</div>";
+echo "<div id='SSStatsTableTitle'>Statistics for '$page' page (" . $resultsNumb . " rows)</div>";
 
 // Print general statistics table if so.
 if ($resultsNumb) {
-  echo "<div class='SSNote'>Time is shown in seconds.</div>";
-
   // At the beginning print javascript plugin to relate comparison interfaces.
   if (!isGit($results)) {
     echo "<script type='text/javascript'>
@@ -1063,6 +1062,18 @@ if ($resultsNumb) {
   }
 
   echo "</table>";
+  echo "<div class='SSNote'>Time is shown in seconds</div>";
+
+  // Don't use comparison for git mode.
+  if (!isGit($results)) {
+    // Print the form for the tasks comparison.
+    $this->formTasksComparison->setAction($this->url());
+    echo $this->formTasksComparison;
+  }
+
+  // Print the form for the tasks comparison.
+  $this->formPrintCSV->setAction($this->url());
+  echo $this->formPrintCSV;
 }
 
 printInfo($results);

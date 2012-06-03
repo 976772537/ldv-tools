@@ -127,6 +127,23 @@ sub patch_headers {
 	}
 	close FILE or die("Can't close file after patching: $!");
 
+	# Linux kernel 3.4 moves BUILD_BUG_ON definition from
+	# include/linux/kernel.h to include/linux/bug.h (see issue #2875).
+	if (-f $kernel_info->{'header_linux_bug_h'}) {
+		vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_linux_bug_h'}\".\n";
+		open (FILE, $kernel_info->{'header_linux_bug_h'}) or die("Can't file reading while patching: $!");
+		@string = <FILE>;
+		close FILE or die("Can't close file after reading for patching: $!");
+		open (FILE,">".$kernel_info->{'header_linux_bug_h'}) or die("Can't open file for patching: $!");
+		$state = 1;
+		foreach (@string) {
+			/^(\s*#define BUILD_BUG_ON\(condition\) )(\(\(void\)BUILD_BUG_ON_ZERO\(condition\)\)\s*)$/ and $_="$1 //$2";
+			/^(\s*#define BUILD_BUG_ON\(condition\) )(\(\(void\)sizeof\(char\[1 - 2\*\!\!\(condition\)\]\)\)\s*)$/ and $_="$1//$2";
+			print FILE;
+		}
+		close FILE or die("Can't close file after patching: $!");
+	}
+	
 	vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_net_inet_sock_h'}\".\n";
 	open (FILE, $kernel_info->{'header_net_inet_sock_h'}) or die("Can't file reading while patching: $!");
 	@string = <FILE>;
@@ -246,6 +263,7 @@ sub get_kernel_info {
 	$kernel_info{'arch'}->{'x86'}->{'makefile'} = $path_to_kernel.'/arch/x86/Makefile';
 	$kernel_info{'header_linux_gfp_h'} = $path_to_kernel.'/include/linux/gfp.h';
 	$kernel_info{'header_linux_kernel_h'} = $path_to_kernel.'/include/linux/kernel.h';
+	$kernel_info{'header_linux_bug_h'} = $path_to_kernel.'/include/linux/bug.h';
 	$kernel_info{'header_net_inet_sock_h'} = $path_to_kernel.'/include/net/inet_sock.h';
 	$kernel_info{'header_spinlock_types_h'} = $path_to_kernel.'/include/linux/spinlock_types.h';
 	close FILE or die("Can't close main makefile after reading kernel information.");

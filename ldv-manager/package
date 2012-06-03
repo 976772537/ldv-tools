@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+use Env qw(LDV_PACK_AUX_FILES);
+
 # Package reports and sources to archive.
 sub usage
 { die<<EOF
@@ -37,7 +39,7 @@ my @userfiles = ();
 sub read_userfile
 {
 	my ($twig, $cmdT) = @_;
-	push @userfiles, $cmdT->text() if $cmdT->text();
+	push @userfiles, $cmdT->text() if $ENV{'LDV_PACK_AUX_FILES'} and $cmdT->text();
 }
 
 XML::Twig->new( twig_roots => {
