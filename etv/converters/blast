@@ -340,6 +340,9 @@ sub convert_tree_node_to_common($)
 
       # Remove artificial CIL variable definition.
       $val =~ s/\Q$cil_expr\E//;
+      # Skip the given block at all if there isn't any other expression in
+      # this block except CIL variable definition.
+      return if ($val =~ /^\s*$/);
 
       # Usually auxiliary CIL variables are defined and used in scope of one
       # block, so replace them with their values.
@@ -363,7 +366,7 @@ sub convert_tree_node_to_common($)
     foreach my $child (@{$node->{'children'}})
     {
       my $child_common = convert_tree_node_to_common($child);
-      push (@children_common, @{$child_common});
+      push (@children_common, @{$child_common}) if ($child_common);
     }
   }
 
