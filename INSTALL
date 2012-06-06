@@ -28,8 +28,8 @@ MINIMAL PREREQUISITES
 	o Flex or lex
 	o Yacc or Bison
 	o libncurses
-	o MySQL (with InnoDB)server and console client, with development headers and libaries
-	o Perl modules (install via `sudo cpan Module::Name` or via packange manager):
+	o MySQL (with InnoDB)server and console client, with development headers and libraries
+	o Perl modules (install via `sudo cpan Module::Name` or via package manager):
 		- DBI
 		- File::Cat
 		- File::Find
