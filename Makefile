@@ -7,6 +7,7 @@ BUILD_SUBDIRS = rule-instrumentor etv cmd-utils build-cmd-extractor drv-env-gen 
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh etv
 ETV_SUBDIRS = etv shared/perl
 KB_SUBDIRS = knowledge-base shared/perl
+RI_SUBDIRS = rule-instrumentor kernel-rules shared/perl
 DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
 LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ETV_SUBDIRS) $(KB_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby
 STATS_SUBDIRS = $(ETV_SUBDIRS) $(KB_SUBDIRS) stats-visualizer kernel-rules shared/php
@@ -42,6 +43,9 @@ install-console-tools: pre_tests ocaml_is_installed ant_is_installed java_is_ins
 
 install-verifiers: pre_tests ocaml_is_installed $(call forall_subdirs,$(DSCV_SUBDIRS),install)
 
+# Install only rule instrumentor, aspectator and kernel rules
+install-ri: pre_tests $(call forall_subdirs,$(RI_SUBDIRS),install)
+
 # Install only error trace visualizer
 install-etv: pre_tests $(call forall_subdirs,$(ETV_SUBDIRS),install)
 
@@ -65,6 +69,7 @@ distclean: clean
 $(foreach subdir,$(SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(ETV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(KB_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
+$(foreach subdir,$(RI_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(DSCV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(LDV_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
 $(foreach subdir,$(STATS_SUBDIRS),$(eval $(call mksubdir,$(subdir))))
