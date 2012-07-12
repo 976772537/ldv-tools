@@ -261,6 +261,17 @@ my $gcc_suffix_aspect = '.c';
 # Suffix for stage 1 files for GCC aspectator
 my $gcc_preprocessed_suffix = '.p';
 
+# Directory where common model is placed. It's needed to find appropriate
+# header files.
+my $ldv_model_include_dir;
+# Name of file where a common model source and object will be put. It's relative
+# to a common model directory.
+my $ldv_model_common = 'ldv_common_model.c';
+my $ldv_model_common_o = 'ldv_common_model.o';
+# Compilation options and a current working directory to be used for a common
+# model preprocessing.
+my $ldv_model_common_opts;
+my $ldv_model_common_cwd;
 # Directory contains rules models database and their source code.
 my $ldv_model_dir;
 # Name of xml file containing models database. Name is relative to models
@@ -329,6 +340,9 @@ my $tool_stats_xml = 'stats.xml';
 # The name of directory where configuration files will be placed. It's
 # relative to the tool auxiliary working directory.
 my $tool_config_dir = 'config';
+# The name of directory where common model files will be placed. It's
+# relative to the tool auxiliary working directory.
+my $tool_model_common_dir = 'common-model';
 # The file that is used to store different auxiliary information. It's relative
 # to the tool base directory.
 my $tool_temp = '__rule_instrumentor_temp';
@@ -1137,6 +1151,14 @@ sub prepare_files_and_dirs()
   $tool_config_dir = "$tool_aux_dir/$tool_config_dir";
   print_debug_debug("The tool configurations directory: '$tool_config_dir'");
 
+  $tool_model_common_dir = "$tool_aux_dir/$tool_model_common_dir";
+  unless (-d $tool_model_common_dir)
+  {
+    mkpath($tool_model_common_dir)
+      or die("Couldn't recursively create directory '$tool_model_common_dir': $ERRNO");
+  }
+  print_debug_debug("The tool common model directory: '$tool_model_common_dir'");
+
   # LDV_HOME is obtained through directory of rule-instrumentor.
   # It is assumed that there is such organization of LDV_HOME directory:
   # /LDV_HOME/
@@ -1281,7 +1303,8 @@ sub prepare_files_and_dirs()
   # one from the LDV_HOME.
   if ($LDV_KERNEL_RULES)
   {
-    $ldv_model_dir = $LDV_KERNEL_RULES;
+    $ldv_model_dir = abs_path($LDV_KERNEL_RULES)
+      or die("Can't obtain absolute path of '$LDV_KERNEL_RULES'");;
     print_debug_debug("The models directory specified through 'LDV_KERNEL_RULES' environment variable is '$ldv_model_dir'");
   }
   else
@@ -1311,6 +1334,9 @@ sub prepare_files_and_dirs()
     help();
   }
   print_debug_debug("The models database xml file is '$ldv_model_db_xml'");
+
+  $ldv_model_include_dir = "$ldv_model_dir/files";
+  print_debug_debug("Header files for models will be searched for in '$ldv_model_include_dir'");
 
   print_debug_trace("Copy the models directory '$ldv_model_dir' to the base directory '$opt_basedir'");
   rcopy($ldv_model_dir, "$opt_basedir/" . basename($ldv_model_dir))
@@ -1394,6 +1420,8 @@ sub process_cmd_cc()
     # Just for the trace debug level aspectator will say about something except
     # errors.
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
+    # Specify a path where a common model will be placed.
+    $ENV{'LDV_COMMON_MODEL'} = "$tool_model_common_dir/$ldv_model_common";
 
     # Input file to be instrumented.
     my $in = ${$cmd{'ins'}}[0];
@@ -1426,6 +1454,14 @@ sub process_cmd_cc()
       $preprocessed_suffix = $llvm_preprocessed_suffix;
     }
     else {die};
+
+    # Remember compilation options for the first CC comand to use them further
+    # for a common model preprocessing.
+    unless ($ldv_model_common_opts)
+    {
+      $ldv_model_common_opts = $cmd{'opts'};
+      $ldv_model_common_cwd = $cmd{'cwd'};
+    }
 
     my ($status, $desc);
 
@@ -1487,6 +1523,7 @@ sub process_cmd_cc()
       delete($ENV{$ldv_quiet});
       delete($ENV{$ldv_no_quoted});
       delete($ENV{$ldv_aspectator_gcc});
+      delete($ENV{'LDV_COMMON_MODEL'});
 
       print_debug_trace("Go to the initial directory");
       chdir($tool_working_dir)
@@ -1851,12 +1888,41 @@ sub process_cmd_ld()
   }
   elsif($kind_isplain || $kind_gcc)
   {
-    # Add an additional input model file, error and hints tags for each ld
-    # command.
+    # Create an auxiliary CC comand to link a common model with all other
+    # source files that form a driver (module).
+    if ($ischeck)
+    {
+      my $cmd_cc_aux = new XML::Twig::Elt('cc');
+      $cmd_cc_aux->set_att('id' => "$id_attr-common-model");
 
-    print_debug_trace("For the ld command specify the first input file");
-    my $in = $cmd->first_child($xml_cmd_in);
-    $in->set_text($in->text);
+      my $cmd_cc_aux_cwd = new XML::Twig::Elt('cwd', $ldv_model_common_cwd);
+      $cmd_cc_aux_cwd->paste('last_child', $cmd_cc_aux);
+
+      my $cmd_cc_aux_in = new XML::Twig::Elt('in', "$tool_model_common_dir/$ldv_model_common");
+      $cmd_cc_aux_in->paste('last_child', $cmd_cc_aux);
+
+      foreach my $ldv_model_common_opt (@{$ldv_model_common_opts})
+      {
+        my $cmd_cc_aux_opt = new XML::Twig::Elt('opt', $ldv_model_common_opt);
+        $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
+      }
+
+      # Add -I option with a path to a directory to find appropriate headers for
+      # models.
+      print_debug_trace("For auxiliary CC command add '$ldv_model_include_dir' directory to be searched for  headers");
+      my $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");
+      $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
+
+      my $cmd_cc_aux_out = new XML::Twig::Elt('out', "$tool_model_common_dir/$ldv_model_common_o");
+      $cmd_cc_aux_out->paste('last_child', $cmd_cc_aux);
+
+      print_debug_trace("Print auxiliary common model CC command");
+      $cmd_cc_aux->print($file_xml_out);
+
+      print_debug_trace("Specify a common model file for ld command");
+      my $cmd_ld_aux_in = new XML::Twig::Elt('in', "$tool_model_common_dir/$ldv_model_common_o");
+      $cmd_ld_aux_in->paste('last_child', $cmd);
+    }
 
     print_debug_trace("For the ld command add error tag");
     my $xml_error_tag = new XML::Twig::Elt('error', $ldv_model{'error'});
