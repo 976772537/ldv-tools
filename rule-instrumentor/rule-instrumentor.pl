@@ -1338,14 +1338,6 @@ sub prepare_files_and_dirs()
   $ldv_model_include_dir = "$ldv_model_dir/files";
   print_debug_debug("Header files for models will be searched for in '$ldv_model_include_dir'");
 
-  print_debug_trace("Copy the models directory '$ldv_model_dir' to the base directory '$opt_basedir'");
-  rcopy($ldv_model_dir, "$opt_basedir/" . basename($ldv_model_dir))
-    or die("Can't copy directory '$ldv_model_dir' to directory '$opt_basedir'");
-
-  # Change the models directory name.
-  $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
-  print_debug_debug("The models directory is '$ldv_model_dir'");
-
   # Initialize cache directory
   $do_cache = defined($opt_cache_dir);
   if ($do_cache)
@@ -1422,6 +1414,8 @@ sub process_cmd_cc()
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     # Specify a path where a common model will be placed.
     $ENV{'LDV_COMMON_MODEL'} = "$tool_model_common_dir/$ldv_model_common";
+    # Specify a path where a preprocessed aspect will be placed.
+    $ENV{'LDV_PREPROCESSED_ASPECT'} = "$tool_aux_dir/" . basename ($ldv_model{'aspect'}) . ".i";
 
     # Input file to be instrumented.
     my $in = ${$cmd{'ins'}}[0];
@@ -1524,6 +1518,7 @@ sub process_cmd_cc()
       delete($ENV{$ldv_no_quoted});
       delete($ENV{$ldv_aspectator_gcc});
       delete($ENV{'LDV_COMMON_MODEL'});
+      delete($ENV{'LDV_PREPROCESSED_ASPECT'});
 
       print_debug_trace("Go to the initial directory");
       chdir($tool_working_dir)
