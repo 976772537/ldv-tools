@@ -160,10 +160,6 @@ sub string_to_cache($@);
 # Global variables.
 ################################################################################
 
-# Suffix for file that will contain general aspect consisting of usual and
-# common aspects.
-my $aspect_general_suffix = '.general';
-
 # Commands execution statuses;
 my %cmds_status_fail;
 my %cmds_status_ok;
@@ -370,6 +366,7 @@ my $xml_model_db_engine = 'engine';
 my $xml_model_db_error = 'error';
 my $xml_model_db_files = 'files';
 my $xml_model_db_files_aspect = 'aspect';
+my $xml_model_db_files_common = 'common';
 my $xml_model_db_files_filter = 'filter';
 my $xml_model_db_files_config = 'config';
 my $xml_model_db_hints = 'hints';
@@ -787,6 +784,12 @@ sub get_model_info()
       print_debug_debug("The aspect file '$aspect' is specified for the '$id_attr' model")
         if ($aspect);
 
+      # Common file should be specified in the plain mode.
+      print_debug_trace("Read common file name");
+      my $common = $files->first_child_text($xml_model_db_files_common);
+      print_debug_debug("The common file '$common' is specified for the '$id_attr' model")
+        if ($common);
+
       # Filter file is optional as i think.
       print_debug_trace("Read filter file name");
       my $filter = $files->first_child_text($xml_model_db_files_filter);
@@ -804,6 +807,7 @@ sub get_model_info()
         'id' => $id_attr,
         'kind' => \@kinds,
         'aspect' => $aspect,
+        'common' => $common,
         'filter' => $filter,
         'config' => $config,
         'engine' => $engine,
@@ -862,6 +866,9 @@ sub get_model_info()
         {
           $kind_isplain = 1;
           print_debug_debug("The plain mode is used for '$id_attr' model");
+
+          die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
+            unless (-f "$ldv_model_dir/$common");
 
           print($file_cmds_log "$log_cmds_plain\n");
         }
@@ -1399,6 +1406,14 @@ sub process_cmd_cc()
 
   my $kind_gcc = ($kind_isaspect && $aspectator_type eq 'gcc');
 
+  # Remember compilation options for the first CC comand to use them further
+  # for a common model preprocessing.
+  unless ($ldv_model_common_opts)
+  {
+    $ldv_model_common_opts = $cmd{'opts'};
+    $ldv_model_common_cwd = $cmd{'cwd'};
+  }
+
   if ($kind_isaspect)
   {
     print_debug_debug("The command '$cmd{'id'}' is specifically processed for the aspect mode");
@@ -1448,14 +1463,6 @@ sub process_cmd_cc()
       $preprocessed_suffix = $llvm_preprocessed_suffix;
     }
     else {die};
-
-    # Remember compilation options for the first CC comand to use them further
-    # for a common model preprocessing.
-    unless ($ldv_model_common_opts)
-    {
-      $ldv_model_common_opts = $cmd{'opts'};
-      $ldv_model_common_cwd = $cmd{'cwd'};
-    }
 
     my ($status, $desc);
 
@@ -1581,6 +1588,12 @@ sub process_cmd_cc()
       new XML::Twig::Elt($xml_cmd_opt, $opt)->paste('last_child',$cmd);
     }
 
+    # Add -I option with a path to a directory to find appropriate headers for
+    # driver files since they may include some model headers.
+    print_debug_trace("For CC command add '$ldv_model_include_dir' directory to be searched for headers");
+    my $opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");;
+    $opt->paste('last_child', $cmd);
+
     # FIXME
     print_debug_trace("Print the modified command");
     $cmd->print($file_xml_out);
@@ -1595,14 +1608,16 @@ sub process_cmd_cc()
     # Note that this generated file is always keeped since it's needed for
     # report visualization.
     print_debug_trace("Concatenate a common model with the first input file");
-    my $in = $common_model_cc->first_child($xml_cmd_in);
-    my $in_file = $in->text;
-    die("The specified input file '$in_file' doesn't exist.")
-      unless ($in_file and -f $in_file);
 
     # Drity hack for 39_7 model; should be resolved with properly written aspect!
     if ( $opt_model_id eq "39_7")
     {
+      my $in = $cmd->first_child($xml_cmd_in);
+      my $in_file = $in->text;
+
+      die("The specified input file '$in_file' doesn't exist.")
+        unless ($in_file and -f $in_file);
+
       my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);",
                 "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
                 "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
@@ -1699,44 +1714,6 @@ sub process_cmd_cc()
       #system('perl', '-p', '-i.bak', '-e', "s/".$key."/".$replacement."/g")
       #  or die("Can't replace content of the file '$in_file'");
     }
-
-    # Get target file cache key.
-    my $target_file = "$in_file$common_c_suffix";
-    my $cache_file_key = $target_file;
-    $cache_file_key =~ s/^$opt_basedir//;
-    print_debug_debug("The target file cache key is '$cache_file_key'");
-
-    if (copy_from_cache($target_file, $opt_model_id, $cache_file_key))
-    {
-      # Cache hit.
-      print_debug_info("Got file '$in_file$common_c_suffix' from cache");
-    }
-    else
-    {
-      # Cache miss.
-      open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
-        or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
-      cat($in_file, $file_with_common_model)
-        or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
-      cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
-        or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
-      close($file_with_common_model)
-        or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
-
-      # Save the information obtained to cache.
-      save_to_cache($target_file, $opt_model_id, $cache_file_key);
-    }
-
-    $in->set_text("$in_file$common_c_suffix");
-    print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
-
-    print_debug_trace("Add suffix for output file of the duplicated cc command");
-    my $out = $common_model_cc->first_child($xml_cmd_out);
-    $out->set_text($out->text . $common_o_suffix);
-
-    # FIXME
-    print_debug_trace("Print the duplicated cc command");
-    $common_model_cc->print($file_xml_out);
 
     print_debug_debug("Finish processing of the command having id '$cmd{'id'}' in the plain mode");
 
@@ -1893,6 +1870,13 @@ sub process_cmd_ld()
       my $cmd_cc_aux_cwd = new XML::Twig::Elt('cwd', $ldv_model_common_cwd);
       $cmd_cc_aux_cwd->paste('last_child', $cmd_cc_aux);
 
+      if ($kind_isplain)
+        {
+          print_debug_trace("Copy a common model to a common model directory");
+          copy("$ldv_model_dir/$ldv_model{common}", "$tool_model_common_dir/$ldv_model_common") or
+            die("Can't copy from '$ldv_model_dir/$ldv_model{common}' to '$tool_model_common_dir/$ldv_model_common'");
+        }
+
       my $cmd_cc_aux_in = new XML::Twig::Elt('in', "$tool_model_common_dir/$ldv_model_common");
       $cmd_cc_aux_in->paste('last_child', $cmd_cc_aux);
 
@@ -1903,8 +1887,8 @@ sub process_cmd_ld()
       }
 
       # Add -I option with a path to a directory to find appropriate headers for
-      # models.
-      print_debug_trace("For auxiliary CC command add '$ldv_model_include_dir' directory to be searched for  headers");
+      # models..
+      print_debug_trace("For auxiliary CC command add '$ldv_model_include_dir' directory to be searched for headers");
       my $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");
       $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
 
