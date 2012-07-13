@@ -369,7 +369,6 @@ my $xml_model_db_error = 'error';
 my $xml_model_db_files = 'files';
 my $xml_model_db_files_aspect = 'aspect';
 my $xml_model_db_files_common = 'common';
-my $xml_model_db_files_filter = 'filter';
 my $xml_model_db_files_config = 'config';
 my $xml_model_db_hints = 'hints';
 my $xml_model_db_kind = 'kind';
@@ -792,12 +791,6 @@ sub get_model_info()
       print_debug_debug("The common file '$common' is specified for the '$id_attr' model")
         if ($common);
 
-      # Filter file is optional as i think.
-      print_debug_trace("Read filter file name");
-      my $filter = $files->first_child_text($xml_model_db_files_filter);
-      print_debug_debug("The filter file '$filter' is specified for the '$id_attr' model")
-        if ($filter);
-
       # Config file is optional as i think.
       print_debug_trace("Read config file name");
       my $config = $files->first_child_text($xml_model_db_files_config);
@@ -810,7 +803,6 @@ sub get_model_info()
         'kind' => \@kinds,
         'aspect' => $aspect,
         'common' => $common,
-        'filter' => $filter,
         'config' => $config,
         'engine' => $engine,
         'error' => $error,
