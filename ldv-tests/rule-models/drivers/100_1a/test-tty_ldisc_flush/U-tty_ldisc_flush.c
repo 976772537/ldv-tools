@@ -13,7 +13,7 @@ int ldv_dummy_probe(struct usb_interface *interface,
 				const struct usb_device_id *id)
 {
 	dummy_tty = kmalloc(sizeof (struct tty_struct), GFP_ATOMIC);
-	tty_ldisc_flush(dummy_ttyb);
+	tty_ldisc_flush(dummy_tty);
 	return 0;
 }
 

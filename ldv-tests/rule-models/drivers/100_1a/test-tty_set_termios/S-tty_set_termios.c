@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <termbits.h>
+#include <linux/termios.h>
 
 static struct tty_struct *dummy_tty;
 static struct ktermios dummy_ktermios;

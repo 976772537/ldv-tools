@@ -17,7 +17,7 @@ int ldv_dummy_probe(struct usb_interface *interface,
 {
 	int result;
 	dummy_tty = kmalloc(sizeof (struct tty_struct), GFP_ATOMIC);
-	result = tty_port_block_til_ready(&dummy_port, dummy_tty, &dummy_file);
+	result = tty_port_block_til_ready(&dummy_tty_port, dummy_tty, &dummy_file);
 	return result;
 }
 
