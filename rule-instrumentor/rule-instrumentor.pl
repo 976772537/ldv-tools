@@ -22,10 +22,10 @@ use English;
 use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_LLVM_GCC LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
 use File::Basename qw(basename fileparse dirname);
 use File::Copy qw(copy mv);
+use File::Path qw(mkpath);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
-use File::Path qw(mkpath);
 use strict;
 use Time::HiRes qw(gettimeofday tv_interval);
 use XML::Twig qw();
@@ -38,7 +38,9 @@ use File::Cat qw(cat);
 use File::Copy::Recursive qw(rcopy);
 
 # Add some nonstandard local Perl packages.
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
+  check_system_call);
 
 
 ################################################################################
@@ -1429,6 +1431,12 @@ sub process_cmd_cc()
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     # Specify a path where a common model will be placed.
     $ENV{'LDV_COMMON_MODEL'} = "$tool_model_common_dir/$ldv_model_common";
+    # Some aspect models can omit a common model, so create an empty common
+    # in any case.
+    my $touch_cmd = "touch '$ENV{LDV_COMMON_MODEL}'";
+    print_debug_info("Execute the command '$touch_cmd'");
+    system($touch_cmd);
+    die("Can't touch file '$ENV{LDV_COMMON_MODEL}'") if (check_system_call());
     # Specify a path where a preprocessed aspect will be placed.
     $ENV{'LDV_PREPROCESSED_ASPECT'} = "$tool_aux_dir/" . basename ($ldv_model{'aspect'}) . ".i";
 
@@ -1719,7 +1727,6 @@ sub process_cmd_cc()
 
     return (0, []);
   }
-
 }
 
 sub process_cmd_ld()
