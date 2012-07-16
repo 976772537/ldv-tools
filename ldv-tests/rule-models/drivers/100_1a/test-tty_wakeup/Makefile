@@ -1,5 +1,16 @@
+S-tty_wakeup-2-test-objs := main.o S-tty_wakeup-2.o
+S-tty_wakeup-get_current_tty-test-objs := main.o S-tty_wakeup-get_current_tty.o
+S-tty_wakeup-tty_kref_get-test-objs := main.o S-tty_wakeup-tty_kref_get.o
+S-tty_wakeup-tty_port_tty_get-test-objs := main.o S-tty_wakeup-tty_port_tty_get.o
 S-tty_wakeup-test-objs := main.o S-tty_wakeup.o
-U-tty_wakeup-test-objs := main.o U-tty_wakeup.o
-
+U-tty_wakeup-get_current_tty-test-objs := main.o U-tty_wakeup-get_current_tty.o
+U-tty_wakeup-tty_kref_get-test-objs := main.o U-tty_wakeup-tty_kref_get.o
+U-tty_wakeup-tty_port_tty_get-test-objs := main.o U-tty_wakeup-tty_port_tty_get.o
+obj-m += S-tty_wakeup-2-test.o
+obj-m += S-tty_wakeup-get_current_tty-test.o
+obj-m += S-tty_wakeup-tty_kref_get-test.o
+obj-m += S-tty_wakeup-tty_port_tty_get-test.o
 obj-m += S-tty_wakeup-test.o
-obj-m += U-tty_wakeup-test.o
+obj-m += U-tty_wakeup-get_current_tty-test.o
+obj-m += U-tty_wakeup-tty_kref_get-test.o
+obj-m += U-tty_wakeup-tty_port_tty_get-test.o

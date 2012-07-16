@@ -1,5 +1,16 @@
+S-stop_tty-2-test-objs := main.o S-stop_tty-2.o
+S-stop_tty-get_current_tty-test-objs := main.o S-stop_tty-get_current_tty.o
+S-stop_tty-tty_kref_get-test-objs := main.o S-stop_tty-tty_kref_get.o
+S-stop_tty-tty_port_tty_get-test-objs := main.o S-stop_tty-tty_port_tty_get.o
 S-stop_tty-test-objs := main.o S-stop_tty.o
-U-stop_tty-test-objs := main.o U-stop_tty.o
-
+U-stop_tty-get_current_tty-test-objs := main.o U-stop_tty-get_current_tty.o
+U-stop_tty-tty_kref_get-test-objs := main.o U-stop_tty-tty_kref_get.o
+U-stop_tty-tty_port_tty_get-test-objs := main.o U-stop_tty-tty_port_tty_get.o
+obj-m += S-stop_tty-2-test.o
+obj-m += S-stop_tty-get_current_tty-test.o
+obj-m += S-stop_tty-tty_kref_get-test.o
+obj-m += S-stop_tty-tty_port_tty_get-test.o
 obj-m += S-stop_tty-test.o
-obj-m += U-stop_tty-test.o
+obj-m += U-stop_tty-get_current_tty-test.o
+obj-m += U-stop_tty-tty_kref_get-test.o
+obj-m += U-stop_tty-tty_port_tty_get-test.o

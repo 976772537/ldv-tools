@@ -1,5 +1,16 @@
+S-tty_port_close_end-2-test-objs := main.o S-tty_port_close_end-2.o
+S-tty_port_close_end-get_current_tty-test-objs := main.o S-tty_port_close_end-get_current_tty.o
+S-tty_port_close_end-tty_kref_get-test-objs := main.o S-tty_port_close_end-tty_kref_get.o
+S-tty_port_close_end-tty_port_tty_get-test-objs := main.o S-tty_port_close_end-tty_port_tty_get.o
 S-tty_port_close_end-test-objs := main.o S-tty_port_close_end.o
-U-tty_port_close_end-test-objs := main.o U-tty_port_close_end.o
-
+U-tty_port_close_end-get_current_tty-test-objs := main.o U-tty_port_close_end-get_current_tty.o
+U-tty_port_close_end-tty_kref_get-test-objs := main.o U-tty_port_close_end-tty_kref_get.o
+U-tty_port_close_end-tty_port_tty_get-test-objs := main.o U-tty_port_close_end-tty_port_tty_get.o
+obj-m += S-tty_port_close_end-2-test.o
+obj-m += S-tty_port_close_end-get_current_tty-test.o
+obj-m += S-tty_port_close_end-tty_kref_get-test.o
+obj-m += S-tty_port_close_end-tty_port_tty_get-test.o
 obj-m += S-tty_port_close_end-test.o
-obj-m += U-tty_port_close_end-test.o
+obj-m += U-tty_port_close_end-get_current_tty-test.o
+obj-m += U-tty_port_close_end-tty_kref_get-test.o
+obj-m += U-tty_port_close_end-tty_port_tty_get-test.o

@@ -1,5 +1,16 @@
+S-tty_unthrottle-2-test-objs := main.o S-tty_unthrottle-2.o
+S-tty_unthrottle-get_current_tty-test-objs := main.o S-tty_unthrottle-get_current_tty.o
+S-tty_unthrottle-tty_kref_get-test-objs := main.o S-tty_unthrottle-tty_kref_get.o
+S-tty_unthrottle-tty_port_tty_get-test-objs := main.o S-tty_unthrottle-tty_port_tty_get.o
 S-tty_unthrottle-test-objs := main.o S-tty_unthrottle.o
-U-tty_unthrottle-test-objs := main.o U-tty_unthrottle.o
-
+U-tty_unthrottle-get_current_tty-test-objs := main.o U-tty_unthrottle-get_current_tty.o
+U-tty_unthrottle-tty_kref_get-test-objs := main.o U-tty_unthrottle-tty_kref_get.o
+U-tty_unthrottle-tty_port_tty_get-test-objs := main.o U-tty_unthrottle-tty_port_tty_get.o
+obj-m += S-tty_unthrottle-2-test.o
+obj-m += S-tty_unthrottle-get_current_tty-test.o
+obj-m += S-tty_unthrottle-tty_kref_get-test.o
+obj-m += S-tty_unthrottle-tty_port_tty_get-test.o
 obj-m += S-tty_unthrottle-test.o
-obj-m += U-tty_unthrottle-test.o
+obj-m += U-tty_unthrottle-get_current_tty-test.o
+obj-m += U-tty_unthrottle-tty_kref_get-test.o
+obj-m += U-tty_unthrottle-tty_port_tty_get-test.o

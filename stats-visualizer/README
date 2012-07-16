@@ -1,7 +1,7 @@
 To install the statics server you may copy the file 'config.sample' that is
-placed at the current directory to the file 'config' also placed at the 
-current directory and define your own values of variables there. 
-Also you may specify them through the corresponding environment variables. 
+placed at the current directory to the file 'config' also placed at the
+current directory and define your own values of variables there.
+Also you may specify them through the corresponding environment variables.
 Note that environment variables are preferable.
 
 Then, run "make install-visualization" from the root ldv-tools directory.
@@ -9,14 +9,14 @@ Then, run "make install-visualization" from the root ldv-tools directory.
 Note! Most likely you must install the statistics server under root since it
 have to copy files to web server virtual host and configuration directories.
 
-Well known problems. 
-1. It seems that usually the required web server module mod_rewrite is turned 
+Well known problems.
+1. It seems that usually the required web server module mod_rewrite is turned
    off. So you must read documentation on your web server to turn it on.
-2. If you'll see absolutely blank page after some action or even at the 
+2. If you'll see absolutely blank page after some action or even at the
    beginning it is most likely that the statistics server exceeds the default
-   memory limit (256Mb). I hope that there won't be such problems if an used 
+   memory limit (256Mb). I hope that there won't be such problems if an used
    database is filled with data correctly. To fix the problem you can enlarge
-   the default memory limit in the file vhosts/ldv-stats/public/.htaccess 
+   the default memory limit in the file vhosts/ldv-stats/public/.htaccess
    placed respectively to the given directory. Also please send a message to
    the development team.
 

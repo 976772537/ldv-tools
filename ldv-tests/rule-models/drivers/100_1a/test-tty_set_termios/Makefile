@@ -1,5 +1,16 @@
+S-tty_set_termios-2-test-objs := main.o S-tty_set_termios-2.o
+S-tty_set_termios-get_current_tty-test-objs := main.o S-tty_set_termios-get_current_tty.o
+S-tty_set_termios-tty_kref_get-test-objs := main.o S-tty_set_termios-tty_kref_get.o
+S-tty_set_termios-tty_port_tty_get-test-objs := main.o S-tty_set_termios-tty_port_tty_get.o
 S-tty_set_termios-test-objs := main.o S-tty_set_termios.o
-U-tty_set_termios-test-objs := main.o U-tty_set_termios.o
-
+U-tty_set_termios-get_current_tty-test-objs := main.o U-tty_set_termios-get_current_tty.o
+U-tty_set_termios-tty_kref_get-test-objs := main.o U-tty_set_termios-tty_kref_get.o
+U-tty_set_termios-tty_port_tty_get-test-objs := main.o U-tty_set_termios-tty_port_tty_get.o
+obj-m += S-tty_set_termios-2-test.o
+obj-m += S-tty_set_termios-get_current_tty-test.o
+obj-m += S-tty_set_termios-tty_kref_get-test.o
+obj-m += S-tty_set_termios-tty_port_tty_get-test.o
 obj-m += S-tty_set_termios-test.o
-obj-m += U-tty_set_termios-test.o
+obj-m += U-tty_set_termios-get_current_tty-test.o
+obj-m += U-tty_set_termios-tty_kref_get-test.o
+obj-m += U-tty_set_termios-tty_port_tty_get-test.o

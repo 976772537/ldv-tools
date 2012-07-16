@@ -1,5 +1,16 @@
+S-tty_throttle-2-test-objs := main.o S-tty_throttle-2.o
+S-tty_throttle-get_current_tty-test-objs := main.o S-tty_throttle-get_current_tty.o
+S-tty_throttle-tty_kref_get-test-objs := main.o S-tty_throttle-tty_kref_get.o
+S-tty_throttle-tty_port_tty_get-test-objs := main.o S-tty_throttle-tty_port_tty_get.o
 S-tty_throttle-test-objs := main.o S-tty_throttle.o
-U-tty_throttle-test-objs := main.o U-tty_throttle.o
-
+U-tty_throttle-get_current_tty-test-objs := main.o U-tty_throttle-get_current_tty.o
+U-tty_throttle-tty_kref_get-test-objs := main.o U-tty_throttle-tty_kref_get.o
+U-tty_throttle-tty_port_tty_get-test-objs := main.o U-tty_throttle-tty_port_tty_get.o
+obj-m += S-tty_throttle-2-test.o
+obj-m += S-tty_throttle-get_current_tty-test.o
+obj-m += S-tty_throttle-tty_kref_get-test.o
+obj-m += S-tty_throttle-tty_port_tty_get-test.o
 obj-m += S-tty_throttle-test.o
-obj-m += U-tty_throttle-test.o
+obj-m += U-tty_throttle-get_current_tty-test.o
+obj-m += U-tty_throttle-tty_kref_get-test.o
+obj-m += U-tty_throttle-tty_port_tty_get-test.o

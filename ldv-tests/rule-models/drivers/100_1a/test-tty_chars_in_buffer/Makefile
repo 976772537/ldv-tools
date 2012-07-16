@@ -1,5 +1,16 @@
+S-tty_chars_in_buffer-2-test-objs := main.o S-tty_chars_in_buffer-2.o
+S-tty_chars_in_buffer-get_current_tty-test-objs := main.o S-tty_chars_in_buffer-get_current_tty.o
+S-tty_chars_in_buffer-tty_kref_get-test-objs := main.o S-tty_chars_in_buffer-tty_kref_get.o
+S-tty_chars_in_buffer-tty_port_tty_get-test-objs := main.o S-tty_chars_in_buffer-tty_port_tty_get.o
 S-tty_chars_in_buffer-test-objs := main.o S-tty_chars_in_buffer.o
-U-tty_chars_in_buffer-test-objs := main.o U-tty_chars_in_buffer.o
-
+U-tty_chars_in_buffer-get_current_tty-test-objs := main.o U-tty_chars_in_buffer-get_current_tty.o
+U-tty_chars_in_buffer-tty_kref_get-test-objs := main.o U-tty_chars_in_buffer-tty_kref_get.o
+U-tty_chars_in_buffer-tty_port_tty_get-test-objs := main.o U-tty_chars_in_buffer-tty_port_tty_get.o
+obj-m += S-tty_chars_in_buffer-2-test.o
+obj-m += S-tty_chars_in_buffer-get_current_tty-test.o
+obj-m += S-tty_chars_in_buffer-tty_kref_get-test.o
+obj-m += S-tty_chars_in_buffer-tty_port_tty_get-test.o
 obj-m += S-tty_chars_in_buffer-test.o
-obj-m += U-tty_chars_in_buffer-test.o
+obj-m += U-tty_chars_in_buffer-get_current_tty-test.o
+obj-m += U-tty_chars_in_buffer-tty_kref_get-test.o
+obj-m += U-tty_chars_in_buffer-tty_port_tty_get-test.o

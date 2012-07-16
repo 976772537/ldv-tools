@@ -1,5 +1,16 @@
+S-tty_mode_ioctl-2-test-objs := main.o S-tty_mode_ioctl-2.o
+S-tty_mode_ioctl-get_current_tty-test-objs := main.o S-tty_mode_ioctl-get_current_tty.o
+S-tty_mode_ioctl-tty_kref_get-test-objs := main.o S-tty_mode_ioctl-tty_kref_get.o
+S-tty_mode_ioctl-tty_port_tty_get-test-objs := main.o S-tty_mode_ioctl-tty_port_tty_get.o
 S-tty_mode_ioctl-test-objs := main.o S-tty_mode_ioctl.o
-U-tty_mode_ioctl-test-objs := main.o U-tty_mode_ioctl.o
-
+U-tty_mode_ioctl-get_current_tty-test-objs := main.o U-tty_mode_ioctl-get_current_tty.o
+U-tty_mode_ioctl-tty_kref_get-test-objs := main.o U-tty_mode_ioctl-tty_kref_get.o
+U-tty_mode_ioctl-tty_port_tty_get-test-objs := main.o U-tty_mode_ioctl-tty_port_tty_get.o
+obj-m += S-tty_mode_ioctl-2-test.o
+obj-m += S-tty_mode_ioctl-get_current_tty-test.o
+obj-m += S-tty_mode_ioctl-tty_kref_get-test.o
+obj-m += S-tty_mode_ioctl-tty_port_tty_get-test.o
 obj-m += S-tty_mode_ioctl-test.o
-obj-m += U-tty_mode_ioctl-test.o
+obj-m += U-tty_mode_ioctl-get_current_tty-test.o
+obj-m += U-tty_mode_ioctl-tty_kref_get-test.o
+obj-m += U-tty_mode_ioctl-tty_port_tty_get-test.o
