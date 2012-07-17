@@ -487,6 +487,8 @@ delete_aux_files();
 
 print_debug_normal("Make all successfully");
 
+# TODO: Remove LLVM-based stuff (most likely).
+
 ################################################################################
 # Subroutines.
 ################################################################################
