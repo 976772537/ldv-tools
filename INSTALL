@@ -31,6 +31,7 @@ MINIMAL PREREQUISITES
 	o MySQL (with InnoDB)server and console client, with development headers and libraries
 	o Perl modules (install via `sudo cpan Module::Name` or via package manager):
 		- DBI
+		- DBD::mysql
 		- File::Cat
 		- File::Find
 		- File::Copy::Recursive

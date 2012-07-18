@@ -811,7 +811,7 @@ sub prepare_driver {
 			vsay 'DEBUG', "Second source detection stage...\n";
 			# II. Detect - source type and corresponding action...
 			#if($type eq 'inode/directory') {
-			if($type eq 'application/x-directory') {
+			if($type eq 'application/x-directory' || $type eq 'inode/directory') {
 
 				# detect - is it patch or driver or nothing...
 			

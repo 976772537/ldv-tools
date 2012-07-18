@@ -56,7 +56,7 @@ else
 	                tar xzpf$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
 	        application/x-tar)
 	                tar xpf$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
-	        application/x-directory)
+	        application/x-directory | inode/directory)
 	                rsync -a --exclude='.git' $DSCR_SOURCE $DSCR_DEST;;
 	        *)
 	                ldv_print "ERROR: Unknown source type:\"$SOURCE_TYPE\".";
