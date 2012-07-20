@@ -328,20 +328,22 @@ public class MainGenerator {
 		if(ctx.p.isInit())
 			sb.append("\n" + ctx.getIndent() + "#include <linux/slab.h>");
 
-		//sb.append("\n" + ctx.getIndent() + "/* " + ldvCommentTag 
+		//sb.append("\n" + ctx.getIndent() + "/* " + ldvCommentTag
 		//		+ " Special hack to remove no_instrument_function attribute*/");
 		//sb.append("\n" + ctx.getIndent() + "#define notrace \n");
-		
+
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test if all kernel resources are correctly released by driver before driver will be unloaded. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_check_final_state(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_check_return_value(int res);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Initializes the model. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_initialize(void);\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Reinitializes the model between distinct model function calls. */");
+		sb.append("\n" + ctx.getIndent() + "void ldv_reinitialize(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Returns arbitrary interger value. */");
 		sb.append("\n" + ctx.getIndent() + "int " + NONDET_INT + "(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_VAR_DECLARE_LDV+" Special variable for LDV verifier. */");
-		
+
 		sb.append("\n" + ctx.getIndent() + CallbackItem.getInterruptVarDecl() + ";\n");
 
 	//	if(index == null)
