@@ -149,7 +149,9 @@ sub preprocess_cpp
 		# Replace suffix (or add it)
 		$i_file =~ s/\.c$/.i/ or $i_file.='.i';
 		# Replace directories with dashes
-		$i_file =~ s/\//-/g;
+		# Do not do this since a file name can exceed a maximum length
+		# (see issue #3198)
+		# $i_file =~ s/\//-/g;
 		# Put it into the proper folder
 		$i_file = catfile($out_dir,$i_file);
 		mkpath(dirname($i_file));
@@ -190,7 +192,9 @@ sub preprocess_cil
 		# Replace suffix (or add it)
 		$i_file =~ s/\.c$/.cil.i/ or $i_file.='.cil.i';
 		# Replace directories with dashes
-		$i_file =~ s/\//-/g;
+		# Do not do this since a file name can exceed a maximum length
+		# (see issue #3198)
+		# $i_file =~ s/\//-/g;
 		# Put it into the proper folder
 		$i_file = catfile($out_dir,$i_file);
 		mkpath(dirname($i_file));

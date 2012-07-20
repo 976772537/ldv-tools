@@ -22,10 +22,10 @@ use English;
 use Env qw(LDV_DEBUG LDV_KERNEL_RULES LDV_LLVM_GCC LDV_RULE_INSTRUMENTOR_DEBUG WORK_DIR);
 use File::Basename qw(basename fileparse dirname);
 use File::Copy qw(copy mv);
+use File::Path qw(mkpath);
 use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
-use File::Path qw(mkpath);
 use strict;
 use Time::HiRes qw(gettimeofday tv_interval);
 use XML::Twig qw();
@@ -38,7 +38,9 @@ use File::Cat qw(cat);
 use File::Copy::Recursive qw(rcopy);
 
 # Add some nonstandard local Perl packages.
-use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info print_debug_debug print_debug_trace print_debug_all get_debug_level);
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
+  check_system_call);
 
 
 ################################################################################
@@ -55,11 +57,6 @@ sub add_engine_tag($);
 #   created; the part of path to configuration file.
 # retn: the pathes to configuration files.
 sub create_configs($$);
-
-# Merge usual and common aspects in the aspect mode.
-# args: no.
-# retn: nothing.
-sub create_general_aspect();
 
 # Delete auxiliary files produced during work in the nondebug modes. (Useful for LLVM only).
 # args: no.
@@ -165,10 +162,6 @@ sub string_to_cache($@);
 # Global variables.
 ################################################################################
 
-# Suffix for file that will contain general aspect consisting of usual and
-# common aspects.
-my $aspect_general_suffix = '.general';
-
 # Commands execution statuses;
 my %cmds_status_fail;
 my %cmds_status_ok;
@@ -176,9 +169,6 @@ my %cmds_status_ok;
 # Instrumentor basedir.
 my $cmd_basedir;
 
-# Directory where common model is placed. It's needed to find appropriate
-# header files.
-my $common_model_dir;
 # Suffixes for common models in the plain mode.
 my $common_c_suffix = '.common.c';
 my $common_o_suffix = '.common.o';
@@ -266,15 +256,20 @@ my $ldv_gcc_gcc;
 # GCC ASpectator suffixes
 # Suffix of generated aspect files emitted near the source files
 my $gcc_suffix_aspect = '.c';
-# Suffix for usual aspectated files for GCC aspectator
-my $gcc_suffix_usual = '.usual.c';
-my $gcc_suffix_usual_o = '.usual.o';
-# Suffix for general aspectated files for GCC aspectator
-my $gcc_suffix_general = '.general.c';
-my $gcc_suffix_general_o = '.general.o';
 # Suffix for stage 1 files for GCC aspectator
 my $gcc_preprocessed_suffix = '.p';
 
+# Directory where common model is placed. It's needed to find appropriate
+# header files.
+my $ldv_model_include_dir;
+# Name of file where a common model source and object will be put. It's relative
+# to a common model directory.
+my $ldv_model_common = 'ldv_common_model.c';
+my $ldv_model_common_o = 'ldv_common_model.o';
+# Compilation options and a current working directory to be used for a common
+# model preprocessing.
+my $ldv_model_common_opts;
+my $ldv_model_common_cwd;
 # Directory contains rules models database and their source code.
 my $ldv_model_dir;
 # Name of xml file containing models database. Name is relative to models
@@ -290,14 +285,8 @@ my $ldv_clean = 'LDV_CLEAN';
 # Suffix of llvm bitcody files.
 my $llvm_bitcode_suffix = '.bc';
 
-# Suffix of llvm bitcode files instrumented with general aspect.
-my $llvm_bitcode_general_suffix = '.general';
-
 # Suffix of linked llvm bitcode files.
 my $llvm_bitcode_linked_suffix = '.linked';
-
-# Suffix of llvm bitcode files instrumented with usual aspect.
-my $llvm_bitcode_usual_suffix = '.usual';
 
 # Options to be passed to llvm C backend.
 my @llvm_c_backend_opts = ('-f', '-march=c');
@@ -349,6 +338,9 @@ my $tool_stats_xml = 'stats.xml';
 # The name of directory where configuration files will be placed. It's
 # relative to the tool auxiliary working directory.
 my $tool_config_dir = 'config';
+# The name of directory where common model files will be placed. It's
+# relative to the tool auxiliary working directory.
+my $tool_model_common_dir = 'common-model';
 # The file that is used to store different auxiliary information. It's relative
 # to the tool base directory.
 my $tool_temp = '__rule_instrumentor_temp';
@@ -377,7 +369,6 @@ my $xml_model_db_error = 'error';
 my $xml_model_db_files = 'files';
 my $xml_model_db_files_aspect = 'aspect';
 my $xml_model_db_files_common = 'common';
-my $xml_model_db_files_filter = 'filter';
 my $xml_model_db_files_config = 'config';
 my $xml_model_db_hints = 'hints';
 my $xml_model_db_kind = 'kind';
@@ -453,9 +444,6 @@ if ($report_mode)
 print_debug_debug("Get and store information on the required model");
 get_model_info();
 
-print_debug_normal("Create a general aspect if it's needed");
-create_general_aspect();
-
 print_debug_trace("Print the standard xml file header");
 print($file_xml_out "$xml_header\n");
 
@@ -498,6 +486,8 @@ print_debug_info("Delete auxiliary files in the nondebug modes");
 delete_aux_files();
 
 print_debug_normal("Make all successfully");
+
+# TODO: Remove LLVM-based stuff (most likely).
 
 ################################################################################
 # Subroutines.
@@ -597,25 +587,6 @@ sub create_configs($$)
   }
 
   return @config_dir;
-}
-
-sub create_general_aspect()
-{
-  if ($kind_isaspect)
-  {
-    $ldv_model{'general'} = "$ldv_model{'aspect'}$aspect_general_suffix";
-
-    open(my $file_aspect_general, '>', "$ldv_model_dir/$ldv_model{'general'}")
-      or die("Couldn't open file '$ldv_model_dir/$ldv_model{'general'}' for write: $ERRNO");
-    cat("$ldv_model_dir/$ldv_model{'aspect'}", $file_aspect_general)
-      or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'aspect'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
-    cat("$ldv_model_dir/$ldv_model{'common'}", $file_aspect_general)
-      or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$ldv_model_dir/$ldv_model{'general'}'");
-    close($file_aspect_general)
-      or die("Couldn't close file '$ldv_model_dir/$ldv_model{'general'}': $ERRNO\n");
-    $files_to_be_deleted{"$ldv_model_dir/$ldv_model{'general'}"} = 1;
-    print_debug_debug("The general aspect '$ldv_model_dir/$ldv_model{'general'}' was created");
-  }
 }
 
 sub delete_aux_files()
@@ -810,33 +781,17 @@ sub get_model_info()
       my $files = $model->first_child($xml_model_db_files)
         or die("Models database doesn't contain '$xml_model_db_files' tag for '$id_attr' model");
 
-      # Aspect file is optional but it's needed in the aspect mode.
+      # Aspect file should be specified in the aspect mode.
       print_debug_trace("Read aspect file name");
       my $aspect = $files->first_child_text($xml_model_db_files_aspect);
       print_debug_debug("The aspect file '$aspect' is specified for the '$id_attr' model")
         if ($aspect);
 
-      # Common file (either plain C or aspect file) must be always presented.
+      # Common file should be specified in the plain mode.
       print_debug_trace("Read common file name");
-      my $common = $files->first_child_text($xml_model_db_files_common)
-        // die("Models database doesn't contain '$xml_model_db_files_common' tag for '$id_attr' model");
-      print_debug_debug("The common file '$common' is specified for the '$id_attr' model");
-      die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
-        unless (-f "$ldv_model_dir/$common");
-
-      print_debug_trace("Obtain directory for the common model file to find headers there");
-      my $common_model_dir_abs = abs_path("$ldv_model_dir/$common")
-        or die("Can't obtain absolute path of '$ldv_model_dir/$common'");
-      my @common_model_dir_path = fileparse($common_model_dir_abs)
-        or die("Can't find directory of file '$common_model_dir_abs'");
-      $common_model_dir = $common_model_dir_path[1];
-      print_debug_debug("The common file '$common' is placed in the directory '$common_model_dir'");
-
-      # Filter file is optional as i think.
-      print_debug_trace("Read filter file name");
-      my $filter = $files->first_child_text($xml_model_db_files_filter);
-      print_debug_debug("The filter file '$filter' is specified for the '$id_attr' model")
-        if ($filter);
+      my $common = $files->first_child_text($xml_model_db_files_common);
+      print_debug_debug("The common file '$common' is specified for the '$id_attr' model")
+        if ($common);
 
       # Config file is optional as i think.
       print_debug_trace("Read config file name");
@@ -850,7 +805,6 @@ sub get_model_info()
         'kind' => \@kinds,
         'aspect' => $aspect,
         'common' => $common,
-        'filter' => $filter,
         'config' => $config,
         'engine' => $engine,
         'error' => $error,
@@ -863,7 +817,7 @@ sub get_model_info()
         {
           $kind_isaspect = 1;
 
-          # Determine aspectating backend for this rule and set global variables to those specific to this backend 
+          # Determine aspectating backend for this rule and set global variables to those specific to this backend
           $aspectator_type = ($kind eq 'aspect') ? 'gcc' : 'llvm';
 
           # Check if the backend specified is supported
@@ -908,6 +862,9 @@ sub get_model_info()
         {
           $kind_isplain = 1;
           print_debug_debug("The plain mode is used for '$id_attr' model");
+
+          die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
+            unless (-f "$ldv_model_dir/$common");
 
           print($file_cmds_log "$log_cmds_plain\n");
         }
@@ -1120,7 +1077,7 @@ sub join_error_desc(@)
       print_debug_warning("Description '$error_desc' isn't stored as an array reference");
       next;
     }
-    
+
     if ($is_first)
     {
       push(@joined_desc, @{$error_desc});
@@ -1196,6 +1153,14 @@ sub prepare_files_and_dirs()
   }
   $tool_config_dir = "$tool_aux_dir/$tool_config_dir";
   print_debug_debug("The tool configurations directory: '$tool_config_dir'");
+
+  $tool_model_common_dir = "$tool_aux_dir/$tool_model_common_dir";
+  unless (-d $tool_model_common_dir)
+  {
+    mkpath($tool_model_common_dir)
+      or die("Couldn't recursively create directory '$tool_model_common_dir': $ERRNO");
+  }
+  print_debug_debug("The tool common model directory: '$tool_model_common_dir'");
 
   # LDV_HOME is obtained through directory of rule-instrumentor.
   # It is assumed that there is such organization of LDV_HOME directory:
@@ -1341,7 +1306,8 @@ sub prepare_files_and_dirs()
   # one from the LDV_HOME.
   if ($LDV_KERNEL_RULES)
   {
-    $ldv_model_dir = $LDV_KERNEL_RULES;
+    $ldv_model_dir = abs_path($LDV_KERNEL_RULES)
+      or die("Can't obtain absolute path of '$LDV_KERNEL_RULES'");;
     print_debug_debug("The models directory specified through 'LDV_KERNEL_RULES' environment variable is '$ldv_model_dir'");
   }
   else
@@ -1372,13 +1338,8 @@ sub prepare_files_and_dirs()
   }
   print_debug_debug("The models database xml file is '$ldv_model_db_xml'");
 
-  print_debug_trace("Copy the models directory '$ldv_model_dir' to the base directory '$opt_basedir'");
-  rcopy($ldv_model_dir, "$opt_basedir/" . basename($ldv_model_dir))
-    or die("Can't copy directory '$ldv_model_dir' to directory '$opt_basedir'");
-
-  # Change the models directory name.
-  $ldv_model_dir = "$opt_basedir/" . basename($ldv_model_dir);
-  print_debug_debug("The models directory is '$ldv_model_dir'");
+  $ldv_model_include_dir = "$ldv_model_dir/files";
+  print_debug_debug("Header files for models will be searched for in '$ldv_model_include_dir'");
 
   # Initialize cache directory
   $do_cache = defined($opt_cache_dir);
@@ -1441,13 +1402,20 @@ sub process_cmd_cc()
 
   my $kind_gcc = ($kind_isaspect && $aspectator_type eq 'gcc');
 
+  # Remember compilation options for the first CC comand to use them further
+  # for a common model preprocessing.
+  unless ($ldv_model_common_opts)
+  {
+    $ldv_model_common_opts = $cmd{'opts'};
+    $ldv_model_common_cwd = $cmd{'cwd'};
+  }
+
   if ($kind_isaspect)
   {
     print_debug_debug("The command '$cmd{'id'}' is specifically processed for the aspect mode");
 
     # On each cc command we run aspectator on corresponding file with
-    # corresponding model aspect and options. Also add -I option with
-    # models directory needed to find appropriate headers for usual aspect.
+    # corresponding model aspect and options.
     print_debug_debug("Process the cc '$cmd{'id'}' command using usual aspect");
     # Specify needed and specic environment variables for the aspectator.
     $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
@@ -1455,35 +1423,45 @@ sub process_cmd_cc()
     # Just for the trace debug level aspectator will say about something except
     # errors.
     $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
+    # Specify a path where a common model will be placed.
+    $ENV{'LDV_COMMON_MODEL'} = "$tool_model_common_dir/$ldv_model_common";
+    # Some aspect models can omit a common model, so create an empty common
+    # in any case.
+    my $touch_cmd = "touch '$ENV{LDV_COMMON_MODEL}'";
+    print_debug_info("Execute the command '$touch_cmd'");
+    system($touch_cmd);
+    die("Can't touch file '$ENV{LDV_COMMON_MODEL}'") if (check_system_call());
+    # Specify a path where a preprocessed aspect will be placed.
+    $ENV{'LDV_PREPROCESSED_ASPECT'} = "$tool_aux_dir/" . basename ($ldv_model{'aspect'}) . ".i";
+
+    # Input file to be instrumented.
+    my $in = ${$cmd{'ins'}}[0];
 
     my @args = (
       $ldv_timeout_script,
       @ldv_timeout_script_opts,
       "--reference=$cmd{'id'}",
-      $ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}}, "-I$common_model_dir");
+      $ldv_aspectator, $in, "$ldv_model_dir/$ldv_model{'aspect'}", @{$cmd{'opts'}});
 
     print_debug_trace("Go to the build directory to execute cc command");
 
-    # Aspectators generate two files here.  The first is aspectated code (llvm-based aspectator generates aspectated bitcode, and gcc-based aspectator generates aspectated preprocessed code), and the second is .p file generated after 1st stage (referred to by error traces).
-    # .p is common for both supported aspectators, and the first file suffix differs
+    # Aspectators generate two files here.  The first is aspectated code
+    # (llvm-based aspectator generates aspectated bitcode, and gcc-based
+    # aspectator generates aspectated preprocessed code), and the second is .p
+    # file generated after 1st stage (referred to by error traces). .p is common
+    # for both supported aspectators, and the first file suffix differs
 
     my $aspectated_suffix_generated = undef;
-    my $aspectated_suffix_usual = undef;
-    my $aspectated_suffix_general = undef;
     my $preprocessed_suffix = undef;
 
     if ($aspectator_type eq 'gcc')
     {
       $aspectated_suffix_generated = $gcc_suffix_aspect;
-      $aspectated_suffix_usual = $gcc_suffix_usual;
-      $aspectated_suffix_general = $gcc_suffix_general;
       $preprocessed_suffix = $gcc_preprocessed_suffix;
     }
     elsif ($aspectator_type eq 'llvm')
     {
       $aspectated_suffix_generated = $llvm_bitcode_suffix;
-      $aspectated_suffix_usual = $llvm_bitcode_usual_suffix;
-      $aspectated_suffix_general = $llvm_bitcode_general_suffix;
       $preprocessed_suffix = $llvm_preprocessed_suffix;
     }
     else {die};
@@ -1491,7 +1469,7 @@ sub process_cmd_cc()
     my ($status, $desc);
 
     # Get target file cache key.
-    my $cache_target = "$cmd{'out'}$aspectated_suffix_usual";
+    my $cache_target = "$cmd{'out'}$aspectated_suffix_generated";
     my $cache_file_key = $cache_target;
     $cache_file_key =~ s/^$opt_basedir//;
     print_debug_debug("The target file cache key is '$cache_file_key'");
@@ -1548,6 +1526,8 @@ sub process_cmd_cc()
       delete($ENV{$ldv_quiet});
       delete($ENV{$ldv_no_quoted});
       delete($ENV{$ldv_aspectator_gcc});
+      delete($ENV{'LDV_COMMON_MODEL'});
+      delete($ENV{'LDV_PREPROCESSED_ASPECT'});
 
       print_debug_trace("Go to the initial directory");
       chdir($tool_working_dir)
@@ -1556,13 +1536,6 @@ sub process_cmd_cc()
       die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'")
         unless (-f "${$cmd{'ins'}}[0]$aspectated_suffix_generated");
       print_debug_debug("The aspectator produces the usual bitcode/source file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'");
-
-      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectated_suffix_generated with llvm object code (or preprocessed sources in GCC aspectator). Copy them to $cmd{'out'}$aspectated_suffix_usual files.
-      print_debug_trace("Copy the usual bitcode file");
-      # An error in the following line could appear if the "key" .o file was cached, but this file was not (due to different options?)
-      # If it happens, just drop the cache
-      mv("${$cmd{'ins'}}[0]$aspectated_suffix_generated", "$cmd{'out'}$aspectated_suffix_usual")
-        or die("Can't copy file '${$cmd{'ins'}}[0]$aspectated_suffix_generated' to file '$cmd{'out'}$aspectated_suffix_usual': $ERRNO");
 
       # Save the result to cache.
       save_to_cache($cache_target, $opt_model_id, $cache_file_key)
@@ -1574,109 +1547,7 @@ sub process_cmd_cc()
     }
 
     # GCC aspectator deletes the files on its own
-    $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_usual"} = 1 unless $kind_gcc;
-    print_debug_debug("The usual bitcode/source file is '$cmd{'out'}$aspectated_suffix_usual'");
-
-    unless (LDV::Utils::check_verbosity('DEBUG'))
-    {
-      print_debug_trace("Clean the aspectator intermediate files for the nondebug mode");
-      $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
-      $ENV{$ldv_quiet} = 1;
-      $ENV{$ldv_clean} = 1;
-      system(@args);
-      delete($ENV{$ldv_clean});
-      delete($ENV{$ldv_quiet});
-      delete($ENV{$ldv_aspectator_gcc});
-    }
-
-    # Also do this with general aspect. Don't forget to add -I option with
-    # models directory needed to find appropriate headers for common aspect.
-    print_debug_debug("Process the cc command using general aspect");
-    $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
-    $ENV{$ldv_no_quoted} = 1;
-    $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
-
-    # Get arguments for aspectator
-    @args = (
-      $ldv_timeout_script,
-      @ldv_timeout_script_opts,
-      "--reference=$cmd{'id'}",
-      $ldv_aspectator, ${$cmd{'ins'}}[0], "$ldv_model_dir/$ldv_model{'general'}", @{$cmd{'opts'}}, "-I$common_model_dir");
-
-    # Try to fetch result (and we think that the file that ends with
-    # $aspectated_suffix_usual is THE ONLY result of this part.
-    $cache_target = "$cmd{'out'}$aspectated_suffix_general";
-    $cache_file_key = $cache_target;
-    $cache_file_key =~ s/^$opt_basedir//;
-    print_debug_debug("The target file cache key is '$cache_file_key'");
-
-    if (!$skip_caching && copy_from_cache($cache_target, $opt_model_id, $cache_file_key))
-    {
-      # Cache hit.
-      print_debug_info("Got file from cache instead of executing '@args'");
-      $status = string_from_cache($opt_model_id, "$cache_file_key-status");
-      chomp $status;
-      print_debug_trace("The cached status is '$status'");
-      $desc = [split('\n', string_from_cache($opt_model_id, "$cache_file_key-desc"))];
-      print_debug_trace("The cached description is '@$desc'");
-
-      # Copy the preprocessed file from cache if this wasn't done earlier by 
-      # some reason.
-      if (! -f $preprocessed_cache_target)
-      {
-        copy_from_cache($preprocessed_cache_target, $opt_model_id, $preprocessed_cache_file_key);
-      }
-
-      # Return on failure.
-      return ($status, $desc) if ($status);
-    }
-    else
-    {
-      # Cache miss.
-      print_debug_trace("Go to the build directory to execute cc command");
-      chdir($cmd{'cwd'})
-        or die("Can't change directory to '$cmd{'cwd'}'");
-
-      print_debug_info("Execute the command '@args'");
-      ($status, $desc) = exec_status_and_desc(@args);
-      return ($status, $desc) if ($status);
-
-      if (!$skip_caching)
-      {
-        print_debug_trace("Save the information obtained to cache (even if it's a failure!)");
-        string_to_cache($status, $opt_model_id, "$cache_file_key-status");
-        string_to_cache(join("\n", @$desc), $opt_model_id, "$cache_file_key-desc");
-      }
-      else
-      {
-        print_debug_info("Didn't cache file with main due to --skip-norestrict");
-      }
-
-      # Unset special environments variables.
-      delete($ENV{$ldv_quiet});
-      delete($ENV{$ldv_no_quoted});
-      delete($ENV{$ldv_aspectator_gcc});
-
-      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'")
-        unless (-f "${$cmd{'ins'}}[0]$aspectated_suffix_generated");
-      print_debug_debug("The aspectator produces the usual bitcode/source file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'");
-
-      # After aspectator work we obtain files ${$cmd{'ins'}}[0]$aspectated_suffix_generated with llvm object code (or GCC preprocessed sources). Copy them to $cmd{'out'}$aspectated_suffix_general files.
-      print_debug_trace("Copy the general bitcode file");
-      mv("${$cmd{'ins'}}[0]$aspectated_suffix_generated", "$cmd{'out'}$aspectated_suffix_general")
-        or die("Can't copy file '${$cmd{'ins'}}[0]$aspectated_suffix_generated' to file '$cmd{'out'}$aspectated_suffix_general': $ERRNO");
-      # GCC aspectator deletes the files on its own
-      $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_general"} = 1 unless $kind_gcc;
-      print_debug_debug("The general bitcode file is '$cmd{'out'}$aspectated_suffix_general'");
-
-      # Save the result to cache.
-      save_to_cache($cache_target, $opt_model_id, $cache_file_key)
-        unless ($skip_caching);
-
-      # Save the preprocessed file needed for further visualization.
-      save_to_cache($preprocessed_cache_target, $opt_model_id, $preprocessed_cache_file_key)
-        unless ($skip_caching);
-    }
+    $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_generated"} = 1 unless $kind_gcc;
 
     unless (LDV::Utils::check_verbosity('DEBUG'))
     {
@@ -1696,19 +1567,12 @@ sub process_cmd_cc()
 
     # If we're in GCC aspectator mode, we should print a modified CC command just like in plain mode
     if ($kind_gcc){
-      my $cmd_general = new XML::Twig::Elt('cc',{'id' => "$cmd{'id'}$id_common_model_suffix"});
-      new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_general);
-      new XML::Twig::Elt('in',"$cmd{'out'}$aspectated_suffix_general")->paste('last_child',$cmd_general);
-      new XML::Twig::Elt('out',"$cmd{'out'}$gcc_suffix_general_o")->paste('last_child',$cmd_general);
-      add_engine_tag($cmd_general);
-      $cmd_general->print($file_xml_out);
-
-      my $cmd_usual = new XML::Twig::Elt('cc',{'id' => $cmd{'id'}});
-      new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_usual);
-      new XML::Twig::Elt('in',"$cmd{'out'}$aspectated_suffix_usual")->paste('last_child',$cmd_usual);
-      new XML::Twig::Elt('out',"$cmd{'out'}$gcc_suffix_usual_o")->paste('last_child',$cmd_usual);
-      add_engine_tag($cmd_usual);
-      $cmd_usual->print($file_xml_out);
+      my $cmd_updated = new XML::Twig::Elt('cc',{'id' => $cmd{'id'}});
+      new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_updated);
+      new XML::Twig::Elt('in',"$in$aspectated_suffix_generated")->paste('last_child',$cmd_updated);
+      new XML::Twig::Elt('out',"$cmd{'out'}")->paste('last_child',$cmd_updated);
+      add_engine_tag($cmd_updated);
+      $cmd_updated->print($file_xml_out);
     }
 
     return (0, $desc);
@@ -1726,11 +1590,11 @@ sub process_cmd_cc()
       new XML::Twig::Elt($xml_cmd_opt, $opt)->paste('last_child',$cmd);
     }
 
-    # Add -I option with common model dir to find appropriate headers. Note
-    # that it also add for a duplicated command.
-    print_debug_trace("For the cc command add '$common_model_dir' directory to be searched for common model headers");
-    my $common_model_opt = new XML::Twig::Elt($xml_cmd_opt => "-I$common_model_dir");
-    $common_model_opt->paste('last_child', $cmd);
+    # Add -I option with a path to a directory to find appropriate headers for
+    # driver files since they may include some model headers.
+    print_debug_trace("For CC command add '$ldv_model_include_dir' directory to be searched for headers");
+    my $opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");;
+    $opt->paste('last_child', $cmd);
 
     # FIXME
     print_debug_trace("Print the modified command");
@@ -1746,14 +1610,16 @@ sub process_cmd_cc()
     # Note that this generated file is always keeped since it's needed for
     # report visualization.
     print_debug_trace("Concatenate a common model with the first input file");
-    my $in = $common_model_cc->first_child($xml_cmd_in);
-    my $in_file = $in->text;
-    die("The specified input file '$in_file' doesn't exist.")
-      unless ($in_file and -f $in_file);
 
     # Drity hack for 39_7 model; should be resolved with properly written aspect!
     if ( $opt_model_id eq "39_7")
     {
+      my $in = $cmd->first_child($xml_cmd_in);
+      my $in_file = $in->text;
+
+      die("The specified input file '$in_file' doesn't exist.")
+        unless ($in_file and -f $in_file);
+
       my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);",
                 "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
                 "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
@@ -1851,49 +1717,10 @@ sub process_cmd_cc()
       #  or die("Can't replace content of the file '$in_file'");
     }
 
-    # Get target file cache key.
-    my $target_file = "$in_file$common_c_suffix";
-    my $cache_file_key = $target_file;
-    $cache_file_key =~ s/^$opt_basedir//;
-    print_debug_debug("The target file cache key is '$cache_file_key'");
-
-    if (copy_from_cache($target_file, $opt_model_id, $cache_file_key))
-    {
-      # Cache hit.
-      print_debug_info("Got file '$in_file$common_c_suffix' from cache");
-    }
-    else
-    {
-      # Cache miss.
-      open(my $file_with_common_model, '>', "$in_file$common_c_suffix")
-        or die("Couldn't open file '$in_file$common_c_suffix' for write: $ERRNO");
-      cat($in_file, $file_with_common_model)
-        or die("Can't concatenate file '$in_file' with file '$in_file$common_c_suffix'");
-      cat("$ldv_model_dir/$ldv_model{'common'}", $file_with_common_model)
-        or die("Can't concatenate file '$ldv_model_dir/$ldv_model{'common'}' with file '$in_file$common_c_suffix'");
-      close($file_with_common_model)
-        or die("Couldn't close file '$in_file$common_c_suffix': $ERRNO\n");
-
-      # Save the information obtained to cache.
-      save_to_cache($target_file, $opt_model_id, $cache_file_key);
-    }
-
-    $in->set_text("$in_file$common_c_suffix");
-    print_debug_debug("The file concatenated with the common model is '$in_file$common_c_suffix'");
-
-    print_debug_trace("Add suffix for output file of the duplicated cc command");
-    my $out = $common_model_cc->first_child($xml_cmd_out);
-    $out->set_text($out->text . $common_o_suffix);
-
-    # FIXME
-    print_debug_trace("Print the duplicated cc command");
-    $common_model_cc->print($file_xml_out);
-
     print_debug_debug("Finish processing of the command having id '$cmd{'id'}' in the plain mode");
 
     return (0, []);
   }
-
 }
 
 sub process_cmd_ld()
@@ -1926,12 +1753,12 @@ sub process_cmd_ld()
       # produce one linked file. Note that excactly one file to be linked must
       # be generally (i.e. with usual and common aspects) instrumented. We
       # choose the first one here. Other files must be usually instrumented.
-      my @ins = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
+      my @ins = @{$cmd{'ins'}};
       my @args = (
         $ldv_timeout_script,
         @ldv_timeout_script_opts,
         "--reference=$cmd{'id'}",
-        $ldv_llvm_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
+        $ldv_llvm_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}");
 
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
@@ -1948,20 +1775,20 @@ sub process_cmd_ld()
       chdir($tool_working_dir)
         or die("Can't change directory to '$tool_working_dir'");
 
-      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'")
-        unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
-      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_linked_suffix"} = 1;
-      print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
+      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}'")
+        unless (-f "$cmd{'out'}");
+      $files_to_be_deleted{"$cmd{'out'}"} = 1;
+      print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}'");
 
       # Make name for c file corresponding to the linked one.
-      my $c_out = "$cmd{'out'}$llvm_bitcode_linked_suffix$llvm_c_backend_suffix";
+      my $c_out = "$cmd{'out'}$llvm_c_backend_suffix";
 
       # Linked file is converted to c by means of llvm c backend.
       @args = (
         $ldv_timeout_script,
         @ldv_timeout_script_opts,
         "--reference=$cmd{'id'}",
-        $ldv_llvm_c_backend, @llvm_c_backend_opts, "$cmd{'out'}$llvm_bitcode_linked_suffix", '-o', $c_out);
+        $ldv_llvm_c_backend, @llvm_c_backend_opts, "$cmd{'out'}", '-o', $c_out);
 
       print_debug_info("Execute the command '@args'");
       ($status, $desc) = exec_status_and_desc(@args);
@@ -1986,7 +1813,7 @@ sub process_cmd_ld()
       $xml_writer->startTag('ld', 'id' => "$cmd{'id'}$id_ld_llvm_suffix");
       $xml_writer->dataElement('cwd' => $cmd{'cwd'});
       $xml_writer->dataElement('in' => ${$cmd{'ins'}}[0]);
-      $xml_writer->dataElement('out' => "$cmd{'out'}$llvm_bitcode_linked_suffix");
+      $xml_writer->dataElement('out' => "$cmd{'out'}");
       # FIXME: replace with add_engine_tag
       $xml_writer->dataElement('engine' => $ldv_model{'engine'});
 
@@ -2004,44 +1831,29 @@ sub process_cmd_ld()
       # Close the ld tag.
       $xml_writer->endTag();
     }
-    # Otherwise create two linked variants: with and without general bitcode
-    # file.
     else
     {
-      print_debug_debug("Prepare two linked bitcode files with and without general bitcode for the ld command marked with 'check = \"true\"'");
-
       # On each ld command we run llvm linker for all input files together to
-      # produce one linked file. Also produce linked file that contains excactly
-      # one file generally (i.e. with usual and common aspects) instrumented.
-      # We choose the first one here. Other files must be usually instrumented.
-      my @ins_usual = map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}});
-      my @args_usual = ($ldv_llvm_linker, @llvm_linker_opts, @ins_usual, '-o', "$cmd{'out'}$llvm_bitcode_linked_suffix");
-      my @ins_general = ("${$cmd{'ins'}}[0]$llvm_bitcode_general_suffix", map("$_$llvm_bitcode_usual_suffix", @{$cmd{'ins'}}[1..$#{$cmd{'ins'}}]));
-      my @args_general = ($ldv_llvm_linker, @llvm_linker_opts, @ins_general, '-o', "$cmd{'out'}$llvm_bitcode_general_suffix");
+      # produce one linked file.
+      my @ins = @{$cmd{'ins'}};
+      my @args = ($ldv_llvm_linker, @llvm_linker_opts, @ins, '-o', "$cmd{'out'}");
 
       print_debug_trace("Go to the build directory to execute ld command");
       chdir($cmd{'cwd'})
         or die("Can't change directory to '$cmd{'cwd'}'");
 
-      print_debug_info("Execute the command '@args_usual'");
-      my ($status, $desc) = exec_status_and_desc(@args_usual);
-      return ($status, $desc) if ($status);
-      print_debug_info("Execute the command '@args_general'");
-      ($status, $desc) = exec_status_and_desc(@args_general);
+      print_debug_info("Execute the command '@args'");
+      my ($status, $desc) = exec_status_and_desc(@args);
       return ($status, $desc) if ($status);
 
       print_debug_trace("Go to the initial directory");
       chdir($tool_working_dir)
         or die("Can't change directory to '$tool_working_dir'");
 
-      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_linked_suffix'")
-        unless (-f "$cmd{'out'}$llvm_bitcode_linked_suffix");
-      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_linked_suffix"} = 1;
-      print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}$llvm_bitcode_linked_suffix'");
-      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}$llvm_bitcode_general_suffix'")
-        unless (-f "$cmd{'out'}$llvm_bitcode_general_suffix");
-      $files_to_be_deleted{"$cmd{'out'}$llvm_bitcode_general_suffix"} = 1;
-      print_debug_debug("The linker produces the generally linked bitcode file '$cmd{'out'}$llvm_bitcode_general_suffix'");
+      die("Something wrong with linker: it doesn't produce file '$cmd{'out'}'")
+        unless (-f "$cmd{'out'}");
+      $files_to_be_deleted{"$cmd{'out'}"} = 1;
+      print_debug_debug("The linker produces the linked bitcode file '$cmd{'out'}'");
     }
 
     # Status is ok, description is empty.
@@ -2049,33 +1861,47 @@ sub process_cmd_ld()
   }
   elsif($kind_isplain || $kind_gcc)
   {
-    # Add an additional input model file, error and hints tags for each ld
-    # command.
+    # Create an auxiliary CC comand to link a common model with all other
+    # source files that form a driver (module).
+    if ($ischeck)
+    {
+      my $cmd_cc_aux = new XML::Twig::Elt('cc');
+      $cmd_cc_aux->set_att('id' => "$id_attr-common-model");
 
-    # Replace the first object file to be linked with the object file
-    # containing the common model (or, general aspect in GCC aspectator).
-    my $common_suffix = undef;
-    if ($kind_gcc)
-    {
-      $common_suffix = $gcc_suffix_general_o;
-    }
-    else
-    {
-      $common_suffix = $common_o_suffix;
-    }
-    print_debug_trace("For the ld command change the first input file");
-    my $in = $cmd->first_child($xml_cmd_in);
-    $in->set_text($in->text . $common_suffix);
+      my $cmd_cc_aux_cwd = new XML::Twig::Elt('cwd', $ldv_model_common_cwd);
+      $cmd_cc_aux_cwd->paste('last_child', $cmd_cc_aux);
 
-    # Replace the other object files with those with "usual" suffix in GCC aspect mode
-    if ($kind_gcc)
-    {
-      my @in_tags = $cmd->children($xml_cmd_in);
-      shift @in_tags;
-      for my $in_tag (@in_tags)
+      if ($kind_isplain)
+        {
+          print_debug_trace("Copy a common model to a common model directory");
+          copy("$ldv_model_dir/$ldv_model{common}", "$tool_model_common_dir/$ldv_model_common") or
+            die("Can't copy from '$ldv_model_dir/$ldv_model{common}' to '$tool_model_common_dir/$ldv_model_common'");
+        }
+
+      my $cmd_cc_aux_in = new XML::Twig::Elt('in', "$tool_model_common_dir/$ldv_model_common");
+      $cmd_cc_aux_in->paste('last_child', $cmd_cc_aux);
+
+      foreach my $ldv_model_common_opt (@{$ldv_model_common_opts})
       {
-        $in_tag->set_text($in_tag->text . $gcc_suffix_usual_o);
+        my $cmd_cc_aux_opt = new XML::Twig::Elt('opt', $ldv_model_common_opt);
+        $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
       }
+
+      # Add -I option with a path to a directory to find appropriate headers for
+      # models..
+      print_debug_trace("For auxiliary CC command add '$ldv_model_include_dir' directory to be searched for headers");
+      my $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");
+      $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
+
+      my $cmd_cc_aux_out = new XML::Twig::Elt('out', "$tool_model_common_dir/$ldv_model_common_o");
+      $cmd_cc_aux_out->paste('last_child', $cmd_cc_aux);
+
+      print_debug_trace("Print auxiliary common model CC command");
+      $cmd_cc_aux->print($file_xml_out);
+
+      print_debug_trace("Specify a common model file for ld command");
+      my $cmd_ld_aux_in = new XML::Twig::Elt('in', "$tool_model_common_dir/$ldv_model_common_o");
+      $cmd_ld_aux_in->paste('last_child', $cmd);
     }
 
     print_debug_trace("For the ld command add error tag");
