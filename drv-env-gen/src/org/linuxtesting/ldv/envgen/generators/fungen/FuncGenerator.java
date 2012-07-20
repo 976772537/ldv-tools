@@ -56,8 +56,8 @@ public interface FuncGenerator {
 	 * $p0,..,$pn
 	 * $check_label
 	 * $indent
-	 * 
-	 * Predefined expressions: 
+	 *
+	 * Predefined expressions:
 	 * $CHECK_NONZERO
 	 * $CHECK_LESSTHANZERO
 	 */
@@ -70,6 +70,6 @@ public interface FuncGenerator {
 	 * generates SIMPLE_CALL
 	 */
 	public String generateSimpleFunctionCall(String indent);
-	
+
 	public void setParams(EnvParams p);
 }
