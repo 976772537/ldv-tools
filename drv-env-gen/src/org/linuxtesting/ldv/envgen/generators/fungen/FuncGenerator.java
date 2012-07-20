@@ -28,22 +28,22 @@ public interface FuncGenerator {
 	public List<String> generateVarInit();
 	public String generateRetDecl();
 
-	public final String SIMPLE_CALL = "\n$indentldv_reinitialize();"
+	public final String SIMPLE_CALL = "\n$indentldv_handler_precall();"
 						+ "\n$indent$fcall;";
 
 	public final String CHECK_INIT_MODULE =
-		"\n$indentldv_reinitialize();"
+		"\n$indentldv_handler_precall();"
 			+ "\n$indent if($fcall) "
 			+ "\n$indent\tgoto $check_label;";
 
 	public final String CHECK_NONZERO =
-		"\n$indentldv_reinitialize();"
+		"\n$indentldv_handler_precall();"
 		+ "\n$indent$retvar = $fcall;"
 		+ "\n$indent ldv_check_return_value($retvar);"
 		+ "\n$indent if($retvar) "
 			+ "\n$indent\tgoto $check_label;";
 	public final String CHECK_LESSTHANZERO =
-		"\n$indentldv_reinitialize();"
+		"\n$indentldv_handler_precall();"
 		+ "\n$indent$retvar = $fcall;"
 		+ "\n$indent ldv_check_return_value($retvar);"
 		+ "\n$indent if($retvar < 0) "
