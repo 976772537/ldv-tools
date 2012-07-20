@@ -28,21 +28,25 @@ public interface FuncGenerator {
 	public List<String> generateVarInit();
 	public String generateRetDecl();
 
-	public final String SIMPLE_CALL = "\n$indent$fcall;";
-		
-	public final String CHECK_INIT_MODULE = 
-		"\n$indent if($fcall) " 
+	public final String SIMPLE_CALL = "\n$indentldv_handler_precall();"
+						+ "\n$indent$fcall;";
+
+	public final String CHECK_INIT_MODULE =
+		"\n$indentldv_handler_precall();"
+			+ "\n$indent if($fcall) "
 			+ "\n$indent\tgoto $check_label;";
-	
-	public final String CHECK_NONZERO = 
-		"\n$indent$retvar = $fcall;"
+
+	public final String CHECK_NONZERO =
+		"\n$indentldv_handler_precall();"
+		+ "\n$indent$retvar = $fcall;"
 		+ "\n$indent ldv_check_return_value($retvar);"
-		+ "\n$indent if($retvar) " 
+		+ "\n$indent if($retvar) "
 			+ "\n$indent\tgoto $check_label;";
-	public final String CHECK_LESSTHANZERO = 
-		"\n$indent$retvar = $fcall;"
-		+ "\n$indent ldv_check_return_value($retvar);" 
-		+ "\n$indent if($retvar < 0) " 
+	public final String CHECK_LESSTHANZERO =
+		"\n$indentldv_handler_precall();"
+		+ "\n$indent$retvar = $fcall;"
+		+ "\n$indent ldv_check_return_value($retvar);"
+		+ "\n$indent if($retvar < 0) "
 			+ "\n$indent\tgoto $check_label;";
 
 	/**
@@ -52,8 +56,8 @@ public interface FuncGenerator {
 	 * $p0,..,$pn
 	 * $check_label
 	 * $indent
-	 * 
-	 * Predefined expressions: 
+	 *
+	 * Predefined expressions:
 	 * $CHECK_NONZERO
 	 * $CHECK_LESSTHANZERO
 	 */
@@ -66,6 +70,6 @@ public interface FuncGenerator {
 	 * generates SIMPLE_CALL
 	 */
 	public String generateSimpleFunctionCall(String indent);
-	
+
 	public void setParams(EnvParams p);
 }
