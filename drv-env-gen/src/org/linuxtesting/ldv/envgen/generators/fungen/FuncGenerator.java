@@ -42,6 +42,12 @@ public interface FuncGenerator {
 		+ "\n$indent ldv_check_return_value($retvar);"
 		+ "\n$indent if($retvar) "
 			+ "\n$indent\tgoto $check_label;";
+	public final String CHECK_PROBE = 
+		"\n$indent$retvar = $fcall;"
+		+ "\n$indent ldv_check_return_value($retvar);"
+		+ "\n$indent ldv_check_return_value_probe($retvar);"
+		+ "\n$indent if($retvar) " 
+			+ "\n$indent\tgoto $check_label;";
 	public final String CHECK_LESSTHANZERO =
 		"\n$indentldv_handler_precall();"
 		+ "\n$indent$retvar = $fcall;"
