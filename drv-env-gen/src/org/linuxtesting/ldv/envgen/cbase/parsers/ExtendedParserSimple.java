@@ -91,6 +91,16 @@ public class ExtendedParserSimple extends ExtendedParser<TokenFunctionDeclSimple
 			nameAndType = new NameAndType(
 					tokenClearContent.replaceFirst("subsys_initcall\\s*\\(", "").replace(")", "").trim(),
 					"module_init");
+		} else
+		if(tokenClearContent.contains("arch_initcall") && tokenClearContent.indexOf("arch_initcall")<square_index) {
+			nameAndType = new NameAndType(
+					tokenClearContent.replaceFirst("arch_initcall\\s*\\(", "").replace(")", "").trim(),
+					"module_init");
+		} else
+		if(tokenClearContent.contains("postcore_initcall") && tokenClearContent.indexOf("postcore_initcall")<square_index) {
+			nameAndType = new NameAndType(
+					tokenClearContent.replaceFirst("postcore_initcall\\s*\\(", "").replace(")", "").trim(),
+					"module_init");
 		} else {
 			assert false; 
 			nameAndType = null;
