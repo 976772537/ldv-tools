@@ -3,7 +3,11 @@ DIR=$(dirname $(readlink -f "$0"))
 
 . automaton.sh
 
-# Here we use an automaton and dfsm traversing algorithm from UniTESK
+# We use all simple cyclic paths (including the empty one) containing starting vertex as 'SAFE' tests
+# We generate 'UNSAFE' test(s) for every vertex except the starting one (to test ldv_check_final_state)
+# We also generate 'UNSAFE' test(s) for every disallowed model function call from every state
+# search_calls replicates tests for every pointcut
+# cycle_calls just cycles through possible pointcuts (generating much fewer test as a result)
 
 declare -a VISITED_VERTICES
 declare -A VISITED_EDGES
@@ -62,6 +66,30 @@ function search_calls # calls
     IFS=$last_ifs
 }
 
+function cycle_calls # calls
+{
+    local c curr buf last_ifs
+    declare -a ARRAY
+    [[ ${#@} = 0 ]] && { print_test; return; }
+    curr=$1
+    shift
+    last_ifs=$IFS
+    IFS=';'
+    for c in ${CALLS[$curr]}; do
+        push ARRAY $c
+    done
+    IFS=$last_ifs
+    last=$(peek ARRAY)
+    pop ARRAY
+    ARRAY=($last $ARRAY)
+    buf=${ARRAY[@]}
+    buf=${buf//\ /;}
+    CALLS[$curr]=$buf
+    push TEST $last
+    cycle_calls $@
+    pop TEST
+}
+
 function print_path
 {
     local from v
@@ -75,7 +103,8 @@ function print_path
 function print_tests # verdict
 {
     VERDICT=$1
-    search_calls $(print_path)
+    cycle_calls $(print_path)
+    # search_calls $(print_path)
 }
 
 function make_safe_tests
@@ -83,22 +112,28 @@ function make_safe_tests
     print_tests SAFE
 }
 
-function print_unsafe_tests # print tests for the reached state
+function print_for_disallowed_calls
 {
     local last v c
     declare -A calls
-    print_tests UNSAFE # print the tests reaching the state
     for c in ${!CALLS[@]}; do
         calls[$c]=y # save all possible calls
     done
-    last=$(peek _PATH)
+    [[ -n $_PATH ]] && last=$(peek _PATH) || last=$START
     for v in ${!VERTICES[@]}; do
         [[ -n ${EDGES[$last-$v]} ]] && unset calls[${EDGES[$last-$v]}] # exclude allowed calls
     done
     for c in ${!calls[@]}; do # print tests for disallowed calls
         VERDICT=UNSAFE
-        search_calls $(print_path) $c
+        cycle_calls $(print_path) $c
+        # search_calls $(print_path) $c
     done
+}
+
+function print_unsafe_tests # print tests for the reached state
+{
+    print_tests UNSAFE # print the tests reaching the state
+    print_for_disallowed_calls
 }
 
 function make_unsafe_tests_once
@@ -122,3 +157,4 @@ function traverse # curr_vert
 }
 
 traverse $START
+print_for_disallowed_calls
