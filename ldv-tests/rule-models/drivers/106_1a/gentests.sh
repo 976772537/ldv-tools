@@ -1,7 +1,11 @@
 #!/bin/bash
 DIR=$(dirname $(readlink -f "$0"))
 
+# Source test automaton
 . automaton.sh
+
+# Source script with function locate_test
+. put_test.sh
 
 # We use all simple cyclic paths (including the empty one) containing starting vertex as 'SAFE' tests
 # We generate 'UNSAFE' test(s) for every vertex except the starting one (to test ldv_check_final_state)
@@ -10,7 +14,6 @@ DIR=$(dirname $(readlink -f "$0"))
 # cycle_calls just cycles through possible pointcuts (generating much fewer test as a result)
 
 declare -a VISITED_VERTICES
-declare -A VISITED_EDGES
 declare -a _PATH
 declare -a TEST
 
@@ -23,6 +26,25 @@ function edge_in_path # edge (f-t)
         from=$v
     done
     false
+}
+
+function escape_calls
+{
+    local ci
+    for ci in ${!CALLS[@]}; do
+        CALLS[$ci]=${CALLS[$ci]//(/___lparen___}
+        CALLS[$ci]=${CALLS[$ci]//)/___rparen___}
+        CALLS[$ci]=${CALLS[$ci]//\ /___space___}
+    done
+}
+
+function unescape_calls # test
+{
+    local result
+    result=${1//___lparen___/(}
+    result=${result//___rparen___/)}
+    result=${result//___space___/\ }
+    echo $result
 }
 
 function push # array
@@ -40,14 +62,15 @@ function peek # array
     eval echo -n "\${$1[\${#$1[@]}-1]}"
 }
 
-function print_test
+function print_test # uses $TEST and $VERDICT
 {
-    local c
-    echo -n $VERDICT:
+    local c test
     for c in ${TEST[@]}; do
-        echo -n "$c "
+        test="$test$c;\n\t"
     done
-    echo
+    test=${test%\\t}
+    test=$(unescape_calls "$test")
+    locate_test "$test"
 }
 
 function search_calls # calls
@@ -156,5 +179,7 @@ function traverse # curr_vert
     done
 }
 
+escape_calls
+prepare_dirs
 traverse $START
 print_for_disallowed_calls
