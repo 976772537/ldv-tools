@@ -104,7 +104,7 @@ function cycle_calls # calls
     IFS=$last_ifs
     last=$(peek ARRAY)
     pop ARRAY
-    ARRAY=($last $ARRAY)
+    ARRAY=($last ${ARRAY[@]})
     buf=${ARRAY[@]}
     buf=${buf//\ /;}
     CALLS[$curr]=$buf
@@ -171,7 +171,7 @@ function traverse # curr_vert
     local v
     [[ $1 -eq $START ]] && { make_safe_tests; [[ -z ${_PATH[@]} ]] || return; } || make_unsafe_tests_once
     for v in ${!VERTICES[@]}; do
-        [[ $v = $1 ]] || edge_in_path $1-$v && continue
+        edge_in_path $1-$v && continue
         push _PATH $v
         [[ -z ${EDGES[$1-$v]} ]] && { pop _PATH; continue; }
         traverse $v
@@ -181,5 +181,12 @@ function traverse # curr_vert
 
 escape_calls
 prepare_dirs
+
+for ((i=0;i<N_ERR_CALLS;i++)); do
+    push _PATH $START
+    make_safe_tests
+    pop _PATH
+done
+
 traverse $START
 print_for_disallowed_calls

@@ -1,6 +1,6 @@
 /*
- * Check that a function start_tty is called with a non-NULL
- * first actual parameter (tty). The test is for model 100_1a.
+ * Template file for test generator (rule model 106_1a).
+ * 
  */
 #include <linux/usb.h>
 #include <linux/slab.h>
@@ -14,6 +14,11 @@
 #define DUMMY_BASEMINOR 0
 #define DUMMY_COUNT 1
 
+#define ASSURE_SUCCESS(E) while((E))
+#define ASSURE_SUCCESS_PTR(E) while((IS_ERR(E)))
+#define ASSURE_ERROR(E) if(!(E)) while(1)
+#define ASSURE_ERROR_PTR(E) if(!(IS_ERR(E))) while(1)
+
 struct module *dummy_module;
 const char *dummy_name ="ldv_dummy_name";
 struct class *dummy_class;
@@ -26,7 +31,7 @@ int ldv_dummy_probe(struct usb_interface *interface,
 {
 	int result = 0;
 
-        /* INSERT MODEL FUNCTION CALLS HERE */
+	/* INSERT MODEL FUNCTION CALLS HERE */
 
 	if (IS_ERR(dummy_class)) {
 		result = PTR_ERR(dummy_class);

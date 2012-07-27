@@ -1,5 +1,5 @@
 /*
- * This is a common part of test cases for model 100_1a.
+ * This is a common part of test cases for model 106_1a.
  */
 #include <linux/module.h>
 #include <linux/major.h>
