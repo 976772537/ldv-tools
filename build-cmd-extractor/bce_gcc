@@ -33,7 +33,7 @@ my $module_file = $ARGV[0];
 if(!($module_file =~ s/\.ko$/\.o/)) 
 {
 	if(!($module_file =~ s/\.ko.unsigned$/\.o/)) {
-		print "bce_gcc: ERROR: Can't replcae .ko with .o in module_file.\n";
+		print "bce_gcc: ERROR: Can't replace .ko with .o in module_file.\n";
 		exit 1;
 	}
 }
