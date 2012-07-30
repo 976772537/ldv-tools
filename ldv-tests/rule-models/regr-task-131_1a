@@ -1,0 +1,3 @@
+driver=131_1a--test-S-cancel_after_start1.tar.bz2;origin=external;kernel=linux-3.2.9;model=131_1a;module=drivers/131_1a/test-S-cancel_after_start1/S-cancel_after_start1.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=131_1a--test-S-cancel_after_start2.tar.bz2;origin=external;kernel=linux-3.2.9;model=131_1a;module=drivers/131_1a/test-S-cancel_after_start2/S-cancel_after_start2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=131_1a--test-U-cancel.tar.bz2;origin=external;kernel=linux-3.2.9;model=131_1a;module=drivers/131_1a/test-U-cancel/U-cancel.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
