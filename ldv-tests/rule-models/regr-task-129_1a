@@ -1,0 +1,2 @@
+driver=129_1a--test-S_arg.tar.bz2;origin=external;kernel=linux-3.2.9;model=129_1a;module=drivers/129_1a/test-S_arg/S_arg.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=129_1a--test-U_arg.tar.bz2;origin=external;kernel=linux-3.2.9;model=129_1a;module=drivers/129_1a/test-U_arg/U_arg.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
