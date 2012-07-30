@@ -1,8 +1,8 @@
 DIR=$(dirname $(readlink -f "$0"))
 DIR=$DIR/../..
 RULE=${RULE:-106_1a}
-KERNEL_OLD=${KERNEL_OLD:-linux-3.4.4}
-KERNEL_NEW=${KERNEL_NEW:-linux-2.6.31.6}
+KERNEL_OLD=${KERNEL_OLD:-linux-2.6.31.6}
+KERNEL_NEW=${KERNEL_NEW:-linux-3.4.4}
 MAIN=${MAIN:-ldv_main0_sequence_infinite_withcheck_stateful}
 
 function fill_test
