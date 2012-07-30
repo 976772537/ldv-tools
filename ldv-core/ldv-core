@@ -480,8 +480,14 @@ sub scheduler_send_task {
 	make_path("$command/task_input");
 	
 	vsay 'TRACE', "Set RCV_FRONTEND_CMD to \"$config->{'dscv'}\"\n";
-	$ENV{'RCV_FRONTEND_CMD'} = $config->{'dscv'}
-;
+	$ENV{'RCV_FRONTEND_CMD'} = $config->{'dscv'};
+	
+	my $dscv_report = $dscv_args->{'report'};
+	vsay 'TRACE', "Remove existing DSCV's report '$dscv_report' if so (workaround for #2727)";
+	if (-f $dscv_report) {
+		unlink $dscv_report or die "Could not unlink '$dscv_report': $!";
+	}
+	
 	vsay 'TRACE', "Calling watcher...\n";
 	LDV::Utils::watcher_cmd_noread('queue', 'dscv', $task_descriptor->{'task_fname'}, $dscv_args->{'workdir'}, @{$config->{'watcher_key'}}, 'dscv', $cid);
 
