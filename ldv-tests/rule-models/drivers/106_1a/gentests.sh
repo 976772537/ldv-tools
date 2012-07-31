@@ -182,7 +182,7 @@ function traverse # curr_vert
 escape_calls
 prepare_dirs
 
-for ((i=0;i<N_ERR_CALLS;i++)); do
+for ((i=0;i<N_ERR_CALLS - 1;i++)); do
     push _PATH $START
     make_safe_tests
     pop _PATH
