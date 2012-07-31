@@ -1,0 +1,8 @@
+driver=119_1a--test-err_func.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-err_func/S-use_err_func.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=119_1a--test-err_func.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-err_func/U-use_err_func.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=119_1a--test-exp_func.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-exp_func/S-use_exp_func.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=119_1a--test-pointer.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-pointer/S-use_pointer.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=119_1a--test-pointer.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-pointer/U-use_pointer.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=119_1a--test-ret_err.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-ret_err/S-ret_err.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=119_1a--test-ret_val.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-ret_val/S-ret_val.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=119_1a--test-ret_val.tar.bz2;origin=external;kernel=linux-3.5;model=119_1a;module=drivers/119_1a/test-ret_val/U-ret_val.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
