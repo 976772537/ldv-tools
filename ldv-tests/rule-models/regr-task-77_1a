@@ -1,9 +1,9 @@
-driver=77_1a--test-S-alloc_pages.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-S-alloc_pages/test-S-alloc_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=77_1a--test-S-get_free_pages.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-S-get_free_pages/test-S-get_free_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=77_1a--test-S-kmalloc.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-S-kmalloc/test-S-kmalloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=77_1a--test-U-alloc_pages.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-U-alloc_pages/test-U-alloc_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=77_1a--test-U-get_free_pages.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-U-get_free_pages/test-U-get_free_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=77_1a--test-U-kmalloc.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-U-kmalloc/test-U-kmalloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=77_1a--test-S-usb_lock_device_for_reset.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-S-usb_lock_device_for_reset/test-S-usb_lock_device_for_reset.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=77_1a--test-S-usb_trylock_device.tar.bz2;origin=external;kernel=linux-3.4;model=77_1a;module=drivers/77_1a/test-S-usb_trylock_device/test-S-usb_trylock_device.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=77_1a--test-S-alloc_pages.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-S-alloc_pages/test-S-alloc_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=77_1a--test-S-get_free_pages.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-S-get_free_pages/test-S-get_free_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=77_1a--test-S-kmalloc.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-S-kmalloc/test-S-kmalloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=77_1a--test-U-alloc_pages.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-U-alloc_pages/test-U-alloc_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=77_1a--test-U-get_free_pages.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-U-get_free_pages/test-U-get_free_pages.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=77_1a--test-U-kmalloc.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-U-kmalloc/test-U-kmalloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=77_1a--test-S-usb_lock_device_for_reset.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-S-usb_lock_device_for_reset/test-S-usb_lock_device_for_reset.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=77_1a--test-S-usb_trylock_device.tar.bz2;origin=external;kernel=linux-3.5;model=77_1a;module=drivers/77_1a/test-S-usb_trylock_device/test-S-usb_trylock_device.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 
