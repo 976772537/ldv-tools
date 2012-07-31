@@ -158,7 +158,8 @@ before installing '6' and '7'.
   2. To install verifiers only:
      prefix=/path/to/your/installation/directory make install-verifiers
 
-  3. To install the statistics server use:
+  3. To install the statistics server use (please, refer to
+     stats-visualizer/README for details and problems!)
      sudo prefix=/path/to/some/directory make install-visualization
      (Since it will most likely require root access, install it separately)
 
