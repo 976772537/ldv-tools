@@ -56,9 +56,15 @@ function locate_test # TEST
     name=$(grep -Eo '[a-zA-Z0-9_]+\(' <<<${name//\\t/})
     name=${name//[^a-zA-Z0-9_(]/}
     name=${name//(/-}
+    name=$(sed -e 's/[A-Z][A-Z_]*//g' <<<$name)
+    [[ ${#name} -gt 50 ]] && name=${name:0:25}-X${GLOBAL_INDEX}X-${name:${#name}-25:25}
+    name=${name//--/-}
+    ((GLOBAL_INDEX++))
+    name=${name#-}
     name=${name%-}
     [[ -n $name ]] || name=empty
     [[ $VERDICT = SAFE ]] && name=S-$name
     [[ $VERDICT = UNSAFE ]] && name=U-$name
+    [[ -f $dir/$name.c ]] && { name=$name-X${GLOBAL_INDEX}; ((GLOBAL_INDEX++)); }
     put_test $dir $name "$@"
 }
