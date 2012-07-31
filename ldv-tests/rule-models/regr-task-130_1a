@@ -1,0 +1,3 @@
+driver=130_1a--test-S-sysfs_attr_init.tar.bz2;origin=external;kernel=linux-3.5;model=130_1a;module=drivers/130_1a/test-S-sysfs_attr_init/test-S-sysfs_attr_init.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=130_1a--test-FS-sysfs_attr_init.tar.bz2;origin=external;kernel=linux-3.5;model=130_1a;module=drivers/130_1a/test-FS-sysfs_attr_init/test-FS-sysfs_attr_init.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+ 
