@@ -97,6 +97,9 @@ public class FuncGeneratorStruct implements FuncGenerator {
 				"\\$CHECK_NONZERO",
 				Matcher.quoteReplacement(FuncGenerator.CHECK_NONZERO));
 		checkString = checkString.replaceAll(
+				"\\$CHECK_PROBE", 
+				Matcher.quoteReplacement(FuncGenerator.CHECK_PROBE));
+		checkString = checkString.replaceAll(
 				"\\$CHECK_LESSTHANZERO",
 				Matcher.quoteReplacement(FuncGenerator.CHECK_LESSTHANZERO));
 		//Replace variables
