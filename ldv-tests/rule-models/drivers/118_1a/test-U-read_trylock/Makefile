@@ -1,2 +1,2 @@
-obj-m := U-write_trylock.o
+obj-m := U-read_trylock.o
 
