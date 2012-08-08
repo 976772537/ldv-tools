@@ -1,0 +1,7 @@
+driver=136_1a--test-S.tar.bz2;origin=external;kernel=linux-3.5;model=136_1a;module=drivers/136_1a/test-S/S.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=136_1a--test-S_der.tar.bz2;origin=external;kernel=linux-3.5;model=136_1a;module=drivers/136_1a/test-S_der/S_der.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=136_1a--test-U_der.tar.bz2;origin=external;kernel=linux-3.5;model=136_1a;module=drivers/136_1a/test-U_der/U_der.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=136_1a--test-U_ex.tar.bz2;origin=external;kernel=linux-3.5;model=136_1a;module=drivers/136_1a/test-U_ex/U_ex.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=136_1a--test-U_s_der.tar.bz2;origin=external;kernel=linux-3.5;model=136_1a;module=drivers/136_1a/test-U_s_der/U_s_der.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=136_1a--test-U_reg.tar.bz2;origin=external;kernel=linux-3.5;model=136_1a;module=drivers/136_1a/test-U_reg/U_reg.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=136_1a--test-U_s_reg.tar.bz2;origin=external;kernel=linux-3.5;model=136_1a;module=drivers/136_1a/test-U_s_reg/U_s_reg.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
