@@ -1,5 +1,5 @@
 /** 
-  *  The test checks that incorrect sysfs_attr_init is false safe on the model 130_1a
+  *  The test checks that correct sysfs_attr_init is safe on the model 130_1a
  **/
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -9,8 +9,8 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 
+static DEVICE_ATTR(test, S_IRUGO, NULL, NULL);
 struct device *dev;
-struct device_attribute dev_attr;
 
 static int misc_open(struct inode * inode, struct file * file);
 
@@ -22,15 +22,10 @@ static const struct file_operations misc_fops = {
 static int misc_open(struct inode * inode, struct file * file)
 {
 	int err;
-	
-	err = device_create_file(dev, &dev_attr);
+
+	err = device_create_file(dev, &dev_attr_test);
 	if (err)
 		return -1;
-	
-	dev_attr.attr.name = "device_id";
-	dev_attr.attr.mode = S_IRUGO;
-	sysfs_attr_init(&dev_attr.attr);
-	
 	return 0;
 }
 
