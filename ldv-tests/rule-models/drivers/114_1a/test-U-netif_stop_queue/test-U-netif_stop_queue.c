@@ -1,18 +1,13 @@
 /** 
-  *  The test checks that correct sysfs_attr_init is safe on the model 130_1a
+  *  The test checks that incorrect netif_stop_queue is unsafe on the model 114_1a
  **/
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/major.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/device.h>
+#include <linux/netdevice.h>
 
-
-struct test_data {
-	struct device_attribute dev_attr;
-};
+struct net_device *dev;
 
 static int misc_open(struct inode * inode, struct file * file);
 
@@ -23,21 +18,14 @@ static const struct file_operations misc_fops = {
 
 static int misc_open(struct inode * inode, struct file * file)
 {
-  	int err;
-	
-	struct test_data *data;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	
-	struct device *dev;
-	
-	sysfs_attr_init(&data->dev_attr.attr);
-	data->dev_attr.attr.name = "device_id";
-	data->dev_attr.attr.mode = S_IRUGO;
-	
-	err = device_create_file(dev, &data->dev_attr);
-	if (err)
-		return -1;
-	return 0;
+	int ret;
+  
+	netif_stop_queue(dev);
+	ret = register_netdev(dev);
+	if (ret == 0)
+	  return 0;
+	else
+	  return -1;
 }
 
 static int __init my_init(void)

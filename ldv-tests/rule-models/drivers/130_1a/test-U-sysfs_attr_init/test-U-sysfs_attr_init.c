@@ -30,7 +30,6 @@ static int misc_open(struct inode * inode, struct file * file)
 	
 	struct device *dev;
 	
-	sysfs_attr_init(&data->dev_attr.attr);
 	data->dev_attr.attr.name = "device_id";
 	data->dev_attr.attr.mode = S_IRUGO;
 	
@@ -59,4 +58,3 @@ module_exit(my_exit);
 
 MODULE_LICENSE("Apache 2.0");
 MODULE_AUTHOR("LDV Project, Ilya Shchepetkov <shchepetkov@ispras.ru>");
-
