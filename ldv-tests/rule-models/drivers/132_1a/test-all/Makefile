@@ -1,0 +1,34 @@
+S-empty-test-objs := main.o S-empty.o
+S-interface_to_usbdev-ERR-test-objs := main.o S-interface_to_usbdev-ERR.o
+S-interface_to_usbdev-usb_get_dev-usb_put_dev-test-objs := main.o S-interface_to_usbdev-usb_get_dev-usb_put_dev.o
+S-interface_to_usbdev-usb_get_dev-usb_put_dev-ERR-test-objs := main.o S-interface_to_usbdev-usb_get_dev-usb_put_dev-ERR.o
+S-usb_get_dev-usb_put_dev-test-objs := main.o S-usb_get_dev-usb_put_dev.o
+S-usb_get_dev-usb_put_dev-ERR-usb_put_dev-test-objs := main.o S-usb_get_dev-usb_put_dev-ERR-usb_put_dev.o
+S-usb_get_dev-usb_put_dev-usb_get_dev-usb_put_dev-test-objs := main.o S-usb_get_dev-usb_put_dev-usb_get_dev-usb_put_dev.o
+U-interface_to_usbdev-test-objs := main.o U-interface_to_usbdev.o
+U-interface_to_usbdev-usb_get_dev-test-objs := main.o U-interface_to_usbdev-usb_get_dev.o
+U-interface_to_usbdev-usb_get_dev-ERR-test-objs := main.o U-interface_to_usbdev-usb_get_dev-ERR.o
+U-interface_to_usbdev-usb_put_dev-test-objs := main.o U-interface_to_usbdev-usb_put_dev.o
+U-usb_get_dev-test-objs := main.o U-usb_get_dev.o
+U-usb_get_dev-ERR-usb_put_dev-test-objs := main.o U-usb_get_dev-ERR-usb_put_dev.o
+U-usb_get_dev-usb_get_dev-usb_put_dev-test-objs := main.o U-usb_get_dev-usb_get_dev-usb_put_dev.o
+U-usb_get_dev-usb_put_dev-usb_put_dev-test-objs := main.o U-usb_get_dev-usb_put_dev-usb_put_dev.o
+U-usb_put_dev-test-objs := main.o U-usb_put_dev.o
+
+
+obj-m += S-empty-test.o
+obj-m += S-interface_to_usbdev-ERR-test.o
+obj-m += S-interface_to_usbdev-usb_get_dev-usb_put_dev-test.o
+obj-m += S-interface_to_usbdev-usb_get_dev-usb_put_dev-ERR-test.o
+obj-m += S-usb_get_dev-usb_put_dev-test.o
+obj-m += S-usb_get_dev-usb_put_dev-ERR-usb_put_dev-test.o
+obj-m += S-usb_get_dev-usb_put_dev-usb_get_dev-usb_put_dev-test.o
+obj-m += U-interface_to_usbdev-test.o
+obj-m += U-interface_to_usbdev-usb_get_dev-test.o
+obj-m += U-interface_to_usbdev-usb_get_dev-ERR-test.o
+obj-m += U-interface_to_usbdev-usb_put_dev-test.o
+obj-m += U-usb_get_dev-test.o
+obj-m += U-usb_get_dev-ERR-usb_put_dev-test.o
+obj-m += U-usb_get_dev-usb_get_dev-usb_put_dev-test.o
+obj-m += U-usb_get_dev-usb_put_dev-usb_put_dev-test.o
+obj-m += U-usb_put_dev-test.o
