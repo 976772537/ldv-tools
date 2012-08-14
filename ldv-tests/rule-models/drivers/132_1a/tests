@@ -1,0 +1,16 @@
+S-empty
+U-interface_to_usbdev
+S-interface_to_usbdev-ERR
+U-interface_to_usbdev-usb_get_dev
+U-interface_to_usbdev-usb_get_dev-ERR
+U-interface_to_usbdev-usb_put_dev
+S-interface_to_usbdev-usb_get_dev-usb_put_dev
+S-interface_to_usbdev-usb_get_dev-usb_put_dev-ERR
+S-usb_get_dev-usb_put_dev
+S-usb_get_dev-usb_put_dev-usb_get_dev-usb_put_dev
+U-usb_get_dev-usb_put_dev-usb_put_dev
+U-usb_get_dev-usb_get_dev-usb_put_dev
+S-usb_get_dev-usb_put_dev-ERR-usb_put_dev
+U-usb_get_dev-ERR-usb_put_dev
+U-usb_get_dev
+U-usb_put_dev
