@@ -336,6 +336,8 @@ public class MainGenerator {
 		sb.append("\n" + ctx.getIndent() + "void ldv_check_final_state(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_check_return_value(int res);\n");
+		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Test correct return result of probe() function. */");
+		sb.append("\n" + ctx.getIndent() + "void ldv_check_return_value_probe(int res);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Initializes the model. */");
 		sb.append("\n" + ctx.getIndent() + "void ldv_initialize(void);\n");
 		sb.append("\n" + ctx.getIndent() + "/* "+ldvCommentTag+ldvTag_FUNCTION_DECLARE_LDV+" Special function for LDV verifier. Reinitializes the model between distinct model function calls. */");

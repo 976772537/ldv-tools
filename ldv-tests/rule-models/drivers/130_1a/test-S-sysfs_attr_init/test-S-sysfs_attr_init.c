@@ -9,8 +9,10 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 
-struct device *dev;
-struct device_attribute dev_attr;
+
+struct test_data {
+	struct device_attribute dev_attr;
+};
 
 static int misc_open(struct inode * inode, struct file * file);
 
@@ -21,13 +23,18 @@ static const struct file_operations misc_fops = {
 
 static int misc_open(struct inode * inode, struct file * file)
 {
-	int err;
+  	int err;
 	
-	dev_attr.attr.name = "device_id";
-	dev_attr.attr.mode = S_IRUGO;
-	sysfs_attr_init(&dev_attr.attr);
+	struct test_data *data;
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	
-	err = device_create_file(dev, &dev_attr);
+	struct device *dev;
+	
+	sysfs_attr_init(&data->dev_attr.attr);
+	data->dev_attr.attr.name = "device_id";
+	data->dev_attr.attr.mode = S_IRUGO;
+	
+	err = device_create_file(dev, &data->dev_attr);
 	if (err)
 		return -1;
 	return 0;
