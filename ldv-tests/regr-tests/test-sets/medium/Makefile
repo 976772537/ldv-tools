@@ -32,6 +32,6 @@ install:
 	if [ ! -d $(prefix)/$(MEDIUM_TEST_DIR) ]; then mkdir -p $(prefix)/$(MEDIUM_TEST_DIR) || exit 1; fi
 	cp $(prefix)/$(GENERAL_TEST_DIR)/*.tar.bz2 $(prefix)/$(MEDIUM_TEST_DIR) || exit 1;
 	cp $(prefix)/$(MODELS_TEST_DIR)/*.tar.bz2 $(prefix)/$(MEDIUM_TEST_DIR) || exit 1;
-	cp $(prefix)/$(BIG_TEST_DIR)/*.tar.bz2 $(prefix)/$(MEDIUM_TEST_DIR) || exit 1;
+	cp ../big/linux-2.6.34.tar.bz2 $(prefix)/$(MEDIUM_TEST_DIR) || exit 1;
 	cat $(TEST_TASK) $(prefix)/$(GENERAL_TEST_DIR)/regr-task-general $(prefix)/$(MODELS_TEST_DIR)/regr-task-models > $(prefix)/$(MEDIUM_TEST_DIR)/$(TEST_TASK) || exit 1;
 
