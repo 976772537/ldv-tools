@@ -1,0 +1,3 @@
+driver=139_1a--test-S.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-S/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=139_1a--test-enable_S.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-enable_S/enable_S.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=139_1a--test-disable_U.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-disable_U/disable_U.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
