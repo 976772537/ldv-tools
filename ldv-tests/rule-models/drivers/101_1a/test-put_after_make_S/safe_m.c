@@ -38,7 +38,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 
 	rq = blk_make_request(q, READ, GFP_KERNEL);
 
-	if (rq)
+	if (rq && !IS_ERR(rq))
 	{
 		blk_put_request(rq);
 	}
