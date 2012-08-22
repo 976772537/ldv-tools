@@ -1,1 +1,1 @@
-obj-m := safe.o
+obj-m := safe_g.o

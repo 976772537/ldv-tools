@@ -1,4 +1,5 @@
-driver=101_1a--test-put_after_get_S.tar.bz2;origin=external;kernel=linux-3.2.9;model=101_1a;module=drivers/101_1a/test-put_after_get_S/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=101_1a--test-get_U.tar.bz2;origin=external;kernel=linux-3.2.9;model=101_1a;module=drivers/101_1a/test-get_U/U_get.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=101_1a--test-put_U.tar.bz2;origin=external;kernel=linux-3.2.9;model=101_1a;module=drivers/101_1a/test-put_U/U_put.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=101_1a--test-make_U.tar.bz2;origin=external;kernel=linux-3.2.9;model=101_1a;module=drivers/101_1a/test-make_U/U_make.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=101_1a--test-put_after_get_S.tar.bz2;origin=external;kernel=linux-3.5;model=101_1a;module=drivers/101_1a/test-put_after_get_S/safe_g.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=101_1a--test-put_after_make_S.tar.bz2;origin=external;kernel=linux-3.5;model=101_1a;module=drivers/101_1a/test-put_after_make_S/safe_m.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=101_1a--test-get_U.tar.bz2;origin=external;kernel=linux-3.5;model=101_1a;module=drivers/101_1a/test-get_U/U_get.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=101_1a--test-put_U.tar.bz2;origin=external;kernel=linux-3.5;model=101_1a;module=drivers/101_1a/test-put_U/U_put.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=101_1a--test-make_U.tar.bz2;origin=external;kernel=linux-3.5;model=101_1a;module=drivers/101_1a/test-make_U/U_make.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
