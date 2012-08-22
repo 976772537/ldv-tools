@@ -1,4 +1,2 @@
 driver=114_1a--test-S-netif_carrier_off.tar.bz2;origin=external;kernel=linux-3.5;model=114_1a;module=drivers/114_1a/test-S-netif_carrier_off/test-S-netif_carrier_off.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=114_1a--test-S-netif_stop_queue.tar.bz2;origin=external;kernel=linux-3.5;model=114_1a;module=drivers/114_1a/test-S-netif_stop_queue/test-S-netif_stop_queue.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=114_1a--test-U-netif_carrier_off.tar.bz2;origin=external;kernel=linux-3.5;model=114_1a;module=drivers/114_1a/test-U-netif_carrier_off/test-U-netif_carrier_off.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=114_1a--test-U-netif_stop_queue.tar.bz2;origin=external;kernel=linux-3.5;model=114_1a;module=drivers/114_1a/test-U-netif_stop_queue/test-U-netif_stop_queue.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
