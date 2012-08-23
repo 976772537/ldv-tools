@@ -1,0 +1,5 @@
+driver=134_1a--test-all.tar.bz2;origin=external;kernel=linux-3.5;model=134_1a;module=drivers/134_1a/test-all/S-empty-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=134_1a--test-all.tar.bz2;origin=external;kernel=linux-3.5;model=134_1a;module=drivers/134_1a/test-all/S-register_netdev-PROPAGATED-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=134_1a--test-all.tar.bz2;origin=external;kernel=linux-3.5;model=134_1a;module=drivers/134_1a/test-all/S-usb_register-PROPAGATED-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=134_1a--test-all.tar.bz2;origin=external;kernel=linux-3.5;model=134_1a;module=drivers/134_1a/test-all/U-register_netdev-UNCHECKED-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=134_1a--test-all.tar.bz2;origin=external;kernel=linux-3.5;model=134_1a;module=drivers/134_1a/test-all/U-usb_register-UNCHECKED-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
