@@ -5,19 +5,19 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 
-extern int ldv_dummy_init(void);
-extern void ldv_dummy_exit(void);
+extern int ldv_dummy_open(void);
+extern int ldv_dummy_close(void);
 
 /* This function is defined here just to make Driver Environment Generator
  * produce its call. So a corresponding test case function is called too. 
  */ 
 static int ldv_dummy_open_aux(struct inode *inode, struct file *file)
 {
-	return 0;
+	return ldv_dummy_open();
 }
 static int ldv_dummy_close_aux(struct inode *inode, struct file *file)
 {
-	return 0;
+	return ldv_dummy_close();
 }
 
 static const struct file_operations misc_fops = {
@@ -28,15 +28,11 @@ static const struct file_operations misc_fops = {
 
 static int __init ldv_dummy_init_aux(void)
 {
-	int result = register_chrdev(MISC_MAJOR, "misc", &misc_fops);
-	if (result)
-		return result;
-	ldv_dummy_init();
+	return register_chrdev(MISC_MAJOR, "misc", &misc_fops);
 }
 
 static void __exit ldv_dummy_exit_aux(void)
 {
-	ldv_dummy_exit();
 }
 
 module_init(ldv_dummy_init_aux);
