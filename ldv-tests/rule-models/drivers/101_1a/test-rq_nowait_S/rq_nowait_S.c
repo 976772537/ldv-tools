@@ -16,7 +16,7 @@ static int __init cdrom_init(void)
 	struct request *req;
 	struct request_queue *q;
 
-	req = blk_get_request(q, READ, GFP_KERNEL);
+	req = blk_get_request(q, READ, GFP_ATOMIC);
 	if (req && !IS_ERR(req))
 		blk_execute_rq_nowait(req->q, NULL, req, 1, my_blk);
 	
