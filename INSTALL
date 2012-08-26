@@ -38,6 +38,7 @@ MINIMAL PREREQUISITES
 		- File::Path   (update to the newest version)
 		- File::MimeInfo
 		- File::Basename
+		- Template
 		- Text::Highlight
 		- Tie::Hash::Indexed
 		- XML::Twig
