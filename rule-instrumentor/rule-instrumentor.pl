@@ -850,16 +850,24 @@ sub get_model_info()
               my $template = $aspect_tag->first_child_text('template')
                 or die("Template isn't specified for '$id_attr' model");
               print_debug_debug("Template '$template' is specified for the '$id_attr' model");
+              $template = "$ldv_model_dir/$template";
+
               $aspect = "$tool_aux_dir/" . basename($template) . '.aspect';
-              print_debug_debug("Generate '$aspect 'aspect file");
+              print_debug_debug("Generate aspect to file '$aspect'");
 
-              my @args = (
-                "$ldv_model_dir/scripts/rerouter",
-                '--template', "$ldv_model_dir/$template", '--out', $aspect);
+              my $script_dir = "$ldv_model_dir/scripts";
+              my $rerouter_script = "$script_dir/rerouter";
+              open(REROUTER, '<', $rerouter_script)
+                or die("Can't open file '$rerouter_script' for read: $ERRNO");
+              my $rerouter = join("", <REROUTER>);
+              close(REROUTER)
+                or die("Can't close file handler for '$rerouter_script': $ERRNO");
 
-              print_debug_trace("Execute command '@args'");
-              system(@args);
-              die("Can't execute command '@args'") if (check_system_call());
+              print_debug_info("Evaluate rerouter");
+              eval("$rerouter\n0;");
+
+              die("Can't produce aspect file by means of rerouter '$ldv_model_dir/scripts/rerouter': $EVAL_ERROR")
+                if ($EVAL_ERROR);
             }
           }
           else
