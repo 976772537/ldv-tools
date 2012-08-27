@@ -204,6 +204,11 @@ my $id_common_model_suffix = '-with-common-model';
 my $id_cc_llvm_suffix = '-llvm-cc';
 my $id_ld_llvm_suffix = '-llvm-ld';
 
+# Flag that specifies whether argument signatures should be gathered or not.
+my $isgather_arg_signs = 0;
+# Files containing argument signs.
+my @gathered_arg_sign_files;
+
 # Flag that specifies whether configuration was done.
 my $isconfig = 0;
 # The set of configuration directories.
@@ -1472,10 +1477,17 @@ sub process_cmd_cc()
     # Specify options to be used in aspect preprocessing.
     $ENV{'LDV_PREPROCESSED_OPTS'} = "-I$ldv_model_include_dir";
 
+    # Input file to be instrumented.
+    my $in = ${$cmd{'ins'}}[0];
+
+    # Options to be used for instrumentation.
+    my @opts = @{$cmd{'opts'}};
+
     # Generate aspect file by means of script if this is required.
-    my $script = $ldv_model{'script'};
-    if ($script)
+    if ($ldv_model{'script'})
     {
+      my $id = $cmd{'id'};
+      my $script = $ldv_model{'script'};
       my $template = $ldv_model{'template'};
 
       my $script_dir = "$ldv_model_dir/scripts";
@@ -1492,18 +1504,18 @@ sub process_cmd_cc()
       die("Can't produce aspect file by means of rerouter '$rerouter_script': $EVAL_ERROR")
         if ($EVAL_ERROR);
 
-      # To generate aspect model one time.
+      # Finish futher processing until all argument signatures will be gathered.
+      return (0, []) if ($isgather_arg_signs);
+
+      # Generate aspect to be used in instrumenation just one time.
       undef($ldv_model{'script'});
     }
-
-    # Input file to be instrumented.
-    my $in = ${$cmd{'ins'}}[0];
 
     my @args = (
       $ldv_timeout_script,
       @ldv_timeout_script_opts,
       "--reference=$cmd{'id'}",
-      $ldv_aspectator, $in, $ldv_model{'aspect'}, @{$cmd{'opts'}});
+      $ldv_aspectator, $in, $ldv_model{'aspect'}, @opts);
 
     print_debug_trace("Go to the build directory to execute cc command");
 
@@ -1999,6 +2011,12 @@ sub process_cmds()
   my @cmds = $cmd_root->children;
 
   print_debug_trace("Iterate over all commands to execute them and write output xml file");
+  print_debug_trace("Gather argument signatures for all cc comands specified first of all");
+  $isgather_arg_signs = 1
+    if ($ldv_model{'script'});
+  for (my $i = 0; $i < ($ldv_model{'script'} ? 2 : 1); $i++)
+  {
+  $isgather_arg_signs = 0 if ($i > 0);
   foreach my $cmd (@cmds)
   {
     # At the beginning instrumentor basedir must be specified.
@@ -2173,6 +2191,10 @@ sub process_cmds()
         print_debug_debug("The cc command '$id_attr' is especially specifically processed for the aspect mode");
         my ($status, $desc, $time) = func_status_desc_and_time(\&process_cmd_cc,$cmd,%cmd);
 
+        # Go to the next CC comand and finish gathering argument signatures when
+        # reach LD command.
+        next if ($isgather_arg_signs);
+
         print_debug_trace("Log information on the '$id_attr' command execution status");
         my $status_log;
         # 0 status is good. Store description related with the output
@@ -2201,7 +2223,8 @@ sub process_cmds()
       }
 
       # ld command additionaly contains array of entry points.
-      if ($cmd->gi eq $xml_cmd_ld)
+      # While gathering argument signatures LD command processing isn't required.
+      if ($cmd->gi eq $xml_cmd_ld and !$isgather_arg_signs)
       {
         $cmd{'entry point'} = \@entry_points;
         print_debug_debug("The ld command entry points are '@entry_points'");
@@ -2307,6 +2330,7 @@ sub process_cmds()
       warn("The input xml file contains the command '" . $cmd->gi . "' that can't be interpreted");
       exit($error_semantics);
     }
+  }
   }
 }
 
