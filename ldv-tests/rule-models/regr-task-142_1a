@@ -1,0 +1,10 @@
+driver=142_1a--test-const.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-const/S-const.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=142_1a--test-const.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-const/U-const.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=142_1a--test-jiffy.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-jiffy/S-jiffy.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=142_1a--test-jiffy.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-jiffy/U-jiffy.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=142_1a--test-msecs_to_jiffies.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-msecs_to_jiffies/S-msecs_to_jiffy.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=142_1a--test-msecs_to_jiffies.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-msecs_to_jiffies/U-msecs_to_jiffy.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=142_1a--test-round_jiffies_up.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-round_jiffies_up/S-round.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=142_1a--test-round_jiffies_up.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-round_jiffies_up/U-round.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=142_1a--test-usecs_to_jiffies.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-usecs_to_jiffies/S-usecs.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=142_1a--test-usecs_to_jiffies.tar.bz2;origin=external;kernel=linux-3.5;model=142_1a;module=drivers/142_1a/test-usecs_to_jiffies/U-usecs.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
