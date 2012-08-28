@@ -1511,6 +1511,20 @@ sub process_cmd_cc()
       undef($ldv_model{'script'});
     }
 
+    # Create a special file for aspectator to hold unique number through
+    # different CC commands (#927).
+    my $unique_numb_file = "$tool_aux_dir/unique_numb";
+    $ENV{'LDV_UNIQUE_NUMB'} = $unique_numb_file;
+    unless (-f $unique_numb_file)
+    {
+      open(UNIQUE_NUMB, '>', $unique_numb_file)
+        or die("Can't open file '$unique_numb_file' for write: $ERRNO");
+      # To start unique numbers from 1 make "previous" value to be 0.
+      print(UNIQUE_NUMB "0");
+      close(UNIQUE_NUMB)
+        or die("Can't close file handler for '$unique_numb_file': $ERRNO");
+    }
+
     my @args = (
       $ldv_timeout_script,
       @ldv_timeout_script_opts,
