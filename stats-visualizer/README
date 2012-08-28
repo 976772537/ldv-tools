@@ -12,17 +12,36 @@ have to copy files to web server virtual host and configuration directories.
 Well known problems.
 1. It seems that usually the required web server module mod_rewrite is turned
    off. So you must read documentation on your web server to turn it on.
-2. If you'll see absolutely blank page after some action or even at the
+2. Some systems don't allow to web server to read something from directories
+   except default web server directories. When you see in web server error log
+   (see "Other problems" describing how to read this log) something like:
+   [Mon Jul 30 15:19:56 2012] [error] [client 127.0.0.1] PHP Fatal error:  require_once(): Failed opening required 'Zend/Application.php' (include_path='/srv/www/vhosts/ldv-stats/library:.:/usr/share/php:/usr/share/pear') in /srv/www/vhosts/ldv-stats/public/index.php on line 34
+   we adice you to install statistics server directly into web server virtual
+   hosts directory, i.e. specify set up prefix that equals to the value of
+   LDV_STATS_VHOSTS_DIR variable from config you used. In the case above it 
+   should be prefix=/srv/www/vhosts.
+3. If you'll see absolutely blank page after some action or even at the
    beginning it is most likely that the statistics server exceeds the default
    memory limit (256Mb). I hope that there won't be such problems if an used
    database is filled with data correctly. To fix the problem you can enlarge
    the default memory limit in the file vhosts/ldv-stats/public/.htaccess
-   placed respectively to the given directory. Also please send a message to
-   the development team.
+   placed respectively to the given directory and reinstall statistics server.
+   Also please send a message to the development team.
+   
+Other problems.
+Inspect web server logs to understand what happens. On openSUSE this can be done
+in the following manner:
+$ tail /var/log/apache2/error_log
+$ tail /var/log/apache2/access_log
+Other systems may place these logs into another directory. If you encontered
+some specific problem, please, don't forget to report developers about it (e.g.
+here http://forge.ispras.ru/projects/ldv/).
 
 After installation you must restart your web server to see the statistics server
-on the specified port.
+on the default or specified port. On openSUSE it can be done via executing under
+root:
+$ /etc/init.d/apache2 restart
 
-Visit http://localhost:8999 (with default port) by means of your browser.
-
+Visit http://localhost:8999 (if you don't specify another port) by means of your
+browser.
 

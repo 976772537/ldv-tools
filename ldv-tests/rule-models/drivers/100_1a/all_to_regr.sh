@@ -1,7 +1,7 @@
 DIR=$(dirname $(readlink -f "$0"))
 DIR=$DIR/../..
 RULE=${RULE:-100_1a}
-KERNEL=${KERNEL:-linux-3.4.4}
+KERNEL=${KERNEL:-linux-3.5}
 MAIN=${MAIN:-ldv_main0_sequence_infinite_withcheck_stateful}
 
 function fill_test
@@ -15,5 +15,6 @@ function fill_test
 }
 
 for i in $DIR/drivers/${RULE}/test-*; do
+    [[ -d "$i" ]] || continue
     fill_test $(basename "$i")
 done

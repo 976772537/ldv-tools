@@ -112,8 +112,9 @@ ensure that it's tweaked correctly.
 
 MySQL
 
-Extend "maximal packet size".  LDV uploads source files to database, and they
-may get huge. 10Mb is enough; just add the following lines to /etc/my.cnf:
+Extend "maximal packet size". LDV uploads source files to database, and they
+may get huge. 10Mb is enough. Update current value of max_allowed_packet or add
+the following lines to /etc/my.cnf:
 	[mysqld]
 	max_allowed_packet = 10M
 
@@ -134,6 +135,15 @@ In order to make changes to take effect you need to restart mysql server or/and
 run 'flush logs' command in mysql console (under root). 
 For more details you can see http://forge.ispras.ru/issues/2316.
 
+If you want to share your database (e.g. if you want to use remote LDV Analytics
+Center) you must enable remote connection to your local mysql server. Read
+manuals avalable for your particular distribution. Most likely you must comment
+setting skip-networking or/and bind-address variables in my.cnf. Also you must
+enable access to the database, e.g. from mysql console (you can see this manual
+for more details: http://dev.mysql.com/doc/refman/5.1/en/adding-users.html):
+mysql> grant all on DATABASE_NAME.* to USER_NAME;
+mysql> flush privileges;
+
 INSTALLING LDV
 
 First, install a prerequisites listed above, according to the path of LDV you
@@ -149,7 +159,8 @@ before installing '6' and '7'.
   2. To install verifiers only:
      prefix=/path/to/your/installation/directory make install-verifiers
 
-  3. To install the statistics server use:
+  3. To install the statistics server use (please, refer to
+     stats-visualizer/README for details and problems!)
      sudo prefix=/path/to/some/directory make install-visualization
      (Since it will most likely require root access, install it separately)
 
