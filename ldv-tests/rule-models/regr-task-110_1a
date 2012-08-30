@@ -1,0 +1,14 @@
+driver=110_1a--test-spin_lock.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock/S-spin_lock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=110_1a--test-spin_lock.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock/S-spin_unlock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=110_1a--test-spin_lock.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock/U-spin_lock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=110_1a--test-spin_lock.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock/U-spin_unlock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=110_1a--test-spin_lock_bh.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_bh/S-spin_lock_bh.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=110_1a--test-spin_lock_bh.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_bh/S-spin_unlock_bh.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=110_1a--test-spin_lock_bh.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_bh/U-spin_lock_bh.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=110_1a--test-spin_lock_bh.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_bh/U-spin_unlock_bh.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=110_1a--test-spin_lock_nested.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_nested/S-spin_lock_nested.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=110_1a--test-spin_lock_nested.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_nested/U-spin_lock_nested.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=110_1a--test-spin_lock_irq.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_irq/S-spin_lock_irq.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=110_1a--test-spin_lock_irq.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_irq/S-spin_unlock_irq.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=110_1a--test-spin_lock_irq.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_irq/U-spin_lock_irq.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=110_1a--test-spin_lock_irq.tar.bz2;origin=external;kernel=linux-3.5;model=110_1a;module=drivers/110_1a/test-spin_lock_irq/U-spin_unlock_irq.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
