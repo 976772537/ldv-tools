@@ -789,6 +789,7 @@ sub get_model_info()
       # Obtain aspect file or template and script for the aspect mode.
       my $aspect = '';
       my $template = '';
+      my $arg_sign_algo = '';
       my $script = '';
 
       # Obtain common file for the common mode.
@@ -859,6 +860,11 @@ sub get_model_info()
               print_debug_debug("Template '$template' is specified for the '$id_attr' model");
               $template = "$ldv_model_dir/$template";
 
+              print_debug_trace("Obtain argument signature algorithm if so");
+              $arg_sign_algo = $aspect_tag->first_child_text('arg_sign');
+              print_debug_debug("Argument signature algorithm '$arg_sign_algo' is specified for the '$id_attr' model")
+                if ($arg_sign_algo);
+
               $aspect = "$tool_aux_dir/" . basename($template) . '.aspect';
               print_debug_debug("Aspect will be generated to file '$aspect'");
             }
@@ -913,6 +919,7 @@ sub get_model_info()
         'kind' => \@kinds,
         'aspect' => $aspect,
         'template' => $template,
+        'arg sign' => $arg_sign_algo,
         'script' => $script,
         'common' => $common,
         'config' => $config,
@@ -1483,6 +1490,12 @@ sub process_cmd_cc()
     # Options to be used for instrumentation.
     my @opts = @{$cmd{'opts'}};
 
+    # Specify argument signature extraction algorithm if it's specified in model
+    # database and isn't specified via environment variable.
+    my $arg_sign_algo = $ldv_model{'arg sign'};
+    $ENV{'LDV_ARG_SIGN'} = $arg_sign_algo
+      if ($arg_sign_algo and !$ENV{'LDV_ARG_SIGN'});
+
     # Generate aspect file by means of script if this is required.
     if ($ldv_model{'script'})
     {
@@ -1617,6 +1630,7 @@ sub process_cmd_cc()
       delete($ENV{'LDV_COMMON_MODEL'});
       delete($ENV{'LDV_PREPROCESSED_ASPECT'});
       delete($ENV{'LDV_PREPROCESSED_OPTS'});
+      delete($ENV{'LDV_ARG_SIGN'});
 
       print_debug_trace("Go to the initial directory");
       chdir($tool_working_dir)
