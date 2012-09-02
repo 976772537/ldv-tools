@@ -1630,7 +1630,6 @@ sub process_cmd_cc()
       delete($ENV{'LDV_COMMON_MODEL'});
       delete($ENV{'LDV_PREPROCESSED_ASPECT'});
       delete($ENV{'LDV_PREPROCESSED_OPTS'});
-      delete($ENV{'LDV_ARG_SIGN'});
 
       print_debug_trace("Go to the initial directory");
       chdir($tool_working_dir)
