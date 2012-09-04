@@ -864,7 +864,7 @@ sub get_model_info()
               print_debug_debug("Template '$template' is specified for the '$id_attr' model");
               $template = "$ldv_model_dir/$template";
 
-              $ldv_model_include_dir = $ldv_model_dir . dirname($template);
+              $ldv_model_include_dir = "$ldv_model_dir/" . dirname($template);
               print_debug_debug("Header files will be additionaly searched for in '$ldv_model_include_dir'");
 
               print_debug_trace("Obtain argument signature algorithm if so");
@@ -882,7 +882,7 @@ sub get_model_info()
             $aspect = $aspect_tag->text();
             print_debug_debug("Aspect file '$aspect' is specified for the '$id_attr' model");
 
-            $ldv_model_include_dir = $ldv_model_dir . dirname($aspect);
+            $ldv_model_include_dir = "$ldv_model_dir/" . dirname($aspect);
             print_debug_debug("Header files will be additionaly searched for in '$ldv_model_include_dir'");
 
             $aspect = "$ldv_model_dir/$aspect";
@@ -905,7 +905,7 @@ sub get_model_info()
             or die("Common file isn't specified for the '$id_attr' model");
           print_debug_debug("The common file '$common' is specified for the '$id_attr' model");
 
-          $ldv_model_include_dir = $ldv_model_dir . dirname($common);
+          $ldv_model_include_dir = "$ldv_model_dir/" . dirname($common);
           print_debug_debug("Header files will be additionaly searched for in '$ldv_model_include_dir'");
 
           die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
