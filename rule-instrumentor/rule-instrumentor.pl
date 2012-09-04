@@ -864,6 +864,9 @@ sub get_model_info()
               print_debug_debug("Template '$template' is specified for the '$id_attr' model");
               $template = "$ldv_model_dir/$template";
 
+              $ldv_model_include_dir = $ldv_model_dir . dirname($template);
+              print_debug_debug("Header files will be additionaly searched for in '$ldv_model_include_dir'");
+
               print_debug_trace("Obtain argument signature algorithm if so");
               $arg_sign_algo = $aspect_tag->first_child_text('arg_sign');
               print_debug_debug("Argument signature algorithm '$arg_sign_algo' is specified for the '$id_attr' model")
@@ -878,6 +881,9 @@ sub get_model_info()
             print_debug_trace("Read aspect file name");
             $aspect = $aspect_tag->text();
             print_debug_debug("Aspect file '$aspect' is specified for the '$id_attr' model");
+
+            $ldv_model_include_dir = $ldv_model_dir . dirname($aspect);
+            print_debug_debug("Header files will be additionaly searched for in '$ldv_model_include_dir'");
 
             $aspect = "$ldv_model_dir/$aspect";
             die("Aspect file '$aspect' doesn't exist (for '$id_attr' model)")
@@ -898,6 +904,9 @@ sub get_model_info()
           $common = $files->first_child_text($xml_model_db_files_common)
             or die("Common file isn't specified for the '$id_attr' model");
           print_debug_debug("The common file '$common' is specified for the '$id_attr' model");
+
+          $ldv_model_include_dir = $ldv_model_dir . dirname($common);
+          print_debug_debug("Header files will be additionaly searched for in '$ldv_model_include_dir'");
 
           die("Common file '$ldv_model_dir/$common' doesn't exist (for '$id_attr' model)")
             unless (-f "$ldv_model_dir/$common");
@@ -1397,9 +1406,6 @@ sub prepare_files_and_dirs()
   }
   print_debug_debug("The models database xml file is '$ldv_model_db_xml'");
 
-  $ldv_model_include_dir = "$ldv_model_dir/files";
-  print_debug_debug("Header files for models will be searched for in '$ldv_model_include_dir'");
-
   # Initialize cache directory
   $do_cache = defined($opt_cache_dir);
   if ($do_cache)
@@ -1711,8 +1717,10 @@ sub process_cmd_cc()
 
     # Add -I option with a path to a directory to find appropriate headers for
     # driver files since they may include some model headers.
-    print_debug_trace("For CC command add '$ldv_model_include_dir' directory to be searched for headers");
-    my $opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");;
+    print_debug_trace("For CC command add '$ldv_model_dir' and '$ldv_model_include_dir' directories to be searched for headers");
+    my $opt = new XML::Twig::Elt('opt' => "-I$ldv_model_dir");;
+    $opt->paste('last_child', $cmd);
+    $opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");;
     $opt->paste('last_child', $cmd);
 
     # FIXME
@@ -2008,8 +2016,10 @@ sub process_cmd_ld()
 
       # Add -I option with a path to a directory to find appropriate headers for
       # models..
-      print_debug_trace("For auxiliary CC command add '$ldv_model_dir' directory to be searched for headers");
+      print_debug_trace("For auxiliary CC command add '$ldv_model_dir' and '$ldv_model_include_dir' directories to be searched for headers");
       my $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_dir");
+      $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
+      $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");
       $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
 
       my $cmd_cc_aux_out = new XML::Twig::Elt('out', "$tool_model_common_dir/$ldv_model_common_o");
