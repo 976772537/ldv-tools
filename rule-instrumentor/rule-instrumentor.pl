@@ -264,6 +264,10 @@ my $gcc_suffix_aspect = '.c';
 # Suffix for stage 1 files for GCC aspectator
 my $gcc_preprocessed_suffix = '.p';
 
+# Common aspect file to be included implicitly by RI into all aspect models.
+# It's relative to a tool directory.
+my $ri_aspect = 'ri.aspect';
+
 # Directory where common model is placed. It's needed to find appropriate
 # header files.
 my $ldv_model_include_dir;
@@ -1246,6 +1250,15 @@ sub prepare_files_and_dirs()
     help();
   }
 
+  print_debug_trace("Obtain absolute path for RI common aspect file");
+  $ri_aspect = "$ldv_rule_instrumentor/$ri_aspect";
+  unless(-f $ri_aspect)
+  {
+    warn("File '$ri_aspect' doesn't exist");
+    help();
+  }
+  print_debug_debug("RI common aspect file is '$ri_aspect'");
+
   $ldv_timeout_script = "$LDV_HOME/shared/sh/timeout";
   unless(-f $ldv_timeout_script)
   {
@@ -1482,7 +1495,7 @@ sub process_cmd_cc()
     # Specify a path where a preprocessed aspect will be placed.
     $ENV{'LDV_PREPROCESSED_ASPECT'} = "$tool_aux_dir/" . basename($aspect) . ".i";
     # Specify options to be used in aspect preprocessing.
-    $ENV{'LDV_PREPROCESSED_OPTS'} = "-I$ldv_model_include_dir";
+    $ENV{'LDV_PREPROCESSED_OPTS'} = "--include $ri_aspect -I$ldv_model_include_dir";
 
     # Input file to be instrumented.
     my $in = ${$cmd{'ins'}}[0];

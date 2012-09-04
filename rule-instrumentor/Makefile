@@ -9,6 +9,7 @@ INSTALL_DIR = __install
 
 RULE_INSTRUMENTOR_DIR = rule-instrumentor
 RULE_INSTRUMENTOR_SCRIPT = rule-instrumentor.pl
+RULE_INSTRUMENTOR_COMMON_ASPECT = ri.aspect
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified.
@@ -43,7 +44,8 @@ clean: $(patsubst %,$(ASPECTATOR_DIR)/%-subdir-clean,$(aspectator_backends))
 install: $(patsubst %,$(ASPECTATOR_DIR)/%-subdir-install,$(aspectator_backends))
 	@mkdir -p $(bindir)
 	@mkdir -p $(mandir)
-	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir) || exit 1
+	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir)
+	cp $(RULE_INSTRUMENTOR_COMMON_ASPECT) $(prefix)/$(RULE_INSTRUMENTOR_DIR)
 
 # Create rules for backends
 $(foreach backend,$(aspectator_backends),$(eval $(call mksubdir,$(ASPECTATOR_DIR)/$(backend))))
