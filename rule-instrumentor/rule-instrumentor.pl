@@ -1495,13 +1495,17 @@ sub process_cmd_cc()
     # Specify a path where a preprocessed aspect will be placed.
     $ENV{'LDV_PREPROCESSED_ASPECT'} = "$tool_aux_dir/" . basename($aspect) . ".i";
     # Specify options to be used in aspect preprocessing.
-    $ENV{'LDV_PREPROCESSED_OPTS'} = "--include $ri_aspect -I$ldv_model_include_dir";
+    $ENV{'LDV_PREPROCESSED_OPTS'} = "--include $ri_aspect -I$ldv_model_dir";
 
     # Input file to be instrumented.
     my $in = ${$cmd{'ins'}}[0];
 
     # Options to be used for instrumentation.
     my @opts = @{$cmd{'opts'}};
+
+    # Add kernel-rules as a directory to be searched for (aspect) header files
+    # to be included.
+    push(@opts, "-I$ldv_model_dir");
 
     # Specify argument signature extraction algorithm if it's specified in model
     # database and isn't specified via environment variable.
@@ -2004,8 +2008,8 @@ sub process_cmd_ld()
 
       # Add -I option with a path to a directory to find appropriate headers for
       # models..
-      print_debug_trace("For auxiliary CC command add '$ldv_model_include_dir' directory to be searched for headers");
-      my $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");
+      print_debug_trace("For auxiliary CC command add '$ldv_model_dir' directory to be searched for headers");
+      my $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_dir");
       $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
 
       my $cmd_cc_aux_out = new XML::Twig::Elt('out', "$tool_model_common_dir/$ldv_model_common_o");
