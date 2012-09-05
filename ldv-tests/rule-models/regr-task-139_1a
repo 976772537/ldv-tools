@@ -1,0 +1,9 @@
+driver=139_1a--test-complete.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-complete/S-napi_complete.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=139_1a--test-complete.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-complete/S-__napi_complete.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=139_1a--test-complete.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-complete/U-napi_complete.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=139_1a--test-complete.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-complete/U-__napi_complete.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=139_1a--test-disable.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-disable/S-napi_disable.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=139_1a--test-disable.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-disable/S-napi_schedule.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=139_1a--test-disable.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-disable/S-napi_schedule_prep.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=139_1a--test-disable.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-disable/S-enqueue_to_backlog.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=139_1a--test-disable.tar.bz2;origin=external;kernel=linux-3.5;model=139_1a;module=drivers/139_1a/test-disable/U-napi_disable.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
