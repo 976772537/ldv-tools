@@ -175,6 +175,8 @@ my $common_o_suffix = '.common.o';
 
 # Prefix for all debug messages.
 my $debug_name = 'rule-instrumentor';
+# Debug level to be used.
+my $debug_level = 'QUIET';
 
 # Errors return codes.
 my $error_syntax = 1;
@@ -236,9 +238,6 @@ my $ldv_gcc;
 my $ldv_timeout_script;
 my $ldv_timeout_script_output;
 my @ldv_timeout_script_opts;
-# Environment variable that says that options passed to gcc compiler aren't
-# quoted.
-my $ldv_no_quoted = 'LDV_NO_QUOTED';
 
 # LLVM backend-specific configuration
 
@@ -286,10 +285,6 @@ my $ldv_model_dir;
 my $ldv_model_db_xml = 'model-db.xml';
 # Information on needed model.
 my %ldv_model;
-# Environment variable to setup the aspectator debug level.
-my $ldv_quiet = 'LDV_QUIET';
-# Environment variable to say whether aspectator must clean its generated files.
-my $ldv_clean = 'LDV_CLEAN';
 
 # Suffix of llvm bitcody files.
 my $llvm_bitcode_suffix = '.bc';
@@ -419,7 +414,7 @@ my $skip_cache_without_restrict = '';
 ################################################################################
 
 # Specify debug level.
-get_debug_level($debug_name, $LDV_DEBUG, $LDV_RULE_INSTRUMENTOR_DEBUG);
+$debug_level = get_debug_level($debug_name, $LDV_DEBUG, $LDV_RULE_INSTRUMENTOR_DEBUG);
 
 print_debug_debug("Obtain the absolute path of the current working directory");
 $tool_working_dir = Cwd::cwd()
@@ -823,18 +818,6 @@ sub get_model_info()
           if ($aspectator_type eq 'gcc')
           {
             $ldv_aspectator = $ldv_gcc_aspectator;
-            $ldv_aspectator_gcc = $ldv_gcc_aspectator_gcc_env;
-            if (my $user_specified_aspectator = $ENV{$ldv_gcc_aspectator_gcc_env}){
-              print_debug_debug("Using user-specified GCC aspectator found in '$user_specified_aspectator'");
-              die("User-specified aspectator '$user_specified_aspectator' is not an executable file!")
-                unless (-x $user_specified_aspectator);
-              $ldv_gcc = $user_specified_aspectator;
-            }
-            else
-            {
-              $ldv_gcc = $ldv_gcc_gcc;
-              print_debug_debug("Using the default GCC aspectator found in $ldv_gcc");
-            }
           }
           else
           {
@@ -1352,22 +1335,6 @@ sub prepare_files_and_dirs()
       help();
     }
     print_debug_debug("The aspectator script (compiler) is '$ldv_gcc_aspectator'");
-    # For now, preprocessor will go as an aspectator
-
-    # GCC compiler with aspectator extensions that is used by aspectator
-    # script.
-    # FIXME: for now, we do not have such aspectator!
-    unless (defined $ENV{$ldv_gcc_aspectator_gcc_env})
-    {
-      $ldv_gcc_gcc = "$ldv_gcc_aspectator_bin_dir/compiler-core";
-      unless(-f $ldv_gcc_gcc)
-      {
-        warn("File '$ldv_gcc_gcc' (GCC compiler) doesn't exist");
-        help();
-      }
-      print_debug_debug("The GCC compiler (compiler core) is '$ldv_gcc_gcc'");
-    }
-
   }
 
   # Use environment variable for the models directory instead of the standard
@@ -1485,11 +1452,6 @@ sub process_cmd_cc()
     # corresponding model aspect and options.
     print_debug_debug("Process the cc '$cmd{'id'}' command using usual aspect");
     # Specify needed and specic environment variables for the aspectator.
-    $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
-    $ENV{$ldv_no_quoted} = 1;
-    # Just for the trace debug level aspectator will say about something except
-    # errors.
-    $ENV{$ldv_quiet} = 1 unless (LDV::Utils::check_verbosity('TRACE'));
     # Specify a path where a common model will be placed.
     $ENV{'LDV_COMMON_MODEL'} = "$tool_model_common_dir/$ldv_model_common";
     # Some aspect models can omit a common model, so create an empty common
@@ -1498,10 +1460,6 @@ sub process_cmd_cc()
     print_debug_info("Execute the command '$touch_cmd'");
     system($touch_cmd);
     die("Can't touch file '$ENV{LDV_COMMON_MODEL}'") if (check_system_call());
-    # Specify a path where a preprocessed aspect will be placed.
-    $ENV{'LDV_PREPROCESSED_ASPECT'} = "$tool_aux_dir/" . basename($aspect) . ".i";
-    # Specify options to be used in aspect preprocessing.
-    $ENV{'LDV_PREPROCESSED_OPTS'} = "--include $ri_aspect -I$ldv_model_dir";
 
     # Input file to be instrumented.
     my $in = ${$cmd{'ins'}}[0];
@@ -1512,6 +1470,11 @@ sub process_cmd_cc()
     # Add kernel-rules as a directory to be searched for (aspect) header files
     # to be included.
     push(@opts, "-I$ldv_model_dir");
+
+    # Output file.
+    my $out = $cmd{'out'};
+    # Source code output.
+    my $out_src = "$out.c";
 
     # Specify argument signature extraction algorithm if it's specified in model
     # database and isn't specified via environment variable.
@@ -1561,11 +1524,28 @@ sub process_cmd_cc()
         or die("Can't close file handler for '$unique_numb_file': $ERRNO");
     }
 
+    my @keep = ();
+
+    # Keep CIF intermediate files for debug levels higher then DEBUG.
+    push(@keep, '--keep') if (LDV::Utils::check_verbosity('DEBUG'));
+
     my @args = (
       $ldv_timeout_script,
       @ldv_timeout_script_opts,
       "--reference=$cmd{'id'}",
-      $ldv_aspectator, $in, $ldv_model{'aspect'}, @opts);
+      $ldv_aspectator
+        , '--debug', $debug_level
+        # Always keep prepared file since error traces can reference it.
+        , '--keep-prepared-file'
+        , @keep
+        , '--in', $in
+        , '--aspect', $ldv_model{'aspect'}
+        , '--back-end', 'src'
+        , '--out', $out_src
+        , '--aspect-preprocessing-opts', "--include $ri_aspect"
+        # Escape explicitly all options because of DEG missed this.
+        , '--', map("\"$ARG\"", @opts)
+    );
 
     print_debug_trace("Go to the build directory to execute cc command");
 
@@ -1647,20 +1627,15 @@ sub process_cmd_cc()
       return ($status, $desc) if ($status);
 
       # Unset special environments variables.
-      delete($ENV{$ldv_quiet});
-      delete($ENV{$ldv_no_quoted});
-      delete($ENV{$ldv_aspectator_gcc});
       delete($ENV{'LDV_COMMON_MODEL'});
-      delete($ENV{'LDV_PREPROCESSED_ASPECT'});
-      delete($ENV{'LDV_PREPROCESSED_OPTS'});
 
       print_debug_trace("Go to the initial directory");
       chdir($tool_working_dir)
         or die("Can't change directory to '$tool_working_dir'");
 
-      die("Something wrong with aspectator: it doesn't produce file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'")
-        unless (-f "${$cmd{'ins'}}[0]$aspectated_suffix_generated");
-      print_debug_debug("The aspectator produces the usual bitcode/source file '${$cmd{'ins'}}[0]$aspectated_suffix_generated'");
+      die("Something wrong with aspectator: it doesn't produce file '$out_src'")
+        unless (-f $out_src);
+      print_debug_debug("The aspectator produces the usual bitcode/source file '$out_src'");
 
       # Save the result to cache.
       save_to_cache($cache_target, $opt_model_id, $cache_file_key)
@@ -1674,18 +1649,6 @@ sub process_cmd_cc()
     # GCC aspectator deletes the files on its own
     $files_to_be_deleted{"$cmd{'out'}$aspectated_suffix_generated"} = 1 unless $kind_gcc;
 
-    unless (LDV::Utils::check_verbosity('DEBUG'))
-    {
-      print_debug_trace("Clean the aspectator intermediate files for the nondebug mode");
-      $ENV{$ldv_aspectator_gcc} = $ldv_gcc;
-      $ENV{$ldv_quiet} = 1;
-      $ENV{$ldv_clean} = 1;
-      system(@args);
-      delete($ENV{$ldv_clean});
-      delete($ENV{$ldv_quiet});
-      delete($ENV{$ldv_aspectator_gcc});
-    }
-
     print_debug_trace("Go to the initial directory");
     chdir($tool_working_dir)
       or die("Can't change directory to '$tool_working_dir'");
@@ -1694,8 +1657,8 @@ sub process_cmd_cc()
     if ($kind_gcc){
       my $cmd_updated = new XML::Twig::Elt('cc',{'id' => $cmd{'id'}});
       new XML::Twig::Elt('cwd',$tool_working_dir)->paste('last_child',$cmd_updated);
-      new XML::Twig::Elt('in',"$in$aspectated_suffix_generated")->paste('last_child',$cmd_updated);
-      new XML::Twig::Elt('out',"$cmd{'out'}")->paste('last_child',$cmd_updated);
+      new XML::Twig::Elt('in',$out_src)->paste('last_child',$cmd_updated);
+      new XML::Twig::Elt('out',$out)->paste('last_child',$cmd_updated);
       add_engine_tag($cmd_updated);
       $cmd_updated->print($file_xml_out);
     }

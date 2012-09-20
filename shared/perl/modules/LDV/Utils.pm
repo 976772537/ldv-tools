@@ -116,7 +116,7 @@ sub print_debug_all
 
 # Determine the debug level in depend on the passed arguments.
 # args: (the tool to be debugged name; the LDV_DEBUG value; the tool debug value).
-# retn: nothing.
+# retn: verbosity to be used (in english).
 sub get_debug_level
 {
 	my $tool_debug_name = shift;
@@ -142,6 +142,8 @@ sub get_debug_level
 		set_verbosity($ldv_debug);
 		print_debug_debug("The debug level is set correspondingly to the general LDV_DEBUG environment variable value '$ldv_debug'.");
 	}
+	
+	return $backlev{$verbosity};
 }
 
 sub check_system_call
