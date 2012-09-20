@@ -1467,10 +1467,6 @@ sub process_cmd_cc()
     # Options to be used for instrumentation.
     my @opts = @{$cmd{'opts'}};
 
-    # Add kernel-rules as a directory to be searched for (aspect) header files
-    # to be included.
-    push(@opts, "-I$ldv_model_dir");
-
     # Output file.
     my $out = $cmd{'out'};
     # Source code output.
@@ -1542,6 +1538,9 @@ sub process_cmd_cc()
         , '--aspect', $ldv_model{'aspect'}
         , '--back-end', 'src'
         , '--out', $out_src
+        # Add kernel-rules as a directory to be searched for (aspect) header
+        # files to be included.
+        , '--general-opts', "-I$ldv_model_dir"
         , '--aspect-preprocessing-opts', "--include $ri_aspect"
         # Escape explicitly all options because of DEG missed this.
         , '--', map("\"$ARG\"", @opts)
