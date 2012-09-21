@@ -1,0 +1,27 @@
+S-__kfree_skb-test-objs := main.o S-__kfree_skb.o
+S-__kfree_skb1-__alloc_skb-__kfree_skb1-test-objs := main.o S-__kfree_skb1-__alloc_skb-__kfree_skb1.o
+S-__kfree_skb1-__netdev_alloc_skb-__kfree_skb1-test-objs := main.o S-__kfree_skb1-__netdev_alloc_skb-__kfree_skb1.o
+S-__kfree_skb1-__skb_dequeue-__kfree_skb1-test-objs := main.o S-__kfree_skb1-__skb_dequeue-__kfree_skb1.o
+S-__kfree_skb1-__kfree_skb2-test-objs := main.o S-__kfree_skb1-__kfree_skb2.o
+S-__kfree_skb1-debug_dma_unmap_page-__kfree_skb1-test-objs := main.o S-__kfree_skb1-debug_dma_unmap_page-__kfree_skb1.o
+S-__kfree_skb1-debug_dma_unmap_sg-__kfree_skb1-test-objs := main.o S-__kfree_skb1-debug_dma_unmap_sg-__kfree_skb1.o
+S-__kfree_skb1-ieee80211_pspoll_get-__kfree_skb1-test-objs := main.o S-__kfree_skb1-ieee80211_pspoll_get-__kfree_skb1.o
+S-__kfree_skb1-skb_clone-__kfree_skb1-test-objs := main.o S-__kfree_skb1-skb_clone-__kfree_skb1.o
+S-__kfree_skb1-skb_dequeue-__kfree_skb1-test-objs := main.o S-__kfree_skb1-skb_dequeue-__kfree_skb1.o
+S-empty-test-objs := main.o S-empty.o
+U-__kfree_skb1-__kfree_skb1-test-objs := main.o U-__kfree_skb1-__kfree_skb1.o
+U-__kfree_skb1-__kfree_skb2-__kfree_skb1-test-objs := main.o U-__kfree_skb1-__kfree_skb2-__kfree_skb1.o
+
+obj-m += S-__kfree_skb-test.o
+obj-m += S-__kfree_skb1-__alloc_skb-__kfree_skb1-test.o
+obj-m += S-__kfree_skb1-__netdev_alloc_skb-__kfree_skb1-test.o
+obj-m += S-__kfree_skb1-__skb_dequeue-__kfree_skb1-test.o
+obj-m += S-__kfree_skb1-__kfree_skb2-test.o
+obj-m += S-__kfree_skb1-debug_dma_unmap_page-__kfree_skb1-test.o
+obj-m += S-__kfree_skb1-debug_dma_unmap_sg-__kfree_skb1-test.o
+obj-m += S-__kfree_skb1-ieee80211_pspoll_get-__kfree_skb1-test.o
+obj-m += S-__kfree_skb1-skb_clone-__kfree_skb1-test.o
+obj-m += S-__kfree_skb1-skb_dequeue-__kfree_skb1-test.o
+obj-m += S-empty-test.o
+obj-m += U-__kfree_skb1-__kfree_skb1-test.o
+obj-m += U-__kfree_skb1-__kfree_skb2-__kfree_skb1-test.o
