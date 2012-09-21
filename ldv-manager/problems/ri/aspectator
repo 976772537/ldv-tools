@@ -14,7 +14,10 @@ while (<>){
 	/: fatal error: character .* wasn't put to stream/ and print "<a href=\"http://forge.ispras.ru/issues/349\">Bad_char</a>"
 	or /: fatal error: / and print "Fatal_err";
 	/tree node '(.*)' isn't supported/ and print "<a href=\"http://forge.ispras.ru/issues/1167\">$1</a>";
+	# Old interface to Aspectator (aspectator.sh)
 	/Aspectator fails on the (.*) stage/ and print "$1 stage";
+	# New interface to Aspectator (cif) 
+	/Aspectator failed at '(.*)' stage/ and print "$1 stage";
 
 	/compiler-core: error: kernel.org: No such file or directory/ and print "kernel.org";
 	/warning: no return statement in function returning non-void/ and print "No return warn";
