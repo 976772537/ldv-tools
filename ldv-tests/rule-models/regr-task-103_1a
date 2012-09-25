@@ -1,0 +1,3 @@
+driver=103_1a--test-S-msleep.tar.bz2;origin=external;kernel=linux-3.5;model=103_1a;module=drivers/103_1a/test-S-msleep/test-S-msleep.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=103_1a--test-U-msleep.tar.bz2;origin=external;kernel=linux-3.5;model=103_1a;module=drivers/103_1a/test-U-msleep/test-U-msleep.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=103_1a--test-S-jiffies_to_msecs.tar.bz2;origin=external;kernel=linux-3.5;model=103_1a;module=drivers/103_1a/test-S-jiffies_to_msecs/test-S-jiffies_to_msecs.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
