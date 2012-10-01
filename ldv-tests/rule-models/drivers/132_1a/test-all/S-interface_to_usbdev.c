@@ -1,5 +1,5 @@
 /*
- * An unsafe test with succesful probe() for 132_1a rule model.
+ * A safe test with succesful probe() for 132_1a rule model.
  */
 #include <linux/usb.h>
 #include <linux/slab.h>

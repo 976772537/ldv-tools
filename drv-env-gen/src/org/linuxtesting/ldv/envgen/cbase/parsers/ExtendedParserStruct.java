@@ -191,10 +191,21 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 		}
 	}
 	
-	private final static Pattern fstruct = Pattern.compile("\\.[_a-zA-Z][_a-zA-Z0-9]*\\s*=\\s*[_a-zA-Z][_a-zA-Z0-9]*");
+	//function names may be wrapped in macro
+	//like __devexit_p(dwc3_pci_remove)
+	private final static String macroWrapper = "\\(\\s*[_a-zA-Z][_a-zA-Z0-9]*\\s*\\)"; 
+	private final static String identifier = "[_a-zA-Z][_a-zA-Z0-9]";
+	private final static Pattern fstruct = 
+		Pattern.compile(
+				"\\." + identifier + "*\\s*=\\s*" 
+				+ identifier 
+				+ "*\\s*(" +  macroWrapper + ")?" //optional macro wrapper
+				);
+	private final static Pattern macroPattern = Pattern.compile(macroWrapper);  
 	
 	public static List<NameAndType> getFunctionNames(String buffer)
 	{
+		Logger.trace("fstruct pattern is " + fstruct);
 		List<NameAndType> functions = new ArrayList<NameAndType>();
 		Matcher lmatcher = fstruct.matcher(buffer);
 		while(lmatcher.find()) {
@@ -203,9 +214,23 @@ public class ExtendedParserStruct extends ExtendedParser<TokenStruct> {
 			int lindex = lfinded.indexOf('=');
 			String ltype = lfinded.substring(1,lindex).trim();
 			String lname = lfinded.substring(lindex+1,lfinded.length()).trim();
-			NameAndType nt = new NameAndType(lname,ltype);
-			Logger.trace("" + nt);
-			functions.add(nt);
+			Matcher macroMatcher = macroPattern.matcher(lname);
+			if(macroMatcher.find()) {
+				Logger.trace("found " + macroMatcher.groupCount() + "");
+				//assert macro_matcher.groupCount()==1;
+				String gr = macroMatcher.group().trim();
+				String macroParam = gr.substring(1, gr.length()-1);
+				Logger.trace("function passed as macro parameter is " + macroParam);
+				
+				NameAndType nt = new NameAndType(macroParam,ltype);
+				Logger.trace("" + nt);
+				functions.add(nt);
+				
+			} else {
+				NameAndType nt = new NameAndType(lname,ltype);
+				Logger.trace("" + nt);
+				functions.add(nt);
+			}
 		}
 		return functions;
 	}

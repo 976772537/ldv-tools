@@ -46,6 +46,7 @@ install: $(patsubst %,$(ASPECTATOR_DIR)/%-subdir-install,$(aspectator_backends))
 	@mkdir -p $(mandir)
 	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir)
 	cp $(RULE_INSTRUMENTOR_COMMON_ASPECT) $(prefix)/$(RULE_INSTRUMENTOR_DIR)
+	ln -sf ../$(RULE_INSTRUMENTOR_DIR)/$(ASPECTATOR_DIR)/gcc-4.6/bin/cif $(bindir)/cif 
 
 # Create rules for backends
 $(foreach backend,$(aspectator_backends),$(eval $(call mksubdir,$(ASPECTATOR_DIR)/$(backend))))
