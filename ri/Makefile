@@ -1,53 +1,39 @@
-ASPECTATOR_DIR = aspectator
-# TODO: add key to optionally turn LLVM backend on
-#aspectator_backends=llvm-2.6 gcc-4.6
-ifndef no_gcc_aspectator
-aspectator_backends=gcc-4.6
-endif
+# Directory with CIF and Aspectator sources, objects and executables.
+CIF_DIR = cif
 
-INSTALL_DIR = __install
+# Directory RI, CIF and Aspectator stuff to be installed.
+RI_DIR = ri
 
-RULE_INSTRUMENTOR_DIR = rule-instrumentor
-RULE_INSTRUMENTOR_SCRIPT = rule-instrumentor.pl
-RULE_INSTRUMENTOR_COMMON_ASPECT = ri.aspect
+# Standard directories for installation of executables and manuals.
+exec_prefix = $(shell readlink -f $(prefix))
+bindir = $(exec_prefix)/bin
+mandir = $(prefix)/man
 
-# Standard Makefile section.
-# Use root installation directory if no prefix was specified.
-ifndef prefix
-prefix = `readlink -f $(INSTALL_DIR)`
-endif
-exec_prefix = ${prefix}
-bindir = ${exec_prefix}/bin
-mandir = ${prefix}/man
-
-# Template for making a target in a subdir (with prefix!)
-define mksubdir
-$1-subdir-%:
-	prefix=$(prefix)/$(RULE_INSTRUMENTOR_DIR)/$1 $$(MAKE) -C $1 $$*
-
-endef
-
-# Phony targets.
 .PHONY: all install test clean
 
-# Building, testing and cleaning aren't needed for rule-instrumentor itself. Just for subdirectories.
-all: $(patsubst %,$(ASPECTATOR_DIR)/%-subdir-all,$(aspectator_backends))
-	@echo "Rule-instrumentor $@ finished"
+# Building, testing and cleaning aren't needed for RI itself. Just for CIF.
+all:
+	@echo "Begin to build CIF"
+	make -C $(CIF_DIR) $@
+	@echo "RI doesn't require build itself"
 
-test: $(patsubst %,$(ASPECTATOR_DIR)/%-subdir-test,$(aspectator_backends))
-	@echo "Rule-instrumentor $@ finished"
-
-clean: $(patsubst %,$(ASPECTATOR_DIR)/%-subdir-clean,$(aspectator_backends))
-	@echo "Rule-instrumentor $@ finished"
-
-# Install needed executables to specified path.
-install: $(patsubst %,$(ASPECTATOR_DIR)/%-subdir-install,$(aspectator_backends))
+# Before installation perform build.
+install:
+	@echo "Begin to install CIF"
+	prefix=$(exec_prefix)/$(RI_DIR) make -C $(CIF_DIR) $@
 	@mkdir -p $(bindir)
 	@mkdir -p $(mandir)
-	cp $(RULE_INSTRUMENTOR_SCRIPT) $(bindir)
-	cp $(RULE_INSTRUMENTOR_COMMON_ASPECT) $(prefix)/$(RULE_INSTRUMENTOR_DIR)
-	ln -sf ../$(RULE_INSTRUMENTOR_DIR)/$(ASPECTATOR_DIR)/gcc-4.6/bin/cif $(bindir)/cif 
+	cp rule-instrumentor.pl $(bindir)
+	cp ri.aspect $(exec_prefix)/$(RI_DIR)
+	@echo "Create link to CIF inside directory containing main LDV executables"
+	ln -sf $(exec_prefix)/$(RI_DIR)/bin/cif $(bindir)/cif
 
-# Create rules for backends
-$(foreach backend,$(aspectator_backends),$(eval $(call mksubdir,$(ASPECTATOR_DIR)/$(backend))))
+test:
+	@echo "Begin to test CIF"
+	make -C $(CIF_DIR) $@
+	@echo "RI hasn't tests at the moment"
 
+clean:
+	@echo "Begin to clean CIF"
+	make -C $(CIF_DIR) $@
+	@echo "RI hasn't build files"

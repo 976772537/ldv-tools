@@ -1235,7 +1235,7 @@ sub prepare_files_and_dirs()
   print_debug_debug("The LDV_HOME is '$LDV_HOME'");
 
   print_debug_trace("Obtain the directory where all instrumentor auxiliary tools (such as aspectator) are placed");
-  $ldv_rule_instrumentor = "$LDV_HOME/rule-instrumentor";
+  $ldv_rule_instrumentor = "$LDV_HOME/ri";
   unless(-d $ldv_rule_instrumentor)
   {
     warn("Directory '$ldv_rule_instrumentor' (rule instrumentor directory) doesn't exist");
@@ -1319,7 +1319,7 @@ sub prepare_files_and_dirs()
   # GCC aspectator backend is included into the default shippment, but just in case...
   if ($supported_backends{'gcc'}){
     # Directory contains all binaries needed by aspectator.
-    $ldv_gcc_aspectator_bin_dir = "$ldv_rule_instrumentor/aspectator/gcc-4.6/bin";
+    $ldv_gcc_aspectator_bin_dir = "$ldv_rule_instrumentor/bin";
     unless(-d $ldv_gcc_aspectator_bin_dir)
     {
       warn("Directory '$ldv_gcc_aspectator_bin_dir' (aspectator binaries directory) doesn't exist");

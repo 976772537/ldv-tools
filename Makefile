@@ -3,12 +3,12 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = rule-instrumentor etv cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
+BUILD_SUBDIRS = ri etv cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby
 LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh etv
 ETV_SUBDIRS = etv shared/perl
 KB_SUBDIRS = knowledge-base shared/perl
-RI_SUBDIRS = rule-instrumentor kernel-rules shared/perl
-DSCV_SUBDIRS = rule-instrumentor dscv kernel-rules shared/perl
+RI_SUBDIRS = ri kernel-rules shared/perl
+DSCV_SUBDIRS = ri dscv kernel-rules shared/perl
 LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ETV_SUBDIRS) $(KB_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby
 STATS_SUBDIRS = $(ETV_SUBDIRS) $(KB_SUBDIRS) stats-visualizer kernel-rules shared/php
 ONLINE_SUBDIRS = ldv-online 
@@ -43,7 +43,7 @@ install-console-tools: pre_tests ocaml_is_installed ant_is_installed java_is_ins
 
 install-verifiers: pre_tests ocaml_is_installed $(call forall_subdirs,$(DSCV_SUBDIRS),install)
 
-# Install only rule instrumentor, aspectator and kernel rules
+# Install only Rule Instrumentor, C Instrumentation Framework, Aspectator and kernel rules
 install-ri: pre_tests $(call forall_subdirs,$(RI_SUBDIRS),install)
 
 # Install only error trace visualizer
