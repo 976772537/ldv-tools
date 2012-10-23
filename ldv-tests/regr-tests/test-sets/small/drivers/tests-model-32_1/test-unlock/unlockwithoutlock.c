@@ -6,7 +6,7 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 
-static DEFINE_SPINLOCK(my_lock);
+static DEFINE_MUTEX(my_lock);
 
 static int misc_open(struct inode * inode, struct file * file);
 
