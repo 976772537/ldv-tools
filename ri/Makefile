@@ -4,10 +4,8 @@ CIF_DIR = cif
 # Directory RI, CIF and Aspectator stuff to be installed.
 RI_DIR = ri
 
-# Standard directories for installation of executables and manuals.
-exec_prefix = $(shell readlink -f $(prefix))
-bindir = $(exec_prefix)/bin
-mandir = $(prefix)/man
+# Standard directory for installation of main LDV executables.
+bindir = $(prefix)/bin
 
 .PHONY: all install test clean
 
@@ -17,16 +15,16 @@ all:
 	make -C $(CIF_DIR) $@
 	@echo "RI doesn't require build itself"
 
-# Before installation perform build.
+# Do not perform build before installation since RI doesn't need this while CIF
+# does it itself (otherwise CIF will be build twice).
 install:
 	@echo "Begin to install CIF"
-	prefix=$(exec_prefix)/$(RI_DIR) make -C $(CIF_DIR) $@
+	prefix=$(prefix)/$(RI_DIR) make -C $(CIF_DIR) $@
 	@mkdir -p $(bindir)
-	@mkdir -p $(mandir)
 	cp rule-instrumentor.pl $(bindir)
-	cp ri.aspect $(exec_prefix)/$(RI_DIR)
+	cp ri.aspect $(prefix)/$(RI_DIR)
 	@echo "Create link to CIF inside directory containing main LDV executables"
-	ln -sf $(exec_prefix)/$(RI_DIR)/bin/cif $(bindir)/cif
+	ln -sf $(prefix)/$(RI_DIR)/bin/cif $(bindir)/cif
 
 test:
 	@echo "Begin to test CIF"

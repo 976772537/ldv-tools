@@ -106,7 +106,7 @@ java_is_installed:
 	@$(call is_installed,java)
 
 define test_var_prefix
-	if [ -n "$(prefix)" ]; then                                  \
+	if [ -n "$(prefix)" ] && [[ "$(prefix)" = /* ]]; then                                  \
 		true;                                                \
 	else                                                         \
 		echo " "; 					     \
