@@ -1,0 +1,13 @@
+obj-m += S-prepare.o
+obj-m += U-prepare.o
+obj-m += U-unprepare.o
+obj-m += S-enable.o
+obj-m += U-enable.o
+obj-m += U-disable.o
+obj-m += S-prepare_enable.o
+obj-m += U-prepare_enable.o
+obj-m += U-disable_unprepare.o
+obj-m += U-put.o
+obj-m += U-other_1.o
+obj-m += U-other_2.o
+obj-m += U-other_3.o
