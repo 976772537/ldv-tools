@@ -106,7 +106,11 @@ java_is_installed:
 	@$(call is_installed,java)
 
 define test_var_prefix
-	if [ -n "$(prefix)" ] && [[ "$(prefix)" = /* ]]; then                                  \
+	case "$(prefix)" in \
+		/*) prefix_abs=1 ;; \
+		*) prefix_abs=0 ;; \
+	esac; \
+	if [ -n "$(prefix)" -a $$prefix_abs -eq 1 ]; then                                  \
 		true;                                                \
 	else                                                         \
 		echo " "; 					     \
