@@ -329,8 +329,7 @@ else
 
 		ldv_print "INFO: patch kernel configuration file .config (workaround for #3607 issue)"
 		mv .config .config.original
-		cat .config.original | sed 's/^CONFIG_MODULE_SIG/#CONFIG_MODULE_SIG/' > .config.old
-		make oldconfig
+		cat .config.original | sed -r 's/^CONFIG_MODULE_SIG(.*)=y$/CONFIG_MODULE_SIG\1=n/' > .config
 
 		make init 2>$statefile;
 		if [ $? -ne 0 ]; then 
