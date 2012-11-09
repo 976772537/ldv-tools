@@ -172,11 +172,10 @@ sub convert_tree_node_to_common($)
   }
 
   $node_common .= "$line " if ($line);
-  if ($src and (!$src_prev or $src ne $src_prev))
-  {
-    $node_common .= "\"$src\" ";
-    $src_prev = $src;
-  }
+  # Source file should be printed if it is specified and source file wasn't 
+  # printed before or current source file differs from the previous one.
+  my $issrc_required = ($src and (!$src_prev or $src ne $src_prev));
+  $node_common .= "\"$src\" " if ($issrc_required);
 
   # Obtain formal parameter names or/and LDV comments if so.
   my @names = ();
@@ -358,6 +357,10 @@ sub convert_tree_node_to_common($)
 
     $node_common .= ": $val";
   }
+
+  # Update current source file just now because of entity may be skipped before
+  # and for following entities source file will be incorrect (#3664).
+  $src_prev = $src if ($issrc_required);
 
   # Obtain common representation for all children.
   my @children_common = ();
