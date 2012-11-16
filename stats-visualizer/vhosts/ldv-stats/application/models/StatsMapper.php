@@ -1379,9 +1379,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
             }
             foreach (array_keys($launchInfoForComparison) as $statsKeyPart) {
               if (!array_key_exists($statsKeyPart, $driverMatched['Stats key matched'])) {
-                $driverMatched[$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
+                $driverMatched['Stats key'][$statsKeyPart] = $statsCmp[$taskIdCmpRef][$statsCmpRefValuesStr][$statsKeyPart];
               }
             }
+            foreach (array_keys($auxVerificationInfo) as $verificationInfoPart) {
+              $driverMatched['Aux info'][$verificationInfoPart] = $statsCmp[$taskIdCmpRef][$matchStats[0]][$verificationInfoPart];
+            }
+
             $driversMatched[] = $driverMatched;
           }
         }
