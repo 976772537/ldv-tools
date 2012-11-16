@@ -340,8 +340,18 @@ if ($resultsNumb) {
             if (array_key_exists($verdictRaw, $result['Verdict changes'][$verdictRefRaw])) {
               $drivers = $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['drivers'];
 
-              $driversStatKeys = array_keys($drivers[0]['driver']['Stats key']);
-              $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']['Stats key']);
+              $driversStatKeys = array();
+              // Actually there may be not driver at all (it is "deleted").
+              if (array_key_exists('Stats key', $drivers[0]['driver']))
+              {
+                $driversStatKeys = array_keys($drivers[0]['driver']['Stats key']);
+              }
+              $driversMatchedStatKeys = array();
+              // Actually there may be not matched driver at all (it is "deleted").
+              if (array_key_exists('Stats key', $drivers[0]['matched driver']))
+              {
+                $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']['Stats key']);
+              }
 
               echo "<table class='SCStatsComparisonSubTableTotal' border='1'>
                       <tr class='SCStatsComparisonSubTableHeaderTotalFirstRow'>";
