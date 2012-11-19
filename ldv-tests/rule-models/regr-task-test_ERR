@@ -1,0 +1,6 @@
+driver=test_ERR--test-S-IS_ERR-PTR_ERR.tar.bz2;origin=external;kernel=linux-3.5;model=test_ERR;module=drivers/test_ERR/test-S-IS_ERR-PTR_ERR/test-S-IS_ERR-PTR_ERR.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=test_ERR--test-S-IS_ERR_OR_NULL-ERR_PTR.tar.bz2;origin=external;kernel=linux-3.5;model=test_ERR;module=drivers/test_ERR/test-S-IS_ERR_OR_NULL-ERR_PTR/test-S-IS_ERR_OR_NULL-ERR_PTR.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=test_ERR--test-U-ERR_PTR.tar.bz2;origin=external;kernel=linux-3.5;model=test_ERR;module=drivers/test_ERR/test-U-ERR_PTR/test-U-ERR_PTR.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=test_ERR--test-U-IS_ERR.tar.bz2;origin=external;kernel=linux-3.5;model=test_ERR;module=drivers/test_ERR/test-U-IS_ERR/test-U-IS_ERR.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=test_ERR--test-U-IS_ERR_OR_NULL.tar.bz2;origin=external;kernel=linux-3.5;model=test_ERR;module=drivers/test_ERR/test-U-IS_ERR_OR_NULL/test-U-IS_ERR_OR_NULL.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=test_ERR--test-U-PTR_ERR.tar.bz2;origin=external;kernel=linux-3.5;model=test_ERR;module=drivers/test_ERR/test-U-PTR_ERR/test-U-PTR_ERR.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
