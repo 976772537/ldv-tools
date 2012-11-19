@@ -413,12 +413,14 @@ if ($resultsNumb) {
               $drivers = $result['Verdict changes'][$verdictRefRaw][$verdictRaw]['drivers'];
 
               // Actually there may be not driver at all (it is "deleted").
+              $driversStatKeys = array();
               if (array_key_exists('Stats key', $drivers[0]['driver']))
               {
                 $driversStatKeys = array_keys($drivers[0]['driver']['Stats key']);
                 $driversAuxInfoKeys = array_keys($drivers[0]['driver']['Aux info']);
               }
               // Actually there may be not matched driver at all (it is "deleted").
+              $driversMatchedStatKeys = array();
               if (array_key_exists('Stats key', $drivers[0]['matched driver']))
               {
                 $driversMatchedStatKeys = array_keys($drivers[0]['matched driver']['Stats key']);
