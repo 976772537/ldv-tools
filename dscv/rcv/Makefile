@@ -66,20 +66,23 @@ all_backends=$(backends) $(test_backends)
 $(foreach backend,$(all_backends),$(eval $(call mksubdir,backends/$(backend))))
 
 # Install CPAchecker's configuration
-cpachecker_confdir=$(rcv_install_dir)/etc
-cpachecker_etcfiles= \
-		cpa.cfg.pattern \
-		errloc_automaton.txt \
+# We copy all files in cpachecker.config directory into $(rcv_install_dir)/etc
+# Then we check that $(rcv_install_dir)/etc contains critical files,
+# namely `default.properties' and `LDVErrorLabel.spc'
+cpachecker_src_confdir=cpachecker.config
+cpachecker_dst_confdir=$(rcv_install_dir)/etc
+cpachecker_config_files:=$(patsubst $(cpachecker_src_confdir)/%,$(cpachecker_dst_confdir)/%,$(wildcard $(cpachecker_src_confdir)/*))
 
-cpachecker_configs=$(patsubst %,$(cpachecker_confdir)/%,$(cpachecker_etcfiles))
+cpachecker_critical_files_list= \
+		default.properties \
+		LDVErrorLabel.spc \
 
-install: $(cpachecker_configs) $(cil)
+cpachecker_critical_files=$(patsubst %,$(cpachecker_dst_confdir)/%,$(cpachecker_critical_files_list))
+install: $(cpachecker_config_files) $(cpachecker_critical_files) $(cil)
 
-$(cpachecker_confdir)/%: cpachecker.config/%
+$(cpachecker_dst_confdir)/%: $(cpachecker_src_confdir)/%
 	@mkdir -p $(@D)
 	cp $^ $@
-	@chmod +x $@
-
 
 # Configuring and installing CIL
 cil_dir=cil
