@@ -27,7 +27,7 @@ import org.linuxtesting.ldv.csd.cmdstream.CmdStream;
 import org.linuxtesting.ldv.csd.utils.Logger;
 import org.xml.sax.SAXException;
 
-@WebService
+@WebService(targetNamespace = "http://schemas.xmlsoap.org/wsdl/soap/")
 public class CSDWebService {
 
 	private CmdStream cmdstream;
