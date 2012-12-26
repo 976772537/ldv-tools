@@ -214,6 +214,9 @@ push @cpachecker_options, "-entryfunction",$main if $main;
 my $outputpath = "$tmpdir/cpa-tmp";
 push @cpachecker_options, "-outputpath",$outputpath;
 
+# Disable java assertions in "release" mode
+push @cpachecker_options, "-disable-java-assertions";
+
 # Additional options a user may specify (watch for the spaces in options!)
 push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
 
