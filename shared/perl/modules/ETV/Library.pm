@@ -18,7 +18,7 @@ package ETV::Library;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(call_trees_eq call_trees_ne);
+@EXPORT = qw(call_stacks_eq call_stacks_ne call_trees_eq call_trees_ne);
 
 use English;
 use strict;
@@ -45,6 +45,14 @@ sub _Lexer($);
 # args: references to two call subtree hashes.
 # retn: 0 if call subtrees aren't the same and 1 otherwise.
 sub call_subtrees_eq($$);
+# Compares call stacks of error traces specified.
+# args: references to two error trace texts.
+# retn: 0 if call stacks are the same and 1 otherwise.
+sub call_stacks_eq($$);
+# Opposite for call_stacks_eq subroutine.
+# args: references to two error trace texts.
+# retn: 0 if call stacks aren't the same and 1 otherwise.
+sub call_stacks_ne($$);
 # Compares call trees of error traces specified.
 # args: references to two error trace texts.
 # retn: 0 if call trees are the same and 1 otherwise.
@@ -62,6 +70,14 @@ sub convert_et_to_common($$);
 # args: node of a common error trace.
 # retn: reference to call subtree hash.
 sub get_call_subtree($);
+# Obtain a call stack for a given call tree.
+# args: reference to call tree hash.
+# retn: reference to call stack array.
+sub get_call_stack($);
+# Obtain call trees of error traces specified.
+# args: references to two error trace texts.
+# retn: references to call tree hashes.
+sub get_call_trees($$);
 # Process a given error trace in depend on its header if so. There are following
 # abilities:
 # 1. The error trace is in the common format. It'll be processed by means of
@@ -205,23 +221,56 @@ sub call_subtrees_eq($$)
   return 1;
 }
 
+sub call_stacks_eq($$)
+{
+  my $et1 = shift;
+  my $et2 = shift;
+
+  my ($et1_call_tree, $et2_call_tree) = get_call_trees($et1, $et2);
+
+  my $et1_call_stack = get_call_stack($et1_call_tree);
+  my $et2_call_stack = get_call_stack($et2_call_tree);
+
+  # Compare arrays of strings (function names).
+  for (my $i = 0; ; $i++)
+  {
+    my $et1_call_stack_cur = ${$et1_call_stack}[$i];
+    my $et2_call_stack_cur = ${$et2_call_stack}[$i];
+
+    # Call stacks are the same.
+    return 1 if (!$et1_call_stack_cur and !$et2_call_stack_cur);
+
+    # The numbers of functions don't coincide.
+    if ($et1_call_stack_cur and !$et2_call_stack_cur
+      or !$et1_call_stack_cur and $et2_call_stack_cur)
+    {
+      print_debug_debug("The numbers of call stack functions don't coincide");
+      return 0;
+    }
+
+    # Compare function names.
+    if ($et1_call_stack_cur ne $et2_call_stack_cur)
+    {
+      print_debug_debug("Call stack functions ('$et1_call_stack_cur' and '$et2_call_stack_cur') don't match each other");
+      return 0;
+    }
+  }
+
+  print_debug_debug("Error trace call stacks are the same");
+  return 1;
+}
+
+sub call_stacks_ne($$)
+{
+  return !call_stacks_eq($ARG[0], $ARG[1]);
+}
+
 sub call_trees_eq($$)
 {
   my $et1 = shift;
   my $et2 = shift;
 
-  my @et1 = split(/\n/, $et1);
-  my @et2 = split(/\n/, $et2);
-
-  # First of all obtain trees representing both error traces.
-  my $et1_root = parse_et(\@et1);
-  my $et2_root = parse_et(\@et2);
-  print_debug_debug("Error traces were parsed successfully");
-
-  # Then obtain function call trees from obtained trees.
-  my $et1_call_tree = get_call_subtree($et1_root);
-  my $et2_call_tree = get_call_subtree($et2_root);
-  print_debug_debug("Error trace call trees were obtained successfully");
+  my ($et1_call_tree, $et2_call_tree) = get_call_trees($et1, $et2);
 
   if (call_subtrees_eq($et1_call_tree, $et2_call_tree))
   {
@@ -335,6 +384,51 @@ sub get_call_subtree($)
   }
 
   return \%call_tree;
+}
+
+sub get_call_stack($)
+{
+  my $et_call_tree = shift;
+
+  # Call stack is that part of call tree that consists of bound function calls
+  # beginning from an entry point to a last function call. So it can be built on
+  # the basis of call tree just by getting last function call for each parent
+  # function calls beginning from an entry point.
+  my @et_call_stack;
+  my $et_call_subtree = $et_call_tree;
+  while (1)
+  {
+    push(@et_call_stack, $et_call_subtree->{'name'});
+
+    last unless ($et_call_subtree->{'children'});
+
+    my @children = @{$et_call_subtree->{'children'}};
+    $et_call_subtree = $children[$#children];
+  }
+
+  return \@et_call_stack;
+}
+
+sub get_call_trees($$)
+{
+  my $et1 = shift;
+  my $et2 = shift;
+
+  my @et1 = split(/\n/, $et1);
+  my @et2 = split(/\n/, $et2);
+
+  # First of all obtain trees representing both error traces.
+  my $et1_root = parse_et(\@et1);
+  my $et2_root = parse_et(\@et2);
+  print_debug_debug("Error traces were parsed successfully");
+
+  # Then obtain function call trees from obtained trees.
+  my $et1_call_tree = get_call_subtree($et1_root);
+  my $et2_call_tree = get_call_subtree($et2_root);
+
+  print_debug_debug("Error trace call trees were obtained successfully");
+
+  return ($et1_call_tree, $et2_call_tree);
 }
 
 sub parse_et($)
