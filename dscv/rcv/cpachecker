@@ -109,14 +109,18 @@ my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
 # LDV internals. You should just specify the rest here.
 set_cil_options(
     "--printCilAsIs",
-    "--domakeCFG",
+    "--decil",
+    # "--domakeCFG",
     # The option --dosimplify was doing annoying thing. It makes pointers
     # from explicit calls. We patched CIL and added more options here.
-    "--dosimplify",
+    # "--dosimplify",
+    "--noLowerConstants",
+    "--noInsertImplicitCasts",
+    # "--useLogicalOperators",
+    "--ignore-merge-conflicts",
     "--no-convert-direct-calls",
-    # This option still generates bad code sometimes, we'll turn it off for
-    # now.
-    # "--no-convert-field-offset"
+    "--no-convert-field-offsets",
+    "--no-split-structs"
     );
 
 # Now, as CIL script and options are prepared, let's invoke the preprocessing.

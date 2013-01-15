@@ -13,3 +13,8 @@ ldv-tests/rule-models/__install_drivers
 # Statistics server config file that is filled once by hand and
 # must not be commited.
 stats-visualizer/config
+
+# Some Perl-generated file
+/shared/perl/compiled_modules/Proc/Wait3/MYMETA.json
+/shared/perl/compiled_modules/Proc/Wait3/MYMETA.yml
+
