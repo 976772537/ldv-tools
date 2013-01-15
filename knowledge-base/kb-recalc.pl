@@ -13,7 +13,7 @@ use strict;
 use lib("$FindBin::RealBin/../shared/perl");
 
 # Add some nonstandard local Perl packages.
-use ETV::Library qw(call_trees_eq call_trees_ne);
+use ETV::Library qw(call_stacks_eq call_stacks_ne call_trees_eq call_trees_ne);
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level
   check_system_call);
@@ -320,7 +320,7 @@ sub generate_cache($$)
       delete_cache(undef, undef);
     }
 
-    print_debug_trace("Begin to perform fast KB cache initialization$kb_ids_str$launch_ids_str...");
+    print_debug_debug("Begin to perform fast KB cache initialization$kb_ids_str$launch_ids_str...");
     $dbh->do(
       "INSERT INTO results_kb
        SELECT traces.id, kb.id, IF(kb.script IS NULL, 'Exact' , 'Require script')
@@ -348,9 +348,9 @@ sub generate_cache($$)
          or die($dbh->errstr);
     }
 
-    print_debug_trace("Begin to perform KB cache initialization with scripts$kb_ids_str$launch_ids_str...");
-    my $all_data = $dbh->selectall_arrayref(
-      "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id, traces.error_trace, kb.error_trace
+    print_debug_debug("Begin to perform KB cache initialization with scripts$kb_ids_str$launch_ids_str...");
+    my $all_data_except_et = $dbh->selectall_arrayref(
+      "SELECT rule_models.name, scenarios.executable, scenarios.main, kb.script, traces.id, kb.id
        FROM launches
          LEFT JOIN traces on traces.id=launches.trace_id
          LEFT JOIN results_kb on traces.id=results_kb.trace_id
@@ -360,10 +360,23 @@ sub generate_cache($$)
        WHERE results_kb.fit='Require script'
        $kb_ids_in$launch_ids_in") or die($dbh->errstr);
 
-    foreach my $data (@{$all_data}) {
-      my ($model, $module, $main, $script, $trace_id, $kb_id, $et, $kb_et) = @{$data};
+    my ($model, $module, $main, $script, $trace_id, $kb_id, $et, $kb_et);
+    foreach my $data_except_et (@{$all_data_except_et}) {
+      ($model, $module, $main, $script, $trace_id, $kb_id) = @{$data_except_et};
 
-      print_debug_trace("Execute script '$script' with model '$model', module '$module', main '$main', error trace ... and KB error trace ...");
+      # Get error traces or interest separetely from the main request to avoid
+      # too high memory consumption.
+      ($et) = $dbh->selectrow_array(
+        "SELECT traces.error_trace
+         FROM traces
+         WHERE traces.id=$trace_id") or die($dbh->errstr);
+      ($kb_et) = $dbh->selectrow_array(
+        "SELECT kb.error_trace
+         FROM kb
+         WHERE kb.id=$kb_id") or die($dbh->errstr);
+
+      print_debug_trace("Execute script '$script' with model '$model', module '$module', main '$main'");
+
       my $ret = eval("$script_header\n$script\n$script_tail");
 
       if ($EVAL_ERROR)
