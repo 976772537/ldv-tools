@@ -110,18 +110,16 @@ my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
 set_cil_options(
     "--printCilAsIs",
     "--decil",
-    # "--domakeCFG",
-    # The option --dosimplify was doing annoying thing. It makes pointers
-    # from explicit calls. We patched CIL and added more options here.
-    # "--dosimplify",
     "--noLowerConstants",
     "--noInsertImplicitCasts",
-    # "--useLogicalOperators",
+    "--useLogicalOperators",      # Now supported by CPAchecker frontend
     "--ignore-merge-conflicts",
-    "--no-convert-direct-calls",
-    "--no-convert-field-offsets",
-    "--no-split-structs"
-    );
+    "--no-convert-direct-calls",  # Don't transform simple function calls to calls-by-pointers
+    "--no-convert-field-offsets", # Don't transform s->f to pointer arithmetic
+    "--no-split-structs",         # Don't transform structure fields into variables or arrays
+    "--keepunused",
+    "--noRmUnusedInlines"
+);
 
 # Now, as CIL script and options are prepared, let's invoke the preprocessing.
 my @files = preprocess_all_files('cpp','cil-merge');
