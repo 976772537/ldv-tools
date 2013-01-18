@@ -117,8 +117,7 @@ set_cil_options(
     "--no-convert-direct-calls",  # Don't transform simple function calls to calls-by-pointers
     "--no-convert-field-offsets", # Don't transform s->f to pointer arithmetic
     "--no-split-structs",         # Don't transform structure fields into variables or arrays
-    "--keepunused",
-    "--noRmUnusedInlines"
+    "--rmUnusedInlines"
 );
 
 # Now, as CIL script and options are prepared, let's invoke the preprocessing.
