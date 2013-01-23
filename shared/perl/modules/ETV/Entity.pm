@@ -95,9 +95,7 @@ sub set_parent($$)
 {
   my ($self, $parent) = @ARG;
 
-  $self->{'parent'} = $parent;
-
-  # Also store children to the parent.
+  # Store children to the parent.
   my @children = ();
   @children = @{$parent->{'children'}} if ($parent->{'children'});
   push(@children, $self);
