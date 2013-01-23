@@ -66,6 +66,10 @@ sub call_trees_ne($$);
 # retn: reference to array with a error trace in the common format or reference
 #       to array specified if corresponding converter can't be found.
 sub convert_et_to_common($$);
+# Compares two function names without regard to LDV wrappers around them.
+# args: two function names.
+# retn: 1 if names the same and 0 otherwise.
+sub func_names_eq($$);
 # Obtain a call subtree for a given common error trace node.
 # args: node of a common error trace.
 # retn: reference to call subtree hash.
@@ -186,7 +190,7 @@ sub call_subtrees_eq($$)
   my $call_subtree2 = shift;
 
   # Subtrees aren't equal in case when node names aren't the same.
-  if ($call_subtree1->{'name'} ne $call_subtree2->{'name'})
+  unless (func_names_eq($call_subtree1->{'name'}, $call_subtree2->{'name'}))
   {
     print_debug_debug("Call subtree names aren't the same: '" . $call_subtree1->{'name'} . "' and '" . $call_subtree2->{'name'} . "'");
     return 0;
@@ -249,7 +253,7 @@ sub call_stacks_eq($$)
     }
 
     # Compare function names.
-    if ($et1_call_stack_cur ne $et2_call_stack_cur)
+    unless (func_names_eq($et1_call_stack_cur, $et2_call_stack_cur))
     {
       print_debug_debug("Call stack functions ('$et1_call_stack_cur' and '$et2_call_stack_cur') don't match each other");
       return 0;
@@ -328,6 +332,18 @@ sub convert_et_to_common($$)
       . " an error trace in the original representation");
     return $et_array_ref;
   }
+}
+
+sub func_names_eq($$)
+{
+  my $func_name1 = shift;
+  my $func_name2 = shift;
+
+  # Remove LDV wrappers around function names if so.
+  $func_name1 = $1 if ($func_name1 =~ /^ldv(.*)_\d+$/);
+  $func_name2 = $1 if ($func_name2 =~ /^ldv(.*)_\d+$/);
+
+  return ($func_name1 eq $func_name2);
 }
 
 sub get_call_subtree($)
