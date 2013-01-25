@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Problem finder for BLAST tool
+# Problem finder for CPAchecker tool
 
 $\ = "\n";
 $, = "\n";
@@ -22,6 +22,12 @@ while (<>){
 	/org.sosy_lab.cpachecker.util.predicates.mathsat.MathsatInterpolatingProver.getInterpolant/ and print "MathsatInterpolatingProver";
 	/No new predicates/ and print "NoNewPredicates"; #org.sosy_lab.cpachecker.exceptions.RefinementFailedException[No new predicates]
 	/cpa.sh: line (.*): (.*) Aborted/ and print "Aborted";
+	/__builtin_va_arg/ and print "__builtin_va_arg";
+	/Unsupported C feature(.*)recursion/ and print "Recursion";
+	/Exception(.*)CProblemType/ and print "CProblemType";
+	/C(.*)Type(.*).toASTString/ and print "Recursive type";
+	/Invalid instance/ and print "Invalid instance";
+	/Unrecognized C code/ and print "Unrecognized code";
 
 	# CIL errors
 	# subtypes of CIL_parse_error
