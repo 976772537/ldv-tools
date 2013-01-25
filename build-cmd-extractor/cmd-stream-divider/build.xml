@@ -12,12 +12,29 @@
 		<mkdir dir="${build}"/>
 		<mkdir dir="${dist}"/>
 	</target>
-
-	<target name="compile" depends="init" description="compile the source">
-		<javac debug="on" srcdir="${src}" destdir="${build}"/>
+	
+	<target name="get-jvm">
+		<echo message="Java Version: ${java.version}"/>
+		<condition property="jvm6">
+			<contains string="${java.version}" substring="1.6" casesensitive="false" />
+		</condition>
 	</target>
 
-	<target name="dist" depends="compile" description="generate the distribution">
+	<target name="compile-java7" depends="init,get-jvm" description="compile the source" unless="jvm6">
+		<javac debug="on" srcdir="${src}" destdir="${build}"/>
+	</target>
+	
+	<target name="compile-java6" depends="init,get-jvm" description="compile the source" if="jvm6">
+		<replace file="${src}/org/linuxtesting/ldv/csd/ws/CSDWebService.java" 
+			token='@WebService(targetNamespace = "http://schemas.xmlsoap.org/wsdl/soap/")'
+			value="@WebService"/> 
+		<javac debug="on" srcdir="${src}" destdir="${build}"/>
+		<replace file="${src}/org/linuxtesting/ldv/csd/ws/CSDWebService.java" 
+			token="@WebService"
+			value='@WebService(targetNamespace = "http://schemas.xmlsoap.org/wsdl/soap/")'/>
+	</target>
+
+	<target name="dist" depends="compile-java6,compile-java7" description="generate the distribution">
 		<jar jarfile="${dist}/csd.jar" basedir="${build}">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>

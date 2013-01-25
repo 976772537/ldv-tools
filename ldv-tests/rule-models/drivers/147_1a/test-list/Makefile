@@ -1,0 +1,11 @@
+obj-m += S-list.o
+obj-m += U-add.o
+obj-m += U-add__.o
+obj-m += U-add_tail.o
+obj-m += U-del.o
+obj-m += U-h_add_after.o
+obj-m += U-h_add_before.o
+obj-m += U-h_add_head.o
+obj-m += U-h_del.o
+obj-m += U-replace.o
+obj-m += U-splice_init.o
