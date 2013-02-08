@@ -49,6 +49,7 @@ push @blast_options,
 	"-ignoredupfn", # Ignore duplicated functions when constructing CFA
 	"-nosserr", # Ignore "combining structure and non-structure values" error.  LLVM emits such nasty code.
 	"-enable-recursion",# Allow recursive call graphs, but cut out the actual recursive calls
+	"-nolabelmeanssafe",# Treat absence of error label (syntactical inreachability) as SAFE instead of error.
 ;
 
 # Check the number of entry points 
