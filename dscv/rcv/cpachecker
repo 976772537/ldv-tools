@@ -110,7 +110,7 @@ my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
 set_cil_options(
     "--printCilAsIs",
     "--decil",
-    "--noLowerConstants",
+    # "--noLowerConstants",
     "--noInsertImplicitCasts",
     "--useLogicalOperators",      # Now supported by CPAchecker frontend
     "--ignore-merge-conflicts",
