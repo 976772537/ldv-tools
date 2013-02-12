@@ -210,6 +210,8 @@ my $id_ld_llvm_suffix = '-llvm-ld';
 my $isgather_arg_signs = 0;
 # Files containing argument signs.
 my @gathered_arg_sign_files;
+# Files containing statically initialized variables.
+my @gathered_static_inits_files;
 
 # Flag that specifies whether configuration was done.
 my $isconfig = 0;
