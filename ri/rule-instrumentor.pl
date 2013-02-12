@@ -1702,8 +1702,8 @@ sub process_cmd_cc()
     # report visualization.
     print_debug_trace("Concatenate a common model with the first input file");
 
-    # Drity hack for 39_7 model; should be resolved with properly written aspect!
-    if ( $opt_model_id eq "39_7")
+    # Dirty hack for 39_7 and 116 models; should be resolved with properly written aspect!
+    if ( $opt_model_id eq "39_7" || $opt_model_id eq "116_7" )
     {
       my $in = $cmd->first_child($xml_cmd_in);
       my $in_file = $in->text;
@@ -1714,7 +1714,7 @@ sub process_cmd_cc()
       my @decls = ("void ldv_spin_lock_irqsave(spinlock_t *lock, unsigned long flags);",
                 "void ldv_spin_lock_nested(spinlock_t *lock, int subclass);",
                 "void ldv_spin_lock_nest_lock(spinlock_t *lock, void *map);",
-                "void ldv_spin_lock_irqsave_nested(spinlock_t *lock, int subclass);",
+                "void ldv_spin_lock_irqsave_nested(spinlock_t *lock, unsigned long flags, int subclass);",
                 "int ldv_spin_trylock_irqsave(spinlock_t *lock, unsigned long flags);",
                 "void ldv_spin_lock(spinlock_t *lock);",
                 "void ldv_spin_lock_bh(spinlock_t *lock);",
@@ -1731,7 +1731,11 @@ sub process_cmd_cc()
                 "int ldv_spin_is_contended(spinlock_t *lock);",
                 "int ldv_spin_can_lock(spinlock_t *lock);",
                 "int ldv_atomic_dec_and_lock(spinlock_t *lock, atomic_t *atomic);".
-    "\n#define ldv_atomic_dec_and_lock_macro(atomic,lock) ldv_atomic_dec_and_lock(lock,atomic)"
+    "\n#define ldv_atomic_dec_and_lock_macro(atomic,lock) ldv_atomic_dec_and_lock(lock,atomic)",
+                "void ldv_local_irq_disable(void);",
+                "void ldv_local_irq_enable(void);",
+                "void ldv_local_irq_save(unsigned long flags);",
+                "void ldv_local_irq_restore(unsigned long flags);"
                );
       my @keys = ("spin_lock_irqsave",
                "spin_lock_nested",
@@ -1752,7 +1756,11 @@ sub process_cmd_cc()
                "spin_is_locked",
                "spin_is_contended",
                "spin_can_lock",
-               "atomic_dec_and_lock"
+               "atomic_dec_and_lock",
+               "local_irq_disable",
+               "local_irq_enable",
+               "local_irq_save",
+               "local_irq_restore"
               );
       my @replacements = ("ldv_spin_lock_irqsave",
                        "ldv_spin_lock_nested",
@@ -1773,7 +1781,11 @@ sub process_cmd_cc()
                        "ldv_spin_is_locked",
                        "ldv_spin_is_contended",
                        "ldv_spin_can_lock",
-                     "ldv_atomic_dec_and_lock_macro"
+                     "ldv_atomic_dec_and_lock_macro",
+                       "ldv_local_irq_disable",
+                       "ldv_local_irq_enable",
+                       "ldv_local_irq_save",
+                       "ldv_local_irq_restore"
                       );
 
       print_debug_trace("Replace defines by model functions for model ".$opt_model_id);
