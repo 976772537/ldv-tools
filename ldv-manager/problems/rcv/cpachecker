@@ -22,12 +22,16 @@ while (<>){
 	/org.sosy_lab.cpachecker.util.predicates.mathsat.MathsatInterpolatingProver.getInterpolant/ and print "MathsatInterpolatingProver";
 	/No new predicates/ and print "NoNewPredicates"; #org.sosy_lab.cpachecker.exceptions.RefinementFailedException[No new predicates]
 	/cpa.sh: line (.*): (.*) Aborted/ and print "Aborted";
-	/__builtin_va_arg/ and print "__builtin_va_arg";
+
+	/Syntax error(.*)__builtin_va_arg/ and print "__builtin_va_arg";
 	/Unsupported C feature(.*)recursion/ and print "Recursion";
 	/Exception(.*)CProblemType/ and print "CProblemType";
-	/C(.*)Type(.*).toASTString/ and print "Recursive type";
-	/Invalid instance/ and print "Invalid instance";
-	/Unrecognized C code/ and print "Unrecognized code";
+	/(.*)CFAReversePostorder"/ and print "Stack overflow";
+	/(.*)C(.*)Type(.*).toASTString/ and print "Stack overflow";
+	/Invalid.instance/ and print "Invalid instance";
+	/Unrecognized C code/ and print "Unrecognized C code";
+	/IllegalArgumentException: Can't add cast/ and print "Can't add cast";
+	/IllegalArgumentException: Can't assign different types/ and print "Different types";
 
 	# CIL errors
 	# subtypes of CIL_parse_error
