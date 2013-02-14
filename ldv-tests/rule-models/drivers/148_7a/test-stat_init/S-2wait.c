@@ -2,15 +2,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-
-struct completion my_completion;
+DECLARE_COMPLETION(my_completion);
 
 /*Trace declare->complete->complete
 Check if we can wait for completion from other thread*/
 
 static int test_driver(void)
 {
-	DECLARE_COMPLETION(my_completion);
 	int nondet1,nondet2;
 	if (nondet1 > 0)
 	{

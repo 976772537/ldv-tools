@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-struct completion x;
+DECLARE_COMPLETION(x);
 
 static int test_driver(void)
 {

@@ -15,12 +15,5 @@ driver=148_7a--test-missed_init.tar.bz2;origin=external;kernel=linux-3.5;model=1
 driver=148_7a--test-missed_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-missed_init/S-must_be_error2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-missed_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-missed_init/U-reinit.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/S-2wait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/S-nowait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/S-wait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/S-wait_other.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/U-try_wait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/U-wait_intr.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/U-wait_intr_timeout.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/U-wait_kill.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/U-wait_kill_timeout.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/U-wait_timeout.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe

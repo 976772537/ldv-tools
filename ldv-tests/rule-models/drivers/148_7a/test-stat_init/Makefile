@@ -1,10 +1,3 @@
 obj-m += S-2wait.o
-obj-m += S-nowait.o
 obj-m += S-wait.o
 obj-m += S-wait_other.o
-obj-m += U-try_wait.o
-obj-m += U-wait_intr.o
-obj-m += U-wait_intr_timeout.o
-obj-m += U-wait_kill.o
-obj-m += U-wait_kill_timeout.o
-obj-m += U-wait_timeout.o
