@@ -16,16 +16,12 @@ int my_func(void)
 }
 int misc_open(struct inode *inode, struct file *file)
 {
-	down_read(&my_sem);
 	down_write(&my_sem);
 	int res = my_func();
-	if(n == 3);
-	{
-		downgrade_write(&my_sem);
-	}
-	n += 1;
-	up_write(&my_sem);
+	//double locking
+	down_read(&my_sem);
 	up_read(&my_sem);
+	up_write(&my_sem);
 	return res;
 }
 

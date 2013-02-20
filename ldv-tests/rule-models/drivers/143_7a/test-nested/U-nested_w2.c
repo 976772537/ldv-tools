@@ -16,19 +16,13 @@ int my_func(void)
 }
 int misc_open(struct inode *inode, struct file *file)
 {
-	down_read(&my_sem);
+	down_write_nested(&my_sem, n);
 	int res = my_func();
-	up_read(&my_sem);
-	if(n == 2)
-	{
-		down_write(&my_sem);
-	}
-	if(rwsem_is_locked(&my_sem))
-	{
-		down_write(&my_sem);
-	}
-	n += 1;
 	up_write(&my_sem);
+	down_write_nested(&my_sem, n);
+	res += 1;
+	// We must unlock semaphore
+	//up_write(&my_sem);
 	return res;
 }
 

@@ -8,7 +8,7 @@
 
 static DECLARE_RWSEM(my_sem);
 
-static int n = 0;
+static int n;
 
 int my_func(void)
 {
@@ -16,19 +16,13 @@ int my_func(void)
 }
 int misc_open(struct inode *inode, struct file *file)
 {
-	down_read(&my_sem);
-	down_read(&my_sem);
-	down_write(&my_sem);
+	down_write_nested(&my_sem, n);
 	int res = my_func();
 	up_write(&my_sem);
-lab:
-	n += 1;
+	down_read_nested(&my_sem, n);
+	down_write_nested(&my_sem, n);
+	up_write(&my_sem);
 	up_read(&my_sem);
-	if(n == 4)
-	{
-		down_read(&my_sem);
-		return 0;
-	}
 	return res;
 }
 

@@ -18,7 +18,6 @@ int misc_open(struct inode *inode, struct file *file)
 {
 	down_write(&my_sem);
 	int res = my_func();
-	downgrade_write(&my_sem);
 	up_read(&my_sem);
 	return res;
 }

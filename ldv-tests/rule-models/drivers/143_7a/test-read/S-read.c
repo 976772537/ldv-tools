@@ -16,24 +16,12 @@ int my_func(void)
 }
 int misc_open(struct inode *inode, struct file *file)
 {
-beg:
-	if((!down_write_trylock(&my_sem)) && (n != 7))
-	{
-		up_write(&my_sem);
-		goto unlock_read;
-	}
-	if(down_read_trylock(&my_sem))
-	{
-		goto unlock_read;
-	}
+        down_read(&my_sem);
+	down_read(&my_sem);
+	down_read(&my_sem);
 	int res = my_func();
-	if(n == 8)
-		goto beg;
-	// we must unlock semaphore
-	//up_write(&my_sem);
-	res += 1;
-	return 0;
-unlock_read:
+	up_read(&my_sem);
+	up_read(&my_sem);
 	up_read(&my_sem);
 	return res;
 }

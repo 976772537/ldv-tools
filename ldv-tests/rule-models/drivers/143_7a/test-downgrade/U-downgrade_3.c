@@ -16,17 +16,12 @@ int my_func(void)
 }
 int misc_open(struct inode *inode, struct file *file)
 {
+	down_write(&my_sem);
 	int res = my_func();
-	down_read(&my_sem);
-	if(n == 2)
-	{
-		down_write(&my_sem);
-	}
-	if(rwsem_is_locked(&my_sem))
-	{
-		up_write(&my_sem);
-	}
-	n += 1;
+	downgrade_write(&my_sem);
+	// semaphore was locked for read, so we mustn't lock it for write
+	down_write(&my_sem);
+	up_write(&my_sem);
 	up_read(&my_sem);
 	return res;
 }

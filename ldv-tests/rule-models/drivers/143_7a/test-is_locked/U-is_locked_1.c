@@ -8,7 +8,7 @@
 
 static DECLARE_RWSEM(my_sem);
 
-static int n = 0;
+static int n;
 
 int my_func(void)
 {
@@ -16,12 +16,15 @@ int my_func(void)
 }
 int misc_open(struct inode *inode, struct file *file)
 {
-	down_write_nested(&my_sem, n);
 	int res = my_func();
-	up_write(&my_sem);
-	//down_write(&my_sem);
-	res += 1;
-	// Unlocking unlocked semaphore
+	if(n == 2)
+	{
+		down_write(&my_sem);
+	}
+	if(rwsem_is_locked(&my_sem))
+	{
+		down_write(&my_sem);
+	}
 	up_write(&my_sem);
 	return res;
 }

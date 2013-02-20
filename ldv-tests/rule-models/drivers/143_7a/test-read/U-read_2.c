@@ -16,14 +16,11 @@ int my_func(void)
 }
 int misc_open(struct inode *inode, struct file *file)
 {
-	down_write_nested(&my_sem, n);
-	int res = my_func();
-	up_write(&my_sem);
 	down_read(&my_sem);
-	res += 1;
-	down_read_nested(&my_sem, n);
-	res -= 1;
-	up_read(&my_sem);
+	int res = my_func();
+	// We must unlock semaphore for reading before locking for writing
+	down_write(&my_sem);
+	up_write(&my_sem);
 	up_read(&my_sem);
 	return res;
 }
