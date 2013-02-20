@@ -10,6 +10,7 @@
 #include <linux/device.h>
 
 static DEVICE_ATTR(test, S_IRUGO, NULL, NULL);
+static DEVICE_ATTR(test2, S_IRUGO, NULL, NULL);
 struct device *dev;
 
 static int misc_open(struct inode * inode, struct file * file);
@@ -24,6 +25,9 @@ static int misc_open(struct inode * inode, struct file * file)
 	int err;
 
 	err = device_create_file(dev, &dev_attr_test);
+	if (err)
+		return -1;
+	err = device_create_file(dev, &dev_attr_test2);
 	if (err)
 		return -1;
 	return 0;

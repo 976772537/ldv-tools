@@ -1,3 +1,0 @@
-driver=130_1a--test-S-sysfs_attr_init.tar.bz2;origin=external;kernel=linux-3.5;model=130_1a;module=drivers/130_1a/test-S-sysfs_attr_init/test-S-sysfs_attr_init.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=130_1a--test-U-sysfs_attr_init.tar.bz2;origin=external;kernel=linux-3.5;model=130_1a;module=drivers/130_1a/test-U-sysfs_attr_init/test-U-sysfs_attr_init.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=130_1a--test-FU-DEVICE_ATTR.tar.bz2;origin=external;kernel=linux-3.5;model=130_1a;module=drivers/130_1a/test-FU-DEVICE_ATTR/test-FU-DEVICE_ATTR.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
