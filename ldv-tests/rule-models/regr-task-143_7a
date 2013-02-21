@@ -3,7 +3,8 @@ driver=143_7a--test-downgrade.tar.bz2;origin=external;kernel=linux-3.5;model=143
 driver=143_7a--test-downgrade.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-downgrade/U-downgrade_2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-downgrade.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-downgrade/U-downgrade_3.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-is_locked.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-is_locked/S-is_locked.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=143_7a--test-is_locked.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-is_locked/U-is_locked.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=143_7a--test-is_locked.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-is_locked/U-is_locked_1.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=143_7a--test-is_locked.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-is_locked/U-is_locked_2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-nested.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-nested/S-nested.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=143_7a--test-nested.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-nested/U-nested_r1.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-nested.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-nested/U-nested_r2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
@@ -17,8 +18,7 @@ driver=143_7a--test-read.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;m
 driver=143_7a--test-read.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-read/U-read_2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-read.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-read/U-read_3.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-trylock.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-trylock/S-trylock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=143_7a--test-trylock.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-trylock/U-trylock_1.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
-driver=143_7a--test-trylock.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-trylock/U-trylock_2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=143_7a--test-trylock.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-trylock/U-trylock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-write.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-write/S-write.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=143_7a--test-write.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-write/U-write_1.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=143_7a--test-write.tar.bz2;origin=external;kernel=linux-3.5;model=143_7a;module=drivers/143_7a/test-write/U-write_2.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe

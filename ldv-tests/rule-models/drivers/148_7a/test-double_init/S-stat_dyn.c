@@ -2,20 +2,18 @@
 #include <linux/kernel.h>
 
 
-struct completion my_completion;
+DECLARE_COMPLETION(my_completion);
 
 /*Trace declare->complete->Declare
 Check if we can declare the same completion after it was completed (for macro INIT_COMPLETION).*/
 static int test_driver(void)
 {
-	init_completion(&my_completion);
-	int nondet1, nondet2;
+	int nondet;
 	wait_for_completion(&my_completion);
-	if (nondet1 > 0)
-	{
-		INIT_COMPLETION(my_completion);
-	}
-	if (nondet2 > 0)
+
+	init_completion(&my_completion);
+
+	if (nondet > 0)
 	{
 		try_wait_for_completion(&my_completion);
 	}

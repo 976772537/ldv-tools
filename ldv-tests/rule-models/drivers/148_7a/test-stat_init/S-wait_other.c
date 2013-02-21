@@ -6,7 +6,6 @@ DECLARE_COMPLETION(x);
 
 static int test_driver(void)
 {
-	DECLARE_COMPLETION(x);
 	int tmp, nondet;
 	long tmp_l;
 	unsigned long tmp_ul;

@@ -1,6 +1,6 @@
-driver=148_7a--test-double_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-double_init/S-double_dyn.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-double_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-double_init/S-dyn_dyn.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-double_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-double_init/S-stat_dyn.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=148_7a--test-double_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-double_init/S-stat_INIT.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-dyn_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-dyn_init/S-2wait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-dyn_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-dyn_init/S-nowait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-dyn_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-dyn_init/S-wait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
@@ -13,7 +13,7 @@ driver=148_7a--test-dyn_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_
 driver=148_7a--test-dyn_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-dyn_init/U-wait_timeout.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=148_7a--test-missed_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-missed_init/S-double_declare_completion.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-missed_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-missed_init/S-local_declare_completion.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
-driver=148_7a--test-missed_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-missed_init/U-reinit.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=148_7a--test-missed_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-missed_init/U-missed_init.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
 driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/S-2wait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/S-wait.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
 driver=148_7a--test-stat_init.tar.bz2;origin=external;kernel=linux-3.5;model=148_7a;module=drivers/148_7a/test-stat_init/S-wait_other.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe

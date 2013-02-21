@@ -2,8 +2,6 @@
 #include <linux/kernel.h>
 
 
-struct completion my_completion;
-
 /*Trace declare->complete->Declare
 Check if we can declare the same completion after it was completed.*/
 static int test_driver(void)
