@@ -1,0 +1,10 @@
+obj-m += U-test_local_disable.o
+obj-m += U-test_local_enable.o
+obj-m += U-test_local_restore.o
+obj-m += U-test_local_save.o
+obj-m += U-test_spin_lock.o
+obj-m += U-test_spin_lock_nested.o
+obj-m += U-test_spin_lock_save.o
+obj-m += U-test_spin_trylock_ed.o
+obj-m += U-test_spin_unlock.o
+obj-m += U-test_spin_unlock_restore.o

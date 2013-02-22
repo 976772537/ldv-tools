@@ -1,0 +1,15 @@
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_local_disable.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_local_enable.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_local_restore.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_local_save.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_spin_lock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_spin_lock_nested.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_spin_lock_save.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_spin_trylock_ed.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_spin_unlock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-final_state.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-final_state/U-test_spin_unlock_restore.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-order.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-order/S-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=117_1a--test-order.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-order/U-test_enable_disable.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-order.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-order/U-test_enable_in_sr.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-order.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-order/U-test_spin_lock.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=117_1a--test-order.tar.bz2;origin=external;kernel=linux-3.5;model=117_1a;module=drivers/117_1a/test-order/U-test_spin_lock_nested.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
