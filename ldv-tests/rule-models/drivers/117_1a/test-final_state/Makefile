@@ -6,5 +6,7 @@ obj-m += U-test_spin_lock.o
 obj-m += U-test_spin_lock_nested.o
 obj-m += U-test_spin_lock_save.o
 obj-m += U-test_spin_trylock_ed.o
+obj-m += U-test_spin_trylock_sr.o
+obj-m += U-test_spin_trylock_sr_2.o
 obj-m += U-test_spin_unlock.o
 obj-m += U-test_spin_unlock_restore.o
