@@ -1,0 +1,132 @@
+#!/usr/bin/perl
+use strict;
+set_tool_name("UFO");
+my $ufo = "run-ufo.py";
+
+set_cil_options(
+    "--printCilAsIs",
+    "--decil",
+    "--noLowerConstants",
+    "--noInsertImplicitCasts",
+    "--useLogicalOperators",      # Now supported by CPAchecker frontend
+    "--ignore-merge-conflicts",
+    "--no-convert-direct-calls",  # Don't transform simple function calls to calls-by-pointers
+    "--no-convert-field-offsets", # Don't transform s->f to pointer arithmetic
+    "--no-split-structs",         # Don't transform structure fields into variables or arrays
+    "--rmUnusedInlines"
+);
+
+my @files = preprocess_all_files('cpp','cil-merge');
+
+my $main = $mains[0];
+
+system("mkdir $tmpdir/ufo_tmp/");
+my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
+
+my @ufo_options = "--cex=$adjusted_trace_fname";
+
+#set_limits(
+#     kill_at_once => 1,
+#);
+
+#add_time_watch(
+#        'UFO' => 'ufo',
+#);
+
+add_automaton(ufo_verdict());
+#add_automaton(ufo_oom());
+add_automaton(ufo_syntax());
+add_automaton(tail_automaton(150),'stderr');
+
+my $ufo_file = "$tmpdir/ufo_tmp/ufo_file.c";
+my $tmp_file = "$tmpdir/ufo_tmp/tmp_ufo.c";
+
+system("sed -e 's/\\bERROR\\b/NON_ERROR/g' @files | sed -e 's/LDV_ERROR/ERROR/g' | sed -e 's/$main/main/g' > $ufo_file");
+system("sed -e 's/^#line*//g' $ufo_file > $ufo_tmp_file");
+
+push (@ufo_options, "--temp-dir=$tmpdir/ufo_tmp/", "--save-temps", $ufo_file);
+
+my ($result, $errcode, $automata_results, $debug_trace) = run($ufo, @ufo_options);
+
+my $verdict = $automata_results->{VERDICT} || 'unknown';
+
+my $description = '';
+
+if ($verdict eq 'unknown') {
+        my @errbuf = @{$automata_results->{'TAIL'}};
+        local $_;
+        for my $ln (@errbuf){
+#		if($ln =~ /^\//) {
+		$description .= $ln."\n";
+#		}
+        }
+}
+
+local $_;
+if ($verdict eq 'unsafe') {
+ open(TRACE_FILE, '>>', $adjusted_trace_fname) or die "Can't open file with adjsuted ufo trace: \"$adjusted_trace_fname\", $!";
+ for (@files) {
+ 	open(SRC_FILE, '<', $_) or die "Can't open the source file: \"$_\", $!";
+ 	print TRACE_FILE "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+ 	print TRACE_FILE "UFO error trace v1.0\n";
+ 	print TRACE_FILE "Entry point: $main()\n";
+ 	print TRACE_FILE "-------$_-------\n";
+ 	while(<SRC_FILE>) {
+ 		if($_ !~ /^#/){
+			print TRACE_FILE  $_
+		}
+	}
+	print TRACE_FILE "\n---------------------------------------\n";
+	close(SRC_FILE);
+	}
+ close TRACE_FILE;
+}
+
+result(
+        verdict => $verdict,
+        description => $description,
+        error_trace => $adjusted_trace_fname,
+);
+#===================
+#  AUTOMATA
+#===================
+
+#sub ufo_oom
+#{
+#        return sub{
+#                my $l=shift or return undef;
+#                # NOTE that this overrides the LIMITS bucket, which is used internally
+#                $l=~/^Exception.*OutOfMemory/i and return {'LIMITS' => 'Memory Limit Exceeded'};
+#                return undef;
+#        };
+#}
+
+sub ufo_verdict
+{
+        return sub{
+                my $l=shift or return undef;
+                # Even more newer versions change the format again...
+                $l =~ /ERROR reachable/ and return {'VERDICT' => 'unsafe'};
+                $l =~ /program correct: ERROR unreachable/ and return {'VERDICT' => 'safe'};
+                return undef;
+        };
+}
+
+sub ufo_syntax
+{
+        my $found_syntax_error = '';
+        my $parse_errormsg = '';
+        return sub{
+                my $l=shift;
+                $l =~ /syntax error/ and do { $found_syntax_error = 1;};
+                return undef unless $found_syntax_error;
+                # Ok, we're inside the syntax error;
+                if (defined $l) {
+                        $parse_errormsg .= "$l";
+                } else {
+                        # Last line of a trace, return what we've accumulated
+                        return {'SYNTAX' => "UFO couldn't parse file:\n$parse_errormsg\n", 'VERDICT'=>'unknown'};
+                }
+                return undef;
+        };
+}

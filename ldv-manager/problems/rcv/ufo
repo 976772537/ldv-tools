@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+# Problem finder for UFO tool
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/Statistics Collected/ and print "UFO_failed";
+	/No such file or directory/ and print "No_file";
+	/syntax error/ and print "Syntax_error";
+	/error: storage size of.*isn.*t known/ and print "UFO_storage_size";
+        /error: initializer element is not constant/ and print "UFO_pointer";
+	/error: incompatible type for argument/ and print "incompatible_type";
+	/error: parameter.*has incomplete type/ and print "incomplete_type";
+#	/error: type of formal parameter*is incomplete/ and print "incomplete_type";
+	/error: field.*has incomplete type/ and print "UFO_field_type";
+	/Segmentation fault/ and print "Segmentation";
+	/error: width of.*exceeds its type/ and print "UFO_width";
+	/Assertion.*failed/ and print "opt_Assert";
+}
