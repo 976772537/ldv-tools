@@ -1,0 +1,124 @@
+sub get_loc_and_val($$);
+
+my %src_map;
+my $str = shift(@et_array);
+my $main = 'main';
+
+if (defined($str))
+{
+	if ($str =~ /^Entry point: (.*)\(\)$/)
+	{
+		$main = $1;
+
+		$str = shift(@et_array);
+		if ($str =~ /"^=======(.*)=======$/)
+		{
+			print_debug_trace("Process '$1' UFO source file");
+		}
+		my $src_cur = '';
+		my $src_line_cur = 0;
+		my $cil_line_cur = 1;
+		while (scalar(@et_array))
+		{
+			$str = shift(@et_array);
+			chomp($str);
+			last if ($str eq "==============");
+			if ($str =~ /^#line (\d+) "([^"]+)"$/)
+			{
+				$src_line_cur = $1;
+				$src_cur = $2;
+			}
+			elsif ($str =~ /^#line (\d+)$/)
+			{
+				$src_line_cur = $1;
+			}
+			else
+			{
+				$src_map{$cil_line_cur} = {
+					'file' => $src_cur,
+					'line' => $src_line_cur,
+					'text' => ": " . $str . "\n"};
+				$src_line_cur++;
+			}
+			$cil_line_cur++;
+		}
+	}
+	else
+	{
+		print_debug_trace("Source file isn't specified for UFO");
+		unshift(@et_array, $str);
+	}
+}
+
+my @et_raw = @et_array;
+push(@et_conv_array, "Error trace common format v0.1\n");
+my $src_prev = '';
+my $is_init = 0;
+
+while (@et_raw)
+{
+	$str = shift(@et_raw);
+	chomp($str);
+	next if ($str =~ /^\s*$/);
+	my ($src, $line, $val) = get_loc_and_val($str, 1);
+	# source file (src), line in it (line) and this line (val)
+	next if ($val =~ /^\s*$/);
+	
+	my $type = 'BLOCK';
+	my $kind = '';
+	my $skip_reason = '';
+	my $text = $val;
+	if($src =~ /^Check/)
+	{
+		$type = '';
+		$src = '';
+	}
+	elsif ($text =~ /:\s+if(.*) {$/)
+	{
+		$type = 'ASSUME';
+		$text = ": $1";
+	}
+	push(@et_conv_array,
+	 join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
+	 print_debug_warning("$line $src $type $kind $skip_reason $text");
+}
+
+{
+	no warnings 'redefine';
+	sub get_loc_and_val($$)
+	{
+		my $str = shift;
+		my $val = $str;
+		my $line = '';
+		if ($val =~ /file:([^:]+):/
+		and $val !~ /4294967295/)
+		{
+			$line = $1 if (defined($1));
+		}
+		elsif (($val =~ /^\s*\%.*true/) or ($val =~ /^\s*\%.*false/))
+		{
+			if($val =~ /:(.*)$/)
+			{
+				$val = "Assume next result == $1"
+			}
+			return ("Check", '', ": " . $val);
+		}
+		elsif ($val =~ /\%/)
+		{
+			return ("Check", '', ": " . $val);
+		}
+		else
+		{
+			return ('', $line, '')
+		}
+		if($src_map{$line})
+		{
+			my $file = $src_map{$line}{'file'};
+			$val = $src_map{$line}{'text'};
+			my $src = '"' . $file . '"';
+			$line = $src_map{$line}{'line'};
+			return ($src, $line, $val);
+		}
+		return ('', $line, '');
+	}
+}

@@ -117,6 +117,7 @@ sub read_next_line($);
 my $et_common_format = '0.1';
 # Supported versions of verifiers error traces.
 my $et_cpachecker_format = '1.1';
+my $et_ufo_format = '0.1';
 my $et_blast_format = '2.7';
 
 
@@ -493,6 +494,16 @@ sub parse_et($)
 
       $et_conv_array_ref
         = convert_et_to_common('cpachecker', $et_array_ref);
+
+      return parse_et($et_conv_array_ref);
+    }
+    elsif ($header =~ /^UFO error trace.*/)
+    {
+      print_debug_debug("A given error trace of UFO has supported format"
+        . " ('$et_ufo_format')");
+
+      $et_conv_array_ref
+        = convert_et_to_common('ufo', $et_array_ref);
 
       return parse_et($et_conv_array_ref);
     }

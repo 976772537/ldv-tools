@@ -21,20 +21,14 @@ my @files = preprocess_all_files('cpp','cil-merge');
 my $main = $mains[0];
 
 system("mkdir $tmpdir/ufo_tmp/");
-my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 
-my @ufo_options = "--cex=$adjusted_trace_fname";
+my $orig_trace_fname = "$tmpdir/ErrorPath.txt";
+my $final_trace_fname = "$tmpdir/error_trace.txt";
 
-#set_limits(
-#     kill_at_once => 1,
-#);
-
-#add_time_watch(
-#        'UFO' => 'ufo',
-#);
+my @ufo_options = "--cex=$orig_trace_fname";
 
 add_automaton(ufo_verdict());
-#add_automaton(ufo_oom());
+add_automaton(ufo_oom());
 add_automaton(ufo_syntax());
 add_automaton(tail_automaton(150),'stderr');
 
@@ -42,9 +36,9 @@ my $ufo_file = "$tmpdir/ufo_tmp/ufo_file.c";
 my $tmp_file = "$tmpdir/ufo_tmp/tmp_ufo.c";
 
 system("sed -e 's/\\bERROR\\b/NON_ERROR/g' @files | sed -e 's/LDV_ERROR/ERROR/g' | sed -e 's/$main/main/g' > $ufo_file");
-system("sed -e 's/^#line*//g' $ufo_file > $ufo_tmp_file");
+system("sed -e 's/^#line.*//g' $ufo_file > $tmp_file");
 
-push (@ufo_options, "--temp-dir=$tmpdir/ufo_tmp/", "--save-temps", $ufo_file);
+push (@ufo_options, "--temp-dir=$tmpdir/ufo_tmp/", "--save-temps", $tmp_file);
 
 my ($result, $errcode, $automata_results, $debug_trace) = run($ufo, @ufo_options);
 
@@ -56,56 +50,59 @@ if ($verdict eq 'unknown') {
         my @errbuf = @{$automata_results->{'TAIL'}};
         local $_;
         for my $ln (@errbuf){
-#		if($ln =~ /^\//) {
 		$description .= $ln."\n";
-#		}
-        }
+       }
 }
 
 local $_;
 if ($verdict eq 'unsafe') {
- open(TRACE_FILE, '>>', $adjusted_trace_fname) or die "Can't open file with adjsuted ufo trace: \"$adjusted_trace_fname\", $!";
- for (@files) {
+ open(ORIG_TRACE, '<', $orig_trace_fname) or die "Can't open file with origin ufo trace: \"$orig_trace_fname\", $!";
+ open(TRACE_FILE, '>', $final_trace_fname) or die "Can't open file with adjsuted ufo trace: \"$final_trace_fname\", $!";
+ for ($ufo_file) {
  	open(SRC_FILE, '<', $_) or die "Can't open the source file: \"$_\", $!";
- 	print TRACE_FILE "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
- 	print TRACE_FILE "UFO error trace v1.0\n";
+ 	print TRACE_FILE "UFO error trace v0.1\n";
  	print TRACE_FILE "Entry point: $main()\n";
- 	print TRACE_FILE "-------$_-------\n";
+ 	print TRACE_FILE "=======$_=======\n";
  	while(<SRC_FILE>) {
- 		if($_ !~ /^#/){
+#		if($_ !~ /^$/)
+#		{
 			print TRACE_FILE  $_
-		}
+#		}
 	}
-	print TRACE_FILE "\n---------------------------------------\n";
+	print TRACE_FILE "==============\n";
 	close(SRC_FILE);
 	}
+ while(<ORIG_TRACE>)
+ {
+ 	print TRACE_FILE $_
+ }
  close TRACE_FILE;
+ close ORIG_TRACE;
 }
 
 result(
         verdict => $verdict,
         description => $description,
-        error_trace => $adjusted_trace_fname,
+        error_trace => $final_trace_fname,
 );
+
 #===================
 #  AUTOMATA
 #===================
 
-#sub ufo_oom
-#{
-#        return sub{
-#                my $l=shift or return undef;
-#                # NOTE that this overrides the LIMITS bucket, which is used internally
-#                $l=~/^Exception.*OutOfMemory/i and return {'LIMITS' => 'Memory Limit Exceeded'};
-#                return undef;
-#        };
-#}
+sub ufo_oom
+{
+        return sub{
+                my $l=shift or return undef;
+                $l=~/^Exception.*OutOfMemory/i and return {'LIMITS' => 'Memory Limit Exceeded'};
+                return undef;
+        };
+}
 
 sub ufo_verdict
 {
         return sub{
                 my $l=shift or return undef;
-                # Even more newer versions change the format again...
                 $l =~ /ERROR reachable/ and return {'VERDICT' => 'unsafe'};
                 $l =~ /program correct: ERROR unreachable/ and return {'VERDICT' => 'safe'};
                 return undef;
@@ -120,11 +117,9 @@ sub ufo_syntax
                 my $l=shift;
                 $l =~ /syntax error/ and do { $found_syntax_error = 1;};
                 return undef unless $found_syntax_error;
-                # Ok, we're inside the syntax error;
                 if (defined $l) {
                         $parse_errormsg .= "$l";
                 } else {
-                        # Last line of a trace, return what we've accumulated
                         return {'SYNTAX' => "UFO couldn't parse file:\n$parse_errormsg\n", 'VERDICT'=>'unknown'};
                 }
                 return undef;
