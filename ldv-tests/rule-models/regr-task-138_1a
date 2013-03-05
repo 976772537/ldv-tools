@@ -1,0 +1,3 @@
+driver=138_1a--test-S-add-del.tar.bz2;origin=external;kernel=linux-3.5;model=138_1a;module=drivers/138_1a/test-S-add-del/S-add-del.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=138_1a--test-S-add-free.tar.bz2;origin=external;kernel=linux-3.5;model=138_1a;module=drivers/138_1a/test-S-add-free/S-add-free.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=138_1a--test-U-add.tar.bz2;origin=external;kernel=linux-3.5;model=138_1a;module=drivers/138_1a/test-U-add/U-add.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
