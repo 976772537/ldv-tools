@@ -60,7 +60,7 @@ my $num_of_tasks = 0;
 my $opt_help;
 my $new_commit = '';
 
-#my $tool_aux_dir = "$FindBin::RealBin/../ldv-tests/regr-tests";
+my $tool_aux_dir = "$FindBin::RealBin/../ldv-tests/commit-tests";
 
 my $upload_script = 'commit-upload.pl';
 my $load_script = 'commit-load.pl';
@@ -106,30 +106,60 @@ sub get_test_opt()
 
 sub help()
 {
-	#TODO: write help()
 	print(STDERR << "EOM");
 NAME
-	$PROGRAM_NAME: The programm description.
+	$PROGRAM_NAME: The program runs ldv-tools for commits at linux kernels.
 SYNOPSIS
-	$PROGRAM_NAME [option...]
+	[database sets] [ldv-manager env] $PROGRAM_NAME [option...]
 OPTIONS
-	-o, result-file <file>
-	   <file> is a file where results will be put. If it isn't
+	-o, --result-file <file>
+	   <file> is a file where results will be put in html format. If it isn't
 	   specified then the output is placed to the file '$opt_result_file'
-	   in the current directory.
+	   in the current directory. If file was already existed it will be |>>>rewrited<<<|.
 	-h, --help
-	   Print this help and exit with a error.
+	   Print this help and exit with an error.
 	--test-set=<file>
 		Run tasks in <file>. You should always write this option.
-
+		You should observe format:
+			kernel_place=PATH_TO_KERNEL
+			commit=..;rule=..;driver=...ko;main_num=<x>;verdict=..;ideal_verdict=..;#Comment
+		You can set a several kernel places:
+			kernel_place=PLACE1
+			commit=...
+			...
+			kernel_place=PLACE2
+			commit=...
+			...
+		For no-purpose commits (when ideal verdict is save,
+		but result is unsafe as a result of another bug in driver)
+		comments should be started with two symbols '##'.
+		Also you can leave some empty strings if it would be easy-to-use.
+DATABASE SETS
+	LDVDBCTEST=<dbname>
+		<dbname> is name of database where results will be uploaded.
+		==================================================================
+		>>>>>>ATTENTION! All other results will be removed from it.<<<<<<<
+		==================================================================
+	LDVUSERCTEST=<user>
+		<user> is username for <dbname>
+	[LDVDBHOSTCTEST=<dbhost>]
+		<dbhost> is host of your database. If you didn't set this parameter
+		it would be set to 'localhost'.
+	[LDVDBPASSWDCTEST=<passwd>]
+		<passwd> is password for <user> if you set it up.
+ldv-manager ENV
+	You can set for example RCV_MEMLIMIT, RCV_TIMELIMIT, etc.
 EOM
 	exit(1);
 }
 
 sub prepare_files_and_dirs()
 {
-	#die("Uploader script wasn't found or you have no permissions for running it.") if(-x $upload_script);
-	#die("Loader script wasn't found or you have no permissions for running it.") if(-x $load_script);
+	$upload_script = "$tool_aux_dir/$upload_script";
+	$load_script = "$tool_aux_dir/$load_script";
+
+	die("Uploader script wasn't found") unless(-x $upload_script);
+	die("Loader script wasn't found") unless(-x $load_script);
 	$current_working_dir = Cwd::cwd() or die("Can't obtain current directory!");
 	print_debug_normal("Current directory is '$current_working_dir'");
 
@@ -215,12 +245,6 @@ sub get_commit_test_tasks()
 				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
 				help();
 			}
-		}
-		else
-		{
-			print_debug_warning("Task isn't supported!");
-			close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
-			help();
 		}
 	}
 	close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
@@ -309,7 +333,7 @@ sub run_ldv_tools($)
 	if($task_map{$i}{'kernel_place'} =~ /(.*)$task_map{$i}{'kernel_name'}$/)
 	{
 		my $tmp_kernel_dir;
-		$tmp_kernel_dir = $1 . "kernel-$task_map{$i}{'commit'}";
+		$tmp_kernel_dir = $1 . "$task_map{$i}{'kernel_name'}-$task_map{$i}{'commit'}";
 		while($tmp_kernel_dir =~ /^(.*)~(.*)$/)
 		{
 			$tmp_kernel_dir = $1 . "-" . $2;
@@ -422,12 +446,13 @@ sub check_results_and_print_report()
 	open($final_results, ">", "$launcher_results_dir/final_results.txt") or die("Couldn't open $launcher_results_dir/final_results.txt for write: $ERRNO");
 	open(my $html_results, ">", "$results_in_html") or die("Couldn't open $results_in_html for write: $ERRNO");
 	print($html_results "<!DOCTYPE html>
+	<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"> 
 <html>
 	<head>
 		<style type=\"text\/css\">
 		body {background-color:rgb(255, 235, 205) }
 		p {color:rgb(47, 79, 79)}
-		th {color:rgb(85, 107, 47)}
+		th {color:#FFA500}
 		td {background:rgb(152, 251, 152)}
 		td {color:#191970}
 		th {background:#3CB371}
@@ -435,7 +460,7 @@ sub check_results_and_print_report()
 	</head>
 <body>
 
-<h1 align=center>Commit tests results</h1>
+<h1 align=center style=\"color:#FF4500\">Commit tests results</h1>
 
 <p style=\"color:#483D8B\"><big>Result table:</big></p>
 
@@ -500,15 +525,18 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 				$num_unknown_safe++ if(($task_map{$i}{'verdict'} eq 'unknown')
 										  and ($temp_map{$j}{'verdict'} eq 'safe'));
 				
-				print($html_results "<tr><td>$task_map{$i}{'rule'}</td>
+				print($html_results "
+						<tr><td>$task_map{$i}{'rule'}</td>
 						<td>$task_map{$i}{'kernel_name'}</td>
 						<td>$task_map{$i}{'commit'}</td>
-						<td>$task_map{$i}{'driver'}</td>
+						<td><small>$task_map{$i}{'driver'}</small></td>
 						<td>$task_map{$i}{'main_num'}</td>
 						<td>$task_map{$i}{'ideal'}</td>
-						<td>$task_map{$i}{'verdict'}->$temp_map{$j}{'verdict'}</td>
 						<td");
-				print($html_results " style=\"color:#FF1493\"") if($task_map{$i}{'verdict_type'} eq 2);
+				print($html_results " style=\"color:#8B8386\"") if($task_map{$i}{'verdict_type'} eq 2);
+				print($html_results ">$task_map{$i}{'verdict'}->$temp_map{$j}{'verdict'}</td>
+						<td");
+				print($html_results " style=\"color:#8B8386\"") if($task_map{$i}{'verdict_type'} eq 2);
 				print($html_results "><small>$task_map{$i}{'comment'}</small></td>
 						<td><small>");
 				print ($html_results "$temp_map{$j}{'problems'}") unless($temp_map{$j}{'problems'} eq 'na');
@@ -525,15 +553,18 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 		{
 			print($final_results "Commit $task_map{$i}{'commit'} wasn't tested in any reason.\n");
 			print($final_results "Problem is: $task_map{$i}{'problem'}\n\n");
-			print($html_results "<tr><td>$task_map{$i}{'rule'}</td>
-								<td>$task_map{$i}{'kernel_name'}</td>
-								<td>$task_map{$i}{'commit'}</td>
-								<td>$task_map{$i}{'driver'}</td>
-								<td>$task_map{$i}{'main_num'}</td>
-								<td>$task_map{$i}{'ideal'}</td>
-								<td>$task_map{$i}{'verdict'}->unknown</td>
-								<td");
-			print($html_results " style=\"color:#FF1493\"") if($task_map{$i}{'verdict_type'} eq 2);
+			print($html_results "
+						<tr><td>$task_map{$i}{'rule'}</td>
+						<td>$task_map{$i}{'kernel_name'}</td>
+						<td>$task_map{$i}{'commit'}</td>
+						<td>$task_map{$i}{'driver'}</td>
+						<td>$task_map{$i}{'main_num'}</td>
+						<td>$task_map{$i}{'ideal'}</td>
+						<td");
+			print($html_results " style=\"color:#8B8386\"") if($task_map{$i}{'verdict_type'} eq 2);
+			print($html_results ">$task_map{$i}{'verdict'}->unknown</td>
+						<td");
+			print($html_results " style=\"color:#8B8386\"") if($task_map{$i}{'verdict_type'} eq 2);
 			print($html_results "><small>$task_map{$i}{'comment'}</small></td>
 								<td><small>$task_map{$i}{'problem'}</small></td></tr>");
 			$num_safe_unknown++ if($task_map{$i}{'verdict'} eq 'safe');
