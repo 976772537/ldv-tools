@@ -114,7 +114,7 @@ SYNOPSIS
 OPTIONS
 	-o, --result-file <file>
 	   <file> is a file where results will be put in html format. If it isn't
-	   specified then the output is placed to the file '$opt_result_file'
+	   specified then the output is placed to the file '$results_in_html'
 	   in the current directory. If file was already existed it will be |>>>rewrited<<<|.
 	-h, --help
 	   Print this help and exit with an error.
@@ -146,7 +146,7 @@ DATABASE SETS
 		<dbhost> is host of your database. If you didn't set this parameter
 		it would be set to 'localhost'.
 	[LDVDBPASSWDCTEST=<passwd>]
-		<passwd> is password for <user> if you set it up.
+		<passwd> is password for <user> if you set it.
 ldv-manager ENV
 	You can set for example RCV_MEMLIMIT, RCV_TIMELIMIT, etc.
 EOM
@@ -434,7 +434,7 @@ sub check_results_and_print_report()
 				'problems' => 'na'
 			};
 
-			if(($temp_map{$num_of_load_tasks}{'verdict'} eq 'unknown') and $POSTMATCH = ~ /^;(.*);problems=(.*)$/)
+			if(($temp_map{$num_of_load_tasks}{'verdict'} eq 'unknown') and ($POSTMATCH =~ /^;(.*);problems=(.*)$/))
 			{
 				$temp_map{$num_of_load_tasks}{'status'} = $1;
 				$temp_map{$num_of_load_tasks}{'problems'} = $2;
@@ -482,7 +482,7 @@ sub check_results_and_print_report()
 		my $j = 1;
 		while($j <= $num_of_load_tasks)
 		{
-			my $temp_name_of_kernel = "kernel-$task_map{$i}{'commit'}";
+			my $temp_name_of_kernel = "$task_map{$i}{'kernel_name'}-$task_map{$i}{'commit'}";
 			while($temp_name_of_kernel =~ /^(.*)~(.*)$/)
 			{
 				$temp_name_of_kernel = $1 . "-" . $2;

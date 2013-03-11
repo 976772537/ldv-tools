@@ -63,18 +63,34 @@ sub get_test_opt()
 }
 sub help()
 {
-	#TODO: write help()
 	print(STDERR << "EOM");
 NAME
-	$PROGRAM_NAME: The programm description.
+	$PROGRAM_NAME: The programm uploads pax results to specified database.
 SYNOPSIS
-	$PROGRAM_NAME [option...]
+	[DATABASE SET] $PROGRAM_NAME [option...]
 OPTIONS
 	--results=<dir>
 	   <dir> is a directory where are results.
 	   You should always write this option.
+	   This program uploads only pax archives from <dir> where
+	   are directories that have format 'task-<num>--<commit>--dir'.
+	   Each directory should have only one pax archive.
 	-h, --help
 	   Print this help and exit with a error.
+DATABASE SET
+	LDVDBCTEST=<dbname>
+		<dbname> is name of database where results will be uploaded.
+		==================================================================
+		>>>>>>ATTENTION! All other results will be removed from it.<<<<<<<
+		==================================================================
+	LDVUSERCTEST=<user>
+		<user> is username for <dbname>
+	[LDVDBHOSTCTEST=<dbhost>]
+		<dbhost> is host of your database. If you didn't set this parameter
+		it would be set to 'localhost'.
+	[LDVDBPASSWDCTEST=<passwd>]
+		<passwd> is password for <user> if you set it.
+
 EOM
 	exit(1);
 }
