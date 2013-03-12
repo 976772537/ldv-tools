@@ -466,6 +466,7 @@ sub check_results_and_print_report()
 
 <table border=\"2\">
 	<tr>
+		<th>N</th>
 		<th>Rule</th>
 		<th>Kernel</th>
 		<th>Commit</th>
@@ -477,6 +478,7 @@ sub check_results_and_print_report()
 		<th>Problems</th>
 	</tr>");
 	my $i = 1;
+	my $cnt = 1;
 	while($i <= $num_of_tasks)
 	{
 		my $j = 1;
@@ -525,8 +527,9 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 				$num_unknown_safe++ if(($task_map{$i}{'verdict'} eq 'unknown')
 										  and ($temp_map{$j}{'verdict'} eq 'safe'));
 				
-				print($html_results "
-						<tr><td>$task_map{$i}{'rule'}</td>
+				print($html_results "<tr>
+						<td>$cnt</td>
+						<td>$task_map{$i}{'rule'}</td>
 						<td>$task_map{$i}{'kernel_name'}</td>
 						<td>$task_map{$i}{'commit'}</td>
 						<td><small>$task_map{$i}{'driver'}</small></td>
@@ -541,6 +544,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						<td><small>");
 				print ($html_results "$temp_map{$j}{'problems'}") unless($temp_map{$j}{'problems'} eq 'na');
 				print($html_results "</small></td></tr>");
+				$cnt++;
 			}
 			$j++;
 		}
@@ -553,8 +557,9 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 		{
 			print($final_results "Commit $task_map{$i}{'commit'} wasn't tested in any reason.\n");
 			print($final_results "Problem is: $task_map{$i}{'problem'}\n\n");
-			print($html_results "
-						<tr><td>$task_map{$i}{'rule'}</td>
+			print($html_results "<tr>
+						<td>$cnt</td>
+						<td>$task_map{$i}{'rule'}</td>
 						<td>$task_map{$i}{'kernel_name'}</td>
 						<td>$task_map{$i}{'commit'}</td>
 						<td>$task_map{$i}{'driver'}</td>
@@ -569,6 +574,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 								<td><small>$task_map{$i}{'problem'}</small></td></tr>");
 			$num_safe_unknown++ if($task_map{$i}{'verdict'} eq 'safe');
 			$num_unsafe_unknown++ if($task_map{$i}{'verdict'} eq 'unsafe');
+			$cnt++;
 		}
 		if(($task_map{$i}{'ideal'} eq 'unsafe'))
 		{
@@ -600,7 +606,7 @@ else
 }
 
 print($html_results "<hr>
-<a href=\"$link_to_results\">Result paxes are here.</a>") if($link_to_results);
+<a href=\"$link_to_results\">Result paxes are here.</a>");
 print($html_results "
 <hr>
 <p style=\"color:#483D8B\"><big>Summary</big></p>

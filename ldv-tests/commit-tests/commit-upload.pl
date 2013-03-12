@@ -110,7 +110,7 @@ sub prepare_files_and_dirs()
 
 	foreach my $dir (<$opt_result_dir/*>)
 	{
-		if (-d $dir and $dir =~ /.*task-[\d+]--(.*)--dir/)
+		if (-d $dir and $dir =~ /.*task-\d+--.*--dir/)
 		{
 			$num_of_task_dirs++;
 			my $i = 0;
