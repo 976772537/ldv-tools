@@ -590,7 +590,7 @@ sub check_results_and_print_report()
 	<th>Module</th>
 	<th>Main</th>
 	<th>Ideal verdict</th>
-	<th>Real->New verdict</th>
+	<th>Old->New verdict</th>
 	<th>Comment</th>
 	<th>Problems</th>\n</tr>");
 	my $i = 1;
