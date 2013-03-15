@@ -7,8 +7,11 @@ use Cwd qw(cwd);
 use Getopt::Long qw(GetOptions);
 use Env qw(LDV_DEBUG LDV_COMMIT_TEST_LOADER_DEBUG LDVDBCTEST LDVDBHOSTCTEST LDVUSERCTEST LDVDBPASSWDCTEST);
 use FindBin;
+
+# Add some local Perl packages.
 use lib("$FindBin::RealBin/../../shared/perl");
 
+# Add some nonstandard local Perl packages.
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level
   check_system_call);
@@ -16,51 +19,69 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 #######################################################################
 # Subroutine prototypes.
 #######################################################################
+
+# Process command-line options. To see detailed description of these options
+# run script with --help option.
+# args: no.
+# retn: nothing.
 sub get_test_opt();
-sub prepare_files_and_dirs();
+
+# Print help message on the screen and exit.
+# args: no.
+# retn: nothing.
+sub help();
+
+# Load data from database and print it to file.
+# args: no.
+# retn: nothing.
 sub load_data();
 #######################################################################
 # Global variables
 #######################################################################
+
+# Name of this tool
 my $debug_name = 'commit-loader';
-my $opt_help;
-my $opt_result_dir;
-my $opt_result_file;
-my $loader_working_dir;
-my $current_working_dir;
-my $res_file;
+
+# Default name of file where results will be put
 my $result_file = 'results.txt';
+
+# Default database host
 my $db_host = 'localhost';
-my $db_password;
 #######################################################################
 # Main section
 #######################################################################
 
+# Obtain the debug level.
 get_debug_level($debug_name, $LDV_DEBUG, $LDV_COMMIT_TEST_LOADER_DEBUG);
+print_debug_normal("Process the command-line options");
 get_test_opt();
-
-prepare_files_and_dirs();
-
+print_debug_normal("Starting loading data");
 load_data();
-
-close($res_file)
-	or die("Can't close the file '$result_file': $ERRNO\n");
 #######################################################################
 # Subroutines
 #######################################################################
 sub get_test_opt()
 {
+	my $opt_help;
+	my $opt_result_file;
 	unless (GetOptions(
 		'help|h' => \$opt_help,
-		'resdir=s' => \$opt_result_dir,
 		'result|o=s' => \$opt_result_file))
 	{
-		warn("Incorrect options may completely change the meaning! 
-		Please run script with the --help option to see how you may use this tool.");
+		warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool.");
 		help();
 	}
 	help() if ($opt_help);
-	$loader_working_dir = $opt_result_dir if(defined($opt_result_dir) and -d $opt_result_dir);
+	if($opt_result_file)
+	{
+		$result_file = $opt_result_file;
+	}
+	else
+	{
+		my $current_dir = Cwd::cwd() or die("Can't obtain the current working directory");
+		$result_file = $current_dir . '/' . $result_file;
+	}
+	print_debug_normal("Results will be put in $result_file");
 	print_debug_debug("The command-line options are processed successfully");
 }
 
@@ -73,12 +94,10 @@ NAME
 SYNOPSIS
 	[DATABASE SET] $PROGRAM_NAME [option...]
 OPTIONS
-	--resdir=<dir>
-	   <dir> is a directory where results will be put.
-	   If you don't use this option the results will be put in
-	   your current directory.
 	--result, -o <file>
 		<file> is file where results will be loaded to.
+		Results would be written to 'results.txt' in 
+		the current directory if you don't use this option.
 	-h, --help
 	   Print this help and exit with a error.
 DATABASE SET
@@ -95,46 +114,18 @@ EOM
 	exit(1);
 }
 
-sub prepare_files_and_dirs()
-{
-	$current_working_dir = Cwd::cwd()
-		or die("Can't obtain the current working directory");
-	unless(defined($loader_working_dir))
-	{
-		$loader_working_dir = $current_working_dir;
-	}
-	print_debug_normal("The loader working directory is '$loader_working_dir'");
-	if($opt_result_file)
-	{
-		$result_file = $opt_result_file;
-	}
-	else
-	{
-		$result_file = $loader_working_dir . '/' . $result_file;
-	}
-
-	print_debug_normal("Results will be put in $result_file");
-
-	print_debug_debug("Check that database connection is setup");
-	die("You don't setup connection to your testing database. See --help for details")
-		unless ($LDVDBCTEST and $LDVUSERCTEST);
-	$db_host = $LDVDBHOSTCTEST if ($LDVDBHOSTCTEST);
-	$db_password = $LDVDBPASSWDCTEST if ($LDVDBPASSWDCTEST);
-	if (-f $result_file)
-	{
-		unlink($result_file);
-	}
-	open($res_file, '>', "$result_file")
-		or die("Can't open the file '$result_file' for write: $ERRNO");
-}
-
 sub load_data()
 {
-	print_debug_normal("Connect to the specified database");
+	print_debug_debug("Check that database connection is setup");
+	die("You don't setup connection to your database. See --help for details")
+		unless ($LDVDBCTEST and $LDVUSERCTEST);
+	$db_host = $LDVDBHOSTCTEST if ($LDVDBHOSTCTEST);
+	my $db_password = $LDVDBPASSWDCTEST if ($LDVDBPASSWDCTEST);
+	
+	print_debug_debug("Connect to the specified database");
 	my $db_handler = DBI->connect("DBI:mysql:$LDVDBCTEST:$db_host", $LDVUSERCTEST, $db_password)
 		or die("Can't connect to the database: $DBI::errstr");
 
-	# Prepare queries.
 	my $db_launches = $db_handler->prepare("
 		SELECT tasks.driver_spec as 'driver', tasks.driver_spec_origin as 'origin'
 			, environments.version as 'kernel', rule_models.name as 'model'
@@ -169,6 +160,7 @@ sub load_data()
 		or die("Can't prepare a query: " . $db_handler->errstr);
 
 	$db_launches->execute or die("Can't execute a query: " . $db_handler->errstr);
+	open(my $res_file, '>', "$result_file") or die("Can't open the file '$result_file' for write: $ERRNO");
 	while (my $launch_info = $db_launches->fetchrow_hashref)
 	{
 		my $model = ${$launch_info}{'model'} || 'NULL';
@@ -178,7 +170,6 @@ sub load_data()
 
 		if (${$launch_info}{'verdict'} eq 'unknown')
 		{
-			# Understand what tool failed.
 			my $tool_fail_id;
 			if (${$launch_info}{'BCE success'})
 			{
@@ -242,4 +233,6 @@ sub load_data()
 		}
 		print($res_file "\n");
 	}
+	close($res_file) or die("Can't close the file '$result_file': $ERRNO\n");
+	print_debug_normal("Results were loaded successfully");
 }
