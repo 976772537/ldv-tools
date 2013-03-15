@@ -6,7 +6,7 @@ COMMIT_TEST_UPLOAD = commit-upload.pl
 COMMIT_TEST_LOAD = commit-load.pl
 
 # File with tasks for commit test
-COMMIT_TEST_TASK = tasks.cfg
+COMMIT_TEST_TASK = tasks-files/all-tasks.cfg
 
 # LDV tests directory. It's relative to the prefix.
 LDV_TEST_DIR = ldv-tests
