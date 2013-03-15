@@ -218,6 +218,10 @@ push @cpachecker_options, "-outputpath",$outputpath;
 # Disable java assertions in "release" mode
 push @cpachecker_options, "-disable-java-assertions";
 
+# Adjust java heap size (with cpa.sh option) to be consistent with RCV_MEMLIMIT
+# 2.5GB for stack
+push @cpachecker_options, "-heap", (($ENV{'RCV_MEMLIMIT'} - 2_500_000) / 1000)."m";
+
 # Additional options a user may specify (watch for the spaces in options!)
 push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
 
@@ -241,7 +245,7 @@ my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 # CONTROLLING TIME AND MEMORY LIMITS
 # By default, limits are controlled via
 # RCV_TIMELIMIT (CPY+SYS time limit in seconds) and RCV_MEMLIMIT (virtual memory
-# limit in megabytes).The limits from these variables have already been preset.
+# limit in megabytes). The limits from these variables have already been preset.
 # However, you might want to adjust them.
 
 # CPAchecker itself sets up its own memory limit (as of today, the default is
