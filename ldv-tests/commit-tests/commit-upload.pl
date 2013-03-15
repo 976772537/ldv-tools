@@ -6,8 +6,11 @@ use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use Env qw(LDV_DEBUG LDV_COMMIT_TEST_UPLOADER_DEBUG LDVDBCTEST LDVDBHOSTCTEST LDVUSERCTEST LDVDBPASSWDCTEST);
 use FindBin;
+
+# Add some local Perl packages.
 use lib("$FindBin::RealBin/../../shared/perl");
 
+# Add some nonstandard local Perl packages.
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
   print_debug_debug print_debug_trace print_debug_all get_debug_level
   check_system_call);
@@ -15,22 +18,61 @@ use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
 #######################################################################
 # Subroutine prototypes.
 #######################################################################
+
+# Process command-line options. To see detailed description of these options
+# run script with --help option.
+# args: no.
+# retn: nothing.
 sub get_test_opt();
+
+# Print help message on the screen and exit.
+# args: no.
+# retn: nothing.
+sub help();
+
+# Obtain needed files and dirs and check their presence.
+# args: no.
+# retn: nothing.
 sub prepare_files_and_dirs();
+
+# Clear database befor uploading and call upload_right_results()
+# for all pax archives.
+# args: no.
+# retn: nothing.
 sub run_ldv_upload();
+
+# Run ldv-upload for one pax archive that is single in dir 'task-*--dir'.
 sub upload_right_results($);
 #######################################################################
 # Global variables
 #######################################################################
+
+# Name of this tool
 my $debug_name = 'commit-uploader';
+
+# Path to the binary that tells a path to sql script that contains cleaning and
+# creating of the test database. It must be found in the PATH.
 my $ldv_path_to_results_sql_bin = "path-to-results-schema-sql";
+
+# The system mysql binary.
 my $mysql_bin = 'mysql';
+
+# Directory with archives
 my $opt_result_dir;
+
+# Number of found archives
 my $num_of_task_dirs = 0;
+
+# The sql script that contains cleaning and creating of the test database.
 my $ldv_results_sql;
+
+# Tasks for ldv-upload
 my %uptask_map;
 
+# Path to the binary of the ldv-upload. It must be found in the PATH.
 my $ldv_uploader_bin = "ldv-upload";
+
+# Environments variables that specify the database connection for the ldv-upload.
 my $ldv_uploader_host = 'LDVDBHOST';
 my $ldv_uploader_database = 'LDVDB';
 my $ldv_uploader_user = 'LDVUSER';
@@ -41,9 +83,10 @@ my $ldv_uploader_password = 'LDVDBPASSWD';
 get_debug_level($debug_name, $LDV_DEBUG, $LDV_COMMIT_TEST_UPLOADER_DEBUG);
 print_debug_normal("Process the command-line options");
 get_test_opt();
+print_debug_normal("Check presence of needed files, executables and directories. Copy needed files and directories");
 prepare_files_and_dirs();
+print_debug_normal("Upload the launcher results to the database");
 run_ldv_upload();
-print_debug_normal("Make all successfully");
 #######################################################################
 # Subroutines
 #######################################################################
@@ -56,9 +99,7 @@ sub get_test_opt()
 	{
 		warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool.");
 	}
-
 	help() if ($opt_help);
-	
 	print_debug_debug("The command-line options in uploader script are processed successfully");
 }
 sub help()
@@ -71,7 +112,7 @@ SYNOPSIS
 OPTIONS
 	--results=<dir>
 	   <dir> is a directory where are results.
-	   You should always write this option.
+	   You should always use this option.
 	   This program uploads only pax archives from <dir> where
 	   are directories that have format 'task-<num>--<commit>--dir'.
 	   Each directory should have only one pax archive.
@@ -120,12 +161,9 @@ sub prepare_files_and_dirs()
 				$uptask_map{$num_of_task_dirs} = {
 					'isgood' => 'yes'
 				};
-				if(-f $file)
-				{
-					$uptask_map{$num_of_task_dirs} {'file'} = $file;
-				}
+				$uptask_map{$num_of_task_dirs} {'file'} = $file if(-f $file);
 			}
-			if($i eq 0)
+			if($i == 0)
 			{
 				print_debug_warning("There is no pax archives in '$dir'");
 				$uptask_map{$num_of_task_dirs} {'isgood'} = 'no';
@@ -155,7 +193,6 @@ sub prepare_files_and_dirs()
 
 sub run_ldv_upload()
 {
-	# Clean database
 	print_debug_normal("Setup the test database");
 	my $cmd = "$mysql_bin --user=$LDVUSERCTEST $LDVDBCTEST";
 	$cmd .= " --host=$LDVDBHOSTCTEST" if ($LDVDBHOSTCTEST);
@@ -166,13 +203,11 @@ sub run_ldv_upload()
 		if (check_system_call() == -1);
 	die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'")
 		if ($CHILD_ERROR >> 8);
-	# Upload all pax archives
 	my $i = 1;
 	while($i <= $num_of_task_dirs)
 	{
 		if($uptask_map{$i}{'isgood'} eq 'yes')
 		{
-			print_debug_debug("Uploader file = $uptask_map{$i}{'file'}");
 			upload_right_results($uptask_map{$i}{'file'});
 		}
 		$i++;
@@ -208,4 +243,5 @@ sub upload_right_results($)
 	delete($ENV{$ldv_uploader_user});
 	delete($ENV{$ldv_uploader_host});
 	delete($ENV{$ldv_uploader_password});
+	print_debug_trace("'$file' was seccussfully uploaded");
 }
