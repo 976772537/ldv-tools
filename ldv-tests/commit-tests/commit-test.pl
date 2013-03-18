@@ -519,17 +519,22 @@ sub check_results_and_print_report()
 	my %temp_map;
 	my $num_of_load_tasks = 0;
 	my $final_results;
-	
+
+	my $num_safe_safe = 0;
 	my $num_safe_unsafe = 0;
 	my $num_safe_unknown = 0;
-	my $num_unsafe_unknown = 0;
 	my $num_unsafe_safe = 0;
+	my $num_unsafe_unsafe = 0;
+	my $num_unsafe_unknown = 0;
 	my $num_unknown_safe = 0;
 	my $num_unknown_unsafe = 0;
+	my $num_unknown_unknown = 0;
+	my $num_ideal_safe_safe = 0;
 	my $num_ideal_safe_unsafe = 0;
 	my $num_ideal_safe_unknown = 0;
-	my $num_ideal_unsafe_unknown = 0;
 	my $num_ideal_unsafe_safe = 0;
+	my $num_ideal_unsafe_unsafe = 0;
+	my $num_ideal_unsafe_unknown = 0;
 	my $num_of_found_bugs = 0;
 	my $num_of_all_bugs = 0;
 	
@@ -589,12 +594,13 @@ sub check_results_and_print_report()
 	<th>Commit</th>
 	<th>Module</th>
 	<th>Main</th>
-	<th>Ideal verdict</th>
+	<th>Ideal->New verdict</th>
 	<th>Old->New verdict</th>
 	<th>Comment</th>
 	<th>Problems</th>\n</tr>");
 	my $i = 1;
 	my $cnt = 1;
+	my $num_of_all_checked_bugs = 0;
 	while($i <= $num_of_tasks)
 	{
 		my $j = 1;
@@ -635,14 +641,23 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 										  and ($temp_map{$j}{'verdict'} eq 'unknown'));
 				$num_unsafe_safe++ if(($task_map{$i}{'verdict'} eq 'unsafe')
 										  and ($temp_map{$j}{'verdict'} eq 'safe'));
+  				$num_safe_safe++ if(($task_map{$i}{'verdict'} eq 'safe')
+										  and ($temp_map{$j}{'verdict'} eq 'safe'));
+  				$num_unsafe_unsafe++ if(($task_map{$i}{'verdict'} eq 'unsafe')
+										  and ($temp_map{$j}{'verdict'} eq 'unsafe'));
+  				$num_unknown_unknown++ if(($task_map{$i}{'verdict'} eq 'unknown')
+										  and ($temp_map{$j}{'verdict'} eq 'unknown'));
 				$num_unsafe_unknown++ if(($task_map{$i}{'verdict'} eq 'unsafe')
 										  and ($temp_map{$j}{'verdict'} eq 'unknown'));
 				$num_unknown_unsafe++ if(($task_map{$i}{'verdict'} eq 'unknown')
 										  and ($temp_map{$j}{'verdict'} eq 'unsafe'));
 				$num_unknown_safe++ if(($task_map{$i}{'verdict'} eq 'unknown')
 										  and ($temp_map{$j}{'verdict'} eq 'safe'));
-				
 				$num_ideal_safe_unsafe++ if(($task_map{$i}{'ideal'} eq 'safe')
+												and ($temp_map{$j}{'verdict'} eq 'unsafe'));
+				$num_ideal_safe_safe++ if(($task_map{$i}{'ideal'} eq 'safe')
+												and ($temp_map{$j}{'verdict'} eq 'safe'));
+				$num_ideal_unsafe_unsafe++ if(($task_map{$i}{'ideal'} eq 'unsafe')
 												and ($temp_map{$j}{'verdict'} eq 'unsafe'));
 				$num_ideal_safe_unknown++ if(($task_map{$i}{'ideal'} eq 'safe')
 												and ($temp_map{$j}{'verdict'} eq 'unknown'));
@@ -657,11 +672,19 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						<td>$task_map{$i}{'commit'}</td>
 						<td><small>$task_map{$i}{'driver'}</small></td>
 						<td>$task_map{$i}{'main_num'}</td>
-						<td");
-				print($html_results " style=\"color:#8A2BE2\"")
+						<td style=\"color:#");
+				if($task_map{$i}{'ideal'} ne $temp_map{$j}{'verdict'})
+				{
+					print($html_results "CD2626");
+				}
+				else
+				{
+					print($html_results "191970");
+				}
+				print($html_results ";background:#9F79EE")
 					if(($task_map{$i}{'verdict_type'} == 2)
 						and ($task_map{$i}{'ideal'} eq 'unsafe'));
-				print($html_results ">$task_map{$i}{'ideal'}</td>
+				print($html_results "\">$task_map{$i}{'ideal'}->$temp_map{$j}{'verdict'}</td>
 						<td");
 				print($html_results " style=\"color:#CD2626\"") if($task_map{$i}{'verdict'} ne $temp_map{$j}{'verdict'});
 				print($html_results ">$task_map{$i}{'verdict'}->$temp_map{$j}{'verdict'}</td>
@@ -669,6 +692,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						<td><small>");
 				print ($html_results "$temp_map{$j}{'problems'}") unless($temp_map{$j}{'problems'} eq 'na');
 				print($html_results "</small></td>\n</tr>\n");
+				$num_of_all_checked_bugs++ if ($task_map{$i}{'ideal'} eq 'unsafe')
 				$cnt++;
 			}
 			$j++;
@@ -693,11 +717,12 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						<td>$task_map{$i}{'commit'}</td>
 						<td>$task_map{$i}{'driver'}</td>
 						<td>$task_map{$i}{'main_num'}</td>
-						<td");
-			print($html_results " style=\"color:#8A2BE2\"")
+						<td style=\"color:#CD2626");
+						
+			print($html_results ";background:#9F79EE")
 				if(($task_map{$i}{'verdict_type'} == 2)
 					and ($task_map{$i}{'ideal'} eq 'unsafe'));
-			print($html_results ">$task_map{$i}{'ideal'}</td>\n<td");
+			print($html_results "\">$task_map{$i}{'ideal'}->unknown</td>\n\t\t<td");
 			print($html_results " style=\"color:#CD2626\"") if($task_map{$i}{'verdict'} ne 'unknown');
 			print($html_results ">$task_map{$i}{'verdict'}->unknown</td>
 					<td><small>$task_map{$i}{'comment'}</small></td>
@@ -724,7 +749,8 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 	unsafe->safe: $num_unsafe_safe;
 	unsafe->unknown: $num_unsafe_unknown;
 	unknown->safe: $num_unknown_safe;
-	unknown->unsafe: $num_unknown_unsafe;\n\nTARGET BUGS\nLdv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;\n");
+	unknown->unsafe: $num_unknown_unsafe;\n\nTARGET BUGS\nLdv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;
+Total number of bugs: $num_of_all_bugs;\n");
 	my $temp_db_host = 'localhost';
 	$temp_db_host = $LDVDBHOSTCTEST if ($LDVDBHOSTCTEST);
 	my $link_to_results = "http://$temp_db_host:8999/stats/index/name/$LDVDBCTEST/host/$temp_db_host/user/$LDVUSERCTEST/password/";
@@ -744,6 +770,16 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 	<th style=\"color:#00008B;background:#66CD00\"></th>
 	<th style=\"color:#00008B;background:#66CD00\">Old->New verdict</th>
 	<th style=\"color:#00008B;background:#66CD00\">Ideal->New verdict</th>\n</tr>
+	<tr>
+	<th style=\"color:#00008B;background:#66CD00\">safe->safe:</th>
+	<td style=\"color:#00008B;background:#CAFF70\">$num_safe_safe</td>
+	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_safe_safe</td>
+	</tr>
+	<tr>
+	<th style=\"color:#00008B;background:#66CD00\">unsafe->unsafe:</th>
+	<td style=\"color:#00008B;background:#CAFF70\">$num_unsafe_unsafe</td>
+	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_unsafe_unsafe</td>
+	</tr>
 	<tr>
 	<th style=\"color:#00008B;background:#66CD00\">safe->unsafe:</th>
 	<td style=\"color:#00008B;background:#CAFF70\">$num_safe_unsafe</td>
@@ -774,11 +810,17 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 	<td style=\"color:#00008B;background:#CAFF70\">$num_unknown_unsafe</td>
 	<td style=\"color:#00008B;background:#CAFF70\">-</td>
 	</tr>
+	<tr>
+	<th style=\"color:#00008B;background:#66CD00\">unknown->unknown:</th>
+	<td style=\"color:#00008B;background:#CAFF70\">$num_unknown_unknown</td>
+	<td style=\"color:#00008B;background:#CAFF70\">-</td>
+	</tr>
 	</table>
 	<p style=\"color:#A52A2A\">No main: $num_of_unknown_mains;<br>No_rule: $num_of_undev_rules;</p>
 	<hr>
 	<p style=\"color:#483D8B\"><big>Target bugs</big></p>
-	<p>Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs</p>\n");
+	<p>Ldv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;
+Total number of bugs: $num_of_all_bugs;</p>\n");
 	
 	my $cnt2 = 0;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>
