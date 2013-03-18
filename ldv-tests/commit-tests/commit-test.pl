@@ -692,7 +692,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						<td><small>");
 				print ($html_results "$temp_map{$j}{'problems'}") unless($temp_map{$j}{'problems'} eq 'na');
 				print($html_results "</small></td>\n</tr>\n");
-				$num_of_all_checked_bugs++ if ($task_map{$i}{'ideal'} eq 'unsafe')
+				$num_of_all_checked_bugs++ if ($task_map{$i}{'ideal'} eq 'unsafe');
 				$cnt++;
 			}
 			$j++;
