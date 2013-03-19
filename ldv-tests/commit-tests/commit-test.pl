@@ -823,7 +823,6 @@ Total number of bugs: $num_of_all_bugs;\n");
 	<p style=\"color:#483D8B\"><big>Target bugs</big></p>
 	<p>Ldv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;
 Total number of bugs: $num_of_all_bugs;</p>\n");
-	
 	my $cnt2 = 0;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>
 		<table border=\"1\">\n<tr>
