@@ -491,6 +491,8 @@ sub run_ldv_tools($)
 		print_debug_debug("Copying pax archives to result dir '$task_map{$i}{'workdir'}'");
 		copy("$file", "$launcher_results_dir/$task_map{$i}{'workdir'}");
 	}
+	print_debug_debug("Removing 'inst' directory..");
+	rmtree("$ldv_work_dir/inst");
 	chdir($current_working_dir);
 	print_debug_normal("ldv-manager was successfully finished.");
 }
@@ -542,7 +544,7 @@ sub check_results_and_print_report()
 	while(my $line = <$file>)
 	{
 		chomp($line);
-		if($line =~ /^driver=(.*);origin=kernel;kernel=(.*);model=(.*);module=.*;main=ldv_main(\d+)_sequence_infinite_withcheck_stateful;verdict=(\w+)/)
+		if($line =~ /^driver=(.*);origin=kernel;kernel=(.*);model=(.*);module=.*;main=\w*(\d+)\w*;verdict=(\w+)/)
 		{
 			$num_of_load_tasks++;
 			$temp_map{$num_of_load_tasks} = {
@@ -749,7 +751,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 	unsafe->safe: $num_unsafe_safe;
 	unsafe->unknown: $num_unsafe_unknown;
 	unknown->safe: $num_unknown_safe;
-	unknown->unsafe: $num_unknown_unsafe;\n\nTARGET BUGS\nLdv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;
+	unknown->unsafe: $num_unknown_unsafe;\n\nTARGET BUGS\nLdv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;<br>
 Total number of bugs: $num_of_all_bugs;\n");
 	my $temp_db_host = 'localhost';
 	$temp_db_host = $LDVDBHOSTCTEST if ($LDVDBHOSTCTEST);
