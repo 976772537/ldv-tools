@@ -876,7 +876,7 @@ Total number of bugs: $num_of_all_bugs;\n");
 	<p style=\"color:#A52A2A\">No main: $num_of_unknown_mains;<br>No_rule: $num_of_undev_rules;</p>
 	<hr>
 	<p style=\"color:#483D8B\"><big>Target bugs</big></p>
-	<p>Ldv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;
+	<p>Ldv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;<br>
 Total number of bugs: $num_of_all_bugs;</p>\n");
 	my $cnt2 = 0;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>
