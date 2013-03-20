@@ -176,7 +176,7 @@ OPTIONS
 		Run tasks in <file>. You should always write this option.
 		You should observe format:
 			kernel_place=PATH_TO_KERNEL
-			commit=..;rule=..;driver=...ko;main_num=<x>;verdict=..;ideal_verdict=..;#Comment
+			commit=..;rule=..;driver=...ko;main=<x>;verdict=..;ideal_verdict=..;#Comment
 		You can set a several kernel places:
 			kernel_place=PLACE1
 			commit=...
@@ -188,13 +188,18 @@ OPTIONS
 		but result is unsafe as a result of another bug in driver)
 		comments should be started with two symbols '##'.
 		
-		If you don't know main number you can write any symbol(not a number)
-		For example: 'main_num=any_word'. In this case you haven't to set 'verdict'.
+		<x> is main or main number. This tool supportes next formats of mains:
+			entry_point
+			<number>
+			<word><number><word>
+			n/a
+		If you don't know main number you should write 'n/a'.
+		For example: 'main=n/a'. In this case you haven't to set 'verdict'.
 		
 		If rule wasn't developed for any commit you should write 'rule=n/a'.
-		In this case you haven't to set 'verdict' and 'main_num'.
+		In this case you haven't to set 'verdict' and 'main'.
 		
-		Also you can leave some empty strings if it would be easy-to-use.
+		All comments that not in task format are supported.
 DATABASE SETS
 	LDVDBCTEST=<dbname>
 		<dbname> is name of database where results will be uploaded.
@@ -249,7 +254,7 @@ sub get_commit_test_tasks()
 				$kernel_name = $POSTMATCH;
 			}
 		}
-		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main_num=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
+		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
 		{
 			if(defined($kernel_place) and defined($kernel_name))
 			{
@@ -258,7 +263,7 @@ sub get_commit_test_tasks()
 					'commit' => $1,
 					'rule' => $2,
 					'driver' => $3,
-					'main_num' => $4,
+					'main' => $4,
 					'verdict' => $5,
 					'ideal' => $6,
 					'comment' => $7,
@@ -272,6 +277,19 @@ sub get_commit_test_tasks()
 				{
 					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
 					$task_map{$num_of_tasks}{'verdict_type'} = 2;
+				}
+				if($task_map{$num_of_tasks}{'main'} =~ /entry_point/)
+				{
+					$task_map{$num_of_tasks}{'main'} = 0;
+				}
+				elsif($task_map{$num_of_tasks}{'main'} =~ /^\w*(\d+)\w*$//)
+				{
+					$task_map{$num_of_tasks}{'main'} = $1;
+				}
+				else
+				{
+					$task_map{$num_of_tasks}{'main'} = 'n/a';
+					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
 				}
 			}
 			else
@@ -290,7 +308,7 @@ sub get_commit_test_tasks()
 					'commit' => $1,
 					'rule' => 'n/a',
 					'driver' => $2,
-					'main_num' => 999,
+					'main' => 9999,
 					'verdict' => '',
 					'ideal' => $3,
 					'comment' => $4,
@@ -301,7 +319,7 @@ sub get_commit_test_tasks()
 					'problem' => ''
 			};
 		}
-		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main_num=\D+;ideal_verdict=(.*);#(.*)$/)
+		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=\D+;ideal_verdict=(.*);#(.*)$/)
 		{
 			$num_of_tasks++;
 			my $na_kernel_name = 'n/a';
@@ -310,8 +328,8 @@ sub get_commit_test_tasks()
 					'commit' => $1,
 					'rule' => $2,
 					'driver' => $3,
-					'main_num' => 'n/a',
-					'verdict' => '',
+					'main' => 'n/a',
+					'verdict' => 'unknown',
 					'ideal' => $4,
 					'comment' => $5,
 					'is_in_final' => 'no',
@@ -373,7 +391,7 @@ sub run_commit_test()
 	my $i = 1;
 	while($i <= $num_of_tasks)
 	{
-		if(($task_map{$i}{'rule'} !~ /^n\/a$/) and ($task_map{$i}{'main_num'} =~ /^\d+$/))
+		if(($task_map{$i}{'rule'} !~ /^n\/a$/) and ($task_map{$i}{'main'} =~ /^\d+$/))
 		{
 			switch (change_commit($i))
 			{
@@ -540,7 +558,8 @@ sub check_results_and_print_report()
 	my $num_of_found_bugs = 0;
 	my $num_of_all_bugs = 0;
 	
-	open($file, "<", "$launcher_results_dir/$load_result_file") or die("Couldn't open $load_result_file for read: $ERRNO");
+	open($file, "<", "$launcher_results_dir/$load_result_file")
+		or die("Couldn't open $load_result_file for read: $ERRNO");
 	while(my $line = <$file>)
 	{
 		chomp($line);
@@ -551,7 +570,7 @@ sub check_results_and_print_report()
 				'driver' => $1,
 				'kernel' => $2,
 				'rule' => $3,
-				'main_num' => $4,
+				'main' => $4,
 				'verdict' => $5,
 				'status' => 'na',
 				'problems' => 'na'
@@ -562,6 +581,42 @@ sub check_results_and_print_report()
 			{
 				$temp_map{$num_of_load_tasks}{'status'} = $1;
 				$temp_map{$num_of_load_tasks}{'problems'} = $2;
+			}
+		}
+		elsif($line =~ /^driver=(.*);origin=kernel;kernel=(.*);model=(.*);module=.*;main=entry_point;verdict=(\w+)/)
+		{
+			$num_of_load_tasks++;
+			$temp_map{$num_of_load_tasks} = {
+				'driver' => $1,
+				'kernel' => $2,
+				'rule' => $3,
+				'main' => 0,
+				'verdict' => $4,
+				'status' => 'na',
+				'problems' => 'na'
+			};
+			if(($temp_map{$num_of_load_tasks}{'verdict'} eq 'unknown')
+				and ($POSTMATCH =~ /^;(.*);problems=(.*)$/))
+			{
+				$temp_map{$num_of_load_tasks}{'status'} = $1;
+				$temp_map{$num_of_load_tasks}{'problems'} = $2;
+			}
+
+			my $k = 1;
+			while($k <= $num_of_tasks)
+			{
+				my $temp2_name_of_kernel = "$task_map{$k}{'kernel_name'}-$task_map{$k}{'commit'}";
+				while($temp2_name_of_kernel =~ /^(.*)~(.*)$/)
+				{
+					$temp2_name_of_kernel = $1 . "-" . $2;
+				}
+				if(($task_map{$k}{'driver'} eq $temp_map{$num_of_load_tasks}{'driver'}) and
+				($task_map{$k}{'rule'} eq $temp_map{$num_of_load_tasks}{'rule'}) and
+				($temp2_name_of_kernel eq $temp_map{$num_of_load_tasks}{'kernel'}))
+				{
+					$task_map{$k}{'main'} = 0;
+				}
+				$k++;
 			}
 		}
 	}
@@ -616,7 +671,7 @@ sub check_results_and_print_report()
 
 			if(($task_map{$i}{'driver'} eq $temp_map{$j}{'driver'}) and
 				($task_map{$i}{'rule'} eq $temp_map{$j}{'rule'}) and
-				($task_map{$i}{'main_num'} eq $temp_map{$j}{'main_num'}) and
+				($task_map{$i}{'main'} eq $temp_map{$j}{'main'}) and
 				($temp_name_of_kernel eq $temp_map{$j}{'kernel'}))
 			{
 				$task_map{$i}{'is_in_final'} = 'yes';
@@ -673,7 +728,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						<td>$task_map{$i}{'kernel_name'}</td>
 						<td>$task_map{$i}{'commit'}</td>
 						<td><small>$task_map{$i}{'driver'}</small></td>
-						<td>$task_map{$i}{'main_num'}</td>
+						<td>$task_map{$i}{'main'}</td>
 						<td style=\"color:#");
 				if($task_map{$i}{'ideal'} ne $temp_map{$j}{'verdict'})
 				{
@@ -707,7 +762,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 	while($i <= $num_of_tasks)
 	{
 		if(($task_map{$i}{'is_in_final'} eq 'no')
-			and ($task_map{$i}{'main_num'} =~ /^\d+$/)
+			and ($task_map{$i}{'main'} =~ /^\d+$/)
 			and ($task_map{$i}{'rule'} !~ /^n\/a/))
 		{
 			print($final_results "Commit $task_map{$i}{'commit'} wasn't tested in any reason.\n");
@@ -718,7 +773,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						<td>$task_map{$i}{'kernel_name'}</td>
 						<td>$task_map{$i}{'commit'}</td>
 						<td>$task_map{$i}{'driver'}</td>
-						<td>$task_map{$i}{'main_num'}</td>
+						<td>$task_map{$i}{'main'}</td>
 						<td style=\"color:#CD2626");
 						
 			print($html_results ";background:#9F79EE")
@@ -739,7 +794,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 		{
 			$num_of_all_bugs++;
 		}
-		$num_of_unknown_mains++ if($task_map{$i}{'main_num'} !~ /^\d+$/);
+		$num_of_unknown_mains++ if($task_map{$i}{'main'} !~ /^\d+$/);
 		$num_of_undev_rules++ if($task_map{$i}{'rule'} =~ /^n\/a/);
 		$i++;
 	}
