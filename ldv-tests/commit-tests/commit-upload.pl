@@ -203,13 +203,12 @@ sub run_ldv_upload()
 		if (check_system_call() == -1);
 	die("The mysql returns '" . ($CHILD_ERROR >> 8) . "'")
 		if ($CHILD_ERROR >> 8);
+	# I used this cycle to upload pax archives in right order
 	my $i = 1;
 	while($i <= $num_of_task_dirs)
 	{
-		if($uptask_map{$i}{'isgood'} eq 'yes')
-		{
-			upload_right_results($uptask_map{$i}{'file'});
-		}
+			upload_right_results($uptask_map{$i}{'file'})
+				if($uptask_map{$i}{'isgood'} eq 'yes');
 		$i++;
 	}
 	print_debug_normal("Uploader successfully finished");
