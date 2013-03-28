@@ -282,7 +282,7 @@ sub get_commit_test_tasks()
 				{
 					$task_map{$num_of_tasks}{'main'} = 0;
 				}
-				elsif($task_map{$num_of_tasks}{'main'} =~ /^\w*(\d+)\w*$//)
+				elsif($task_map{$num_of_tasks}{'main'} =~ /^\w*(\d+)\w*$/)
 				{
 					$task_map{$num_of_tasks}{'main'} = $1;
 				}
@@ -892,7 +892,7 @@ Total number of bugs: $num_of_all_bugs;</p>\n");
 	$i = 1;
 	while($i <= $num_of_tasks)
 	{
-		if($task_map{$i}{'main_num'} !~ /^\d+$/)
+		if($task_map{$i}{'main'} !~ /^\d+$/)
 		{
 			$cnt2++;
 			print($html_results "<tr>
