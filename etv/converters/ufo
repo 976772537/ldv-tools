@@ -1,4 +1,4 @@
-sub get_loc_and_val($$);
+sub get_loc_and_val($);
 
 my %src_map;
 my $str = shift(@et_array);
@@ -53,44 +53,64 @@ if (defined($str))
 my @et_raw = @et_array;
 push(@et_conv_array, "Error trace common format v0.1\n");
 my $src_prev = '';
-my $is_init = 0;
+my $is_prev_entry = 0;
+my $is_able_to_return = 0;
+my $prev_state;
 
 while (@et_raw)
 {
 	$str = shift(@et_raw);
 	chomp($str);
 	next if ($str =~ /^\s*$/);
-	my ($src, $line, $val) = get_loc_and_val($str, 1);
+	my ($src, $line, $val) = get_loc_and_val($str);
 	# source file (src), line in it (line) and this line (val)
 	next if ($val =~ /^\s*$/);
 	
 	my $type = 'BLOCK';
 	my $kind = '';
 	my $skip_reason = '';
-	my $text = $val;
 	if($src =~ /^Check/)
 	{
 		$type = '';
 		$src = '';
 	}
-	elsif ($text =~ /:\s+if(.*) {$/)
+	elsif ($val =~ /^enter:\s+(.*)$/)
+	{
+		$prev_state = $1;
+		$is_prev_entry = 1;
+		$val = '';
+		if($is_able_to_return)
+		{
+			$type = "RETURN";
+		}
+		else
+		{
+			$is_able_to_return = 1;
+		}
+	}
+	elsif ($val =~ /:\s+if(.*) {$/)
 	{
 		$type = 'ASSUME';
-		$text = ": $1";
+		$val = ": $1";
+	}
+	elsif($is_prev_entry == 1)
+	{
+		$type = 'CALL';
+		$is_prev_entry = 0;
+		$val = ": $prev_state";
 	}
 	push(@et_conv_array,
-	 join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
-	 print_debug_warning("$line $src $type $kind $skip_reason $text");
+	 join(' ', ($line, $src, $type, $kind, $skip_reason, $val)));
+	 print_debug_warning("$line $src $type $kind $skip_reason $val");
 }
 
 {
 	no warnings 'redefine';
-	sub get_loc_and_val($$)
+	sub get_loc_and_val($)
 	{
-		my $str = shift;
-		my $val = $str;
+		my $val = shift;
 		my $line = '';
-		if ($val =~ /file:([^:]+):/
+		if ($val =~ /^file:([^:]+):/
 		and $val !~ /4294967295/)
 		{
 			$line = $1 if (defined($1));
@@ -106,6 +126,10 @@ while (@et_raw)
 		elsif ($val =~ /\%/)
 		{
 			return ("Check", '', ": " . $val);
+		}
+		elsif ($val =~ /(enter:\s*.*)$/)
+		{
+			return ('', '', $1);
 		}
 		else
 		{
