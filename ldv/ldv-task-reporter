@@ -54,7 +54,7 @@ sub hxml_cmdstream;
 ###################################################
 # main
 ###################################################
-
+my @coverage_files;
 my @lstates = get_states($config);
 
 # Open the file we'll print the result to.
@@ -67,7 +67,17 @@ print OUT_RPT "\n</reports>\n";
 close OUT_RPT;
 
 vsay 'NORMAL', "Report created successfully.\n";
-
+my $file_number = @coverage_files;
+if ($file_number > 0)
+{
+	my $output_dir = File::Basename::dirname($config->{'report-out'});
+	$output_dir = $output_dir."/coverage/";
+	use DSCV::RCV::Coverage;
+	merge_original_files(
+		file_list => \@coverage_files,
+		output_dir => $output_dir,
+	);
+}
 exit;
 
 use XML::Twig;
@@ -102,6 +112,15 @@ sub merge_reports {
 				$child->flush($out_fh,pretty_print=>'indented');
 			}
 		})->parsefile($file);
+		#Coverage
+		my $twig = XML::Twig->new(
+			twig_roots => { '//file' => {'tag' => 'coverage'}}
+		);
+		$twig->parsefile($file);
+		my @tag_collector = $twig->get_xpath("//file");
+		foreach my $file_tag (@tag_collector) {
+			push @coverage_files, $file_tag->text;
+		} 
 	};
 }
 

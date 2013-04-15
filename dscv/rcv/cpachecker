@@ -20,6 +20,7 @@
 # RCV Frontend for CPAchecker tool.
 
 use strict;
+use DSCV::RCV::Coverage;
 
 # Available options:
 # CPACHECKER
@@ -394,6 +395,17 @@ if ($verdict eq 'unsafe') {
 	close TRACE_FILE;
 	close ORIG_TRACE_FILE;
 }
+#Coverage.
+my $ifile =  $cpachecker_options[1].".info";
+my $ioutput = $tmpdir."/coverage/";
+my $output_lcov;
+#run script, if we've found .info file
+if (-e $ifile) {
+	$output_lcov = gen_coverage_report(
+			output_dir => $ioutput,
+			info_file => $ifile,
+		);
+}
 
 # Return results.  The "verdict", "description", and "error_trace" are
 # obligatory.  You may add more hash entries, the values should contain files,
@@ -404,6 +416,7 @@ result(
 	verdict => $verdict,
 	description => $description,
 	error_trace => $adjusted_trace_fname,
+ 	coverage => $output_lcov,
 );
 
 
