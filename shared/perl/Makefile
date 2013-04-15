@@ -6,6 +6,7 @@
 perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm File/Cat.pm Text/Highlight.pm Text/Highlight/CPP.pm MetaUtils.pm \
 	DSCV/RCV/Utils.pm \
 	DSCV/RCV/Library.pm \
+	DSCV/RCV/Coverage.pm \
 	ETV/Annotation.pm \
 	ETV/Entity.pm \
 	ETV/Parser.pm \
