@@ -10,8 +10,6 @@ use base qw(Exporter);
 @EXPORT=qw(&gen_coverage_report &merge_original_files);
 use strict;
 
-`which genhtml` or die "genhtml (from lcov package) not found";
-
 sub usage{ 
         my $msg=shift;
 	print STDERR $msg."\n";
@@ -20,6 +18,7 @@ sub usage{
 
 sub gen_coverage_report
 {
+	`which genhtml` or die "genhtml (from lcov package) not found";
 	my %options = @_;
 	my $output_dir = $options{output_dir};
 	if ( ! -d $output_dir) {
