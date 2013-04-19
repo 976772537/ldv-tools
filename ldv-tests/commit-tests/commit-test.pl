@@ -4,7 +4,7 @@ use English;
 use strict;
 use Switch;
 
-use Cwd qw(cwd);
+use Cwd qw(cwd abs_path);
 use File::Path qw(mkpath rmtree);
 use File::Copy qw(copy);
 
@@ -75,6 +75,11 @@ sub load_results();
 # args: no.
 # retn: nothing.
 sub check_results_and_print_report();
+
+# Clone repository to current dir and return path to it
+# args: name of repository (stable or torvalds)
+# retn: path to repository
+sub clone_repos($);
 #######################################################################
 # Global variables
 #######################################################################
@@ -88,6 +93,9 @@ my $launcher_results_dir;
 
 # File with results of subroutine load_results run.
 my $load_result_file = 'load_result.txt';
+
+# Directory with kernels repositories
+my $opt_kernels_dir;
 
 # File with tasks that set in --test-set option.
 my $opt_task_file;
@@ -120,6 +128,10 @@ my $load_script = 'commit-load.pl';
 get_debug_level($debug_name, $LDV_DEBUG, $LDV_COMMIT_TEST_DEBUG);
 print_debug_normal("Process the command-line options");
 get_test_opt();
+
+$current_working_dir = Cwd::cwd() or die("Can't obtain current directory!");
+print_debug_normal("Current directory is '$current_working_dir'");
+
 print_debug_normal("Starting getting tasks..");
 get_commit_test_tasks();
 print_debug_normal("Starting preparing files and directories..");
@@ -143,7 +155,8 @@ sub get_test_opt()
 	unless (GetOptions(
 		'result-file|o=s' => \$opt_result_file,
 		'help|h' => \$opt_help,
-		'test-set=s' => \$opt_task_file))
+		'test-set=s' => \$opt_task_file,
+		'kernels=s' => \$opt_kernels_dir))
 	{
 		warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool.");
 		help();
@@ -177,6 +190,8 @@ OPTIONS
 		You should observe format:
 			kernel_place=PATH_TO_KERNEL
 			commit=..;rule=..;driver=...ko;main=<x>;verdict=..;ideal_verdict=..;#Comment
+		You can use 'repository=<name>' instead of 'kernel_place=<path>' where <name> is
+		repository name (for example, 'torvalds' or 'stable').
 		You can set a several kernel places:
 			kernel_place=PLACE1
 			commit=...
@@ -200,6 +215,11 @@ OPTIONS
 		In this case you haven't to set 'verdict' and 'main'.
 		
 		All comments that not in task format are supported.
+	--kernels=<path>
+		<path> is place where are all needed kernels repositories.
+		If needed repository wouldn't be found it will be downloaded
+		to the current directory. If cloning will failed see file "clone_log"
+		in the current dir.
 DATABASE SETS
 	LDVDBCTEST=<dbname>
 		<dbname> is name of database where results will be uploaded.
@@ -253,6 +273,51 @@ sub get_commit_test_tasks()
 				last unless($kernel_name =~ /\//);
 				$kernel_name = $POSTMATCH;
 			}
+		}
+		elsif($task_str =~ /^repository=(.*)\s*$/)
+		{
+			my $rep_found = 0;
+			my $repos_name = $1;
+			if($opt_kernels_dir and (-d $opt_kernels_dir))
+			{
+				foreach my $repos_dir (<$opt_kernels_dir/*>)
+				{
+					my $repos_config = "$repos_dir/.git/config";
+					if((-d "$repos_dir") and (-f $repos_config))
+					{
+						open(REPCONF, '<', $repos_config)
+							or die("Couldn't open $repos_config for read: $ERRNO");
+						while(<REPCONF>)
+						{
+							chomp($_);
+							if($_ =~ /\s*url\s*=\s*(.*)$/)
+							{
+								if($1 =~ /git.*\/$repos_name.*git/)
+								{
+									$kernel_place = $repos_dir;
+									$kernel_place = abs_path($kernel_place);
+									$rep_found = 1;
+								}
+							}
+						}
+						close(REPCONF);
+					}
+				}
+			}
+			unless($rep_found)
+			{
+				print_debug_debug("Repository '$repos_name' wasn't found, cloning it...");
+				my $func_return = clone_repos($repos_name);
+				die "Couldn't detect repository with name '$repos_name'!" unless($func_return);
+				$kernel_place = $func_return;
+			}
+			$kernel_name = $kernel_place;
+			while(1)
+			{
+				last unless($kernel_name =~ /\//);
+				$kernel_name = $POSTMATCH;
+			}
+			print_debug_debug("Kernel place = '$kernel_place'");
 		}
 		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
 		{
@@ -350,8 +415,6 @@ sub prepare_files_and_dirs()
 	$load_script = "$tool_aux_dir/$load_script";
 	die("Uploader script wasn't found") unless(-x $upload_script);
 	die("Loader script wasn't found") unless(-x $load_script);
-	$current_working_dir = Cwd::cwd() or die("Can't obtain current directory!");
-	print_debug_normal("Current directory is '$current_working_dir'");
 
 	$launcher_work_dir = $current_working_dir . "/commit-test-work";
 	$launcher_results_dir = $current_working_dir . "/commit-test-results";
@@ -942,4 +1005,48 @@ Total number of bugs: $num_of_all_bugs;</p>\n");
 	close($final_results) or die("Couldn't close $launcher_results_dir/results.txt: $ERRNO");
 	close($html_results) or die("Couldn't close $results_in_html: $ERRNO");
 	print_debug_normal("Results were successfully generated: '$launcher_results_dir/$results_in_txt', '$results_in_html'");
+}
+
+sub clone_repos($)
+{
+	my $rep_name = shift;
+	my $ret_place;
+	my $repository_clone = "$tool_aux_dir/repository.cfg";
+	if(-f "$repository_clone")
+	{
+		open(MYREPCONG, '<', $repository_clone)
+			or die "Couldn't open '$repository_clone' for read: $ERRNO";
+		while(<MYREPCONG>)
+		{
+			chomp($_);
+			if($_ =~ /^.*\/$rep_name\/.*git/)
+			{
+				print_debug_debug("Execute command 'git clone $_'");
+				system("git clone $_ 2>&1 | tee git_clone_log");
+					open(CLOLOG, '<', "git_clone_log") or die "Couldn't open clone_log for read!";
+					while(<CLOLOG>)
+					{
+						chomp($_);
+						if($_ =~ /Cloning into '(.*)'.../)
+						{
+							$ret_place = $current_working_dir . '/' . $1;
+							die "Couldn't clone $_" unless(-d $ret_place);
+							unlink("git_clone_log");
+							return $ret_place;
+						}
+						elsif($_ =~ /fatal:(.*)$/)
+						{
+							die "FATAL ERROR while cloning repository to the current dir: $1";
+						}
+					}
+					close(CLOLOG);
+			}
+		}
+		close(MYREPCONG);
+	}
+	else
+	{
+		die "Couldn't find file with repositories!";
+	}
+	return $ret_place;
 }
