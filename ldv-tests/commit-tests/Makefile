@@ -4,10 +4,6 @@ INSTALL_DIR = __install
 COMMIT_TEST = commit-test.pl
 COMMIT_TEST_UPLOAD = commit-upload.pl
 COMMIT_TEST_LOAD = commit-load.pl
-COMMIT_TEST_REPOS = repository.cfg
-
-# File with tasks for commit test
-COMMIT_TEST_TASK = tasks-files/all-tasks.cfg
 
 # LDV tests directory. It's relative to the prefix.
 LDV_TEST_DIR = ldv-tests
@@ -32,4 +28,4 @@ install:
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
 	cp $(COMMIT_TEST) $(bindir) || exit 1;
 	if [ ! -d $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) ]; then mkdir -p $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) || exit 1; fi
-	cp $(COMMIT_TEST_UPLOAD) $(COMMIT_TEST_LOAD) $(COMMIT_TEST_TASK) $(COMMIT_TEST_REPOS) $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) || exit 1
+	cp $(COMMIT_TEST_UPLOAD) $(COMMIT_TEST_LOAD) $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) || exit 1

@@ -292,7 +292,33 @@ sub get_commit_test_tasks()
 							chomp($_);
 							if($_ =~ /\s*url\s*=\s*(.*)$/)
 							{
-								if($1 =~ /git.*\/$repos_name.*git/)
+								if($1 =~ /$repos_name/)
+								{
+									$kernel_place = $repos_dir;
+									$kernel_place = abs_path($kernel_place);
+									$rep_found = 1;
+								}
+							}
+						}
+						close(REPCONF);
+					}
+				}
+			}
+			else
+			{
+				foreach my $repos_dir (<$current_working_dir/*>)
+				{
+					my $repos_config = "$repos_dir/.git/config";
+					if((-d "$repos_dir") and (-f $repos_config))
+					{
+						open(REPCONF, '<', $repos_config)
+							or die("Couldn't open $repos_config for read: $ERRNO");
+						while(<REPCONF>)
+						{
+							chomp($_);
+							if($_ =~ /\s*url\s*=\s*(.*)$/)
+							{
+								if($1 =~ /$repos_name/)
 								{
 									$kernel_place = $repos_dir;
 									$kernel_place = abs_path($kernel_place);
@@ -336,7 +362,8 @@ sub get_commit_test_tasks()
 					'verdict_type' => 1,
 					'kernel_name' => $kernel_name,
 					'kernel_place' => $kernel_place,
-					'problem' => ''
+					'problem' => '',
+					'ldv_run' => 1
 				};
 				if($task_map{$num_of_tasks}{'comment'} =~ /^#/)
 				{
@@ -347,7 +374,7 @@ sub get_commit_test_tasks()
 				{
 					$task_map{$num_of_tasks}{'main'} = 0;
 				}
-				elsif($task_map{$num_of_tasks}{'main'} =~ /^\w*(\d+)\w*$/)
+				elsif($task_map{$num_of_tasks}{'main'} =~ /(\d+)\w*$/)
 				{
 					$task_map{$num_of_tasks}{'main'} = $1;
 				}
@@ -355,11 +382,12 @@ sub get_commit_test_tasks()
 				{
 					$task_map{$num_of_tasks}{'main'} = 'n/a';
 					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
+					$task_map{$num_of_tasks}{'ldv_run'} = 0;
 				}
 			}
 			else
 			{
-				print_debug_warning("You must to set kernel place before tasks!");
+				print_debug_warning("You must set kernel place before tasks!");
 				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
 				help();
 			}
@@ -381,7 +409,8 @@ sub get_commit_test_tasks()
 					'verdict_type' => 0,
 					'kernel_name' => $na_kernel_name,
 					'kernel_place' => '',
-					'problem' => ''
+					'problem' => '',
+					'ldv_run' => 0
 			};
 		}
 		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=\D+;ideal_verdict=(.*);#(.*)$/)
@@ -401,7 +430,8 @@ sub get_commit_test_tasks()
 					'verdict_type' => 0,
 					'kernel_name' => $na_kernel_name,
 					'kernel_place' => '',
-					'problem' => ''
+					'problem' => '',
+					'ldv_run' => 0
 			};
 		}
 	}
@@ -454,7 +484,7 @@ sub run_commit_test()
 	my $i = 1;
 	while($i <= $num_of_tasks)
 	{
-		if(($task_map{$i}{'rule'} !~ /^n\/a$/) and ($task_map{$i}{'main'} =~ /^\d+$/))
+		if($task_map{$i}{'ldv_run'})
 		{
 			switch (change_commit($i))
 			{
@@ -472,6 +502,14 @@ sub run_commit_test()
 				{
 					print_debug_normal("Kernel HEAD is now at '$task_map{$i}{'commit'}' = '$new_commit'..");
 					run_ldv_tools($i);
+					foreach my $main_key (keys %task_map)
+					{
+						$task_map{$main_key}{'ldv_run'} = 0
+							if(($task_map{$main_key}{'commit'} eq $task_map{$i}{'commit'})
+							and ($task_map{$main_key}{'driver'} eq $task_map{$i}{'driver'})
+							and ($task_map{$main_key}{'rule'} eq $task_map{$i}{'rule'})
+							and ($task_map{$main_key}{'kernel_name'} eq $task_map{$i}{'kernel_name'}));
+					}
 				}
 				else
 				{
@@ -626,7 +664,7 @@ sub check_results_and_print_report()
 	while(my $line = <$file>)
 	{
 		chomp($line);
-		if($line =~ /^driver=(.*);origin=kernel;kernel=(.*);model=(.*);module=.*;main=\w*(\d+)\w*;verdict=(\w+)/)
+		if($line =~ /^driver=(.*);origin=kernel;kernel=(.*);model=(.*);module=.*;main=(.*);verdict=(\w+)/)
 		{
 			$num_of_load_tasks++;
 			$temp_map{$num_of_load_tasks} = {
@@ -638,48 +676,19 @@ sub check_results_and_print_report()
 				'status' => 'na',
 				'problems' => 'na'
 			};
-
 			if(($temp_map{$num_of_load_tasks}{'verdict'} eq 'unknown')
 				and ($POSTMATCH =~ /^;(.*);problems=(.*)$/))
 			{
 				$temp_map{$num_of_load_tasks}{'status'} = $1;
 				$temp_map{$num_of_load_tasks}{'problems'} = $2;
 			}
-		}
-		elsif($line =~ /^driver=(.*);origin=kernel;kernel=(.*);model=(.*);module=.*;main=entry_point;verdict=(\w+)/)
-		{
-			$num_of_load_tasks++;
-			$temp_map{$num_of_load_tasks} = {
-				'driver' => $1,
-				'kernel' => $2,
-				'rule' => $3,
-				'main' => 0,
-				'verdict' => $4,
-				'status' => 'na',
-				'problems' => 'na'
-			};
-			if(($temp_map{$num_of_load_tasks}{'verdict'} eq 'unknown')
-				and ($POSTMATCH =~ /^;(.*);problems=(.*)$/))
+			if($temp_map{$num_of_load_tasks}{'main'} =~ /(\d+)/)
 			{
-				$temp_map{$num_of_load_tasks}{'status'} = $1;
-				$temp_map{$num_of_load_tasks}{'problems'} = $2;
+				$temp_map{$num_of_load_tasks}{'main'} = $1;
 			}
-
-			my $k = 1;
-			while($k <= $num_of_tasks)
+			elsif($temp_map{$num_of_load_tasks}{'main'} =~ /entry_point/)
 			{
-				my $temp2_name_of_kernel = "$task_map{$k}{'kernel_name'}-$task_map{$k}{'commit'}";
-				while($temp2_name_of_kernel =~ /^(.*)~(.*)$/)
-				{
-					$temp2_name_of_kernel = $1 . "-" . $2;
-				}
-				if(($task_map{$k}{'driver'} eq $temp_map{$num_of_load_tasks}{'driver'}) and
-				($task_map{$k}{'rule'} eq $temp_map{$num_of_load_tasks}{'rule'}) and
-				($temp2_name_of_kernel eq $temp_map{$num_of_load_tasks}{'kernel'}))
-				{
-					$task_map{$k}{'main'} = 0;
-				}
-				$k++;
+				$temp_map{$num_of_load_tasks}{'main'} = 0;
 			}
 		}
 	}
@@ -828,8 +837,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 			and ($task_map{$i}{'main'} =~ /^\d+$/)
 			and ($task_map{$i}{'rule'} !~ /^n\/a/))
 		{
-			print($final_results "Commit $task_map{$i}{'commit'} wasn't tested in any reason.\n");
-			print($final_results "Problem is: $task_map{$i}{'problem'}\n\n");
+			print($final_results "Commit $task_map{$i}{'commit'} wasn't tested in any reason.\n\n");
 			print($html_results "\n<tr>
 						<td>$cnt</td>
 						<td>$task_map{$i}{'rule'}</td>
@@ -1011,42 +1019,25 @@ sub clone_repos($)
 {
 	my $rep_name = shift;
 	my $ret_place;
-	my $repository_clone = "$tool_aux_dir/repository.cfg";
-	if(-f "$repository_clone")
+	print_debug_debug("Execute command 'git clone $rep_name'");
+	system("git clone $rep_name 2>&1 | tee git_clone_log");
+	open(CLOLOG, '<', "git_clone_log") or die "Couldn't open clone_log for read!";
+	while(<CLOLOG>)
 	{
-		open(MYREPCONG, '<', $repository_clone)
-			or die "Couldn't open '$repository_clone' for read: $ERRNO";
-		while(<MYREPCONG>)
+		chomp($_);
+		if($_ =~ /Cloning into '(.*)'.../)
 		{
-			chomp($_);
-			if($_ =~ /^.*\/$rep_name\/.*git/)
-			{
-				print_debug_debug("Execute command 'git clone $_'");
-				system("git clone $_ 2>&1 | tee git_clone_log");
-					open(CLOLOG, '<', "git_clone_log") or die "Couldn't open clone_log for read!";
-					while(<CLOLOG>)
-					{
-						chomp($_);
-						if($_ =~ /Cloning into '(.*)'.../)
-						{
-							$ret_place = $current_working_dir . '/' . $1;
-							die "Couldn't clone $_" unless(-d $ret_place);
-							unlink("git_clone_log");
-							return $ret_place;
-						}
-						elsif($_ =~ /fatal:(.*)$/)
-						{
-							die "FATAL ERROR while cloning repository to the current dir: $1";
-						}
-					}
-					close(CLOLOG);
-			}
+			close(CLOLOG);
+			$ret_place = $current_working_dir . '/' . $1;
+			die "Couldn't clone $rep_name" unless(-d $ret_place);
+			unlink("git_clone_log");
+			return $ret_place;
 		}
-		close(MYREPCONG);
+		elsif($_ =~ /fatal:(.*)$/)
+		{
+			die "FATAL ERROR while cloning repository to the current dir:$1";
+		}
 	}
-	else
-	{
-		die "Couldn't find file with repositories!";
-	}
+	close(CLOLOG);
 	return $ret_place;
 }
