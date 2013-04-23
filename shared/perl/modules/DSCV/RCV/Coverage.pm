@@ -18,13 +18,13 @@ sub usage{
 
 sub gen_coverage_report
 {
-	`which genhtml` or die "genhtml (from lcov package) not found";
 	my %options = @_;
 	my $output_dir = $options{output_dir};
 	if ( ! -d $output_dir) {
 		mkdir($output_dir) or die ("Can't create $output_dir\n");
 	}
 	my $lcov_info_fname = $options{info_file};
+	my $skip_expression = $options{skip};
 	usage("LCOV info file isn't specified") unless $lcov_info_fname;
 	open(my $lcov_info_fh, "<", $lcov_info_fname) or usage("Can't open LCOV info file ".$lcov_info_fname." for read");
 
@@ -40,10 +40,8 @@ sub gen_coverage_report
 	# not with the CIL one. So first of all build a map between sources.
 	# Read a CIL source file from the beginning of the error trace.
 	my %src_map;
-	#use vars qw(%src_map);
 	sub process_cil_file ($)
 	{
-		use vars qw(%src_map);
 		my $cil_fname = shift;
 		open(my $cil_fh, "<", $cil_fname) or die("Can't open CIL file for read $cil_fname\n"."You may specify it using --cil option");
 
@@ -71,7 +69,6 @@ sub gen_coverage_report
 				$src_map{$cil_line_cur} = {
 					 'file' => $src_cur
 					, 'line' => $src_line_cur};
-				$src_line_cur++;
 			}
 
 			$cil_line_cur++;
@@ -81,7 +78,8 @@ sub gen_coverage_report
 	my %info_fn;
 	my %info_fnda;
 	my %info_da;
-
+	my @skipped_lines;
+	
 	top:while (<$lcov_info_fh>)
 	{
 		my $str = $_;
@@ -97,8 +95,19 @@ sub gen_coverage_report
 		  
 		if ($str =~ /^FN:(\d+),(.+)$/)
 		{
-			my $orig_location = $src_map{$1} or die("Can't get original location for line '$1'");
-			push(@{$info_fn{$orig_location->{'file'}}}, {'line' => $orig_location->{'line'}, 'func'=>$2});
+			my $start_location = $1;
+			my $orig_location = $src_map{$start_location} or die("Can't get original location for line '$1'");
+			my $start_line = $orig_location->{'line'};
+			my $func_name = $2;
+			$str = <$lcov_info_fh>;
+			chomp($str);
+			$str =~ /^#FN:(\d+)$/;
+			my $end_location = $1;
+			unless (defined($skip_expression) && $func_name =~ /$skip_expression/) {
+				push(@{$info_fn{$orig_location->{'file'}}}, {'line' => $start_line, 'func'=>$func_name});
+			} else {
+				push(@skipped_lines, {'start'=>$start_location, 'end'=>$end_location});
+			}
 		}
 
 		if ($str =~ /^FNDA:(\d+),(.+)$/)
@@ -108,8 +117,15 @@ sub gen_coverage_report
 		  
 		if ($str =~ /^DA:(\d+),(.+)$/)
 		{
-			my $orig_location = $src_map{$1} or die("Can't get original location for line '$1'");
+			my $location = $1;
+			my $orig_location = $src_map{$location} or die("Can't get original location for line '$1'");
 		 
+			foreach my $skip (@skipped_lines)
+			{
+				#this line should be deleted from report. Skip it.
+				next top if ($skip->{'start'} < $location && $skip->{'end'} > $location)
+			}			
+
 			foreach my $info (@{$info_da{$orig_location->{'file'}}})
 		    	{
 		      		next top if ($info->{'line'} == $orig_location->{'line'} && $info->{'used'} == $2) 
@@ -187,10 +203,15 @@ sub merge_original_files
 	my %info_fnda;
 	my %info_da;
 	my $file_number = @$file_list;
-	if ($file_number < 2)
+	if ($file_number < 1) {
+		print "Error! There are no .info files";
+		return;
+	}
+	if ($file_number == 1)
 	{
 		vsay ('DEBUG', "Only one file for coverage report\n");
 		system("cp @$file_list[0] $output_file");
+		system("genhtml --output-directory $output_dir --legend --quiet $output_file");
 		return;
 	}
 	foreach my $orig_file (@$file_list)

@@ -396,7 +396,7 @@ if ($verdict eq 'unsafe') {
 	close ORIG_TRACE_FILE;
 }
 #Coverage.
-my $ifile =  $cpachecker_options[1].".info";
+my $ifile =  $outputpath."/coverage.info";
 my $ioutput = $tmpdir."/coverage/";
 my $output_lcov;
 #run script, if we've found .info file
@@ -404,6 +404,7 @@ if (-e $ifile) {
 	$output_lcov = gen_coverage_report(
 			output_dir => $ioutput,
 			info_file => $ifile,
+			skip => "^ldv_(.+)(\\d+)\$",
 		);
 }
 
