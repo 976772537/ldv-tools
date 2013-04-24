@@ -321,7 +321,7 @@ else
 			exit 1;
 		fi;
 
-		make allmodconfig 2>$statefile;
+		make allyesconfig 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
 			ldv_print "ERROR: Can't configure kernel.";
