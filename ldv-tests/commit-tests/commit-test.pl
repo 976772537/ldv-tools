@@ -189,7 +189,7 @@ OPTIONS
 		Run tasks in <file>. You should always write this option.
 		You should observe format:
 			kernel_place=PATH_TO_KERNEL
-			commit=..;rule=..;driver=...ko;main=<x>;verdict=..;ideal_verdict=..;#Comment
+			commit=..;rule=..;driver=...ko;main=<main>;verdict=..;ideal_verdict=..;#Comment
 		You can use 'repository=<name>' instead of 'kernel_place=<path>' where <name> is
 		repository name (for example, 'torvalds' or 'stable').
 		You can set a several kernel places:
@@ -203,11 +203,8 @@ OPTIONS
 		but result is unsafe as a result of another bug in driver)
 		comments should be started with two symbols '##'.
 		
-		<x> is main or main number. This tool supportes next formats of mains:
-			entry_point
-			<number>
-			<word><number><word>
-			n/a
+		<main> is main. This tool supportes next formats of mains:
+
 		If you don't know main number you should write 'n/a'.
 		For example: 'main=n/a'. In this case you haven't to set 'verdict'.
 		
@@ -334,7 +331,7 @@ sub get_commit_test_tasks()
 			{
 				print_debug_debug("Repository '$repos_name' wasn't found, cloning it...");
 				my $func_return = clone_repos($repos_name);
-				die "Couldn't detect repository with name '$repos_name'!" unless($func_return);
+				die "Couldn't detect repository with name '$repos_name' after cloning!" unless($func_return);
 				$kernel_place = $func_return;
 			}
 			$kernel_name = $kernel_place;
@@ -370,17 +367,9 @@ sub get_commit_test_tasks()
 					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
 					$task_map{$num_of_tasks}{'verdict_type'} = 2;
 				}
-				if($task_map{$num_of_tasks}{'main'} =~ /entry_point/)
+				if(($task_map{$num_of_tasks}{'main'} eq 'n/a')
+					or ($task_map{$num_of_tasks}{'rule'} eq 'n/a'))
 				{
-					$task_map{$num_of_tasks}{'main'} = 0;
-				}
-				elsif($task_map{$num_of_tasks}{'main'} =~ /(\d+)\w*$/)
-				{
-					$task_map{$num_of_tasks}{'main'} = $1;
-				}
-				else
-				{
-					$task_map{$num_of_tasks}{'main'} = 'n/a';
 					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
 					$task_map{$num_of_tasks}{'ldv_run'} = 0;
 				}
@@ -401,7 +390,7 @@ sub get_commit_test_tasks()
 					'commit' => $1,
 					'rule' => 'n/a',
 					'driver' => $2,
-					'main' => 9999,
+					'main' => 'n/a',
 					'verdict' => '',
 					'ideal' => $3,
 					'comment' => $4,
@@ -413,7 +402,7 @@ sub get_commit_test_tasks()
 					'ldv_run' => 0
 			};
 		}
-		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=\D+;ideal_verdict=(.*);#(.*)$/)
+		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=.*;ideal_verdict=(.*);#(.*)$/)
 		{
 			$num_of_tasks++;
 			my $na_kernel_name = 'n/a';
@@ -469,11 +458,11 @@ sub prepare_files_and_dirs()
 		{
 			$commit_test_work_dir = 'task-' . $i . '--' . $task_map{$i}{'kernel_name'} . '--dir';
 		}
-		$task_map{$i}{'workdir'} = $commit_test_work_dir;
 		mkpath("$launcher_work_dir/$commit_test_work_dir")
 			or die("Couldn't recursively create work directory '$commit_test_work_dir': $ERRNO");
 		mkpath("$launcher_results_dir/$commit_test_work_dir")
 			or die("Couldn't recursively create result directory '$commit_test_work_dir': $ERRNO");
+		$task_map{$i}{'workdir'} = $commit_test_work_dir;
 		$i++;
 	}
 	print_debug_normal("Directories and files were prepared successfully");
@@ -533,8 +522,8 @@ sub change_commit($)
 	system($switch_commit_task);
 	die("Switching commit failed!") if(check_system_call());
 	chdir("$current_working_dir");
-	open(MYFILE, '<', $file_temp)	or die("Couldn't open $file_temp for read: $ERRNO");
 
+	open(MYFILE, '<', $file_temp)	or die("Couldn't open $file_temp for read: $ERRNO");
 	while(<MYFILE>)
 	{
 		if($_ =~ /HEAD is now at (.*).../)
@@ -639,7 +628,6 @@ sub check_results_and_print_report()
 	my $file;
 	my %temp_map;
 	my $num_of_load_tasks = 0;
-	my $final_results;
 
 	my $num_safe_safe = 0;
 	my $num_safe_unsafe = 0;
@@ -664,13 +652,13 @@ sub check_results_and_print_report()
 	while(my $line = <$file>)
 	{
 		chomp($line);
-		if($line =~ /^driver=(.*);origin=kernel;kernel=(.*);model=(.*);module=.*;main=(.*);verdict=(\w+)/)
+		if($line =~ /^driver=.*;origin=kernel;kernel=(.*);model=(.*);module=(.*);main=(.*);verdict=(\w+)/)
 		{
 			$num_of_load_tasks++;
 			$temp_map{$num_of_load_tasks} = {
-				'driver' => $1,
-				'kernel' => $2,
-				'rule' => $3,
+				'driver' => $3,
+				'kernel' => $1,
+				'rule' => $2,
 				'main' => $4,
 				'verdict' => $5,
 				'status' => 'na',
@@ -682,19 +670,11 @@ sub check_results_and_print_report()
 				$temp_map{$num_of_load_tasks}{'status'} = $1;
 				$temp_map{$num_of_load_tasks}{'problems'} = $2;
 			}
-			if($temp_map{$num_of_load_tasks}{'main'} =~ /(\d+)/)
-			{
-				$temp_map{$num_of_load_tasks}{'main'} = $1;
-			}
-			elsif($temp_map{$num_of_load_tasks}{'main'} =~ /entry_point/)
-			{
-				$temp_map{$num_of_load_tasks}{'main'} = 0;
-			}
 		}
 	}
 	close($file) or die("Couldn't close $load_result_file: $ERRNO");
 	
-	open($final_results, ">", "$launcher_results_dir/$results_in_txt")
+	open(my $final_results, ">", "$launcher_results_dir/$results_in_txt")
 		or die("Couldn't open $launcher_results_dir/$results_in_txt for write: $ERRNO");
 	open(my $html_results, ">", "$results_in_html")
 		or die("Couldn't open $results_in_html for write: $ERRNO");
@@ -815,7 +795,8 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 						and ($task_map{$i}{'ideal'} eq 'unsafe'));
 				print($html_results "\">$task_map{$i}{'ideal'}->$temp_map{$j}{'verdict'}</td>
 						<td");
-				print($html_results " style=\"color:#CD2626\"") if($task_map{$i}{'verdict'} ne $temp_map{$j}{'verdict'});
+				print($html_results " style=\"color:#CD2626\"")
+					if($task_map{$i}{'verdict'} ne $temp_map{$j}{'verdict'});
 				print($html_results ">$task_map{$i}{'verdict'}->$temp_map{$j}{'verdict'}</td>
 						<td><small>$task_map{$i}{'comment'}</small></td>
 						<td><small>");
@@ -834,8 +815,8 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 	while($i <= $num_of_tasks)
 	{
 		if(($task_map{$i}{'is_in_final'} eq 'no')
-			and ($task_map{$i}{'main'} =~ /^\d+$/)
-			and ($task_map{$i}{'rule'} !~ /^n\/a/))
+			and ($task_map{$i}{'main'} ne 'n/a')
+			and ($task_map{$i}{'rule'} ne 'n/a'))
 		{
 			print($final_results "Commit $task_map{$i}{'commit'} wasn't tested in any reason.\n\n");
 			print($html_results "\n<tr>
@@ -865,8 +846,8 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 		{
 			$num_of_all_bugs++;
 		}
-		$num_of_unknown_mains++ if($task_map{$i}{'main'} !~ /^\d+$/);
-		$num_of_undev_rules++ if($task_map{$i}{'rule'} =~ /^n\/a/);
+		$num_of_unknown_mains++ if($task_map{$i}{'main'} eq 'n/a');
+		$num_of_undev_rules++ if($task_map{$i}{'rule'} eq 'n/a');
 		$i++;
 	}
 	print($html_results "<\/table>\n<br>\n<br>");
@@ -963,7 +944,7 @@ Total number of bugs: $num_of_all_bugs;</p>\n");
 	$i = 1;
 	while($i <= $num_of_tasks)
 	{
-		if($task_map{$i}{'main'} !~ /^\d+$/)
+		if(($task_map{$i}{'main'} eq 'n/a') and ($task_map{$i}{'rule'} ne 'n/a'))
 		{
 			$cnt2++;
 			print($html_results "<tr>
@@ -991,7 +972,7 @@ Total number of bugs: $num_of_all_bugs;</p>\n");
 	$i = 1;
 	while($i <= $num_of_tasks)
 	{
-		if($task_map{$i}{'rule'} =~ /^n\/a$/)
+		if($task_map{$i}{'rule'} eq 'n/a')
 		{
 			$cnt3++;
 			print($html_results "<tr>
