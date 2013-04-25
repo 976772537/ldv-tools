@@ -846,7 +846,8 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 		{
 			$num_of_all_bugs++;
 		}
-		$num_of_unknown_mains++ if($task_map{$i}{'main'} eq 'n/a');
+		$num_of_unknown_mains++
+			if(($task_map{$i}{'main'} eq 'n/a') and ($task_map{$i}{'rule'} ne 'n/a'));
 		$num_of_undev_rules++ if($task_map{$i}{'rule'} eq 'n/a');
 		$i++;
 	}
