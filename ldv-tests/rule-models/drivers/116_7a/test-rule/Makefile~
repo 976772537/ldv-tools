@@ -1,0 +1,3 @@
+obj-m += S-test.o
+obj-m += U-test.o
+obj-m += U-test1.o

@@ -1,0 +1,2 @@
+driver=116_7a--test-rule.tar.bz2;origin=external;kernel=linux-3.5;model=116_7;module=drivers/116_7a/test-rule/S-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=116_7a--test-rule.tar.bz2;origin=external;kernel=linux-3.5;model=116_7;module=drivers/116_7a/test-rule/U-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
