@@ -342,6 +342,131 @@ sub get_commit_test_tasks()
 			}
 			print_debug_debug("Kernel place = '$kernel_place'");
 		}
+		elsif($task_str =~ /^commit=(.*);arch_opt=(.*);config=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
+		{
+			if(defined($kernel_place) and defined($kernel_name))
+			{
+				$num_of_tasks++;
+				$task_map{$num_of_tasks} = {
+					'commit' => $1,
+					'arch_opt' => $2,
+					'config' => $3,
+					'rule' => $4,
+					'driver' => $5,
+					'main' => $6,
+					'verdict' => $7,
+					'ideal' => $8,
+					'comment' => $9,
+					'is_in_final' => 'no',
+					'verdict_type' => 1,
+					'kernel_name' => $kernel_name,
+					'kernel_place' => $kernel_place,
+					'problem' => '',
+					'ldv_run' => 1
+				};
+				if($task_map{$num_of_tasks}{'comment'} =~ /^#/)
+				{
+					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
+					$task_map{$num_of_tasks}{'verdict_type'} = 2;
+				}
+				if(($task_map{$num_of_tasks}{'main'} eq 'n/a')
+					or ($task_map{$num_of_tasks}{'rule'} eq 'n/a'))
+				{
+					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
+					$task_map{$num_of_tasks}{'ldv_run'} = 0;
+				}
+				die "Couldn't find '$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}'"
+					unless(-f "$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}");
+			}
+			else
+			{
+				print_debug_warning("You must set kernel place before tasks!");
+				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
+				help();
+			}
+		}
+		elsif($task_str =~ /^commit=(.*);arch_opt=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
+		{
+			if(defined($kernel_place) and defined($kernel_name))
+			{
+				$num_of_tasks++;
+				$task_map{$num_of_tasks} = {
+					'commit' => $1,
+					'arch_opt' => $2,
+					'rule' => $3,
+					'driver' => $4,
+					'main' => $5,
+					'verdict' => $6,
+					'ideal' => $7,
+					'comment' => $8,
+					'is_in_final' => 'no',
+					'verdict_type' => 1,
+					'kernel_name' => $kernel_name,
+					'kernel_place' => $kernel_place,
+					'problem' => '',
+					'ldv_run' => 1
+				};
+				if($task_map{$num_of_tasks}{'comment'} =~ /^#/)
+				{
+					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
+					$task_map{$num_of_tasks}{'verdict_type'} = 2;
+				}
+				if(($task_map{$num_of_tasks}{'main'} eq 'n/a')
+					or ($task_map{$num_of_tasks}{'rule'} eq 'n/a'))
+				{
+					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
+					$task_map{$num_of_tasks}{'ldv_run'} = 0;
+				}
+			}
+			else
+			{
+				print_debug_warning("You must set kernel place before tasks!");
+				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
+				help();
+			}
+		}
+		elsif($task_str =~ /^commit=(.*);config=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
+		{
+			if(defined($kernel_place) and defined($kernel_name))
+			{
+				$num_of_tasks++;
+				$task_map{$num_of_tasks} = {
+					'commit' => $1,
+					'config' => $2,
+					'rule' => $3,
+					'driver' => $4,
+					'main' => $5,
+					'verdict' => $6,
+					'ideal' => $7,
+					'comment' => $8,
+					'is_in_final' => 'no',
+					'verdict_type' => 1,
+					'kernel_name' => $kernel_name,
+					'kernel_place' => $kernel_place,
+					'problem' => '',
+					'ldv_run' => 1
+				};
+				if($task_map{$num_of_tasks}{'comment'} =~ /^#/)
+				{
+					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
+					$task_map{$num_of_tasks}{'verdict_type'} = 2;
+				}
+				if(($task_map{$num_of_tasks}{'main'} eq 'n/a')
+					or ($task_map{$num_of_tasks}{'rule'} eq 'n/a'))
+				{
+					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
+					$task_map{$num_of_tasks}{'ldv_run'} = 0;
+				}
+				die "Couldn't find '$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}'"
+					unless(-f "$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}");
+			}
+			else
+			{
+				print_debug_warning("You must set kernel place before tasks!");
+				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
+				help();
+			}
+		}
 		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
 		{
 			if(defined($kernel_place) and defined($kernel_name))
@@ -516,6 +641,7 @@ sub change_commit($)
 	my $i = shift;
 	my $result = 'unknown';
 	my $file_temp = "$launcher_work_dir/tempfile-$i";
+	print "TEST: 'git checkout $task_map{$i}{'commit'} 2>&1 | tee $file_temp'\n";
 	my $switch_commit_task = "git checkout $task_map{$i}{'commit'} 2>&1 | tee $file_temp";
 	chdir("$task_map{$i}{'kernel_place'}");
 	print_debug_debug("Execute the command '$switch_commit_task'");
@@ -526,7 +652,7 @@ sub change_commit($)
 	open(MYFILE, '<', $file_temp)	or die("Couldn't open $file_temp for read: $ERRNO");
 	while(<MYFILE>)
 	{
-		if($_ =~ /HEAD is now at (.*).../)
+		if($_ =~ /HEAD is now at (.*)... /)
 		{
 			$new_commit = $1;
 			$result = 'cool';
@@ -571,13 +697,24 @@ sub run_ldv_tools($)
 			exit(1);
 		}
 		print_debug_debug("Successfully rename '$task_map{$i}{'kernel_place'}' to '$tmp_kernel_dir'");
-		my @ldv_manager_task = ("ldv-manager",
-								"envs=$tmp_kernel_dir",
-								"kernel_driver=1",
-								"drivers=$task_map{$i}{'driver'}",
-								"rule_models=$task_map{$i}{'rule'}");
-		print_debug_debug("Executing command @ldv_manager_task");
-		system(@ldv_manager_task);
+		my $ldv_manager_task = "";
+		$ldv_manager_task .= "LDV_ASPECTATOR=aspectator CONFIG_OPT=$task_map{$i}{'arch_opt'} " if($task_map{$i}{'arch_opt'});
+		$ldv_manager_task .= "CONFIG_FILE=$tool_aux_dir/configs/config_$task_map{$i}{'config'} " if($task_map{$i}{'config'});
+		$ldv_manager_task .= "ldv-manager envs=$tmp_kernel_dir kernel_driver=1 drivers=$task_map{$i}{'driver'} rule_models=$task_map{$i}{'rule'}";
+		#my @ldv_manager_task = ("ldv-manager",
+								#"envs=$tmp_kernel_dir",
+								#"kernel_driver=1",
+								#"drivers=$task_map{$i}{'driver'}",
+								#"rule_models=$task_map{$i}{'rule'}");
+		#if($task_map{$i}{'arch_opt'})
+		#{
+			#push(@ldv_manager_task, "LDV_ASPECTATOR=aspectator CONFIG_OPT=$task_map{$i}{'arch_opt'}");
+		#}
+		#push(@ldv_manager_task,
+				 #"CONFIG_FILE=$tool_aux_dir/configs/config_$task_map{$i}{'config'}")
+			#if($task_map{$i}{'config'});
+		print_debug_debug("Executing command '$ldv_manager_task'");
+		system($ldv_manager_task);
 		if(check_system_call() == -1)
 		{
 			print_debug_warning("There is no the ldv-manager executable in your PATH!");

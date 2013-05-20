@@ -4,6 +4,7 @@ INSTALL_DIR = __install
 COMMIT_TEST = commit-test.pl
 COMMIT_TEST_UPLOAD = commit-upload.pl
 COMMIT_TEST_LOAD = commit-load.pl
+COMMIT_TEST_CONFIG_DIR=configs
 
 # LDV tests directory. It's relative to the prefix.
 LDV_TEST_DIR = ldv-tests
@@ -32,3 +33,4 @@ install:
 	cp $(COMMIT_TEST) $(bindir) || exit 1;
 	if [ ! -d $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) ]; then mkdir -p $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) || exit 1; fi
 	cp $(COMMIT_TEST_UPLOAD) $(COMMIT_TEST_LOAD) $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) || exit 1
+	cp -r $(COMMIT_TEST_CONFIG_DIR) $(prefix)/$(LDV_TEST_DIR)/$(COMMIT_TEST_DIR) || exit 1
