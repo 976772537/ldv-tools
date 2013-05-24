@@ -701,18 +701,7 @@ sub run_ldv_tools($)
 		$ldv_manager_task .= "LDV_ASPECTATOR=aspectator CONFIG_OPT=$task_map{$i}{'arch_opt'} " if($task_map{$i}{'arch_opt'});
 		$ldv_manager_task .= "CONFIG_FILE=$tool_aux_dir/configs/config_$task_map{$i}{'config'} " if($task_map{$i}{'config'});
 		$ldv_manager_task .= "ldv-manager envs=$tmp_kernel_dir kernel_driver=1 drivers=$task_map{$i}{'driver'} rule_models=$task_map{$i}{'rule'}";
-		#my @ldv_manager_task = ("ldv-manager",
-								#"envs=$tmp_kernel_dir",
-								#"kernel_driver=1",
-								#"drivers=$task_map{$i}{'driver'}",
-								#"rule_models=$task_map{$i}{'rule'}");
-		#if($task_map{$i}{'arch_opt'})
-		#{
-			#push(@ldv_manager_task, "LDV_ASPECTATOR=aspectator CONFIG_OPT=$task_map{$i}{'arch_opt'}");
-		#}
-		#push(@ldv_manager_task,
-				 #"CONFIG_FILE=$tool_aux_dir/configs/config_$task_map{$i}{'config'}")
-			#if($task_map{$i}{'config'});
+
 		print_debug_debug("Executing command '$ldv_manager_task'");
 		system($ldv_manager_task);
 		if(check_system_call() == -1)
@@ -977,6 +966,7 @@ Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$
 			$num_unsafe_unknown++ if($task_map{$i}{'verdict'} eq 'unsafe');
 			$num_ideal_safe_unknown++ if($task_map{$i}{'ideal'} eq 'safe');
 			$num_ideal_unsafe_unknown++ if($task_map{$i}{'ideal'} eq 'unsafe');
+			$num_of_all_checked_bugs++ if ($task_map{$i}{'ideal'} eq 'unsafe');
 			$cnt++;
 		}
 		if(($task_map{$i}{'ideal'} eq 'unsafe'))
