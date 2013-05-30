@@ -21,6 +21,7 @@
 
 use strict;
 use DSCV::RCV::Coverage;
+use File::Basename qw(dirname);
 
 # Available options:
 # CPACHECKER
@@ -81,6 +82,23 @@ my $cpachecker_config = $ENV{'CPACHECKER_CONFIG'};
 # Load the path to the cpachecker script. Unless the user specified the
 # variable, the wrapper will search for "cpa.sh" in the system's $PATH.
 my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
+
+# Set path to CPAchecker native libraries (like mathsat5)
+my $cpafullpath = `which $cpachecker`;
+die("CPAchecker not found. (command: which $cpachecker, return code: ".$?.")") if $? ne 0;
+
+my $arch=`uname -m`;
+
+my $arch_platform;
+if($arch =~ "x86_64") {
+ $arch_platform="x86_64-linux";
+} else {
+ $arch_platform="x86-linux";
+}
+
+my $arch_platform_path = dirname($cpafullpath)."/../lib/native/$arch_platform";
+
+$ENV{'JAVA_VM_ARGUMENTS'} = "-Djava.library.path=$arch_platform_path";
 
 # The interface to get files to analyze for this particular task is
 # preprocess_all_files. This function gets a list of preprocessors to apply, and
