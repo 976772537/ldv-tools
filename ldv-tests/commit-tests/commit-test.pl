@@ -419,8 +419,8 @@ sub get_commit_test_tasks()
 					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
 					$task_map{$num_of_tasks}{'ldv_run'} = 0;
 				}
-				die "Couldn't find '$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}'"
-					unless(-f "$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}");
+				die "Couldn't find '$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}'"
+					unless(-f "$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}");
 			}
 			else
 			{
@@ -501,8 +501,8 @@ sub get_commit_test_tasks()
 					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
 					$task_map{$num_of_tasks}{'ldv_run'} = 0;
 				}
-				die "Couldn't find '$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}'"
-					unless(-f "$tool_aux_dir/configs/config_$task_map{$num_of_tasks}{'config'}");
+				die "Couldn't find '$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}'"
+					unless(-f "$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}");
 			}
 			else
 			{
@@ -703,7 +703,7 @@ sub run_ldv_tools($)
 		print_debug_debug("Successfully rename '$task_map{$i}{'kernel_place'}' to '$tmp_kernel_dir'");
 		my $ldv_manager_task = "";
 		$ldv_manager_task .= "LDV_ASPECTATOR=aspectator CONFIG_OPT=$task_map{$i}{'arch_opt'} " if($task_map{$i}{'arch_opt'});
-		$ldv_manager_task .= "CONFIG_FILE=$tool_aux_dir/configs/config_$task_map{$i}{'config'} " if($task_map{$i}{'config'});
+		$ldv_manager_task .= "CONFIG_FILE=$tool_aux_dir/configs/$task_map{$i}{'config'} " if($task_map{$i}{'config'});
 		$ldv_manager_task .= "ldv-manager envs=$tmp_kernel_dir kernel_driver=1 drivers=$task_map{$i}{'driver'} rule_models=$task_map{$i}{'rule'}";
 
 		print_debug_debug("Executing command '$ldv_manager_task'");
