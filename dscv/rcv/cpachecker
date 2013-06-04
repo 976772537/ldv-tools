@@ -188,6 +188,11 @@ say $CPA_CFG "";
 say $CPA_CFG "# this automaton defines which locations are the error locations";
 say $CPA_CFG "specification = $tmpdir/$LDV_errloc_autom";
 
+if($ENV{'RCV_TIMELIMIT'}>60) {
+    say $CPA_CFG "# Set CPAchecker internal time limit";
+    say $CPA_CFG "cpa.conditions.global.time.wall=".($ENV{'RCV_TIMELIMIT'} - 60)."s";
+}
+
 close $CPA_CFG;
 
 # The array @errlocs contains a single error location. This may be changed in
