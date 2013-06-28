@@ -122,6 +122,9 @@ my $upload_script = 'commit-upload.pl';
 my $load_script = 'commit-load.pl';
 my $report_script = 'commit-tester-report.pl';
 
+my $comment_for_report;
+
+my $do_rewrite;
 #######################################################################
 # Main section
 #######################################################################
@@ -158,7 +161,9 @@ sub get_test_opt()
 		'result-file|o=s' => \$opt_result_file,
 		'help|h' => \$opt_help,
 		'test-set=s' => \$opt_task_file,
-		'kernels=s' => \$opt_kernels_dir))
+		'kernels=s' => \$opt_kernels_dir,
+		'comment|c=s' => \$comment_for_report,
+		'rewrite' => \$do_rewrite))
 	{
 		warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool.");
 		help();
@@ -169,6 +174,7 @@ sub get_test_opt()
 		$opt_result_file .= ".html" if ($opt_result_file !~ /.html$/);
 		$results_in_html = $opt_result_file;
 	}
+	$comment_for_report = '('.$comment_for_report.')' if($comment_for_report);
 	print_debug_trace("Results in html format will be written  to '$results_in_html'");
 	print_debug_debug("The command-line options are processed successfully");
 }
@@ -219,6 +225,10 @@ OPTIONS
 		If needed repository wouldn't be found it will be downloaded
 		to the current directory. If cloning will failed see file "clone_log"
 		in the current dir.
+	--comment="..."
+		comment that will be showed at the head of the table.
+	--rewrite
+		Do not ask confirm of html file rewriting if it already exists.
 DATABASE SETS
 	LDVDBCTEST=<dbname>
 		<dbname> is name of database where results will be uploaded.
@@ -787,8 +797,24 @@ sub check_results_and_print_report()
 	
 	open(my $final_results, ">", "$launcher_results_dir/$results_in_txt")
 		or die("Couldn't open $launcher_results_dir/$results_in_txt for write: $ERRNO");
+		
 	my $verifier = 'blast';
 	$verifier = $ENV{'RCV_VERIFIER'} if($ENV{'RCV_VERIFIER'});
+	my $timelimit = 15;
+	if($ENV{'RCV_TIMELIMIT'})
+	{
+		$timelimit = int($ENV{'RCV_TIMELIMIT'});
+		$timelimit = int($timelimit/60);
+	}
+	my $memlimit = 1;
+	if($ENV{'RCV_MEMLIMIT'})
+	{
+		$memlimit = int($ENV{'RCV_MEMLIMIT'});
+		$memlimit = $memlimit/1000000;
+	}
+	my ($local_time_min, $local_time_hour, $local_time_day, $local_time_mon, $local_time_year) = (localtime)[1,2,3,4,5];
+	printf($final_results "name_of_runtask=$verifier<br>timelimit=%dm;<br>memlimit=%dGb<br>%02d.%02d.%04d %02d:%02d<br>$comment_for_report\n",
+		$timelimit, $memlimit, $local_time_day, $local_time_mon, $local_time_year + 1900, $local_time_hour, $local_time_min);
 	print($final_results "verifier=$verifier\n");
 
 	for(my $i = 1; $i <= $num_of_tasks; $i++)
@@ -857,7 +883,8 @@ sub check_results_and_print_report()
 	
 	close($final_results) or die("Couldn't close $launcher_results_dir/results.txt: $ERRNO");
 	print_debug_normal("File with results were generated: '$launcher_results_dir/$results_in_txt'");
-	my $report_command = "$report_script -f $launcher_results_dir/$results_in_txt -o $results_in_html";
+	my $report_command = "$report_script --files $launcher_results_dir/$results_in_txt -o $results_in_html";
+	$report_command .= " --rewrite" if($do_rewrite);
 	print_debug_trace "Execute the command '$report_command'";
 	system($report_command);
 	print_debug_warning "Report script failed!" if(check_system_call());
