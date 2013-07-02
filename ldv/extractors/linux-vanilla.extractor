@@ -56,6 +56,8 @@ else
 	                tar xzpf$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
 	        application/x-tar)
 	                tar xpf$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
+	        application/x-xz)
+	                tar xvfJ$TAR_VERBOSITY $DSCR_SOURCE -C $DSCR_DEST;;
 	        application/x-directory | inode/directory)
 	                rsync -a --exclude='.git' $DSCR_SOURCE $DSCR_DEST;;
 	        *)
