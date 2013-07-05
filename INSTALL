@@ -49,9 +49,10 @@ MINIMAL PREREQUISITES
 	o PAX archiver
 	o Ruby gem manager
 	o Ruby gems:
-		- gem activerecord
+		- gem rake
+		- gem activerecord (at most 3.0.3)
 		- gem mysql
-		- gem SysVIPC   (Warning: case-sensitive!)
+		- gem SysVIPC (Warning: case-sensitive!)
 		- gem libxml-ruby (at least 2.1.1)
 		   * requires libxml2-devel
 		- gem bones
@@ -59,7 +60,6 @@ MINIMAL PREREQUISITES
 	o gzip
 	o bzip2
 	o xz
-	o rake
 
 
 ADDITIONAL PREREQUISITES
