@@ -28,7 +28,7 @@ MINIMAL PREREQUISITES
 	o Flex or lex
 	o Yacc or Bison
 	o libncurses
-	o MySQL (with InnoDB)server and console client, with development headers and libraries
+	o MySQL (with InnoDB) server and console client, with development headers and libraries
 	o Perl modules (install via `sudo cpan Module::Name` or via package manager):
 		- DBI
 		- DBD::mysql
@@ -55,9 +55,10 @@ MINIMAL PREREQUISITES
 		- gem libxml-ruby (at least 2.1.1)
 		   * requires libxml2-devel
 		- gem bones
+	o tar (1.22 supports xz archives)
 	o gzip
-	o tar
 	o bzip2
+	o xz
 	o rake
 
 
