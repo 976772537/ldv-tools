@@ -35,7 +35,7 @@ MINIMAL PREREQUISITES
 		- File::Cat
 		- File::Find
 		- File::Copy::Recursive
-		- File::Path   (update to the newest version)
+		- File::Path (update to the newest version)
 		- File::MimeInfo
 		- File::Basename
 		- Template
@@ -43,7 +43,7 @@ MINIMAL PREREQUISITES
 		- Tie::Hash::Indexed
 		- XML::Twig
 		- XML::Writer
-		- SOAP::Lite
+		- SOAP::Lite (0.714 or 0.715 versions work, 1.0 works with warnings, to install 0.715 version you need to run `sudo cpan M/MK/MKUTTER/SOAP-Lite-0.715.tar.gz`)
 		- IO::Socket::INET;
 	o CPIO archiver
 	o PAX archiver
