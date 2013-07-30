@@ -4,14 +4,14 @@ bindir = $(prefix)/bin
 .PHONY: all install test clean
 
 all:
-	#@echo "Resource Manager doesn't require build itself"
+	@gcc res-manager.c -o res-manager
 
-install:
+install: all
 	@mkdir -p $(bindir)
-	#cp res-manager $(bindir)
+	@cp res-manager $(bindir)
 
 test:
 	#@echo "Resource Manager hasn't tests at the moment"
 
 clean:
-	#@echo "Resource Manager hasn't build files"
+	@rm -f res-manager 
