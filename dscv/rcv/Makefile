@@ -120,6 +120,8 @@ install: cil-install
 all: cil
 
 
+ifeq ($(no_cpachecker),)
+
 # Configuring and installing CPAchecker
 cpachecker_dir=backends/cpachecker
 cpachecker_target=$(rcv_install_dir)/backends/cpachecker/
@@ -145,3 +147,4 @@ install: cpachecker-install
 
 all: cpachecker-build
 
+endif
