@@ -10,3 +10,6 @@
 [submodule "ri/cif"]
 	path = ri/cif
 	url = git://forge.ispras.ru/cif.git
+[submodule "dscv/rcv/backends/cpachecker"]
+	path = dscv/rcv/backends/cpachecker
+	url = git://forge.ispras.ru/cpachecker.git
