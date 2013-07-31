@@ -28,11 +28,37 @@ typedef struct statistics
 
 int pid;
 
-char path_to_memory[STR_LEN];
-char path_to_cpuacct[STR_LEN];
+char * path_to_memory = NULL;
+char * path_to_cpuacct = NULL;
 
 double timelimit = STANDART_TIMELIMIT; // in seconds
 long memlimit = STANDART_MEMLIMIT; // in bytes
+
+char * read_string_from_opened_file(FILE * file)
+{
+	if (file == NULL)
+		return NULL;
+	char * line = (char *)malloc(sizeof(char) * (STR_LEN));
+	if (fgets(line, STR_LEN, file) == NULL)
+		return NULL; // EOF
+	while(strstr(line,"\n") == NULL)  // not full string
+	{
+		char * tmp_line = (char *)realloc (line, sizeof(char) * (strlen(line) + STR_LEN + 1));
+		char part_of_line [STR_LEN];
+		fgets(part_of_line, STR_LEN, file);
+		if (tmp_line != NULL)
+		{
+			line = tmp_line;
+			strcat(line, part_of_line);
+		}
+		else
+		{
+			fprintf(stderr, "Error: Not enough memory\n");
+			exit(10);
+		}
+	}
+	return line;
+}
 
 char * read_string_from_file(const char * path)
 {
@@ -40,23 +66,22 @@ char * read_string_from_file(const char * path)
 	file = fopen(path,"rt");
 	if (file == NULL)
 		return NULL;
-	char line [STR_LEN];
-	fgets(line, STR_LEN, file);
+	char * line = read_string_from_opened_file(file);
 	fclose(file);
-	return strdup(line);
+	return line;
 }
 
-int get_num(int num)
+int get_num(long num)
 {
 	int ret = 1;
-	int count = num;
+	long count = num;
 	while ((count = count/10) > 0) ret++;
 	return ret;
 }
 
 int write_int_to_file(const char * path,const char * number)
 {
-	char com [STR_LEN];
+	char com [strlen(path) + strlen(number) + 9];
 	strcpy(com,"echo ");
 	strcat(com,number);
 	strcat(com," > ");
@@ -65,12 +90,12 @@ int write_int_to_file(const char * path,const char * number)
 	system(com);
 }
 
-char * itoa(int num)
+char * itoa(long num)
 {
 	int number_of_chars = get_num(num);
 	char * str = (char *) malloc (sizeof(char *) * (number_of_chars + 1));
 	int i;
-	int count = num;
+	long count = num;
 	for (i = number_of_chars - 1; i >= 0; i--)
 	{
 		str[i] = count%10 + '0';
@@ -91,32 +116,40 @@ int find_cgroup_location()
 // find path_to_memory and path_to_cpuacct 
 // return 1 in case of success, 0 - can't find cgroup with such controller
 {
-	char path [STR_LEN];
-	strcpy(path,"/proc/mounts");
-	path[strlen(path)] = 0;
+	const char * path = "/proc/mounts";
 	FILE * results;
 	results = fopen(path,"rt");
 	if (results == NULL)
-		return 1;
-	char line [2*STR_LEN];
-	while (fgets(line, 2*STR_LEN, results) != NULL)
 	{
-		char name [STR_LEN];
-		char path [STR_LEN];
-		char type [STR_LEN];
-		char subsystems [STR_LEN];
+		fprintf(stderr,"Can't open file /proc/mounts\n");
+		return 1;
+	}
+	char * line = NULL;
+	while ((line = read_string_from_opened_file(results)) != NULL)
+	{
+		char name [strlen(line)];
+		char path [strlen(line)];
+		char type [strlen(line)];
+		char subsystems [strlen(line)];
 		sscanf(line,"%s %s %s %s",name,path,type,subsystems);
 		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,"cpuacct"))
-			strcpy(path_to_cpuacct, path);	
+		{	
+			path_to_cpuacct = (char*)malloc(sizeof(char) * strlen(path + 1));
+			strcpy(path_to_cpuacct, path);
+		}
 		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,"memory"))
+		{	
+			path_to_memory = (char*)malloc(sizeof(char) * strlen(path + 1));
 			strcpy(path_to_memory, path);
+		}
+		free(line);
 	}
-	if (path_to_memory[0] == 0)
+	if (path_to_memory == NULL)
 	{
 		fprintf(stderr,"You need to mount memory cgroup: sudo mount -t cgroup -o memory <name> <path>\n");
 		return 1;
 	}
-	if (path_to_cpuacct[0] == 0)
+	if (path_to_cpuacct == NULL)
 	{
 		fprintf(stderr,"You need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>\n");
 		return 1;
@@ -137,13 +170,33 @@ int create_cgroup()
 {
 	remove_cgroup();
 	char * generic_name = itoa (getpid() * getppid());
-	strcat (path_to_memory, "/");
-	strcat (path_to_memory, generic_name);
-	strcat (path_to_cpuacct, "/");
-	strcat (path_to_cpuacct, generic_name);
+	char * tmp_path_to_memory = realloc (path_to_memory, sizeof(char) * (strlen(path_to_memory) + strlen(generic_name) + 2));
+	if (tmp_path_to_memory != NULL) 
+	{
+		path_to_memory = tmp_path_to_memory;
+		strcat (path_to_memory, "/");
+		strcat (path_to_memory, generic_name);
+	}
+	else
+	{
+		fprintf(stderr, "Error: Not enough memory\n");
+	}
+	char * tmp_path_to_cpuacct = realloc (path_to_cpuacct, sizeof(char) * (strlen(path_to_cpuacct) + strlen(generic_name) + 2));
+	if (tmp_path_to_cpuacct != NULL) 
+	{
+		path_to_cpuacct = tmp_path_to_cpuacct;
+		strcat (path_to_cpuacct, "/");
+		strcat (path_to_cpuacct, generic_name);
+	}
+	else
+	{
+		fprintf(stderr, "Error: Not enough memory\n");
+	}
+	free(generic_name);
+	
 	if (mkdir(path_to_memory,0777) == -1)
 	{
-		char error_path [STR_LEN];
+		char error_path [strlen(path_to_memory) + 1];
 		int i;
 		memcpy(error_path,path_to_memory,strlen(path_to_memory));
 		for (i=strlen(error_path);i>=0;i--)
@@ -160,7 +213,7 @@ int create_cgroup()
 	if (strcmp(path_to_memory,path_to_cpuacct)!=0)
 		if (mkdir(path_to_cpuacct,0777) == -1)
 		{
-			char error_path [STR_LEN];
+			char error_path [strlen(path_to_cpuacct) + 1];
 			int i;
 			memcpy(error_path,path_to_cpuacct,strlen(path_to_cpuacct));
 			for (i=strlen(error_path);i>=0;i--)
@@ -181,21 +234,23 @@ int create_cgroup()
 void set_permissions()
 // set permissions into tasks file
 {
-	char path [STR_LEN];
-	strcpy(path,path_to_memory);
-	strcat(path,"/tasks");
-	path[strlen(path)] = 0;
-	chmod(path,0777);
-	strcpy(path,path_to_cpuacct);
-	strcat(path,"/tasks");
-	path[strlen(path)] = 0;
-	chmod(path,0777);
+	char path_mem [strlen(path_to_memory) + 7];
+	strcpy(path_mem,path_to_memory);
+	strcat(path_mem,"/tasks");
+	path_mem[strlen(path_mem)] = 0;
+	chmod(path_mem,0777);
+	
+	char path_cpu [strlen(path_to_cpuacct) + 7];
+	strcpy(path_cpu,path_to_cpuacct);
+	strcat(path_cpu,"/tasks");
+	path_cpu[strlen(path_cpu)] = 0;
+	chmod(path_cpu,0777);
 }
 
 void set_memlimit()
 // set memlimit
 {
-	char path [STR_LEN];
+	char path [strlen(path_to_memory) + 23];
 	strcpy(path,path_to_memory);
 	strcat(path,"/memory.limit_in_bytes");
 	path[strlen(path)] = 0;
@@ -206,56 +261,72 @@ void set_memlimit()
 void add_task(int pid)
 // add task to tasks file
 {
-	char path [STR_LEN];
-	strcpy(path,path_to_memory);
-	strcat(path,"/tasks");
-	path[strlen(path)] = 0;
-	write_int_to_file(path,itoa(pid));
-	strcpy(path,path_to_cpuacct);
-	strcat(path,"/tasks");
-	path[strlen(path)] = 0;
-	write_int_to_file(path,itoa(pid));
+	char path_mem [strlen(path_to_memory) + 7];
+	strcpy(path_mem,path_to_memory);
+	strcat(path_mem,"/tasks");
+	path_mem[strlen(path_mem)] = 0;
+	write_int_to_file(path_mem,itoa(pid));
+	
+	
+	
+	char path_cpu [strlen(path_to_cpuacct) + 7];
+	strcpy(path_cpu,path_to_cpuacct);
+	strcat(path_cpu,"/tasks");
+	path_cpu[strlen(path_cpu)] = 0;
+	write_int_to_file(path_cpu,itoa(pid));
 }
 
 void get_stats(statistics *stats)
 // read stats
 {
-	char path [STR_LEN];
-	strcpy(path,path_to_cpuacct);
-	strcat(path,"/cpuacct.usage");
-	path[strlen(path)] = 0;
+	char path_mem [strlen(path_to_memory) + 27];
+	strcpy(path_mem,path_to_memory);
+	strcat(path_mem,"/memory.max_usage_in_bytes");
+	path_mem[strlen(path_mem)] = 0;
+	char * str = read_string_from_file(path_mem);
+	(*stats).memory = atol(str);
+	free(str);
 	
-	(*stats).cpu_time = atof(read_string_from_file(path)) / 10e8;
-	strcpy(path,path_to_memory);
-	strcat(path,"/memory.max_usage_in_bytes");
-	path[strlen(path)] = 0;
-	(*stats).memory = atoi(read_string_from_file(path));
+	char path_cpu [strlen(path_to_cpuacct) + 15];
+	strcpy(path_cpu,path_to_cpuacct);
+	strcat(path_cpu,"/cpuacct.usage");
+	path_cpu[strlen(path_cpu)] = 0;
+	str = read_string_from_file(path_cpu);
+	(*stats).cpu_time = atof(str) / 10e8;
+	free(str);
 	
-	strcpy(path,path_to_cpuacct);
-	strcat(path,"/cpuacct.stat");
-	path[strlen(path)] = 0;
+	strcpy(path_cpu,path_to_cpuacct);
+	strcat(path_cpu,"/cpuacct.stat");
+	path_cpu[strlen(path_cpu)] = 0;
 	FILE * file;
-	file = fopen(path,"rt");
+	file = fopen(path_cpu,"rt");
 	if (file == NULL)
+	{
+		stats = NULL;
 		return;
-	char line [STR_LEN];
-	fgets(line, STR_LEN, file);
-	char arg [STR_LEN];
-	char value [STR_LEN];
+	}
+	char * line = read_string_from_opened_file(file);
+	
+	char arg [strlen(line)];
+	char value [strlen(line)];
 	sscanf(line,"%s %s",arg,value);
 	(*stats).user_time = atof(value) / 10e1;
-	fgets(line, STR_LEN, file);
+	free(line);
+	
+	line = read_string_from_opened_file(file);
 	sscanf(line,"%s %s",arg,value);
 	(*stats).sys_time = atof(value) / 10e1;
+	free(line);
+	
 	fclose(file);
 }
 
-void kill_created_processes()
+void kill_created_processes(int signum)
 {
 	// read pids from tasks; 
 	// for each pid kill (pid,SIGKILL);
 	
-	char path [STR_LEN];
+	char path [strlen(path_to_memory) + 7];
 	strcpy(path,path_to_memory);
 	strcat(path,"/tasks");
 	path[strlen(path)] = 0;
@@ -263,29 +334,32 @@ void kill_created_processes()
 	results = fopen(path,"rt");
 	if (results == NULL)
 		return;
-	char line [STR_LEN];
-	while (fgets(line, STR_LEN, results) != NULL)
+	char * line = NULL;
+	while ((line = read_string_from_opened_file(results)) != NULL)
 	{
-		kill(atoi(line),SIGKILL);
+		kill(atoi(line),signum);
+		free(line);
 	}
-	//kill(pid,SIGKILL);
+	//kill(pid,signum);
 }
 
 void terminate(int signum)
 {
-	kill_created_processes();
+	kill_created_processes(signum);
 }
 
 void check_time(int signum)
 {
-	char path [STR_LEN];
+	char path [strlen(path_to_cpuacct) + 15];
 	strcpy(path,path_to_cpuacct);
 	strcat(path,"/cpuacct.usage");
 	path[strlen(path)] = 0;
-	double cpu_time = atof(read_string_from_file(path)) / 10e8;
+	char * str = read_string_from_file(path);
+	double cpu_time = atof(str) / 10e8;
+	free(str);
 	if (cpu_time >= timelimit)
 	{
-		kill_created_processes();
+		kill_created_processes(signum);
 	}
 	else alarm(1);
 }
@@ -305,7 +379,7 @@ void print_stats(char * file, statistics stats,char ** command)
 // print stats into file/console
 {
 	FILE * out;
-	if (file[0] == '\0')
+	if (file == NULL)
 	{
 		out = stdout;
 	}
@@ -325,27 +399,27 @@ void print_stats(char * file, statistics stats,char ** command)
 	if (stats.exit_code >= 0)
 		fprintf(out,"\texit code: %i\n",stats.exit_code);
 	else
-		fprintf(out,"\tsignal number: %i\n",-stats.exit_code);
+		fprintf(out,"\tkilled by signal: %i (%s)\n",-stats.exit_code,strsignal(-stats.exit_code));
 	if (stats.cpu_time > timelimit)
 		fprintf(out,"\ttime exhausted\n");
 	else if (stats.memory > memlimit)
 		fprintf(out,"\tmemory exhausted\n");
-	else fprintf(out,"\tresourses not exhausted\n");
+	else fprintf(out,"\tcompleted in limits\n");
 	
-	fprintf(out,"Resources limits:\n");
+	fprintf(out,"Resource limits:\n");
 	fprintf(out,"\tmemory limit: %ld bytes\n",memlimit);
-	fprintf(out,"\ttime limit: %f seconds\n",timelimit);
+	fprintf(out,"\ttime limit: %.3f seconds\n",timelimit);
 	
-	fprintf(out,"Time statistics:\n");
-	fprintf(out,"\twall time: %f seconds\n",stats.wall_time);
-	fprintf(out,"\tcpu time: %f seconds\n",stats.cpu_time);
-	fprintf(out,"\tuser time: %f seconds\n",stats.user_time);
-	fprintf(out,"\tsystem time: %f seconds\n",stats.sys_time);
+	fprintf(out,"Time usage statistics:\n");
+	fprintf(out,"\twall time: %.3f seconds\n",stats.wall_time);
+	fprintf(out,"\tcpu time: %.3f seconds\n",stats.cpu_time);
+	fprintf(out,"\tuser time: %.3f seconds\n",stats.user_time);
+	fprintf(out,"\tsystem time: %.3f seconds\n",stats.sys_time);
 	
-	fprintf(out,"Memory statistics:\n");
+	fprintf(out,"Memory usage statistics:\n");
 	fprintf(out,"\tpeak memory usage: %d bytes\n",stats.memory);
 	
-	if (file[0] != '\0')
+	if (file != NULL)
 		fclose(out);
 }
 
@@ -373,8 +447,7 @@ int is_number(char * str)
 
 int main(int argc, char **argv)
 {
-	char outputfile [STR_LEN];
-	outputfile[0] = '\0';
+	char * outputfile;
 	char ** command;
 	int i;
 	int comm_arg = 0;
@@ -384,7 +457,7 @@ int main(int argc, char **argv)
 		switch(c)
 		{
 		case 'm':
-			memlimit = atoi(optarg);
+			memlimit = atol(optarg);
 			if (strstr(optarg, "Kb") != NULL)
 			{
 				memlimit *= 1024;
@@ -395,7 +468,9 @@ int main(int argc, char **argv)
 			}
 			else if (strstr(optarg, "Gb") != NULL)
 			{
-				memlimit *= 1024 * 1024 * 1024;
+				memlimit *= 1024;
+				memlimit *= 1024;
+				memlimit *= 1024;
 			}
 			else if (!is_number(optarg))
 			{
@@ -422,6 +497,7 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'o':
+			outputfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
 			strcpy(outputfile,optarg);
 			break;
 		default:
@@ -458,8 +534,13 @@ int main(int argc, char **argv)
 	set_permissions();
 	set_memlimit();
 	signal(SIGALRM,check_time);
+	
 	signal(SIGINT,terminate);
 	signal(SIGTERM,terminate);
+	signal(SIGABRT,terminate);
+	signal(SIGHUP,terminate);
+	signal(SIGQUIT,terminate);
+	
 	alarm(1);
 	double time_before = gettime();
 	//int pid = 0;
@@ -478,7 +559,7 @@ int main(int argc, char **argv)
 	alarm(0);
 	if (WIFEXITED(status) && WEXITSTATUS(status) || WIFSIGNALED(status))
 	{
-		kill_created_processes();
+		kill_created_processes(SIGKILL);
 	}
 	statistics stats;
 	if (WIFEXITED(status))
@@ -487,8 +568,15 @@ int main(int argc, char **argv)
 		stats.exit_code = -WTERMSIG(status);
 	stats.wall_time = time_after - time_before;
 	get_stats(&stats);
+	
 	print_stats(outputfile,stats,command);
+	
+	free(path_to_memory);
+	free(path_to_cpuacct);
+	if (outputfile != NULL)
+		free(outputfile);
 	remove_cgroup();
+	
 	return 0;
 }
 
