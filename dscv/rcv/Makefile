@@ -119,3 +119,29 @@ cil-install: $(cil_targets)
 install: cil-install
 all: cil
 
+
+# Configuring and installing CPAchecker
+cpachecker_dir=backends/cpachecker
+cpachecker_target=$(rcv_install_dir)/backends/cpachecker/
+cpachecker_tmp=$(rcv_install_dir)/backends/tmp/
+cpachecker_dist=CPAchecker-1.2-svn-unix
+cpachecker_tar=$(cpachecker_dist).tar.bz2
+
+# CPAchecker compilation
+.PHONY: cpachecker-build
+
+cpachecker-build: 
+	cd $(cpachecker_dir) && ant tar
+
+# Installation of CPAchecker submodule
+
+cpachecker-install: cpachecker-build
+	@mkdir -p $(cpachecker_tmp)
+	tar xfj $(cpachecker_dir)/$(cpachecker_tar) -C $(cpachecker_tmp)
+	mv $(cpachecker_tmp)/$(cpachecker_dist) $(cpachecker_target)
+	rmdir $(cpachecker_tmp)
+
+install: cpachecker-install
+
+all: cpachecker-build
+
