@@ -120,7 +120,7 @@ install: cil-install
 all: cil
 
 
-ifeq ($(no_cpachecker),)
+ifneq ($(no_cpachecker),)
 
 # Configuring and installing CPAchecker
 cpachecker_dir=backends/cpachecker
