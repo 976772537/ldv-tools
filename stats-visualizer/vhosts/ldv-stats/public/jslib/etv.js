@@ -46,7 +46,8 @@ $(document).ready(function() {
 // Simple tabs plugin.
 var tabNoActiveWidth;
 
-$(document).ready(function() {
+// Draw tabs to fit the available width.
+function drawTabs() {
   var tabsNumb = $('#ETVTabsHeader li').length;
   var tabsHeaderWidth = $('#ETVTabsHeader li:first').parent().width();
   $('#ETVTabs div').hide();
@@ -54,7 +55,7 @@ $(document).ready(function() {
   $('#ETVTabsHeader li:first').addClass('ETVActive');
   var tabActiveWidth = $('#ETVTabsHeader li.ETVActive').width();
   tabNoActiveWidth = (tabsHeaderWidth - tabActiveWidth - 2) / (tabsNumb - 1);
-  tabNoActiveWidth = Math.floor(tabNoActiveWidth) - 2;
+  tabNoActiveWidth = Math.floor(tabNoActiveWidth) - 3;
   $('#ETVTabsHeader li').not('.ETVActive').width(tabNoActiveWidth);
   $('#ETVTabsHeader li a').click(function() {
     $('#ETVTabsHeader li').removeClass('ETVActive');
@@ -67,7 +68,10 @@ $(document).ready(function() {
     $(currentTabShort).show();
     return false;
   });
-});
+}
+
+$(document).ready(drawTabs);
+$(window).resize(drawTabs);
 
 // Plugin that relates error trace with corresponding source code.
 $(document).ready(function() {
