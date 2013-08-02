@@ -129,8 +129,8 @@ public class CmdStream {
 			return true;
 		List<String> inCmds = cmd.getIn();
 		boolean result = true;
-		// проверяем присутствие всех зщависимостей в хэше,
-		// а заодно связываем
+		// check dependencies in cache,
+		// bind it
 		for (int i = 0; i < inCmds.size(); i++) {
 			if (!fullCmdHash.containsKey(inCmds.get(i))) {
 				result = false;
@@ -148,36 +148,29 @@ public class CmdStream {
 		 * if(cmd instanceof CommandLD) { ismodule.put(cmd.getOut().get(0),cmd);
 		 * }
 		 */
-		// комманда уже существует ?
+		// is command already exist?
 		if (isExists(cmd)) {
 			Logger.norm("Already exists: \"" + cmd.out.get(0) + "\".");
 			return;
 		}
 
-		// комманда целая?
+		// is a full command?
 		if (isItFull(cmd)) {
 
-			// тогда добавим хэш из всех ее выходов
+			// add to cache all its outputs
 			addToHashAllOutputs(cmd, fullCmdHash);
 
-			// если комманда для верификации, то создаем задания
+			// if the command should be verified then create a task
 			if (cmd.isCheck())
 				prepareTask(cmd);
 
-			// проходимся по списку ld комманд на верификацию и
-			/*
-			 * for(int i=0; i<ldCmdlist.size(); i++) { Command ccmd =
-			 * ldCmdlist.remove(i);
-			 */
-			// }
-
-			// разгребаем битые комманды
+			// delete incomplete commands
 			while (checkOtherBadCommands()) {
 			}
 			;
 		} else {
 
-			// не целая - тогда в сответствующий список и хэш
+			// not full - put it to the corresponding cache
 			addToHashAllOutputs(cmd, badCmdHash);
 			cmdlist.add(cmd);
 		}
@@ -197,7 +190,7 @@ public class CmdStream {
 
 	public synchronized boolean checkOtherBadCommands() {
 		for (int i = 0; i < badlist.size(); i++) {
-			// берем комманду и проверяем ее зависимости
+			// take a command and check it dependancies
 			Command badCmd = badlist.get(i);
 			if (isItFull(badCmd)) {
 				badlist.remove(i);
@@ -240,7 +233,7 @@ public class CmdStream {
 		Logger.norm("Starting prepare task for : \"" + cmd.out.get(0)
 				+ "\" with id = \"" + cmd.getId() + "\".");
 		List<Command> listCmd = new ArrayList<Command>();
-		// рекурсивно снизу-вверх добавляем комманды
+		// add commands recursively from down to bottom
 		//Command pcmd = cmd;
 		// addCommandsRecursive(listCmd, cmd);
 		
