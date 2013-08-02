@@ -21,7 +21,7 @@
 	</target>
 
 	<target name="compile-java7" depends="init,get-jvm" description="compile the source" unless="jvm6">
-		<javac debug="on" srcdir="${src}" destdir="${build}"/>
+		<javac debug="on" encoding="utf-8" srcdir="${src}" destdir="${build}"/>
 	</target>
 	
 	<target name="compile-java6" depends="init,get-jvm" description="compile the source" if="jvm6">
