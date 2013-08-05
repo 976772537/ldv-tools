@@ -59,6 +59,10 @@ sub gen_coverage_report
 			{
 				$src_line_cur = $1;
 				$src_cur = $2;
+				# Change path 'dir1/../dir2/' to 'dir2/'
+			    if ($src_cur =~ /(.*)\/([^\/]+)\/\.\.\/([^\/]+)/) {
+				    $src_cur = $1."\/".$3;
+			    }
 			}
 			elsif ($str =~ /^#line (\d+)$/)
 			{
@@ -127,11 +131,11 @@ sub gen_coverage_report
 			}			
 
 			foreach my $info (@{$info_da{$orig_location->{'file'}}})
-		    	{
-		      		next top if ($info->{'line'} == $orig_location->{'line'} && $info->{'used'} == $2) 
-		    	}
+			{
+				next top if ($info->{'line'} == $orig_location->{'line'} && $info->{'used'} == $2) 
+			}
 		    
-		    	push(@{$info_da{$orig_location->{'file'}}}, {'line' => $orig_location->{'line'}, 'used'=>$2});
+			push(@{$info_da{$orig_location->{'file'}}}, {'line' => $orig_location->{'line'}, 'used'=>$2});
 		}
 	}
 
@@ -171,12 +175,23 @@ sub gen_coverage_report
 		}
 		  
 		my $info_da_for_file = $info_da{$file};
+		# We should remember, which lines we've printed,
+		# because there may be several lines transfered into one original line
+		my %existed_lines;
 		foreach my $info_da (@{$info_da_for_file})
 		{
 			my $used = $info_da->{'used'};
 			my $line = $info_da->{'line'};
 		    
-			print ($new_lcov_info_fh "DA:$line,$used\n");
+			unless (exists($existed_lines{$line}) && $existed_lines{$line} > $used)
+			{
+			  $existed_lines{$line} = $used;
+			}
+		}
+		
+		foreach my $key (keys %existed_lines)
+		{
+			print ($new_lcov_info_fh "DA:$key,$existed_lines{$key}\n");
 		}
 		  
 		print ($new_lcov_info_fh "end_of_record\n");
