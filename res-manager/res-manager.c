@@ -26,6 +26,11 @@ typedef struct statistics
 	long memory;
 } statistics;
 
+typedef struct parameters
+{
+
+} parameters;
+
 // cgroup parameters
 char * path_to_memory = "";
 char * path_to_cpuacct = "";
@@ -44,6 +49,9 @@ int is_cpu_dir_created = 0;
 char ** command = NULL;
 int pid = 0; // pid of child process
 int is_command_started = 0;
+int child_killed = 0;
+
+int alarm_time = 1000; // time in ms
 
 void get_stats(statistics *stats);
 void kill_created_processes(int signum);
@@ -126,6 +134,16 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 		fclose(out);
 }
 
+
+void remove_cgroup()
+// delete cgroups 
+{
+	if (is_mem_dir_created)
+		rmdir(path_to_memory);
+	if (is_cpu_dir_created)
+		rmdir(path_to_cpuacct);
+}
+
 void exit_res_manager(int exit_code, int signal, statistics *stats, const char * err_mes)
 {
 	if (pid > 0)
@@ -133,17 +151,13 @@ void exit_res_manager(int exit_code, int signal, statistics *stats, const char *
 	if (stats != NULL)
 		get_stats(stats);
 	print_stats(exit_code, signal, stats, err_mes);
-	if (is_mem_dir_created)
-		rmdir(path_to_memory);
-	if (is_cpu_dir_created)
-		rmdir(path_to_cpuacct);
-	
+	remove_cgroup();
 	/*
 	statistics *new_st = parse_outputfile(outputfile);
 	outputfile = NULL;
 	print_stats(0, 0, new_st, err_mes);
 	*/
-	exit(0);
+	exit(exit_code);
 }
 
 char * read_string_from_opened_file(FILE * file)
@@ -192,13 +206,12 @@ int get_num(long num)
 
 int write_int_to_file(const char * path,const char * number)
 {
-	char com [strlen(path) + strlen(number) + 9];
-	strcpy(com,"echo ");
-	strcat(com,number);
-	strcat(com," > ");
-	strcat(com,path);
-	com[strlen(com)] = 0;
-	system(com);
+	FILE * file;
+	file = fopen(path,"a+");
+	if (file == NULL)
+		return;
+	fputs(number, file);
+	fclose(file);
 }
 
 char * itoa(long num)
@@ -220,7 +233,7 @@ char * itoa(long num)
 	return str;
 }
 
-void print_help()
+void print_usage()
 {
 	const char * err_mes = "Usage: [-h] [-m <size>] [-t <number>] command [arguments] ...\n\t-m <size>Kb|Mb|Gb| - set memlimit=size\n\t-t <number>ms|min| - set timelimit=size\n";
 	
@@ -274,14 +287,7 @@ void find_cgroup_location()
 		exit_res_manager(EACCES,0,NULL,"You need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>");
 	}
 }
-/*
-void remove_cgroup()
-// try to delete cgroups 
-{
-	rmdir(path_to_cpuacct);
-	rmdir(path_to_memory);
-}
-*/
+
 void create_cgroup()
 // create cgroups in founded locations with name
 // return 1 in case of success, 0 - can't create new directories (permission error)
@@ -490,8 +496,12 @@ void kill_created_processes(int signum)
 		kill(atoi(line),signum);
 		free(line);
 	}
-	//*/kill(pid,signum);
-}
+	//*/
+	int kill_res;
+	kill_res = kill(pid,signum);
+	/*if (kill_res == -1)
+		exit_res_manager(errno,0,NULL,"Error: cannot send a signal");
+*/}
 
 void terminate(int signum)
 {
@@ -504,7 +514,24 @@ void terminate(int signum)
 	}
 	stats->exit_code = 1;
 	stats->sig_number = signum;
+	stats->wall_time = 0;
 	exit_res_manager(0,signum,stats,NULL);
+}
+
+void stop_timer()
+{
+	if (alarm_time < 1000)
+		ualarm (0,0);
+	else
+		alarm (0);
+}
+
+void set_timer()
+{
+	if (alarm_time < 1000)
+		ualarm (alarm_time * 1000,0);
+	else
+		alarm (alarm_time / 1000);
 }
 
 void check_time(int signum)
@@ -514,13 +541,16 @@ void check_time(int signum)
 	strcat(path,"/cpuacct.usage");
 	path[strlen(path)] = 0;
 	char * str = read_string_from_file(path);
+	//printf("%s",str);
 	double cpu_time = atof(str) / 10e8;
+	//printf("-%.3f\n",cpu_time);
 	free(str);
 	if (cpu_time >= timelimit)
 	{
 		kill_created_processes(SIGKILL);
 	}
-	else alarm(1);
+	else
+		set_timer(alarm_time);
 }
 /*
 void print_stderr(statistics stats)
@@ -553,7 +583,6 @@ int is_number(char * str)
 	}
 	return 1;
 }
-
 
 statistics * parse_outputfile(const char * file)
 // parser for current output file
@@ -588,59 +617,64 @@ statistics * parse_outputfile(const char * file)
 	exit_code = atoi(value);
 	
 	line = read_string_from_opened_file(results); // res_manager signal - optional
-	sscanf(line,"%s",arg);//printf("%s",line);
+	sscanf(line,"%s",arg);
 	if (strcmp(arg,"killed") == 0)
 	{
 		sscanf(line,"%s %s %s %s",arg,tmp,tmp,value);
 		sig_number = atoi(value);
 		line = read_string_from_opened_file(results);
 	}
-	//read_string_from_opened_file(results); // passing header "Command execution status:"
+	// passing header "Command execution status:"
+	
 	line = read_string_from_opened_file(results); // command exit_code
-	sscanf(line,"%s %s %s",arg,tmp,value);
-	stats->exit_code = atoi(value);
-	
-	line = read_string_from_opened_file(results); // command signal - optional
-	sscanf(line,"%s",arg);
-	if (strcmp(arg,"killed") == 0)
+	if (line != NULL)
 	{
-		sscanf(line,"%s %s %s %s",arg,tmp,tmp,value);
-		stats->sig_number = atoi(value);
-		line = read_string_from_opened_file(results);
-	}
-	else
-		stats->sig_number = 0;
-
-//	line = read_string_from_opened_file(results); // exhausted
-	sscanf(line,"%s",arg);
-	if (strcmp(arg,"time") == 0)
-		stats->time_exhausted = 1;
-	else
-		stats->time_exhausted = 0;
-	if (strcmp(arg,"memory") == 0)
-		stats->memory_exhausted = 1;
-	else
-		stats->memory_exhausted = 0;
-	read_string_from_opened_file(results); // passing header "Time usage statistics:"
-	for (i = 0; i < 4; i++) // process 4 parameters
-	{
-		line = read_string_from_opened_file(results);
 		sscanf(line,"%s %s %s",arg,tmp,value);
-		if (strcmp(arg,"wall") == 0)
-			stats->wall_time = atof(value);
-		if (strcmp(arg,"cpu") == 0)
-			stats->cpu_time = atof(value);
-		if (strcmp(arg,"user") == 0)
-			stats->user_time = atof(value);
-		if (strcmp(arg,"system") == 0)
-			stats->sys_time = atof(value);
-	}
+		stats->exit_code = atoi(value);
 	
-	read_string_from_opened_file(results); // passing header "Memory usage statistics:" 
-	line = read_string_from_opened_file(results);
-	sscanf(line,"%s %s %s %s",tmp,arg,tmp,value);
-	if (strcmp(arg,"memory") == 0)
-		stats->memory = atol(value);
+		line = read_string_from_opened_file(results); // command signal - optional
+		sscanf(line,"%s",arg);
+		if (strcmp(arg,"killed") == 0)
+		{
+			sscanf(line,"%s %s %s %s",arg,tmp,tmp,value);
+			stats->sig_number = atoi(value);
+			line = read_string_from_opened_file(results);
+		}
+		else
+			stats->sig_number = 0;
+
+	//	line = read_string_from_opened_file(results); // exhausted
+		sscanf(line,"%s",arg);
+		if (strcmp(arg,"time") == 0)
+			stats->time_exhausted = 1;
+		else
+			stats->time_exhausted = 0;
+		if (strcmp(arg,"memory") == 0)
+			stats->memory_exhausted = 1;
+		else
+			stats->memory_exhausted = 0;
+		read_string_from_opened_file(results); // passing header "Time usage statistics:"
+		for (i = 0; i < 4; i++) // process 4 parameters
+		{
+			line = read_string_from_opened_file(results);
+			sscanf(line,"%s %s %s",arg,tmp,value);
+			if (strcmp(arg,"wall") == 0)
+				stats->wall_time = atof(value);
+			if (strcmp(arg,"cpu") == 0)
+				stats->cpu_time = atof(value);
+			if (strcmp(arg,"user") == 0)
+				stats->user_time = atof(value);
+			if (strcmp(arg,"system") == 0)
+				stats->sys_time = atof(value);
+		}
+	
+		read_string_from_opened_file(results); // passing header "Memory usage statistics:" 
+		line = read_string_from_opened_file(results);
+		sscanf(line,"%s %s %s %s",tmp,arg,tmp,value);
+		if (strcmp(arg,"memory") == 0)
+			stats->memory = atol(value);
+	
+	}
 	fclose(results);
 	
 	
@@ -650,20 +684,25 @@ statistics * parse_outputfile(const char * file)
 	return stats;
 }
 
+void sigchld(int signum)
+{
+	//printf("SIGCHLD\n");
+}
+
 int main(int argc, char **argv)
 {
-//	char * outputfile;
-//	char ** command;
-	
-	
 	int i;
 	int comm_arg = 0;
 	int c;
+	signal(SIGCHLD,sigchld);
 	for (i = 1; i <= 31; i++)
 	{
 		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM)
 			continue;
-		signal(i,terminate);
+		if (signal(i,terminate) == SIG_ERR)
+		{
+			exit_res_manager(errno,0,NULL,"Cannot set signal handler");
+		}
 	}
 	
 	while ((c = getopt(argc, argv, "-m:t:o:kl:")) != -1)
@@ -751,9 +790,13 @@ int main(int argc, char **argv)
 	create_cgroup();
 	set_permissions();
 	set_memlimit();
-	signal(SIGALRM,check_time);
+	if (signal(SIGALRM,check_time) == SIG_ERR)
+	{
+		exit_res_manager(errno,0,NULL,"Cannot set signal handler");
+	}
 	
-	alarm(1);
+	set_timer(alarm_time);
+	
 	double time_before = gettime();
 	pid = fork();
 	if (pid == 0)
@@ -762,23 +805,45 @@ int main(int argc, char **argv)
 		execvp(command[0],command);
 		exit(errno);
 	}
+	else if (pid == -1)
+	{
+		exit_res_manager(errno,0,NULL,"Cannot create a new process");
+	}
+	
 	is_command_started = 1;
 	int status;
-	wait4(pid,&status,0,NULL);
+	int wait_res;
+	wait_res = wait4(pid,&status,0,NULL);
+	int wait_errno = errno;
+	if (wait_res == -1)
+	{
+		if (wait_errno != EINTR)
+			exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+	}
 	double time_after = gettime();
-	alarm(0);
+	
+	
+	stop_timer(alarm_time);
 	
 	statistics *stats = (statistics *)malloc(sizeof(statistics));
 	if (stats == NULL)
 	{
-		exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+		exit_res_manager(errno,0,NULL,"Error in wait");
 	}
 	stats->wall_time = time_after - time_before;
-	stats->exit_code = WEXITSTATUS(status);
-	if (WIFSIGNALED(status))
-		stats->sig_number = WTERMSIG(status);
-	else 
-		stats->sig_number = 0;
+	if (wait_errno == EINTR)
+	{
+		stats->exit_code = 0;
+		stats->sig_number = SIGKILL;
+	}
+	else
+	{
+		stats->exit_code = WEXITSTATUS(status);
+		if (WIFSIGNALED(status))
+			stats->sig_number = WTERMSIG(status);
+		else 
+			stats->sig_number = 0;
+	}
 	get_stats(stats);
 	exit_res_manager(0, 0, stats, NULL);
 	
