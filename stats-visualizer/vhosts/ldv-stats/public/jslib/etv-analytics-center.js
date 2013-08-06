@@ -28,15 +28,18 @@ $(document).ready(function() {
 function resizeTextFieldWidths() {
   // Indeed, this is a magic formula.
   var screenWidth = $('#SSHeader').width() - 20;
+  var newErrorTraceWidth = Math.round(screenWidth / 2);
+  var newTabsWidth = Math.round(screenWidth / 2);
   // Resize just if sum of new widths will be more then sum of the original ones.
   if (originalErrorTraceWidth + originalTabsWidth < screenWidth) {
-    $('#ETVErrorTrace').width(screenWidth / 2);
-    $('#ETVTabs').width(screenWidth / 2);
+    $('#ETVErrorTrace').width(newErrorTraceWidth);
+    $('#ETVTabs').width(newTabsWidth);
   }
   else {
     $('#ETVErrorTrace').width(originalErrorTraceWidth);
     $('#ETVTabs').width(originalTabsWidth);
   }
+  resizeTabWidths(true);
 }
 
 $(document).ready(resizeTextFieldWidths);
