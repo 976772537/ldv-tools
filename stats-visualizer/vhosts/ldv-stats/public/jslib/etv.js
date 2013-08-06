@@ -46,17 +46,30 @@ $(document).ready(function() {
 // Simple tabs plugin.
 var tabNoActiveWidth;
 
-// Draw tabs to fit the available width.
-function drawTabs() {
+// Resize tabs to fit the available width.
+function resizeTabWidths(isResize) {
   var tabsNumb = $('#ETVTabsHeader li').length;
-  var tabsHeaderWidth = $('#ETVTabsHeader li:first').parent().width();
-  $('#ETVTabs div').hide();
-  $('#ETVTabs div:first').show();
-  $('#ETVTabsHeader li:first').addClass('ETVActive');
+  var tabsHeaderWidth = $('#ETVTabs').width();
+  // If there is not an active tab, then make the first tab active.
+  if (!isResize) {
+    $('#ETVTabs div').hide();
+    $('#ETVTabs div:first').show();
+    $('#ETVTabsHeader li:first').addClass('ETVActive');
+  }
   var tabActiveWidth = $('#ETVTabsHeader li.ETVActive').width();
-  tabNoActiveWidth = (tabsHeaderWidth - tabActiveWidth - 2) / (tabsNumb - 1);
-  tabNoActiveWidth = Math.floor(tabNoActiveWidth) - 3;
-  $('#ETVTabsHeader li').not('.ETVActive').width(tabNoActiveWidth);
+  // Set up nonactive tab widths if there is more then one tab.
+  if (tabsNumb > 1) {
+    tabNoActiveWidth = Math.floor((tabsHeaderWidth - tabActiveWidth - 2) / (tabsNumb - 1) - 2);
+    $('#ETVTabsHeader li').not('.ETVActive').width(tabNoActiveWidth);
+  }
+}
+
+$(document).ready(function() {
+  resizeTabWidths(false);
+});
+
+// Allow to choose a current tab.
+$(document).ready(function() {
   $('#ETVTabsHeader li a').click(function() {
     $('#ETVTabsHeader li').removeClass('ETVActive');
     $(this).parent().removeAttr('style').addClass('ETVActive');
@@ -68,10 +81,7 @@ function drawTabs() {
     $(currentTabShort).show();
     return false;
   });
-}
-
-$(document).ready(drawTabs);
-$(window).resize(drawTabs);
+});
 
 // Plugin that relates error trace with corresponding source code.
 $(document).ready(function() {
