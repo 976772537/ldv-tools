@@ -80,8 +80,8 @@ my $configs_dir = "$installed_frontends_dir/etc/";
 my $cpachecker_config = $ENV{'CPACHECKER_CONFIG'};
 
 # Load the path to the cpachecker script. Unless the user specified the
-# variable, the wrapper will search for "cpa.sh" in the system's $PATH.
-my $cpachecker = $ENV{'CPACHECKER'} || "cpa.sh";
+# variable, the wrapper will use "cpa.sh" from the cpachecker backend installation dir.
+my $cpachecker = $ENV{'CPACHECKER'} || "$installed_backends_dir/cpachecker/scripts/cpa.sh";
 
 # Set path to CPAchecker native libraries (like mathsat5)
 my $cpafullpath = `which $cpachecker`;
