@@ -28,8 +28,9 @@ $(document).ready(function() {
 function resizeTextFieldWidths() {
   // Indeed, this is a magic formula.
   var screenWidth = $('#SSHeader').width() - 20;
-  var newErrorTraceWidth = Math.round(screenWidth / 2);
-  var newTabsWidth = Math.round(screenWidth / 2);
+  // Keep the ratio between text field widths.
+  var newErrorTraceWidth = Math.round(screenWidth * (originalErrorTraceWidth / (originalErrorTraceWidth + originalTabsWidth)));
+  var newTabsWidth = Math.round(screenWidth - newErrorTraceWidth);
   // Resize just if sum of new widths will be more then sum of the original ones.
   if (originalErrorTraceWidth + originalTabsWidth < screenWidth) {
     $('#ETVErrorTrace').width(newErrorTraceWidth);
