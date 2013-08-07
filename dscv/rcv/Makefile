@@ -140,6 +140,7 @@ cpachecker-build:
 cpachecker-install: cpachecker-build
 	@mkdir -p $(cpachecker_tmp)
 	tar xfj $(cpachecker_dir)/$(cpachecker_tar) -C $(cpachecker_tmp)
+	rm -rf $(cpachecker_target)
 	mv $(cpachecker_tmp)/$(cpachecker_dist) $(cpachecker_target)
 	rmdir $(cpachecker_tmp)
 
