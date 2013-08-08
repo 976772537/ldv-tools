@@ -51,7 +51,6 @@ int is_cpu_dir_created = 0;
 char ** command = NULL;
 int pid = 0; // pid of child process
 int is_command_started = 0;
-int child_killed = 0;
 
 int alarm_time = 1000; // time in ms
 
@@ -129,7 +128,7 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 		fprintf(out,"\tsystem time: %.0f ms\n",stats->sys_time * 1000);
 	
 		fprintf(out,"Memory usage statistics:\n");
-		fprintf(out,"\tpeak memory usage: %d bytes\n",stats->memory);
+		fprintf(out,"\tpeak memory usage: %ld bytes\n",stats->memory);
 	}
 	
 	if (outputfile != NULL)
@@ -346,11 +345,13 @@ void create_cgroup()
 				break;
 			}
 		}
+		
 		//fprintf(stderr,"Can't create directory %s - you need to change permissions: sudo chmod o+wt %s\n",path_to_memory,error_path);
 		exit_res_manager(errno,0,NULL,"Error: you need to change permissions in cgroup directory: sudo chmod o+wt <path_to_cgroup>");
 	}
 	is_mem_dir_created = 1;
 	if (strcmp(path_to_memory,path_to_cpuacct)!=0)
+	{
 		if (mkdir(path_to_cpuacct,0777) == -1)
 		{
 			char error_path [strlen(path_to_cpuacct) + 1];
@@ -366,8 +367,10 @@ void create_cgroup()
 			}
 			//fprintf(stderr,"Can't create directory %s - you need to change permissions: sudo chmod o+wt %\n", path_to_cpuacct, error_path);
 			exit_res_manager(errno,0,NULL,"Error: you need to change permission in cgroup directory: sudo chmod o+wt <path_to_cgroup>");
+			
 		}
-	is_cpu_dir_created = 1;
+		is_cpu_dir_created = 1;
+	}
 }
 
 void set_permissions()
@@ -854,7 +857,6 @@ int main(int argc, char **argv)
 	}
 	get_stats(stats);
 	exit_res_manager(0, 0, stats, NULL);
-	
 	
 	return 0;
 }
