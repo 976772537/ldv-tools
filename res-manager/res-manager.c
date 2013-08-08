@@ -11,7 +11,7 @@
 
 #define STR_LEN 80
 #define STANDART_TIMELIMIT 60
-#define STANDART_MEMLIMIT 100 * 1024 * 1024
+#define STANDART_MEMLIMIT 100 * 10e6
 
 typedef struct statistics
 {
@@ -28,8 +28,10 @@ typedef struct statistics
 
 typedef struct parameters
 {
-
+	
 } parameters;
+
+int script_signal = 0;
 
 // cgroup parameters
 char * path_to_memory = "";
@@ -91,7 +93,7 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 	}
 	fprintf(out,"Resource manager settings:\n");
 	fprintf(out,"\tmemory limit: %ld bytes\n",memlimit);
-	fprintf(out,"\ttime limit: %.3f seconds\n",timelimit);
+	fprintf(out,"\ttime limit: %.0f ms\n",timelimit * 1000);
 	fprintf(out,"\tcommand: ");
 	print_command(out, command);
 	fprintf(out,"\tcgroup memory controller: %s\n",path_to_memory);
@@ -101,13 +103,13 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 	fprintf(out,"Resource manager execution status:\n");
 	
 	if (err_mes != NULL)
-		fprintf(out,"\texit code: %i (%s)\n",exit_code, err_mes);
+		fprintf(out,"\texit code (resource manager): %i (%s)\n",exit_code, err_mes);
 	else
-		fprintf(out,"\texit code: %i\n",exit_code);
+		fprintf(out,"\texit code (resource manager): %i\n",exit_code);
 	if (signal != 0)
-		fprintf(out,"\tkilled by signal: %i (%s)\n",signal,strsignal(signal));
+		fprintf(out,"\tkilled by signal (resource manager): %i (%s)\n",signal,strsignal(signal));
 	
-	if (exit_code == 0 && is_command_started ) // script finished
+	if (exit_code == 0 && is_command_started && stats != NULL) // script finished
 	{
 		fprintf(out,"Command execution status:\n");
 	
@@ -121,10 +123,10 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 		else fprintf(out,"\tcompleted in limits\n");
 	
 		fprintf(out,"Time usage statistics:\n");
-		fprintf(out,"\twall time: %.3f seconds\n",stats->wall_time);
-		fprintf(out,"\tcpu time: %.3f seconds\n",stats->cpu_time);
-		fprintf(out,"\tuser time: %.3f seconds\n",stats->user_time);
-		fprintf(out,"\tsystem time: %.3f seconds\n",stats->sys_time);
+		fprintf(out,"\twall time: %.0f ms\n",stats->wall_time * 1000);
+		fprintf(out,"\tcpu time: %.0f ms\n",stats->cpu_time * 1000);
+		fprintf(out,"\tuser time: %.0f ms\n",stats->user_time * 1000);
+		fprintf(out,"\tsystem time: %.0f ms\n",stats->sys_time * 1000);
 	
 		fprintf(out,"Memory usage statistics:\n");
 		fprintf(out,"\tpeak memory usage: %d bytes\n",stats->memory);
@@ -133,7 +135,6 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 	if (outputfile != NULL)
 		fclose(out);
 }
-
 
 void remove_cgroup()
 // delete cgroups 
@@ -150,7 +151,7 @@ void exit_res_manager(int exit_code, int signal, statistics *stats, const char *
 		kill_created_processes(SIGKILL);
 	if (stats != NULL)
 		get_stats(stats);
-	print_stats(exit_code, signal, stats, err_mes);
+	print_stats(exit_code, script_signal, stats, err_mes);
 	remove_cgroup();
 	/*
 	statistics *new_st = parse_outputfile(outputfile);
@@ -236,7 +237,6 @@ char * itoa(long num)
 void print_usage()
 {
 	const char * err_mes = "Usage: [-h] [-m <size>] [-t <number>] command [arguments] ...\n\t-m <size>Kb|Mb|Gb| - set memlimit=size\n\t-t <number>ms|min| - set timelimit=size\n";
-	
 }
 
 void find_cgroup_location()
@@ -347,7 +347,7 @@ void create_cgroup()
 			}
 		}
 		//fprintf(stderr,"Can't create directory %s - you need to change permissions: sudo chmod o+wt %s\n",path_to_memory,error_path);
-		exit_res_manager(errno,0,NULL,"Error: you need to change permission in cgroup directory: sudo chmod o+wt <path_to_cgroup>");
+		exit_res_manager(errno,0,NULL,"Error: you need to change permissions in cgroup directory: sudo chmod o+wt <path_to_cgroup>");
 	}
 	is_mem_dir_created = 1;
 	if (strcmp(path_to_memory,path_to_cpuacct)!=0)
@@ -479,9 +479,11 @@ void get_stats(statistics *stats)
 
 void kill_created_processes(int signum)
 {
-	// read pids from tasks; 
-	// for each pid kill (pid,SIGKILL);
-	/*
+	// finish created process
+	int kill_res;
+	kill_res = kill(pid,signum);
+	
+	// if there are still pids in tasks file => finish them
 	char path [strlen(path_to_memory) + 7];
 	strcpy(path,path_to_memory);
 	strcat(path,"/tasks");
@@ -495,27 +497,30 @@ void kill_created_processes(int signum)
 	{
 		kill(atoi(line),signum);
 		free(line);
-	}
-	//*/
-	int kill_res;
-	kill_res = kill(pid,signum);
-	/*if (kill_res == -1)
-		exit_res_manager(errno,0,NULL,"Error: cannot send a signal");
-*/}
+	}	
+}
 
 void terminate(int signum)
 {
-	if(pid > 0)
-		kill_created_processes(SIGKILL);
-	statistics *stats = (statistics *)malloc(sizeof(statistics));
-	if (stats == NULL)
+	script_signal = signum;
+	if (is_command_started)
 	{
-		exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+		kill_created_processes(SIGKILL);
 	}
-	stats->exit_code = 1;
-	stats->sig_number = signum;
-	stats->wall_time = 0;
-	exit_res_manager(0,signum,stats,NULL);
+	else // signal before starting command
+	{
+		if (pid > 0)
+			kill_created_processes(SIGKILL);
+		statistics *stats = (statistics *)malloc(sizeof(statistics));
+		if (stats == NULL)
+		{
+			exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+		}
+		stats->exit_code = 1;
+		stats->sig_number = signum;
+		stats->wall_time = 0;
+		exit_res_manager(0,signum,stats,NULL);
+	}
 }
 
 void stop_timer()
@@ -541,9 +546,7 @@ void check_time(int signum)
 	strcat(path,"/cpuacct.usage");
 	path[strlen(path)] = 0;
 	char * str = read_string_from_file(path);
-	//printf("%s",str);
 	double cpu_time = atof(str) / 10e8;
-	//printf("-%.3f\n",cpu_time);
 	free(str);
 	if (cpu_time >= timelimit)
 	{
@@ -552,16 +555,7 @@ void check_time(int signum)
 	else
 		set_timer(alarm_time);
 }
-/*
-void print_stderr(statistics stats)
-// print stderr
-{
-	if (stats.cpu_time > timelimit)
-		fprintf(stderr,"TIMEOUT %f CPU",stats.cpu_time);
-	if (stats.memory > memlimit)
-		fprintf(stderr,"MEM %ld",stats.memory);
-}
-*/
+
 double gettime()
 {
 	struct timeval time;
@@ -613,14 +607,14 @@ statistics * parse_outputfile(const char * file)
 	}
 	line = read_string_from_opened_file(results); // res_manager exit_code
 	
-	sscanf(line,"%s %s %s",arg,tmp,value);
+	sscanf(line,"%s %s %s %s %s",arg,tmp,tmp,tmp,value);
 	exit_code = atoi(value);
 	
 	line = read_string_from_opened_file(results); // res_manager signal - optional
 	sscanf(line,"%s",arg);
 	if (strcmp(arg,"killed") == 0)
 	{
-		sscanf(line,"%s %s %s %s",arg,tmp,tmp,value);
+		sscanf(line,"%s %s %s %s %s %s",arg,tmp,tmp,tmp,tmp,value);
 		sig_number = atoi(value);
 		line = read_string_from_opened_file(results);
 	}
@@ -659,13 +653,13 @@ statistics * parse_outputfile(const char * file)
 			line = read_string_from_opened_file(results);
 			sscanf(line,"%s %s %s",arg,tmp,value);
 			if (strcmp(arg,"wall") == 0)
-				stats->wall_time = atof(value);
+				stats->wall_time = atof(value) / 1000;
 			if (strcmp(arg,"cpu") == 0)
-				stats->cpu_time = atof(value);
+				stats->cpu_time = atof(value) / 1000;
 			if (strcmp(arg,"user") == 0)
-				stats->user_time = atof(value);
+				stats->user_time = atof(value) / 1000;
 			if (strcmp(arg,"system") == 0)
-				stats->sys_time = atof(value);
+				stats->sys_time = atof(value) / 1000;
 		}
 	
 		read_string_from_opened_file(results); // passing header "Memory usage statistics:" 
@@ -724,13 +718,27 @@ int main(int argc, char **argv)
 			memlimit = atol(optarg);
 			if (strstr(optarg, "Kb") != NULL)
 			{
-				memlimit *= 1024;
+				memlimit *= 1000;
 			}
 			else if (strstr(optarg, "Mb") != NULL)
 			{
-				memlimit *= 1024 * 1024;
+				memlimit *= 1000 * 1000;
 			}
 			else if (strstr(optarg, "Gb") != NULL)
+			{
+				memlimit *= 1000;
+				memlimit *= 1000;
+				memlimit *= 1000;
+			}
+			else if (strstr(optarg, "Kib") != NULL)
+			{
+				memlimit *= 1024;
+			}
+			else if (strstr(optarg, "Mib") != NULL)
+			{
+				memlimit *= 1024 * 1024;
+			}
+			else if (strstr(optarg, "Gib") != NULL)
 			{
 				memlimit *= 1024;
 				memlimit *= 1024;
@@ -738,7 +746,7 @@ int main(int argc, char **argv)
 			}
 			else if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL,0,NULL,"Expected integer number with Kb|Mb|Gb| modifiers in -m");
+				exit_res_manager(EINVAL,0,NULL,"Expected integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers in -m");
 			}
 			break;
 		case 't':

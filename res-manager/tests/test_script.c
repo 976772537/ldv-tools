@@ -128,7 +128,10 @@ statistics * parse_outputfile(const char * file)
 	char tmp [STR_LEN];
 	int i;
 	char * line;
-
+	
+	int exit_code = 0;
+	int sig_number = 0;
+	
 	// passing command options section
 	for (i = 0; i < 8; i++)
 	{
@@ -137,36 +140,22 @@ statistics * parse_outputfile(const char * file)
 	}
 	line = read_string_from_opened_file(results); // res_manager exit_code
 	
-	sscanf(line,"%s %s %s",arg,tmp,value);
-	stats->s_exit_code = atoi(value);
+	sscanf(line,"%s %s %s %s %s",arg,tmp,tmp,tmp,value);
+	exit_code = atoi(value);
 	
 	line = read_string_from_opened_file(results); // res_manager signal - optional
 	sscanf(line,"%s",arg);
+	if (strcmp(arg,"killed") == 0)
+	{
+		sscanf(line,"%s %s %s %s %s %s",arg,tmp,tmp,tmp,tmp,value);
+		sig_number = atoi(value);
+		line = read_string_from_opened_file(results);
+	}
+	// passing header "Command execution status:"
 	
-	stats->s_sig_number = 0;
-	stats->sig_number = 0;
-	stats->exit_code = 0;
-	stats->memory_exhausted = 0;
-	stats->time_exhausted = 0;
-	stats->memlimit = 0;
-	stats->timelimit = 0;
-	stats->wall_time = 0;
-	stats->cpu_time = 0;
-	stats->user_time = 0;
-	stats->sys_time = 0;
-	stats->memory = 0;
+	line = read_string_from_opened_file(results); // command exit_code
 	if (line != NULL)
 	{
-		if (strcmp(arg,"killed") == 0)
-		{
-			sscanf(line,"%s %s %s %s",arg,tmp,tmp,value);
-			stats->s_sig_number = atoi(value);
-			line = read_string_from_opened_file(results);
-		}
-		// passing header "Command execution status:"
-	
-		line = read_string_from_opened_file(results); // command exit_code
-
 		sscanf(line,"%s %s %s",arg,tmp,value);
 		stats->exit_code = atoi(value);
 	
@@ -197,13 +186,13 @@ statistics * parse_outputfile(const char * file)
 			line = read_string_from_opened_file(results);
 			sscanf(line,"%s %s %s",arg,tmp,value);
 			if (strcmp(arg,"wall") == 0)
-				stats->wall_time = atof(value);
+				stats->wall_time = atof(value) / 1000;
 			if (strcmp(arg,"cpu") == 0)
-				stats->cpu_time = atof(value);
+				stats->cpu_time = atof(value) / 1000;
 			if (strcmp(arg,"user") == 0)
-				stats->user_time = atof(value);
+				stats->user_time = atof(value) / 1000;
 			if (strcmp(arg,"system") == 0)
-				stats->sys_time = atof(value);
+				stats->sys_time = atof(value) / 1000;
 		}
 	
 		read_string_from_opened_file(results); // passing header "Memory usage statistics:" 
@@ -214,6 +203,9 @@ statistics * parse_outputfile(const char * file)
 	
 	}
 	fclose(results);
+	
+	stats->s_sig_number = sig_number;
+	stats->s_exit_code = exit_code;
 	
 	return stats;
 }

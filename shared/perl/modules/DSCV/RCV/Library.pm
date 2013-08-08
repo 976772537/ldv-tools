@@ -388,7 +388,7 @@ sub run
 	if ( -f $timestats_fname && ! -z $timestats_fname) {
 		
 		%timestats = parse_outputfile(outputfile => $timestats_fname);
-		$errcode = $timestats{"exit_script"};
+		$errcode = $timestats{"exit_code_script"};
 		if ($timestats{"memory_exhausted"} == "1")
 		{
 			$result = 'LIMITS';
@@ -415,21 +415,44 @@ sub run
 
 	# Prepare a description boilerplate
 	# NOTE that we _rewrite_ the description if it's not the first run!  Motivation: if the first run has failed due to an artificially set up time limit, we do not want this time limit message to get into the final report.
-	
+	my $descr;
+	my $script_exit_code = $timestats{"exit_code_script"};
+	my $script_signal = $timestats{"signal_script"} || 0;
 	my @out = get_result_from_file(outputfile => $timestats_fname);
-	my $descr = sprintf (<<EOR , $out[0], $out[1], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
+	my @out_err = get_err_result_from_file(outputfile => $timestats_fname);
+	my @words_memlimit = split(" ", $out[1]);
+	my @words_timelimit = split(" ", $out[2]);
+	my @words_exit_code = split(" ", $out_err[4]);
+	my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
 ===============================================
+Resource manager settings:
+	memory limit: %s (%s bytes)
+	time limit: %s ms
 %s
 %s
+EOR
+
+
+	my $descr_ok = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
+===============================================
+Resource manager settings:
+	memory limit: %s (%s bytes)
 %s
 %s
 %s
 %s
 %s
 EOR
-	
 	# Prepare the result
-	$context->{auto_description} = $descr;
+	if ($script_exit_code == 0 && $script_signal == 0)
+	{
+		$context->{auto_description} = $descr_ok;
+	}
+	else
+	{
+		$context->{auto_description} = $descr_err;
+	}
+	
 	$context->{auto_result} = ($result eq 'OK')? 'OK' : 'FAILED';
 
 	# Discard all the automatons, since they are now in final states.
@@ -457,6 +480,47 @@ sub add_automaton
 			push @{$context->{stdout_automata}}, [undef,$atmt];
 		}
 	}
+}
+
+sub get_err_result_from_file
+{
+	my $info = {@_};
+	my $timestats_fname = $info->{outputfile};
+	local $_;
+	open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
+	my $command_type = "0";
+	my @result_string;
+	my $i = 0;
+	while(<STATS_FILE>) {
+		chomp;
+		next unless $_;
+		my @words = split(' ', $_);
+		if ($words[1] eq "manager" && $words[2] eq "execution")
+		{
+			$command_type = "1";
+		}
+		if ($words[0] eq "Command" && $words[1] eq "execution")
+		{
+			$command_type = "2";
+		}
+		if ($words[0] eq "Time" && $words[1] eq "usage")
+		{
+			$command_type = "3";
+		}
+		if ($command_type eq "0")
+		{
+			if ($words[0] ne "command:" && $words[0] ne "cgroup" && $words[0] ne "outputfile:")
+			{
+				$result_string[$i++] = $_;
+			}
+		}
+		if ($command_type eq "1")
+		{
+			$result_string[$i++] = $_;
+		}
+	}
+	close STATS_FILE;
+	return @result_string;
 }
 
 sub get_result_from_file
@@ -527,15 +591,15 @@ sub parse_outputfile
 		}
 		if ($words[0] eq "exit" && $return_code_section eq "1")
 		{
-			$statistics{"exit_code_script"} += $words[2];
+			$statistics{"exit_code_script"} += $words[4];
 		}
-		if ($words[0] eq "exit" && $return_code_section eq "1")
+		if ($words[0] eq "exit" && $return_code_section eq "2")
 		{
 			$statistics{"exit_code"} += $words[2];
 		}
-		if ($words[0] eq "killed" && $signal_section eq "2")
+		if ($words[0] eq "killed" && $signal_section eq "1")
 		{
-			$statistics{"signal_script"} += $words[3];
+			$statistics{"signal_script"} += $words[5];
 		}
 		if ($words[0] eq "killed" && $signal_section eq "2")
 		{
