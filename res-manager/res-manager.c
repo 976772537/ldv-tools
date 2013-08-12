@@ -8,6 +8,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
 
 #define STR_LEN 80
 #define STANDART_TIMELIMIT 60
@@ -15,6 +16,7 @@
 
 typedef struct statistics
 {
+	
 	int exit_code;
 	int sig_number;
 	int memory_exhausted;
@@ -31,31 +33,37 @@ typedef struct parameters
 	
 } parameters;
 
+
+double timelimit = STANDART_TIMELIMIT; // in seconds
+long memlimit = STANDART_MEMLIMIT; // in bytes
+int kill_at_once = 0;
+char * outputfile;
+char * stdoutfile = NULL;
+char * stderrfile = NULL;
+char ** command = NULL;
+int alarm_time = 1000; // time in ms
+char * resmanager_dir = ""; // path to resource manager directory in control groups
 int script_signal = 0;
 
 // cgroup parameters
 char * path_to_memory = "";
 char * path_to_cpuacct = "";
-char * resmanager_dir = ""; // path to resource manager directory in control groups
+
 const char * resmanager_modifier = "resource_manager_"; // modifier to the names of resource manager cgroups
 
 // command line parameters
-double timelimit = STANDART_TIMELIMIT; // in seconds
-long memlimit = STANDART_MEMLIMIT; // in bytes
-int kill_at_once = 0;
-char * outputfile;
-
+int fd_stdout, fd_stderr;
 //errors processing
 int is_mem_dir_created = 0;
 int is_cpu_dir_created = 0;
-char ** command = NULL;
 int pid = 0; // pid of child process
 int is_command_started = 0;
 
-int alarm_time = 1000; // time in ms
-
 void get_stats(statistics *stats);
 void kill_created_processes(int signum);
+
+long get_rss();
+long get_swap();
 
 statistics * parse_outputfile(const char * file);
 
@@ -129,6 +137,12 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 	
 		fprintf(out,"Memory usage statistics:\n");
 		fprintf(out,"\tpeak memory usage: %ld bytes\n",stats->memory);
+		
+		/*
+		long rss = get_rss();
+		long swap = get_swap();
+		fprintf(out,"\tpeak rss usage: %ld\n", rss);
+		fprintf(out,"\tpeak swap usage: %ld\n", swap);*/
 	}
 	
 	if (outputfile != NULL)
@@ -157,6 +171,8 @@ void exit_res_manager(int exit_code, int signal, statistics *stats, const char *
 	outputfile = NULL;
 	print_stats(0, 0, new_st, err_mes);
 	*/
+	close(fd_stdout);
+	close(fd_stderr);
 	exit(exit_code);
 }
 
@@ -209,7 +225,7 @@ int write_int_to_file(const char * path,const char * number)
 	FILE * file;
 	file = fopen(path,"a+");
 	if (file == NULL)
-		return;
+		return -1;
 	fputs(number, file);
 	fclose(file);
 }
@@ -235,7 +251,15 @@ char * itoa(long num)
 
 void print_usage()
 {
-	const char * err_mes = "Usage: [-h] [-m <size>] [-t <number>] command [arguments] ...\n\t-m <size>Kb|Mb|Gb| - set memlimit=size\n\t-t <number>ms|min| - set timelimit=size\n";
+	printf("Usage: [-h] [options] command [arguments] \n");
+	printf("\t-h print usage\n");
+	printf("\t-m <size>Kb|Mb|Gb|Kib|Mib|Gib| - set memlimit=size\n");
+	printf("\t-t <number>ms|min| - set timelimit=number\n");
+	printf("\t-o <outputfile> - set output file\n");
+	printf("\t-l <dir> - specify directory in control groups for resource manager\n");
+	printf("\t--interval <time> - specify time (ms) interval in which timelimit will be checked\n");
+	printf("\t--stdout <file> - redirect command stdout into file\n");
+	printf("\t--stderr <file> - redirect command stderr into file\n");
 }
 
 void find_cgroup_location()
@@ -286,6 +310,15 @@ void find_cgroup_location()
 		exit_res_manager(EACCES,0,NULL,"You need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>");
 	}
 }
+
+char * concat(char * str1, char * str2)
+{
+	char tmp[strlen(str1) + strlen(str2) + 1];
+	strcpy(tmp,str1);
+	strcat(tmp,str2);
+	return strdup(tmp);
+}
+
 
 void create_cgroup()
 // create cgroups in founded locations with name
@@ -346,8 +379,7 @@ void create_cgroup()
 			}
 		}
 		
-		//fprintf(stderr,"Can't create directory %s - you need to change permissions: sudo chmod o+wt %s\n",path_to_memory,error_path);
-		exit_res_manager(errno,0,NULL,"Error: you need to change permissions in cgroup directory: sudo chmod o+wt <path_to_cgroup>");
+		exit_res_manager(errno,0,NULL,concat("Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", error_path));
 	}
 	is_mem_dir_created = 1;
 	if (strcmp(path_to_memory,path_to_cpuacct)!=0)
@@ -365,8 +397,7 @@ void create_cgroup()
 					break;
 				}
 			}
-			//fprintf(stderr,"Can't create directory %s - you need to change permissions: sudo chmod o+wt %\n", path_to_cpuacct, error_path);
-			exit_res_manager(errno,0,NULL,"Error: you need to change permission in cgroup directory: sudo chmod o+wt <path_to_cgroup>");
+			exit_res_manager(errno,0,NULL,concat("Error: you need to change permission in cgroup directory: sudo chmod o+wt ", error_path));
 			
 		}
 		is_cpu_dir_created = 1;
@@ -392,12 +423,29 @@ void set_permissions()
 void set_memlimit()
 // set memlimit
 {
-	char path [strlen(path_to_memory) + 23];
+	char path [strlen(path_to_memory) + 35];
 	strcpy(path,path_to_memory);
-	strcat(path,"/memory.limit_in_bytes");
+	strcat(path,"/memory.limit_in_bytes"); // memory limit
 	path[strlen(path)] = 0;
 	chmod(path,0777);
 	write_int_to_file(path,itoa(memlimit));
+	
+	strcpy(path,path_to_memory);
+	strcat(path,"/memory.memsw.limit_in_bytes"); // memory+swap limit
+	path[strlen(path)] = 0;
+	chmod(path,0777);
+	if (write_int_to_file(path,itoa(memlimit)) == -1)
+	{
+		exit_res_manager(errno,ENOENT,NULL,"Error: Memory control group doesn't have swap extension\nYou need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
+	}
+	
+	// set parameter swappiness in memory cgroup, default=60, values: 0-100
+	/*
+	strcpy(path,path_to_memory);
+	strcat(path,"/memory.swappiness");
+	path[strlen(path)] = 0;
+	chmod(path,0777);
+	write_int_to_file(path,"60");*/
 }
 
 void add_task(int pid)
@@ -419,15 +467,14 @@ void add_task(int pid)
 void get_stats(statistics *stats)
 // read stats
 {
-	char path_mem [strlen(path_to_memory) + 27];
+	char path_mem [strlen(path_to_memory) + 35];
 	strcpy(path_mem,path_to_memory);
-	strcat(path_mem,"/memory.max_usage_in_bytes");
+	strcat(path_mem,"/memory.memsw.max_usage_in_bytes"); // read (memory+swap)
 	path_mem[strlen(path_mem)] = 0;
 	char * str = read_string_from_file(path_mem);
-	if (str == NULL)
+	if (str == NULL) // most likely there is no memsw in memory cgroup => exit with error in script
 	{
-		stats = NULL;
-		return;
+		exit_res_manager(errno,ENOENT,NULL,"Error: Memory control group doesn't have swap extension\nYou need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
 	}
 	(*stats).memory = atol(str);
 	free(str);
@@ -480,6 +527,51 @@ void get_stats(statistics *stats)
 	fclose(file);
 }
 
+long get_rss()
+{
+	char path_mem [strlen(path_to_memory) + 35];
+	strcpy(path_mem,path_to_memory);
+	strcat(path_mem,"/memory.max_usage_in_bytes");
+	path_mem[strlen(path_mem)] = 0;
+	char * str = read_string_from_file(path_mem);
+	if (str == NULL)
+	{
+		return 0;
+	}
+	return atol(str);
+}
+
+long get_swap()
+{
+	char path_mem [strlen(path_to_memory) + 35];
+	strcpy(path_mem,path_to_memory);
+	strcat(path_mem,"/memory.stat");
+	path_mem[strlen(path_mem)] = 0;
+	FILE * file;
+	file = fopen(path_mem,"rt");
+	if (file == NULL)
+	{
+		return 0;
+	}
+	char * line;
+	while ((line = read_string_from_opened_file(file)) != NULL)
+	{
+		char arg [strlen(line)];
+		char value [strlen(line)];
+		sscanf(line,"%s %s",arg,value);
+		printf("%s %s\n",line , value);
+		if (strcmp(arg, "total_swap") == 0)
+		{
+			fclose(file);
+			return atol(value);
+		}
+		free(line);
+	}
+	fclose(file);
+	return 0;
+}
+
+
 void kill_created_processes(int signum)
 {
 	// finish created process
@@ -500,7 +592,7 @@ void kill_created_processes(int signum)
 	{
 		kill(atoi(line),signum);
 		free(line);
-	}	
+	}
 }
 
 void terminate(int signum)
@@ -559,6 +651,29 @@ void check_time(int signum)
 		set_timer(alarm_time);
 }
 
+void redirect(int fd, char * path)
+{
+	if (path == NULL)
+		return;
+	int filedes[2];
+	close(fd);
+	filedes[0] = fd;
+	filedes[1] = creat(path, 0777);
+	if (fd == 1)
+		
+	if (filedes[1] == -1)
+		return;
+	
+	if (dup2(filedes[0],filedes[1]) == -1)
+		return;
+	if (pipe(filedes) == -1)
+		return;
+	if (fd == 1)
+		fd_stdout = filedes[1];
+	if (fd == 2)
+		fd_stderr = filedes[1];
+}
+
 double gettime()
 {
 	struct timeval time;
@@ -606,7 +721,7 @@ statistics * parse_outputfile(const char * file)
 	for (i = 0; i < 8; i++)
 	{
 		line = read_string_from_opened_file(results);
-		
+
 	}
 	line = read_string_from_opened_file(results); // res_manager exit_code
 	
@@ -681,17 +796,11 @@ statistics * parse_outputfile(const char * file)
 	return stats;
 }
 
-void sigchld(int signum)
-{
-	//printf("SIGCHLD\n");
-}
-
 int main(int argc, char **argv)
 {
 	int i;
 	int comm_arg = 0;
 	int c;
-	signal(SIGCHLD,sigchld);
 	for (i = 1; i <= 31; i++)
 	{
 		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM)
@@ -702,10 +811,44 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	while ((c = getopt(argc, argv, "-m:t:o:kl:")) != -1)
+	int option_index = 0;
+	static struct option long_options[] = {
+		{"interval", 1, 0, 'i'},
+		{"stdout", 1, 0, 's'},
+		{"stderr", 1, 0, 'e'},
+        {0, 0, 0, 0}
+    };
+	
+	while ((c = getopt_long(argc, argv, "-hm:t:o:kl:0", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
+		case 'h':
+			print_usage();
+			exit(0);
+		case 'i':
+			if (!is_number(optarg))
+			{
+				exit_res_manager(EINVAL,0,NULL,"Expected integer number in ms for --interval");
+			}
+			alarm_time = atoi(optarg);
+			break;
+		case 's':
+			stdoutfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
+			if (stdoutfile == NULL)
+			{
+				exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+			}
+			strcpy(stdoutfile,optarg);
+			break;
+		case 'e':
+			stderrfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
+			if (stderrfile == NULL)
+			{
+				exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+			}
+			strcpy(stderrfile,optarg);
+			break;
 		case 'k':
 			kill_at_once = 1;
 			break;
@@ -812,6 +955,8 @@ int main(int argc, char **argv)
 	pid = fork();
 	if (pid == 0)
 	{
+		redirect(1, stdoutfile);
+		redirect(2, stderrfile);
 		add_task(getpid());
 		execvp(command[0],command);
 		exit(errno);
@@ -832,7 +977,6 @@ int main(int argc, char **argv)
 			exit_res_manager(errno,0,NULL,"Error: Not enough memory");
 	}
 	double time_after = gettime();
-	
 	
 	stop_timer(alarm_time);
 	
