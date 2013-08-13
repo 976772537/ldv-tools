@@ -299,9 +299,11 @@ int check_time_command(const char * outputfile, const char * time_file)
 	inaccuracy_user = fabs(time_user - stats->user_time);
 	inaccuracy_cpu = fabs( (time_user + time_sys) - stats->cpu_time);
 	inaccuracy_wall = fabs(time_real - stats->wall_time);
-	if ( inaccuracy_sys <= time_inacc_s &&
+	/*if ( inaccuracy_sys <= time_inacc_s &&
 		 inaccuracy_user <= time_inacc_s &&
 		 inaccuracy_cpu <= time_inacc_s &&
+		 inaccuracy_wall <= time_inacc_s)*/
+	if ( inaccuracy_cpu <= time_inacc_s &&
 		 inaccuracy_wall <= time_inacc_s)
 		return 1;
 	return 0;
@@ -415,6 +417,24 @@ void wait_normal_execution(const char * outputfile)
 		{
 			printf ("TEST FAILED\n");
 		}
+	}
+}
+
+void wait_help_option(const char * outputfile)
+// check if there is no errors
+{
+	print_test_header();
+	int status;
+	wait(&status);
+	number_of_tests++;
+	if (WIFEXITED(status) == 1 && WEXITSTATUS(status) != 0 || WIFSIGNALED(status) == 1)
+	{
+		printf ("TEST FAILED\n");
+	}
+	else
+	{
+		printf ("TEST PASSED\n");
+		passed_tests++;
 	}
 }
 
@@ -597,68 +617,6 @@ void wait_signal_execution_script(const char * outputfile)
 	}
 }
 
-/**/
-
-void clean()
-{
-	//get all .c files from time/, memory/ and errors/.
-	//system("rm tmpfile");
-	system("ls time/* memory/* errors/* > tmpfile");
-	FILE * results;
-	results = fopen("tmpfile","rt");
-	if (results == NULL)
-		return;
-	char line [STR_LEN];
-	while (fgets(line, STR_LEN, results) != NULL)
-	{
-		char command [STR_LEN];
-		int len = strlen(line);
-		if (!((line[len-3] == '.' && line[len-2] == 'c') || 
-			strcmp (line, "time\n") == 0 || 
-			strcmp (line, "errors\n") == 0 || 
-			strcmp (line, "memory\n") == 0))
-		{
-			strcpy(command, "rm ");
-			strcat(command, line);
-			system(command);
-		}
-
-	}
-	fclose(results);
-	system("rm tmpfile");
-	printf("Clean has been completed\n");
-}
-
-void compile()
-{
-	//get all .c files from time/, memory/ and errors/.
-	//system("rm tmpfile");
-	system("ls time/*.c memory/*.c errors/*.c > tmpfile");
-	FILE * results;
-	results = fopen("tmpfile","rt");
-	if (results == NULL)
-		return;
-	char line [STR_LEN];
-	while (fgets(line, STR_LEN, results) != NULL)
-	{
-		char output [STR_LEN];
-		int i;
-		for(i=0;i<80;i++)
-			output[i] = 0;
-		strncpy(output, line, strlen(line) - 3);
-		char command [STR_LEN];
-		strcpy(command, "gcc ");
-		strcat(command, "-o ");
-		strcat(command, output);
-		strcat(command, " ");
-		strcat(command, line);
-		system(command);
-	}
-	fclose(results);
-	system("rm tmpfile");
-	printf("Compile has been completed\n");
-}
-
 char * concat(char * pref, char * command, char * post)
 {
 	char tmp[strlen(pref) + strlen(command) + strlen(post) + 1];
@@ -688,10 +646,6 @@ int main(int argc, char **argv)
 	int i;
 	for (i = 1; i < argc; i++)
 	{
-		if (strcmp(argv[i], "--compile") == 0)
-			is_compile = 1;
-		if (strcmp(argv[i], "--clean") == 0)
-			is_clean = 1;
 		if (strcmp(argv[i], "--run") == 0)
 		{
 			is_run = 1;
@@ -721,11 +675,6 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	
-	if (is_clean)
-		clean();
-	if (is_compile)
-		compile();
 	if (!is_run)
 		return 0;
 	
@@ -990,6 +939,11 @@ int main(int argc, char **argv)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user_childs_2", "8", "1000", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
+/*
+	if (fork()==0)
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--interval", "10", "time/user", "100", (char*)0);
+	wait_timelimit_execution(outputfile);
+	print_stat(outputfile);*/
 
 	memlimit = 100000000;
 	if (fork()==0)
@@ -1106,9 +1060,24 @@ int main(int argc, char **argv)
 	wait_signal_execution_script(outputfile);
 	print_stat(outputfile);
 
+	if (fork()==0)
+		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--stdout", "/dev/null", "ls", "-la", (char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	if (fork()==0)
+		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--stderr", "/dev/null", "time", "ls",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	if (fork()==0)
+		execl(timeout, timeout, "-h", (char*)0);
+	wait_help_option(outputfile);
+	print_stat(outputfile);
 	
 	// stat
 	printf("\nNumber of tests %i\nPassed tests %i \n",number_of_tests, passed_tests);
 	system("rm -f time_file_");
 }
+
 
