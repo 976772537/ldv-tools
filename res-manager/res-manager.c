@@ -210,9 +210,16 @@ char * get_cpu()
 			int i = 0;
 			while (line[i] != ':')
 			{
-				line[i] = ' ';
 				i++;
 			}
+			i+=2;
+			int num_of_spaces = i;
+			while (line[i] != '\0')
+			{
+				line[i - num_of_spaces] = line[i];
+				i++;
+			}
+			line[i - num_of_spaces] = '\0';
 			fclose(file);
 			return line;
 		}
@@ -253,26 +260,27 @@ char * get_memory()
 char * get_kernel()
 // get kernel version
 {
-	system("uname -r > __tmpfile__");	
+	
 	char * line;
-	line = read_string_from_file("__tmpfile__");
+	line = read_string_from_file("/proc/version");
 	if (line == NULL)
 	{
 		return NULL;
 	}
+	char arg [strlen(line)];
+	char value [strlen(line)];
+	sscanf(line,"%s %s %s",arg,arg,value);
 	int i = 0;
-	while (line[i] != 0)
+	while (value[i] != 0)
 	{
-		if (line[i] == '-')
+		if (value[i] == '-')
 		{
-			line[i] = 0;
+			value[i] = 0;
 			break;
-			
 		}
 		i++;
 	}
-	system("rm  __tmpfile__");
-	return line;
+	return strdup(value);
 }
 
 /*Cgroup handling*/
@@ -593,16 +601,10 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 	
 		fprintf(out,"Memory usage statistics:\n");
 		fprintf(out,"\tpeak memory usage: %ld bytes\n",stats->memory);
-		
-		/*
-		long rss = get_rss();
-		long swap = get_swap();
-		fprintf(out,"\tpeak rss usage: %ld\n", rss);
-		fprintf(out,"\tpeak swap usage: %ld\n", swap);*/
 	}
 	fprintf(out,"System settings:\n");
 	fprintf(out,"\tkernel version: %s\n",get_kernel());
-	fprintf(out,"\tcpu %s",get_cpu());
+	fprintf(out,"\tcpu: %s",get_cpu());
 	fprintf(out,"\tmemory: %s bytes\n",get_memory());
 	
 	if (outputfile != NULL)
@@ -622,6 +624,7 @@ void exit_res_manager(int exit_code, int signal, statistics *stats, const char *
 		close(fd_stdout);
 	if (fd_stderr != -1)
 		close(fd_stderr);
+	// exit from main program
 	exit(exit_code);
 }
 

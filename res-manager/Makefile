@@ -32,10 +32,13 @@ test: all
 	@gcc ${tests}/time/sequential_childs_2.c -o ${build}/time/sequential_childs_2
 	@gcc ${tests}/memory/limit.c -o ${build}/memory/limit
 	@gcc ${tests}/memory/limit_child.c -o ${build}/memory/limit_child
+	@gcc ${tests}/memory/limit_child.c -o ${build}/memory/limit_child
 	@gcc ${tests}/errors/return.c -o ${build}/errors/return
 	@gcc ${tests}/errors/sig_num.c -o ${build}/errors/sig_num
-	@gcc ${tests}/errors/sig_num.c -o ${build}/errors/sigint_ignore
-	cd ${build}; ./test_script --run ../res-manager;
+	@gcc ${tests}/errors/sig_ign.c -o ${build}/errors/sig_ign
+	
+	@gcc ${tests}/res_manager_in_res_manager.c -o ${build}/res_manager_in_res_manager
+	cd ${build}; ./test_script ../res-manager;
 
 clean:
 	@rm -f res-manager 

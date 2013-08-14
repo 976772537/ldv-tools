@@ -32,9 +32,8 @@ typedef struct statistics
 	long memory;
 } statistics;
 
-double time_inacc = 0.01;
-double time_inacc_s = 1.0;
-double mem_inacc = 0.05; 
+double time_inacc = 0.5;
+double mem_inacc = 0.01; 
 
 char * read_string_from_opened_file(FILE * file)
 {
@@ -210,18 +209,6 @@ statistics * parse_outputfile(const char * file)
 	return stats;
 }
 
-
-int check_outputfile(const char * outputfile)
-//returns true, if command was terminated normally with return code 0
-{
-	statistics * stats = parse_outputfile(outputfile);
-	if (stats == NULL)
-		return 0;
-	if (stats->memory_exhausted || stats->time_exhausted || stats->exit_code || stats->sig_number > 0)
-		return 0;
-	return 1;
-}
-
 void print_stat(const char * outputfile)
 {
 	FILE * results;
@@ -234,6 +221,17 @@ void print_stat(const char * outputfile)
 		printf("%s",line);
 	}
 	system("rm tmpfile");
+}
+
+int check_outputfile(const char * outputfile)
+//returns true, if command was terminated normally with return code 0
+{
+	statistics * stats = parse_outputfile(outputfile);
+	if (stats == NULL)
+		return 0;
+	if (stats->memory_exhausted || stats->time_exhausted || stats->exit_code || stats->sig_number > 0)
+		return 0;
+	return 1;
 }
 
 int check_outputfile_time(const char * outputfile, double time)
@@ -303,8 +301,8 @@ int check_time_command(const char * outputfile, const char * time_file)
 		 inaccuracy_user <= time_inacc_s &&
 		 inaccuracy_cpu <= time_inacc_s &&
 		 inaccuracy_wall <= time_inacc_s)*/
-	if ( inaccuracy_cpu <= time_inacc_s &&
-		 inaccuracy_wall <= time_inacc_s)
+	if ( inaccuracy_cpu <= time_inacc &&
+		 inaccuracy_wall <= time_inacc)
 		return 1;
 	return 0;
 }
@@ -415,7 +413,7 @@ void wait_normal_execution(const char * outputfile)
 		}
 		else
 		{
-			printf ("TEST FAILED\n");
+			printf ("TEST FAILED - expected normal execution\n");
 		}
 	}
 }
@@ -429,7 +427,7 @@ void wait_help_option(const char * outputfile)
 	number_of_tests++;
 	if (WIFEXITED(status) == 1 && WEXITSTATUS(status) != 0 || WIFSIGNALED(status) == 1)
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - script finished with errors or by signal\n");
 	}
 	else
 	{
@@ -450,7 +448,7 @@ void wait_and_check_memory(const char * outputfile, int mem)
 	}
 	else
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - computed memory usage and expected value are different\n");
 	}
 }
 
@@ -466,7 +464,7 @@ void wait_and_check_time(const char * outputfile, int time)
 	}
 	else
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - cpuacct time and expected time are different\n");
 	}
 }
 
@@ -482,7 +480,7 @@ void wait_and_check_time_command(const char * outputfile, const char * time_file
 	}
 	else
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - time command and cpuacct time are different\n");
 	}
 }
 
@@ -510,7 +508,7 @@ void wait_timelimit_execution(const char * outputfile)
 		}
 		else
 		{
-			printf ("TEST FAILED - process terminated with error\n");
+			printf ("TEST FAILED - expected time exhaustion\n");
 		}
 	}
 }
@@ -526,9 +524,9 @@ void wait_memlimit_execution(const char * outputfile)
 	{
 		printf ("TEST FAILED - can't execute command\n");
 		if (WIFEXITED(status) == 1 && WEXITSTATUS(status) != 0)
-			printf("Process exited with return code %i\n",WEXITSTATUS(status));
+			printf("Script exited with return code %i\n",WEXITSTATUS(status));
 		else
-			printf("Process was killed by signal %i\n",WTERMSIG(status) );
+			printf("Script was killed by signal %i\n",WTERMSIG(status) );
 	}
 	else
 	{
@@ -539,7 +537,7 @@ void wait_memlimit_execution(const char * outputfile)
 		}
 		else
 		{
-			printf ("TEST FAILED - process terminated with error\n");
+			printf ("TEST FAILED - expected memory exhaustion\n");
 		}
 	}
 }
@@ -558,7 +556,7 @@ void wait_exitcode_execution(const char * outputfile)
 	}
 	else
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - expected exit code > 0 in command\n");
 	}
 }
 
@@ -576,7 +574,7 @@ void wait_signal_execution(const char * outputfile)
 	}
 	else
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - expected signal execution in command\n");
 	}
 }
 
@@ -595,7 +593,7 @@ void wait_exitcode_execution_script(const char * outputfile)
 	}
 	else
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - expected error code > 0 in script\n");
 	}
 }
 
@@ -613,7 +611,7 @@ void wait_signal_execution_script(const char * outputfile)
 	}
 	else
 	{
-		printf ("TEST FAILED\n");
+		printf ("TEST FAILED - expected signal execution in script\n");
 	}
 }
 
@@ -629,9 +627,7 @@ char * concat(char * pref, char * command, char * post)
 void print_help()
 {
 	printf("Wrong arguments\nUsage: \n\t");
-	printf("--clean - clean working directory\n\t");
-	printf("--compile - complile all .c files\n\t");
-	printf("--run <path_to_timeout> - run tests with command path_to_command\n\t");
+	printf("test_script [options] <path_to_resmanager>\n\t");
 	printf("--etime <value> - inaccuracy for time value\n\t");
 	printf("--ememory <value> - inaccuracy for memory value\n");
 	exit(1);
@@ -639,33 +635,20 @@ void print_help()
 
 int main(int argc, char **argv)
 {
-	int is_compile = 0;
-	int is_clean = 0;
-	int is_run = 0;
 	char * timeout;
 	int i;
 	for (i = 1; i < argc; i++)
 	{
-		if (strcmp(argv[i], "--run") == 0)
-		{
-			is_run = 1;
-			if (argv[i+1] != NULL)
-				timeout = argv[i+1];
-			else
-			{
-				print_help();
-			}
-		}
 		if (strcmp(argv[i], "--etime") == 0)
 		{
 			if (argv[i+1] != NULL)
-				time_inacc_s = atof(argv[i+1]);
+				time_inacc = atof(argv[i+1]);
 			else
 			{
 				print_help();
 			}
 		}
-		if (strcmp(argv[i], "--ememory") == 0)
+		else if (strcmp(argv[i], "--ememory") == 0)
 		{
 			if (argv[i+1] != NULL)
 				mem_inacc = atof(argv[i+1]);
@@ -674,9 +657,12 @@ int main(int argc, char **argv)
 				print_help();
 			}
 		}
+		else  // path to res-manager
+		{
+			timeout = argv[i];
+			break;
+		}
 	}
-	if (!is_run)
-		return 0;
 	
 	int basetimelimit = 900;
 	int basememlimit = 100*Mb;
@@ -939,11 +925,6 @@ int main(int argc, char **argv)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user_childs_2", "8", "1000", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
-/*
-	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--interval", "10", "time/user", "100", (char*)0);
-	wait_timelimit_execution(outputfile);
-	print_stat(outputfile);*/
 
 	memlimit = 100000000;
 	if (fork()==0)
@@ -978,11 +959,6 @@ int main(int argc, char **argv)
 	if (fork()==0)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/return", "-1", (char*)0);
 	wait_exitcode_execution(outputfile);
-	print_stat(outputfile);
-	
-	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "lv", "errors/return", "0", (char*)0);
-	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
@@ -1060,6 +1036,30 @@ int main(int argc, char **argv)
 	wait_signal_execution_script(outputfile);
 	print_stat(outputfile);
 
+	pid = 0;
+	if ((pid = fork()) == 0)
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_ign", "2",(char*)0);
+	sleep(1);
+	kill(pid, SIGINT);
+	wait_signal_execution_script(outputfile);
+	print_stat(outputfile);
+	
+	pid = 0;
+	if ((pid = fork()) == 0)
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_ign", "14",(char*)0);
+	sleep(1);
+	kill(pid, SIGTERM);
+	wait_signal_execution_script(outputfile);
+	print_stat(outputfile);
+
+	// 10.additional tests
+	printf("\n\n10.Additional tests for options\n");
+	
+	if (fork()==0)
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "lv", "errors/return", "0", (char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+
 	if (fork()==0)
 		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--stdout", "/dev/null", "ls", "-la", (char*)0);
 	wait_normal_execution(outputfile);
@@ -1071,8 +1071,54 @@ int main(int argc, char **argv)
 	print_stat(outputfile);
 	
 	if (fork()==0)
+		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--stderr", "/dev/null", "--stdout", "/dev/null", "time", "ls",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);	
+	
+	if (fork()==0)
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "1min", "-o", outputfile, "-l", "ldv", "--interval", "1", "time/user", "1000ms", (char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	if (fork()==0)
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "90ms", "-o", outputfile, "-l", "ldv", "--interval", "5", "time/user", "100", (char*)0);
+	wait_timelimit_execution(outputfile);
+	print_stat(outputfile);
+	
+	if (fork()==0)
 		execl(timeout, timeout, "-h", (char*)0);
 	wait_help_option(outputfile);
+	print_stat(outputfile);
+	
+	system("echo -e \"memory.limit_in_bytes 10000000\nmemory.memsw.limit_in_bytes 10000000\" > tmp_file_");
+	if (fork()==0)
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+	wait_signal_execution(outputfile);
+	print_stat(outputfile);
+	system("rm tmp_file_");
+	
+	system("echo -e \"memory.swappiness 0\" > tmp_file_");
+	if (fork()==0)
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	system("rm tmp_file_");
+	
+	system("echo -e \"memory.limit_in_bytes_ 10000000\" > tmp_file_");
+	if (fork()==0)
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+	system("rm tmp_file_");
+	
+	if (fork()==0)
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+	
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "./res_manager_in_res_manager", (char*)0);
+	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	// stat

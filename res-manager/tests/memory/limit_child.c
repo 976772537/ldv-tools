@@ -21,7 +21,7 @@ void allocate(int allocate_bytes)
 	{
 		allocated_array[i] = '0';
 	}
-	sleep(100);
+	sleep(1);
 	_exit(0);
 }
 
