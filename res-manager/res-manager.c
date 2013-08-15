@@ -9,22 +9,26 @@
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
+#include <fcntl.h>
 
 #define STR_LEN 80
 #define STANDART_TIMELIMIT 60
 #define STANDART_MEMLIMIT 100 * 10e6
 
+#define RESMANAGER_MODIFIER "resource_manager_"
+#define MEMORY_CONTROLLER "memory"
+#define CPUACCT_CONTROLLER "cpuacct"
+#define TASKS_FILE "/tasks"
+#define MEM_LIMIT "/memory.limit_in_bytes"
+#define MEMSW_LIMIT "/memory.memsw.limit_in_bytes"
+#define CPU_USAGE "/cpuacct.usage"
+#define CPU_STAT "/cpuacct.stat"
+#define MEMSW_MAX_USAGE "/memory.memsw.max_usage_in_bytes"
 
-const char * resmanager_modifier = "resource_manager_"; // modifier to the names of resource manager cgroups
-const char * memory_controller = "memory";
-const char * cpuacct_controller = "cpuacct";
-const char * tasks_file = "/tasks";
-const char * mem_limit = "/memory.limit_in_bytes";
-const char * memsw_limit = "/memory.memsw.limit_in_bytes";
-const char * cpu_usage = "/cpuacct.usage";
-const char * cpu_stat = "/cpuacct.stat";
-const char * memsw_max_usage = "/memory.memsw.max_usage_in_bytes";
-
+#define CPUINFO_FILE "/proc/cpuinfo"
+#define MEMINFO_FILE "/proc/meminfo"
+#define VERSION_FILE "/proc/version"
+#define MOUNTS_FILE "/proc/mounts"
 
 typedef struct statistics
 {
@@ -39,33 +43,44 @@ typedef struct statistics
 	long memory;
 } statistics;
 
-double timelimit = STANDART_TIMELIMIT; // in seconds
-long memlimit = STANDART_MEMLIMIT; // in bytes
-char * outputfile;
-char ** command = NULL;
-int alarm_time = 1000; // time in ms
-int script_signal = 0; // signal which killed script
+typedef struct parameters
+{
+	double timelimit; // in seconds
+	long memlimit; // in bytes
+	char * outputfile;
+	char ** command;
+	int alarm_time; // time in ms
+	int script_signal; // signal which killed script
 
-// cgroup parameters
-char * path_to_memory = "";
-char * path_to_cpuacct = "";
+	// cgroup parameters
+	char * path_to_memory_origin;
+	char * path_to_cpuacct_origin;
+	char * path_to_memory;
+	char * path_to_cpuacct;
 
-// command line parameters
-int fd_stdout = -1;
-int fd_stderr = -1;
+	// command line parameters
+	int fd_stdout;
+	int fd_stderr;
 
-//errors processing
-int is_mem_dir_created = 0;
-int is_cpu_dir_created = 0;
-int pid = 0; // pid of child process
+	//errors processing
+	int is_mem_dir_created;
+	int is_cpu_dir_created;
+} parameters;
+
+parameters param;
+
+// pid of child process
+int pid = 0;
 
 
-void kill_created_processes(int signum);
-void exit_res_manager(int exit_code, int signal, statistics *stats, const char * err_mes);
+static void kill_created_processes(int signum);
+static void exit_res_manager(int exit_code, int signal, statistics *stats, const char * err_mes);
+static int check_tasks_file();
 
 /*General functions*/
 
-int get_num(long num)
+// get order of number
+static int get_number_order(long num)
 {
 	int ret = 1;
 	long count = num;
@@ -73,9 +88,10 @@ int get_num(long num)
 	return ret;
 }
 
-char * itoa(long num)
+// get array representing long number
+static char * itoa(long num)
 {
-	int number_of_chars = get_num(num);
+	int number_of_chars = get_number_order(num);
 	char * str = (char *) malloc (sizeof(char *) * (number_of_chars + 1));
 	if (str == NULL)
 	{
@@ -92,7 +108,8 @@ char * itoa(long num)
 	return str;
 }
 
-char * concat(char * str1, char * str2)
+// concatenate two strings, don't write into str1
+static char * concat(const char * str1, const char * str2)
 {
 	char tmp[strlen(str1) + strlen(str2) + 1];
 	strcpy(tmp,str1);
@@ -100,16 +117,16 @@ char * concat(char * str1, char * str2)
 	return strdup(tmp);
 }
 
-double gettime()
 // get current time in microseconds (10^-6)
+static double gettime()
 {
 	struct timeval time;
 	gettimeofday(&time, NULL);
 	return time.tv_sec + time.tv_usec / 1000000.0;
 }
 
-int is_number(char * str)
 // return true, if str is number
+static int is_number(char * str)
 {
 	int i = 0;
 	if (str == NULL)
@@ -123,8 +140,8 @@ int is_number(char * str)
 	return 1;
 }
 
-char * read_string_from_opened_file(FILE * file)
 // read string from opened file into dynamic array 
+static char * read_string_from_opened_file(FILE * file)
 {
 	if (file == NULL)
 		return NULL;
@@ -149,8 +166,8 @@ char * read_string_from_opened_file(FILE * file)
 	return line;
 }
 
-char * read_string_from_file(const char * path)
 // read first string from file
+static char * read_string_from_file(const char * path)
 {
 	FILE * file;
 	file = fopen(path,"rt");
@@ -161,8 +178,8 @@ char * read_string_from_file(const char * path)
 	return line;
 }
 
-int write_into_file(const char * path,const char * str)
 // write string into file
+static int write_into_file(const char * path,const char * str)
 {
 	if (access(path, F_OK) == -1) // file doesn't exist
 		return -1;
@@ -175,8 +192,8 @@ int write_into_file(const char * path,const char * str)
 	return 0;
 }
 
-void print_command(FILE * file, char ** command)
 // print command in string format into file
+static void print_command(FILE * file, char ** command)
 {
 	if (command != NULL)
 	{
@@ -190,11 +207,11 @@ void print_command(FILE * file, char ** command)
 	fprintf(file,"\n");
 }
 
-char * get_cpu()
 // get cpu name
+static char * get_cpu()
 {
 	FILE * file;
-	file = fopen("/proc/cpuinfo","rt");
+	file = fopen(CPUINFO_FILE,"rt");
 	if (file == NULL)
 	{
 		return NULL;
@@ -229,11 +246,11 @@ char * get_cpu()
 	return NULL;
 }
 
-char * get_memory()
 // get memory size
+static char * get_memory()
 {
 	FILE * file;
-	file = fopen("/proc/meminfo","rt");
+	file = fopen(MEMINFO_FILE,"rt");
 	if (file == NULL)
 	{
 		return NULL;
@@ -257,12 +274,12 @@ char * get_memory()
 	return NULL;
 }
 
-char * get_kernel()
 // get kernel version
+static char * get_kernel()
 {
 	
 	char * line;
-	line = read_string_from_file("/proc/version");
+	line = read_string_from_file(VERSION_FILE);
 	if (line == NULL)
 	{
 		return NULL;
@@ -285,11 +302,11 @@ char * get_kernel()
 
 /*Cgroup handling*/
 
-void find_cgroup_location()
 // find path_to_memory and path_to_cpuacct 
 // return 1 in case of success, 0 - can't find cgroup with such controller
+static void find_cgroup_location()
 {
-	const char * path = "/proc/mounts";
+	const char * path = MOUNTS_FILE;
 	FILE * results;
 	results = fopen(path,"rt");
 	if (results == NULL)
@@ -304,41 +321,55 @@ void find_cgroup_location()
 		char type [strlen(line)];
 		char subsystems [strlen(line)];
 		sscanf(line,"%s %s %s %s",name,path,type,subsystems);
-		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,cpuacct_controller))
+		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,CPUACCT_CONTROLLER))
 		{	
-			path_to_cpuacct = (char*)malloc(sizeof(char) * strlen(path + 1));
-			if (path_to_cpuacct == NULL)
+			param.path_to_cpuacct = (char*)malloc(sizeof(char) * strlen(path + 1));
+			if (param.path_to_cpuacct == NULL)
 			{
 				exit_res_manager(errno,0,NULL,"Error: Not enough memory");
 			}
-			strcpy(path_to_cpuacct, path);
+			strcpy(param.path_to_cpuacct, path);
+			param.path_to_cpuacct_origin = (char*)malloc(sizeof(char) * strlen(path + 1));
+			if (param.path_to_cpuacct_origin == NULL)
+			{
+				exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+			}
+			strcpy(param.path_to_cpuacct_origin, path);
 		}
-		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,memory_controller))
+		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,MEMORY_CONTROLLER))
 		{	
-			path_to_memory = (char*)malloc(sizeof(char) * strlen(path + 1));
-			if (path_to_memory == NULL)
+			param.path_to_memory = (char*)malloc(sizeof(char) * strlen(path + 1));
+			if (param.path_to_memory == NULL)
 			{
 				exit_res_manager(errno,0,NULL,"Error: Not enough memory");
 			}
-			strcpy(path_to_memory, path);
+			strcpy(param.path_to_memory, path);
+			param.path_to_memory_origin = (char*)malloc(sizeof(char) * strlen(path + 1));
+			if (param.path_to_memory_origin == NULL)
+			{
+				exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+			}
+			strcpy(param.path_to_memory_origin, path);
 		}
 		free(line);
 	}
-	if (path_to_memory == "")
+	if (param.path_to_memory == NULL)
 	{
 		exit_res_manager(EACCES,0,NULL,"You need to mount memory cgroup: sudo mount -t cgroup -o memory <name> <path>");
 	}
-	if (path_to_cpuacct == "")
+	if (param.path_to_cpuacct == NULL)
 	{
 		exit_res_manager(EACCES,0,NULL,"You need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>");
 	}
 }
 
-void create_cgroup(char * resmanager_dir)
 // create cgroups in founded locations with name
-// return 1 in case of success, 0 - can't create new directories (permission error)
+static void create_cgroup(char * resmanager_dir)
 {
-	char * generic_name = itoa (getpid());
+	// pid of process
+	char * generic_name = itoa (getpid()); 
+	
+	// same directory
 	if (resmanager_dir == NULL)
 	{
 		resmanager_dir = (char *)malloc(sizeof(char) * 1);
@@ -348,29 +379,33 @@ void create_cgroup(char * resmanager_dir)
 		}
 		strcpy(resmanager_dir,"");
 	}
-	char * tmp_path_to_memory = realloc (path_to_memory, sizeof(char) * (strlen(path_to_memory) + strlen(generic_name) + strlen(resmanager_dir) + strlen(resmanager_modifier) + 3));
+	
+	// add "/<resmanager_dir>/RESMANAGER_MODIFIER_pid" to found path
+	char * tmp_path_to_memory = realloc (param.path_to_memory, sizeof(char) * (strlen(param.path_to_memory) + strlen(generic_name) + 
+			strlen(resmanager_dir) + strlen(RESMANAGER_MODIFIER) + 3));
 	if (tmp_path_to_memory != NULL) 
 	{
-		path_to_memory = tmp_path_to_memory;
-		strcat (path_to_memory, "/");
-		strcat (path_to_memory, resmanager_dir);
-		strcat (path_to_memory, "/");
-		strcat (path_to_memory, resmanager_modifier);
-		strcat (path_to_memory, generic_name);
+		param.path_to_memory = tmp_path_to_memory;
+		strcat (param.path_to_memory, "/");
+		strcat (param.path_to_memory, resmanager_dir);
+		strcat (param.path_to_memory, "/");
+		strcat (param.path_to_memory, RESMANAGER_MODIFIER);
+		strcat (param.path_to_memory, generic_name);
 	}
 	else
 	{
 		exit_res_manager(errno,0,NULL,"Error: Not enough memory");
 	}
-	char * tmp_path_to_cpuacct = realloc (path_to_cpuacct, sizeof(char) * (strlen(path_to_cpuacct) + strlen(generic_name) + strlen(resmanager_dir) + strlen(resmanager_modifier) + 3));
+	char * tmp_path_to_cpuacct = realloc (param.path_to_cpuacct, sizeof(char) * (strlen(param.path_to_cpuacct) + 
+			strlen(generic_name) + strlen(resmanager_dir) + strlen(RESMANAGER_MODIFIER) + 3));
 	if (tmp_path_to_cpuacct != NULL) 
 	{
-		path_to_cpuacct = tmp_path_to_cpuacct;
-		strcat (path_to_cpuacct, "/");
-		strcat (path_to_cpuacct, resmanager_dir);
-		strcat (path_to_cpuacct, "/");
-		strcat (path_to_cpuacct, resmanager_modifier);
-		strcat (path_to_cpuacct, generic_name);
+		param.path_to_cpuacct = tmp_path_to_cpuacct;
+		strcat (param.path_to_cpuacct, "/");
+		strcat (param.path_to_cpuacct, resmanager_dir);
+		strcat (param.path_to_cpuacct, "/");
+		strcat (param.path_to_cpuacct, RESMANAGER_MODIFIER);
+		strcat (param.path_to_cpuacct, generic_name);
 	}
 	else
 	{
@@ -378,104 +413,113 @@ void create_cgroup(char * resmanager_dir)
 	}
 	free(generic_name);
 	
-	if (mkdir(path_to_memory,0777) == -1)
+	// create new directory - new control group
+	// if path to cpuacct and path to memory are equal then only one directory will be made 
+	if (mkdir(param.path_to_memory,0777) == -1)
 	{
-		char error_path [strlen(path_to_memory) + 1];
-		int i;
-		memcpy(error_path,path_to_memory,strlen(path_to_memory));
-		for (i=strlen(error_path);i>=0;i--)
+		if (errno == EACCES) // permissions
+			exit_res_manager(errno,0,NULL,concat(
+				"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", param.path_to_memory_origin));
+		else if (errno == EEXIST) // directiry exists
 		{
-			if(error_path[i] == '/')
-			{	
-				error_path[i] = 0;
-				break;
-			}
-		}
-		
-		exit_res_manager(errno,0,NULL,concat("Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", error_path));
-	}
-	is_mem_dir_created = 1;
-	if (strcmp(path_to_memory,path_to_cpuacct)!=0)
-	{
-		if (mkdir(path_to_cpuacct,0777) == -1)
-		{
-			char error_path [strlen(path_to_cpuacct) + 1];
-			int i;
-			memcpy(error_path,path_to_cpuacct,strlen(path_to_cpuacct));
-			for (i=strlen(error_path);i>=0;i--)
+			if (check_tasks_file())
 			{
-				if(error_path[i] == '/')
-				{	
-					error_path[i] = 0;
-					break;
-				}
+				rmdir(param.path_to_memory);
+				mkdir(param.path_to_memory,0777);
 			}
-			exit_res_manager(errno,0,NULL,concat("Error: you need to change permission in cgroup directory: sudo chmod o+wt ", error_path));
-			
+			else
+				exit_res_manager(errno,0,NULL,concat(
+			"There is control group with running processes in ", param.path_to_memory_origin));
 		}
-		is_cpu_dir_created = 1;
+		else exit_res_manager(errno,0,NULL,concat(
+			"Error during creation of directory ", param.path_to_memory_origin));
+	}
+	param.is_mem_dir_created = 1;
+	if (strcmp(param.path_to_memory,param.path_to_cpuacct) != 0)
+	{
+		if (mkdir(param.path_to_cpuacct,0777) == -1)
+		{
+			if (errno == EACCES)
+				exit_res_manager(errno,0,NULL,concat(
+					"Error: you need to change permission in cgroup directory: sudo chmod o+wt ", param.path_to_cpuacct_origin));
+			else if (errno == EEXIST)
+			{
+				if (check_tasks_file())
+				{
+					rmdir(param.path_to_cpuacct);
+					mkdir(param.path_to_cpuacct,0777);
+				}
+				else exit_res_manager(errno,0,NULL,concat(
+					"There is control group with running processes in ", param.path_to_cpuacct_origin));
+			}
+			else exit_res_manager(errno,0,NULL,concat(
+				"Errorduring creation of directory ", param.path_to_cpuacct_origin));
+		}
+		param.is_cpu_dir_created = 1;
 	}
 }
 
-void set_memlimit()
 // set memory limit in cgroup with memory controller
+static void set_memlimit()
 {
-	char path_mem [strlen(path_to_memory) + strlen(mem_limit) + 1];
-	strcpy(path_mem,path_to_memory);
-	strcat(path_mem,mem_limit);
+	char path_mem [strlen(param.path_to_memory) + strlen(MEM_LIMIT) + 1];
+	strcpy(path_mem,param.path_to_memory);
+	strcat(path_mem,MEM_LIMIT);
 	path_mem[strlen(path_mem)] = 0;
 	chmod(path_mem,0666);
-	write_into_file(path_mem,itoa(memlimit));
+	write_into_file(path_mem,itoa(param.memlimit));
 	
-	char path_memsw [strlen(path_to_memory) + strlen(memsw_limit) + 1];
-	strcpy(path_memsw,path_to_memory);
-	strcat(path_memsw,memsw_limit); // memory+swap limit
+	char path_memsw [strlen(param.path_to_memory) + strlen(MEMSW_LIMIT) + 1];
+	strcpy(path_memsw,param.path_to_memory);
+	strcat(path_memsw,MEMSW_LIMIT); // memory+swap limit
 	path_memsw[strlen(path_memsw)] = 0;
 	chmod(path_memsw,0666);
-	if (write_into_file(path_memsw,itoa(memlimit)) == -1)
+	if (write_into_file(path_memsw,itoa(param.memlimit)) == -1)
 	{
 		exit_res_manager(ENOENT,0,NULL,"Error: Memory control group doesn't have swap extension\nYou need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
 	}
 }
 
-void add_task(int pid)
 // add pid of created process to tasks file
+static void add_task(int pid)
 {
-	char path_mem [strlen(path_to_memory) + strlen(tasks_file) + 1];
-	strcpy(path_mem,path_to_memory);
-	strcat(path_mem,tasks_file);
+	char path_mem [strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1];
+	strcpy(path_mem,param.path_to_memory);
+	strcat(path_mem,TASKS_FILE);
 	path_mem[strlen(path_mem)] = 0;
 	chmod(path_mem,0666);
 	write_into_file(path_mem,itoa(pid));
-	if (strcmp(path_to_memory, path_to_cpuacct) != 0)
+	if (strcmp(param.path_to_memory, param.path_to_cpuacct) != 0)
 	{
-		char path_cpu [strlen(path_to_cpuacct) + strlen(tasks_file) + 1];
-		strcpy(path_cpu,path_to_cpuacct);
-		strcat(path_cpu,tasks_file);
+		char path_cpu [strlen(param.path_to_cpuacct) + strlen(TASKS_FILE) + 1];
+		strcpy(path_cpu,param.path_to_cpuacct);
+		strcat(path_cpu,TASKS_FILE);
 		path_cpu[strlen(path_cpu)] = 0;
 		chmod(path_cpu,0666);
 		write_into_file(path_cpu,itoa(pid));
 	}
 }
 
-void get_stats(statistics *stats)
 // read stats
+static void get_stats(statistics *stats)
 {
-	char path_mem [strlen(path_to_memory) + strlen(memsw_max_usage) + 1];
-	strcpy(path_mem,path_to_memory);
-	strcat(path_mem,memsw_max_usage); // read (memory+swap)
+	// memor + swap
+	char path_mem [strlen(param.path_to_memory) + strlen(MEMSW_MAX_USAGE) + 1];
+	strcpy(path_mem,param.path_to_memory);
+	strcat(path_mem,MEMSW_MAX_USAGE); // read (memory+swap)
 	path_mem[strlen(path_mem)] = 0;
 	char * str = read_string_from_file(path_mem);
 	if (str == NULL) // most likely there is no memsw in memory cgroup => exit with error in script
 	{
 		exit_res_manager(errno,ENOENT,NULL,"Error: Memory control group doesn't have swap extension\nYou need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
 	}
-	(*stats).memory = atol(str);
+	stats->memory = atol(str);
 	free(str);
 	
-	char path_cpu [strlen(path_to_cpuacct) + strlen(cpu_usage) + 1];
-	strcpy(path_cpu,path_to_cpuacct);
-	strcat(path_cpu,cpu_usage);
+	// cpu time
+	char path_cpu [strlen(param.path_to_cpuacct) + strlen(CPU_USAGE) + 1];
+	strcpy(path_cpu,param.path_to_cpuacct);
+	strcat(path_cpu,CPU_USAGE);
 	path_cpu[strlen(path_cpu)] = 0;
 	str = read_string_from_file(path_cpu);
 	if (str == NULL)
@@ -483,14 +527,16 @@ void get_stats(statistics *stats)
 		stats = NULL;
 		return;
 	}
-	(*stats).cpu_time = atof(str) / 10e8;
+	stats->cpu_time = atof(str) / 10e8;
 	free(str);
 	
-	strcpy(path_cpu,path_to_cpuacct);
-	strcat(path_cpu,cpu_stat);
-	path_cpu[strlen(path_cpu)] = 0;
+	// user and system time
+	char path_cpu_stat [strlen(param.path_to_cpuacct) + strlen(CPU_STAT) + 1];
+	strcpy(path_cpu_stat,param.path_to_cpuacct);
+	strcat(path_cpu_stat,CPU_STAT);
+	path_cpu[strlen(path_cpu_stat)] = 0;
 	FILE * file;
-	file = fopen(path_cpu,"rt");
+	file = fopen(path_cpu_stat,"rt");
 	if (file == NULL)
 	{
 		stats = NULL;
@@ -505,7 +551,7 @@ void get_stats(statistics *stats)
 	char arg [strlen(line)];
 	char value [strlen(line)];
 	sscanf(line,"%s %s",arg,value);
-	(*stats).user_time = atof(value) / 10e1;
+	stats->user_time = atof(value) / 10e1;
 	free(line);
 	
 	line = read_string_from_opened_file(file);
@@ -515,18 +561,17 @@ void get_stats(statistics *stats)
 		return;
 	}
 	sscanf(line,"%s %s",arg,value);
-	(*stats).sys_time = atof(value) / 10e1;
+	stats->sys_time = atof(value) / 10e1;
 	free(line);
-	
 	fclose(file);
 }
 
-int set_cgroup_parameter(char * file_name, char * value)
 // set specified parameter into specified file in cgroup.
 // Returns -1 in case of error in opening file or 0.
+static int set_cgroup_parameter(char * file_name, char * value)
 {
-	char path [strlen(path_to_memory) + strlen(file_name) + 2];
-	strcpy(path,path_to_memory);
+	char path [strlen(param.path_to_memory) + strlen(file_name) + 2];
+	strcpy(path,param.path_to_memory);
 	strcat(path,"/");
 	strcat(path,file_name);
 	path[strlen(path)] = 0;
@@ -534,42 +579,45 @@ int set_cgroup_parameter(char * file_name, char * value)
 	return write_into_file(path,value);
 }
 
-void remove_cgroup()
 // delete cgroups
+static int remove_cgroup()
 {
-	if (is_mem_dir_created)
-		rmdir(path_to_memory);
-	if (is_cpu_dir_created)
-		rmdir(path_to_cpuacct);
+	int err1 = 0;
+	int err2 = 0;
+	if (param.is_mem_dir_created)
+		err1 = rmdir(param.path_to_memory);
+	if (param.is_cpu_dir_created)
+		err2=rmdir(param.path_to_cpuacct);
+	return (err1 == 0) && (err2 == 0);
 }
 
 /*Script functions*/
 
-void print_stats(int exit_code, int signal, statistics *stats, const char * err_mes)
 // print stats into file/console
+static void print_stats(int exit_code, int signal, statistics *stats, const char * err_mes)
 {
 	FILE * out;
-	if (outputfile == NULL)
+	if (param.outputfile == NULL)
 	{
 		out = stdout;
 	}
 	else
 	{
-		out = fopen(outputfile,"w");
+		out = fopen(param.outputfile,"w");
 		if (out == NULL)
 		{
-			fprintf(stdout,"Can't create file %s\n",outputfile);
+			fprintf(stdout,"Can't create file %s\n",param.outputfile);
 			out = stdout;
 		}
 	}
 	fprintf(out,"Resource manager settings:\n");
-	fprintf(out,"\tmemory limit: %ld bytes\n",memlimit);
-	fprintf(out,"\ttime limit: %.0f ms\n",timelimit * 1000);
+	fprintf(out,"\tmemory limit: %ld bytes\n",param.memlimit);
+	fprintf(out,"\ttime limit: %.0f ms\n",param.timelimit * 1000);
 	fprintf(out,"\tcommand: ");
-	print_command(out, command);
-	fprintf(out,"\tcgroup memory controller: %s\n",path_to_memory);
-	fprintf(out,"\tcgroup cpuacct controller: %s\n",path_to_cpuacct);
-	fprintf(out,"\toutputfile: %s\n",outputfile);
+	print_command(out, param.command);
+	fprintf(out,"\tcgroup memory controller: %s\n",param.path_to_memory);
+	fprintf(out,"\tcgroup cpuacct controller: %s\n",param.path_to_cpuacct);
+	fprintf(out,"\toutputfile: %s\n",param.outputfile);
 
 	fprintf(out,"Resource manager execution status:\n");
 	
@@ -587,9 +635,9 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 		fprintf(out,"\texit code: %i\n",stats->exit_code);
 		if (stats->sig_number != 0)
 			fprintf(out,"\tkilled by signal: %i (%s)\n",stats->sig_number,strsignal(stats->sig_number));
-		if (stats->cpu_time > timelimit)
+		if (stats->cpu_time > param.timelimit)
 			fprintf(out,"\ttime exhausted\n");
-		else if (stats->memory > memlimit)
+		else if (stats->memory > param.memlimit)
 			fprintf(out,"\tmemory exhausted\n");
 		else fprintf(out,"\tcompleted in limits\n");
 	
@@ -607,34 +655,33 @@ void print_stats(int exit_code, int signal, statistics *stats, const char * err_
 	fprintf(out,"\tcpu: %s",get_cpu());
 	fprintf(out,"\tmemory: %s bytes\n",get_memory());
 	
-	if (outputfile != NULL)
+	if (param.outputfile != NULL)
 		fclose(out);
 }
 
-void exit_res_manager(int exit_code, int signal, statistics *stats, const char * err_mes)
+// actions, which should be made in the end of the program: kill all created processes (if they were created),
+// print statistics, remove cgroups
+static void exit_res_manager(int exit_code, int signal, statistics *stats, const char * err_mes)
 {
 	if (pid > 0)
 		kill_created_processes(SIGKILL);
 	if (stats != NULL)
 		get_stats(stats);
-	print_stats(exit_code, script_signal, stats, err_mes);
-	remove_cgroup();
-	// close files where stderr/stdout was redirected
-	if (fd_stdout != -1)
-		close(fd_stdout);
-	if (fd_stderr != -1)
-		close(fd_stderr);
-	// exit from main program
+	if (!remove_cgroup()) // error in deleting 
+		print_stats(exit_code, param.script_signal, stats, concat(err_mes, ". Error in deleting control groups directories"
+			"Please delete them manually"));
+	else
+		print_stats(exit_code, param.script_signal, stats, err_mes);
 	exit(exit_code);
 }
 
-char * read_config_file(char * configfile)
 /*
 Config file format:
 	<file> <value>
 For each <file> will be written <value>
 Returns err_mes or NULL in case of success.
 */
+static char * read_config_file(char * configfile)
 {
 	FILE * file;
 	file = fopen(configfile,"rt");
@@ -658,16 +705,33 @@ Returns err_mes or NULL in case of success.
 	return NULL;
 }
 
-void kill_created_processes(int signum)
+// check tasks file => return 1 if it's clean, 0 otherwise
+static int check_tasks_file()
 {
-	// finish created process
-	int kill_res;
-	kill_res = kill(pid,signum);
+	char path [strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1];
+	strcpy(path,param.path_to_memory);
+	strcat(path,TASKS_FILE);
+	path[strlen(path)] = 0;
+	FILE * results;
+	results = fopen(path,"rt");
+	if (results == NULL)
+		return 0;
+	if(read_string_from_opened_file(results) != NULL) // there is some string
+	{
+		return 0;
+	}
+	return 1;
+}
+
+// finish all created processes
+static void kill_created_processes(int signum)
+{
+	kill(pid,signum);
 	
 	// if there are still pids in tasks file => finish them
-	char path [strlen(path_to_memory) + 7];
-	strcpy(path,path_to_memory);
-	strcat(path,"/tasks");
+	char path [strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1];
+	strcpy(path,param.path_to_memory);
+	strcat(path,TASKS_FILE);
 	path[strlen(path)] = 0;
 	FILE * results;
 	results = fopen(path,"rt");
@@ -681,16 +745,17 @@ void kill_created_processes(int signum)
 	}
 }
 
-void terminate(int signum)
+// handling signals - finish created process then start exit_res_manager
+static void terminate(int signum)
 {
-	script_signal = signum;
+	param.script_signal = signum;
 	if (pid > 0)
 	{
 		kill_created_processes(SIGKILL);
 	}
 	else // signal before starting command
 	{
-		statistics *stats = (statistics *)malloc(sizeof(statistics));
+		statistics *stats = (statistics*)malloc(sizeof(statistics));
 		if (stats == NULL)
 		{
 			exit_res_manager(errno,0,NULL,"Error: Not enough memory");
@@ -702,49 +767,52 @@ void terminate(int signum)
 	}
 }
 
-void stop_timer()
+// stop timer for checking time limit
+static void stop_timer()
 {
-	if (alarm_time < 1000)
+	if (param.alarm_time < 1000)
 		ualarm (0,0);
 	else
 		alarm (0);
 }
 
-void set_timer()
+// set timer for checking time limit
+static void set_timer(int alarm_time)
 {
-	if (alarm_time < 1000)
-		ualarm (alarm_time * 1000,0);
+	if (param.alarm_time < 1000)
+		ualarm (param.alarm_time * 1000,0);
 	else
-		alarm (alarm_time / 1000);
+		alarm (param.alarm_time / 1000);
 }
 
-void check_time(int signum)
+// handling SIGALRM - checking time limit
+static void check_time(int signum)
 {
-	char path [strlen(path_to_cpuacct) + 15];
-	strcpy(path,path_to_cpuacct);
-	strcat(path,"/cpuacct.usage");
+	char path [strlen(param.path_to_cpuacct) + 15];
+	strcpy(path,param.path_to_cpuacct);
+	strcat(path,CPU_USAGE);
 	path[strlen(path)] = 0;
 	char * str = read_string_from_file(path);
 	double cpu_time = atof(str) / 10e8;
 	free(str);
-	if (cpu_time >= timelimit)
+	if (cpu_time >= param.timelimit)
 	{
 		kill_created_processes(SIGKILL);
 	}
 	else
-		set_timer(alarm_time);
+		set_timer(param.alarm_time);
 }
 
-void redirect(int fd, char * path)
 // redirect fd into file path
 // for example can repirect stdin == 1 into some file
+static void redirect(int fd, char * path)
 {
 	if (path == NULL)
 		return;
 	int filedes[2];
 	close(fd);
 	filedes[0] = fd;
-	filedes[1] = creat(path, 0666);
+	filedes[1] = open(path, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
 	if (fd == 1)
 		
 	if (filedes[1] == -1)
@@ -755,109 +823,136 @@ void redirect(int fd, char * path)
 	if (pipe(filedes) == -1)
 		return;
 	if (fd == 1)
-		fd_stdout = filedes[1];
+		param.fd_stdout = filedes[1];
 	if (fd == 2)
-		fd_stderr = filedes[1];
+		param.fd_stderr = filedes[1];
 }
 
-void print_usage()
+// print help
+static void print_usage()
 {
-	printf("Usage: [-h] [options] command [arguments] \n");
-	printf("Options:\n");
-	printf("\t-h - print help;\n");
-	printf("\t-m <number> - set memory limit\n");
-	printf("\t\tsupported binary prefixes: Kb, Mb, Gb, Kib, Mib, Gib\n");
-	printf("\t\t1Kb = 1000 bytes, 1Mb = 1000^2, 1Gb = 1000^3\n");
-	printf("\t\t1Kib = 1024 bytes, 1Mib = 1024^2, 1Gib = 1024^3\n");
-	printf("\t\tif there is no binary prefix then size will be specified in bytes\n");
-	printf("\t\tdefault value: 100Mb;\n");
-	printf("\t-t <number> - set time limit\n");
-	printf("\t\tsupported prefixes: ms, min\n");
-	printf("\t\t1ms = 0.001 seconds, 1min = 60 seconds\n");
-	printf("\t\tif there is no prefix then time specified in seconds\n");
-	printf("\t\tdefault value: 1min;\n");
-	printf("\t-o <file> - set output file for statistics\n");
-	printf("\t\tif option isn't specified then will be used stdout for output statistics;\n");
-	printf("\t-l <dir> - specify directory in control groups for resource manager\n");
-	printf("\t\tif option isn't specified then will be used control groups directory for resorce manager;\n");
-	printf("\t--interval <number> - specify time (in ms) interval in which time limit will be checked\n");
-	printf("\t\tdefault value: 1000 (1 second)\n");
-	printf("\t--stdout <file> - redirect command stdout into file\n");
-	printf("\t\tif option isn't specified then stdout won't be redirected for command;\n");
-	printf("\t--stderr <file> - redirect command stderr into file\n");
-	printf("\t\tif option isn't specified then stderr won't be redirected for command.\n");
-	printf("Description:\n");
-	printf("\tResource manager runs specified command with given arguments.\n");
-	printf("\tWhile command is running resource manager checks cpu time and memory usage.\n");
-	printf("\tIf command uses more cpu time or memory then it will be killed by signal SIGKILL.\n");
-	printf("\tWhen command finishes, statistics will be written into the specified file (or to standart output).\n");
-	printf("\tIf there were any errors during command execution then it will be finished and statistics will be printed with error code.\n");
-	printf("Requirements:\n");
-	printf("\tResource manager is using control groups, which require at least kernel 2.6.24 version.\n");
-	printf("\tBefore control groups can be used you need to mount temporarily file system by command:\n");
-	printf("\t\tsudo mount -t cgroup -o cpuacct,memory <name_of_cgroup> <path_to_cgroup>\n");
-	printf("\t\t<name_of_cgroup> - name of control group; this name will be used in /proc/mounts for this file system;\n");
-	printf("\t\t<path_to_cgroup> - path to control group location;\n");
-	printf("\tNote: you don't need to do this if control groups with controllers cpuacct and memory already has been mounted.\n");
-	printf("\tYou can check this in /proc/mounts.\n");
-	printf("\tIf you want to work in specified directory inside control groups you need to set parameter -l <dir>.\n");
-	printf("\tThen resource manager will use <path_to_cgroup>/<dir> directory.\n");
-	printf("\tAlso you may need to change permissions for this directory by command:\n");
-	printf("\t\tsudo chmod o+wt <path_to_cgroup>\n");
-	printf("\t\tor if parameter -l <dir> was specified\n");
-	printf("\t\tsudo chmod o+wt <path_to_cgroup>/<dir>.\n");
-	printf("\tFor correct memory computation (memory + swap) you need next flags are set to enable in your kernel:\n");
-	printf("\t\tCONFIG_CGROUP_MEM_RES_CTLR_SWAP and CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED\n");
-	printf("\t\tor if kernel 3.6 version\n");
-	printf("\t\tCONFIG_MEMCG_SWAP and CONFIG_MEMCG_SWAP_ENABLED/\n");
-	printf("\tAlternatively you can set 'swapaccount=1' as a kernel boot parameter.\n");
-	printf("\tMinimal kernel version for swap computation is 2.6.34.\n");
-	printf("Exit status:\n");
-	printf("\tIf there was an error during control group creation (control group is not mounted, wrong permissions, swapaccount=0)\n");
-	printf("\tresource manager will return error code and discription of error into output file.\n");
-	printf("\tIf there were any errors during command execution or it was interrupted by signal then it will be finished\n");
-	printf("\tand statistics will be printed with error code or signal number.\n");
-	printf("\tOtherwise return code is 0.\n");
-	printf("Output format:\n");
-	printf("\tResource manager settings:\n");
-	printf("\t\tmemory limit: <number> bytes\n");
-	printf("\t\ttime limit: <number> ms\n");
-	printf("\t\tcommand: command [arguments]\n");
-	printf("\t\tcgroup memory controller: <path to memory control group>\n");
-	printf("\t\tcgroup cpuacct controller: <path to cpuacct control group>\n");
-	printf("\t\toutputfile: <file>\n");
-	printf("\tResource manager execution status:\n");
-	printf("\t\texit code (resource manager): <number>\n");
-	printf("\t\tkilled by signal (resource manager): <number>\n");
-	printf("\tCommand execution status:\n");
-	printf("\t\texit code: <number>\n");
-	printf("\t\tcompleted in limits / memory exhausted / time exhausted\n");
-	printf("\tTime usage statistics:\n");
-	printf("\t\twall time: <number> ms\n");
-	printf("\t\tcpu time: <number> ms\n");
-	printf("\t\tuser time: <number> ms\n");
-	printf("\t\tsystem time: <number> ms\n");
-	printf("\tMemory usage statistics:\n");
-	printf("\t\tpeak memory usage: <number> bytes\n");
-	printf("\tSystem settings:\n");
-	printf("\t\tkernel version: <version>\n");
-	printf("\t\tcpu: <name of cpu>\n");
-	printf("\t\tmemory: <max size> bytes\n");
+	printf(
+		"Usage: [options] [command] [arguments] \n"
+		"Options:\n"
+		"\t-h\n"
+		"\t\tPrint help.\n"
+		"\t-m <number>\n"
+		"\t\tSet memory limit to <number> bytes. Supported binary prefixes: Kb, Mb, Gb, Kib, Mib, Gib; 1Kb = 1000 bytes,\n"
+		"\t\t1Mb = 1000^2, 1Gb = 1000^3, 1Kib = 1024 bytes, 1Mib = 1024^2, 1Gib = 1024^3 (standardized in IEC 60027-2).\n"
+		"\t\tIf there is no binary prefix then size will be specified in bytes. Default value: 100Mb.\n"
+		"\t-t <number>\n"
+		"\t\tSet time limit to <number> seconds. Supported prefixes: ms, min; 1ms = 0.001 seconds, 1min = 60 seconds. \n"
+		"\t\tIf there is no prefix then time will be specified in seconds. Default value: 1min.\n"
+		"\t-o <file>\n"
+		"\t\tPrint statistics into file with name <file>. If option isn't specified statistics will be printed into stdout.\n"
+		"\t-l <dir>\n"
+		"\t\tSpecify subdirectory in control group directory for Resource manager. If option isn't specified then will be used\n"
+		"\t\tcontrol group directory itself.\n"
+		"\t--interval <number>\n"
+		"\t\tSpecify time (in ms) interval in which time limit will be checked. Default value: 1000 (1 second).\n"
+		"\t--stdout <file>\n"
+		"\t\tRedirect command stdout into <file>. If option isn't specified then stdout won't be redirected for command.\n"
+		"\t--stderr <file>\n"
+		"\t\tRedirect command stderr into <file>. If option isn't specified then stderr won't be redirected for command.\n"
+		"\t-l <dir>\n"
+		"\t\tSpecify config file. Config file contains pairs <parameter> <value>, parameter - name of the control group \n"
+		"\t\tparameter, value will be specified for this parameter.\n"
+		
+		"Requirements:\n"
+		"\tResource manager is using control groups, which require at least kernel 2.6.24 version.\n"
+		"\tBefore control groups can be used temporarily file system should be mounted by command:\n"
+		"\t\tsudo mount -t cgroup -o cpuacct,memory <device> <cgroup_directory>\n"
+		"\t\t\tcpuacct,memory - controllers\n"
+		"\t\t\t<device> - name of device (control group)\n"
+		"\t\t\t<cgroup_directoty> - path to control group directory.\n"
+		"\tIf control groups with controllers cpuacct and memory already has been mounted then there is no need to mount them.\n"
+		"\tInformation about all mounted file systems is contained in file /proc/mounts. For specifing subdirectory in control\n"
+		"\tgroup directory there is an option -l <dir>.\n"
+		"\tAfter mounting permissions should be changed for control group directory:\n"
+		"\t\tsudo chmod o+wt <cgroup_directory> or sudo chmod o+wt <path_to_cgroup>/<dir>.\n"
+		"\tFor correct memory computation (memory + swap) next kernel flags should be set to enable:\n"
+		"\t\tCONFIG_CGROUP_MEM_RES_CTLR_SWAP and CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED\n"
+		"\tor if kernel > 3.6 version\n"
+		"\t\tCONFIG_MEMCG_SWAP and CONFIG_MEMCG_SWAP_ENABLED\n"
+		"\tAlternatively kernel boot parameter swapaccount should be set to 1.\n"
+		"\tMinimal kernel version for swap computation is 2.6.34.\n"
+		
+		"Description:\n"
+		"\tResource manager runs specified command with given arguments. For this command will be created control group. While\n"
+		"\tcommand is running Resource manager checks cpu time and memory usage. If command uses more cpu time or memory then\n"
+		"\tit will be killed by signal SIGKILL. If signal was send to the command or any error occured during it's execution then\n"
+		"\tcommand will be finished. When command finishes (normally or not), statistics will be written into the specified file\n"
+		"\t(or to standart output), all created control groups will be deleted.\n"
+		
+		"Exit status:\n"
+		"\tIf there was an error during control group creation (control group is not mounted, wrong permissions, swapaccount=0)\n"
+		"\tResource manager will return error code and discription of error into output file and will finish it's work.\n"
+		"\tIf there were any errors during Resource manager execution or it was killed a by signal then command will be finished by\n"
+		"\tsignal SIGKILL, statistics will be printed with error code or signal number, control groups will be deleted.\n"
+		"\tOtherwise return code is 0.\n"
+		
+		"Output format:\n"
+		"\tSystem settings:\n"
+		"\t\tkernel version: <version>\n"
+		"\t\tcpu: <name of cpu>\n"
+		"\t\tmemory: <max size> bytes\n"
+		"\tResource manager settings:\n"
+		"\t\tmemory limit: <number> bytes\n"
+		"\t\ttime limit: <number> ms\n"
+		"\t\tcommand: command [arguments]\n"
+		"\t\tcgroup memory controller: <path to memory control group>\n"
+		"\t\tcgroup cpuacct controller: <path to cpuacct control group>\n"
+		"\t\toutputfile: <file>\n"
+		"\tResource manager execution status:\n"
+		"\t\texit code (resource manager): <number> (<description>)\n"
+		"\t\tkilled by signal (resource manager): <number> (<name>)\n"
+		"\tCommand execution status:\n"
+		"\t\texit code: <number>\n"
+		"\t\tkilled by signal: <number> (<name>)\n"
+		"\t\tcompleted in limits / memory exhausted / time exhausted\n"
+		"\tTime usage statistics:\n"
+		"\t\twall time: <number> ms\n"
+		"\t\tcpu time: <number> ms\n"
+		"\t\tuser time: <number> ms\n"
+		"\t\tsystem time: <number> ms\n"
+		"\tMemory usage statistics:\n"
+		"\t\tpeak memory usage: <number> bytes\n"
+		
+		);
+}
+
+// initialize global structure
+static void initialize_param()
+{
+	param.timelimit = STANDART_TIMELIMIT;
+	param.memlimit = STANDART_MEMLIMIT;
+	param.outputfile = NULL;
+	param.command = NULL;
+	param.alarm_time = 1000;
+	param.script_signal = 0;
+	param.path_to_memory_origin = NULL;
+	param.path_to_cpuacct_origin = NULL;
+	param.path_to_memory = NULL;
+	param.path_to_cpuacct = NULL;
+	param.fd_stdout = -1;
+	param.fd_stderr = -1;
+	param.is_mem_dir_created = 0;
+	param.is_cpu_dir_created = 0;
 }
 
 int main(int argc, char **argv)
 {
+	initialize_param();
 	char * stdoutfile = NULL;
 	char * stderrfile = NULL;	
 	char * resmanager_dir = ""; // path to resource manager directory in control groups
 	char * configfile = NULL;
-	
 	int i;
 	int comm_arg = 0;
 	int c;
 	for (i = 1; i <= 31; i++)
 	{
-		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM)
+		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM || i == SIGWINCH)
 			continue;
 		if (signal(i,terminate) == SIG_ERR)
 		{
@@ -871,10 +966,11 @@ int main(int argc, char **argv)
 		{"stdout", 1, 0, 's'},
 		{"stderr", 1, 0, 'e'},
 		{"config", 1, 0, 'c'},
-        {0, 0, 0, 0}
-    };
+		{0, 0, 0, 0}
+	};
 	
-	while ((c = getopt_long(argc, argv, "-hm:t:o:kl:0", long_options, &option_index)) != -1)
+	// parse command line
+	while ((c = getopt_long(argc, argv, "-hm:t:o:l:0", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -886,7 +982,7 @@ int main(int argc, char **argv)
 			{
 				exit_res_manager(EINVAL,0,NULL,"Expected integer number in ms for --interval");
 			}
-			alarm_time = atoi(optarg);
+			param.alarm_time = atoi(optarg);
 			break;
 		case 'c':
 			configfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
@@ -912,9 +1008,6 @@ int main(int argc, char **argv)
 			}
 			strcpy(stderrfile,optarg);
 			break;
-		case 'k':
-			// nothing
-			break;
 		case 'l':
 			resmanager_dir = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
 			if (resmanager_dir == NULL)
@@ -924,34 +1017,34 @@ int main(int argc, char **argv)
 			strcpy(resmanager_dir,optarg);
 			break;
 		case 'm':
-			memlimit = atol(optarg);
+			param.memlimit = atol(optarg);
 			if (strstr(optarg, "Kb") != NULL)
 			{
-				memlimit *= 1000;
+				param.memlimit *= 1000;
 			}
 			else if (strstr(optarg, "Mb") != NULL)
 			{
-				memlimit *= 1000 * 1000;
+				param.memlimit *= 1000 * 1000;
 			}
 			else if (strstr(optarg, "Gb") != NULL)
 			{
-				memlimit *= 1000;
-				memlimit *= 1000;
-				memlimit *= 1000;
+				param.memlimit *= 1000;
+				param.memlimit *= 1000;
+				param.memlimit *= 1000;
 			}
 			else if (strstr(optarg, "Kib") != NULL)
 			{
-				memlimit *= 1024;
+				param.memlimit *= 1024;
 			}
 			else if (strstr(optarg, "Mib") != NULL)
 			{
-				memlimit *= 1024 * 1024;
+				param.memlimit *= 1024 * 1024;
 			}
 			else if (strstr(optarg, "Gib") != NULL)
 			{
-				memlimit *= 1024;
-				memlimit *= 1024;
-				memlimit *= 1024;
+				param.memlimit *= 1024;
+				param.memlimit *= 1024;
+				param.memlimit *= 1024;
 			}
 			else if (!is_number(optarg))
 			{
@@ -959,14 +1052,14 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 't':
-			timelimit = atof(optarg);
+			param.timelimit = atof(optarg);
 			if (strstr(optarg, "ms") != NULL)
 			{
-				timelimit /= 1000;
+				param.timelimit /= 1000;
 			}
 			else if (strstr(optarg, "min") != NULL)
 			{
-				timelimit *= 60;
+				param.timelimit *= 60;
 			}
 			else if (!is_number(optarg))
 			{
@@ -974,12 +1067,12 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'o':
-			outputfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
-			if (outputfile == NULL)
+			param.outputfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
+			if (param.outputfile == NULL)
 			{
 				exit_res_manager(errno,0,NULL,"Error: Not enough memory");
 			}
-			strcpy(outputfile,optarg);
+			strcpy(param.outputfile,optarg);
 			break;
 		default:
 			// finish parsing optional parameters
@@ -989,24 +1082,25 @@ int main(int argc, char **argv)
 	
 	exit_res_manager(EINVAL,0,NULL,"Empty command");
 	
-	exit_parser:;
+exit_parser:
 	optind--; // optind - index of first argument in command; we need index of command
-	command = (char **) malloc (sizeof(char*) * (argc - optind + 1));
-	if (command == NULL)
+	param.command = (char **) malloc (sizeof(char*) * (argc - optind + 1));
+	if (param.command == NULL)
 	{
 		exit_res_manager(errno,0,NULL,"Error: Not enough memory");
 	}
 	for (i = 0; i < argc - optind; i++)
 	{
-		command[i] = argv[optind + i];
+		param.command[i] = argv[optind + i];
 		comm_arg++;
 	}
-	command[comm_arg] = NULL;
+	param.command[comm_arg] = NULL;
 
-	find_cgroup_location(); // check if there are cgroups with cpuacct and memory controller and get their directories
-	create_cgroup(resmanager_dir); // create new cgroups in found directories
-	set_memlimit(); // set memory limit in cgroup with memory controller
-	
+	// create new cgroup command
+	find_cgroup_location(); 
+	create_cgroup(resmanager_dir);
+	// configure cgroup
+	set_memlimit();
 	if (configfile != NULL) // configfile was specified
 	{
 		char * err_mes = read_config_file(configfile);
@@ -1014,53 +1108,62 @@ int main(int argc, char **argv)
 			exit_res_manager(ENOENT,0,NULL,err_mes);
 	}
 	
+	// set timer for checking time limit
 	if (signal(SIGALRM,check_time) == SIG_ERR)
 	{
 		exit_res_manager(errno,0,NULL,"Cannot set signal handler");
 	}
+	set_timer(param.alarm_time);
 	
-	set_timer(alarm_time);
-	
+	// create new process for command
 	double time_before = gettime();
 	pid = fork();
-	if (pid == 0)
+	if (pid == 0) // child process
 	{
-		redirect(1, stdoutfile);
-		redirect(2, stderrfile);
-		add_task(getpid());
-		execvp(command[0],command);
-		exit(errno);
+		redirect(1, stdoutfile); //redirect stdout
+		redirect(2, stderrfile); // redirect stderr
+		add_task(getpid()); // attach process to cgroup
+		execvp(param.command[0],param.command); // run command
+		exit(errno); // exit on error
 	}
 	else if (pid == -1)
 	{
 		exit_res_manager(errno,0,NULL,"Cannot create a new process");
 	}
 	
+	// parent - wait
 	int status;
 	int wait_res;
 	wait_res = wait4(pid,&status,0,NULL);
 	int wait_errno = errno;
 	if (wait_res == -1)
 	{
-		if (wait_errno != EINTR)
-			exit_res_manager(errno,0,NULL,"Error: Not enough memory");
+		if (wait_errno != EINTR) // don't include error "interrupted by signal"
+			exit_res_manager(errno,0,NULL,"Error: wait failed");
 	}
 	double time_after = gettime();
+	stop_timer();
+	// close files where stderr/stdout was redirected
+	if (param.fd_stdout != -1)
+		close(param.fd_stdout);
+	if (param.fd_stderr != -1)
+		close(param.fd_stderr);
 	
-	stop_timer(alarm_time);
-	
+	// create statistics
 	statistics *stats = (statistics *)malloc(sizeof(statistics));
 	if (stats == NULL)
 	{
 		exit_res_manager(errno,0,NULL,"Error in wait");
 	}
 	stats->wall_time = time_after - time_before;
+	
+	// if wait was interrupted by signal and exit code, signal number are unknown
 	if (wait_errno == EINTR)
 	{
 		stats->exit_code = 0;
 		stats->sig_number = SIGKILL;
 	}
-	else
+	else // wait didn't failed
 	{
 		stats->exit_code = WEXITSTATUS(status);
 		if (WIFSIGNALED(status))
@@ -1068,7 +1171,11 @@ int main(int argc, char **argv)
 		else 
 			stats->sig_number = 0;
 	}
+	
+	// get statistics from cgroup
 	get_stats(stats);
+	
+	// print statistics, delete cgroup - normal execution
 	exit_res_manager(0, 0, stats, NULL);
 	
 	return 0;
