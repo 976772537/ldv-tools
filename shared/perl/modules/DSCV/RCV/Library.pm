@@ -488,13 +488,17 @@ sub get_err_result_from_file
 	my $timestats_fname = $info->{outputfile};
 	local $_;
 	open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
-	my $command_type = "0";
+	my $command_type = "-1";
 	my @result_string;
 	my $i = 0;
 	while(<STATS_FILE>) {
 		chomp;
 		next unless $_;
 		my @words = split(' ', $_);
+		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		{
+			$command_type = "0";
+		}
 		if ($words[1] eq "manager" && $words[2] eq "execution")
 		{
 			$command_type = "1";
@@ -529,13 +533,17 @@ sub get_result_from_file
 	my $timestats_fname = $info->{outputfile};
 	local $_;
 	open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
-	my $command_type = "0";
+	my $command_type = "-1";
 	my @result_string;
 	my $i = 0;
 	while(<STATS_FILE>) {
 		chomp;
 		next unless $_;
 		my @words = split(' ', $_);
+		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		{
+			$command_type = "0";
+		}
 		if ($words[1] eq "manager" && $words[2] eq "execution")
 		{
 			$command_type = "1";
