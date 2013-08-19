@@ -93,7 +93,7 @@ static int get_number_order(long num)
 static char * itoa(long num)
 {
 	int number_of_chars = get_number_order(num);
-	char * str = (char *) malloc (sizeof(char *) * (number_of_chars + 1));
+	char * str = (char *) malloc (sizeof(char) * (number_of_chars + 1));
 	if (str == NULL)
 	{
 		exit_res_manager(errno,NULL,"Error: Not enough memory");
@@ -150,7 +150,7 @@ static char * read_string_from_opened_file(FILE * file)
 {
 	if (file == NULL)
 		return NULL;
-	char * line = (char *)malloc(sizeof(char) * (STR_LEN));
+	char * line = (char *)malloc(sizeof(char) * (STR_LEN + 1));
 	if (fgets(line, STR_LEN, file) == NULL)
 		return NULL; // EOF
 	while(strstr(line,"\n") == NULL)  // not full string
@@ -308,7 +308,6 @@ static char * get_kernel()
 /*Cgroup handling*/
 
 // find path_to_memory and path_to_cpuacct 
-// return 1 in case of success, 0 - can't find cgroup with such controller
 static void find_cgroup_location()
 {
 	const char * path = MOUNTS_FILE;
@@ -328,13 +327,13 @@ static void find_cgroup_location()
 		sscanf(line,"%s %s %s %s",name,path,type,subsystems);
 		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,CPUACCT_CONTROLLER))
 		{	
-			param.path_to_cpuacct = (char*)malloc(sizeof(char) * strlen(path + 1));
+			param.path_to_cpuacct = (char*)malloc(sizeof(char) * (strlen(path) + 1));
 			if (param.path_to_cpuacct == NULL)
 			{
 				exit_res_manager(errno,NULL,"Error: Not enough memory");
 			}
 			strcpy(param.path_to_cpuacct, path);
-			param.path_to_cpuacct_origin = (char*)malloc(sizeof(char) * strlen(path + 1));
+			param.path_to_cpuacct_origin = (char*)malloc(sizeof(char) * (strlen(path) + 1));
 			if (param.path_to_cpuacct_origin == NULL)
 			{
 				exit_res_manager(errno,NULL,"Error: Not enough memory");
@@ -343,13 +342,13 @@ static void find_cgroup_location()
 		}
 		if (strcmp(type,"cgroup") == 0 && strstr(subsystems,MEMORY_CONTROLLER))
 		{	
-			param.path_to_memory = (char*)malloc(sizeof(char) * strlen(path + 1));
+			param.path_to_memory = (char*)malloc(sizeof(char) * (strlen(path) + 1));
 			if (param.path_to_memory == NULL)
 			{
 				exit_res_manager(errno,NULL,"Error: Not enough memory");
 			}
 			strcpy(param.path_to_memory, path);
-			param.path_to_memory_origin = (char*)malloc(sizeof(char) * strlen(path + 1));
+			param.path_to_memory_origin = (char*)malloc(sizeof(char) * (strlen(path) + 1));
 			if (param.path_to_memory_origin == NULL)
 			{
 				exit_res_manager(errno,NULL,"Error: Not enough memory");
@@ -434,8 +433,9 @@ static void create_cgroup()
 			if (check_tasks_file(param.path_to_memory)) 
 			{
 				rmdir(param.path_to_memory);
-				create_cgroup();
-				return;
+				mkdir(param.path_to_memory,0777);
+				//create_cgroup();
+				///return;
 			}
 			else
 				exit_res_manager(errno,NULL,concat(
@@ -458,9 +458,10 @@ static void create_cgroup()
 				if (check_tasks_file(param.path_to_cpuacct)) // if tasks file is empty -> delete this directory and try to create it once more
 				{
 					rmdir(param.path_to_cpuacct);
-					rmdir(param.path_to_memory); // memory also should be deleted or it would be an error diring it's creation
-					create_cgroup();
-					return;
+					mkdir(param.path_to_cpuacct,0777);
+					//rmdir(param.path_to_memory); // memory also should be deleted or it would be an error diring it's creation
+					//create_cgroup();
+					//return;
 				}
 				else exit_res_manager(errno,NULL,concat(
 					"There is control group with running processes in ", param.path_to_cpuacct));
@@ -501,6 +502,7 @@ static void add_task(int pid)
 	strcat(path_mem,TASKS_FILE);
 	chmod(path_mem,0666);
 	write_into_file(path_mem,itoa(pid));
+	free(path_mem);
 	
 	if (strcmp(param.path_to_memory, param.path_to_cpuacct) != 0)
 	{
@@ -789,7 +791,7 @@ static void kill_created_processes(int signum)
 // handling signals - finish created process then start exit_res_manager
 static void terminate(int signum)
 {
-	param.script_signal = signum;
+	param.script_signal = signum;/*
 	if (pid > 0)
 	{
 		kill_created_processes(SIGKILL);
@@ -805,7 +807,12 @@ static void terminate(int signum)
 		stats->sig_number = signum;
 		stats->wall_time = 0;
 		exit_res_manager(0,stats,NULL);
+	}*/
+	if (pid > 0)
+	{
+		kill_created_processes(SIGKILL);
 	}
+	exit_res_manager(0,NULL,NULL);
 }
 
 // stop timer for checking time limit
@@ -1000,7 +1007,6 @@ int main(int argc, char **argv)
 			exit_res_manager(errno,NULL,"Cannot set signal handler");
 		}
 	}
-	
 	int option_index = 0;
 	static struct option long_options[] = {
 		{"interval", 1, 0, 'i'},
@@ -1136,17 +1142,9 @@ exit_parser:
 		comm_arg++;
 	}
 	param.command[comm_arg] = NULL;
-
 	// create new cgroup for command
 	find_cgroup_location();
 	get_cgroup_name(resmanager_dir);
-	/*
-	//TODO DELETE THIS TEST
-	//mkdir(param.path_to_memory,0777);
-	mkdir(param.path_to_cpuacct,0777);
-	//add_task(getpid());
-	sleep(10);
-	*/
 	create_cgroup();
 	// configure cgroup
 	set_memlimit();
@@ -1197,15 +1195,13 @@ exit_parser:
 		close(param.fd_stdout);
 	if (param.fd_stderr != -1)
 		close(param.fd_stderr);
-	
 	// create statistics
 	statistics *stats = (statistics *)malloc(sizeof(statistics));
 	if (stats == NULL)
 	{
-		exit_res_manager(errno,NULL,"Error in wait");
+		exit_res_manager(errno,NULL,"Not enough memory");
 	}
 	stats->wall_time = time_after - time_before;
-	
 	// if wait was interrupted by signal and exit code, signal number are unknown
 	if (wait_errno == EINTR)
 	{
@@ -1220,7 +1216,6 @@ exit_parser:
 		else
 			stats->sig_number = 0;
 	}
-	
 	// get statistics from cgroup
 	get_stats(stats);
 	
