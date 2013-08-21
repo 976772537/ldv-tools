@@ -431,6 +431,47 @@ if (-e $ifile) {
 		);
 }
 
+#Lockstat
+my $lockstat_results = $outputpath."/unsafe_rawdata";
+if (-e $lockstat_results) {
+	open(ORIG_TRACE_FILE, '<', $lockstat_results) or die "Can't open file with cpachecker trace: \"$lockstat_results\", $!";
+	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cpachecker trace: \"$adjusted_trace_fname\", $!";
+	for (@files) {
+		open(SRC_FILE, '<', $_) or die "Can't open the source file: \"$_\", $!";
+		print TRACE_FILE "CPAchecker error trace v1.1\n";
+		print TRACE_FILE "-------$_-------\n";
+		while(<SRC_FILE>) {
+			print TRACE_FILE  $_
+		}
+		print TRACE_FILE "\n--------------\n";
+		close(SRC_FILE);
+	}
+	my $statistics = 1;
+	my $real_unsafe = 0;
+	while (<ORIG_TRACE_FILE>) {
+		if ($_ =~ /^#/ && $statistics == 1) {
+			# At first, there are common statistics - skip it
+			$statistics = 0;
+		}
+		next if ($statistics == 1);
+		if ($_ =~ /^#/) {
+			$real_unsafe = 1;
+			<ORIG_TRACE_FILE>;
+			my $name = <ORIG_TRACE_FILE>;
+			chomp($name);
+			print TRACE_FILE "Line 0:     N0 -{/*$name*/}-> N0\n";
+			next;
+		}
+		print TRACE_FILE $_;
+	}
+	close TRACE_FILE;
+	close ORIG_TRACE_FILE;
+	if ($real_unsafe == 1)
+	{
+		$verdict = 'unsafe';
+	}
+}
+
 # Return results.  The "verdict", "description", and "error_trace" are
 # obligatory.  You may add more hash entries, the values should contain files,
 # and the keys will distinguish these files by meaning.  The files you've
