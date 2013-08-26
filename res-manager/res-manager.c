@@ -117,6 +117,10 @@ static char * concat(const char * str1, const char * str2)
 	if (str2 == NULL)
 		return strdup(str1);
 	char *tmp = (char*)malloc ((strlen(str1) + strlen(str2) + 1) *sizeof(char));
+	if (tmp == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(tmp,str1);
 	strcat(tmp,str2);
 	return tmp;
@@ -151,6 +155,10 @@ static char * read_string_from_opened_file(FILE * file)
 	if (file == NULL)
 		return NULL;
 	char * line = (char *)malloc(sizeof(char) * (STR_LEN + 1));
+	if (line == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	if (fgets(line, STR_LEN, file) == NULL)
 		return NULL; // EOF
 	while(strstr(line,"\n") == NULL)  // not full string
@@ -177,7 +185,9 @@ static char * read_string_from_file(const char * path)
 	FILE * file;
 	file = fopen(path,"rt");
 	if (file == NULL)
-		return NULL;
+	{
+		exit_res_manager(errno,NULL, strerror(errno));
+	}
 	char * line = read_string_from_opened_file(file);
 	fclose(file);
 	return line;
@@ -477,6 +487,10 @@ static void create_cgroup()
 static void set_memlimit()
 {
 	char *path_mem = (char*)malloc((strlen(param.path_to_memory) + strlen(MEM_LIMIT) + 1)*sizeof(char));
+	if (path_mem == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path_mem,param.path_to_memory);
 	strcat(path_mem,MEM_LIMIT);
 	chmod(path_mem,0666);
@@ -484,6 +498,10 @@ static void set_memlimit()
 	free(path_mem);
 	
 	char *path_memsw = (char*)malloc((strlen(param.path_to_memory) + strlen(MEMSW_LIMIT) + 1)*sizeof(char));
+	if (path_memsw == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path_memsw,param.path_to_memory);
 	strcat(path_memsw,MEMSW_LIMIT); // memory+swap limit
 	chmod(path_memsw,0666);
@@ -498,6 +516,10 @@ static void set_memlimit()
 static void add_task(int pid)
 {
 	char *path_mem = (char*)malloc((strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1)*sizeof(char));
+	if (path_mem == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path_mem,param.path_to_memory);
 	strcat(path_mem,TASKS_FILE);
 	chmod(path_mem,0666);
@@ -507,6 +529,10 @@ static void add_task(int pid)
 	if (strcmp(param.path_to_memory, param.path_to_cpuacct) != 0)
 	{
 		char *path_cpu = (char*)malloc((strlen(param.path_to_cpuacct) + strlen(TASKS_FILE) + 1)*sizeof(char));
+		if (path_cpu == NULL)
+		{
+			exit_res_manager(errno,NULL,"Error: Not enough memory");
+		}
 		strcpy(path_cpu,param.path_to_cpuacct);
 		strcat(path_cpu,TASKS_FILE);
 		chmod(path_cpu,0666);
@@ -520,12 +546,16 @@ static void get_stats(statistics *stats)
 {
 	// memor + swap
 	char *path_mem = (char*)malloc((strlen(param.path_to_memory) + strlen(MEMSW_MAX_USAGE) + 1)*sizeof(char));
+	if (path_mem == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path_mem,param.path_to_memory);
 	strcat(path_mem,MEMSW_MAX_USAGE); // read (memory+swap)
 	char * str = read_string_from_file(path_mem);
-	if (str == NULL) // most likely there is no memsw in memory cgroup => exit with error in script
+	if (str == NULL)
 	{
-		exit_res_manager(ENOENT,NULL,"Error: Memory control group doesn't have swap extension\nYou need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
+		exit_res_manager(ENOENT,NULL, concat("Error: Can't open file ",path_mem));
 	}
 	stats->memory = atol(str);
 	free(str);
@@ -533,13 +563,16 @@ static void get_stats(statistics *stats)
 	
 	// cpu time
 	char *path_cpu = (char*)malloc((strlen(param.path_to_cpuacct) + strlen(CPU_USAGE) + 1)*sizeof(char));
+	if (path_cpu == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path_cpu,param.path_to_cpuacct);
 	strcat(path_cpu,CPU_USAGE);
 	str = read_string_from_file(path_cpu);
 	if (str == NULL)
 	{
-		stats = NULL;
-		return;
+		exit_res_manager(ENOENT,NULL, concat("Error: Can't open file ",path_cpu));
 	}
 	stats->cpu_time = atof(str) / 10e8;
 	free(str);
@@ -547,20 +580,22 @@ static void get_stats(statistics *stats)
 	
 	// user and system time
 	char *path_cpu_stat =(char*)malloc((strlen(param.path_to_cpuacct) + strlen(CPU_STAT) + 1)*sizeof(char));
+	if (path_cpu_stat == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path_cpu_stat,param.path_to_cpuacct);
 	strcat(path_cpu_stat,CPU_STAT);
 	FILE * file;
 	file = fopen(path_cpu_stat,"rt");
 	if (file == NULL)
 	{
-		stats = NULL;
-		return;
+		exit_res_manager(ENOENT,NULL, concat("Error: Can't open file ",path_cpu_stat));
 	}
 	char * line = read_string_from_opened_file(file);
 	if (line == NULL)
 	{
-		stats = NULL;
-		return;
+		exit_res_manager(ENOENT,NULL, concat("Error: Can't read the first string from cpuacct.stat file ",path_cpu_stat));
 	}
 	char arg [strlen(line)];
 	char value [strlen(line)];
@@ -569,10 +604,9 @@ static void get_stats(statistics *stats)
 	free(line);
 	
 	line = read_string_from_opened_file(file);
-	if (str == NULL)
+	if (line == NULL)
 	{
-		stats = NULL;
-		return;
+		exit_res_manager(ENOENT,NULL, concat("Error: Can't read the second string from cpuacct.stat file ",path_cpu_stat));
 	}
 	sscanf(line,"%s %s",arg,value);
 	stats->sys_time = atof(value) / 10e1;
@@ -586,6 +620,10 @@ static void get_stats(statistics *stats)
 static int set_cgroup_parameter(char * file_name, char * value)
 {
 	char *path = (char*)malloc((strlen(param.path_to_memory) + strlen(file_name) + 2)*sizeof(char));
+	if (path == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path,param.path_to_memory);
 	strcat(path,"/");
 	strcat(path,file_name);
@@ -730,6 +768,10 @@ static char * read_config_file(char * configfile)
 static int check_tasks_file(char * path_to_cgroup)
 {
 	char *path = (char*)malloc((strlen(path_to_cgroup) + strlen(TASKS_FILE) + 1)*sizeof(char));
+	if (path == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path,path_to_cgroup);
 	strcat(path,TASKS_FILE);
 	FILE * results;
@@ -753,6 +795,10 @@ static void kill_created_processes(int signum)
 	while (check_tasks_file(param.path_to_memory) == 0)
 	{
 		char *path = (char*)malloc((strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1)*sizeof(char));
+		if (path == NULL)
+		{
+			exit_res_manager(errno,NULL,"Error: Not enough memory");
+		}
 		strcpy(path,param.path_to_memory);
 		strcat(path,TASKS_FILE);
 		FILE * results;
@@ -771,6 +817,10 @@ static void kill_created_processes(int signum)
 	while (check_tasks_file(param.path_to_cpuacct) == 0)
 	{
 		char *path = (char*)malloc((strlen(param.path_to_cpuacct) + strlen(TASKS_FILE) + 1)*sizeof(char));
+		if (path == NULL)
+		{
+			exit_res_manager(errno,NULL,"Error: Not enough memory");
+		}
 		strcpy(path,param.path_to_cpuacct);
 		strcat(path,TASKS_FILE);
 		FILE * results;
@@ -837,6 +887,10 @@ static void set_timer(int alarm_time)
 static void check_time(int signum)
 {
 	char *path = (char*)malloc((strlen(param.path_to_cpuacct) + strlen(CPU_USAGE) + 1)*sizeof(char));
+	if (path == NULL)
+	{
+		exit_res_manager(errno,NULL,"Error: Not enough memory");
+	}
 	strcpy(path,param.path_to_cpuacct);
 	strcat(path,CPU_USAGE);
 	char * str = read_string_from_file(path);
@@ -1083,6 +1137,7 @@ int main(int argc, char **argv)
 			{
 				param.memlimit *= 1024;
 			}
+
 			else if (strstr(optarg, "Mib") != NULL)
 			{
 				param.memlimit *= 1024 * 1024;
