@@ -590,7 +590,7 @@ static void get_stats(statistics *stats)
 	file = fopen(path_cpu_stat,"rt");
 	if (file == NULL)
 	{
-		exit_res_manager(ENOENT,NULL, concat("Error: Can't open file ",path_cpu_stat));
+		exit_res_manager(errno,NULL, concat("Error: Can't open file ",path_cpu_stat));
 	}
 	char * line = read_string_from_opened_file(file);
 	if (line == NULL)
@@ -636,9 +636,9 @@ static int remove_cgroup()
 {
 	int err1 = 0;
 	int err2 = 0;
-	if (param.is_mem_dir_created)
+	//if (param.is_mem_dir_created)
 		err1 = rmdir(param.path_to_memory);
-	if (param.is_cpu_dir_created)
+	//if (param.is_cpu_dir_created)
 		err2 = rmdir(param.path_to_cpuacct);
 	return (err1 == 0) && (err2 == 0);
 }
@@ -720,7 +720,8 @@ static void exit_res_manager(int exit_code, statistics *stats, const char * err_
 		kill_created_processes(SIGKILL);
 	if (stats != NULL)
 		get_stats(stats);
-	if (!remove_cgroup()) // error in deleting
+	remove_cgroup();
+	/*if (!remove_cgroup()) // error in deleting
 	{
 		if (err_mes == NULL)
 			print_stats(exit_code, param.script_signal, stats, "Error in deleting control groups directories. "
@@ -729,8 +730,8 @@ static void exit_res_manager(int exit_code, statistics *stats, const char * err_
 			print_stats(exit_code, param.script_signal, stats, concat(err_mes, ". Error in deleting control groups directories. "
 				"Please delete them manually"));
 	}
-	else
-		print_stats(exit_code, param.script_signal, stats, err_mes);
+	else*/
+	print_stats(exit_code, param.script_signal, stats, err_mes);
 	exit(exit_code);
 }
 
@@ -790,7 +791,7 @@ static int check_tasks_file(char * path_to_cgroup)
 static void kill_created_processes(int signum)
 {
 	kill(pid,signum);
-	
+	/*
 	// if there are still pids in tasks file => finish them
 	while (check_tasks_file(param.path_to_memory) == 0)
 	{
@@ -834,7 +835,7 @@ static void kill_created_processes(int signum)
 			kill(atoi(line),signum);
 			free(line);
 		}
-	}
+	}*/
 	
 }
 
