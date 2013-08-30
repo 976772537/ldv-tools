@@ -7,7 +7,7 @@ build = build
 .PHONY: all install test clean
 
 all:
-	@gcc -Wall -Werror res-manager.c -o res-manager
+	@gcc -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-sign-compare -Wdeclaration-after-statement -Wno-pointer-sign -Werror res-manager.c -o res-manager
 	
 install: all
 	@mkdir -p $(bindir)
