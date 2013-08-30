@@ -46,6 +46,11 @@ $(rcv_install_dir)/ptrsafe: ptrsafe
 	cp $^ $@
 	@chmod +x $@
 
+$(rcv_install_dir)/cbmc: cbmc
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
 define mksubdir
 $1-subdir-%:
 	prefix=$(rcv_install_dir)/$1 $$(MAKE) -C $1 $$*
