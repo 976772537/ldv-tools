@@ -1,3 +1,4 @@
+#!/bin/bash
 # Standard directory for installation of main LDV executables.
 bindir = $(prefix)/bin
 tests = tests
@@ -6,7 +7,7 @@ build = build
 .PHONY: all install test clean
 
 all:
-	@gcc res-manager.c -o res-manager
+	@gcc -Wall -Werror res-manager.c -o res-manager
 	
 install: all
 	@mkdir -p $(bindir)
@@ -17,6 +18,8 @@ test: all
 	@mkdir -p ${build}/memory
 	@mkdir -p ${build}/errors
 	@mkdir -p ${build}/time
+	
+	@#cd ${tests}; for file in time/*; do echo "got file $file"; done
 	
 	@gcc ${tests}/test_script.c -o ${build}/test_script
 	@gcc ${tests}/time/real.c -o ${build}/time/real
@@ -38,7 +41,8 @@ test: all
 	@gcc ${tests}/errors/sig_ign.c -o ${build}/errors/sig_ign
 	
 	@gcc ${tests}/res_manager_in_res_manager.c -o ${build}/res_manager_in_res_manager
-	cd ${build}; ./test_script ../res-manager;
+	@cd ${build}; ./test_script ../res-manager;
+
 
 clean:
 	@rm -f res-manager 
