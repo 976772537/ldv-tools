@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <sys/wait.h>
 
 #define BYTES_FACTOR 1024
 /*
