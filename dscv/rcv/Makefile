@@ -5,7 +5,7 @@ backends=blast
 else
 backends=
 endif
-frontends=blast cpachecker ufo
+frontends=blast cpachecker ufo cbmc
 
 # PTRSAFE
 ifneq ($(LDV_PTRSAFE),)
