@@ -1204,10 +1204,13 @@ int main(int argc, char **argv)
 	};
 	
 	// parse command line
-	while ((c = getopt_long(argc, argv, "-hm:t:o:l:0", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "-hm:t:o:kl:0", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
+		case 'k':
+			//do nothing
+			break;
 		case 'h':
 			print_usage();
 			exit(0);

@@ -20,3 +20,4 @@ stats-visualizer/config
 
 # Resource Manager build and test files
 res-manager/res-manager
+res-manager/build
