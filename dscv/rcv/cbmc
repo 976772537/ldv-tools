@@ -1,0 +1,206 @@
+#!/usr/bin/perl
+
+################################################################################
+# Copyright (C) 2013
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# RCV frontend for CBMC tool.
+
+set_tool_name("CBMC");
+
+# locate cbmc
+my $cbmc_exe = "cbmc";
+
+my @files = preprocess_all_files('cpp');
+
+# Options that will be passed to the cbmc tool
+my @cbmc_options = ($cbmc_exe,@files);
+
+# Check the number of entry points 
+die "You can only specify one main for CBMC!" if (scalar @mains != 1);
+
+# Set the option for the entry point
+my $main = $mains[0];
+push @cbmc_options, "--function",$main;
+
+# Check the number of error locations
+die "You can only specify one error label for CBMC!" if (scalar @errlocs != 1);
+my $errloc = $errlocs[0];
+push @cbmc_options, "--error-label",$errloc;
+
+# unwind options
+push @cbmc_options, "--unwind", "2";
+push @cbmc_options, "--no-unwinding-assertions";
+
+# External settings
+push @cbmc_options,(split /\s+/,$ENV{'cbmc_options'});
+
+# Fork and run CBMC in a child process.	Redirect its output (std and err) to a file
+add_automaton(safe_unsafe());
+
+my $error_trace = "$tmpdir/error_trace.txt";
+#open(ORIG_TRACE_FILE, '>', $error_trace);
+#close ORIG_TRACE_FILE;
+
+
+# We will need to adjust the trace for seamless integration with LDV, so we'll copy the trace here
+my $adjusted_trace = "$tmpdir/error_trace_m.txt";
+
+# It's important to specify 'stdout' here, as the output to the stderr may clobber the trace and make the Error Trace Visualizer fail, yielding a "Script error" for this driver.
+add_automaton(dumptrace($error_trace),'stdout');
+
+# Dump the last 50 lines from stderr output of the tool
+add_automaton(tail_automaton(50),'stderr');
+
+my ($result, $errcode, $automata_results, $debug_trace) = run(@cbmc_options);
+
+# CBMC prints the verdict into the standard output.  It was read by the relevant automaton.
+my $verdict = $automata_results->{VERDICT} || 'unknown';
+
+# You may skip specifying the description; however if there's something wrong, and you want to discriminate the issues in your tool in the statistics visualizer (or to gather the results for a scientific experiment), you might consider adding something here
+my $description = '';
+
+if($errcode == 0 && $result eq 'OK'){
+	vsay (20,"Finished.\n");
+}else{
+	vsay (20,"Failed with exit code $errcode by $result.  But who cares?\n");
+}
+
+$description .= $automata_results->{'EXCEPTION'}."\n" if $automata_results->{'EXCEPTION'};
+
+# Add the stderr tail
+$description.= join ("\n",@{$automata_results->{'TAIL'}})."\n" if $automata_results->{'TAIL'};
+
+
+# Describe the attributes of the current launch
+$description .= "\n=========== CBMC attrubutes ===========\n";
+
+# To convert CBMC error traces to the common format add a header
+local $_;
+if ($verdict eq 'unsafe') {
+	open(ORIG_TRACE_FILE, '<', $error_trace) or die "Can't open file with cbmc trace: \"$error_trace\", $!";
+	open(TRACE_FILE, '>', $adjusted_trace) or die "Can't open file with adjsuted cbmc trace: \"$adjusted_trace\", $!";
+	print TRACE_FILE "CBMC error trace\n";    
+	while (<ORIG_TRACE_FILE>) {
+		print TRACE_FILE $_;
+	}
+	close TRACE_FILE;
+	close ORIG_TRACE_FILE;
+}
+
+result(
+	# verdict and description should be specified; an error trace is also required if the verdict is "unsafe"
+	verdict => $verdict,
+	description => $description,
+	error_trace => $adjusted_trace,
+	# Additional files that are important
+	verifier_out => $debug_trace,
+);
+
+#===================
+#  AUTOMATA
+#===================
+
+# Verdict check automaton
+sub safe_unsafe
+{
+	return sub {
+		my $l=shift or return undef;
+		$l=~/VERIFICATION SUCCESSFUL/ and return {VERDICT=>'safe'};
+		$l=~/VERIFICATION FAILED/ and return {VERDICT=>'unsafe'};
+		return undef;
+	};
+}
+
+sub exception
+{
+	return sub {
+		my $l=shift or return undef;
+		$l=~/Ack! The gremlins again!: (.*)/ and return {'EXCEPTION' => "Exception: $1"};
+		return undef;
+	};
+}
+
+
+# Trace dumper.  Usage:  my $dumper = dumptrace(filename);
+use constant { TRACE_WAIT => 0, TRACE_READ => 1, TRACE_DONE =>2};
+sub dumptrace
+{
+	my $fname = shift or die;
+	my $state = TRACE_WAIT;
+	my $current_fh;
+	return sub {
+		my $line = shift;
+
+		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
+		return undef if $state == TRACE_DONE;
+
+		$line =~ /Counterexample:/ and do {$state = TRACE_READ; return undef;};
+		$line =~ /Violated property:/ and do {$state = TRACE_DONE; return undef;};
+
+		if ($state == TRACE_READ){
+			unless ($current_fh){
+				# Do not open for appending, open for writing instead (see bug #1264)
+				open $current_fh, ">", $fname or die;
+			}
+			
+			#modify line
+			my @words = split(" ", $line);
+			
+			
+			my $i = 0;
+			
+			my $id = "";
+			my $src = "";
+			my $line_number = "";
+			my $func = "";
+			
+			while ($words[$i])
+			{
+				if ($words[$i] eq "State")
+				{
+					$id = $words[$i+1];
+				}
+				if ($words[$i] eq "file")
+				{
+					$src = $words[$i+1];
+				}
+				if ($words[$i] eq "line")
+				{
+					$line_number = $words[$i+1];
+				}
+				if ($words[$i] eq "function")
+				{
+					$func = $words[$i+1];
+				}
+				#print $current_fh $words[$i]."\n";
+				$i++;
+				
+			}
+			#if ($id ne "" && $src ne "" && $line ne "" && $func ne "")
+			#{
+				#print $current_fh "Location: id=$id src=$src; line=$line_number $func\n";
+			#}
+			print $current_fh $line;
+			
+		}
+		return undef;
+	};
+}
+
+__END__
+
+
