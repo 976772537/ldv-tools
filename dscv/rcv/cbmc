@@ -24,7 +24,24 @@ set_tool_name("CBMC");
 # locate cbmc
 my $cbmc_exe = "cbmc";
 
-my @files = preprocess_all_files('cpp');
+#cil option
+set_cil_options(
+    "--printCilAsIs",
+    "--decil",
+    # "--noLowerConstants",
+    "--noInsertImplicitCasts",
+    "--useLogicalOperators",      # Now supported by CPAchecker frontend
+    "--ignore-merge-conflicts",
+    "--no-convert-direct-calls",  # Don't transform simple function calls to calls-by-pointers
+    "--no-convert-field-offsets", # Don't transform s->f to pointer arithmetic
+    "--no-split-structs",         # Don't transform structure fields into variables or arrays
+    "--rmUnusedInlines"
+);
+
+my @files = preprocess_all_files('cpp','cil-merge');
+
+
+#my @files = preprocess_all_files('cpp');
 
 # Options that will be passed to the cbmc tool
 my @cbmc_options = ($cbmc_exe,@files);
