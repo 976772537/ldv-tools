@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+# Problem finder for CBMC tool
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/CONVERSION ERROR/ and print "Conversion error";
+	/incomplete type not permitted here/ and print "Incomplete type";
+}
+
+
