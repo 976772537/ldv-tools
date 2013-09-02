@@ -13,26 +13,25 @@
 
 #define STR_LEN 80
 #define STANDART_TIMELIMIT 60
-#define STANDART_MEMLIMIT 100 * 10e6
+#define STANDART_MEMLIMIT 1e9
 
 #define RESMANAGER_MODIFIER "resource_manager_"
 #define MEMORY_CONTROLLER "memory"
 #define CPUACCT_CONTROLLER "cpuacct"
-// TODO: remove leading '/' from file names but not from absolute paths below.
-#define TASKS_FILE "/tasks"
-#define MEM_LIMIT "/memory.limit_in_bytes"
-#define MEMSW_LIMIT "/memory.memsw.limit_in_bytes"
-#define CPU_USAGE "/cpuacct.usage"
-#define CPU_STAT "/cpuacct.stat"
-#define MEMSW_MAX_USAGE "/memory.memsw.max_usage_in_bytes"
+#define CGROUP "cgroup"
+#define TASKS_FILE "tasks"
+#define MEM_LIMIT "memory.limit_in_bytes"
+#define MEMSW_LIMIT "memory.memsw.limit_in_bytes"
+#define CPU_USAGE "cpuacct.usage"
+#define CPU_STAT "cpuacct.stat"
+#define MEMSW_MAX_USAGE "memory.memsw.max_usage_in_bytes"
 
 #define CPUINFO_FILE "/proc/cpuinfo"
 #define MEMINFO_FILE "/proc/meminfo"
 #define VERSION_FILE "/proc/version"
 #define MOUNTS_FILE "/proc/mounts"
 
-// TODO: remove useless word 'statistics' from 'struct statistics'.
-typedef struct statistics
+typedef struct 
 {
 	int exit_code;
 	int sig_number;
@@ -45,13 +44,13 @@ typedef struct statistics
 	long memory;
 } statistics;
 
-// TODO: remove useless word 'parameters' from 'struct parameters'.
-typedef struct parameters
+typedef struct 
 {
+	//command line parameters
 	double timelimit; // in seconds
 	long memlimit; // in bytes
-	char * outputfile;
-	char ** command;
+	char * outputfile; // file for printing statistics
+	char ** command; // command for execution
 	int alarm_time; // time in ms
 
 	// cgroup parameters
@@ -60,33 +59,34 @@ typedef struct parameters
 	char * path_to_memory;
 	char * path_to_cpuacct;
 
-// TODO: clarify what does it mean. Why doesn't 'memlimit' belong to command-line parameters.
-	// command-line parameters
+	// file descriptors for redirecting stdout/stderr from command
 	int fd_stdout;
 	int fd_stderr;
 
-// TODO: clarify what does it mean.
-	// errors processing
-	int is_mem_dir_created;
-	int is_cpu_dir_created;
-	
-// TODO: what is this?
+	// if Resource Manager was terminated by signal and this signal was handled then script_signal stores that signal number
 	int script_signal;
 } parameters;
 
-// TODO: what is this?
+// global parameters - commnad line parameters, cgroup parameters, file descriptiors for redirecting stdout/stderr
 parameters param;
 
-// TODO: what is child process?
-// pid of child process
+// pid of child process in which command will be executed
 int pid = 0;
-
 
 static void kill_created_processes(int signum);
 static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes);
 static int check_tasks_file(char *);
 
 /* Library functions. */
+
+// wrapper for checking malloc
+void check_malloc(void * allocated_memory)
+{
+	if (allocated_memory == NULL)
+	{
+		exit_res_manager(errno, NULL, "Error: Not enough memory");
+	}
+}
 
 // get order of number
 static int get_number_order(long num)
@@ -106,14 +106,10 @@ static int get_number_order(long num)
 static char *itoa(long num)
 {
 	int number_of_chars = get_number_order(num);
-	
-	char *str = (char *) malloc(sizeof(char) * (number_of_chars + 1));
-	if (str == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
 	int i;
 	long count = num;
+	char *str = (char *) malloc(sizeof(char) * (number_of_chars + 1));
+	check_malloc(str);
 	for (i = number_of_chars - 1; i >= 0; i--)
 	{
 		str[i] = count % 10 + '0';
@@ -127,6 +123,7 @@ static char *itoa(long num)
 // concatenate two strings, don't write into str1 and str2
 static char *concat(const char *str1, const char *str2)
 {
+	char *tmp;
 	if (str1 == NULL)
 	{
 		return strdup(str2);
@@ -135,20 +132,16 @@ static char *concat(const char *str1, const char *str2)
 	{
 		return strdup(str1);
 	}
-	char *tmp = (char *) malloc((strlen(str1) + strlen(str2) + 1) * sizeof(char));
-	if (tmp == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
+	tmp = (char *) malloc((strlen(str1) + strlen(str2) + 1) * sizeof(char));
+	check_malloc(tmp);
 	strcpy(tmp, str1);
 	strcat(tmp, str2);
 	
 	return tmp;
 }
 
-// TODO: replace all '()' with '(void)' for functions that don't take any parameter.
 // get current time in microseconds (10^-6)
-static double gettime()
+static double gettime(void)
 {
 	struct timeval time;
 	
@@ -181,34 +174,24 @@ static int is_number(char *str)
 // read string from opened file into dynamic array 
 static char *read_string_from_opened_file(FILE * file)
 {
+	char * line;
 	if (file == NULL)
 	{
 		return NULL;
 	}
-	char * line = (char *)malloc(sizeof(char) * (STR_LEN + 1));
-	if (line == NULL)
-	{
-		exit_res_manager(errno,NULL,"Error: Not enough memory");
-	}
+	line = (char *)malloc(sizeof(char) * (STR_LEN + 1));
+	check_malloc(line);
 	if (fgets(line, STR_LEN, file) == NULL)
 		return NULL; // EOF
-// TODO: try strchr() function and '\n'.
-	while(strstr(line, "\n") == NULL)  // not full string
+	while(strchr(line, '\n') == NULL)  // not full string
 	{
 		char * tmp_line = (char *)realloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
-		if (tmp_line != NULL)
-		{
-			char part_of_line[STR_LEN];
-			fgets(part_of_line, STR_LEN, file);
-			line = tmp_line;
-			strcat(line, part_of_line);
-		}
-		else
-		{
-			exit_res_manager(errno, NULL, "Error: Not enough memory");
-		}
+		char part_of_line[STR_LEN];
+		check_malloc(tmp_line);
+		fgets(part_of_line, STR_LEN, file);
+		line = tmp_line;
+		strcat(line, part_of_line);
 	}
-
 	return line;
 }
 
@@ -216,15 +199,14 @@ static char *read_string_from_opened_file(FILE * file)
 static char *read_string_from_file(const char *path)
 {
 	FILE *file;
-	
+	char *line;
 	file = fopen(path,"rt");
 	if (file == NULL)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
-	char *line = read_string_from_opened_file(file);
+	line = read_string_from_opened_file(file);
 	fclose(file);
-
 	return line;
 }
 
@@ -232,11 +214,11 @@ static char *read_string_from_file(const char *path)
 // write string into file
 static int write_into_file(const char *path, const char *str)
 {
+	FILE * file;
 	if (access(path, F_OK) == -1) // file doesn't exist
 	{
 		return -1;
 	}
-	FILE * file;
 	file = fopen(path, "w+");
 	if (file == NULL) // can't open file
 	{
@@ -244,7 +226,6 @@ static int write_into_file(const char *path, const char *str)
 	}
 	fputs(str, file);
 	fclose(file);
-	
 	return 0;
 }
 
@@ -264,31 +245,32 @@ static void print_command(FILE *file, char **command)
 }
 
 // get cpu name
-static char *get_cpu()
+static char *get_cpu(void)
 {
 	FILE *file;
-
+	char * line;
 	file = fopen(CPUINFO_FILE, "rt");
 	if (file == NULL)
 	{
 		return NULL;
 	}
-	char * line;
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
-// TODO: replace all variable length arrays with dynamically allocated memory.
-		char arg[strlen(line)];
-		char value[strlen(line)];
+		char *arg = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		check_malloc(arg);
+		check_malloc(value);
 		sscanf(line, "%s %s", arg, value);
 		if (strcmp(arg, "model") == 0 && strcmp(value, "name") == 0)
 		{
 			int i = 0;
+			int num_of_spaces;
 			while (line[i] != ':')
 			{
 				i++;
 			}
 			i += 2;
-			int num_of_spaces = i;
+			num_of_spaces = i;
 			while (line[i] != '\0')
 			{
 				line[i - num_of_spaces] = line[i];
@@ -296,9 +278,12 @@ static char *get_cpu()
 			}
 			line[i - num_of_spaces] = '\0';
 			fclose(file);
-			
+			free(arg);
+			free(value);
 			return line;
 		}
+		free(arg);
+		free(value);
 		free(line);
 	}
 	fclose(file);
@@ -307,50 +292,56 @@ static char *get_cpu()
 }
 
 // get memory size
-static char *get_memory()
+static char *get_memory(void)
 {
 	FILE *file;
-
+	char * line;
 	file = fopen(MEMINFO_FILE,"rt");
 	if (file == NULL)
 	{
 		return NULL;
 	}
-	char * line;
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
-		char arg[strlen(line)];
-		char value[strlen(line)];
+		char *arg = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		check_malloc(arg);
+		check_malloc(value);
 		sscanf(line, "%s %s", arg, value);
 		if (strcmp(arg, "MemTotal:") == 0)
 		{
-			fclose(file);
 			long mem_size = atol(value);
-			mem_size *= 1024;
-
+			fclose(file);
+			mem_size *= 1000;
+			free(arg);
+			free(value);
+			free(line);
 			return itoa(mem_size);
 		}
+		free(arg);
+		free(value);
 		free(line);
 	}
 	fclose(file);
-
 	return NULL;
 }
 
 // get kernel version
-static char *get_kernel()
+static char *get_kernel(void)
 {
-	char *line;
-	
-	line = read_string_from_file(VERSION_FILE);
+	char *line = read_string_from_file(VERSION_FILE);
+	char *arg;
+	char *value;
+	int i = 0;
 	if (line == NULL)
 	{
 		return NULL;
 	}
-	char arg[strlen(line)];
-	char value[strlen(line)];
+	arg = (char *)malloc((strlen(line) + 1) * sizeof(char));
+	value = (char *)malloc((strlen(line) + 1) * sizeof(char));
+	check_malloc(arg);
+	check_malloc(value);
 	sscanf(line, "%s %s %s", arg, arg, value);
-	int i = 0;
 	while (value[i] != 0)
 	{
 		if (value[i] == '-')
@@ -360,63 +351,57 @@ static char *get_kernel()
 		}
 		i++;
 	}
-
+	free(arg);
+	free(line);
 	return strdup(value);
 }
 
 /* Control groups handling. */
 
 // find path_to_memory and path_to_cpuacct 
-static void find_cgroup_location()
+static void find_cgroup_location(void)
 {
 	const char *path = MOUNTS_FILE;
 	FILE *results;
-	
+	char *line = NULL;
 	results = fopen(path, "rt");
 	if (results == NULL)
 	{
 		exit_res_manager(errno, NULL, "Can't open file /proc/mounts");
 	}
-	char *line = NULL;
 	while ((line = read_string_from_opened_file(results)) != NULL)
 	{
-		char name[strlen(line)];
-		char path[strlen(line)];
-		char type[strlen(line)];
-		char subsystems[strlen(line)];
-
+		char * name = (char*) malloc((strlen(line) + 1) * sizeof(char));
+		char * path = (char*) malloc((strlen(line) + 1) * sizeof(char));
+		char * type = (char*) malloc((strlen(line) + 1) * sizeof(char));
+		char * subsystems = (char*) malloc((strlen(line) + 1) * sizeof(char));
+		check_malloc(name);
+		check_malloc(path);
+		check_malloc(type);
+		check_malloc(subsystems);
 		sscanf(line, "%s %s %s %s", name, path, type, subsystems);
-// TODO: why does "cgroup" name is hardcoded here and "cpuacct" doesn't? Make both the same. I would like to have CGROUP macro.
 		if (strcmp(type, "cgroup") == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
-		{	
+		{
 			param.path_to_cpuacct = (char *)malloc(sizeof(char) * (strlen(path) + 1));
-			if (param.path_to_cpuacct == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(param.path_to_cpuacct);
 			strcpy(param.path_to_cpuacct, path);
 			param.path_to_cpuacct_origin = (char *)malloc(sizeof(char) * (strlen(path) + 1));
-			if (param.path_to_cpuacct_origin == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(param.path_to_cpuacct_origin);
 			strcpy(param.path_to_cpuacct_origin, path);
 		}
-		if (strcmp(type, "cgroup") == 0 && strstr(subsystems, MEMORY_CONTROLLER))
-		{	
+		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, MEMORY_CONTROLLER))
+		{
 			param.path_to_memory = (char *)malloc(sizeof(char) * (strlen(path) + 1));
-			if (param.path_to_memory == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(param.path_to_memory);
 			strcpy(param.path_to_memory, path);
 			param.path_to_memory_origin = (char *)malloc(sizeof(char) * (strlen(path) + 1));
-			if (param.path_to_memory_origin == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(param.path_to_memory_origin);
 			strcpy(param.path_to_memory_origin, path);
 		}
+		free(name);
+		free(path);
+		free(type);
+		free(subsystems);
 		free(line);
 	}
 	if (param.path_to_memory == NULL)
@@ -429,297 +414,208 @@ static void find_cgroup_location()
 	}
 }
 
+static char * get_cgroup_controller_name(char * controller, char * generic_name, char * resmanager_dir)
+{
+	char *tmp_path = realloc(controller, sizeof(char) * (strlen(controller) + strlen(generic_name) + strlen(resmanager_dir) + strlen(RESMANAGER_MODIFIER) + 3));
+	char * result_name;
+	check_malloc(tmp_path);
+	result_name = tmp_path;
+	strcat(result_name, "/");
+	strcat(result_name, resmanager_dir);
+	strcat(result_name, "/");
+	strcat(result_name, RESMANAGER_MODIFIER);
+	strcat(result_name, generic_name);
+	return result_name;
+}
+
 // create full name for cgroup directory:
 // <path from /proc/mounts>/<resmanager_dir>/resource_manager_<pid>
 static void get_cgroup_name(char *resmanager_dir)
 {
 	// pid of process
 	char *generic_name = itoa(getpid()); 
-	
-	// same directory
-	if (resmanager_dir == NULL)
-	{
-// TODO: it has much sence to write malloc wrapper function that will call exit_res_manager(errno, NULL, "Error: Not enough memory") in case of failures.
-		resmanager_dir = (char *)malloc(sizeof(char) * 1);
-		if (resmanager_dir == NULL)
-		{
-			exit_res_manager(errno, NULL, "Error: Not enough memory");
-		}
-// TODO: why is it necessary? resmanager_dir[0] = '\0' is better?..
-		strcpy(resmanager_dir, "");
-	}
-	
-	// add "/<resmanager_dir>/RESMANAGER_MODIFIER_pid" to found path
-// TODO: almost the same wrapper for realloc as for malloc.
-	char *tmp_path_to_memory = realloc(param.path_to_memory, sizeof(char) * (strlen(param.path_to_memory) + strlen(generic_name) + strlen(resmanager_dir) + strlen(RESMANAGER_MODIFIER) + 3));
-	if (tmp_path_to_memory != NULL) 
-	{
-		param.path_to_memory = tmp_path_to_memory;
-		strcat(param.path_to_memory, "/");
-		strcat(param.path_to_memory, resmanager_dir);
-		strcat(param.path_to_memory, "/");
-		strcat(param.path_to_memory, RESMANAGER_MODIFIER);
-		strcat(param.path_to_memory, generic_name);
-	}
-	else
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	char *tmp_path_to_cpuacct = realloc(param.path_to_cpuacct, sizeof(char) * (strlen(param.path_to_cpuacct) + 
-			strlen(generic_name) + strlen(resmanager_dir) + strlen(RESMANAGER_MODIFIER) + 3));
-	if (tmp_path_to_cpuacct != NULL) 
-	{
-		param.path_to_cpuacct = tmp_path_to_cpuacct;
-// TODO: absolutely the same as above -> join them together.
-		strcat(param.path_to_cpuacct, "/");
-		strcat(param.path_to_cpuacct, resmanager_dir);
-		strcat(param.path_to_cpuacct, "/");
-		strcat(param.path_to_cpuacct, RESMANAGER_MODIFIER);
-		strcat(param.path_to_cpuacct, generic_name);
-	}
-	else
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
+	param.path_to_memory = get_cgroup_controller_name(param.path_to_memory, generic_name, resmanager_dir);
+	param.path_to_cpuacct = get_cgroup_controller_name(param.path_to_cpuacct, generic_name, resmanager_dir);
 	free(generic_name);
 }
 
-// TODO: what is global path?
-// create new cgroups for known global path
-static void create_cgroup()
+static void check_mkdir_errors(int mkdir_errno, char * controller)
+{
+	if (mkdir_errno == EACCES) // permission error
+	{
+		if (strcmp(controller, param.path_to_memory) == 0)
+		{
+			exit_res_manager(mkdir_errno, NULL, concat(
+				"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", param.path_to_memory_origin));
+		}
+		else
+		{
+			exit_res_manager(mkdir_errno, NULL, concat(
+				"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", param.path_to_cpuacct_origin));
+		}
+	}
+	else if (mkdir_errno == EEXIST) // directory exists
+	{
+		if (check_tasks_file(controller)) // tasks file is empty 
+		{
+			rmdir(controller);
+			mkdir(controller, 0777);
+		}
+		else
+		{
+			exit_res_manager(mkdir_errno,NULL,concat(
+				"There is control group with running processes in ", controller));
+		}
+	}
+	else // other errors
+	{
+		exit_res_manager(mkdir_errno,NULL,concat("Error during creation ", controller));
+	}
+}
+
+// create new cgroups for known path (<path from /proc/mounts>/<resmanager_dir>/resource_manager_<pid>)
+static void create_cgroup(void)
 {
 	// if path to cpuacct and path to memory are equal then only one directory will be made 
 	if (mkdir(param.path_to_memory, 0777) == -1)
 	{
-		if (errno == EACCES)
-		{
-			exit_res_manager(errno, NULL, concat(
-				"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", param.path_to_memory_origin));
-		}
-		else if (errno == EEXIST)
-		{
-			if (check_tasks_file(param.path_to_memory)) 
-			{
-				rmdir(param.path_to_memory);
-				mkdir(param.path_to_memory, 0777);
-// TODO: remove all commented lines of code.
-				//create_cgroup();
-				///return;
-			}
-			else
-			{
-				exit_res_manager(errno,NULL,concat(
-					"There is control group with running processes in ", param.path_to_memory));
-			}
-		}
-		else // other errors
-		{
-			exit_res_manager(errno,NULL,concat(
-				"Error during creation of directory ", param.path_to_memory));
-		}
+		check_mkdir_errors(errno, param.path_to_memory);
 	}
-// TODO: move large comments directly before statements elsewhere.
-	param.is_mem_dir_created = 1; // set flag for deleting this directory
 	if (strcmp(param.path_to_memory,param.path_to_cpuacct) != 0) // pathes are different -> need to create two directories
 	{
-// TODO: this code is very similar to the one used above. Replace them with one function.
 		if (mkdir(param.path_to_cpuacct, 0777) == -1)
 		{
-			if (errno == EACCES)
-			{
-				exit_res_manager(errno, NULL, concat(
-					"Error: you need to change permission in cgroup directory: sudo chmod o+wt ", param.path_to_cpuacct_origin));
-			}
-			else if (errno == EEXIST)
-			{
-				if (check_tasks_file(param.path_to_cpuacct)) // if tasks file is empty -> delete this directory and try to create it once more
-				{
-					rmdir(param.path_to_cpuacct);
-					mkdir(param.path_to_cpuacct, 0777);
-					//rmdir(param.path_to_memory); // memory also should be deleted or it would be an error diring it's creation
-					//create_cgroup();
-					//return;
-				}
-				else 
-				{
-					exit_res_manager(errno, NULL, concat(
-						"There is control group with running processes in ", param.path_to_cpuacct));
-				}
-			}
-			else 
-			{
-				exit_res_manager(errno, NULL, concat(
-					"Error during creation of directory ", param.path_to_cpuacct));
-			}
+			check_mkdir_errors(errno, param.path_to_cpuacct);
 		}
-		param.is_cpu_dir_created = 1;
 	}
 }
 
-// set memory limit in cgroup with memory controller
-static void set_memlimit()
+// set specified parameter into specified file in specified cgroup
+// in case of error Resource Manager will be terminated.
+static void set_cgroup_parameter(const char *file_name, const char * controller, char *value)
 {
-// TODO: code enclosed in these todos is used very many times and should be made as a function.
-	char *path_mem = (char *)malloc((strlen(param.path_to_memory) + strlen(MEM_LIMIT) + 1) * sizeof(char));
+	char *path = (char *)malloc((strlen(controller) + strlen(file_name) + 2) * sizeof(char));
+	check_malloc(path);
+	strcpy(path, controller);
+	strcat(path, "/");
+	strcat(path, file_name);
+	chmod(path, 0666);
+	if (write_into_file(path,value) == -1)
+	{
+		if (strcmp(file_name, MEMSW_LIMIT) == 0) // special error text for memsw
+			exit_res_manager(ENOENT, NULL, "Error: Memory control group doesn't have swap extension\n"
+				"You need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
+		exit_res_manager(errno, NULL, concat("Can't write value to the file ", path));
+	}
+	free(path);
+}
 
-	if (path_mem == NULL)
+// get specified parameter from specified file in specified cgroup.
+// in case of error during reading Resource Manager will be terminated.
+// Return readed string.
+static char * get_cgroup_parameter(char *file_name, const char * controller)
+{
+	char *str;
+	char *path = (char *)malloc((strlen(controller) + strlen(file_name) + 2) * sizeof(char));
+	check_malloc(path);
+	strcpy(path, controller);
+	strcat(path, "/");
+	strcat(path, file_name);
+	chmod(path, 0666);
+	str = read_string_from_file(path);
+	if (str == NULL)
 	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
+		exit_res_manager(ENOENT, NULL, concat("Error: Can't read parameter from ", path));
 	}
-	strcpy(path_mem, param.path_to_memory);
-	strcat(path_mem, MEM_LIMIT);
-	chmod(path_mem, 0666);
-	write_into_file(path_mem, itoa(param.memlimit));
-	free(path_mem);
-// TODO: end of code
+	free(path);
+	return str;
+}
 
-	char *path_memsw = (char *)malloc((strlen(param.path_to_memory) + strlen(MEMSW_LIMIT) + 1) * sizeof(char));
-	if (path_memsw == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	strcpy(path_memsw, param.path_to_memory);
-	strcat(path_memsw, MEMSW_LIMIT); // memory+swap limit
-	chmod(path_memsw, 0666);
-	if (write_into_file(path_memsw,itoa(param.memlimit)) == -1)
-	{
-		exit_res_manager(ENOENT, NULL, "Error: Memory control group doesn't have swap extension\nYou need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
-	}
-	free(path_memsw);
+// set memory limit in cgroup with memory controller
+static void set_memlimit(void)
+{
+	set_cgroup_parameter(MEM_LIMIT, param.path_to_memory, itoa(param.memlimit));
+	set_cgroup_parameter(MEMSW_LIMIT, param.path_to_memory, itoa(param.memlimit));
 }
 
 // add pid of created process to tasks file
 static void add_task(int pid)
 {
-	char *path_mem = (char *)malloc((strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1) * sizeof(char));
-
-	if (path_mem == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	strcpy(path_mem,param.path_to_memory);
-	strcat(path_mem,TASKS_FILE);
-	chmod(path_mem, 0666);
-	write_into_file(path_mem,itoa(pid));
-	free(path_mem);
-	
+	set_cgroup_parameter(TASKS_FILE, param.path_to_memory, itoa(pid));
 	if (strcmp(param.path_to_memory, param.path_to_cpuacct) != 0)
 	{
-		char *path_cpu = (char *)malloc((strlen(param.path_to_cpuacct) + strlen(TASKS_FILE) + 1) * sizeof(char));
-		if (path_cpu == NULL)
-		{
-			exit_res_manager(errno, NULL, "Error: Not enough memory");
-		}
-		strcpy(path_cpu, param.path_to_cpuacct);
-		strcat(path_cpu, TASKS_FILE);
-		chmod(path_cpu, 0666);
-		write_into_file(path_cpu, itoa(pid));
-		free(path_cpu);
+		set_cgroup_parameter(TASKS_FILE, param.path_to_cpuacct, itoa(pid));
 	}
 }
 
-// read statistics
-static void get_stats(statistics *stats)
+// read line from cpuacct.stats file and return it's value
+static char * get_cpu_stat_line(char * line)
 {
-// TODO: useless comment.
-	// memor + swap
-	char *path_mem = (char *)malloc((strlen(param.path_to_memory) + strlen(MEMSW_MAX_USAGE) + 1) * sizeof(char));
-	
-	if (path_mem == NULL)
+	char * result;
+	if (line == NULL)
 	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
+		exit_res_manager(ENOENT, NULL, "Error: Can't read the string from file cpuacct.stats");
 	}
-	strcpy(path_mem, param.path_to_memory);
-	strcat(path_mem, MEMSW_MAX_USAGE); // read (memory+swap)
-	char *str = read_string_from_file(path_mem);
-	if (str == NULL)
+	else
 	{
-		exit_res_manager(ENOENT, NULL, concat("Error: Can't open file ",path_mem));
+		char *arg = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		check_malloc(arg);
+		check_malloc(value);
+		sscanf(line, "%s %s", arg, value);
+		result = value;
+		free(line);
+		free(arg);
 	}
-	stats->memory = atol(str);
-	free(str);
-	free(path_mem);
-	
-	// cpu time
-	char *path_cpu = (char *)malloc((strlen(param.path_to_cpuacct) + strlen(CPU_USAGE) + 1) * sizeof(char));
-	if (path_cpu == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	strcpy(path_cpu, param.path_to_cpuacct);
-	strcat(path_cpu, CPU_USAGE);
-	str = read_string_from_file(path_cpu);
-	if (str == NULL)
-	{
-		exit_res_manager(ENOENT, NULL, concat("Error: Can't open file ",path_cpu));
-	}
-	stats->cpu_time = atof(str) / 10e8;
-	free(str);
-	free(path_cpu);
-	
-	// user and system time
-	char *path_cpu_stat = (char *)malloc((strlen(param.path_to_cpuacct) + strlen(CPU_STAT) + 1) * sizeof(char));
-	if (path_cpu_stat == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	strcpy(path_cpu_stat, param.path_to_cpuacct);
-	strcat(path_cpu_stat, CPU_STAT);
+	return result;
+}
+
+// read file cpuacct.stats with special format:
+// user <number_in_ms>
+// sys <number_in_ms>
+static void read_cpu_stats(statistics *stats)
+{
 	FILE *file;
+	char *line;
+	char *path_cpu_stat = (char *)malloc((strlen(param.path_to_cpuacct) + strlen(CPU_STAT) + 2) * sizeof(char));
+	check_malloc(path_cpu_stat);
+	strcpy(path_cpu_stat, param.path_to_cpuacct);
+	strcat(path_cpu_stat,"/");
+	strcat(path_cpu_stat, CPU_STAT);
 	file = fopen(path_cpu_stat, "rt");
 	if (file == NULL)
 	{
 		exit_res_manager(errno, NULL, concat("Error: Can't open file ",path_cpu_stat));
 	}
-	char *line = read_string_from_opened_file(file);
-	if (line == NULL)
-	{
-		exit_res_manager(ENOENT, NULL, concat("Error: Can't read the first string from cpuacct.stat file ",path_cpu_stat));
-	}
-	char arg[strlen(line)];
-	char value[strlen(line)];
-	sscanf(line, "%s %s", arg, value);
-	stats->user_time = atof(value) / 10e1;
-	free(line);
-	
 	line = read_string_from_opened_file(file);
-	if (line == NULL)
-	{
-		exit_res_manager(ENOENT, NULL, concat("Error: Can't read the second string from cpuacct.stat file ",path_cpu_stat));
-	}
-	sscanf(line, "%s %s", arg, value);
-	stats->sys_time = atof(value) / 10e1;
-	free(line);
+	stats->user_time = atof(get_cpu_stat_line(line)) / 1e2;
+	line = read_string_from_opened_file(file);
+	stats->sys_time = atof(get_cpu_stat_line(line)) / 1e2;
 	free(path_cpu_stat);
 	fclose(file);
 }
 
-// set specified parameter into specified file in cgroup.
-// Returns -1 in case of error in opening file or 0.
-static int set_cgroup_parameter(char *file_name, char *value)
+// read statistics
+static void get_stats(statistics *stats)
 {
-	char *path = (char *)malloc((strlen(param.path_to_memory) + strlen(file_name) + 2) * sizeof(char));
-	if (path == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	strcpy(path, param.path_to_memory);
-	strcat(path, "/");
-	strcat(path, file_name);
-	chmod(path, 0666);
-	return write_into_file(path,value);
+	char * cpu_usage;
+	char * memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, param.path_to_memory);
+	stats->memory = atol(memory_usage);
+	free(memory_usage);
+	
+	cpu_usage = get_cgroup_parameter(CPU_USAGE, param.path_to_cpuacct);
+	stats->cpu_time = atol(cpu_usage) / 1e9;
+	free(cpu_usage);
+	
+	// user and system time (not standart format)
+	read_cpu_stats(stats);
 }
 
 // delete cgroups
-static int remove_cgroup()
+static void remove_cgroup(void)
 {
-	int err1 = 0;
-	int err2 = 0;
-	//if (param.is_mem_dir_created)
-		err1 = rmdir(param.path_to_memory);
-	//if (param.is_cpu_dir_created)
-		err2 = rmdir(param.path_to_cpuacct);
-	return (err1 == 0) && (err2 == 0);
+	rmdir(param.path_to_memory);
+	rmdir(param.path_to_cpuacct);
 }
 
 /* Main Resource Manager functions. */
@@ -812,10 +708,7 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 // print statistics, remove cgroups
 static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes)
 {
-	if (pid > 0)
-	{
-		kill_created_processes(SIGKILL);
-	}
+	kill_created_processes(SIGKILL);
 	if (stats != NULL)
 	{
 		get_stats(stats);
@@ -844,23 +737,23 @@ Returns err_mes or NULL in case of success.
 static char *read_config_file(char *configfile)
 {
 	FILE *file;
-
+	char *line;
 	file = fopen(configfile, "rt");
 	if (file == NULL)
 	{
 		return concat("Can't open config file ", configfile);
 	}
-	char *line;
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
-		char file_name[strlen(line)];
-		char value[strlen(line)];
+		char *file_name = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)malloc((strlen(line) + 1) * sizeof(char));
+		check_malloc(file_name);
+		check_malloc(value);
 		sscanf(line, "%s %s", file_name, value);
-		if (set_cgroup_parameter(file_name, value) == -1) // error in opening file
-		{
-			return concat("Can't open file ", file_name);
-		}
+		set_cgroup_parameter(file_name, param.path_to_memory, value);
 		free(line);
+		free(file_name);
+		free(value);
 	}
 	fclose(file);
 	return NULL;
@@ -870,14 +763,10 @@ static char *read_config_file(char *configfile)
 static int check_tasks_file(char *path_to_cgroup)
 {
 	char *path = (char *)malloc((strlen(path_to_cgroup) + strlen(TASKS_FILE) + 1) * sizeof(char));
-
-	if (path == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	strcpy(path, path_to_cgroup);
-	strcat(path, TASKS_FILE);
 	FILE *results;
+	check_malloc(path);
+	strcpy(path, path_to_cgroup);
+	strcat(path, TASKS_FILE);																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																						
 	results = fopen(path, "rt");
 	free(path);
 	if (results == NULL)
@@ -886,93 +775,52 @@ static int check_tasks_file(char *path_to_cgroup)
 	}
 	if(read_string_from_opened_file(results) != NULL) // there is some string
 	{
+		fclose(results);
 		return 0;
 	}
+	fclose(results);
 	return 1;
 }
 
-// TODO: function that contains just one statement is useless.
 // finish all created processes
 static void kill_created_processes(int signum)
 {
-	kill(pid, signum);
-	/*
-	// if there are still pids in tasks file => finish them
-	while (check_tasks_file(param.path_to_memory) == 0)
+	if (pid > 0)
 	{
-		char *path = (char*)malloc((strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1)*sizeof(char));
-		if (path == NULL)
-		{
-			exit_res_manager(errno,NULL,"Error: Not enough memory");
-		}
+		char *path;
+		char * line = NULL;
+		FILE * results;
+		// kill main created process
+		kill(pid, signum);
+	
+		// kill any other created processes 
+		path = (char*)malloc((strlen(param.path_to_memory) + strlen(TASKS_FILE) + 1)*sizeof(char));
+		check_malloc(path);
 		strcpy(path,param.path_to_memory);
 		strcat(path,TASKS_FILE);
-		FILE * results;
 		results = fopen(path,"rt");
 		free(path);
 		if (results == NULL)
-			return;
-		char * line = NULL;
+			return; // file already was deleted
 		while ((line = read_string_from_opened_file(results)) != NULL)
 		{
 			kill(atoi(line),signum);
 			free(line);
 		}
+		fclose(results);
 	}
-	
-	while (check_tasks_file(param.path_to_cpuacct) == 0)
-	{
-		char *path = (char*)malloc((strlen(param.path_to_cpuacct) + strlen(TASKS_FILE) + 1)*sizeof(char));
-		if (path == NULL)
-		{
-			exit_res_manager(errno,NULL,"Error: Not enough memory");
-		}
-		strcpy(path,param.path_to_cpuacct);
-		strcat(path,TASKS_FILE);
-		FILE * results;
-		results = fopen(path,"rt");
-		free(path);
-		if (results == NULL)
-			return;
-		char * line = NULL;
-		while ((line = read_string_from_opened_file(results)) != NULL)
-		{
-			kill(atoi(line),signum);
-			free(line);
-		}
-	}*/
-	
 }
 
 // handle signals
 static void terminate(int signum)
 {
-	param.script_signal = signum;/*
-	if (pid > 0)
-	{
-		kill_created_processes(SIGKILL);
-	}
-	else // signal before starting command
-	{
-		statistics *stats = (statistics*)malloc(sizeof(statistics));
-		if (stats == NULL)
-		{
-			exit_res_manager(errno,NULL,"Error: Not enough memory");
-		}
-		stats->exit_code = 1;
-		stats->sig_number = signum;
-		stats->wall_time = 0;
-		exit_res_manager(0,stats,NULL);
-	}*/
-	if (pid > 0)
-	{
-		kill_created_processes(SIGKILL);
-	}
-	exit_res_manager(0, NULL, NULL);
+	param.script_signal = signum;
+	kill_created_processes(SIGKILL);
+	exit_res_manager(0, NULL, "Killed by signal");
 }
 
 // stop timer for checking time limit
-static void stop_timer()
+static void stop_timer(void)
 {
 // TODO: why 1000 is needed? Try to use ualarm() always.
 	if (param.alarm_time < 1000)
@@ -1002,17 +850,9 @@ static void set_timer(int alarm_time)
 // handle SIGALRM, check time limit
 static void check_time(int signum)
 {
-	char *path = (char *)malloc((strlen(param.path_to_cpuacct) + strlen(CPU_USAGE) + 1) * sizeof(char));
-	if (path == NULL)
-	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
-	}
-	strcpy(path, param.path_to_cpuacct);
-	strcat(path, CPU_USAGE);
-	char *str = read_string_from_file(path);
-	double cpu_time = atof(str) / 10e8;
-	free(str);
-	free(path);
+	char *cpu_usage = get_cgroup_parameter(CPU_USAGE, param.path_to_cpuacct);
+	double cpu_time = atof(cpu_usage) / 1e9;
+	free(cpu_usage);
 	if (cpu_time >= param.timelimit)
 	{
 		kill_created_processes(SIGKILL);
@@ -1028,18 +868,14 @@ static void check_time(int signum)
 //TODO: implement error processing for this function.
 static void redirect(int fd, char * path)
 {
+	int filedes[2];
 	if (path == NULL)
 	{
 		return;
 	}
-	int filedes[2];
 	close(fd);
 	filedes[0] = fd;
-
 	filedes[1] = open(path, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
-// TODO: why does this statement mean?
-	if (fd == 1)
-		
 	if (filedes[1] == -1)
 		return;
 	
@@ -1062,7 +898,7 @@ static void redirect(int fd, char * path)
 }
 
 // print help
-static void print_usage()
+static void print_usage(void)
 {
 	printf(
 		"Usage: [options] [command] [arguments] \n"
@@ -1154,7 +990,7 @@ static void print_usage()
 }
 
 // initialize global structure
-static void initialize_param()
+static void initialize_param(void)
 {
 	param.timelimit = STANDART_TIMELIMIT;
 	param.memlimit = STANDART_MEMLIMIT;
@@ -1167,14 +1003,12 @@ static void initialize_param()
 	param.path_to_cpuacct = NULL;
 	param.fd_stdout = -1;
 	param.fd_stderr = -1;
-	param.is_mem_dir_created = 0;
-	param.is_cpu_dir_created = 0;
 	param.script_signal = 0;
 }
 
 int main(int argc, char **argv)
 {
-	initialize_param();
+	
 	char *stdoutfile = NULL;
 	char *stderrfile = NULL;	
 	char *resmanager_dir = ""; // path to resource manager directory in control groups
@@ -1182,7 +1016,21 @@ int main(int argc, char **argv)
 	int i;
 	int comm_arg = 0;
 	int c;
-
+	int is_options_ended = 0;
+	int option_index = 0;
+	double time_before, time_after;
+	int wait_errno;
+	static struct option long_options[] = {
+		{"interval", 1, 0, 'i'},
+		{"stdout", 1, 0, 's'},
+		{"stderr", 1, 0, 'e'},
+		{"config", 1, 0, 'c'},
+		{0, 0, 0, 0}
+	};
+	int status;
+	int wait_res;
+	statistics *stats;
+	initialize_param();
 	for (i = 1; i <= 31; i++)
 	{
 		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM || i == SIGWINCH)
@@ -1194,23 +1042,13 @@ int main(int argc, char **argv)
 			exit_res_manager(errno, NULL, "Cannot set signal handler");
 		}
 	}
-	int option_index = 0;
-	static struct option long_options[] = {
-		{"interval", 1, 0, 'i'},
-		{"stdout", 1, 0, 's'},
-		{"stderr", 1, 0, 'e'},
-		{"config", 1, 0, 'c'},
-		{0, 0, 0, 0}
-	};
+	
 	
 	// parse command line
-	while ((c = getopt_long(argc, argv, "-hm:t:o:kl:0", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "-hm:t:o:l:0", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
-		case 'k':
-			//do nothing
-			break;
 		case 'h':
 			print_usage();
 			exit(0);
@@ -1223,34 +1061,22 @@ int main(int argc, char **argv)
 			break;
 		case 'c':
 			configfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
-			if (configfile == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(configfile);
 			strcpy(configfile, optarg);
 			break;
 		case 's':
 			stdoutfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
-			if (stdoutfile == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(stdoutfile);
 			strcpy(stdoutfile, optarg);
 			break;
 		case 'e':
 			stderrfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
-			if (stderrfile == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(stderrfile);
 			strcpy(stderrfile, optarg);
 			break;
 		case 'l':
 			resmanager_dir = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
-			if (resmanager_dir == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(resmanager_dir);
 			strcpy(resmanager_dir, optarg);
 			break;
 		case 'm':
@@ -1306,22 +1132,18 @@ int main(int argc, char **argv)
 			break;
 		case 'o':
 			param.outputfile = (char *)malloc(sizeof(char) * (strlen(optarg) + 1));
-			if (param.outputfile == NULL)
-			{
-				exit_res_manager(errno, NULL, "Error: Not enough memory");
-			}
+			check_malloc(param.outputfile);
 			strcpy(param.outputfile, optarg);
 			break;
 		default:
-			// finish parsing optional parameters
-//TODO: nevertheless replace goto statement with one more loop check.
-			goto exit_parser;
+			is_options_ended = 1;
 		}
+		if (is_options_ended)
+			break;
 	}
+	if (!is_options_ended)
+		exit_res_manager(EINVAL, NULL, "Empty command");
 	
-	exit_res_manager(EINVAL, NULL, "Empty command");
-	
-exit_parser:
 	optind--; // optind - index of first argument in command; we need index of command
 	param.command = (char **) malloc (sizeof(char *) * (argc - optind + 1));
 	if (param.command == NULL)
@@ -1357,7 +1179,7 @@ exit_parser:
 	set_timer(param.alarm_time);
 	
 	// create new process for command
-	double time_before = gettime();
+	time_before = gettime();
 	pid = fork();
 	if (pid == 0) // child process
 	{
@@ -1373,10 +1195,8 @@ exit_parser:
 	}
 	
 	// parent - wait
-	int status;
-	int wait_res;
 	wait_res = wait4(pid, &status, 0, NULL);
-	int wait_errno = errno;
+	wait_errno = errno;
 	if (wait_res == -1)
 	{
 		if (wait_errno != EINTR) // don't include error "interrupted by signal"
@@ -1384,7 +1204,7 @@ exit_parser:
 			exit_res_manager(errno, NULL, "Error: wait failed");
 		}
 	}
-	double time_after = gettime();
+	time_after = gettime();
 	stop_timer();
 	// close files where stderr/stdout was redirected
 	if (param.fd_stdout != -1)
@@ -1396,11 +1216,8 @@ exit_parser:
 		close(param.fd_stderr);
 	}
 	// create statistics
-	statistics *stats = (statistics *)malloc(sizeof(statistics));
-	if (stats == NULL)
-	{
-		exit_res_manager(errno, NULL, "Not enough memory");
-	}
+	stats = (statistics *)malloc(sizeof(statistics));
+	check_malloc(stats);
 	stats->wall_time = time_after - time_before;
 	// if wait was interrupted by signal and exit code, signal number are unknown
 	if (wait_errno == EINTR)
