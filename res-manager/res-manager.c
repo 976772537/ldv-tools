@@ -116,7 +116,7 @@ static char *itoa(long num)
 		count = count / 10;
 	}
 	str[number_of_chars] = '\0';
-	
+
 	return str;
 }
 
@@ -210,8 +210,8 @@ static char *read_string_from_file(const char *path)
 	return line;
 }
 
-// TODO: this function is often called without checking its return value (-1). It has sence to exit from it, but error message can be passed from callers.
 // write string into file
+// returns (-1) in case of error or 0 otherwise
 static int write_into_file(const char *path, const char *str)
 {
 	FILE * file;
@@ -380,7 +380,7 @@ static void find_cgroup_location(void)
 		check_malloc(type);
 		check_malloc(subsystems);
 		sscanf(line, "%s %s %s %s", name, path, type, subsystems);
-		if (strcmp(type, "cgroup") == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
+		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
 		{
 			param.path_to_cpuacct = (char *)malloc(sizeof(char) * (strlen(path) + 1));
 			check_malloc(param.path_to_cpuacct);
@@ -414,6 +414,7 @@ static void find_cgroup_location(void)
 	}
 }
 
+// create full name for cgroup for specified controller
 static char * get_cgroup_controller_name(char * controller, char * generic_name, char * resmanager_dir)
 {
 	char *tmp_path = realloc(controller, sizeof(char) * (strlen(controller) + strlen(generic_name) + strlen(resmanager_dir) + strlen(RESMANAGER_MODIFIER) + 3));
@@ -439,6 +440,7 @@ static void get_cgroup_name(char *resmanager_dir)
 	free(generic_name);
 }
 
+// check possible errors in creating new cgroup directory
 static void check_mkdir_errors(int mkdir_errno, char * controller)
 {
 	if (mkdir_errno == EACCES) // permission error
@@ -714,16 +716,6 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 		get_stats(stats);
 	}
 	remove_cgroup();
-	/*if (!remove_cgroup()) // error in deleting
-	{
-		if (err_mes == NULL)
-			print_stats(exit_code, param.script_signal, stats, "Error in deleting control groups directories. "
-				"Please delete them manually");
-		else
-			print_stats(exit_code, param.script_signal, stats, concat(err_mes, ". Error in deleting control groups directories. "
-				"Please delete them manually"));
-	}
-	else*/
 	print_stats(exit_code, param.script_signal, stats, err_mes);
 	exit(exit_code);
 }
@@ -822,7 +814,6 @@ static void terminate(int signum)
 // stop timer for checking time limit
 static void stop_timer(void)
 {
-// TODO: why 1000 is needed? Try to use ualarm() always.
 	if (param.alarm_time < 1000)
 	{
 		ualarm(0,0);
@@ -836,7 +827,6 @@ static void stop_timer(void)
 // set timer for checking time limit
 static void set_timer(int alarm_time)
 {
-// TODO: why 1000 is needed? Try to use ualarm() always.
 	if (param.alarm_time < 1000)
 	{
 		ualarm(param.alarm_time * 1000,0);
@@ -865,7 +855,6 @@ static void check_time(int signum)
 
 // redirect fd into file
 // for example can repirect stdin == 1 into some file
-//TODO: implement error processing for this function.
 static void redirect(int fd, char * path)
 {
 	int filedes[2];
@@ -877,15 +866,17 @@ static void redirect(int fd, char * path)
 	filedes[0] = fd;
 	filedes[1] = open(path, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
 	if (filedes[1] == -1)
-		return;
+	{
+		exit_res_manager(0, NULL, "Can't open file for redirecting stdout/stderr");
+	}
 	
 	if (dup2(filedes[0], filedes[1]) == -1)
 	{
-		return;
+		exit_res_manager(0, NULL, "Error in duplicating file descriptor");
 	}
 	if (pipe(filedes) == -1)
 	{
-		return;
+		exit_res_manager(0, NULL, "Error in creating a pipe");
 	}
 	if (fd == 1)
 	{
