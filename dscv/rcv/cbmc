@@ -110,7 +110,7 @@ local $_;
 if ($verdict eq 'unsafe') {
 	open(ORIG_TRACE_FILE, '<', $error_trace) or die "Can't open file with cbmc trace: \"$error_trace\", $!";
 	open(TRACE_FILE, '>', $adjusted_trace) or die "Can't open file with adjsuted cbmc trace: \"$adjusted_trace\", $!";
-	print TRACE_FILE "CBMC error trace\n";    
+	print TRACE_FILE "CBMC error trace\nCALL ENTRY\n";    
 	while (<ORIG_TRACE_FILE>) {
 		print TRACE_FILE $_;
 	}
@@ -159,32 +159,44 @@ sub dumptrace
 	my $fname = shift or die;
 	my $state = TRACE_WAIT;
 	my $current_fh;
-	return sub {
-		my $line = shift;
-
-		!defined $line && $state==TRACE_DONE and do{ close $current_fh; return undef;};
+	return sub 
+	{
+		my $str = shift;
+		return if ($str =~ /^\s*$/);
+		!defined $str && $state==TRACE_DONE and do{ close $current_fh; return undef;};
 		return undef if $state == TRACE_DONE;
 
-		$line =~ /Counterexample:/ and do {$state = TRACE_READ; return undef;};
-		$line =~ /Violated property:/ and do {$state = TRACE_DONE; return undef;};
+		$str =~ /Counterexample:/ and do {$state = TRACE_READ; return undef;};
+		$str =~ /Violated property:/ and do {$state = TRACE_DONE; return undef;};
 
-		if ($state == TRACE_READ){
-			unless ($current_fh){
+		if ($state == TRACE_READ)
+		{
+			unless ($current_fh)
+			{
 				# Do not open for appending, open for writing instead (see bug #1264)
 				open $current_fh, ">", $fname or die;
 			}
 			
-			#modify line
-			my @words = split(" ", $line);
-			
-			
+			#my $str = shift(@et_raw);
+			chomp($str);
+			#next if ($str =~ /^\s*$/);
+
+			#parameters for error trace
+			my $src = '';
+			my $line = '';
+			my $type = '';
+			my $kind = '';
+			my $skip_reason = '';
+			my $formal_arg_names = '';
+	
+			#other parameters
+			my $id = ''; #id of the string
+			my $function = '';
+	
+	
+			my @words = split(" ", $str);
 			my $i = 0;
-			
-			my $id = "";
-			my $src = "";
-			my $line_number = "";
-			my $func = "";
-			
+	
 			while ($words[$i])
 			{
 				if ($words[$i] eq "State")
@@ -197,22 +209,27 @@ sub dumptrace
 				}
 				if ($words[$i] eq "line")
 				{
-					$line_number = $words[$i+1];
+					$line = $words[$i+1];
 				}
 				if ($words[$i] eq "function")
 				{
-					$func = $words[$i+1];
+					$function = $words[$i+1];
 				}
 				#print $current_fh $words[$i]."\n";
 				$i++;
-				
 			}
-			#if ($id ne "" && $src ne "" && $line ne "" && $func ne "")
-			#{
-				#print $current_fh "Location: id=$id src=$src; line=$line_number $func\n";
-			#}
-			print $current_fh $line;
-			
+			if ($id ne '') # print 
+			{
+				print $current_fh "$line $src $type : $kind $skip_reason";
+			}
+			else
+			{
+				if ($words[0] ne "----------------------------------------------------" && $words[0] =~ /^*=*$/)
+				{
+					
+					print $current_fh "$str\n";
+				}
+			}
 		}
 		return undef;
 	};
