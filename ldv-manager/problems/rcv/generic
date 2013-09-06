@@ -8,7 +8,15 @@ while (<>){
 	/PREPROCESS/ and print "CPP_error";
 	/CIL ERROR/ and print "CIL_parse_error";
 	/No entry point or error location found/ and print "Main/Label";
-
+	/time exhausted/ and print "Time exhausted";
+	/memory exhausted/ and print "Memory exhausted";
+	/killed by signal: (\d+)/ and print "Killed by signal $1";
+	/killed by signal \(resource manager\): ([1-9]\d*)/ and print "Res-manager killed by signal $1";
+	/exit code: ([1-9]\d+)/ and print "Exit code $1";
+	/exit code \(resource manager\): ([1-9]\d*)/ and print "Res-manager exit code $1";
+	/permissions in cgroup/ and print "Permissions in cgroup";
+	/need to mount/ and print "Cgroup not mounted";
+	
 	# See shared/perl/modules/DSCV/RCV/Library.pm
 	/VERIFIER SCRIPT ERROR/ and print "Script";
 }

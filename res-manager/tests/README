@@ -1,0 +1,60 @@
+Tests for resource manager.
+
+10 sections of tests were created:
+
+1. Checking time limit for programs with specified user, system or wall time usag. For example, timelimit=5s and program time = 4s (user).
+Total tests for section: 3.
+
+2. Checking time limit for programs with specified user, system or wall time in case if main process in program creates children processes. For example, main process creates 2 processes (each of them lives 2s), main process creates 4 processes (with life time 1s, 2s, 3s, 4s accordingly), main process creates 128 processes (each of them lives 1s). 
+Total tests for section: 9.
+
+3. Checking correctness of the calculated by resource manager time. If cpu time for program is known, then this known value will be comparing with the calculated by resource manager time.  For example, program works 5s user time, it will be compared with value "5". If cpu time for program is unknown, then value will be compared with the result of command "time" for the same task. For compare is used ratio error, where inaccuracy can be specified in parameters for test script.
+Total tests for section: 5.
+
+4. Checking correctness of the calculated by resource manager time in case if main process in program creates children processes. Children processes can be parallel or sequential. For example, main process creates 4 parallel processes and each of them works for 4s, 
+main process creates 32 sequential processes and each of them works for 12s.
+Total tests for section: 18.
+
+5. Checking memory limit for programs with specified memory usage. For example, main process creates 10 children, each of them uses 10Mb, memlimit=110Mb. 
+ Total tests for section: 2.
+
+6. Checking correctness of the calculated by resource manager memory. Used memory by tasks will be comparing with the calculated by resource manager memory.  For example, main process creates 10 children, each of them uses 10Mb, it will be compared with value "100Mb". For compare is used ratio error, where inaccuracy can be specified in parameters for test script.
+ Total tests for section: 2.
+ 
+7. Checking min values. For exmple, process works 1ms and allocate 1 byte, memlimit=1Mb and timelimit=1с. 
+Total tests for section: 4.
+
+8. Checking time/memory limits. For example, process works 5s user time, timelimit=4s or uses 110Mb, memlimit=100Mb.
+Total tests for section: 7.
+
+9. Checking errors:
+ - command dosn't exist;
+ - wrong parameters for resource manager;
+ - program was terminated with error (return code != 0);
+ - program was killed by signal (SIGINT, SIGKILL, SIGABRT, SIGSEGV, SIGALRM, SIGTERM, SIGFPE);
+ - resource manager was killed by signal (SIGINT, SIGABRT, SIGTERM, SIGHUP, SIGQUIT);
+ - resource manager was terminated with error (errors in parameters, file doesn't exist);
+ - program has hadlers for signals when it was terminated by signal.
+Total tests for section: 16.
+
+10. Additional tests for parameters:
+ -l - directory dosn't exist;
+ --stderr, --stdout or their combination - redirecting stderr/stdout for program;
+ --interval - program works 100ms, timelimit=90ms, interval=5ms (with standart value 1s program won't be terminated after reaching time limit);
+ -h - normal termination;
+ --config - set memory limit in config file, parameter doesn't exist, config file doesn't exist.
+ - run resource manager in program, which is executing in resource manager.
+Total tests for section: 12.
+
+Total tests: 80.
+
+How to run tests:
+
+1. Directly:
+test_script [options] <path to res-manager>
+Options:
+--etime <value> - inaccuracy for time value;
+--ememory <value> - inaccuracy for memory value.
+
+2. Default run: "make test" from res-manager directory.
+

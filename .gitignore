@@ -18,3 +18,5 @@ stats-visualizer/config
 /shared/perl/compiled_modules/Proc/Wait3/MYMETA.json
 /shared/perl/compiled_modules/Proc/Wait3/MYMETA.yml
 
+# Resource Manager build and test files
+res-manager/res-manager

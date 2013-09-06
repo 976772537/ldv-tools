@@ -310,10 +310,11 @@ sub run
 	@args = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $context->{limits}->{timelimit},
 		memlimit => $context->{limits}->{memlimit},
-		pattern => $time_pattern,
+		#pattern => $time_pattern,
 		output => $context->{timestats_file},
 		id_str => $timeout_idstr,
 		kill_at_once => $context->{limits}->{kill_at_once},
+		ldvdir => 'ldv'
 		},@args
 	);
 	# NOTE that the timestats file is common for several runs! This is done to get the statistics on all the runs in one place.
@@ -379,28 +380,79 @@ sub run
 
 	my $atmt_results = { %out_atmt_results, %err_atmt_results};
 
-	# Adjust re
+	# Adjust result
 	my $result = 'OK';
+	my $mes = "";
+	my $timestats_fname = $context->{timestats_file};
+	my %timestats;
+	if ( -f $timestats_fname && ! -z $timestats_fname) {
+		
+		%timestats = parse_outputfile(outputfile => $timestats_fname);
+		$errcode = $timestats{"exit_code_script"};
+		if ($timestats{"memory_exhausted"} == "1")
+		{
+			$result = 'LIMITS';
+			$mes = "Memory exhausted";
+		}
+		if ($timestats{"time_exhausted"} == "1")
+		{
+			$result = 'LIMITS';
+			$mes = "Time exhausted";
+		}
+		if ($timestats{"signal_script"} > 0)
+		{
+			$result = 'SIGNAL';
+		}
+	}
 	# Check if the signal interrupt was found, and adjust the retcode for it to have a single value
-	$result = 'SIGNAL' if $errcode && 127;
-	$errcode >>= 8;
+	#$result = 'SIGNAL' if $errcode && 127;
+	#$errcode >>= 8;
 	# Check if limits were violated
-	$result = 'LIMITS' if $atmt_results->{'LIMITS'};
+	#$result = 'LIMITS' if $atmt_results->{'LIMITS'};
 
 	# Just say something to the user
-	vsay('NORMAL',sprintf("Finished with code %d term by %s. %s",$errcode,$result,((defined $atmt_results->{'LIMITS'})? $atmt_results->{'LIMITS'}: '')));
+	vsay('NORMAL',sprintf("Finished with code %d term by %s. %s",$errcode,$result,$mes));
 
 	# Prepare a description boilerplate
 	# NOTE that we _rewrite_ the description if it's not the first run!  Motivation: if the first run has failed due to an artificially set up time limit, we do not want this time limit message to get into the final report.
-	my $descr = sprintf (<<EOR , ($atmt_results->{'LIMITS'} || "The verifier has completed in time"), $context->{limits}->{timelimit}, $context->{limits}->{memlimit});
-=========== Launch information ===========
+	my $descr;
+	my $script_exit_code = $timestats{"exit_code_script"};
+	my $script_signal = $timestats{"signal_script"} || 0;
+	my @out = get_result_from_file(outputfile => $timestats_fname);
+	my @out_err = get_err_result_from_file(outputfile => $timestats_fname);
+	my @words_memlimit = split(" ", $out[1]);
+	my @words_timelimit = split(" ", $out[2]);
+	my @words_exit_code = split(" ", $out_err[4]);
+	my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
+===============================================
+Resource manager settings:
+	memory limit: %s (%s bytes)
+	time limit: %s ms
 %s
-Time Limit: %s
-Memory Limit: %s
+%s
 EOR
 
+
+	my $descr_ok = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
+===============================================
+Resource manager settings:
+	memory limit: %s (%s bytes)
+%s
+%s
+%s
+%s
+%s
+EOR
 	# Prepare the result
-	$context->{auto_description} = $descr;
+	if ($script_exit_code == 0 && $script_signal == 0)
+	{
+		$context->{auto_description} = $descr_ok;
+	}
+	else
+	{
+		$context->{auto_description} = $descr_err;
+	}
+	
 	$context->{auto_result} = ($result eq 'OK')? 'OK' : 'FAILED';
 
 	# Discard all the automatons, since they are now in final states.
@@ -429,6 +481,166 @@ sub add_automaton
 		}
 	}
 }
+
+sub get_err_result_from_file
+{
+	my $info = {@_};
+	my $timestats_fname = $info->{outputfile};
+	local $_;
+	open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
+	my $command_type = "-1";
+	my @result_string;
+	my $i = 0;
+	while(<STATS_FILE>) {
+		chomp;
+		next unless $_;
+		my @words = split(' ', $_);
+		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		{
+			$command_type = "0";
+		}
+		if ($words[1] eq "manager" && $words[2] eq "execution")
+		{
+			$command_type = "1";
+		}
+		if ($words[0] eq "Command" && $words[1] eq "execution")
+		{
+			$command_type = "2";
+		}
+		if ($words[0] eq "Time" && $words[1] eq "usage")
+		{
+			$command_type = "3";
+		}
+		if ($command_type eq "0")
+		{
+			if ($words[0] ne "command:" && $words[0] ne "cgroup" && $words[0] ne "outputfile:")
+			{
+				$result_string[$i++] = $_;
+			}
+		}
+		if ($command_type eq "1")
+		{
+			$result_string[$i++] = $_;
+		}
+	}
+	close STATS_FILE;
+	return @result_string;
+}
+
+sub get_result_from_file
+{
+	my $info = {@_};
+	my $timestats_fname = $info->{outputfile};
+	local $_;
+	open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
+	my $command_type = "-1";
+	my @result_string;
+	my $i = 0;
+	while(<STATS_FILE>) {
+		chomp;
+		next unless $_;
+		my @words = split(' ', $_);
+		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		{
+			$command_type = "0";
+		}
+		if ($words[1] eq "manager" && $words[2] eq "execution")
+		{
+			$command_type = "1";
+		}
+		if ($words[0] eq "Command" && $words[1] eq "execution")
+		{
+			$command_type = "2";
+		}
+		if ($words[0] eq "Time" && $words[1] eq "usage")
+		{
+			$command_type = "3";
+		}
+		if ($command_type eq "0")
+		{
+			if ($words[0] ne "command:" && $words[0] ne "cgroup" && $words[0] ne "outputfile:")
+			{
+				$result_string[$i++] = $_;
+			}
+		}
+		if ($command_type eq "2")
+		{
+			$result_string[$i++] = $_;
+		}
+	}
+	close STATS_FILE;
+	return @result_string;
+}
+
+#function for parse output file from res_manager
+sub parse_outputfile
+{
+	my $info = {@_};
+	my $outputfile = $info->{outputfile};
+	my %statistics;
+	local $_;
+	open(STATS_FILE, '<', $outputfile) or die "Can't open file with time statistics: $outputfile, $!";
+	my $return_code_section = "0"; # 0 - don't parse section; 1 - for res_manager; 2 - for command
+	my $signal_section = "0"; # 0 - don't parse section; 1 - for res_manager; 2 - for command
+	while(<STATS_FILE>) {
+		chomp;
+		next unless $_;
+		my @words = split(" ", $_);
+		
+		if ($words[1] eq "manager" && $words[2] eq "execution")
+		{
+			$return_code_section = "1";
+			$signal_section = "1";
+		}
+		if ($words[0] eq "Command" && $words[1] eq "execution")
+		{
+			$return_code_section = "2";
+			$signal_section = "2";
+		}
+		if ($words[0] eq "exit" && $return_code_section eq "1")
+		{
+			$statistics{"exit_code_script"} += $words[4];
+		}
+		if ($words[0] eq "exit" && $return_code_section eq "2")
+		{
+			$statistics{"exit_code"} += $words[2];
+		}
+		if ($words[0] eq "killed" && $signal_section eq "1")
+		{
+			$statistics{"signal_script"} += $words[5];
+		}
+		if ($words[0] eq "killed" && $signal_section eq "2")
+		{
+			$statistics{"signal"} += $words[3];
+		}
+		if ($words[0] eq "memory" && $words[1] eq "exhausted")
+		{
+			$statistics{"memory_exhausted"} += "1";
+		}
+		if ($words[0] eq "time" && $words[1] eq "exhausted")
+		{
+			$statistics{"time_exhausted"} += "1";
+		}
+		if ($words[1] eq "time:")
+		{
+			if ($words[0] eq "cpu")
+			{
+				$statistics{"ALL"} += int($words[2]);
+			}
+			else
+			{
+				$statistics{$words[0]} += int($words[2]);
+			}
+		}
+		if ($words[0] eq "peak")
+		{
+			$statistics{$words[1]} += int($words[3] / 1000);
+		}
+	}
+	close STATS_FILE;
+	return %statistics;
+}
+
 
 # Send the result to the outer world
 sub result
@@ -491,26 +703,19 @@ sub result
 	# TODO: this is the hack for name generation.  A more generic mechanism should superseed it later.
 	my $timestats_fname = $context->{timestats_file};
 	if ( -f $timestats_fname && ! -z $timestats_fname) {
-		my %timestats;
-
-		# NOTE that we do not need the proper XML parsing here for the whole file, since it's not a valis XML (no single root).  However, we might benefit from XML-parsing the each string.
-
-		local $_;
-		open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
-		while(<STATS_FILE>) {
-			chomp;
-			next unless $_;
-			# Parse the string
-			my $timeT = XML::Twig->parse($_)->root;
-
-			/^\s*<time\s+name="(.*)"\s*>\s*([0-9\.]*)\s*<\/time>/ or next;
-			
-			$timestats{$timeT->att("name")} ||= 0;
-			$timestats{$timeT->att("name")} += $timeT->text();
-		}
-		close STATS_FILE;
-		for my $pat (keys %timestats) {
-			XML::Twig::Elt->new('time',{name => $pat}, $timestats{$pat})->paste($rcvResultT);
+		
+		my %timestats = parse_outputfile(outputfile => $timestats_fname);
+		
+		for my $pat (keys %timestats) 
+		{
+			if ($pat eq "ALL" || $pat eq "wall" || $pat eq "system" || $pat eq "user")
+			{
+				XML::Twig::Elt->new('time',{name => $pat}, $timestats{$pat})->paste($rcvResultT);
+			}
+			if ($pat eq "memory")
+			{
+				XML::Twig::Elt->new('time',{name => $pat}, $timestats{$pat})->paste($rcvResultT);
+			}
 		}
 	} else {
 		XML::Twig::Elt->new('time',{name => 'ALL'},0)->paste($rcvResultT);
@@ -557,8 +762,7 @@ sub result
 
 # Given a list of arguments to invoke child process, and limits specification, return a list of arguments t ocall timeout program shipped with LDV that watches for the resources.  As a side effect, modifies DSCV_TIMEOUT.
 
-my $timeout = "$ENV{'DSCV_HOME'}/shared/sh/timeout";
--x $timeout or die "Executable timeout script needed but $timeout given!";
+my $timeout = "$ENV{'DSCV_HOME'}/bin/res-manager";
 
 sub set_up_timeout
 {
@@ -566,15 +770,16 @@ sub set_up_timeout
 	ref $resource_spec eq 'HASH' or Carp::confess;
 	my $timelimit = $resource_spec->{timelimit};
 	my $memlimit = $resource_spec->{memlimit};
-	my $pattern = $resource_spec->{pattern};
+	#my $pattern = $resource_spec->{pattern};
 	my $output = $resource_spec->{output};
 	my $idstr = $resource_spec->{id_str};
 
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
-	unshift @cmdline,"-p",$pattern if $pattern;
+	#unshift @cmdline,"-p",$pattern if $pattern;
 	unshift @cmdline,"-o",$output if $output;
-	unshift @cmdline,"--just-kill" if $resource_spec->{kill_at_once};
+	unshift @cmdline,"-k" if $resource_spec->{kill_at_once};
+	unshift @cmdline,"-l", 'ldv';
 	unshift @cmdline,$timeout if $timelimit || $memlimit;
 
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
