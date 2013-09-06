@@ -770,15 +770,12 @@ sub set_up_timeout
 	ref $resource_spec eq 'HASH' or Carp::confess;
 	my $timelimit = $resource_spec->{timelimit};
 	my $memlimit = $resource_spec->{memlimit};
-	#my $pattern = $resource_spec->{pattern};
 	my $output = $resource_spec->{output};
 	my $idstr = $resource_spec->{id_str};
 
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
-	#unshift @cmdline,"-p",$pattern if $pattern;
 	unshift @cmdline,"-o",$output if $output;
-	unshift @cmdline,"-k" if $resource_spec->{kill_at_once};
 	unshift @cmdline,"-l", 'ldv';
 	unshift @cmdline,$timeout if $timelimit || $memlimit;
 
