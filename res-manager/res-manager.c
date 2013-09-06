@@ -32,7 +32,8 @@
 #define VERSION_FILE "/proc/version"
 #define MOUNTS_FILE "/proc/mounts"
 
-// This structure holds exit status of executing command, its time and memory statistics.
+// This structure holds exit status of executing command, its time and memory
+// statistics.
 typedef struct
 {
 	int exit_code;
@@ -46,8 +47,10 @@ typedef struct
 	long memory;
 } statistics;
 
-// This structure holds command-line parameters, parameters specified for cgroups, file descriptors for redirecting stdout/stdeerr, signal number which was send to Resource Manager.
-typedef struct
+// This variable holds command-line parameters, parameters specified for
+// cgroups, file descriptors for redirecting stdout/stdeerr, signal number
+// which was send to Resource Manager.
+struct
 {
 	// Command-line parameters.
 	double timelimit; // In seconds.
@@ -66,12 +69,10 @@ typedef struct
 	int fd_stdout;
 	int fd_stderr;
 
-	// If Resource Manager was terminated by signal and this signal was handled then script_signal stores that signal number.
+	// If Resource Manager was terminated by signal and this signal was handled
+	// then script_signal stores that signal number.
 	int script_signal;
-} parameters;
-
-// Global parameters - commanad-line parameters, cgroup parameters, file descriptiors for redirecting stdout/stderr.
-parameters param;
+} params;
 
 // Pid of child process in which command will be executed.
 int pid = 0;
@@ -82,25 +83,31 @@ static int check_tasks_file(char *);
 
 /* Library functions. */
 
-// Function allocate memory by malloc and checking return value, if it's NULL then Resource Manager will be terminated.
-void * checked_malloc(int size)
+// Function allocate memory by malloc and checking return value, if it's NULL
+// then Resource Manager will be terminated.
+void *checked_malloc(int size)
 {
-	void * allocated_memory = malloc(size);
+	void *allocated_memory = malloc(size);
+
 	if (allocated_memory == NULL)
 	{
 		exit_res_manager(errno, NULL, "Error: Not enough memory");
 	}
+
 	return allocated_memory;
 }
 
-// Function allocate memory by realloc and checking return value, if it's NULL then Resource Manager will be terminated.
-void * checked_realloc(void * prev, int size)
+// Function allocate memory by realloc and checking return value, if it's NULL
+// then Resource Manager will be terminated.
+void *checked_realloc(void *prev, int size)
 {
-	void * allocated_memory = realloc(prev, size);
+	void *allocated_memory = realloc(prev, size);
+
 	if (allocated_memory == NULL)
 	{
 		exit_res_manager(errno, NULL, "Error: Not enough memory");
 	}
+
 	return allocated_memory;
 }
 
@@ -125,37 +132,40 @@ static char *itoa(long num)
 	int i;
 	long count = num;
 	char *str = (char *)checked_malloc(sizeof(char) * (number_of_chars + 1));
+
 	for (i = number_of_chars - 1; i >= 0; i--)
 	{
 		str[i] = count % 10 + '0';
 		count = count / 10;
 	}
+
 	str[number_of_chars] = '\0';
 
 	return str;
 }
 
-// Concatenate n strings (const char *) and return result.
+// TODO: concat(const char *, ...) - concat(str1, "str2", NULL).
+// Concatenate n strings and return result.
 static char *concat(int num, ...)
 {
-	char *result = (char*) checked_malloc(sizeof(char));
+	char *result = (char *)checked_malloc(sizeof(char));
 	int i;
-	
 	va_list valist;
+
 	va_start(valist, num);
-	
+
 	strcpy(result, "");
 	for (i = 0; i < num; i++)
 	{
-		const char * tmp = va_arg(valist, const char*);
+		const char *tmp = va_arg(valist, const char *);
 		if (tmp != NULL)
 		{
-			result = (char*) checked_realloc(result, (strlen(result) + strlen(tmp) + 1) * sizeof(char));
+			result = (char *)checked_realloc(result, (strlen(result) + strlen(tmp) + 1) * sizeof(char));
 			strcat(result, tmp);
 		}
 	}
 	va_end(valist);
-	
+
 	return result;
 }
 
@@ -163,6 +173,7 @@ static char *concat(int num, ...)
 static double gettime(void)
 {
 	struct timeval time;
+
 	gettimeofday(&time, NULL);
 
 	return time.tv_sec + time.tv_usec / 1000000.0;
@@ -177,6 +188,7 @@ static int is_number(char *str)
 	{
 		return 0;
 	}
+
 	while (str[i] != '\0')
 	{
 		if (!isdigit(str[i]))
@@ -190,7 +202,7 @@ static int is_number(char *str)
 }
 
 // Read string from opened file into dynamic array.
-static char *read_string_from_opened_file(FILE * file)
+static char *read_string_from_opened_file(FILE *file)
 {
 	char *line;
 
@@ -198,9 +210,14 @@ static char *read_string_from_opened_file(FILE * file)
 	{
 		return NULL;
 	}
+
 	line = (char *)checked_malloc(sizeof(char) * (STR_LEN + 1));
+
 	if (fgets(line, STR_LEN, file) == NULL)
+	{
 		return NULL; // EOF
+	}
+
 	while(strchr(line, '\n') == NULL)  // not full string
 	{
 		char *tmp_line = (char *)checked_realloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
@@ -219,17 +236,23 @@ static char *read_string_from_file(const char *path)
 	FILE *file;
 	char *line;
 
+// TODO replace this with checked_fopen.
 	file = fopen(path,"rt");
+
+// TODO: errno -> EXIST.
 	if (file == NULL)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
+
 	line = read_string_from_opened_file(file);
+
 	fclose(file);
 
 	return line;
 }
 
+// TODO: get_cpu_info...
 // Get cpu info.
 static char *cpu_info(void)
 {
@@ -237,40 +260,52 @@ static char *cpu_info(void)
 	char *line;
 
 	file = fopen(CPUINFO_FILE, "rt");
+
 	if (file == NULL)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
+
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
 		char *arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+
 		sscanf(line, "%s %s", arg, value);
+
 		if (strcmp(arg, "model") == 0 && strcmp(value, "name") == 0)
 		{
 			int i = 0;
 			int num_of_spaces;
+
 			while (line[i] != ':')
 			{
 				i++;
 			}
+
 			i += 2;
 			num_of_spaces = i;
+
 			while (line[i] != '\0')
 			{
 				line[i - num_of_spaces] = line[i];
 				i++;
 			}
+
 			line[i - num_of_spaces] = '\0';
+
 			fclose(file);
 			free(arg);
 			free(value);
+
 			return line;
 		}
+
 		free(arg);
 		free(value);
 		free(line);
 	}
+
 	fclose(file);
 
 	return NULL;
@@ -283,29 +318,38 @@ static char *memory_info(void)
 	char *line;
 
 	file = fopen(MEMINFO_FILE,"rt");
+
 	if (file == NULL)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
+
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
 		char *arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+
 		sscanf(line, "%s %s", arg, value);
+
 		if (strcmp(arg, "MemTotal:") == 0)
 		{
 			long mem_size = atol(value);
-			fclose(file);
+
 			mem_size *= 1000;
+
+			fclose(file);
 			free(arg);
 			free(value);
 			free(line);
+
 			return itoa(mem_size);
 		}
+
 		free(arg);
 		free(value);
 		free(line);
 	}
+
 	fclose(file);
 
 	return NULL;
@@ -319,13 +363,17 @@ static char *kernel_info(void)
 	char *value;
 	int i = 0;
 
+// TODO: as above.
 	if (line == NULL)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
+
 	arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 	value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+
 	sscanf(line, "%s %s %s", arg, arg, value);
+
 	while (value[i] != 0)
 	{
 		if (value[i] == '-')
@@ -335,8 +383,10 @@ static char *kernel_info(void)
 		}
 		i++;
 	}
+
 	free(arg);
 	free(line);
+
 	return value;
 }
 
@@ -350,17 +400,21 @@ static void find_cgroup_location(void)
 	char *line = NULL;
 
 	results = fopen(path, "rt");
+
 	if (results == NULL)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
+
 	while ((line = read_string_from_opened_file(results)) != NULL)
 	{
 		char *name = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 		char *path = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 		char *type = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 		char *subsystems = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+
 		sscanf(line, "%s %s %s %s", name, path, type, subsystems);
+
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
 		{
 			param.path_to_cpuacct = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
@@ -368,6 +422,7 @@ static void find_cgroup_location(void)
 			param.path_to_cpuacct_origin = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
 			strcpy(param.path_to_cpuacct_origin, path);
 		}
+
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, MEMORY_CONTROLLER))
 		{
 			param.path_to_memory = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
@@ -375,16 +430,19 @@ static void find_cgroup_location(void)
 			param.path_to_memory_origin = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
 			strcpy(param.path_to_memory_origin, path);
 		}
+
 		free(name);
 		free(path);
 		free(type);
 		free(subsystems);
 		free(line);
 	}
+
 	if (param.path_to_memory == NULL)
 	{
 		exit_res_manager(EACCES, NULL, "You need to mount memory cgroup: sudo mount -t cgroup -o memory <name> <path>");
 	}
+
 	if (param.path_to_cpuacct == NULL)
 	{
 		exit_res_manager(EACCES, NULL, "You need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>");
@@ -399,8 +457,9 @@ static void get_cgroup_name(char *resmanager_dir)
 {
 	// Pid of process.
 	char *pid_name = itoa(getpid());
-	param.path_to_memory = concat(6,param.path_to_memory,"/",resmanager_dir,"/",RESMANAGER_MODIFIER,pid_name);
-	param.path_to_cpuacct = concat(6,param.path_to_cpuacct,"/",resmanager_dir,"/",RESMANAGER_MODIFIER,pid_name);
+
+	param.path_to_memory = concat(6, param.path_to_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name);
+	param.path_to_cpuacct = concat(6, param.path_to_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name);
 	free(pid_name);
 }
 
@@ -442,13 +501,14 @@ static void check_mkdir_errors(int mkdir_errno, char *controller)
 // Create new cgroups for known path (<path from /proc/mounts>/<resmanager_dir>/resource_manager_<pid>)
 static void create_cgroup(void)
 {
+// TODO const char *paths[] = {param.path_to_memory, param.path_to_cpuacct}...
 	// If path to cpuacct and path to memory are equal then only one directory will be made.
 	if (mkdir(param.path_to_memory, 0777) == -1)
 	{
 		check_mkdir_errors(errno, param.path_to_memory);
 	}
-	if (strcmp(param.path_to_memory,param.path_to_cpuacct) != 0)
-	
+
+	if (strcmp(param.path_to_memory, param.path_to_cpuacct) != 0)
 	{
 		if (mkdir(param.path_to_cpuacct, 0777) == -1)
 		{
@@ -457,45 +517,55 @@ static void create_cgroup(void)
 	}
 }
 
-// Set specified parameter into specified file in specified cgroup. In case of error Resource Manager will be terminated.
+// Set specified parameter into specified file in specified cgroup. In case of
+// error Resource Manager will be terminated.
 static void set_cgroup_parameter(const char *file_name, const char *controller, char *value)
 {
 	char *path = concat(3, controller, "/", file_name);
 	FILE *file;
-	
+
 	chmod(path, 0666);
-	
+
 	if (access(path, F_OK) == -1) // Chech if file exists.
 	{
 		if (strcmp(file_name, MEMSW_LIMIT) == 0) // special error text for memsw
+		{
 			exit_res_manager(ENOENT, NULL, "Error: Memory control group doesn't have swap extension\n"
 				"You need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
+		}
+
 		exit_res_manager(errno, NULL, concat(3, "File ", path, " doesn't exist"));
 	}
+
 	file = fopen(path, "w+");
+
 	if (file == NULL) // Error in opening.
 	{
 		exit_res_manager(errno, NULL, concat(2, "Can't open file ", path));
 	}
+
 	fputs(value, file);
 	fclose(file);
 	free(path);
 }
 
-/* 
+/*
  * Get specified parameter from specified file in specified cgroup.
- * In case of error during reading Resource Manager will be terminated.	
+ * In case of error during reading Resource Manager will be terminated.
  * Return readed string.
  */
 static char *get_cgroup_parameter(char *file_name, const char *controller)
 {
 	char *str;
-	char * path = concat(3, controller, "/", file_name);
+	char *path = concat(3, controller, "/", file_name);
+
 	str = read_string_from_file(path);
+
 	if (str == NULL)
 	{
 		exit_res_manager(ENOENT, NULL, concat(2, "Error: Can't read parameter from ", path));
 	}
+
 	free(path);
 
 	return str;
@@ -531,8 +601,10 @@ static char *get_cpu_stat_line(char *line)
 	{
 		char *arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+
 		sscanf(line, "%s %s", arg, value);
 		result = value;
+
 		free(line);
 		free(arg);
 	}
@@ -540,7 +612,7 @@ static char *get_cpu_stat_line(char *line)
 	return result;
 }
 
-/* 
+/*
  * Read file cpuacct.stats with special format:
  * user <number_in_ms>
  * sys <number_in_ms>.
@@ -550,15 +622,20 @@ static void read_cpu_stats(statistics *stats)
 	FILE *file;
 	char *line;
 	char *path_cpu_stat = concat(3, param.path_to_cpuacct, "/", CPU_STAT);
+
 	file = fopen(path_cpu_stat, "rt");
+
 	if (file == NULL)
 	{
 		exit_res_manager(errno, NULL, concat(2, "Error: Can't open file ", path_cpu_stat));
 	}
+
 	line = read_string_from_opened_file(file);
 	stats->user_time = atof(get_cpu_stat_line(line)) / 1e2;
+
 	line = read_string_from_opened_file(file);
 	stats->sys_time = atof(get_cpu_stat_line(line)) / 1e2;
+
 	free(path_cpu_stat);
 	fclose(file);
 }
@@ -584,9 +661,14 @@ static void get_memory_and_cpu_usage(statistics *stats)
 static void remove_cgroup(void)
 {
 	if (param.path_to_memory != NULL)
+	{
 		rmdir(param.path_to_memory);
+	}
+// TODO: don't remove if param.path_to_cpuacct == param.path_to_memory.
 	if (param.path_to_cpuacct != NULL)
-	rmdir(param.path_to_cpuacct);
+	{
+		rmdir(param.path_to_cpuacct);
+	}
 }
 
 /* Main Resource Manager functions. */
@@ -595,9 +677,10 @@ static void remove_cgroup(void)
 static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes)
 {
 	FILE *out;
-	char * kernel = kernel_info();
-	char * memory = memory_info();
-	char * cpu = cpu_info();
+	char *kernel = kernel_info();
+	char *memory = memory_info();
+	char  cpu = cpu_info();
+
 	if (param.outputfile == NULL)
 	{
 		out = stdout;
@@ -605,13 +688,14 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	else
 	{
 		out = fopen(param.outputfile, "w");
+
 		if (out == NULL)
 		{
 			fprintf(stdout, "Can't create file %s\n", param.outputfile);
 			out = stdout;
 		}
 	}
-	
+
 	fprintf(out, "System settings:\n");
 	fprintf(out, "\tkernel version: %s\n", kernel);
 	fprintf(out, "\tcpu: %s", cpu);
@@ -625,6 +709,7 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	fprintf(out, "\tmemory limit: %ld bytes\n", param.memlimit);
 	fprintf(out, "\ttime limit: %.0f ms\n", param.timelimit * 1000);
 	fprintf(out, "\tcommand: ");
+
 	if (param.command != NULL)
 	{
 		int i = 0;
@@ -634,12 +719,14 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 			i++;
 		}
 	}
+
 	fprintf(out, "\n");
 	fprintf(out, "\tcgroup memory controller: %s\n", param.path_to_memory);
 	fprintf(out, "\tcgroup cpuacct controller: %s\n", param.path_to_cpuacct);
 	fprintf(out, "\toutputfile: %s\n", param.outputfile);
 
 	fprintf(out, "Resource manager execution status:\n");
+
 	if (err_mes != NULL)
 	{
 		fprintf(out, "\texit code (resource manager): %i (%s)\n", exit_code, err_mes);
@@ -705,25 +792,27 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 	{
 		close(param.fd_stderr);
 	}
-		
+
 	// Finish all running processes.
 	kill_created_processes(SIGKILL);
-	
+
 	// Get statistics.
 	if (stats != NULL)
 	{
 		get_memory_and_cpu_usage(stats);
 	}
-	
+
 	// Remove cgroups.
 	remove_cgroup();
-	
+
 	// Print statistics.
 	print_stats(exit_code, param.script_signal, stats, err_mes);
-	
+
 	// Finish Resource Manager.
 	if (exit_code != 0)
+	{
 		exit(exit_code);
+	}
 }
 
 /*
@@ -738,6 +827,7 @@ static char *read_config_file(char *configfile)
 	char *line;
 
 	file = fopen(configfile, "rt");
+
 	if (file == NULL)
 	{
 		return concat(2, "Can't open config file ", configfile);
@@ -747,8 +837,10 @@ static char *read_config_file(char *configfile)
 	{
 		char *file_name = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+
 		sscanf(line, "%s %s", file_name, value);
 		set_cgroup_parameter(file_name, param.path_to_memory, value);
+
 		free(line);
 		free(file_name);
 		free(value);
@@ -764,18 +856,22 @@ static int check_tasks_file(char *path_to_cgroup)
 	char *path = concat(3, path_to_cgroup, "/", TASKS_FILE);
 	FILE *results;
 	char *str;
+
 	results = fopen(path, "rt");
 	free(path);
+
 	if (results == NULL)
 	{
 		return 0;
 	}
+
 	if((str = read_string_from_opened_file(results)) != NULL) // There is some string.
 	{
 		fclose(results);
 		free(str);
 		return 0;
 	}
+
 	fclose(results);
 
 	return 1;
@@ -821,27 +917,31 @@ static void terminate(int signum)
 	exit_res_manager(EINTR, NULL, "Killed by signal");
 }
 
-// Stop timer for checking time limit.
-static void stop_timer(void)
-{
-	struct itimerval *value = checked_malloc(sizeof(struct itimerval));
-	value->it_value.tv_sec = 0;
-	value->it_value.tv_usec = 0;
-	value->it_interval.tv_usec = 0;
-	value->it_interval.tv_sec = 0;
-	setitimer(ITIMER_REAL, value, NULL);
-	free(value);
-}
-
 // Set timer for checking time limit.
 static void set_timer(int alarm_time)
 {
 	struct itimerval *value = checked_malloc(sizeof(struct itimerval));
+
 	value->it_value.tv_sec = alarm_time / 1000;
 	value->it_value.tv_usec = (alarm_time % 1000) * 1000;
 	value->it_interval.tv_usec = 0;
 	value->it_interval.tv_sec = 0;
 	setitimer(ITIMER_REAL, value, NULL);
+
+	free(value);
+}
+
+// Stop timer for checking time limit.
+static void stop_timer(void)
+{
+	struct itimerval *value = checked_malloc(sizeof(struct itimerval));
+
+	value->it_value.tv_sec = 0;
+	value->it_value.tv_usec = 0;
+	value->it_interval.tv_usec = 0;
+	value->it_interval.tv_sec = 0;
+	setitimer(ITIMER_REAL, value, NULL);
+
 	free(value);
 }
 
@@ -876,26 +976,26 @@ static void redirect(int fd, char *path)
 	close(fd); // Close stdout/stderr in command execution.
 
 	filedes[0] = fd;
-	
+
 	// Create new file, in which stdout/stderr will be redirected.
 	filedes[1] = open(path, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
 	if (filedes[1] == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
-	
-	// duplicate file descriptor.
+
+	// Duplicate file descriptor.
 	if (dup2(filedes[0], filedes[1]) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
-	
+
 	// Create a pipe.
 	if (pipe(filedes) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
-	
+
 	// Save file descriptor, in which stdout/stderr will be redirected.
 	if (fd == 1)
 	{
@@ -911,7 +1011,7 @@ static void redirect(int fd, char *path)
 	}
 }
 
-// print help
+// Print help
 static void print_usage(void)
 {
 	printf(
@@ -1181,10 +1281,10 @@ int main(int argc, char **argv)
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
 	set_timer(param.alarm_time);
-	
+
 	// Save time before executing command.
 	time_before = gettime();
-	
+
 	// Create new process for command.
 	pid = fork();
 	if (pid == 0) // Child process.
@@ -1219,7 +1319,7 @@ int main(int argc, char **argv)
 
 	// Create statistics.
 	stats = (statistics *)checked_malloc(sizeof(statistics));
-	
+
 	// Compute wall time.
 	stats->wall_time = time_after - time_before;
 
@@ -1247,4 +1347,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
