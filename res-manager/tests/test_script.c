@@ -604,7 +604,7 @@ void wait_signal_execution_script(const char * outputfile)
 	int status;
 	wait(&status);
 	number_of_tests++;
-	if (WIFEXITED(status) == 1 && WEXITSTATUS(status) == 0 && check_outputfile_signal_script(outputfile))
+	if (check_outputfile_signal_script(outputfile))
 	{
 		printf ("TEST PASSED\n");
 		passed_tests++;
