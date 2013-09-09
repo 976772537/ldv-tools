@@ -172,22 +172,24 @@ static char *itoa(long num)
 	return str;
 }
 
-// Concatenate n strings and return result.
-static char *concat(const char *str1, ...)
+// Concatenates variable number of strings (NULL represents the end of this
+// list) and returns result.
+static char *concat(const char *first, ...)
 {
-	char *result = (char *)xmalloc((strlen(str1) + 1) * sizeof(char));
+	char *result = (char *)xmalloc((strlen(first) + 1) * sizeof(char));
 	const char *tmp;
 	va_list valist;
 
-	va_start(valist, str1);
+	va_start(valist, first);
 
-	strcpy(result, str1);
+	strcpy(result, first);
 
 	while ((tmp = va_arg(valist, const char *)) != NULL)
 	{
 		result = (char *)xrealloc(result, (strlen(result) + strlen(tmp) + 1) * sizeof(char));
 		strcat(result, tmp);
 	}
+
 	va_end(valist);
 
 	return result;
