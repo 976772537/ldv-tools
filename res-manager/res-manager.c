@@ -21,7 +21,7 @@
 #define MEMORY_CONTROLLER "memory"
 #define CPUACCT_CONTROLLER "cpuacct"
 #define CGROUP "cgroup"
-#define TASKS_FILE "tasks"
+#define TASKS "tasks"
 #define MEM_LIMIT "memory.limit_in_bytes"
 #define MEMSW_LIMIT "memory.memsw.limit_in_bytes"
 #define CPU_USAGE "cpuacct.usage"
@@ -56,19 +56,19 @@ struct
 	// Command-line parameters.
 	double timelimit; // In seconds.
 	long memlimit; // In bytes.
-	char *outputfile; // File for printing statistics.
+	char *fout; // File for printing statistics.
 	char **command; // Command for execution.
 	int alarm_time; // Time in ms (10^-3 seconds).
 
 	// Cgroup parameters.
-	char *path_to_memory_origin;
-	char *path_to_cpuacct_origin;
-	char *path_to_memory;
-	char *path_to_cpuacct;
+	char *cgroup_memory_origin;
+	char *cgroup_cpuacct_origin;
+	char *cgroup_memory;
+	char *cgroup_cpuacct;
 
 	// File descriptors for redirecting stdout/stderr from command.
-	int fd_stdout;
-	int fd_stderr;
+	int stdout;
+	int stderr;
 
 	// If Resource Manager was terminated by signal and this signal was handled
 	// then script_signal stores that signal number.
@@ -78,9 +78,9 @@ struct
 // Pid of child process in which command will be executed.
 int pid = 0;
 
-static void kill_created_processes(int signum);
-static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes);
-static int check_tasks_file(char *);
+static void kill_created_processes(int);
+static void exit_res_manager(int, statistics *, const char *);
+static int check_tasks(const char *);
 
 /* Library functions. */
 
@@ -126,11 +126,11 @@ void *xrealloc(void *prev, size_t size)
 }
 
 // Opens file and checks if there were any errors.
-FILE *xfopen(const char *filename, const char *mode)
+FILE *xfopen(const char *fname, const char *mode)
 {
 	FILE *fp;
 
-	fp = fopen(filename, mode);
+	fp = fopen(fname, mode);
 
 	if (fp == NULL)
 	{
@@ -216,7 +216,7 @@ static int is_number(char *str)
 }
 
 // Read string from opened file into dynamic array.
-static const char *read_string_from_opened_file(FILE *fp)
+static const char *read_string_from_fp(FILE *fp)
 {
 	char *line;
 
@@ -246,12 +246,12 @@ static const char *read_string_from_opened_file(FILE *fp)
 }
 
 // Read first string from file.
-static const char *read_first_string_from_file(const char *path)
+static const char *read_first_string_from_file(const char *fname)
 {
-	FILE *fp = xfopen(path, "rt");
+	FILE *fp = xfopen(fname, "rt");
 	const char *line;
 
-	line = read_string_from_opened_file(fp);
+	line = read_string_from_fp(fp);
 
 	fclose(fp);
 
@@ -267,7 +267,7 @@ static const char *get_cpu_info(void)
 
 	fp = xfopen(CPUINFO_FILE, "rt");
 
-	while ((line = read_string_from_opened_file(fp)) != NULL)
+	while ((line = read_string_from_fp(fp)) != NULL)
 	{
 		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -322,7 +322,7 @@ static const char *get_memory_info(void)
 
 	fp = xfopen(MEMINFO_FILE,"rt");
 
-	while ((line = read_string_from_opened_file(fp)) != NULL)
+	while ((line = read_string_from_fp(fp)) != NULL)
 	{
 		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -389,42 +389,42 @@ static const char *get_kernel_info(void)
 
 /* Control groups handling. */
 
-// Find path_to_memory and path_to_cpuacct.
+// Find memory and cpuacct controllers.
 static void find_cgroup_location(void)
 {
-	const char *path = MOUNTS_FILE;
+	const char *fname = MOUNTS_FILE;
 	FILE *fp;
 	const char *line = NULL;
 
-	fp = xfopen(path, "rt");
+	fp = xfopen(fname, "rt");
 
-	while ((line = read_string_from_opened_file(fp)) != NULL)
+	while ((line = read_string_from_fp(fp)) != NULL)
 	{
 		char *name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
-		char *path = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *fname = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *type = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *subsystems = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
-		sscanf(line, "%s %s %s %s", name, path, type, subsystems);
+		sscanf(line, "%s %s %s %s", name, fname, type, subsystems);
 
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
 		{
-			params.path_to_cpuacct = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
-			strcpy(params.path_to_cpuacct, path);
-			params.path_to_cpuacct_origin = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
-			strcpy(params.path_to_cpuacct_origin, path);
+			params.cgroup_cpuacct = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
+			strcpy(params.cgroup_cpuacct, fname);
+			params.cgroup_cpuacct_origin = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
+			strcpy(params.cgroup_cpuacct_origin, fname);
 		}
 
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, MEMORY_CONTROLLER))
 		{
-			params.path_to_memory = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
-			strcpy(params.path_to_memory, path);
-			params.path_to_memory_origin = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
-			strcpy(params.path_to_memory_origin, path);
+			params.cgroup_memory = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
+			strcpy(params.cgroup_memory, fname);
+			params.cgroup_memory_origin = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
+			strcpy(params.cgroup_memory_origin, fname);
 		}
 
 		free(name);
-		free(path);
+		free(fname);
 		free(type);
 		free(subsystems);
 		free((void *)line);
@@ -432,12 +432,12 @@ static void find_cgroup_location(void)
 
 	fclose(fp);
 
-	if (params.path_to_memory == NULL)
+	if (params.cgroup_memory == NULL)
 	{
 		exit_res_manager(EACCES, NULL, "Error: you need to mount memory cgroup: sudo mount -t cgroup -o memory <name> <path>");
 	}
 
-	if (params.path_to_cpuacct == NULL)
+	if (params.cgroup_cpuacct == NULL)
 	{
 		exit_res_manager(EACCES, NULL, "Error: you need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>");
 	}
@@ -445,66 +445,67 @@ static void find_cgroup_location(void)
 
 /*
  * Create full name for cgroup directory:
- * <path from /proc/mounts>/<resmanager_dir>/resource_manager_<pid>.
+ * <path from /proc/mounts>/<resmanager directory>/<resource_manager pid>.
  */
 static void get_cgroup_name(char *resmanager_dir)
 {
 	// Pid of process.
-	const char *pid_name = itoa(getpid());
+	const char *pid_str = itoa(getpid());
 
-	params.path_to_memory = (char *)concat(params.path_to_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
-	params.path_to_cpuacct = (char *)concat(params.path_to_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
-	free((void *)pid_name);
+	params.cgroup_memory = (char *)concat(params.cgroup_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_str, NULL);
+	params.cgroup_cpuacct = (char *)concat(params.cgroup_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_str, NULL);
+
+	free((void *)pid_str);
 }
 
 // Create new cgroups for known path (<path from /proc/mounts>/<resmanager_dir>/resource_manager_<pid>)
 static void create_cgroup(void)
 {
-	// If path to cpuacct and path to memory are equal then only one directory will be made.
-	char *paths[] = {params.path_to_memory, params.path_to_cpuacct};
+	const char *controllers[] = {params.cgroup_memory, params.cgroup_cpuacct};
 	int i;
 	int iterations = 1;
 	int mkdir_errno;
 
-	if (strcmp(params.path_to_memory, params.path_to_cpuacct) == 0)
+	// If cpuacct and memory controllers are equal then only one directory will be made.
+	if (strcmp(params.cgroup_memory, params.cgroup_cpuacct) == 0)
 	{
 		iterations = 0;
 	}
 
 	for (i = 0; i <= iterations; i++)
 	{
-		if (mkdir(paths[i], 0777) == -1)
+		if (mkdir(controllers[i], 0777) == -1)
 		{
 			mkdir_errno = errno;
 			if (mkdir_errno == EACCES) // Permission error.
 			{
-				if (strcmp(paths[i], params.path_to_memory) == 0)
+				if (strcmp(controllers[i], params.cgroup_memory) == 0)
 				{
 					exit_res_manager(mkdir_errno, NULL, concat(
-						"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", params.path_to_memory_origin, NULL));
+						"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", params.cgroup_memory_origin, NULL));
 				}
 				else
 				{
 					exit_res_manager(mkdir_errno, NULL, concat(
-						"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", params.path_to_cpuacct_origin, NULL));
+						"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", params.cgroup_cpuacct_origin, NULL));
 				}
 			}
 			else if (mkdir_errno == EEXIST) // Directory exists.
 			{
-				if (check_tasks_file(paths[i])) // Tasks file is empty.
+				if (check_tasks((const char *)controllers[i])) // Tasks file is empty.
 				{
-					rmdir(paths[i]);
-					mkdir(paths[i], 0777);
+					rmdir(controllers[i]);
+					mkdir(controllers[i], 0777);
 				}
 				else
 				{
 					exit_res_manager(mkdir_errno, NULL, concat(
-						"There is control group with running processes in ", paths[i], NULL));
+						"There is control group with running processes in ", controllers[i], NULL));
 				}
 			}
 			else // other errors
 			{
-				exit_res_manager(mkdir_errno, NULL, concat("Error: couldn't create ", paths[i], NULL));
+				exit_res_manager(mkdir_errno, NULL, concat("Error: couldn't create ", controllers[i], NULL));
 			}
 		}
 	}
@@ -512,30 +513,30 @@ static void create_cgroup(void)
 
 // Set specified parameter into specified file in specified cgroup. In case of
 // error Resource Manager will be terminated.
-static void set_cgroup_parameter(const char *file_name, const char *controller, const char *value)
+static void set_cgroup_parameter(const char *fname, const char *controller, const char *value)
 {
-	const char *path = concat(controller, "/", file_name, NULL);
+	const char *fname_new = concat(controller, "/", fname, NULL);
 	FILE *fp;
 
-	chmod(path, 0666);
+	chmod(fname_new, 0666);
 
-	if (access(path, F_OK) == -1) // Chech if file exists.
+	if (access(fname_new, F_OK) == -1) // Chech if file exists.
 	{
-		if (strcmp(file_name, MEMSW_LIMIT) == 0) // special error text for memsw
+		if (strcmp(fname, MEMSW_LIMIT) == 0) // special error text for memsw
 		{
 			exit_res_manager(ENOENT, NULL, "Error: memory control group doesn't have swap extension."
 				" You need to set swapaccount=1 as a kernel boot parameter to be able to compute 'memory+Swap' usage");
 		}
 
-		exit_res_manager(errno, NULL, concat("Error: file ", path, " doesn't exist", NULL));
+		exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
 	}
 
-	fp = xfopen(path, "w+");
+	fp = xfopen(fname_new, "w+");
 
 	fputs(value, fp);
 
 	fclose(fp);
-	free((void *)path);
+	free((void *)fname_new);
 }
 
 /*
@@ -543,19 +544,19 @@ static void set_cgroup_parameter(const char *file_name, const char *controller, 
  * In case of error during reading Resource Manager will be terminated.
  * Return readed string.
  */
-static const char *get_cgroup_parameter(char *file_name, const char *controller)
+static const char *get_cgroup_parameter(const char *fname, const char *controller)
 {
 	const char *str;
-	const char *path = concat(controller, "/", file_name, NULL);
+	const char *fname_new = concat(controller, "/", fname, NULL);
 
-	str = read_first_string_from_file(path);
+	str = read_first_string_from_file(fname_new);
 
 	if (str == NULL)
 	{
-		exit_res_manager(ENOENT, NULL, concat("Error: couldn't read parameter from ", path, NULL));
+		exit_res_manager(ENOENT, NULL, concat("Error: couldn't read parameter from ", fname_new, NULL));
 	}
 
-	free((void *)path);
+	free((void *)fname_new);
 
 	return str;
 }
@@ -563,17 +564,17 @@ static const char *get_cgroup_parameter(char *file_name, const char *controller)
 // Set memory limit in cgroup with memory controller.
 static void set_memlimit(void)
 {
-	set_cgroup_parameter(MEM_LIMIT, params.path_to_memory, itoa(params.memlimit));
-	set_cgroup_parameter(MEMSW_LIMIT, params.path_to_memory, itoa(params.memlimit));
+	set_cgroup_parameter(MEM_LIMIT, params.cgroup_memory, itoa(params.memlimit));
+	set_cgroup_parameter(MEMSW_LIMIT, params.cgroup_memory, itoa(params.memlimit));
 }
 
 // Add pid of created process to tasks file.
 static void add_task(int pid)
 {
-	set_cgroup_parameter(TASKS_FILE, params.path_to_memory, itoa(pid));
-	if (strcmp(params.path_to_memory, params.path_to_cpuacct) != 0)
+	set_cgroup_parameter(TASKS, params.cgroup_memory, itoa(pid));
+	if (strcmp(params.cgroup_memory, params.cgroup_cpuacct) != 0)
 	{
-		set_cgroup_parameter(TASKS_FILE, params.path_to_cpuacct, itoa(pid));
+		set_cgroup_parameter(TASKS, params.cgroup_cpuacct, itoa(pid));
 	}
 }
 
@@ -610,17 +611,17 @@ static void read_cpu_stats(statistics *stats)
 {
 	FILE *fp;
 	const char *line;
-	const char *path_cpu_stat = concat(params.path_to_cpuacct, "/", CPU_STAT, NULL);
+	const char *fcpu_stat = concat(params.cgroup_cpuacct, "/", CPU_STAT, NULL);
 
-	fp = xfopen(path_cpu_stat, "rt");
+	fp = xfopen(fcpu_stat, "rt");
 
-	line = read_string_from_opened_file(fp);
+	line = read_string_from_fp(fp);
 	stats->user_time = atof(get_cpu_stat_line(line)) / 1e2;
 
-	line = read_string_from_opened_file(fp);
+	line = read_string_from_fp(fp);
 	stats->sys_time = atof(get_cpu_stat_line(line)) / 1e2;
 
-	free((void *)path_cpu_stat);
+	free((void *)fcpu_stat);
 	fclose(fp);
 }
 
@@ -629,12 +630,12 @@ static void get_memory_and_cpu_usage(statistics *stats)
 {
 // REPLACE THEM!!!
 	const char *cpu_usage;
-	const char *memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, params.path_to_memory);
+	const char *memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, params.cgroup_memory);
 
 	stats->memory = atol(memory_usage);
 	free((void *)memory_usage);
 
-	cpu_usage = get_cgroup_parameter(CPU_USAGE, params.path_to_cpuacct);
+	cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	stats->cpu_time = atol(cpu_usage) / 1e9;
 	free((void *)cpu_usage);
 
@@ -645,15 +646,15 @@ static void get_memory_and_cpu_usage(statistics *stats)
 // Delete cgroups.
 static void remove_cgroup(void)
 {
-	if (params.path_to_memory != NULL)
+	if (params.cgroup_memory != NULL)
 	{
-		rmdir(params.path_to_memory);
+		rmdir(params.cgroup_memory);
 	}
-	if (strcmp(params.path_to_cpuacct, params.path_to_memory) != 0)
+	if (strcmp(params.cgroup_cpuacct, params.cgroup_memory) != 0)
 	{
-		if (params.path_to_cpuacct != NULL)
+		if (params.cgroup_cpuacct != NULL)
 		{
-			rmdir(params.path_to_cpuacct);
+			rmdir(params.cgroup_cpuacct);
 		}
 	}
 }
@@ -668,17 +669,17 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	const char *memory = get_memory_info();
 	const char *cpu = get_cpu_info();
 
-	if (params.outputfile == NULL)
+	if (params.fout == NULL)
 	{
 		fp = stdout;
 	}
 	else
 	{
-		fp = fopen(params.outputfile, "w");
+		fp = fopen(params.fout, "w");
 
 		if (fp == NULL)
 		{
-			fprintf(stdout, "Couldn't create file %s\n", params.outputfile);
+			fprintf(stdout, "Couldn't create file %s\n", params.fout);
 			fp = stdout;
 		}
 	}
@@ -708,9 +709,9 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	}
 
 	fprintf(fp, "\n");
-	fprintf(fp, "\tcgroup memory controller: %s\n", params.path_to_memory);
-	fprintf(fp, "\tcgroup cpuacct controller: %s\n", params.path_to_cpuacct);
-	fprintf(fp, "\toutputfile: %s\n", params.outputfile);
+	fprintf(fp, "\tcgroup memory controller: %s\n", params.cgroup_memory);
+	fprintf(fp, "\tcgroup cpuacct controller: %s\n", params.cgroup_cpuacct);
+	fprintf(fp, "\toutputfile: %s\n", params.fout);
 
 	fprintf(fp, "Resource manager execution status:\n");
 
@@ -761,7 +762,7 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 		fprintf(fp, "\tpeak memory usage: %ld bytes\n", stats->memory);
 	}
 
-	if (params.outputfile != NULL)
+	if (params.fout != NULL)
 	{
 		fclose(fp);
 	}
@@ -771,13 +772,13 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes)
 {
 	// Close files, in which stdout/stderr was redirected.
-	if (params.fd_stdout != -1)
+	if (params.stdout != -1)
 	{
-		close(params.fd_stdout);
+		close(params.stdout);
 	}
-	if (params.fd_stderr != -1)
+	if (params.stderr != -1)
 	{
-		close(params.fd_stderr);
+		close(params.stderr);
 	}
 
 	// Finish all running processes.
@@ -808,23 +809,23 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
  * Into each <file> will be written <value>.
  * Returns err_mes or NULL in case of success.
  */
-static char *read_config_file(char *configfile)
+static char *read_config(char *fconfig)
 {
 	FILE *fp;
 	const char *line;
 
-	fp = xfopen(configfile, "rt");
+	fp = xfopen(fconfig, "rt");
 
-	while ((line = read_string_from_opened_file(fp)) != NULL)
+	while ((line = read_string_from_fp(fp)) != NULL)
 	{
-		char *file_name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *fname = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
-		sscanf(line, "%s %s", file_name, value);
-		set_cgroup_parameter(file_name, params.path_to_memory, value);
+		sscanf(line, "%s %s", fname, value);
+		set_cgroup_parameter(fname, params.cgroup_memory, value);
 
 		free((void *)line);
-		free(file_name);
+		free(fname);
 		free(value);
 	}
 
@@ -834,16 +835,16 @@ static char *read_config_file(char *configfile)
 }
 
 // Check tasks file => return 1 if it's clean, 0 otherwise.
-static int check_tasks_file(char *path_to_cgroup)
+static int check_tasks(const char *cgroup)
 {
-	const char *path = concat(path_to_cgroup, "/", TASKS_FILE, NULL);
+	const char *fname = concat(cgroup, "/", TASKS, NULL);
 	FILE *fp;
 	const char *line;
 
-	fp = xfopen(path, "rt");
-	free((void *)path);
+	fp = xfopen(fname, "rt");
+	free((void *)fname);
 
-	if((line = read_string_from_opened_file(fp)) != NULL) // There is some string.
+	if((line = read_string_from_fp(fp)) != NULL) // There is some string.
 	{
 		fclose(fp);
 		free((void *)line);
@@ -861,7 +862,7 @@ static void kill_created_processes(int signum)
 {
 	if (pid > 0)
 	{
-		const char *path;
+		const char *fname;
 		const char *line = NULL;
 		FILE *fp;
 
@@ -869,17 +870,17 @@ static void kill_created_processes(int signum)
 		kill(pid, signum);
 
 		// Kill any other created processes.
-		path = concat(params.path_to_memory, "/", TASKS_FILE, NULL);
-		fp = fopen(path,"rt");
+		fname = concat(params.cgroup_memory, "/", TASKS, NULL);
+		fp = fopen(fname,"rt");
 
 		if (fp == NULL)
 		{
 			return; // File already was deleted.
 		}
 
-		free((void *)path);
+		free((void *)fname);
 
-		while ((line = read_string_from_opened_file(fp)) != NULL)
+		while ((line = read_string_from_fp(fp)) != NULL)
 		{
 			kill(atoi(line),signum);
 			free((void *)line);
@@ -928,7 +929,7 @@ static void stop_timer(void)
 // Handle SIGALRM, check time limit.
 static void check_time(int signum)
 {
-	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.path_to_cpuacct);
+	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	double cpu_time = atof(cpu_usage) / 1e9;
 
 	free((void *)cpu_usage);
@@ -944,34 +945,34 @@ static void check_time(int signum)
 }
 
 // Redirect stderr/stdout into file.
-static void redirect(int fd, char *path)
+static void redirect(int fd, const char *fname)
 {
-	int filedes[2];
+	int fdes[2];
 
-	if (path == NULL)
+	if (fname == NULL)
 	{
 		return;
 	}
 
 	close(fd); // Close stdout/stderr in command execution.
 
-	filedes[0] = fd;
+	fdes[0] = fd;
 
 	// Create new file, in which stdout/stderr will be redirected.
-	filedes[1] = open(path, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
-	if (filedes[1] == -1)
+	fdes[1] = open(fname, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	if (fdes[1] == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
 
 	// Duplicate file descriptor.
-	if (dup2(filedes[0], filedes[1]) == -1)
+	if (dup2(fdes[0], fdes[1]) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
 
 	// Create a pipe.
-	if (pipe(filedes) == -1)
+	if (pipe(fdes) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
@@ -979,11 +980,11 @@ static void redirect(int fd, char *path)
 	// Save file descriptor, in which stdout/stderr will be redirected.
 	if (fd == 1)
 	{
-		params.fd_stdout = filedes[1];
+		params.stdout = fdes[1];
 	}
 	else if (fd == 2)
 	{
-		params.fd_stderr = filedes[1];
+		params.stderr = fdes[1];
 	}
 	else // Not stdout/stderr.
 	{
@@ -1086,10 +1087,10 @@ static void print_usage(void)
 
 int main(int argc, char **argv)
 {
-	char *stdoutfile = NULL;
-	char *stderrfile = NULL;
+	char *fstdout = NULL;
+	char *fstderr = NULL;
 	char *resmanager_dir = ""; // Path to Resource Manager directory in control groups.
-	char *configfile = NULL;
+	char *fconfig = NULL;
 	int i;
 	int comm_arg = 0;
 	int c;
@@ -1111,15 +1112,15 @@ int main(int argc, char **argv)
 	// Set standart values for parameters.
 	params.timelimit = STANDART_TIMELIMIT;
 	params.memlimit = STANDART_MEMLIMIT;
-	params.outputfile = NULL;
+	params.fout = NULL;
 	params.command = NULL;
 	params.alarm_time = 1000;
-	params.path_to_memory_origin = NULL;
-	params.path_to_cpuacct_origin = NULL;
-	params.path_to_memory = NULL;
-	params.path_to_cpuacct = NULL;
-	params.fd_stdout = -1;
-	params.fd_stderr = -1;
+	params.cgroup_memory_origin = NULL;
+	params.cgroup_cpuacct_origin = NULL;
+	params.cgroup_memory = NULL;
+	params.cgroup_cpuacct = NULL;
+	params.stdout = -1;
+	params.stderr = -1;
 	params.script_signal = 0;
 
 	// Set handlers for all signals except SIGSTOP, SIGKILL, SIGUSR1, SIGUSR2, SIGALRM, SIGWINCH.
@@ -1151,13 +1152,13 @@ int main(int argc, char **argv)
 			params.alarm_time = atoi(optarg);
 			break;
 		case 'c':
-			configfile = optarg;
+			fconfig = optarg;
 			break;
 		case 's':
-			stdoutfile = optarg;
+			fstdout = optarg;
 			break;
 		case 'e':
-			stderrfile = optarg;
+			fstderr = optarg;
 			break;
 		case 'l':
 			resmanager_dir = optarg;
@@ -1213,7 +1214,7 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'o':
-			params.outputfile = optarg;
+			params.fout = optarg;
 			break;
 		default:
 			is_options_ended = 1;
@@ -1246,9 +1247,9 @@ int main(int argc, char **argv)
 
 	// Configure cgroup.
 	set_memlimit();
-	if (configfile != NULL) // configfile was specified
+	if (fconfig != NULL) // configfile was specified
 	{
-		char *err_mes = read_config_file(configfile);
+		char *err_mes = read_config(fconfig);
 		if (err_mes != NULL)
 		{
 			exit_res_manager(ENOENT, NULL, err_mes);
@@ -1269,8 +1270,8 @@ int main(int argc, char **argv)
 	pid = fork();
 	if (pid == 0) // Child process.
 	{
-		redirect(1, stdoutfile); // Redirect stdout.
-		redirect(2, stderrfile); // Redirect stderr.
+		redirect(1, fstdout); // Redirect stdout.
+		redirect(2, fstderr); // Redirect stderr.
 		add_task(getpid()); // Attach process to cgroup.
 		execvp(params.command[0], params.command); // Execute command.
 		exit(errno); // Exit on error.
