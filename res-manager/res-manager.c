@@ -143,7 +143,6 @@ FILE *xfopen(const char *filename, const char *mode)
 static const char *itoa(unsigned long n)
 {
 	int order = 1;
-	int i;
 	long broken_n;
 	char *str;
 
@@ -152,7 +151,7 @@ static const char *itoa(unsigned long n)
 
 	str = (char *)xmalloc(sizeof(char) * (number_of_chars + 1));
 
-	for (i = order - 1, broken_n = n; i >= 0; i--)
+	for (int i = order - 1, broken_n = n; i >= 0; i--)
 	{
 		str[i] = broken_n % 10 + '0';
 		broken_n = broken_n / 10;
@@ -186,7 +185,7 @@ static char *concat(const char *first, ...)
 	return result;
 }
 
-// Get current time in microseconds (10^-6).
+// Gets current time in microseconds.
 static double gettime(void)
 {
 	struct timeval time;
@@ -196,23 +195,20 @@ static double gettime(void)
 	return time.tv_sec + time.tv_usec / 1000000.0;
 }
 
-// Return true, if str is number.
+// Returns true, if string is number.
 static int is_number(char *str)
 {
-	int i = 0;
-
 	if (str == NULL)
 	{
 		return 0;
 	}
 
-	while (str[i] != '\0')
+	for (int i = 0; str[i] != '\0'; i++)
 	{
 		if (!isdigit(str[i]))
 		{
 			return 0;
 		}
-		i++;
 	}
 
 	return 1;
