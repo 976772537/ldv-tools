@@ -371,7 +371,7 @@ static char *get_kernel_info(void)
 
 	if (line == NULL)
 	{
-		exit_res_manager(ENOENT, NULL, concat("Can't open file", VERSION_FILE, NULL));
+		exit_res_manager(ENOENT, NULL, concat("Error: couldn't open file", VERSION_FILE, NULL));
 	}
 
 	arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -440,12 +440,12 @@ static void find_cgroup_location(void)
 
 	if (params.path_to_memory == NULL)
 	{
-		exit_res_manager(EACCES, NULL, "You need to mount memory cgroup: sudo mount -t cgroup -o memory <name> <path>");
+		exit_res_manager(EACCES, NULL, "Error: you need to mount memory cgroup: sudo mount -t cgroup -o memory <name> <path>");
 	}
 
 	if (params.path_to_cpuacct == NULL)
 	{
-		exit_res_manager(EACCES, NULL, "You need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>");
+		exit_res_manager(EACCES, NULL, "Error: you need to mount cpuacct cgroup: sudo mount -t cgroup -o cpuacct <name> <path>");
 	}
 }
 
@@ -510,7 +510,7 @@ static void create_cgroup(void)
 			}
 			else // other errors
 			{
-				exit_res_manager(mkdir_errno, NULL, concat("Error during creation ", paths[i], NULL));
+				exit_res_manager(mkdir_errno, NULL, concat("Error: couldn't create ", paths[i], NULL));
 			}
 		}
 	}
@@ -529,11 +529,11 @@ static void set_cgroup_parameter(const char *file_name, const char *controller, 
 	{
 		if (strcmp(file_name, MEMSW_LIMIT) == 0) // special error text for memsw
 		{
-			exit_res_manager(ENOENT, NULL, "Error: Memory control group doesn't have swap extension\n"
-				"You need to set swapaccount=1 as a kernel boot parameter to be able to compute (memory+Swap) usage");
+			exit_res_manager(ENOENT, NULL, "Error: memory control group doesn't have swap extension."
+				" You need to set swapaccount=1 as a kernel boot parameter to be able to compute 'memory+Swap' usage");
 		}
 
-		exit_res_manager(errno, NULL, concat("File ", path, " doesn't exist", NULL));
+		exit_res_manager(errno, NULL, concat("Error: file ", path, " doesn't exist", NULL));
 	}
 
 	file = xfopen(path, "w+");
@@ -557,7 +557,7 @@ static char *get_cgroup_parameter(char *file_name, const char *controller)
 
 	if (str == NULL)
 	{
-		exit_res_manager(ENOENT, NULL, concat("Error: Can't read parameter from ", path, NULL));
+		exit_res_manager(ENOENT, NULL, concat("Error: couldn't read parameter from ", path, NULL));
 	}
 
 	free(path);
@@ -589,7 +589,7 @@ static char *get_cpu_stat_line(char *line)
 
 	if (line == NULL)
 	{
-		exit_res_manager(ENOENT, NULL, "Error: Can't read the string from file cpuacct.stats");
+		exit_res_manager(ENOENT, NULL, "Error: couldn't read string from file cpuacct.stats");
 	}
 	else
 	{
@@ -1153,7 +1153,7 @@ int main(int argc, char **argv)
 		case 'i':
 			if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL, NULL, "Expected integer number in ms as value of --interval");
+				exit_res_manager(EINVAL, NULL, "Error: expected integer number in ms as value of --interval");
 			}
 			params.alarm_time = atoi(optarg);
 			break;
@@ -1201,7 +1201,7 @@ int main(int argc, char **argv)
 			}
 			else if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL, NULL, "Expected integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers as value of -m");
+				exit_res_manager(EINVAL, NULL, "Error: expected integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers as value of -m");
 			}
 			break;
 		case 't':
@@ -1216,7 +1216,7 @@ int main(int argc, char **argv)
 			}
 			else if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL, NULL, "Expected number with ms|min| modifiers as value of -t");
+				exit_res_manager(EINVAL, NULL, "Error: expected number with ms|min| modifiers as value of -t");
 			}
 			break;
 		case 'o':
@@ -1234,7 +1234,7 @@ int main(int argc, char **argv)
 
 	if (!is_options_ended)
 	{
-		exit_res_manager(EINVAL, NULL, "Command to be executed wasn't specified. See help for details");
+		exit_res_manager(EINVAL, NULL, "Error: command to be executed wasn't specified. See help for details");
 	}
 
 	optind--; // Optind - index of first argument in command; index of command is needed.
