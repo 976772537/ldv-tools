@@ -150,7 +150,7 @@ static const char *itoa(unsigned long n)
 	// Gets order of number.
 	for (broken_n = n; (broken_n = broken_n / 10) > 0; order++);
 
-	str = (char *)xmalloc(sizeof(char) * (number_of_chars + 1));
+	str = (char *)xmalloc(sizeof(char) * (order + 1));
 
 	for (int i = order - 1, broken_n = n; i >= 0; i--)
 	{
@@ -260,7 +260,7 @@ static char *read_string_from_file(const char *path)
 }
 
 // Get cpu info.
-static char *get_cpu_info(void)
+static const char *get_cpu_info(void)
 {
 	FILE *file;
 	char *line;
@@ -313,7 +313,7 @@ static char *get_cpu_info(void)
 }
 
 // Get memory size.
-static char *get_memory_info(void)
+static const char *get_memory_info(void)
 {
 	FILE *file;
 	char *line;
@@ -352,7 +352,7 @@ static char *get_memory_info(void)
 }
 
 // Get kernel version.
-static char *get_kernel_info(void)
+static const char *get_kernel_info(void)
 {
 	char *line = read_string_from_file(VERSION_FILE);
 	char *arg;
@@ -446,11 +446,11 @@ static void find_cgroup_location(void)
 static void get_cgroup_name(char *resmanager_dir)
 {
 	// Pid of process.
-	char *pid_name = itoa(getpid());
+	const char *pid_name = itoa(getpid());
 
 	params.path_to_memory = concat(params.path_to_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
 	params.path_to_cpuacct = concat(params.path_to_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
-	free(pid_name);
+	free((void *)pid_name);
 }
 
 // Create new cgroups for known path (<path from /proc/mounts>/<resmanager_dir>/resource_manager_<pid>)
@@ -508,7 +508,7 @@ static void create_cgroup(void)
 
 // Set specified parameter into specified file in specified cgroup. In case of
 // error Resource Manager will be terminated.
-static void set_cgroup_parameter(const char *file_name, const char *controller, char *value)
+static void set_cgroup_parameter(const char *file_name, const char *controller, const char *value)
 {
 	char *path = concat(controller, "/", file_name, NULL);
 	FILE *file;
@@ -658,9 +658,9 @@ static void remove_cgroup(void)
 static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes)
 {
 	FILE *out;
-	char *kernel = get_kernel_info();
-	char *memory = get_memory_info();
-	char *cpu = get_cpu_info();
+	const char *kernel = get_kernel_info();
+	const char *memory = get_memory_info();
+	const char *cpu = get_cpu_info();
 
 	if (params.outputfile == NULL)
 	{
@@ -682,9 +682,9 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	fprintf(out, "\tcpu: %s", cpu);
 	fprintf(out, "\tmemory: %s bytes\n", memory);
 
-	free(kernel);
-	free(memory);
-	free(cpu);
+	free((void *)kernel);
+	free((void *)memory);
+	free((void *)cpu);
 
 	fprintf(out, "Resource manager settings:\n");
 	fprintf(out, "\tmemory limit: %ld bytes\n", params.memlimit);
@@ -719,7 +719,7 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 
 	if (signal != 0)
 	{
-		fprintf(out, "\tkilled by signal (resource manager): %i (%s)\n", signal,strsignal(signal));
+		fprintf(out, "\tkilled by signal (resource manager): %i (%s)\n", signal, strsignal(signal));
 	}
 
 	if (exit_code == 0 && pid > 0 && stats != NULL) // Script finished.
