@@ -139,35 +139,26 @@ FILE *xfopen(const char *filename, const char *mode)
 	return fp;
 }
 
-// Get order of number.
-static int get_number_order(long num)
+// Gets string representing number.
+static const char *itoa(unsigned long n)
 {
-	int ret = 1;
-	long count = num;
-
-	while ((count = count / 10) > 0)
-	{
-		ret++;
-	}
-
-	return ret;
-}
-
-// Get string representing long number.
-static char *itoa(long num)
-{
-	int number_of_chars = get_number_order(num);
+	int order = 1;
 	int i;
-	long count = num;
-	char *str = (char *)xmalloc(sizeof(char) * (number_of_chars + 1));
+	long broken_n;
+	char *str;
 
-	for (i = number_of_chars - 1; i >= 0; i--)
+	// Gets order of number.
+	for (broken_n = n; (broken_n = broken_n / 10) > 0; order++);
+
+	str = (char *)xmalloc(sizeof(char) * (number_of_chars + 1));
+
+	for (i = order - 1, broken_n = n; i >= 0; i--)
 	{
-		str[i] = count % 10 + '0';
-		count = count / 10;
+		str[i] = broken_n % 10 + '0';
+		broken_n = broken_n / 10;
 	}
 
-	str[number_of_chars] = '\0';
+	str[order] = '\0';
 
 	return str;
 }
