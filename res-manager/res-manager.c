@@ -165,7 +165,7 @@ static const char *itoa(unsigned long n)
 
 // Concatenates variable number of strings (NULL represents the end of this
 // list) and returns result.
-static char *concat(const char *first, ...)
+static const char *concat(const char *first, ...)
 {
 	char *result = (char *)xmalloc((strlen(first) + 1) * sizeof(char));
 	const char *tmp;
@@ -216,7 +216,7 @@ static int is_number(char *str)
 }
 
 // Read string from opened file into dynamic array.
-static char *read_string_from_opened_file(FILE *file)
+static const char *read_string_from_opened_file(FILE *file)
 {
 	char *line;
 
@@ -236,6 +236,7 @@ static char *read_string_from_opened_file(FILE *file)
 	{
 		char *tmp_line = (char *)xrealloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
 		char part_of_line[STR_LEN];
+
 		fgets(part_of_line, STR_LEN, file);
 		line = tmp_line;
 		strcat(line, part_of_line);
@@ -244,13 +245,11 @@ static char *read_string_from_opened_file(FILE *file)
 	return line;
 }
 
-
-
 // Read first string from file.
-static char *read_string_from_file(const char *path)
+static const char *read_first_string_from_file(const char *path)
 {
 	FILE *file = xfopen(path, "rt");
-	char *line;
+	const char *line;
 
 	line = read_string_from_opened_file(file);
 
@@ -263,7 +262,8 @@ static char *read_string_from_file(const char *path)
 static const char *get_cpu_info(void)
 {
 	FILE *file;
-	char *line;
+	const char *line;
+	char *broken_line = NULL;
 
 	file = xfopen(CPUINFO_FILE, "rt");
 
@@ -279,7 +279,9 @@ static const char *get_cpu_info(void)
 			int i = 0;
 			int num_of_spaces;
 
-			while (line[i] != ':')
+			strcpy(broken_line, line);
+
+			while (broken_line[i] != ':')
 			{
 				i++;
 			}
@@ -287,24 +289,24 @@ static const char *get_cpu_info(void)
 			i += 2;
 			num_of_spaces = i;
 
-			while (line[i] != '\0')
+			while (broken_line[i] != '\0')
 			{
-				line[i - num_of_spaces] = line[i];
+				broken_line[i - num_of_spaces] = line[i];
 				i++;
 			}
 
-			line[i - num_of_spaces] = '\0';
+			broken_line[i - num_of_spaces] = '\0';
 
 			fclose(file);
 			free(arg);
 			free(value);
 
-			return line;
+			return (const char *)broken_line;
 		}
 
 		free(arg);
 		free(value);
-		free(line);
+		free((void *)line);
 	}
 
 	fclose(file);
@@ -316,7 +318,7 @@ static const char *get_cpu_info(void)
 static const char *get_memory_info(void)
 {
 	FILE *file;
-	char *line;
+	const char *line;
 
 	file = xfopen(MEMINFO_FILE,"rt");
 
@@ -336,14 +338,14 @@ static const char *get_memory_info(void)
 			fclose(file);
 			free(arg);
 			free(value);
-			free(line);
+			free((void *)line);
 
 			return itoa(mem_size);
 		}
 
 		free(arg);
 		free(value);
-		free(line);
+		free((void *)line);
 	}
 
 	fclose(file);
@@ -354,7 +356,7 @@ static const char *get_memory_info(void)
 // Get kernel version.
 static const char *get_kernel_info(void)
 {
-	char *line = read_string_from_file(VERSION_FILE);
+	const char *line = read_first_string_from_file(VERSION_FILE);
 	char *arg;
 	char *value;
 	int i = 0;
@@ -380,7 +382,7 @@ static const char *get_kernel_info(void)
 	}
 
 	free(arg);
-	free(line);
+	free((void *)line);
 
 	return value;
 }
@@ -392,7 +394,7 @@ static void find_cgroup_location(void)
 {
 	const char *path = MOUNTS_FILE;
 	FILE *results;
-	char *line = NULL;
+	const char *line = NULL;
 
 	results = xfopen(path, "rt");
 
@@ -425,7 +427,7 @@ static void find_cgroup_location(void)
 		free(path);
 		free(type);
 		free(subsystems);
-		free(line);
+		free((void *)line);
 	}
 
 	if (params.path_to_memory == NULL)
@@ -448,8 +450,8 @@ static void get_cgroup_name(char *resmanager_dir)
 	// Pid of process.
 	const char *pid_name = itoa(getpid());
 
-	params.path_to_memory = concat(params.path_to_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
-	params.path_to_cpuacct = concat(params.path_to_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
+	params.path_to_memory = (char *)concat(params.path_to_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
+	params.path_to_cpuacct = (char *)concat(params.path_to_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_name, NULL);
 	free((void *)pid_name);
 }
 
@@ -510,7 +512,7 @@ static void create_cgroup(void)
 // error Resource Manager will be terminated.
 static void set_cgroup_parameter(const char *file_name, const char *controller, const char *value)
 {
-	char *path = concat(controller, "/", file_name, NULL);
+	const char *path = concat(controller, "/", file_name, NULL);
 	FILE *file;
 
 	chmod(path, 0666);
@@ -530,7 +532,7 @@ static void set_cgroup_parameter(const char *file_name, const char *controller, 
 
 	fputs(value, file);
 	fclose(file);
-	free(path);
+	free((void *)path);
 }
 
 /*
@@ -538,19 +540,19 @@ static void set_cgroup_parameter(const char *file_name, const char *controller, 
  * In case of error during reading Resource Manager will be terminated.
  * Return readed string.
  */
-static char *get_cgroup_parameter(char *file_name, const char *controller)
+static const char *get_cgroup_parameter(char *file_name, const char *controller)
 {
-	char *str;
-	char *path = concat(controller, "/", file_name, NULL);
+	const char *str;
+	const char *path = concat(controller, "/", file_name, NULL);
 
-	str = read_string_from_file(path);
+	str = read_first_string_from_file(path);
 
 	if (str == NULL)
 	{
 		exit_res_manager(ENOENT, NULL, concat("Error: couldn't read parameter from ", path, NULL));
 	}
 
-	free(path);
+	free((void *)path);
 
 	return str;
 }
@@ -573,9 +575,9 @@ static void add_task(int pid)
 }
 
 // Read line from cpuacct.stats file and return it's value.
-static char *get_cpu_stat_line(char *line)
+static const char *get_cpu_stat_line(const char *line)
 {
-	char *result;
+	const char *result;
 
 	if (line == NULL)
 	{
@@ -589,7 +591,7 @@ static char *get_cpu_stat_line(char *line)
 		sscanf(line, "%s %s", arg, value);
 		result = value;
 
-		free(line);
+		free((void *)line);
 		free(arg);
 	}
 
@@ -604,8 +606,8 @@ static char *get_cpu_stat_line(char *line)
 static void read_cpu_stats(statistics *stats)
 {
 	FILE *file;
-	char *line;
-	char *path_cpu_stat = concat(params.path_to_cpuacct, "/", CPU_STAT, NULL);
+	const char *line;
+	const char *path_cpu_stat = concat(params.path_to_cpuacct, "/", CPU_STAT, NULL);
 
 	file = xfopen(path_cpu_stat, "rt");
 
@@ -615,22 +617,23 @@ static void read_cpu_stats(statistics *stats)
 	line = read_string_from_opened_file(file);
 	stats->sys_time = atof(get_cpu_stat_line(line)) / 1e2;
 
-	free(path_cpu_stat);
+	free((void *)path_cpu_stat);
 	fclose(file);
 }
 
 // Read statistics.
 static void get_memory_and_cpu_usage(statistics *stats)
 {
-	char *cpu_usage;
-	char *memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, params.path_to_memory);
+// REPLACE THEM!!!
+	const char *cpu_usage;
+	const char *memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, params.path_to_memory);
 
 	stats->memory = atol(memory_usage);
-	free(memory_usage);
+	free((void *)memory_usage);
 
 	cpu_usage = get_cgroup_parameter(CPU_USAGE, params.path_to_cpuacct);
 	stats->cpu_time = atol(cpu_usage) / 1e9;
-	free(cpu_usage);
+	free((void *)cpu_usage);
 
 	// User and system time (not standart format).
 	read_cpu_stats(stats);
@@ -805,7 +808,7 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 static char *read_config_file(char *configfile)
 {
 	FILE *file;
-	char *line;
+	const char *line;
 
 	file = xfopen(configfile, "rt");
 
@@ -817,7 +820,7 @@ static char *read_config_file(char *configfile)
 		sscanf(line, "%s %s", file_name, value);
 		set_cgroup_parameter(file_name, params.path_to_memory, value);
 
-		free(line);
+		free((void *)line);
 		free(file_name);
 		free(value);
 	}
@@ -829,22 +832,23 @@ static char *read_config_file(char *configfile)
 // Check tasks file => return 1 if it's clean, 0 otherwise.
 static int check_tasks_file(char *path_to_cgroup)
 {
-	char *path = concat(path_to_cgroup, "/", TASKS_FILE, NULL);
+	const char *path = concat(path_to_cgroup, "/", TASKS_FILE, NULL);
 	FILE *results;
-	char *str;
+	const char *line;
 
 	results = xfopen(path, "rt");
-	free(path);
+	free((void *)path);
 
 	if (results == NULL)
 	{
 		return 0;
 	}
 
-	if((str = read_string_from_opened_file(results)) != NULL) // There is some string.
+	if((line = read_string_from_opened_file(results)) != NULL) // There is some string.
 	{
 		fclose(results);
-		free(str);
+		free((void *)line);
+
 		return 0;
 	}
 
@@ -858,8 +862,8 @@ static void kill_created_processes(int signum)
 {
 	if (pid > 0)
 	{
-		char *path;
-		char *line = NULL;
+		const char *path;
+		const char *line = NULL;
 		FILE *results;
 
 		// Kill main created process.
@@ -874,12 +878,12 @@ static void kill_created_processes(int signum)
 			return; // File already was deleted.
 		}
 
-		free(path);
+		free((void *)path);
 
 		while ((line = read_string_from_opened_file(results)) != NULL)
 		{
 			kill(atoi(line),signum);
-			free(line);
+			free((void *)line);
 		}
 
 		fclose(results);
@@ -925,10 +929,10 @@ static void stop_timer(void)
 // Handle SIGALRM, check time limit.
 static void check_time(int signum)
 {
-	char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.path_to_cpuacct);
+	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.path_to_cpuacct);
 	double cpu_time = atof(cpu_usage) / 1e9;
 
-	free(cpu_usage);
+	free((void *)cpu_usage);
 
 	if (cpu_time >= params.timelimit)
 	{
