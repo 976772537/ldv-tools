@@ -216,18 +216,18 @@ static int is_number(char *str)
 }
 
 // Read string from opened file into dynamic array.
-static const char *read_string_from_opened_file(FILE *file)
+static const char *read_string_from_opened_file(FILE *fp)
 {
 	char *line;
 
-	if (file == NULL)
+	if (fp == NULL)
 	{
 		return NULL;
 	}
 
 	line = (char *)xmalloc(sizeof(char) * (STR_LEN + 1));
 
-	if (fgets(line, STR_LEN, file) == NULL)
+	if (fgets(line, STR_LEN, fp) == NULL)
 	{
 		return NULL; // EOF
 	}
@@ -237,7 +237,7 @@ static const char *read_string_from_opened_file(FILE *file)
 		char *tmp_line = (char *)xrealloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
 		char part_of_line[STR_LEN];
 
-		fgets(part_of_line, STR_LEN, file);
+		fgets(part_of_line, STR_LEN, fp);
 		line = tmp_line;
 		strcat(line, part_of_line);
 	}
@@ -248,12 +248,12 @@ static const char *read_string_from_opened_file(FILE *file)
 // Read first string from file.
 static const char *read_first_string_from_file(const char *path)
 {
-	FILE *file = xfopen(path, "rt");
+	FILE *fp = xfopen(path, "rt");
 	const char *line;
 
-	line = read_string_from_opened_file(file);
+	line = read_string_from_opened_file(fp);
 
-	fclose(file);
+	fclose(fp);
 
 	return line;
 }
@@ -261,13 +261,13 @@ static const char *read_first_string_from_file(const char *path)
 // Get cpu info.
 static const char *get_cpu_info(void)
 {
-	FILE *file;
+	FILE *fp;
 	const char *line;
 	char *broken_line = NULL;
 
-	file = xfopen(CPUINFO_FILE, "rt");
+	fp = xfopen(CPUINFO_FILE, "rt");
 
-	while ((line = read_string_from_opened_file(file)) != NULL)
+	while ((line = read_string_from_opened_file(fp)) != NULL)
 	{
 		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -297,7 +297,7 @@ static const char *get_cpu_info(void)
 
 			broken_line[i - num_of_spaces] = '\0';
 
-			fclose(file);
+			fclose(fp);
 			free(arg);
 			free(value);
 
@@ -309,7 +309,7 @@ static const char *get_cpu_info(void)
 		free((void *)line);
 	}
 
-	fclose(file);
+	fclose(fp);
 
 	return NULL;
 }
@@ -317,12 +317,12 @@ static const char *get_cpu_info(void)
 // Get memory size.
 static const char *get_memory_info(void)
 {
-	FILE *file;
+	FILE *fp;
 	const char *line;
 
-	file = xfopen(MEMINFO_FILE,"rt");
+	fp = xfopen(MEMINFO_FILE,"rt");
 
-	while ((line = read_string_from_opened_file(file)) != NULL)
+	while ((line = read_string_from_opened_file(fp)) != NULL)
 	{
 		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -335,7 +335,7 @@ static const char *get_memory_info(void)
 
 			mem_size *= 1000;
 
-			fclose(file);
+			fclose(fp);
 			free(arg);
 			free(value);
 			free((void *)line);
@@ -348,7 +348,7 @@ static const char *get_memory_info(void)
 		free((void *)line);
 	}
 
-	fclose(file);
+	fclose(fp);
 
 	return NULL;
 }
@@ -393,12 +393,12 @@ static const char *get_kernel_info(void)
 static void find_cgroup_location(void)
 {
 	const char *path = MOUNTS_FILE;
-	FILE *results;
+	FILE *fp;
 	const char *line = NULL;
 
-	results = xfopen(path, "rt");
+	fp = xfopen(path, "rt");
 
-	while ((line = read_string_from_opened_file(results)) != NULL)
+	while ((line = read_string_from_opened_file(fp)) != NULL)
 	{
 		char *name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *path = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -429,6 +429,8 @@ static void find_cgroup_location(void)
 		free(subsystems);
 		free((void *)line);
 	}
+
+	fclose(fp);
 
 	if (params.path_to_memory == NULL)
 	{
@@ -513,7 +515,7 @@ static void create_cgroup(void)
 static void set_cgroup_parameter(const char *file_name, const char *controller, const char *value)
 {
 	const char *path = concat(controller, "/", file_name, NULL);
-	FILE *file;
+	FILE *fp;
 
 	chmod(path, 0666);
 
@@ -528,10 +530,11 @@ static void set_cgroup_parameter(const char *file_name, const char *controller, 
 		exit_res_manager(errno, NULL, concat("Error: file ", path, " doesn't exist", NULL));
 	}
 
-	file = xfopen(path, "w+");
+	fp = xfopen(path, "w+");
 
-	fputs(value, file);
-	fclose(file);
+	fputs(value, fp);
+
+	fclose(fp);
 	free((void *)path);
 }
 
@@ -605,20 +608,20 @@ static const char *get_cpu_stat_line(const char *line)
 */
 static void read_cpu_stats(statistics *stats)
 {
-	FILE *file;
+	FILE *fp;
 	const char *line;
 	const char *path_cpu_stat = concat(params.path_to_cpuacct, "/", CPU_STAT, NULL);
 
-	file = xfopen(path_cpu_stat, "rt");
+	fp = xfopen(path_cpu_stat, "rt");
 
-	line = read_string_from_opened_file(file);
+	line = read_string_from_opened_file(fp);
 	stats->user_time = atof(get_cpu_stat_line(line)) / 1e2;
 
-	line = read_string_from_opened_file(file);
+	line = read_string_from_opened_file(fp);
 	stats->sys_time = atof(get_cpu_stat_line(line)) / 1e2;
 
 	free((void *)path_cpu_stat);
-	fclose(file);
+	fclose(fp);
 }
 
 // Read statistics.
@@ -660,107 +663,107 @@ static void remove_cgroup(void)
 // Print stats into file/console.
 static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes)
 {
-	FILE *out;
+	FILE *fp;
 	const char *kernel = get_kernel_info();
 	const char *memory = get_memory_info();
 	const char *cpu = get_cpu_info();
 
 	if (params.outputfile == NULL)
 	{
-		out = stdout;
+		fp = stdout;
 	}
 	else
 	{
-		out = fopen(params.outputfile, "w");
+		fp = fopen(params.outputfile, "w");
 
-		if (out == NULL)
+		if (fp == NULL)
 		{
-			fprintf(stdout, "Can't create file %s\n", params.outputfile);
-			out = stdout;
+			fprintf(stdout, "Couldn't create file %s\n", params.outputfile);
+			fp = stdout;
 		}
 	}
 
-	fprintf(out, "System settings:\n");
-	fprintf(out, "\tkernel version: %s\n", kernel);
-	fprintf(out, "\tcpu: %s", cpu);
-	fprintf(out, "\tmemory: %s bytes\n", memory);
+	fprintf(fp, "System settings:\n");
+	fprintf(fp, "\tkernel version: %s\n", kernel);
+	fprintf(fp, "\tcpu: %s", cpu);
+	fprintf(fp, "\tmemory: %s bytes\n", memory);
 
 	free((void *)kernel);
 	free((void *)memory);
 	free((void *)cpu);
 
-	fprintf(out, "Resource manager settings:\n");
-	fprintf(out, "\tmemory limit: %ld bytes\n", params.memlimit);
-	fprintf(out, "\ttime limit: %.0f ms\n", params.timelimit * 1000);
-	fprintf(out, "\tcommand: ");
+	fprintf(fp, "Resource manager settings:\n");
+	fprintf(fp, "\tmemory limit: %ld bytes\n", params.memlimit);
+	fprintf(fp, "\ttime limit: %.0f ms\n", params.timelimit * 1000);
+	fprintf(fp, "\tcommand: ");
 
 	if (params.command != NULL)
 	{
 		int i = 0;
 		while (params.command[i] != NULL)
 		{
-			fprintf(out, "%s ", params.command[i]);
+			fprintf(fp, "%s ", params.command[i]);
 			i++;
 		}
 	}
 
-	fprintf(out, "\n");
-	fprintf(out, "\tcgroup memory controller: %s\n", params.path_to_memory);
-	fprintf(out, "\tcgroup cpuacct controller: %s\n", params.path_to_cpuacct);
-	fprintf(out, "\toutputfile: %s\n", params.outputfile);
+	fprintf(fp, "\n");
+	fprintf(fp, "\tcgroup memory controller: %s\n", params.path_to_memory);
+	fprintf(fp, "\tcgroup cpuacct controller: %s\n", params.path_to_cpuacct);
+	fprintf(fp, "\toutputfile: %s\n", params.outputfile);
 
-	fprintf(out, "Resource manager execution status:\n");
+	fprintf(fp, "Resource manager execution status:\n");
 
 	if (err_mes != NULL)
 	{
-		fprintf(out, "\texit code (resource manager): %i (%s)\n", exit_code, err_mes);
+		fprintf(fp, "\texit code (resource manager): %i (%s)\n", exit_code, err_mes);
 	}
 	else
 	{
-		fprintf(out, "\texit code (resource manager): %i\n", exit_code);
+		fprintf(fp, "\texit code (resource manager): %i\n", exit_code);
 	}
 
 	if (signal != 0)
 	{
-		fprintf(out, "\tkilled by signal (resource manager): %i (%s)\n", signal, strsignal(signal));
+		fprintf(fp, "\tkilled by signal (resource manager): %i (%s)\n", signal, strsignal(signal));
 	}
 
 	if (exit_code == 0 && pid > 0 && stats != NULL) // Script finished.
 	{
-		fprintf(out, "Command execution status:\n");
-		fprintf(out, "\texit code: %i\n", stats->exit_code);
+		fprintf(fp, "Command execution status:\n");
+		fprintf(fp, "\texit code: %i\n", stats->exit_code);
 
 		if (stats->sig_number != 0)
 		{
-			fprintf(out, "\tkilled by signal: %i (%s)\n", stats->sig_number, strsignal(stats->sig_number));
+			fprintf(fp, "\tkilled by signal: %i (%s)\n", stats->sig_number, strsignal(stats->sig_number));
 		}
 
 		if (stats->cpu_time > params.timelimit)
 		{
-			fprintf(out, "\ttime exhausted\n");
+			fprintf(fp, "\ttime exhausted\n");
 		}
 		else if (stats->memory > params.memlimit)
 		{
-			fprintf(out, "\tmemory exhausted\n");
+			fprintf(fp, "\tmemory exhausted\n");
 		}
 		else
 		{
-			fprintf(out, "\tcompleted in limits\n");
+			fprintf(fp, "\tcompleted in limits\n");
 		}
 
-		fprintf(out, "Time usage statistics:\n");
-		fprintf(out, "\twall time: %.0f ms\n", stats->wall_time * 1000);
-		fprintf(out, "\tcpu time: %.0f ms\n", stats->cpu_time * 1000);
-		fprintf(out, "\tuser time: %.0f ms\n", stats->user_time * 1000);
-		fprintf(out, "\tsystem time: %.0f ms\n", stats->sys_time * 1000);
+		fprintf(fp, "Time usage statistics:\n");
+		fprintf(fp, "\twall time: %.0f ms\n", stats->wall_time * 1000);
+		fprintf(fp, "\tcpu time: %.0f ms\n", stats->cpu_time * 1000);
+		fprintf(fp, "\tuser time: %.0f ms\n", stats->user_time * 1000);
+		fprintf(fp, "\tsystem time: %.0f ms\n", stats->sys_time * 1000);
 
-		fprintf(out, "Memory usage statistics:\n");
-		fprintf(out, "\tpeak memory usage: %ld bytes\n", stats->memory);
+		fprintf(fp, "Memory usage statistics:\n");
+		fprintf(fp, "\tpeak memory usage: %ld bytes\n", stats->memory);
 	}
 
 	if (params.outputfile != NULL)
 	{
-		fclose(out);
+		fclose(fp);
 	}
 }
 
@@ -807,12 +810,12 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
  */
 static char *read_config_file(char *configfile)
 {
-	FILE *file;
+	FILE *fp;
 	const char *line;
 
-	file = xfopen(configfile, "rt");
+	fp = xfopen(configfile, "rt");
 
-	while ((line = read_string_from_opened_file(file)) != NULL)
+	while ((line = read_string_from_opened_file(fp)) != NULL)
 	{
 		char *file_name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -824,7 +827,8 @@ static char *read_config_file(char *configfile)
 		free(file_name);
 		free(value);
 	}
-	fclose(file);
+
+	fclose(fp);
 
 	return NULL;
 }
@@ -833,26 +837,21 @@ static char *read_config_file(char *configfile)
 static int check_tasks_file(char *path_to_cgroup)
 {
 	const char *path = concat(path_to_cgroup, "/", TASKS_FILE, NULL);
-	FILE *results;
+	FILE *fp;
 	const char *line;
 
-	results = xfopen(path, "rt");
+	fp = xfopen(path, "rt");
 	free((void *)path);
 
-	if (results == NULL)
+	if((line = read_string_from_opened_file(fp)) != NULL) // There is some string.
 	{
-		return 0;
-	}
-
-	if((line = read_string_from_opened_file(results)) != NULL) // There is some string.
-	{
-		fclose(results);
+		fclose(fp);
 		free((void *)line);
 
 		return 0;
 	}
 
-	fclose(results);
+	fclose(fp);
 
 	return 1;
 }
@@ -864,29 +863,29 @@ static void kill_created_processes(int signum)
 	{
 		const char *path;
 		const char *line = NULL;
-		FILE *results;
+		FILE *fp;
 
 		// Kill main created process.
 		kill(pid, signum);
 
 		// Kill any other created processes.
 		path = concat(params.path_to_memory, "/", TASKS_FILE, NULL);
-		results = fopen(path,"rt");
+		fp = fopen(path,"rt");
 
-		if (results == NULL)
+		if (fp == NULL)
 		{
 			return; // File already was deleted.
 		}
 
 		free((void *)path);
 
-		while ((line = read_string_from_opened_file(results)) != NULL)
+		while ((line = read_string_from_opened_file(fp)) != NULL)
 		{
 			kill(atoi(line),signum);
 			free((void *)line);
 		}
 
-		fclose(results);
+		fclose(fp);
 	}
 }
 
