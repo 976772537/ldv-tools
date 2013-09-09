@@ -83,46 +83,60 @@ static int check_tasks_file(char *);
 
 /* Library functions. */
 
-// Function allocate memory by malloc and checking return value, if it's NULL
-// then Resource Manager will be terminated.
-void *checked_malloc(int size)
+// Allocates memory by malloc() and checks its return value.
+// If it's NULL then Resource Manager will be terminated.
+void *xmalloc(size_t size)
 {
-	void *allocated_memory = malloc(size);
+	void *newmem;
 
-	if (allocated_memory == NULL)
+	if (size == 0)
 	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
+		exit_res_manager(EINVAL, NULL, "Error: tried to perform a zero-length allocation");
 	}
 
-	return allocated_memory;
-}
+	newmem = malloc(size);
 
-// Function allocate memory by realloc and checking return value, if it's NULL
-// then Resource Manager will be terminated.
-void *checked_realloc(void *prev, int size)
-{
-	void *allocated_memory = realloc(prev, size);
-
-	if (allocated_memory == NULL)
+	if (newmem == NULL)
 	{
-		exit_res_manager(errno, NULL, "Error: Not enough memory");
+		exit_res_manager(errno, NULL, "Error: couldn't allocate a new memory");
 	}
 
-	return allocated_memory;
+	return newmem;
 }
 
-// Function opens file and checks if there were any errors.
-FILE *checked_fopen(const char *name, const char *format)
+// Like xmalloc() but for realloc().
+void *xrealloc(void *prev, size_t size)
 {
-	FILE * file;
+	void *newmem;
 
-	file = fopen(name, format);
+	if (size == 0)
+	{
+		exit_res_manager(EINVAL, NULL, "Error: tried to perform a zero-length allocation");
+	}
 
-	if (file == NULL)
+	newmem = realloc(prev, size);
+
+	if (newmem == NULL)
+	{
+		exit_res_manager(errno, NULL, "Error: couldn't allocate a new memory");
+	}
+
+	return newmem;
+}
+
+// Opens file and checks if there were any errors.
+FILE *xfopen(const char *filename, const char *mode)
+{
+	FILE *fp;
+
+	fp = fopen(filename, mode);
+
+	if (fp == NULL)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
-	return file;
+
+	return fp;
 }
 
 // Get order of number.
@@ -145,7 +159,7 @@ static char *itoa(long num)
 	int number_of_chars = get_number_order(num);
 	int i;
 	long count = num;
-	char *str = (char *)checked_malloc(sizeof(char) * (number_of_chars + 1));
+	char *str = (char *)xmalloc(sizeof(char) * (number_of_chars + 1));
 
 	for (i = number_of_chars - 1; i >= 0; i--)
 	{
@@ -161,17 +175,17 @@ static char *itoa(long num)
 // Concatenate n strings and return result.
 static char *concat(const char *str1, ...)
 {
-	char *result = (char *)checked_malloc((strlen(str1) + 1) * sizeof(char));
+	char *result = (char *)xmalloc((strlen(str1) + 1) * sizeof(char));
 	const char *tmp;
 	va_list valist;
 
 	va_start(valist, str1);
 
 	strcpy(result, str1);
-	
+
 	while ((tmp = va_arg(valist, const char *)) != NULL)
 	{
-		result = (char *)checked_realloc(result, (strlen(result) + strlen(tmp) + 1) * sizeof(char));
+		result = (char *)xrealloc(result, (strlen(result) + strlen(tmp) + 1) * sizeof(char));
 		strcat(result, tmp);
 	}
 	va_end(valist);
@@ -221,7 +235,7 @@ static char *read_string_from_opened_file(FILE *file)
 		return NULL;
 	}
 
-	line = (char *)checked_malloc(sizeof(char) * (STR_LEN + 1));
+	line = (char *)xmalloc(sizeof(char) * (STR_LEN + 1));
 
 	if (fgets(line, STR_LEN, file) == NULL)
 	{
@@ -230,7 +244,7 @@ static char *read_string_from_opened_file(FILE *file)
 
 	while(strchr(line, '\n') == NULL)  // not full string
 	{
-		char *tmp_line = (char *)checked_realloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
+		char *tmp_line = (char *)xrealloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
 		char part_of_line[STR_LEN];
 		fgets(part_of_line, STR_LEN, file);
 		line = tmp_line;
@@ -245,7 +259,7 @@ static char *read_string_from_opened_file(FILE *file)
 // Read first string from file.
 static char *read_string_from_file(const char *path)
 {
-	FILE *file = checked_fopen(path, "rt");
+	FILE *file = xfopen(path, "rt");
 	char *line;
 
 	line = read_string_from_opened_file(file);
@@ -261,12 +275,12 @@ static char *get_cpu_info(void)
 	FILE *file;
 	char *line;
 
-	file = checked_fopen(CPUINFO_FILE, "rt");
+	file = xfopen(CPUINFO_FILE, "rt");
 
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
-		char *arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s", arg, value);
 
@@ -314,12 +328,12 @@ static char *get_memory_info(void)
 	FILE *file;
 	char *line;
 
-	file = checked_fopen(MEMINFO_FILE,"rt");
+	file = xfopen(MEMINFO_FILE,"rt");
 
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
-		char *arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s", arg, value);
 
@@ -360,8 +374,8 @@ static char *get_kernel_info(void)
 		exit_res_manager(ENOENT, NULL, concat("Can't open file", VERSION_FILE, NULL));
 	}
 
-	arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-	value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+	arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+	value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 	sscanf(line, "%s %s %s", arg, arg, value);
 
@@ -390,30 +404,30 @@ static void find_cgroup_location(void)
 	FILE *results;
 	char *line = NULL;
 
-	results = checked_fopen(path, "rt");
+	results = xfopen(path, "rt");
 
 	while ((line = read_string_from_opened_file(results)) != NULL)
 	{
-		char *name = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-		char *path = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-		char *type = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-		char *subsystems = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+		char *name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *path = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *type = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *subsystems = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s %s %s", name, path, type, subsystems);
 
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
 		{
-			params.path_to_cpuacct = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
+			params.path_to_cpuacct = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
 			strcpy(params.path_to_cpuacct, path);
-			params.path_to_cpuacct_origin = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
+			params.path_to_cpuacct_origin = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
 			strcpy(params.path_to_cpuacct_origin, path);
 		}
 
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, MEMORY_CONTROLLER))
 		{
-			params.path_to_memory = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
+			params.path_to_memory = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
 			strcpy(params.path_to_memory, path);
-			params.path_to_memory_origin = (char *)checked_malloc(sizeof(char) * (strlen(path) + 1));
+			params.path_to_memory_origin = (char *)xmalloc(sizeof(char) * (strlen(path) + 1));
 			strcpy(params.path_to_memory_origin, path);
 		}
 
@@ -457,12 +471,12 @@ static void create_cgroup(void)
 	int i;
 	int iterations = 1;
 	int mkdir_errno;
-	
+
 	if (strcmp(params.path_to_memory, params.path_to_cpuacct) == 0)
 	{
 		iterations = 0;
 	}
-	
+
 	for (i = 0; i <= iterations; i++)
 	{
 		if (mkdir(paths[i], 0777) == -1)
@@ -522,7 +536,7 @@ static void set_cgroup_parameter(const char *file_name, const char *controller, 
 		exit_res_manager(errno, NULL, concat("File ", path, " doesn't exist", NULL));
 	}
 
-	file = checked_fopen(path, "w+");
+	file = xfopen(path, "w+");
 
 	fputs(value, file);
 	fclose(file);
@@ -579,8 +593,8 @@ static char *get_cpu_stat_line(char *line)
 	}
 	else
 	{
-		char *arg = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s", arg, value);
 		result = value;
@@ -603,7 +617,7 @@ static void read_cpu_stats(statistics *stats)
 	char *line;
 	char *path_cpu_stat = concat(params.path_to_cpuacct, "/", CPU_STAT, NULL);
 
-	file = checked_fopen(path_cpu_stat, "rt");
+	file = xfopen(path_cpu_stat, "rt");
 
 	line = read_string_from_opened_file(file);
 	stats->user_time = atof(get_cpu_stat_line(line)) / 1e2;
@@ -803,12 +817,12 @@ static char *read_config_file(char *configfile)
 	FILE *file;
 	char *line;
 
-	file = checked_fopen(configfile, "rt");
+	file = xfopen(configfile, "rt");
 
 	while ((line = read_string_from_opened_file(file)) != NULL)
 	{
-		char *file_name = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
-		char *value = (char *)checked_malloc((strlen(line) + 1) * sizeof(char));
+		char *file_name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s", file_name, value);
 		set_cgroup_parameter(file_name, params.path_to_memory, value);
@@ -829,7 +843,7 @@ static int check_tasks_file(char *path_to_cgroup)
 	FILE *results;
 	char *str;
 
-	results = checked_fopen(path, "rt");
+	results = xfopen(path, "rt");
 	free(path);
 
 	if (results == NULL)
@@ -869,9 +883,9 @@ static void kill_created_processes(int signum)
 		{
 			return; // File already was deleted.
 		}
-		
+
 		free(path);
-		
+
 		while ((line = read_string_from_opened_file(results)) != NULL)
 		{
 			kill(atoi(line),signum);
@@ -893,7 +907,7 @@ static void terminate(int signum)
 // Set timer for checking time limit.
 static void set_timer(int alarm_time)
 {
-	struct itimerval *value = checked_malloc(sizeof(struct itimerval));
+	struct itimerval *value = xmalloc(sizeof(struct itimerval));
 
 	value->it_value.tv_sec = alarm_time / 1000;
 	value->it_value.tv_usec = (alarm_time % 1000) * 1000;
@@ -907,7 +921,7 @@ static void set_timer(int alarm_time)
 // Stop timer for checking time limit.
 static void stop_timer(void)
 {
-	struct itimerval *value = checked_malloc(sizeof(struct itimerval));
+	struct itimerval *value = xmalloc(sizeof(struct itimerval));
 
 	value->it_value.tv_sec = 0;
 	value->it_value.tv_usec = 0;
@@ -1224,7 +1238,7 @@ int main(int argc, char **argv)
 	}
 
 	optind--; // Optind - index of first argument in command; index of command is needed.
-	params.command = (char **)checked_malloc(sizeof(char *) * (argc - optind + 1));
+	params.command = (char **)xmalloc(sizeof(char *) * (argc - optind + 1));
 	for (i = 0; i < argc - optind; i++)
 	{
 		params.command[i] = argv[optind + i];
@@ -1291,7 +1305,7 @@ int main(int argc, char **argv)
 	stop_timer();
 
 	// Create statistics.
-	stats = (statistics *)checked_malloc(sizeof(statistics));
+	stats = (statistics *)xmalloc(sizeof(statistics));
 
 	// Compute wall time.
 	stats->wall_time = time_after - time_before;
