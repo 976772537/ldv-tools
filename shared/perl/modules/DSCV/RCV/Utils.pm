@@ -46,7 +46,7 @@ sub foreach_report
 # Given a list of arguments to invoke child process, and limits specification, return a list of arguments t ocall timeout program shipped with LDV that watches for the resources.  As a side effect, modifies DSCV_TIMEOUT.
 
 my $timeout = "$ENV{'DSCV_HOME'}/bin/res-manager";
---x $timeout or die "Executable timeout script needed but $timeout given!";
+-x $timeout or die "Executable timeout script needed but $timeout given!";
 
 sub set_up_timeout
 {
