@@ -284,18 +284,14 @@ static const char *get_cpu_info(void)
 
 			strcpy(broken_line, line);
 
-			while (broken_line[i] != ':')
-			{
-				i++;
-			}
+			for (i = 0; broken_line[i] != ':'; i++);
 
 			i += 2;
 			num_of_spaces = i;
 
-			while (broken_line[i] != '\0')
+			for (;broken_line[i] != '\0'; i++)
 			{
 				broken_line[i - num_of_spaces] = line[i];
-				i++;
 			}
 
 			broken_line[i - num_of_spaces] = '\0';
@@ -362,7 +358,6 @@ static const char *get_kernel_info(void)
 	const char *line = read_first_string_from_file(VERSION_FILE);
 	char *arg;
 	char *value;
-	int i = 0;
 
 	if (line == NULL)
 	{
@@ -374,14 +369,13 @@ static const char *get_kernel_info(void)
 
 	sscanf(line, "%s %s %s", arg, arg, value);
 
-	while (value[i] != 0)
+	for (int i = 0; value[i] != 0; i++)
 	{
 		if (value[i] == '-')
 		{
 			value[i] = 0;
 			break;
 		}
-		i++;
 	}
 
 	free(arg);
@@ -467,7 +461,7 @@ static void create_cgroup_controllers(const char *resmanager_dir)
 		iterations = 0;
 	}
 
-	for (i = 0; i <= iterations; i++)
+	for (int i = 0; i <= iterations; i++)
 	{
 		if (mkdir(controllers[i], 0777) == -1)
 		{
@@ -696,11 +690,9 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 
 	if (params.command != NULL)
 	{
-		int i = 0;
-		while (params.command[i] != NULL)
+		for (int i = 0; params.command[i] != NULL; i++)
 		{
 			fprintf(fp, "%s ", params.command[i]);
-			i++;
 		}
 	}
 
@@ -1112,7 +1104,6 @@ int main(int argc, char **argv)
 // TODO: use some default value instead of '""', say 'res-manager'. So -l option will be optional.
 	char *resmanager_dir = ""; // Path to Resource Manager directory in control groups.
 	char *fconfig = NULL;
-	int i;
 	int comm_arg = 0;
 	int c;
 	int is_options_ended = 0;
@@ -1145,7 +1136,7 @@ int main(int argc, char **argv)
 	params.script_signal = 0;
 
 	// Set handlers for all signals except SIGSTOP, SIGKILL, SIGUSR1, SIGUSR2, SIGALRM, SIGWINCH.
-	for (i = 1; i <= 31; i++)
+	for (int i = 1; i <= 31; i++)
 	{
 		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM || i == SIGWINCH)
 		{
@@ -1254,7 +1245,7 @@ int main(int argc, char **argv)
 
 	optind--; // Optind - index of first argument in command; index of command is needed.
 	params.command = (char **)xmalloc(sizeof(char *) * (argc - optind + 1));
-	for (i = 0; i < argc - optind; i++)
+	for (int i = 0; i < argc - optind; i++)
 	{
 		params.command[i] = argv[optind + i];
 		comm_arg++;
