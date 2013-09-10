@@ -60,7 +60,7 @@ static struct
 	char **command; // Command for execution.
 	int alarm_time; // Time in ms (10^-3 seconds).
 
-	// Cgroup parameters.
+	// Control group parameters.
 	char *cgroup_memory_origin;
 	char *cgroup_cpuacct_origin;
 	char *cgroup_memory;
@@ -70,8 +70,7 @@ static struct
 	int stdout;
 	int stderr;
 
-	// If Resource Manager was terminated by signal and this signal was handled
-	// then script_signal stores that signal number.
+	// Signal number that terminates Resource Manager.
 	int script_signal;
 } params;
 
@@ -82,10 +81,11 @@ static void kill_created_processes(int);
 static void exit_res_manager(int, statistics *, const char *);
 static int check_tasks(const char *);
 
+// TODO: provide prototypes for all functions and sort them alphabetically. Make all functions static, since they aren't used anywhere else.
+// TODO: add 1 comment for each 3 lines in function bodies.
 /* Library functions. */
 
-// Allocates memory by malloc() and checks its return value.
-// If it's NULL then Resource Manager will be terminated.
+// Allocate memory by malloc(). Finish Resource Manager in case of any error.
 void *xmalloc(size_t size)
 {
 	void *newmem;
@@ -125,7 +125,7 @@ void *xrealloc(void *prev, size_t size)
 	return newmem;
 }
 
-// Opens file and checks if there were any errors.
+// Open file. Finish Resource Manager in case of any error.
 FILE *xfopen(const char *fname, const char *mode)
 {
 	FILE *fp;
@@ -140,14 +140,14 @@ FILE *xfopen(const char *fname, const char *mode)
 	return fp;
 }
 
-// Gets string representing number.
+// Get string representing number.
 static const char *itoa(unsigned long n)
 {
 	int order = 1;
 	long broken_n;
 	char *str;
 
-	// Gets order of number.
+	// Get order of number.
 	for (broken_n = n; (broken_n = broken_n / 10) > 0; order++);
 
 	str = (char *)xmalloc(sizeof(char) * (order + 1));
@@ -163,8 +163,8 @@ static const char *itoa(unsigned long n)
 	return str;
 }
 
-// Concatenates variable number of strings (NULL represents the end of this
-// list) and returns result.
+// Concatenate variable number of strings (NULL represents the end of this
+// list) and return resulting string (additional memory in this function).
 static const char *concat(const char *first, ...)
 {
 	char *result = (char *)xmalloc((strlen(first) + 1) * sizeof(char));
@@ -186,7 +186,7 @@ static const char *concat(const char *first, ...)
 	return result;
 }
 
-// Gets current time in microseconds.
+// Get current time in microseconds.
 static double gettime(void)
 {
 	struct timeval time;
@@ -196,7 +196,7 @@ static double gettime(void)
 	return time.tv_sec + time.tv_usec / 1000000.0;
 }
 
-// Returns true, if string is number.
+// Return true, if string is number.
 static int is_number(char *str)
 {
 	if (str == NULL)
@@ -215,7 +215,8 @@ static int is_number(char *str)
 	return 1;
 }
 
-// Read string from opened file into dynamic array.
+// Return current string terminating with '\n' or EOF from opened file.
+// NULL is returned if file wasn't opened or current file position is EOF.
 static const char *read_string_from_fp(FILE *fp)
 {
 	char *line;
@@ -227,11 +228,13 @@ static const char *read_string_from_fp(FILE *fp)
 
 	line = (char *)xmalloc(sizeof(char) * (STR_LEN + 1));
 
+// TODO: write more human readable comment.
 	if (fgets(line, STR_LEN, fp) == NULL)
 	{
 		return NULL; // EOF
 	}
 
+// TODO: write more human readable comment.
 	while(strchr(line, '\n') == NULL)  // not full string
 	{
 		char *tmp_line = (char *)xrealloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
@@ -245,7 +248,7 @@ static const char *read_string_from_fp(FILE *fp)
 	return line;
 }
 
-// Read first string from file.
+// Return first string from file.
 static const char *read_first_string_from_file(const char *fname)
 {
 	FILE *fp = xfopen(fname, "rt");
@@ -390,7 +393,7 @@ static const char *get_kernel_info(void)
 /* Control groups handling. */
 
 // Find memory and cpuacct controllers.
-static void find_cgroup_location(void)
+static void find_cgroup(void)
 {
 	const char *fname = MOUNTS_FILE;
 	FILE *fp;
@@ -443,28 +446,20 @@ static void find_cgroup_location(void)
 	}
 }
 
-/*
- * Create full name for cgroup directory:
- * <path from /proc/mounts>/<resmanager directory>/<resource_manager pid>.
- */
-static void get_cgroup_name(char *resmanager_dir)
+// Create new memory and cpuacct controllers for a new task:
+// <path from /proc/mounts>/<resmanager directory>/<resource manager pid>/<controller>.
+static void create_cgroup_controllers(const char *resmanager_dir)
 {
-	// Pid of process.
 	const char *pid_str = itoa(getpid());
+	const char *controllers[] = {params.cgroup_memory, params.cgroup_cpuacct};
+	int iterations = 1;
+	int mkdir_errno;
 
+	// Get full paths for control cgroup controllers.
 	params.cgroup_memory = (char *)concat(params.cgroup_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_str, NULL);
 	params.cgroup_cpuacct = (char *)concat(params.cgroup_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_str, NULL);
 
 	free((void *)pid_str);
-}
-
-// Create new cgroups for known path (<path from /proc/mounts>/<resmanager_dir>/resource_manager_<pid>)
-static void create_cgroup(void)
-{
-	const char *controllers[] = {params.cgroup_memory, params.cgroup_cpuacct};
-	int i;
-	int iterations = 1;
-	int mkdir_errno;
 
 	// If cpuacct and memory controllers are equal then only one directory will be made.
 	if (strcmp(params.cgroup_memory, params.cgroup_cpuacct) == 0)
@@ -511,8 +506,8 @@ static void create_cgroup(void)
 	}
 }
 
-// Set specified parameter into specified file in specified cgroup. In case of
-// error Resource Manager will be terminated.
+// Set parameter into file in control groups. In case of errors Resource Manager
+// will be terminated.
 static void set_cgroup_parameter(const char *fname, const char *controller, const char *value)
 {
 	const char *fname_new = concat(controller, "/", fname, NULL);
@@ -520,9 +515,9 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 
 	chmod(fname_new, 0666);
 
-	if (access(fname_new, F_OK) == -1) // Chech if file exists.
+	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
-		if (strcmp(fname, MEMSW_LIMIT) == 0) // special error text for memsw
+		if (strcmp(fname, MEMSW_LIMIT) == 0)
 		{
 			exit_res_manager(ENOENT, NULL, "Error: memory control group doesn't have swap extension."
 				" You need to set swapaccount=1 as a kernel boot parameter to be able to compute 'memory+Swap' usage");
@@ -540,9 +535,9 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 }
 
 /*
- * Get specified parameter from specified file in specified cgroup.
- * In case of error during reading Resource Manager will be terminated.
- * Return readed string.
+ * Get parameter from file in control groups.
+ * In case of errors during reading Resource Manager will be terminated.
+ * Returns found string.
  */
 static const char *get_cgroup_parameter(const char *fname, const char *controller)
 {
@@ -561,7 +556,7 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 	return str;
 }
 
-// Set memory limit in cgroup with memory controller.
+// Set memory limit into memory controller.
 static void set_memlimit(void)
 {
 	set_cgroup_parameter(MEM_LIMIT, params.cgroup_memory, itoa(params.memlimit));
@@ -572,16 +567,18 @@ static void set_memlimit(void)
 static void add_task(int pid)
 {
 	set_cgroup_parameter(TASKS, params.cgroup_memory, itoa(pid));
+
 	if (strcmp(params.cgroup_memory, params.cgroup_cpuacct) != 0)
 	{
 		set_cgroup_parameter(TASKS, params.cgroup_cpuacct, itoa(pid));
 	}
 }
 
-// Read line from cpuacct.stats file and return it's value.
-static const char *get_cpu_stat_line(const char *line)
+// TODO: why don't see on arg? Is it sys and user? It should be checked.
+// Read time and return it.
+static const char *get_time(const char *line)
 {
-	const char *result;
+	const char *time;
 
 	if (line == NULL)
 	{
@@ -593,58 +590,57 @@ static const char *get_cpu_stat_line(const char *line)
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s", arg, value);
-		result = value;
+		time = value;
 
 		free((void *)line);
 		free(arg);
 	}
 
-	return result;
+	return time;
 }
 
 /*
- * Read file cpuacct.stats with special format:
- * user <number_in_ms>
- * sys <number_in_ms>.
+ * Read user and system time from cpuacct controller with special format:
+ *   user <number in ms>
+ *   sys <number in ms>.
 */
-static void read_cpu_stats(statistics *stats)
+static void get_user_and_system_time(statistics *stats)
 {
 	FILE *fp;
 	const char *line;
 	const char *fcpu_stat = concat(params.cgroup_cpuacct, "/", CPU_STAT, NULL);
 
 	fp = xfopen(fcpu_stat, "rt");
-
-	line = read_string_from_fp(fp);
-	stats->user_time = atof(get_cpu_stat_line(line)) / 1e2;
-
-	line = read_string_from_fp(fp);
-	stats->sys_time = atof(get_cpu_stat_line(line)) / 1e2;
-
 	free((void *)fcpu_stat);
+
+	line = read_string_from_fp(fp);
+	stats->user_time = atof(get_time(line)) / 1e2;
+
+	line = read_string_from_fp(fp);
+	stats->sys_time = atof(get_time(line)) / 1e2;
+
 	fclose(fp);
 }
 
-// Read statistics.
+// TODO: what in case when there is no MEMSW_MAX_USAGE file? Why don't use MEM_MAX_USAGE file
+// Read statistics from controllers.
 static void get_memory_and_cpu_usage(statistics *stats)
 {
-// REPLACE THEM!!!
-	const char *cpu_usage;
+	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	const char *memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, params.cgroup_memory);
+
+	stats->cpu_time = atol(cpu_usage) / 1e9;
+	free((void *)cpu_usage);
 
 	stats->memory = atol(memory_usage);
 	free((void *)memory_usage);
 
-	cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
-	stats->cpu_time = atol(cpu_usage) / 1e9;
-	free((void *)cpu_usage);
-
 	// User and system time (not standart format).
-	read_cpu_stats(stats);
+	get_user_and_system_time(stats);
 }
 
-// Delete cgroups.
-static void remove_cgroup(void)
+// Delete control group controllers.
+static void remove_cgroup_controllers(void)
 {
 	if (params.cgroup_memory != NULL)
 	{
@@ -661,7 +657,7 @@ static void remove_cgroup(void)
 
 /* Main Resource Manager functions. */
 
-// Print stats into file/console.
+// Print statistics into file/console.
 static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes)
 {
 	FILE *fp;
@@ -768,7 +764,12 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	}
 }
 
-// Actions, which should be made at the end of the program: kill all created processes (if they were created), print statistics, remove cgroups.
+/*
+ * Perform actions, which should be made at the end of Resource Manager:
+ *   kill all created processes (if they were created),
+ *   print statistics,
+ *   remove control group controllers.
+ */
 static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes)
 {
 	// Close files, in which stdout/stderr was redirected.
@@ -790,8 +791,8 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 		get_memory_and_cpu_usage(stats);
 	}
 
-	// Remove cgroups.
-	remove_cgroup();
+	// Remove control group controllers.
+	remove_cgroup_controllers();
 
 	// Print statistics.
 	print_stats(exit_code, params.script_signal, stats, err_mes);
@@ -803,11 +804,12 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 	}
 }
 
+// TODO: this function always returns NULL, although its caller checks for errors. Also it is named inproperly. It doesn't read, it sets configuration. Why does it always set parameter to params.cgroup_memory? Controller should be specified in config file as well.
 /*
  * Config file format:
- *	<file> <value>
- * Into each <file> will be written <value>.
- * Returns err_mes or NULL in case of success.
+ *   <file> <value>
+ * Write <value> into each <file>.
+ * Return err_mes or NULL in case of success.
  */
 static char *read_config(char *fconfig)
 {
@@ -834,7 +836,7 @@ static char *read_config(char *fconfig)
 	return NULL;
 }
 
-// Check tasks file => return 1 if it's clean, 0 otherwise.
+// Check tasks file and returns 1 if it's clean or 0 otherwise.
 static int check_tasks(const char *cgroup)
 {
 	const char *fname = concat(cgroup, "/", TASKS, NULL);
@@ -857,7 +859,7 @@ static int check_tasks(const char *cgroup)
 	return 1;
 }
 
-// Finish all created processes.
+// Finishe all created processes.
 static void kill_created_processes(int signum)
 {
 	if (pid > 0)
@@ -871,7 +873,7 @@ static void kill_created_processes(int signum)
 
 		// Kill any other created processes.
 		fname = concat(params.cgroup_memory, "/", TASKS, NULL);
-		fp = fopen(fname,"rt");
+		fp = fopen(fname, "rt");
 
 		if (fp == NULL)
 		{
@@ -1089,6 +1091,7 @@ int main(int argc, char **argv)
 {
 	char *fstdout = NULL;
 	char *fstderr = NULL;
+// TODO: use some default value instead of '""', say 'res-manager'. So -l option will be optional.
 	char *resmanager_dir = ""; // Path to Resource Manager directory in control groups.
 	char *fconfig = NULL;
 	int i;
@@ -1241,11 +1244,10 @@ int main(int argc, char **argv)
 	params.command[comm_arg] = NULL;
 
 	// Create new cgroup for command.
-	find_cgroup_location();
-	get_cgroup_name(resmanager_dir);
-	create_cgroup();
+	find_cgroup();
+	create_cgroup_controllers(resmanager_dir);
 
-	// Configure cgroup.
+	// Configure control groups.
 	set_memlimit();
 	if (fconfig != NULL) // configfile was specified
 	{
