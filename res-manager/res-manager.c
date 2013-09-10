@@ -99,7 +99,7 @@ void *xmalloc(size_t size)
 
 	if (newmem == NULL)
 	{
-		exit_res_manager(errno, NULL, "Error: couldn't allocate a new memory");
+		exit_res_manager(errno, NULL, strerror(errno));
 	}
 
 	return newmem;
@@ -119,7 +119,7 @@ void *xrealloc(void *prev, size_t size)
 
 	if (newmem == NULL)
 	{
-		exit_res_manager(errno, NULL, "Error: couldn't allocate a new memory");
+		exit_res_manager(errno, NULL, strerror(errno));
 	}
 
 	return newmem;
@@ -772,6 +772,16 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
  */
 static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes)
 {
+	if (exit_code && !err_mes)
+	{
+		exit_res_manager(EINVAL, NULL, "Error: sanity check failed. Error message wasn't specified but Resource Manager is going to return an error");
+	}
+
+	if (!exit_code && err_mes)
+	{
+		exit_res_manager(EINVAL, NULL, "Error: sanity check failed. Error message was specified but Resource Manager is going to finish successfully");
+	}
+
 	// Close files, in which stdout/stderr was redirected.
 	if (params.stdout != -1)
 	{
@@ -909,7 +919,11 @@ static void set_timer(int alarm_time)
 	value->it_value.tv_usec = (alarm_time % 1000) * 1000;
 	value->it_interval.tv_usec = 0;
 	value->it_interval.tv_sec = 0;
-	setitimer(ITIMER_REAL, value, NULL);
+
+	if (!setitimer(ITIMER_REAL, value, NULL))
+	{
+		exit_res_manager(errno, NULL, strerror(errno));
+	}
 
 	free(value);
 }
@@ -923,7 +937,11 @@ static void stop_timer(void)
 	value->it_value.tv_usec = 0;
 	value->it_interval.tv_usec = 0;
 	value->it_interval.tv_sec = 0;
-	setitimer(ITIMER_REAL, value, NULL);
+
+	if (!setitimer(ITIMER_REAL, value, NULL))
+	{
+		exit_res_manager(errno, NULL, strerror(errno));
+	}
 
 	free(value);
 }
