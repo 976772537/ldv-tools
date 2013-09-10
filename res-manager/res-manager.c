@@ -51,7 +51,7 @@ typedef struct
 // This variable holds command-line parameters, parameters specified for
 // cgroups, file descriptors for redirecting stdout/stdeerr, signal number
 // which was send to Resource Manager.
-struct
+static struct
 {
 	// Command-line parameters.
 	double timelimit; // In seconds.
@@ -76,7 +76,7 @@ struct
 } params;
 
 // Pid of child process in which command will be executed.
-int pid = 0;
+static int pid = 0;
 
 static void kill_created_processes(int);
 static void exit_res_manager(int, statistics *, const char *);
