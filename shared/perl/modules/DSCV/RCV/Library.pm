@@ -404,11 +404,6 @@ sub run
 			$result = 'SIGNAL';
 		}
 	}
-	# Check if the signal interrupt was found, and adjust the retcode for it to have a single value
-	#$result = 'SIGNAL' if $errcode && 127;
-	#$errcode >>= 8;
-	# Check if limits were violated
-	#$result = 'LIMITS' if $atmt_results->{'LIMITS'};
 
 	# Just say something to the user
 	vsay('NORMAL',sprintf("Finished with code %d term by %s. %s",$errcode,$result,$mes));

@@ -32,8 +32,8 @@ typedef struct statistics
 	long memory;
 } statistics;
 
-double time_inacc = 0.5;
-double mem_inacc = 0.01; 
+double time_inacc = 0.6;
+double mem_inacc = 0.05; 
 
 char * read_string_from_opened_file(FILE * file)
 {
@@ -1090,21 +1090,21 @@ int main(int argc, char **argv)
 	wait_help_option(outputfile);
 	print_stat(outputfile);
 	
-	system("echo -e \"memory.limit_in_bytes 10000000\nmemory.memsw.limit_in_bytes 10000000\" > tmp_file_");
+	system("echo -e \"memory memory.limit_in_bytes 10000000\nmemory memory.memsw.limit_in_bytes 10000000\" > tmp_file_");
 	if (fork()==0)
 		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	system("rm tmp_file_");
 	
-	system("echo -e \"memory.swappiness 0\" > tmp_file_");
+	system("echo -e \"memory memory.swappiness 0\" > tmp_file_");
 	if (fork()==0)
 		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	system("rm tmp_file_");
 	
-	system("echo -e \"memory.limit_in_bytes_ 10000000\" > tmp_file_");
+	system("echo -e \"memory memory.limit_in_bytes_ 10000000\" > tmp_file_");
 	if (fork()==0)
 		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
