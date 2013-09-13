@@ -1261,6 +1261,7 @@ int main(int argc, char **argv)
 			break;
 		case 'm': // Memory limit.
 			params.memlimit = atol(optarg);
+			
 			if (strstr(optarg, "Kb") != NULL)
 			{
 				params.memlimit *= 1000;

@@ -678,7 +678,7 @@ int main(int argc, char **argv)
 	// 1. timelimit	
 	printf("1.Tests for time limits\n");
 	timelimit = 5;
-	
+	/*
 	if (fork()==0)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user", "4000", (char*)0);
 	wait_normal_execution(outputfile);
@@ -936,7 +936,7 @@ int main(int argc, char **argv)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-l", "ldv", "memory/limit_child","10", "100000000" ,(char*)0);
 	wait_memlimit_execution(outputfile);
 	print_stat(outputfile);
-
+*/
 	// 9. errors
 	printf("\n\n9.Tests for errors\n");
 	timelimit = 100;
@@ -948,7 +948,7 @@ int main(int argc, char **argv)
 	
 	if (fork()==0)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "time", "-o", outputfile, "-l", "ldv", "time/user_childs_2", "4", (char*)0);
-	wait_exitcode_execution_script(outputfile);
+	wait_exitcode_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
@@ -1120,6 +1120,15 @@ int main(int argc, char **argv)
 		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "./res_manager_in_res_manager", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
+	
+	if ((pid = fork())==0)
+		execlp("nohup", "nohup", timeout,"-o", outputfile, "-l", "ldv", "time/user", "5000" ,(char*)0);
+	sleep(1);
+	kill(pid, SIGHUP);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	
 	
 	// stat
 	printf("\nNumber of tests %i\nPassed tests %i \n",number_of_tests, passed_tests);
