@@ -556,8 +556,11 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	const char *fname_new = concat(controller, "/", fname, NULL);
 	FILE *fp;
 
-	chmod(fname_new, 0666);
-
+	if (chmod(fname_new, 0666) == -1)
+	{
+		exit_res_manager(errno, NULL, strerror(errno));
+	}
+		
 	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
 		// If there is no files for memsw special error message.
@@ -1214,13 +1217,18 @@ int main(int argc, char **argv)
 	// Set handlers for all signals except SIGSTOP, SIGKILL, SIGUSR1, SIGUSR2, SIGALRM, SIGWINCH.
 	for (int i = 1; i <= 31; i++)
 	{
+		void *prev_handler; 
 		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM || i == SIGWINCH)
 		{
 			continue;
 		}
-		if (signal(i, terminate) == SIG_ERR)
+		if ((prev_handler = signal(i, terminate)) == SIG_ERR)
 		{
 			exit_res_manager(errno, NULL, strerror(errno));
+		}
+		if (prev_handler == SIG_IGN && i == SIGHUP)
+		{
+			signal(SIGHUP, SIG_IGN);
 		}
 	}
 
