@@ -277,6 +277,11 @@ sub set_limits
 	$context->{limits}->{$_} = $limits{$_} for keys %limits;
 }
 
+sub get_limits
+{
+	return %{$context->{limits}};
+}
+
 sub add_time_watch
 {
 	my %timewatches = @_;

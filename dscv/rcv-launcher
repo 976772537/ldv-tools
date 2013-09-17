@@ -67,7 +67,7 @@ LDV::Utils::push_instrument('rcv-launcher');
 
 # Process resource limits
 my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (8_000_000); # Default memory limit is 8Gb
 vsay 40,"Default time limit is: $timelimit; memory limit is: $memlimit.\n";
 
 # Prepare file sending functionality
