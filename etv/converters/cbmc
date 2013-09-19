@@ -15,6 +15,10 @@
 # limitations under the License.
 ################################################################################
 
+# full regular expression for cbmc error trace
+# /^State (\d+) file ([^"]*) line (\d+) function ([^"]*) thread (\d+)\n----------------------------------------------------\n([^"]*)=([^"]*) ([^"]*)$/
+
+
 use Env qw(LDV_DEBUG LDV_CPACHECKER_ET_CONV_DEBUG);
 
 # Get from a string given a node location (file and line) and a node value.
@@ -22,7 +26,7 @@ use Env qw(LDV_DEBUG LDV_CPACHECKER_ET_CONV_DEBUG);
 # retn: file, line, value.
 sub get_loc_and_val($$);
 
-# We'd like to relate a given cbmc error trace with original source code,
+# We'd like to relate a given CPAchecker error trace with original source code,
 # not with the CIL one. So first of all build a map between sources.
 # Read a CIL source file from the beginning of the error trace.
 my %src_map;
@@ -86,71 +90,38 @@ my $isinit = 0;
 # Convert a raw error trace into the common format line by line.
 while (@et_raw)
 {
-	my $str = shift(@et_raw);
-	chomp($str);
-	next if ($str =~ /^\s*$/);
+  my $str = shift(@et_raw);
+  chomp($str);
+  next if ($str =~ /^\s*$/);
 
-	#parameters for error trace
-	my $src = '';
-	my $line = '';
-	my $type = '';
-	my $kind = '';
-	my $skip_reason = '';
-	my $formal_arg_names = '';
-	my $text = ''; #text for visualization
-	
-	#other parameters
-	my $id = ''; #id of the string
-    my $function = '';
-	
-	
-	my @words = split(" ", $str);
-	
-	
-	while ($words[$i])
-	{
-		if ($words[$i] eq "State")
-		{
-			$id = $words[$i+1];
-		}
-		if ($words[$i] eq "file")
-		{
-			$src = $words[$i+1];
-		}
-		if ($words[$i] eq "line")
-		{
-			$line = $words[$i+1];
-		}
-		if ($words[$i] eq "function")
-		{
-			$function = $words[$i+1];
-		}
-		#print $current_fh $words[$i]."\n";
-		$i++;
-	}
-	if ($id eq '')
-	{
-		continue; #if it's some other string
-	}
-	my $str_next = shift(@et_raw); #----------------------------------------------------
-	$str_next = shift(@et_raw);
-	@words = split(" ", $str_next);
-	$text = $words[0];
-	
-	if ($text =~ /^return_*$/)
-	{
-		$type = 'RETURN';
-		$kind = 'INIT';
-	}
-	else
-	{
-		$type = 'ASSUME';
-		$kind = 'INIT';
-	}
+  #my ($src, $line, $val) = get_loc_and_val($str, 1);
 
-	push(@et_conv_array, join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
+  # Do not treat empty nodes.
+  #next if ($val =~ /^\s*$/);
+
+  my $src = '';
+  my $line = '';
+  my $type = "BLOCK";
+  my $kind = '';
+  my $skip_reason = '';
+  my $text = '';
+
+  if ($str =~ /^State (\d+) file ([^"]*) line (\d+) function ([^"]*) thread (\d+)$/)
+  {
+    $src = $2;
+    $line = $3;
+    shift(@et_raw);
+    my $new_str = shift(@et_raw);
+    if ($new_str =~ /^([^"]*) ([^"]*)$/)
+    {
+      $text = $1;
+    }
+    push(@et_conv_array, join(' ', ($line, $src, $type, $kind, $skip_reason, ":", $text)));
+  }
+  
 }
-
+print ">>> ";
+print join(' ', @et_conv_array);
 {
 # Supress warnings like 'Subroutine get_loc_and_val redefined' in the manner
 # recommended at http://perldoc.perl.org/perldiag.html.
@@ -166,13 +137,10 @@ sub get_loc_and_val($$)
 
   # Try to get a corresponding line number.
   my $line = '';
-  
-  
-  
-  if ($val =~ /^\s*Line\s*([^:]+):/)
+  if ($val =~ /^State (\d+) file ([^"]*) line (\d+)/)
   {
     $val = $POSTMATCH;
-    $line = $1 if (defined($1));
+    $line = $3 if (defined($1));
   }
 
   # Elimanate "brackets" from the rest part of a string.
@@ -182,7 +150,7 @@ sub get_loc_and_val($$)
   }
   else
   {
-    print_debug_warning("A CPAchecker error trace specified has unsupported"
+    print_debug_warning("A cbmc error trace specified has unsupported"
      . " format in string '$str'");
     # So don't process this string further.
     return ('', $line, '');
