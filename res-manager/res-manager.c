@@ -97,7 +97,7 @@ static const char *get_kernel_info(void);
 static double gettime(void);
 static void kill_created_processes(int signum);
 static int is_number(char *str);
-static const char *itoa(unsigned long n);
+static const char *itoa(long n);
 static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes);
 static void print_usage(void);
 static const char *read_first_string_from_file(const char *fname);
@@ -172,10 +172,10 @@ static FILE *xfopen(const char *fname, const char *mode)
 }
 
 // Get string representing number.
-static const char *itoa(unsigned long n)
+static const char *itoa(long n)
 {
 	int order = 1;
-	long broken_n;
+	unsigned long broken_n;
 	char *str;
 
 	// Get order of number.
@@ -184,7 +184,8 @@ static const char *itoa(unsigned long n)
 	str = (char *)xmalloc(sizeof(char) * (order + 1));
 	
 	// Get string representation of n.
-	for (int i = order - 1, broken_n = n; i >= 0; i--)
+	broken_n = n;
+	for (int i = order - 1; i >= 0; i--)
 	{
 		str[i] = broken_n % 10 + '0';
 		broken_n = broken_n / 10;
