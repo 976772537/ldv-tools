@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+
 ################################################################################
 # Copyright (C) 2013
 # Institute for System Programming, Russian Academy of Sciences (ISPRAS).
@@ -16,128 +18,198 @@
 ################################################################################
 
 use Env qw(LDV_DEBUG);
+use XML::Simple;
+use Data::Dumper;
 
-# Standart CBMC error trace format:
-# State <number> file <path_to_file> line <number> function <name> thread <number>
-# ----------------------------------------------------
-# <assignment> (<returned_value>)
-# or:
-# State <number> file <path_to_file> line <number> thread <number>
-# ----------------------------------------------------
-# <assignment> (<returned_value>)
-# Format for function with error label:
-# Violated property:
-# file <path_to_file> line <number> function <name>
-# Read the whole error trace specified.
+# Parsing xml CBMC format.
+
+# function_call 
+# function_return  
+# assignment 
+# location-only 
+
+# Get the xml format
 
 my @et_raw = @et_array;
+my $xml_et;
+
+my $xml_file = shift(@et_array);
+my $data;
+
+if ($xml_file =~ /^-------(.*)-------$/)
+{
+	my $xml = new XML::Simple;
+	$data = $xml->XMLin($1);
+}
+else
+{
+	die "Can't find xml file with cbmc error trace: \"$xml_file\""; 
+}
+
+my %hash = ();
+
+foreach my $arg (values $data->{assignment})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."ASSIGNMENT"} = $arg;
+}
+
+foreach my $arg (values $data->{function_call})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."FUNCTION_CALL"} = $arg;
+}
+
+foreach my $arg (values $data->{function_return})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."FUNCTION_RETURN"} = $arg;
+}
+
+foreach my $arg (values $data->{'location-only'})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."LOCATION-ONLY"} = $arg;
+}
 
 # Add such the header to distinguish error traces in the common format.
-push(@et_conv_array, "Error trace common format v0.1\n");
+push(@et_conv_array, "Error trace common format v0.1");
 
-# Previous function.
-my $prev_function = '';
+my $is_entry = "0";
 
-# Convert a raw error trace into the common format line by line.
-while (@et_raw)
+
+my $src_prev = '';
+my $line_prev = '';
+my $text_prev = '';
+
+foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 {
-	my $str = shift(@et_raw);
-	chomp($str);
-	next if ($str =~ /^\s*$/);
-
+	my $tmp = $hash{$arg};
+	#print $tmp->{step_nr}[0] . "\n";
+	
 	my $src = '';
 	my $line = '';
-	my $type = "BLOCK";
+	my $type = '';
 	my $kind = '';
 	my $skip_reason = '';
 	my $text = '';
-  
-	# Standart error trace format.
-	if ($str =~ /^State (\d+) file ([^"]*) line (\d+) function ([^"]*) thread (\d+)$/)
+	
+	if ($arg =~ /ASSIGNMENT/)
 	{
-		$src = '"' . $2 . '"';
-		$line = $3;
-
-		# First call after INIT section.
-		if ($prev_function eq "INIT")
+		if ($src_prev ne '')
 		{
-			$prev_function = $4;
-			# Return from INIT function. 
-			push(@et_conv_array, join(' ', ($line, $src, "RETURN")));
-			# Call new function.
-			push(@et_conv_array, join(' ', ($line, $src, "CALL", ":", $4)));
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
+			clear_prevs();
 		}
-
-		# First function call (no INIT section).
-		if ($prev_function eq '')
+		$src = $tmp->{location}->{file}[0];
+		if (defined($src))
 		{
-			$prev_function = $4;
-			# Call new function.
-			push(@et_conv_array, join(' ', ($line, $src, "CALL", ":", $4)));
+			$src = '"' . $src . '"';
 		}
-		# Call of the different function.
-		if ($prev_function ne $4)
+		$line = $tmp->{location}->{line}[0];
+		$type = "BLOCK";
+		$text = $tmp->{full_lhs} . "=" . $tmp->{full_lhs_value} . ";";
+		if ($is_entry eq "1")
 		{
-			$prev_function = $4;
-			# Call new function.
-			push(@et_conv_array, join(' ', ($line, $src, "CALL", ":", $4)));
+			push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
 		}
-
-		# Getting an assignment.
-
-		shift(@et_raw);
-		my $new_str = shift(@et_raw);
-		if ($new_str =~ /^(.+) \(([^"]*)\)$/)
-		{
-			$text = $1;
-		}
-
-		# Adding assignment.
-		push(@et_conv_array, join(' ', ($line, $src, $type, $kind, $skip_reason, ":", $text)));
+		#print("$line $src $type : $text\n");
 	}
-	else # Standart format without function.
+	if ($arg =~ /FUNCTION_CALL/)
 	{
-		if ($str =~ /^State (\d+) file ([^"]*) line (\d+) thread (\d+)$/)
+		if ($src_prev ne '')
 		{
-			$src = '"' . $2 . '"';
-			$line = $3;
-			shift(@et_raw);
-			my $new_str = shift(@et_raw);
-
-			# For long parameters.
-			while (!($new_str =~ /^(.+) \((.+)\)$/))
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
+			clear_prevs();
+		}
+		$src = $tmp->{location}->{file}[0];
+		if (defined($src))
+		{
+			$src = '"' . $src . '"';
+		}
+		$line = $tmp->{location}->{line}[0] || '';
+		$text = $tmp->{display_name};
+		$type = "CALL";
+		if ($tmp->{display_name} eq "__CPROVER_initialize") # INIT SECTION
+		{
+			$kind = "INIT";
+		}
+		else
+		{
+			if ($line eq '')
 			{
-				$new_str .= shift(@et_raw);
+				$kind = "ENTRY";
+				push(@et_conv_array, join(' ', ($type, $kind, ":", $text)));
 			}
-			if ($new_str =~ /^(.+) \((.+)\)$/)
+			else
 			{
-				$text = $1;
+				#save parameters
+				$line_prev = $line;
+				$src_prev = $src;
+				$text_prev = $text;
+				
+				#push(@et_conv_array, join(' ', ($line, $src, $type, $kind, ":", $text)));
 			}
-			if ($prev_function eq '')
+		}
+		#print("$line $src $type : $text\n");
+	}
+	if ($arg =~ /FUNCTION_RETURN/)
+	{
+		if ($src_prev ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", "SKIP" ,":", $text_prev)));
+			clear_prevs();
+		}
+		else
+		{
+			$src = $tmp->{location}->{file}[0];
+			if (defined($src))
 			{
-				$prev_function = "INIT";
-				# Starting INIT function.
-				push(@et_conv_array, join(' ', ($line, $src, "CALL", "INIT", ":", "INIT")));
+				$src = '"' . $src . '"';
 			}
-
-			# Adding assignment.
+			$line = $tmp->{location}->{line}[0] || '';
+			$text = $tmp->{location}->{function}[0];
+			$type = "RETURN";
+			if ($tmp->{display_name} eq "__CPROVER_initialize") # INIT SECTION
+			{
+				$is_entry = "1";
+				#push(@et_conv_array, "CALL ENTRY");
+			}
+			if ($line ne '')
+			{
+				push(@et_conv_array, join(' ', ($line, $src, $type)));
+				#print("$line $src $type : $text\n");
+			}
+		}
+	}
+	if ($arg =~ /LOCATION-ONLY/)
+	{
+		if ($src_prev ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
+			clear_prevs();
+		}
+		$src = $tmp->{location}->{file}[0];
+		if (defined($src))
+		{
+			$src = '"' . $src . '"';
+		}
+		$line = $tmp->{location}->{line}[0] || '';
+		$text = "1";
+		$type = "ASSUME";
+		if ($is_entry eq "1")
+		{
 			push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
 		}
 	}
-
-	# Function with error label:
-	if ($str =~ /^Violated property:/)
-	{
-		$str = shift(@et_raw);
-		if ($str =~ /file ([^"]*) line (\d+) function ([^"]*)/)
-		{
-			$src = '"' . $1 . '"';
-			$line = $2;
-			$prev_function = $3;
-			# Call for function with error label.
-			push(@et_conv_array, join(' ', ($line, $src, "CALL", ":", $3)));
-		}
-	}
-
+	
 }
+
+sub clear_prevs
+{
+	$src_prev = '';
+	$line_prev = '';
+	$text_prev = '';
+}
+
 
