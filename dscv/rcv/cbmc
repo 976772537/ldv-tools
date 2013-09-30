@@ -152,9 +152,9 @@ local $_;
 if ($verdict eq 'unsafe') {
 	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cbmc trace: \"$adjusted_trace_fname\", $!";
 	print TRACE_FILE "CBMC error trace v4.5\n";
-	print TRACE_FILE "-------$trace_fname-------";
-	close TRACE_FILE;
-	open(TRACE_FILE_XML, '>', $trace_fname) or die "Can't open file with cbmc xml trace: \"$trace_fname\", $!";
+	#print TRACE_FILE "-------$adjusted_trace_fname-------\n";
+	#close TRACE_FILE;
+	#open(TRACE_FILE, '>', $trace_fname) or die "Can't open file with cbmc xml trace: \"$trace_fname\", $!";
 	my $is_print = "0";
 	while (@error_trace) {
 		my $str = shift(@error_trace);
@@ -165,14 +165,14 @@ if ($verdict eq 'unsafe') {
 		}
 		if ($is_print eq "1")
 		{
-			print TRACE_FILE_XML $str;
+			print TRACE_FILE $str;
 		}
 		if ($str eq "</goto_trace>\n")
 		{
 			$is_print = "0";
 		}
 	}
-	close TRACE_FILE_XML;
+	close TRACE_FILE;
 }
 
 

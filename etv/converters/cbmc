@@ -30,20 +30,20 @@ use Data::Dumper;
 
 # Get the xml format
 
-my @et_raw = @et_array;
 my $xml_et;
 
-my $xml_file = shift(@et_array);
 my $data;
 
-if ($xml_file =~ /^-------(.*)-------$/)
+
+if ($et_array[0] =~ /^-------(.*)-------$/) # old format - name of xml file.
 {
 	my $xml = new XML::Simple;
 	$data = $xml->XMLin($1);
 }
-else
+else # new format - xml file here.
 {
-	die "Can't find xml file with cbmc error trace: \"$xml_file\""; 
+	my $xml = new XML::Simple;
+	$data = $xml->XMLin("@et_array");
 }
 
 my %hash = ();
@@ -82,6 +82,10 @@ my $src_prev = '';
 my $line_prev = '';
 my $text_prev = '';
 
+my $src_prev_lo = '';
+my $line_prev_lo = '';
+my $text_prev_lo = '';
+
 foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 {
 	my $tmp = $hash{$arg};
@@ -101,6 +105,12 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
 			clear_prevs();
 		}
+		if ($src_prev_lo ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+			
+		}
+		clear_prevs_lo();
 		$src = $tmp->{location}->{file}[0];
 		if (defined($src))
 		{
@@ -108,7 +118,11 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		}
 		$line = $tmp->{location}->{line}[0];
 		$type = "BLOCK";
-		$text = $tmp->{full_lhs} . "=" . $tmp->{full_lhs_value} . ";";
+		my $value = $tmp->{full_lhs_value};
+		my $find = "\n";
+		my $replace = " ";
+		$value =~ s/$find/$replace/g;
+		$text = $tmp->{full_lhs} . "=" . $value . ";";
 		if ($is_entry eq "1")
 		{
 			push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
@@ -162,6 +176,12 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		}
 		else
 		{
+			if ($src_prev_lo ne '')
+			{
+				push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+				
+			}
+			clear_prevs_lo();
 			$src = $tmp->{location}->{file}[0];
 			if (defined($src))
 			{
@@ -189,6 +209,11 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
 			clear_prevs();
 		}
+		if ($src_prev_lo ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+			clear_prevs_lo();
+		}
 		$src = $tmp->{location}->{file}[0];
 		if (defined($src))
 		{
@@ -199,7 +224,9 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		$type = "ASSUME";
 		if ($is_entry eq "1")
 		{
-			push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+			$src_prev_lo = $src;
+			$line_prev_lo = $line;
+			#push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
 		}
 	}
 	
@@ -212,4 +239,10 @@ sub clear_prevs
 	$text_prev = '';
 }
 
+sub clear_prevs_lo
+{
+	$src_prev_lo = '';
+	$line_prev_lo = '';
+	$text_prev_lo = '';
+}
 
