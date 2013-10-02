@@ -84,7 +84,7 @@ my $text_prev = '';
 
 my $src_prev_lo = '';
 my $line_prev_lo = '';
-my $text_prev_lo = '';
+my $is_arg = "0";
 
 foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 {
@@ -100,40 +100,61 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 	
 	if ($arg =~ /ASSIGNMENT/)
 	{
-		if ($src_prev ne '')
-		{
-			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
-			clear_prevs();
-		}
 		if ($src_prev_lo ne '')
 		{
 			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
-			
+			clear_prevs_lo();
 		}
-		clear_prevs_lo();
+		$line = $tmp->{location}->{line}[0];
 		$src = $tmp->{location}->{file}[0];
 		if (defined($src))
 		{
 			$src = '"' . $src . '"';
 		}
-		$line = $tmp->{location}->{line}[0];
 		$type = "BLOCK";
 		my $value = $tmp->{full_lhs_value};
 		my $find = "\n";
 		my $replace = " ";
 		$value =~ s/$find/$replace/g;
 		$text = $tmp->{full_lhs} . "=" . $value . ";";
-		if ($is_entry eq "1")
+		if ($src_prev ne '')
 		{
-			push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+			if ($line_prev eq $line)
+			{
+				if ($is_arg eq "0")
+				{
+					$is_arg = "1";
+					$text_prev .= "$text";
+				}
+				else
+				{
+					$text_prev .= " $text";
+				}
+			}
+			else
+			{
+				push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev.")")));
+				clear_prevs();
+				if ($is_entry eq "1")
+				{
+					push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+				}
+			}
 		}
-		#print("$line $src $type : $text\n");
+		else
+		{
+			if ($is_entry eq "1")
+			{
+				push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+			}
+		}
 	}
 	if ($arg =~ /FUNCTION_CALL/)
 	{
+		clear_prevs_lo();
 		if ($src_prev ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev.")")));
 			clear_prevs();
 		}
 		$src = $tmp->{location}->{file}[0];
@@ -160,18 +181,16 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 				#save parameters
 				$line_prev = $line;
 				$src_prev = $src;
-				$text_prev = $text;
-				
+				$text_prev = $text . "(";
 				#push(@et_conv_array, join(' ', ($line, $src, $type, $kind, ":", $text)));
 			}
 		}
-		#print("$line $src $type : $text\n");
 	}
 	if ($arg =~ /FUNCTION_RETURN/)
 	{
 		if ($src_prev ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", "SKIP" ,":", $text_prev)));
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", "SKIP" ,":", $text_prev.")")));
 			clear_prevs();
 		}
 		else
@@ -179,9 +198,8 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 			if ($src_prev_lo ne '')
 			{
 				push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
-				
+				clear_prevs_lo();
 			}
-			clear_prevs_lo();
 			$src = $tmp->{location}->{file}[0];
 			if (defined($src))
 			{
@@ -198,7 +216,6 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 			if ($line ne '')
 			{
 				push(@et_conv_array, join(' ', ($line, $src, $type)));
-				#print("$line $src $type : $text\n");
 			}
 		}
 	}
@@ -206,7 +223,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 	{
 		if ($src_prev ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev)));
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev.")")));
 			clear_prevs();
 		}
 		if ($src_prev_lo ne '')
@@ -232,17 +249,23 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 	
 }
 
+if ($src_prev_lo ne '')
+{
+	push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+	clear_prevs_lo();
+}
+
 sub clear_prevs
 {
 	$src_prev = '';
 	$line_prev = '';
 	$text_prev = '';
+	$is_arg = "0";
 }
 
 sub clear_prevs_lo
 {
 	$src_prev_lo = '';
 	$line_prev_lo = '';
-	$text_prev_lo = '';
 }
 
