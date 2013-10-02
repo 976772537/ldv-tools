@@ -678,7 +678,7 @@ int main(int argc, char **argv)
 	// 1. timelimit	
 	printf("1.Tests for time limits\n");
 	timelimit = 5;
-	/*
+	
 	if (fork()==0)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user", "4000", (char*)0);
 	wait_normal_execution(outputfile);
@@ -936,7 +936,7 @@ int main(int argc, char **argv)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-l", "ldv", "memory/limit_child","10", "100000000" ,(char*)0);
 	wait_memlimit_execution(outputfile);
 	print_stat(outputfile);
-*/
+
 	// 9. errors
 	printf("\n\n9.Tests for errors\n");
 	timelimit = 100;
