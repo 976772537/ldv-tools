@@ -557,23 +557,25 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	const char *fname_new = concat(controller, "/", fname, NULL);
 	FILE *fp;
 
-	if (chmod(fname_new, 0666) == -1)
-	{
-		exit_res_manager(errno, NULL, strerror(errno));
-	}
-		
 	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
 		// If there is no files for memsw special error message.
 		if (strcmp(fname, MEMSW_LIMIT) == 0)
 		{
-			exit_res_manager(ENOENT, NULL, "Error: memory control group doesn't have swap extension."
-				" You need to set swapaccount=1 as a kernel boot parameter to be able to compute 'memory+Swap' usage");
+			free((void *)fname_new);
+			fname_new = concat(controller, "/", MEM_LIMIT, NULL);
 		}
-
-		exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
+		else
+		{
+			exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
+		}
 	}
-
+	
+	if (chmod(fname_new, 0666) == -1)
+	{
+		exit_res_manager(errno, NULL, strerror(errno));
+	}
+	
 	fp = xfopen(fname_new, "w+");
 
 	// Write value to the file. 
@@ -592,6 +594,20 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 {
 	const char *str;
 	const char *fname_new = concat(controller, "/", fname, NULL);
+
+	if (access(fname_new, F_OK) == -1) // Check if file exists.
+	{
+		// If there is no files for memsw special error message.
+		if (strcmp(fname, MEMSW_MAX_USAGE) == 0)
+		{
+			free((void *)fname_new);
+			fname_new = concat(controller, "/", MEM_MAX_USAGE, NULL);
+		}
+		else
+		{
+			exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
+		}
+	}
 
 	str = read_first_string_from_file(fname_new);
 
