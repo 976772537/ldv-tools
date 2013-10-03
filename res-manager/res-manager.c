@@ -720,13 +720,16 @@ static void remove_cgroup_controllers(void)
 	if (params.cgroup_memory != NULL)
 	{
 		rmdir(params.cgroup_memory);
-	}
+	}	
 	// Delete two directories only if they are different.
-	if (strcmp(params.cgroup_cpuacct, params.cgroup_memory) != 0)
+	if (params.cgroup_memory != NULL && params.cgroup_cpuacct != NULL)
 	{
-		if (params.cgroup_cpuacct != NULL)
+		if (strcmp(params.cgroup_cpuacct, params.cgroup_memory) != 0)
 		{
-			rmdir(params.cgroup_cpuacct);
+			if (params.cgroup_cpuacct != NULL)
+			{
+				rmdir(params.cgroup_cpuacct);
+			}
 		}
 	}
 }
@@ -1278,7 +1281,6 @@ int main(int argc, char **argv)
 			break;
 		case 'm': // Memory limit.
 			params.memlimit = atol(optarg);
-			
 			if (strstr(optarg, "Kb") != NULL)
 			{
 				params.memlimit *= 1000;

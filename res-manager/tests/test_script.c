@@ -948,7 +948,7 @@ int main(int argc, char **argv)
 	
 	if (fork()==0)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "time", "-o", outputfile, "-l", "ldv", "time/user_childs_2", "4", (char*)0);
-	wait_exitcode_execution(outputfile);
+	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
