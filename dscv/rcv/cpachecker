@@ -212,9 +212,12 @@ say $CPA_CFG "";
 say $CPA_CFG "# this automaton defines which locations are the error locations";
 say $CPA_CFG "specification = $tmpdir/$LDV_errloc_autom";
 
-if($ENV{'RCV_TIMELIMIT'}>60) {
+my $timelimit = convert_time(specified_time => $ENV{'RCV_TIMELIMIT'});
+my $memlimit = convert_memory(specified_mem => $ENV{'RCV_MEMLIMIT'});
+
+if($timelimit>60) {
     say $CPA_CFG "# Set CPAchecker internal time limit";
-    say $CPA_CFG "cpa.conditions.global.time.wall=".($ENV{'RCV_TIMELIMIT'} - 60)."s";
+    say $CPA_CFG "cpa.conditions.global.time.wall=".($timelimit - 60)."s";
 }
 
 close $CPA_CFG;
@@ -268,7 +271,7 @@ push @cpachecker_options, "-disable-java-assertions";
 
 # Adjust java heap size (with cpa.sh option) to be consistent with RCV_MEMLIMIT
 # 1/4 (in MB) for static memory i.e. Java VM, stack, and native libraries e.g. MathSAT
-push @cpachecker_options, "-heap", ($ENV{'RCV_MEMLIMIT'} * 3 / 4000)."m" unless $ENV{'CPACHECKER_OPTIONS'} =~ m/-heap\s+[0-9]+m/;
+push @cpachecker_options, "-heap", ($memlimit * 3 / 4000000)."m" unless $ENV{'CPACHECKER_OPTIONS'} =~ m/-heap\s+[0-9]+m/;
 
 # Additional options a user may specify (watch for the spaces in options!)
 push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
@@ -562,5 +565,67 @@ sub cpachecker_syntax
 		}
 		return undef;
 	};
+}
+
+sub convert_time
+{
+	my $info = {@_};
+	my $time = $info->{specified_time};
+	if ($time =~ /^(\d+)(min|ms|)$/)
+	{
+		my $res = $1;
+		if ($2 eq "min")
+		{
+			$res *= 60;
+		}
+		if ($2 eq "ms")
+		{
+			$res /= 1000;
+		}
+		return $res;
+	}
+	else
+	{
+		die "Wrong format for time limit option: <number><min|ms|> was expected";
+	}
+}
+
+sub convert_memory
+{
+	my $info = {@_};
+	my $mem = $info->{specified_mem};
+	if ($mem =~ /^(\d+)(Kb|Mb|Gb|Kib|Mib|Gib|)$/)
+	{
+		my $res = $1;
+		if ($2 eq "Kb")
+		{
+			$res *= 1000;
+		}
+		if ($2 eq "Mb")
+		{
+			$res *= 1000 * 1000;
+		}
+		if ($2 eq "Gb")
+		{
+			$res *= 1000 * 1000 * 1000;
+		}
+		if ($2 eq "Kib")
+		{
+			$res *= 1024;
+		}
+		if ($2 eq "Mib")
+		{
+			$res *= 1024 * 1024;
+		}
+		if ($2 eq "Gib")
+		{
+			$res *= 1024 * 1024 * 1024;
+		}
+		return $res;
+	}
+	else
+	{
+		die "Wrong format for memory limit option: <number><Kb|Mb|Gb|Kib|Mib|Gib|> was expected";
+	}
 }
 
