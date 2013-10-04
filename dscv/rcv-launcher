@@ -66,9 +66,9 @@ LDV::Utils::set_verbosity($config->{verbosity});
 LDV::Utils::push_instrument('rcv-launcher');
 
 # Process resource limits
-my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit.  You can't run the checker without one.
-my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000); # Default memory limit is 1Gb
-vsay 40,"Default time limit is: $timelimit; memory limit is: $memlimit.\n";
+my $timelimit = $ENV{'RCV_TIMELIMIT'} || (15*60); # We always force time limit to 15 minutes (default units are seconds). You can't run the checker without one.
+my $memlimit = $ENV{'RCV_MEMLIMIT'} || (1_000_000_000); # Default memory limit is 1Gb. Default units are bytes.
+vsay 40,"Default time limit is: $timelimit (seconds); memory limit is: $memlimit (bytes).\n";
 
 # Prepare file sending functionality
 
