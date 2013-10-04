@@ -102,7 +102,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 	{
 		if ($src_prev_lo ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
 			clear_prevs_lo();
 		}
 		$line = $tmp->{location}->{line}[0];
@@ -117,6 +117,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		my $replace = " ";
 		$value =~ s/$find/$replace/g;
 		$text = $tmp->{full_lhs} . "=" . $value . ";";
+		$text =~ s/\$/->/g; # pointers
 		if ($src_prev ne '')
 		{
 			if ($line_prev eq $line)
@@ -124,11 +125,11 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 				if ($is_arg eq "0")
 				{
 					$is_arg = "1";
-					$text_prev .= "$text";
+					$text_prev .= "$value";
 				}
 				else
 				{
-					$text_prev .= " $text";
+					$text_prev .= " ,$value";
 				}
 			}
 			else
@@ -190,14 +191,14 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 	{
 		if ($src_prev ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", "SKIP" ,":", $text_prev.")")));
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", "SKIP(\"Function call is skipped due to function is undefined\")" ,":", $text_prev.")")));
 			clear_prevs();
 		}
 		else
 		{
 			if ($src_prev_lo ne '')
 			{
-				push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+				push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
 				clear_prevs_lo();
 			}
 			$src = $tmp->{location}->{file}[0];
@@ -228,7 +229,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		}
 		if ($src_prev_lo ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
 			clear_prevs_lo();
 		}
 		$src = $tmp->{location}->{file}[0];
@@ -238,7 +239,6 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		}
 		$line = $tmp->{location}->{line}[0] || '';
 		$text = "1";
-		$type = "ASSUME";
 		if ($is_entry eq "1")
 		{
 			$src_prev_lo = $src;
@@ -251,7 +251,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 
 if ($src_prev_lo ne '')
 {
-	push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "ASSUME", ":", "1")));
+	push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
 	clear_prevs_lo();
 }
 
