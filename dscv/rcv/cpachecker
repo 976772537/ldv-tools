@@ -22,6 +22,7 @@
 use strict;
 use DSCV::RCV::Coverage;
 use File::Basename qw(dirname);
+use DSCV::RCV::Library;
 
 # Available options:
 # CPACHECKER
@@ -161,6 +162,29 @@ my @cpachecker_options = ($cpachecker,@files);
 # adding .patched extension to it, and then patch it.  Otherwise, we use the
 # default CPAchecker config shipped with LDV.
 
+# Set RCV_MEMLIMIT and RCV_TIMELIMIT environment variables according to the values
+# provided by the library (and set by rcv_launcher). If the variables were set
+# explicitely by the user, the values in the library should be the same as the 
+# values in the variables.
+my %limits = DSCV::RCV::Library::get_limits();
+
+vsay 'TRACE', "LIMITS: RCV_MEMLIMIT=$limits{'memlimit'}K, RCV_TIMELIMIT=$limits{'timelimit'}s";
+
+sub check_limit
+{
+	my $env_variable = $_[0];
+	my $key = $_[1];
+	if (! defined $ENV{$env_variable}) {
+		$ENV{$env_variable} = $limits{$key};
+	} else {
+		$ENV{$env_variable} == $limits{$key} or	die
+			"The value of $env_variable differs from the limit returned by get_limits ($ENV{$env_variable} != $limits{$key})"
+	}
+}
+
+&check_limit("RCV_MEMLIMIT", 'memlimit');
+&check_limit("RCV_TIMELIMIT", 'timelimit');
+
 # If no config file is specified ($cpachecker_config, which was set up at the
 # beginning of the script), use the default one.
 my $cpa_cfg = $cpachecker_config || "$configs_dir/default.properties";
@@ -244,7 +268,7 @@ push @cpachecker_options, "-disable-java-assertions";
 
 # Adjust java heap size (with cpa.sh option) to be consistent with RCV_MEMLIMIT
 # 1/4 (in MB) for static memory i.e. Java VM, stack, and native libraries e.g. MathSAT
-push @cpachecker_options, "-heap", ($ENV{'RCV_MEMLIMIT'} * 3 / 4000)."m";
+push @cpachecker_options, "-heap", ($ENV{'RCV_MEMLIMIT'} * 3 / 4000)."m" unless $ENV{'CPACHECKER_OPTIONS'} =~ m/-heap\s+[0-9]+m/;
 
 # Additional options a user may specify (watch for the spaces in options!)
 push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
