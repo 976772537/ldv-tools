@@ -17,6 +17,9 @@
 #define STANDART_TIMELIMIT 60
 #define STANDART_MEMLIMIT 1e9
 
+#define WALLTIME_NOT_DEFINED -1
+#define WALLTIME_NOT_USED 0
+
 #define RESMANAGER_MODIFIER "resource_manager_"
 #define MEMORY_CONTROLLER "memory"
 #define CPUACCT_CONTROLLER "cpuacct"
@@ -42,6 +45,7 @@ typedef struct
 	int sig_number;
 	int memory_exhausted;
 	int time_exhausted;
+	int walltime_exhausted;
 	double wall_time;
 	double cpu_time;
 	double user_time;
@@ -56,6 +60,7 @@ static struct
 {
 	// Command-line parameters.
 	double timelimit; // In seconds.
+	double walltimelimit; // In seconds.
 	long memlimit; // In bytes.
 	char *fout; // File for printing statistics.
 	char **command; // Command for execution.
@@ -73,6 +78,9 @@ static struct
 
 	// Signal number that terminates Resource Manager.
 	int script_signal;
+	
+	// Time of the start execution of the command.
+	double start_time;
 } params;
 
 // Pid of child process in which command will be executed.
@@ -825,6 +833,10 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 		{
 			fprintf(fp, "\tmemory exhausted\n");
 		}
+		else if (stats->wall_time > params.walltimelimit)
+		{
+			fprintf(fp, "\twalltime exhausted\n");
+		}
 		else
 		{
 			fprintf(fp, "\tcompleted in limits\n");
@@ -1044,6 +1056,8 @@ static void check_time(int signum)
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	double cpu_time = atof(cpu_usage) / 1e9;
 
+	double walltime = gettime() - params.start_time;
+	
 	free((void *)cpu_usage);
 
 	if (cpu_time >= params.timelimit)
@@ -1053,6 +1067,15 @@ static void check_time(int signum)
 	else
 	{
 		set_timer(params.alarm_time);
+	}
+	
+	// Unless walltime should not be checked.
+	if (params.walltimelimit != WALLTIME_NOT_USED)
+	{
+		if (walltime >= params.walltimelimit)
+		{
+			kill_created_processes(SIGKILL);
+		}
 	}
 }
 
@@ -1120,6 +1143,10 @@ static void print_usage(void)
 		"\t-t <number>\n"
 		"\t\tSet time limit to <number> seconds. Supported prefixes: ms, min; 1ms = 0.001 seconds, 1min = 60 seconds. \n"
 		"\t\tIf there is no prefix then time will be specified in seconds. Default value: 1min.\n"
+		"\t--wall <number>\n"
+		"\t\tSet wall time limit to <number> seconds. Supported prefixes: ms, min; 1ms = 0.001 seconds, 1min = 60 seconds. \n"
+		"\t\tIf there is no prefix then time will be specified in seconds. If value set to 0 then wall time won't be checked.\n"
+		"\t\tDefault value: (2 * timelimit).\n"
 		"\t-o <file>\n"
 		"\t\tPrint statistics into file with name <file>. If option isn't specified statistics will be printed into stdout.\n"
 		"\t-l <dir>\n"
@@ -1207,13 +1234,14 @@ int main(int argc, char **argv)
 	int c;
 	int is_options_ended = 0;
 	int option_index = 0;
-	double time_before, time_after;
+	double time_after;
 	int wait_errno;
 	static struct option long_options[] = {
 		{"interval", 1, 0, 'i'},
 		{"stdout", 1, 0, 's'},
 		{"stderr", 1, 0, 'e'},
 		{"config", 1, 0, 'c'},
+		{"wall", 1, 0, 'w'},
 		{0, 0, 0, 0}
 	};
 	int status;
@@ -1222,6 +1250,7 @@ int main(int argc, char **argv)
 
 	// Set standart values for parameters.
 	params.timelimit = STANDART_TIMELIMIT;
+	params.walltimelimit = WALLTIME_NOT_DEFINED;
 	params.memlimit = STANDART_MEMLIMIT;
 	params.fout = NULL;
 	params.command = NULL;
@@ -1329,6 +1358,21 @@ int main(int argc, char **argv)
 				exit_res_manager(EINVAL, NULL, "Error: expected number with ms|min| modifiers as value of -t");
 			}
 			break;
+		case 'w': // Walltime limit.
+			params.walltimelimit = atof(optarg);
+			if (strstr(optarg, "ms") != NULL)
+			{
+				params.walltimelimit /= 1000;
+			}
+			else if (strstr(optarg, "min") != NULL)
+			{
+				params.walltimelimit *= 60;
+			}
+			else if (!is_number(optarg))
+			{
+				exit_res_manager(EINVAL, NULL, "Error: expected number with ms|min| modifiers as value of --wall");
+			}
+			break;
 		case 'o': // File for statistics.
 			params.fout = optarg;
 			break;
@@ -1347,6 +1391,12 @@ int main(int argc, char **argv)
 		exit_res_manager(EINVAL, NULL, "Error: command to be executed wasn't specified. See help for details");
 	}
 
+	// If wall time limit was not specified then it will be (2 * timelimit).
+	if (params.walltimelimit == WALLTIME_NOT_DEFINED)
+	{
+		params.walltimelimit = 2 * params.timelimit;
+	}
+	
 	// Parse command and its args.
 	optind--; // Optind - index of first argument in command; index of command is needed.
 	params.command = (char **)xmalloc(sizeof(char *) * (argc - optind + 1));
@@ -1377,7 +1427,7 @@ int main(int argc, char **argv)
 	set_timer(params.alarm_time);
 
 	// Save time before executing command.
-	time_before = gettime();
+	params.start_time = gettime();
 
 	// Create new process for command.
 	pid = fork();
@@ -1415,7 +1465,7 @@ int main(int argc, char **argv)
 	stats = (statistics *)xmalloc(sizeof(statistics));
 
 	// Compute wall time.
-	stats->wall_time = time_after - time_before;
+	stats->wall_time = time_after - params.start_time;
 
 	// If wait was interrupted by signal and exit code, signal number are unknown.
 	if (wait_errno == EINTR)

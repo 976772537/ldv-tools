@@ -421,6 +421,11 @@ sub run
 			$result = 'LIMITS';
 			$mes = "Time exhausted";
 		}
+		if ($timestats{"walltime_exhausted"} == "1")
+		{
+			$result = 'LIMITS';
+			$mes = "Wall time exhausted";
+		}
 		if ($timestats{"signal_script"} > 0)
 		{
 			$result = 'SIGNAL';
@@ -638,6 +643,10 @@ sub parse_outputfile
 		{
 			$statistics{"time_exhausted"} += "1";
 		}
+		if ($words[0] eq "walltime" && $words[1] eq "exhausted")
+		{
+			$statistics{"walltime_exhausted"} += "1";
+		}
 		if ($words[1] eq "time:")
 		{
 			if ($words[0] eq "cpu")
@@ -789,13 +798,16 @@ sub set_up_timeout
 	my $memlimit = $resource_spec->{memlimit};
 	my $output = $resource_spec->{output};
 	my $idstr = $resource_spec->{id_str};
-
+	my $walltimelimit = $ENV{'RCV_WALLTIMELIMIT'};
+	
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
 	unshift @cmdline,"-o",$output if $output;
 	unshift @cmdline,"-l", 'ldv';
+	unshift @cmdline,"--wall", $walltimelimit if $walltimelimit;
+	unshift @cmdline,"--wall", "0" if $ENV{'RCV_NOWALLTIMELIMIT'};
 	unshift @cmdline,$timeout if $timelimit || $memlimit;
-
+	
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
 
 	return @cmdline;
