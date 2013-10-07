@@ -161,10 +161,27 @@ sub preprocess_cpp
 
 		my ($errcode, @answer) = cpp_one_file(%opts, c_file => $c_file, i_file => $i_file);
 		if ($errcode != 0) {
-			vsay("WARNING", "PREPROCESS ERROR!  Terminating checker.\n");
 			# Add the discriminator that it's a preprocess error trace to the description
 			unshift @answer,"PREPROCESS ERROR!\n";
 			$context->{preproces_error_log} = [@answer];
+			
+			# New format for cpp errors.
+			my $timestats_fname = $context->{timestats_file};
+			my @out = get_result_from_file(outputfile => $timestats_fname);
+			my @out_err = get_err_result_from_file(outputfile => $timestats_fname);
+			my @words_memlimit = split(" ", $out[1]);
+			my @words_timelimit = split(" ", $out[2]);
+			my @words_exit_code = split(" ", $out_err[4]);
+			my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
+===============================================
+Resource manager settings:
+	memory limit: %s (%s bytes)
+	time limit: %s ms
+%s
+%s
+EOR
+
+			$context->{auto_description} = $descr_err;
 			die "PREPROCESS ERROR!";
 		};
 
