@@ -86,6 +86,9 @@ my $src_prev_lo = '';
 my $line_prev_lo = '';
 my $is_arg = "0";
 
+my $is_prev_lo = "0";
+my $prev_assignment_text = '';
+
 foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 {
 	my $tmp = $hash{$arg};
@@ -102,7 +105,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 	{
 		if ($src_prev_lo ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
 			clear_prevs_lo();
 		}
 		$line = $tmp->{location}->{line}[0];
@@ -118,6 +121,14 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		$value =~ s/$find/$replace/g;
 		$text = $tmp->{full_lhs} . "=" . $value . ";";
 		$text =~ s/\$/->/g; # pointers
+		if ($is_prev_lo eq "1")
+		{
+			$prev_assignment_text = $tmp->{full_lhs};
+		}
+		else
+		{
+			$prev_assignment_text = '';
+		}
 		if ($src_prev ne '')
 		{
 			if ($line_prev eq $line)
@@ -125,11 +136,11 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 				if ($is_arg eq "0")
 				{
 					$is_arg = "1";
-					$text_prev .= "$value";
+					$text_prev .= "$value /* $tmp->{full_lhs} */";
 				}
 				else
 				{
-					$text_prev .= " ,$value";
+					$text_prev .= ", $value /* $tmp->{full_lhs} */";
 				}
 			}
 			else
@@ -147,8 +158,10 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 			if ($is_entry eq "1")
 			{
 				push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+				
 			}
 		}
+		$is_prev_lo = "0";
 	}
 	if ($arg =~ /FUNCTION_CALL/)
 	{
@@ -186,6 +199,8 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 				#push(@et_conv_array, join(' ', ($line, $src, $type, $kind, ":", $text)));
 			}
 		}
+		$is_prev_lo = "0";
+		$prev_assignment_text = '';
 	}
 	if ($arg =~ /FUNCTION_RETURN/)
 	{
@@ -198,7 +213,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		{
 			if ($src_prev_lo ne '')
 			{
-				push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
+				push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
 				clear_prevs_lo();
 			}
 			$src = $tmp->{location}->{file}[0];
@@ -216,9 +231,11 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 			}
 			if ($line ne '')
 			{
-				push(@et_conv_array, join(' ', ($line, $src, $type)));
+				push(@et_conv_array, join(' ', ($line, $src, $type, ":", $prev_assignment_text)));
 			}
 		}
+		$is_prev_lo = "0";
+		$prev_assignment_text = '';
 	}
 	if ($arg =~ /LOCATION-ONLY/)
 	{
@@ -229,7 +246,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		}
 		if ($src_prev_lo ne '')
 		{
-			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
 			clear_prevs_lo();
 		}
 		$src = $tmp->{location}->{file}[0];
@@ -245,13 +262,15 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 			$line_prev_lo = $line;
 			#push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
 		}
+		$is_prev_lo = "1"; # previous tag was "location-only"
+		$prev_assignment_text = '';
 	}
 	
 }
 
 if ($src_prev_lo ne '')
 {
-	push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "//location-only")));
+	push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
 	clear_prevs_lo();
 }
 
