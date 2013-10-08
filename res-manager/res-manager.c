@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -50,7 +51,7 @@ typedef struct
 	double cpu_time;
 	double user_time;
 	double sys_time;
-	long memory;
+	uint64_t memory;
 } statistics;
 
 // This variable holds command-line parameters, parameters specified for
@@ -61,7 +62,7 @@ static struct
 	// Command-line parameters.
 	double timelimit; // In seconds.
 	double walltimelimit; // In seconds.
-	long memlimit; // In bytes.
+	uint64_t memlimit; // In bytes.
 	char *fout; // File for printing statistics.
 	char **command; // Command for execution.
 	int alarm_time; // Time in ms (10^-3 seconds).
@@ -105,7 +106,7 @@ static const char *get_kernel_info(void);
 static double gettime(void);
 static void kill_created_processes(int signum);
 static int is_number(char *str);
-static const char *itoa(unsigned long n);
+static const char *itoa(uint64_t n);
 static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes);
 static void print_usage(void);
 static const char *read_first_string_from_file(const char *fname);
@@ -180,10 +181,10 @@ static FILE *xfopen(const char *fname, const char *mode)
 }
 
 // Get string representing number.
-static const char *itoa(unsigned long n)
+static const char *itoa(uint64_t n)
 {
 	int order = 1;
-	unsigned long broken_n;
+	uint64_t broken_n;
 	char *str;
 
 	// Get order of number.
