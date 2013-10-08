@@ -66,12 +66,15 @@ my $errloc = $errlocs[0];
 push @cbmc_options, "--error-label",$errloc;
 
 # unwind options
-push @cbmc_options, "--unwind", "2";
+if (!($ENV{'CBMC_OPTIONS'} =~ /--unwind/))
+{
+	push @cbmc_options, "--unwind", "2";
+}
 push @cbmc_options, "--no-unwinding-assertions";
 push @cbmc_options, "--xml-ui";
 
 # External settings
-push @cbmc_options,(split /\s+/,$ENV{'cbmc_options'});
+push @cbmc_options,(split /\s+/,$ENV{'CBMC_OPTIONS'});
 
 my $outputpath = "$tmpdir";
 # In CBMC, the trace is stored in the separate file in the output path,
