@@ -586,7 +586,7 @@ void wait_exitcode_execution_script(const char * outputfile)
 	wait(&status);
 	number_of_tests++;
 	if (WIFEXITED(status) == 1 && WEXITSTATUS(status) == 0 && check_outputfile_exitcode_script(outputfile) || 
-		WIFEXITED(status) == 1 && WEXITSTATUS(status) != 1)
+		WIFEXITED(status) == 1 && WEXITSTATUS(status) != 0)
 	{
 		printf ("TEST PASSED\n");
 		passed_tests++;
@@ -1128,9 +1128,32 @@ int main(int argc, char **argv)
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "1000000000000000000000000000000000000000", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
 	
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-m" , "100000000000Gb", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-m" , "1000000000000000000000000000000000000000", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
 	
-	// stat
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "10.5", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+	
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "-10", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+	
+		// stat
 	printf("\nNumber of tests %i\nPassed tests %i \n",number_of_tests, passed_tests);
 	system("rm -f time_file_");
 }

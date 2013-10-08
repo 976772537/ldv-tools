@@ -119,6 +119,8 @@ static void set_memlimit(void);
 static void set_timer(int alarm_time);
 static void stop_timer(void);
 static void terminate(int signum);
+static uint64_t xatol(const char * string);
+static uint64_t xatof(const char * string);
 static void *xmalloc(size_t size);
 static FILE *xfopen(const char *fname, const char *mode);
 static void *xrealloc(void *prev, size_t size);
@@ -204,6 +206,31 @@ static const char *itoa(uint64_t n)
 	str[order] = '\0';
 
 	return str;
+}
+
+// Convert string into uint64_t and finish Resource Manager in case of any errors.
+// Should be used instead of atol/atoi.
+static uint64_t xatol(const char * string)
+{
+	uint64_t converted_result = strtoll(string, (char**)NULL, 10);
+	
+	// Check, if value cannot be represented.
+	if (errno == ERANGE)
+	{
+		exit_res_manager(errno, NULL, concat(strerror(errno), ": ", string, NULL));
+	}
+	
+	return converted_result;
+}
+
+// Convert string into uint64_t and finish Resource Manager in case of any errors.
+// Should be used instead of atof.
+// Returns double.
+static uint64_t xatof(const char * string)
+{
+	uint64_t converted_result = xatol(string);
+	
+	return converted_result * 1.0;
 }
 
 // Concatenate variable number of strings (NULL represents the end of this
@@ -692,10 +719,10 @@ static void get_user_and_system_time(statistics *stats)
 	free((void *)fcpu_stat);
 
 	line = read_string_from_fp(fp);
-	stats->user_time = atof(get_time(line)) / 1e2;
+	stats->user_time = xatof(get_time(line)) / 1e2;
 
 	line = read_string_from_fp(fp);
-	stats->sys_time = atof(get_time(line)) / 1e2;
+	stats->sys_time = xatof(get_time(line)) / 1e2;
 
 	fclose(fp);
 }
@@ -712,11 +739,11 @@ static void get_memory_and_cpu_usage(statistics *stats)
 	}
 
 	// Get cpu time usage.
-	stats->cpu_time = atol(cpu_usage) / 1e9;
+	stats->cpu_time = xatof(cpu_usage) / 1e9;
 	free((void *)cpu_usage);
 
 	// Get memory usage.
-	stats->memory = atol(memory_usage);
+	stats->memory = xatol(memory_usage);
 	free((void *)memory_usage);
 
 	// User and system time (not standart format).
@@ -782,7 +809,7 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	// Print Resource Manager settings.
 	fprintf(fp, "Resource manager settings:\n");
 	fprintf(fp, "\tmemory limit: %ld bytes\n", params.memlimit);
-	fprintf(fp, "\ttime limit: %.0f ms\n", params.timelimit * 1000);
+	fprintf(fp, "\ttime limit: %.0f ms\n", params.timelimit * 1000);//TODO make this in output correctly
 	fprintf(fp, "\tcommand: ");
 
 	if (params.command != NULL)
@@ -830,7 +857,7 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 		{
 			fprintf(fp, "\ttime exhausted\n");
 		}
-		else if (stats->memory > params.memlimit)
+		else if (stats->memory >= params.memlimit)
 		{
 			fprintf(fp, "\tmemory exhausted\n");
 		}
@@ -999,7 +1026,7 @@ static void kill_created_processes(int signum)
 		// Kill processes by pids from tasks file.
 		while ((line = read_string_from_fp(fp)) != NULL)
 		{
-			kill(atoi(line),signum);
+			kill(xatol(line),signum);
 			free((void *)line);
 		}
 
@@ -1055,7 +1082,7 @@ static void stop_timer(void)
 static void check_time(int signum)
 {
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
-	double cpu_time = atof(cpu_usage) / 1e9;
+	double cpu_time = xatof(cpu_usage) / 1e9;
 
 	double walltime = gettime() - params.start_time;
 	
@@ -1293,9 +1320,10 @@ int main(int argc, char **argv)
 		case 'i': // Interval for alarm in ms.
 			if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL, NULL, "Error: expected integer number in ms as value of --interval");
+				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number in ms as value of --interval, got ",
+					optarg, NULL));
 			}
-			params.alarm_time = atoi(optarg);
+			params.alarm_time = xatol(optarg);
 			break;
 		case 'c': // Config file.
 			fconfig = optarg;
@@ -1310,7 +1338,9 @@ int main(int argc, char **argv)
 			resmanager_dir = optarg;
 			break;
 		case 'm': // Memory limit.
-			params.memlimit = atol(optarg);
+		{
+			uint64_t without_mod = xatol(optarg);
+			params.memlimit = without_mod;
 			if (strstr(optarg, "Kb") != NULL)
 			{
 				params.memlimit *= 1000;
@@ -1341,11 +1371,25 @@ int main(int argc, char **argv)
 			}
 			else if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL, NULL, "Error: expected integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers as value of -m");
+				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers as value of -m, got ", optarg, NULL));
+			}
+			
+			// Sanity check.
+			if (!(params.memlimit / (1000) == without_mod || params.memlimit / (1000 * 1000) == without_mod ||
+				params.memlimit / (1000 * 1000 * 1000) == without_mod || params.memlimit / (1024) == without_mod ||
+				params.memlimit / (1024 * 1024) == without_mod || params.memlimit / (1024 * 1024 * 1024) == without_mod ||
+				params.memlimit == without_mod))
+			{
+				exit_res_manager(EINVAL, NULL, concat("Error: converted result for -m option does not match expectation; got ",
+					optarg, ", after converting ", itoa(params.memlimit), ". Perhaps there was overflow in data converting. ", 
+					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
 			break;
+		}
 		case 't': // Time limit.
-			params.timelimit = atof(optarg);
+		{
+			double without_mod = xatof(optarg);
+			params.timelimit = without_mod;
 			if (strstr(optarg, "ms") != NULL)
 			{
 				params.timelimit /= 1000;
@@ -1356,11 +1400,23 @@ int main(int argc, char **argv)
 			}
 			else if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL, NULL, "Error: expected number with ms|min| modifiers as value of -t");
+				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of -t, got ", optarg, NULL));
+			}
+			
+			// Sanity check.
+			if (!(params.timelimit / 60 == without_mod || params.timelimit * 1000 == without_mod ||
+				params.timelimit == without_mod))
+			{
+				exit_res_manager(EINVAL, NULL, concat("Error: converted result for -t option does not match expectation; got ",
+					optarg, ", after converting ", itoa(params.walltimelimit), ". Perhaps there was overflow in data converting. ", 
+					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
 			break;
+		}
 		case 'w': // Walltime limit.
-			params.walltimelimit = atof(optarg);
+		{
+			double without_mod = xatof(optarg);
+			params.walltimelimit = without_mod;
 			if (strstr(optarg, "ms") != NULL)
 			{
 				params.walltimelimit /= 1000;
@@ -1371,9 +1427,19 @@ int main(int argc, char **argv)
 			}
 			else if (!is_number(optarg))
 			{
-				exit_res_manager(EINVAL, NULL, "Error: expected number with ms|min| modifiers as value of --wall");
+				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of --wall, got ", optarg, NULL));
+			}
+			
+			// Sanity check.
+			if (!(params.walltimelimit / 60 == without_mod || params.walltimelimit * 1000 == without_mod ||
+				params.walltimelimit == without_mod))
+			{
+				exit_res_manager(EINVAL, NULL, concat("Error: converted result for --wall option does not match expectation; got ",
+					optarg, ", after converting ", itoa(params.walltimelimit), ". Perhaps there was overflow in data converting. ", 
+					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
 			break;
+		}
 		case 'o': // File for statistics.
 			params.fout = optarg;
 			break;
