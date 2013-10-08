@@ -800,21 +800,13 @@ sub check_results_and_print_report()
 		
 	my $verifier = 'blast';
 	$verifier = $ENV{'RCV_VERIFIER'} if($ENV{'RCV_VERIFIER'});
-	my $timelimit = 15;
-	if($ENV{'RCV_TIMELIMIT'})
-	{
-		$timelimit = int($ENV{'RCV_TIMELIMIT'});
-		$timelimit = int($timelimit/60);
-	}
-	my $memlimit = 1;
-	if($ENV{'RCV_MEMLIMIT'})
-	{
-		$memlimit = int($ENV{'RCV_MEMLIMIT'});
-		$memlimit = $memlimit/1000000;
-	}
+	my $timelimit = '15m';
+	$timelimit = $ENV{'RCV_TIMELIMIT'} if($ENV{'RCV_TIMELIMIT'});
+	my $memlimit = '1Gb';
+	$memlimit = $ENV{'RCV_MEMLIMIT'} if($ENV{'RCV_MEMLIMIT'});
 	my ($local_time_min, $local_time_hour, $local_time_day, $local_time_mon, $local_time_year) = (localtime)[1,2,3,4,5];
-	printf($final_results "name_of_runtask=$verifier<br>timelimit=%dm;<br>memlimit=%dGb<br>%02d.%02d.%04d %02d:%02d<br>$comment_for_report\n",
-		$timelimit, $memlimit, $local_time_day, $local_time_mon, $local_time_year + 1900, $local_time_hour, $local_time_min);
+	printf($final_results "name_of_runtask=$verifier;<br>timelimit=$timelimit;<br>memlimit=$memlimit;<br>%02d.%02d.%04d %02d:%02d<br>$comment_for_report\n",
+		$local_time_day, $local_time_mon, $local_time_year + 1900, $local_time_hour, $local_time_min);
 	print($final_results "verifier=$verifier\n");
 
 	for(my $i = 1; $i <= $num_of_tasks; $i++)

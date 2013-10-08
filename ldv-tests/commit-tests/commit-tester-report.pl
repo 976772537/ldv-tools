@@ -87,6 +87,7 @@ sub help()
 	print (STDERR << "EOH")
 	TODO
 EOH
+	exit(1);
 }
 sub get_opt()
 {
