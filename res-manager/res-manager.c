@@ -833,7 +833,7 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 		{
 			fprintf(fp, "\tmemory exhausted\n");
 		}
-		else if (stats->wall_time > params.walltimelimit)
+		else if (params.walltimelimit != WALLTIME_NOT_USED && stats->wall_time > params.walltimelimit)
 		{
 			fprintf(fp, "\twalltime exhausted\n");
 		}
