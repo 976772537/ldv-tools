@@ -15,11 +15,8 @@
 #include <unistd.h>
 
 #define STR_LEN 80
-#define STANDART_TIMELIMIT 60
+#define STANDART_TIMELIMIT 60e3
 #define STANDART_MEMLIMIT 1e9
-
-#define WALLTIME_NOT_DEFINED -1
-#define WALLTIME_NOT_USED 0
 
 #define RESMANAGER_MODIFIER "resource_manager_"
 #define MEMORY_CONTROLLER "memory"
@@ -39,7 +36,7 @@
 #define MOUNTS_FILE "/proc/mounts"
 
 // This structure holds exit status of executing command, its time and memory
-// statistics.
+// statistics (memory stored in bytes, time in miliseconds (10^(-3) seconds)).
 typedef struct
 {
 	int exit_code;
@@ -47,10 +44,10 @@ typedef struct
 	int memory_exhausted;
 	int time_exhausted;
 	int walltime_exhausted;
-	double wall_time;
-	double cpu_time;
-	double user_time;
-	double sys_time;
+	uint64_t wall_time;
+	uint64_t cpu_time;
+	uint64_t user_time;
+	uint64_t sys_time;
 	uint64_t memory;
 } statistics;
 
@@ -60,12 +57,12 @@ typedef struct
 static struct
 {
 	// Command-line parameters.
-	double timelimit; // In seconds.
-	double walltimelimit; // In seconds.
+	uint64_t timelimit; // In miliseconds.
+	uint64_t walltimelimit; // In miliseconds.
 	uint64_t memlimit; // In bytes.
 	char *fout; // File for printing statistics.
 	char **command; // Command for execution.
-	int alarm_time; // Time in ms (10^-3 seconds).
+	uint64_t alarm_time; // Time in ms (10^-3 seconds) for specifing interval in which timelimit will be checked.
 
 	// Control group parameters.
 	char *cgroup_memory_origin;
@@ -81,7 +78,7 @@ static struct
 	int script_signal;
 	
 	// Time of the start execution of the command.
-	double start_time;
+	uint64_t start_time;
 } params;
 
 // Pid of child process in which command will be executed.
@@ -103,7 +100,7 @@ static const char *get_memory_info(void);
 static const char *get_time(const char *line);
 static void get_user_and_system_time(statistics *stats);
 static const char *get_kernel_info(void);
-static double gettime(void);
+static uint64_t gettime(void);
 static void kill_created_processes(int signum);
 static int is_number(char *str);
 static const char *itoa(uint64_t n);
@@ -120,7 +117,6 @@ static void set_timer(int alarm_time);
 static void stop_timer(void);
 static void terminate(int signum);
 static uint64_t xatol(const char * string);
-static uint64_t xatof(const char * string);
 static void *xmalloc(size_t size);
 static FILE *xfopen(const char *fname, const char *mode);
 static void *xrealloc(void *prev, size_t size);
@@ -223,16 +219,6 @@ static uint64_t xatol(const char * string)
 	return converted_result;
 }
 
-// Convert string into uint64_t and finish Resource Manager in case of any errors.
-// Should be used instead of atof.
-// Returns double.
-static uint64_t xatof(const char * string)
-{
-	uint64_t converted_result = xatol(string);
-	
-	return converted_result * 1.0;
-}
-
 // Concatenate variable number of strings (NULL represents the end of this
 // list) and return resulting string (additional memory in this function).
 static const char *concat(const char *first, ...)
@@ -257,13 +243,13 @@ static const char *concat(const char *first, ...)
 }
 
 // Get current time in microseconds.
-static double gettime(void)
+static uint64_t gettime(void)
 {
 	struct timeval time;
 
 	gettimeofday(&time, NULL);
 
-	return time.tv_sec + time.tv_usec / 1000000.0;
+	return time.tv_sec * 1000 + time.tv_usec / 1000;
 }
 
 // Return true, if string is number.
@@ -661,8 +647,11 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 // Set memory limit into memory controller.
 static void set_memlimit(void)
 {
-	set_cgroup_parameter(MEM_LIMIT, params.cgroup_memory, itoa(params.memlimit));
-	set_cgroup_parameter(MEMSW_LIMIT, params.cgroup_memory, itoa(params.memlimit));
+	if (params.memlimit > 0)
+	{
+		set_cgroup_parameter(MEM_LIMIT, params.cgroup_memory, itoa(params.memlimit));
+		set_cgroup_parameter(MEMSW_LIMIT, params.cgroup_memory, itoa(params.memlimit));
+	}
 }
 
 // Add pid of created process to tasks file.
@@ -719,10 +708,10 @@ static void get_user_and_system_time(statistics *stats)
 	free((void *)fcpu_stat);
 
 	line = read_string_from_fp(fp);
-	stats->user_time = xatof(get_time(line)) / 1e2;
+	stats->user_time = xatol(get_time(line)) * 1e1;
 
 	line = read_string_from_fp(fp);
-	stats->sys_time = xatof(get_time(line)) / 1e2;
+	stats->sys_time = xatol(get_time(line)) * 1e1;
 
 	fclose(fp);
 }
@@ -739,7 +728,7 @@ static void get_memory_and_cpu_usage(statistics *stats)
 	}
 
 	// Get cpu time usage.
-	stats->cpu_time = xatof(cpu_usage) / 1e9;
+	stats->cpu_time = xatol(cpu_usage) / 1e6;
 	free((void *)cpu_usage);
 
 	// Get memory usage.
@@ -808,8 +797,8 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 
 	// Print Resource Manager settings.
 	fprintf(fp, "Resource manager settings:\n");
-	fprintf(fp, "\tmemory limit: %ld bytes\n", params.memlimit);
-	fprintf(fp, "\ttime limit: %.0f ms\n", params.timelimit * 1000);//TODO make this in output correctly
+	fprintf(fp, "\tmemory limit: %lu bytes\n", params.memlimit);
+	fprintf(fp, "\ttime limit: %lu ms\n", params.timelimit);
 	fprintf(fp, "\tcommand: ");
 
 	if (params.command != NULL)
@@ -853,15 +842,15 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 			fprintf(fp, "\tkilled by signal: %i (%s)\n", stats->sig_number, strsignal(stats->sig_number));
 		}
 
-		if (stats->cpu_time > params.timelimit)
+		if (params.timelimit != 0 && stats->cpu_time > params.timelimit)
 		{
 			fprintf(fp, "\ttime exhausted\n");
 		}
-		else if (stats->memory >= params.memlimit)
+		else if (params.memlimit != 0 && stats->memory >= params.memlimit)
 		{
 			fprintf(fp, "\tmemory exhausted\n");
 		}
-		else if (params.walltimelimit != WALLTIME_NOT_USED && stats->wall_time > params.walltimelimit)
+		else if (params.walltimelimit != 0 && stats->wall_time > params.walltimelimit)
 		{
 			fprintf(fp, "\twalltime exhausted\n");
 		}
@@ -872,13 +861,13 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 
 		// Print time and memory usage. 
 		fprintf(fp, "Time usage statistics:\n");
-		fprintf(fp, "\twall time: %.0f ms\n", stats->wall_time * 1000);
-		fprintf(fp, "\tcpu time: %.0f ms\n", stats->cpu_time * 1000);
-		fprintf(fp, "\tuser time: %.0f ms\n", stats->user_time * 1000);
-		fprintf(fp, "\tsystem time: %.0f ms\n", stats->sys_time * 1000);
+		fprintf(fp, "\twall time: %lu ms\n", stats->wall_time);
+		fprintf(fp, "\tcpu time: %lu ms\n", stats->cpu_time);
+		fprintf(fp, "\tuser time: %lu ms\n", stats->user_time);
+		fprintf(fp, "\tsystem time: %lu ms\n", stats->sys_time);
 
 		fprintf(fp, "Memory usage statistics:\n");
-		fprintf(fp, "\tpeak memory usage: %ld bytes\n", stats->memory);
+		fprintf(fp, "\tpeak memory usage: %lu bytes\n", stats->memory);
 	}
 
 	if (params.fout != NULL)
@@ -1082,15 +1071,19 @@ static void stop_timer(void)
 static void check_time(int signum)
 {
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
-	double cpu_time = xatof(cpu_usage) / 1e9;
+	uint64_t cpu_time = xatol(cpu_usage) / 1e6;
 
-	double walltime = gettime() - params.start_time;
+	uint64_t walltime = gettime() - params.start_time;
 	
 	free((void *)cpu_usage);
 
+	
 	if (cpu_time >= params.timelimit)
 	{
-		kill_created_processes(SIGKILL);
+		if (params.timelimit != 0)
+		{
+			kill_created_processes(SIGKILL);
+		}
 	}
 	else
 	{
@@ -1098,7 +1091,7 @@ static void check_time(int signum)
 	}
 	
 	// Unless walltime should not be checked.
-	if (params.walltimelimit != WALLTIME_NOT_USED)
+	if (params.walltimelimit != 0)
 	{
 		if (walltime >= params.walltimelimit)
 		{
@@ -1262,7 +1255,7 @@ int main(int argc, char **argv)
 	int c;
 	int is_options_ended = 0;
 	int option_index = 0;
-	double time_after;
+	uint64_t time_after;
 	int wait_errno;
 	static struct option long_options[] = {
 		{"interval", 1, 0, 'i'},
@@ -1275,10 +1268,10 @@ int main(int argc, char **argv)
 	int status;
 	int wait_res;
 	statistics *stats;
+	int is_timelimits_specified = 0; // True, if there was option "-t" or "--wall".
 
 	// Set standart values for parameters.
 	params.timelimit = STANDART_TIMELIMIT;
-	params.walltimelimit = WALLTIME_NOT_DEFINED;
 	params.memlimit = STANDART_MEMLIMIT;
 	params.fout = NULL;
 	params.command = NULL;
@@ -1318,13 +1311,34 @@ int main(int argc, char **argv)
 			print_usage();
 			exit(0);
 		case 'i': // Interval for alarm in ms.
-			if (!is_number(optarg))
+		{
+			uint64_t without_mod = xatol(optarg);
+			params.alarm_time = without_mod;
+			// Convert into ms.
+			params.alarm_time *= 1000;
+			if (strstr(optarg, "ms") != NULL)
 			{
-				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number in ms as value of --interval, got ",
-					optarg, NULL));
+				params.alarm_time /= 1000;
 			}
-			params.alarm_time = xatol(optarg);
+			else if (strstr(optarg, "min") != NULL)
+			{
+				params.alarm_time *= 60;
+			}
+			else if (!is_number(optarg))
+			{
+				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of --interval, got ", optarg, NULL));
+			}
+
+			// Sanity check.
+			if (!(params.alarm_time / (60 * 1000) == without_mod || params.alarm_time / 1000 == without_mod ||
+				params.alarm_time == without_mod))
+			{
+				exit_res_manager(EINVAL, NULL, concat("Error: converted result for --interval option does not match expectation; got ",
+					optarg, ", after converting ", itoa(params.alarm_time), ". Perhaps there was overflow in data converting. ", 
+					"Please, specify less positive integer number or use other modifier.", NULL));
+			}
 			break;
+		}
 		case 'c': // Config file.
 			fconfig = optarg;
 			break;
@@ -1388,8 +1402,10 @@ int main(int argc, char **argv)
 		}
 		case 't': // Time limit.
 		{
-			double without_mod = xatof(optarg);
+			uint64_t without_mod = xatol(optarg);
 			params.timelimit = without_mod;
+			// Convert into ms.
+			params.timelimit *= 1000;
 			if (strstr(optarg, "ms") != NULL)
 			{
 				params.timelimit /= 1000;
@@ -1402,21 +1418,24 @@ int main(int argc, char **argv)
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of -t, got ", optarg, NULL));
 			}
-			
+
 			// Sanity check.
-			if (!(params.timelimit / 60 == without_mod || params.timelimit * 1000 == without_mod ||
+			if (!(params.timelimit / (60 * 1000) == without_mod || params.timelimit / 1000 == without_mod ||
 				params.timelimit == without_mod))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: converted result for -t option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.walltimelimit), ". Perhaps there was overflow in data converting. ", 
+					optarg, ", after converting ", itoa(params.timelimit), ". Perhaps there was overflow in data converting. ", 
 					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
+			is_timelimits_specified = 1;
 			break;
 		}
 		case 'w': // Walltime limit.
 		{
-			double without_mod = xatof(optarg);
+			uint64_t without_mod = xatol(optarg);
 			params.walltimelimit = without_mod;
+			// Convert into ms.
+			params.walltimelimit *= 1000;
 			if (strstr(optarg, "ms") != NULL)
 			{
 				params.walltimelimit /= 1000;
@@ -1431,13 +1450,14 @@ int main(int argc, char **argv)
 			}
 			
 			// Sanity check.
-			if (!(params.walltimelimit / 60 == without_mod || params.walltimelimit * 1000 == without_mod ||
+			if (!(params.walltimelimit / (60 * 1000) == without_mod || params.walltimelimit / 1000 == without_mod ||
 				params.walltimelimit == without_mod))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: converted result for --wall option does not match expectation; got ",
 					optarg, ", after converting ", itoa(params.walltimelimit), ". Perhaps there was overflow in data converting. ", 
 					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
+			is_timelimits_specified = 1;
 			break;
 		}
 		case 'o': // File for statistics.
@@ -1459,7 +1479,7 @@ int main(int argc, char **argv)
 	}
 
 	// If wall time limit was not specified then it will be (2 * timelimit).
-	if (params.walltimelimit == WALLTIME_NOT_DEFINED)
+	if (is_timelimits_specified)
 	{
 		params.walltimelimit = 2 * params.timelimit;
 	}

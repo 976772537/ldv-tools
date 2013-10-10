@@ -1128,32 +1128,74 @@ int main(int argc, char **argv)
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
+	// Checking standart overflow (xatol).
 	if (fork()==0)
 		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "1000000000000000000000000000000000000000", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
+	// Checking specific "-m" overflow.
 	if (fork()==0)
 		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-m" , "100000000000Gb", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 
+	// Checking specific "-t" overflow.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-m" , "1000000000000000000000000000000000000000", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "10000000000000000min", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
+	// Checking specific "--wall" overflow.
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "--wall" , "100000000000000000ms", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+	
+	// Checking specific "--interval" overflow.
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "--interval" , "1000000000000000000", "memory/limit", "11000000",(char*)0);
+	wait_exitcode_execution_script(outputfile);
+	print_stat(outputfile);
+	
+	// Checking double values.
 	if (fork()==0)
 		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "10.5", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
+	// Checking negative values.
 	if (fork()==0)
 		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "-10", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
-		// stat
+	// Checking "0" values.
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "0", "memory/limit", "11000000",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	// Checking "0" values.
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-m" , "0", "memory/limit", "11000000",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	// Checking "0" values.
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "--wall" , "0", "memory/limit", "11000000",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	// Checking standart values.
+	if (fork()==0)
+		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t", "15min", "--wall", "40min", "-m", "15Gb", "--interval", "1", "memory/limit", "11000000",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	
+	
+	// stat
 	printf("\nNumber of tests %i\nPassed tests %i \n",number_of_tests, passed_tests);
 	system("rm -f time_file_");
 }
