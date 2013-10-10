@@ -34,17 +34,8 @@ my $xml_et;
 
 my $data;
 
-
-if ($et_array[0] =~ /^-------(.*)-------$/) # old format - name of xml file.
-{
-	my $xml = new XML::Simple;
-	$data = $xml->XMLin($1);
-}
-else # new format - xml file here.
-{
-	my $xml = new XML::Simple;
-	$data = $xml->XMLin("@et_array");
-}
+my $xml = new XML::Simple;
+$data = $xml->XMLin("@et_array");
 
 my %hash = ();
 
