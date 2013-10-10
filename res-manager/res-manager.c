@@ -15,8 +15,8 @@
 #include <unistd.h>
 
 #define STR_LEN 80
-#define STANDART_TIMELIMIT 60e3
-#define STANDART_MEMLIMIT 1e9
+#define STANDART_TIMELIMIT 60e3 /* 60 000 milliseconds or 1 minute */
+#define STANDART_MEMLIMIT 1e9 /* 1 000 000 000 bytes or 1 gigabyte */
 
 #define RESMANAGER_MODIFIER "resource_manager_"
 #define MEMORY_CONTROLLER "memory"
