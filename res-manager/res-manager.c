@@ -19,16 +19,17 @@
 #define STANDART_MEMLIMIT 1e9 /* 1 000 000 000 bytes or 1 gigabyte */
 
 #define RESMANAGER_MODIFIER "resource_manager_"
-#define MEMORY_CONTROLLER "memory"
-#define CPUACCT_CONTROLLER "cpuacct"
+
 #define CGROUP "cgroup"
 #define TASKS "tasks"
-#define MEM_LIMIT "memory.limit_in_bytes"
-#define MEMSW_LIMIT "memory.memsw.limit_in_bytes"
+#define CPUACCT_CONTROLLER "cpuacct"
 #define CPU_USAGE "cpuacct.usage"
 #define CPU_STAT "cpuacct.stat"
-#define MEMSW_MAX_USAGE "memory.memsw.max_usage_in_bytes"
+#define MEMORY_CONTROLLER "memory"
+#define MEM_LIMIT "memory.limit_in_bytes"
 #define MEM_MAX_USAGE "memory.max_usage_in_bytes"
+#define MEMSW_LIMIT "memory.memsw.limit_in_bytes"
+#define MEMSW_MAX_USAGE "memory.memsw.max_usage_in_bytes"
 
 #define CPUINFO_FILE "/proc/cpuinfo"
 #define MEMINFO_FILE "/proc/meminfo"
