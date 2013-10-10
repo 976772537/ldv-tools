@@ -48,25 +48,25 @@ else # new format - xml file here.
 
 my %hash = ();
 
-foreach my $arg (values $data->{assignment})
+foreach my $arg (@{$data->{'assignment'}})
 {
 	my $number = $arg->{step_nr}[0];
 	$hash{$number."ASSIGNMENT"} = $arg;
 }
 
-foreach my $arg (values $data->{function_call})
+foreach my $arg (@{$data->{function_call}})
 {
 	my $number = $arg->{step_nr}[0];
 	$hash{$number."FUNCTION_CALL"} = $arg;
 }
 
-foreach my $arg (values $data->{function_return})
+foreach my $arg (@{$data->{function_return}})
 {
 	my $number = $arg->{step_nr}[0];
 	$hash{$number."FUNCTION_RETURN"} = $arg;
 }
 
-foreach my $arg (values $data->{'location-only'})
+foreach my $arg (@{$data->{'location-only'}})
 {
 	my $number = $arg->{step_nr}[0];
 	$hash{$number."LOCATION-ONLY"} = $arg;
