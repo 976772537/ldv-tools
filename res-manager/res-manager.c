@@ -1054,10 +1054,9 @@ static void set_timer(int alarm_time)
 {
 	struct itimerval *value = xmalloc(sizeof(struct itimerval));
 
-	value->it_value.tv_sec = alarm_time / 1000;
-	value->it_value.tv_usec = (alarm_time % 1000) * 1000;
-	value->it_interval.tv_usec = 0;
-	value->it_interval.tv_sec = 0;
+	// Timer will expire every alarm_time milliseconds.
+	value->it_value.tv_sec = value->it_interval.tv_sec = alarm_time / 1000;
+	value->it_value.tv_usec = value->it_interval.tv_usec = (alarm_time % 1000) * 1000;
 
 	if (setitimer(ITIMER_REAL, value, NULL) == -1)
 	{
@@ -1074,8 +1073,6 @@ static void stop_timer(void)
 
 	value->it_value.tv_sec = 0;
 	value->it_value.tv_usec = 0;
-	value->it_interval.tv_usec = 0;
-	value->it_interval.tv_sec = 0;
 
 	if (setitimer(ITIMER_REAL, value, NULL) == -1)
 	{
@@ -1101,10 +1098,6 @@ static void check_time(int signum)
 		{
 			kill_created_processes(SIGKILL);
 		}
-	}
-	else
-	{
-		set_timer(params.alarm_time);
 	}
 
 	// Otherwise check whether wall time limit happend.
