@@ -698,7 +698,7 @@ static const char *get_sys_or_user_time(const char *line)
 
 		sscanf(line, "%s %s", arg, value);
 
-		if(!(strcmp(arg, "user") != 0 || strcmp(arg, "system") != 0))
+		if(strcmp(arg, "user") != 0 && strcmp(arg, "system") != 0)
 		{
 			exit_res_manager(ENOENT, NULL, "Error: neither user nor system time was read from file cpuacct.stats");
 		}
