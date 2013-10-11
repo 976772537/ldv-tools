@@ -1264,7 +1264,7 @@ int main(int argc, char **argv)
 		{"memory-limit", 1, 0, 'm'},
 		{"time-limit", 1, 0, 't'},
 		{"wall-time-limit", 1, 0, 'w'},
-		{"command-cgroup", 1, 0, 'd'},
+		{"command-cgroup-directory", 1, 0, 'd'},
 		{"interval", 1, 0, 'i'},
 		{"stdout", 1, 0, 's'},
 		{"stderr", 1, 0, 'e'},
