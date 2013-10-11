@@ -39,7 +39,7 @@
 /*
  * This structure holds exit status of executing command, its time and memory
  * consumption statistics. Memory is stored in bytes, time is stored in
- * miliseconds (10^(-3) seconds)).
+ * milliseconds (10^(-3) seconds)).
  */
 typedef struct
 {
@@ -63,8 +63,8 @@ typedef struct
 static struct
 {
 	// Command-line parameters.
-	uint64_t time_limit; // In miliseconds.
-	uint64_t wall_time_limit; // In miliseconds.
+	uint64_t time_limit; // In milliseconds.
+	uint64_t wall_time_limit; // In milliseconds.
 	uint64_t mem_limit; // In bytes.
 	char *fout; // File for printing statistics.
 	char **command; // Command for execution.
@@ -254,7 +254,7 @@ static const char *concat(const char *first, ...)
 	return result;
 }
 
-// Get current time in miliseconds.
+// Get current time in milliseconds.
 static uint64_t get_time(void)
 {
 	struct timeval time;
@@ -1251,7 +1251,7 @@ static void print_usage(void)
 	);
 }
 
-// Convert time specifying in seconds with modifiers into miliseconds and check errors. 
+// Convert time specifying in seconds with modifiers into milliseconds and check errors. 
 static void convert_time(char *optarg, const char *option_name, uint64_t *parameter_name)
 {
 	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
@@ -1282,15 +1282,16 @@ static void convert_time(char *optarg, const char *option_name, uint64_t *parame
 			"Please, specify less positive integer number or use other modifier.", NULL));
 	}
 	
-	// Get result into specified parameter.
-	*parameter_name = converted;
+	// Set result into specified parameter.
+	*parameter = converted;
 }
 
 // Convert memory specifying in bytes with modifiers and check errors. 
-static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter_name)
+static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter)
 {
 	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
 	uint64_t converted = without_mod; // Number after and applying modifiers. 
+
 	if (strstr(optarg, "Kb") != NULL)
 	{
 		converted *= 1000;
