@@ -1114,7 +1114,7 @@ static void redirect(int fd, const char *fname)
 		return;
 	}
 
-	if (!(fd == 1 || fd == 2))
+	if (fd != 1 && fd != 2)
 	{
 		exit_res_manager(EINVAL, NULL, "Error: sanity check failed. Neither 1 (stdout) nor 2 (stderr) file descriptor was specified");
 	}
