@@ -1065,7 +1065,8 @@ static void stop_timer(void)
 
 	value->it_value.tv_sec = 0;
  	value->it_value.tv_usec = 0;
-
+	value->it_interval.tv_usec = 0;
+	value->it_interval.tv_sec = 0;
 	if (setitimer(ITIMER_REAL, value, NULL) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
