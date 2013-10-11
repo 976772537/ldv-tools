@@ -1355,6 +1355,7 @@ int main(int argc, char **argv)
 		case 'e': // Sterr file.
 			fstderr = optarg;
 			break;
+/* TODO: fix RCV library. */
 		case 'd': // Directory in control groups.
 			dir = optarg;
 			break;
