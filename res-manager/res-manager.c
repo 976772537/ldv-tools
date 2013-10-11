@@ -96,8 +96,8 @@ static void add_task(int pid);
 static int check_tasks(const char *cgroup);
 static void check_time(int signum);
 static const char *concat(const char *first, ...);
-static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter_name);
-static void convert_time(char *optarg, const char *option_name, uint64_t *parameter_name);
+static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter);
+static void convert_time(char *optarg, const char *option_name, uint64_t *parameter);
 static void create_cgroup(const char *dir);
 static void exit_res_manager(int exit_code, execution_statistics *exec_stats, const char *err_mes);
 static void find_cgroup_controllers(void);
@@ -1252,7 +1252,7 @@ static void print_usage(void)
 }
 
 // Convert time specifying in seconds with modifiers into milliseconds and check errors. 
-static void convert_time(char *optarg, const char *option_name, uint64_t *parameter_name)
+static void convert_time(char *optarg, const char *option_name, uint64_t *parameter)
 {
 	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
 	uint64_t converted = without_mod; // Number after converting into ms and applying modifiers. 
@@ -1336,8 +1336,8 @@ static void convert_memory(char *optarg, const char *option_name, uint64_t *para
 			"Please, specify less positive integer number or use other modifier.", NULL));
 	}
 	
-	// Get result into specified parameter.
-	*parameter_name = converted;
+	// Set result into specified parameter.
+	*parameter = converted;
 }
 
 int main(int argc, char **argv)
