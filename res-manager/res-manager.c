@@ -96,6 +96,8 @@ static void add_task(int pid);
 static int check_tasks(const char *cgroup);
 static void check_time(int signum);
 static const char *concat(const char *first, ...);
+static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter_name);
+static void convert_time(char *optarg, const char *option_name, uint64_t *parameter_name);
 static void create_cgroup(const char *dir);
 static void exit_res_manager(int exit_code, execution_statistics *exec_stats, const char *err_mes);
 static void find_cgroup_controllers(void);
@@ -252,7 +254,7 @@ static const char *concat(const char *first, ...)
 	return result;
 }
 
-// Get current time in microseconds.
+// Get current time in miliseconds.
 static uint64_t get_time(void)
 {
 	struct timeval time;
@@ -696,7 +698,7 @@ static const char *get_sys_or_user_time(const char *line)
 
 		sscanf(line, "%s %s", arg, value);
 
-		if(!(strcmp(arg, "user") != 0 && strcmp(arg, "system") != 0))
+		if(!(strcmp(arg, "user") != 0 || strcmp(arg, "system") != 0))
 		{
 			exit_res_manager(ENOENT, NULL, "Error: neither user nor system time was read from file cpuacct.stats");
 		}
@@ -857,8 +859,7 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 		{
 			fprintf(fp, "\tmemory exhausted\n");
 		}
-/* TODO fix problem pattern. */
-		else if (params.wall_time_limit != 0 && exec_stats->wall_time > params.wall_time_limit)
+		else if (params.wall_time_limit != 0 && exec_stats->wall_time >= params.wall_time_limit)
 		{
 			fprintf(fp, "\twall time exhausted\n");
 		}
@@ -1063,8 +1064,9 @@ static void stop_timer(void)
 	struct itimerval *value = xmalloc(sizeof(struct itimerval));
 
 	value->it_value.tv_sec = 0;
-	value->it_value.tv_usec = 0;
-
+ 	value->it_value.tv_usec = 0;
+	value->it_interval.tv_usec = 0;
+	value->it_interval.tv_sec = 0;
 	if (setitimer(ITIMER_REAL, value, NULL) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
@@ -1099,6 +1101,7 @@ static void check_time(int signum)
 			kill_created_processes(SIGKILL);
 		}
 	}
+	//set_timer(params.alarm_time);
 }
 
 // Redirect stderr/stdout into file.
@@ -1106,14 +1109,15 @@ static void redirect(int fd, const char *fname)
 {
 	int fdes[2];
 
-	if (fd != 1 || fd != 2)
-	{
-		exit_res_manager(EINVAL, NULL, "Error: sanity check failed. Neither 1 (stdout) nor 2 (stderr) file descriptor was specified");
-	}
-
+	// Checking if file for this fd was specified. If not, then there is nothing to redirect.
 	if (fname == NULL)
 	{
-		exit_res_manager(EINVAL, NULL, "Error: sanity check failed. File name where stderr/stdout should be redirected wasn't specified");
+		return;
+	}
+
+	if (!(fd == 1 || fd == 2))
+	{
+		exit_res_manager(EINVAL, NULL, "Error: sanity check failed. Neither 1 (stdout) nor 2 (stderr) file descriptor was specified");
 	}
 
 	close(fd); // Close stdout/stderr.
@@ -1236,7 +1240,7 @@ static void print_usage(void)
 		"\tCommand execution status:\n"
 		"\t\texit code: <number>\n"
 		"\t\tkilled by signal: <number> (<name>)\n"
-		"\t\tcompleted in limits / memory exhausted / time exhausted\n"
+		"\t\tcompleted in limits / memory exhausted / time exhausted / wall time exhausted\n"
 		"\tTime usage statistics:\n"
 		"\t\twall time: <number> ms\n"
 		"\t\tcpu time: <number> ms\n"
@@ -1245,6 +1249,94 @@ static void print_usage(void)
 		"\tMemory usage statistics:\n"
 		"\t\tpeak memory usage: <number> bytes\n"
 	);
+}
+
+// Convert time specifying in seconds with modifiers into miliseconds and check errors. 
+static void convert_time(char *optarg, const char *option_name, uint64_t *parameter_name)
+{
+	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
+	uint64_t converted = without_mod; // Number after converting into ms and applying modifiers. 
+	
+	// Convert into ms.
+	converted *= 1000;
+	if (strstr(optarg, "ms") != NULL)
+	{
+		converted /= 1000;
+	}
+	else if (strstr(optarg, "min") != NULL)
+	{
+		converted *= 60;
+	}
+	else if (!is_number(optarg))
+	{
+		exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of ", 
+			option_name," , got ", optarg, NULL));
+	}
+	
+	// Sanity check.
+	if (!(converted / (60 * 1000) == without_mod || converted / 1000 == without_mod ||
+		converted == without_mod))
+	{
+		exit_res_manager(EINVAL, NULL, concat("Error: converted result for ", option_name," option does not match expectation; got ",
+			optarg, ", after converting ", itoa(converted), ". Perhaps there was overflow in data converting. ",
+			"Please, specify less positive integer number or use other modifier.", NULL));
+	}
+	
+	// Get result into specified parameter.
+	*parameter_name = converted;
+}
+
+// Convert memory specifying in bytes with modifiers and check errors. 
+static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter_name)
+{
+	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
+	uint64_t converted = without_mod; // Number after and applying modifiers. 
+	if (strstr(optarg, "Kb") != NULL)
+	{
+		converted *= 1000;
+	}
+	else if (strstr(optarg, "Mb") != NULL)
+	{
+		converted *= 1000 * 1000;
+	}
+	else if (strstr(optarg, "Gb") != NULL)
+	{
+		converted *= 1000;
+		converted *= 1000;
+		converted *= 1000;
+	}
+	else if (strstr(optarg, "Kib") != NULL)
+	{
+		converted *= 1024;
+	}
+	else if (strstr(optarg, "Mib") != NULL)
+	{
+		converted *= 1024 * 1024;
+	}
+	else if (strstr(optarg, "Gib") != NULL)
+	{
+		converted *= 1024;
+		converted *= 1024;
+		converted *= 1024;
+	}
+	else if (!is_number(optarg))
+	{
+		exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers as value of ", option_name,", got ", optarg, NULL));
+	}
+
+	// Sanity check.
+	if (!(converted / (1000) == without_mod || converted / (1000 * 1000) == without_mod ||
+		converted / (1000 * 1000 * 1000) == without_mod || converted / (1024) == without_mod ||
+		converted / (1024 * 1024) == without_mod || converted / (1024 * 1024 * 1024) == without_mod ||
+		converted == without_mod))
+	{
+		exit_res_manager(EINVAL, NULL, concat("Error: converted result for ", option_name," option does not match expectation; got ",
+			optarg, ", after converting ", itoa(converted), ". Perhaps there was overflow in data converting. ",
+			"Please, specify less positive integer number or use other modifier.", NULL));
+	}
+	
+	// Get result into specified parameter.
+	*parameter_name = converted;
 }
 
 int main(int argc, char **argv)
@@ -1260,7 +1352,7 @@ int main(int argc, char **argv)
 	uint64_t time_after;
 	int wait_errno;
 	static struct option long_options[] = {
-		{"help", 1, 0, 'h'},
+		{"help", 0, 0, 'h'},
 		{"memory-limit", 1, 0, 'm'},
 		{"time-limit", 1, 0, 't'},
 		{"wall-time-limit", 1, 0, 'w'},
@@ -1310,7 +1402,7 @@ int main(int argc, char **argv)
 
 	// Parse command line.
 /* TODO: fixme. */
-	while ((c = getopt_long(argc, argv, "-hm:t:o:l:0", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:h0", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -1318,34 +1410,8 @@ int main(int argc, char **argv)
 			print_usage();
 			exit(0);
 		case 'i': // Interval for alarm in ms.
-		{
-			uint64_t without_mod = xatol(optarg);
-			params.alarm_time = without_mod;
-			// Convert into ms.
-			params.alarm_time *= 1000;
-			if (strstr(optarg, "ms") != NULL)
-			{
-				params.alarm_time /= 1000;
-			}
-			else if (strstr(optarg, "min") != NULL)
-			{
-				params.alarm_time *= 60;
-			}
-			else if (!is_number(optarg))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of --interval, got ", optarg, NULL));
-			}
-
-			// Sanity check.
-			if (!(params.alarm_time / (60 * 1000) == without_mod || params.alarm_time / 1000 == without_mod ||
-				params.alarm_time == without_mod))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: converted result for --interval option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.alarm_time), ". Perhaps there was overflow in data converting. ",
-					"Please, specify less positive integer number or use other modifier.", NULL));
-			}
+			convert_time(optarg, "-i", &params.alarm_time);
 			break;
-		}
 		case 'c': // Config file.
 			fconfig = optarg;
 			break;
@@ -1355,119 +1421,19 @@ int main(int argc, char **argv)
 		case 'e': // Sterr file.
 			fstderr = optarg;
 			break;
-/* TODO: fix RCV library. */
 		case 'd': // Directory in control groups.
 			dir = optarg;
 			break;
 		case 'm': // Memory limit.
-		{
-			uint64_t without_mod = xatol(optarg);
-			params.mem_limit = without_mod;
-			if (strstr(optarg, "Kb") != NULL)
-			{
-				params.mem_limit *= 1000;
-			}
-			else if (strstr(optarg, "Mb") != NULL)
-			{
-				params.mem_limit *= 1000 * 1000;
-			}
-			else if (strstr(optarg, "Gb") != NULL)
-			{
-				params.mem_limit *= 1000;
-				params.mem_limit *= 1000;
-				params.mem_limit *= 1000;
-			}
-			else if (strstr(optarg, "Kib") != NULL)
-			{
-				params.mem_limit *= 1024;
-			}
-			else if (strstr(optarg, "Mib") != NULL)
-			{
-				params.mem_limit *= 1024 * 1024;
-			}
-			else if (strstr(optarg, "Gib") != NULL)
-			{
-				params.mem_limit *= 1024;
-				params.mem_limit *= 1024;
-				params.mem_limit *= 1024;
-			}
-			else if (!is_number(optarg))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers as value of -m, got ", optarg, NULL));
-			}
-
-			// Sanity check.
-			if (!(params.mem_limit / (1000) == without_mod || params.mem_limit / (1000 * 1000) == without_mod ||
-				params.mem_limit / (1000 * 1000 * 1000) == without_mod || params.mem_limit / (1024) == without_mod ||
-				params.mem_limit / (1024 * 1024) == without_mod || params.mem_limit / (1024 * 1024 * 1024) == without_mod ||
-				params.mem_limit == without_mod))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: converted result for -m option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.mem_limit), ". Perhaps there was overflow in data converting. ",
-					"Please, specify less positive integer number or use other modifier.", NULL));
-			}
+			convert_memory(optarg, "-m", &params.mem_limit);
 			break;
-		}
 		case 't': // Time limit.
-		{
-			uint64_t without_mod = xatol(optarg);
-			params.time_limit = without_mod;
-			// Convert into ms.
-			params.time_limit *= 1000;
-			if (strstr(optarg, "ms") != NULL)
-			{
-				params.time_limit /= 1000;
-			}
-			else if (strstr(optarg, "min") != NULL)
-			{
-				params.time_limit *= 60;
-			}
-			else if (!is_number(optarg))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of -t, got ", optarg, NULL));
-			}
-
-			// Sanity check.
-			if (!(params.time_limit / (60 * 1000) == without_mod || params.time_limit / 1000 == without_mod ||
-				params.time_limit == without_mod))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: converted result for -t option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.time_limit), ". Perhaps there was overflow in data converting. ",
-					"Please, specify less positive integer number or use other modifier.", NULL));
-			}
+			convert_time(optarg, "-t", &params.time_limit);
 			break;
-		}
-/* TODO: the same as before => need a special function. */
 		case 'w': // Wall time limit.
-		{
-			uint64_t without_mod = xatol(optarg);
-			params.wall_time_limit = without_mod;
-			// Convert into ms.
-			params.wall_time_limit *= 1000;
-			if (strstr(optarg, "ms") != NULL)
-			{
-				params.wall_time_limit /= 1000;
-			}
-			else if (strstr(optarg, "min") != NULL)
-			{
-				params.wall_time_limit *= 60;
-			}
-			else if (!is_number(optarg))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of --wall, got ", optarg, NULL));
-			}
-
-			// Sanity check.
-			if (!(params.wall_time_limit / (60 * 1000) == without_mod || params.wall_time_limit / 1000 == without_mod ||
-				params.wall_time_limit == without_mod))
-			{
-				exit_res_manager(EINVAL, NULL, concat("Error: converted result for --wall option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.wall_time_limit), ". Perhaps there was overflow in data converting. ",
-					"Please, specify less positive integer number or use other modifier.", NULL));
-			}
+			convert_time(optarg, "-w", &params.wall_time_limit);
 			is_wall_time_limit_specified = 1;
 			break;
-		}
 		case 'o': // File for output.
 			params.fout = optarg;
 			break;
@@ -1533,6 +1499,7 @@ int main(int argc, char **argv)
 		redirect(2, fstderr); // Redirect stderr.
 		add_task(getpid()); // Attach process to cgroup.
 		execvp(params.command[0], params.command); // Execute command.
+		
 		exit(errno); // Exit on error.
 	}
 	else if (pid == -1)

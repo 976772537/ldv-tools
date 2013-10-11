@@ -680,17 +680,17 @@ int main(int argc, char **argv)
 	timelimit = 5;
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user", "4000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user", "4000", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/sys", "4000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/sys", "4000", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real", "4000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real", "4000", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 
@@ -698,51 +698,51 @@ int main(int argc, char **argv)
 	printf("\n\n2.Tests for time limits with children\n");
 
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user_childs_1", "2000", "2000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user_childs_1", "2000", "2000", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit),  "-o", outputfile, "-l", "ldv", "time/sys_childs_1", "2000", "2000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit),  "-o", outputfile, "-d", "ldv", "time/sys_childs_1", "2000", "2000", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real_childs_1", "2000", "2000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real_childs_1", "2000", "2000", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	timelimit = 11;
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real_childs_1", "1000", "2000", "3000", "4000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real_childs_1", "1000", "2000", "3000", "4000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user_childs_1", "1000", "2000", "3000", "4000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user_childs_1", "1000", "2000", "3000", "4000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/sys_childs_1", "1000", "2000", "3000", "4000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/sys_childs_1", "1000", "2000", "3000", "4000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	timelimit = 130;
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real_childs_2", "128", "1000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real_childs_2", "128", "1000", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user_childs_2", "128", "1000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user_childs_2", "128", "1000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/sys_childs_2", "128", "1000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/sys_childs_2", "128", "1000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
@@ -751,98 +751,98 @@ int main(int argc, char **argv)
 	timelimit = 100;
 	time = 10;
 
-	system(concat("",timeout," -m 100000000 -t 10 -o tmpfile -l ldv time/user 5000"));
+	system(concat("",timeout," -m 100000000 -t 10 -o tmpfile -d ldv time/user 5000"));
 	wait_and_check_time(outputfile, 5);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 10 -o tmpfile -l ldv time/user 5000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 10 -o tmpfile -d ldv time/user 5000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
-	system(concat("",timeout," -m 100000000 -t 10 -o tmpfile -l ldv time/sys 5000"));
+	system(concat("",timeout," -m 100000000 -t 10 -o tmpfile -d ldv time/sys 5000"));
 	wait_and_check_time(outputfile, 5);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 10 -o tmpfile -l ldv time/sys 5000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 10 -o tmpfile -d ldv time/sys 5000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 
-	system(concat("(time -p ",timeout," -m 100000000 -t 10 -o tmpfile -l ldv time/real 5000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 10 -o tmpfile -d ldv time/real 5000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
 	// 4.check time with children
 	printf("\n\n4.Tests for checking time with children\n");
 	
-	system(concat("",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/user_childs_1 1000 2000 3000 4000"));
+	system(concat("",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/user_childs_1 1000 2000 3000 4000"));
 	wait_and_check_time(outputfile, 10);
 	print_stat(outputfile);
 	
-	system(concat("",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/user_childs_2 4 4000"));
+	system(concat("",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/user_childs_2 4 4000"));
 	wait_and_check_time(outputfile, 16);
 	print_stat(outputfile);
 
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/user_childs_1 1000 2000 3000 4000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/user_childs_1 1000 2000 3000 4000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/user_childs_2 16 1000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/user_childs_2 16 1000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/user_childs_2 128 2000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/user_childs_2 128 2000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/user_childs_2 32 12000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/user_childs_2 32 12000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sequential_childs_1 10 1000 2000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sequential_childs_1 10 1000 2000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sequential_childs_1 5 4000 6000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sequential_childs_1 5 4000 6000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sequential_childs_2 10 1 2000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sequential_childs_2 10 1 2000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sequential_childs_2 10 1 2000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sequential_childs_2 10 1 2000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sys_childs_1 1000 2000 3000 4000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sys_childs_1 1000 2000 3000 4000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sys_childs_2 16 1000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sys_childs_2 16 1000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sys_childs_2 128 1000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sys_childs_2 128 1000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/sys_childs_2 32 2000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/sys_childs_2 32 2000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/real_childs_1 1000 2000 3000 4000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/real_childs_1 1000 2000 3000 4000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/real_childs_2 16 1000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/real_childs_2 16 1000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/real_childs_2 128 1000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/real_childs_2 128 1000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
-	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -l ldv time/real_childs_2 32 12000) 2> time_file_"));
+	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/real_childs_2 32 12000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
 	
@@ -851,23 +851,23 @@ int main(int argc, char **argv)
 	
 	memlimit = 110000000;
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-l", "ldv", "memory/limit", "100000000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-d", "ldv", "memory/limit", "100000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-l", "ldv", "memory/limit_child", "10","10000000" ,(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-d", "ldv", "memory/limit_child", "10","10000000" ,(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	// 6. memlimit with children
  	printf("\n\n6.Tests for memory limits with children\n");
 
-	system(concat("",timeout," -m 110000000 -o tmpfile -l ldv memory/limit 100000000"));
+	system(concat("",timeout," -m 110000000 -o tmpfile -d ldv memory/limit 100000000"));
 	wait_and_check_memory(outputfile, 100000000);
 	print_stat(outputfile);
 	
-	system(concat("",timeout," -m 110000000 -o tmpfile -l ldv memory/limit_child 10 10000000"));
+	system(concat("",timeout," -m 110000000 -o tmpfile -d ldv memory/limit_child 10 10000000"));
 	wait_and_check_memory(outputfile, 100000000);
 	print_stat(outputfile);
 
@@ -876,23 +876,23 @@ int main(int argc, char **argv)
 	timelimit = 1;
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/sys", "1",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/sys", "1",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user", "1",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user", "1",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real", "1",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real", "1",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 
 	memlimit = 1*Mb;
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-l", "ldv", "memory/limit", "1" ,(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-d", "ldv", "memory/limit", "1" ,(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 
@@ -902,38 +902,38 @@ int main(int argc, char **argv)
 	memlimit = basememlimit;
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user", "5000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user", "5000", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/sys", "5000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/sys", "5000", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/sys_childs_1", "3000", "2000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/sys_childs_1", "3000", "2000", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user_childs_1", "3000", "2000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user_childs_1", "3000", "2000", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/user_childs_2", "8", "1000", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/user_childs_2", "8", "1000", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
 
 	memlimit = 100000000;
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-l", "ldv", "memory/limit", "100000000" ,(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-d", "ldv", "memory/limit", "100000000" ,(char*)0);
 	wait_memlimit_execution(outputfile);
 	print_stat(outputfile);
 
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-l", "ldv", "memory/limit_child","10", "100000000" ,(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-o", outputfile, "-d", "ldv", "memory/limit_child","10", "100000000" ,(char*)0);
 	wait_memlimit_execution(outputfile);
 	print_stat(outputfile);
 
@@ -942,63 +942,63 @@ int main(int argc, char **argv)
 	timelimit = 100;
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "sdjfkhsdftime/user_childs_2", "4", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "sdjfkhsdftime/user_childs_2", "4", (char*)0);
 	wait_exitcode_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "time", "-o", outputfile, "-l", "ldv", "time/user_childs_2", "4", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "time", "-o", outputfile, "-d", "ldv", "time/user_childs_2", "4", (char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/return", "1", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/return", "1", (char*)0);
 	wait_exitcode_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/return", "-1", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/return", "-1", (char*)0);
 	wait_exitcode_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_num", "15",  (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_num", "15",  (char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_num", "14", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_num", "14", (char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_num", "9", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_num", "9", (char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_num", "2",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_num", "2",(char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_num", "6",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_num", "6",(char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_num", "11", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_num", "11", (char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_num", "8", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_num", "8", (char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	
 	int pid = 0;
 	if ((pid = fork()) == 0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real", "100000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real", "100000",(char*)0);
 	sleep(1);
 	kill(pid, SIGINT);
 	wait_signal_execution_script(outputfile);
@@ -1006,7 +1006,7 @@ int main(int argc, char **argv)
 	
 	pid = 0;
 	if ((pid = fork()) == 0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real", "100000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real", "100000",(char*)0);
 	sleep(1);
 	kill(pid, SIGTERM);
 	wait_signal_execution_script(outputfile);
@@ -1014,7 +1014,7 @@ int main(int argc, char **argv)
 
 	pid = 0;
 	if ((pid = fork()) == 0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real", "2000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real", "2000",(char*)0);
 	sleep(1);
 	kill(pid, SIGABRT);
 	wait_signal_execution_script(outputfile);
@@ -1022,7 +1022,7 @@ int main(int argc, char **argv)
 	
 	pid = 0;
 	if ((pid = fork()) == 0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real", "2000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real", "2000",(char*)0);
 	sleep(1);
 	kill(pid, SIGHUP);
 	wait_signal_execution_script(outputfile);
@@ -1030,7 +1030,7 @@ int main(int argc, char **argv)
 	
 	pid = 0;
 	if ((pid = fork()) == 0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "time/real", "2000",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "time/real", "2000",(char*)0);
 	sleep(1);
 	kill(pid, SIGQUIT);
 	wait_signal_execution_script(outputfile);
@@ -1038,7 +1038,7 @@ int main(int argc, char **argv)
 
 	pid = 0;
 	if ((pid = fork()) == 0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_ign", "2",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_ign", "2",(char*)0);
 	sleep(1);
 	kill(pid, SIGINT);
 	wait_signal_execution_script(outputfile);
@@ -1046,7 +1046,7 @@ int main(int argc, char **argv)
 	
 	pid = 0;
 	if ((pid = fork()) == 0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "errors/sig_ign", "14",(char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "errors/sig_ign", "14",(char*)0);
 	sleep(1);
 	kill(pid, SIGTERM);
 	wait_signal_execution_script(outputfile);
@@ -1056,32 +1056,32 @@ int main(int argc, char **argv)
 	printf("\n\n10.Additional tests for options\n");
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "lv", "errors/return", "0", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "lv", "errors/return", "0", (char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 
 	if (fork()==0)
-		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--stdout", "/dev/null", "ls", "-la", (char*)0);
+		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "--stdout", "/dev/null", "ls", "-la", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--stderr", "/dev/null", "time", "ls",(char*)0);
+		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "--stderr", "/dev/null", "time", "ls",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-l", "ldv", "--stderr", "/dev/null", "--stdout", "/dev/null", "time", "ls",(char*)0);
+		execlp(timeout, timeout, "-m", itoa(memlimit), "-t" , itoa(timelimit), "-o", outputfile, "-d", "ldv", "--stderr", "/dev/null", "--stdout", "/dev/null", "time", "ls",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);	
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "1min", "-o", outputfile, "-l", "ldv", "--interval", "1", "time/user", "1000ms", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "1min", "-o", outputfile, "-d", "ldv", "--interval", "1", "time/user", "1000ms", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "90ms", "-o", outputfile, "-l", "ldv", "--interval", "5", "time/user", "100", (char*)0);
+		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "90ms", "-o", outputfile, "-d", "ldv", "--interval", "5", "time/user", "100", (char*)0);
 	wait_timelimit_execution(outputfile);
 	print_stat(outputfile);
 	
@@ -1092,37 +1092,37 @@ int main(int argc, char **argv)
 	
 	system("echo -e \"memory memory.limit_in_bytes 10000000\nmemory memory.memsw.limit_in_bytes 10000000\" > tmp_file_");
 	if (fork()==0)
-		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_signal_execution(outputfile);
 	print_stat(outputfile);
 	system("rm tmp_file_");
 	
 	system("echo -e \"memory memory.swappiness 0\" > tmp_file_");
 	if (fork()==0)
-		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	system("rm tmp_file_");
 	
 	system("echo -e \"memory memory.limit_in_bytes_ 10000000\" > tmp_file_");
 	if (fork()==0)
-		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	system("rm tmp_file_");
 	
 	if (fork()==0)
-		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-l", "ldv", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "./res_manager_in_res_manager", (char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "./res_manager_in_res_manager", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	if ((pid = fork())==0)
-		execlp("nohup", "nohup", timeout,"-o", outputfile, "-l", "ldv", "time/user", "5000" ,(char*)0);
+		execlp("nohup", "nohup", timeout,"-o", outputfile, "-d", "ldv", "time/user", "5000" ,(char*)0);
 	sleep(1);
 	kill(pid, SIGHUP);
 	wait_normal_execution(outputfile);
@@ -1130,67 +1130,67 @@ int main(int argc, char **argv)
 	
 	// Checking standart overflow (xatol).
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "1000000000000000000000000000000000000000", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-t" , "1000000000000000000000000000000000000000", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	// Checking specific "-m" overflow.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-m" , "100000000000Gb", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-m" , "100000000000Gb", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 
 	// Checking specific "-t" overflow.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "10000000000000000min", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-t" , "10000000000000000min", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	// Checking specific "--wall" overflow.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "--wall" , "100000000000000000ms", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "--wall" , "100000000000000000ms", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	// Checking specific "--interval" overflow.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "--interval" , "1000000000000000000", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "--interval" , "1000000000000000000", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	// Checking double values.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "10.5", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-t" , "10.5", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	// Checking negative values.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "-10", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-t" , "-10", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	
 	// Checking "0" values.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t" , "0", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-t" , "0", "memory/limit", "11000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	// Checking "0" values.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-m" , "0", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-m" , "0", "memory/limit", "11000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	// Checking "0" values.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "--wall" , "0", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "--wall" , "0", "memory/limit", "11000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	
 	// Checking standart values.
 	if (fork()==0)
-		execl(timeout, timeout, "-o", outputfile, "-l", "ldv", "-t", "15min", "--wall", "40min", "-m", "15Gb", "--interval", "1", "memory/limit", "11000000",(char*)0);
+		execl(timeout, timeout, "-o", outputfile, "-d", "ldv", "-t", "15min", "--wall", "40min", "-m", "15Gb", "--interval", "1", "memory/limit", "11000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	

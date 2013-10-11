@@ -61,9 +61,9 @@ sub set_up_timeout
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
 	unshift @cmdline,"-o",$output if $output;
-	unshift @cmdline,"-l", "ldv";
-	unshift @cmdline,"--wall", $walltimelimit if $walltimelimit;
-	unshift @cmdline,"--wall", "0" if $ENV{'RCV_NOWALLTIMELIMIT'};
+	unshift @cmdline,"-d", "ldv";
+	unshift @cmdline,"-w", $walltimelimit if $walltimelimit;
+	unshift @cmdline,"-w", "0" if $ENV{'RCV_NOWALLTIMELIMIT'};
 	unshift @cmdline,$timeout;
 
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
