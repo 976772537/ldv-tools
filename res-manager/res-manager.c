@@ -15,10 +15,10 @@
 #include <unistd.h>
 
 #define STR_LEN 80
-#define STANDART_TIMELIMIT 60e3 /* 60 000 milliseconds or 1 minute */
-#define STANDART_MEMLIMIT 1e9 /* 1 000 000 000 bytes or 1 gigabyte */
+#define DEFAULT_TIME_LIMIT 60e3 /* 60 000 milliseconds or 1 minute */
+#define DEFAULT_MEM_LIMIT 1e9 /* 1 000 000 000 bytes or 1 gigabyte */
 
-#define RESMANAGER_MODIFIER "resource_manager_"
+#define RESOURCE_MANAGER_MODIFIER "resource_manager_"
 
 #define CGROUP "cgroup"
 #define TASKS "tasks"
@@ -36,34 +36,39 @@
 #define VERSION_FILE "/proc/version"
 #define MOUNTS_FILE "/proc/mounts"
 
-// This structure holds exit status of executing command, its time and memory
-// statistics (memory stored in bytes, time in miliseconds (10^(-3) seconds)).
+/*
+ * This structure holds exit status of executing command, its time and memory
+ * consumption statistics. Memory is stored in bytes, time is stored in
+ * miliseconds (10^(-3) seconds)).
+ */
 typedef struct
 {
 	int exit_code;
 	int sig_number;
 	int memory_exhausted;
 	int time_exhausted;
-	int walltime_exhausted;
+	int wall_time_exhausted;
 	uint64_t wall_time;
 	uint64_t cpu_time;
 	uint64_t user_time;
 	uint64_t sys_time;
 	uint64_t memory;
-} statistics;
+} execution_statistics;
 
-// This variable holds command-line parameters, parameters specified for
-// cgroups, file descriptors for redirecting stdout/stdeerr, signal number
-// which was send to Resource Manager.
+/*
+ * This variable holds command-line parameters, parameters specified for
+ * cgroups, file descriptors for redirecting stdout/stdeerr and signal number
+ * that was send to Resource Manager if so.
+ */
 static struct
 {
 	// Command-line parameters.
-	uint64_t timelimit; // In miliseconds.
-	uint64_t walltimelimit; // In miliseconds.
-	uint64_t memlimit; // In bytes.
+	uint64_t time_limit; // In miliseconds.
+	uint64_t wall_time_limit; // In miliseconds.
+	uint64_t mem_limit; // In bytes.
 	char *fout; // File for printing statistics.
 	char **command; // Command for execution.
-	uint64_t alarm_time; // Time in ms (10^-3 seconds) for specifing interval in which timelimit will be checked.
+	uint64_t alarm_time; // Time in ms (10^-3 seconds) for specifing interval in which time limit will be checked.
 
 	// Control group parameters.
 	char *cgroup_memory_origin;
@@ -77,7 +82,7 @@ static struct
 
 	// Signal number that terminates Resource Manager.
 	int script_signal;
-	
+
 	// Time of the start execution of the command.
 	uint64_t start_time;
 } params;
@@ -85,27 +90,27 @@ static struct
 // Pid of child process in which command will be executed.
 static int pid = 0;
 
-/* Functions prototypes. */
+/* Function prototypes. */
 
 static void add_task(int pid);
-static const char *concat(const char *first, ...);
 static int check_tasks(const char *cgroup);
 static void check_time(int signum);
-static void create_cgroup_controllers(const char *resmanager_dir);
-static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes);
-static void find_cgroup(void);
+static const char *concat(const char *first, ...);
+static void create_cgroup(const char *dir);
+static void exit_res_manager(int exit_code, execution_statistics *exec_stats, const char *err_mes);
+static void find_cgroup_controllers(void);
 static const char *get_cgroup_parameter(const char *fname, const char *controller);
+static const char *get_cpu_info(void);
 static const char *get_kernel_info(void);
-static void get_memory_and_cpu_usage(statistics *stats);
+static void get_memory_and_cpu_usage(execution_statistics *exec_stats);
 static const char *get_memory_info(void);
-static const char *get_time(const char *line);
-static void get_user_and_system_time(statistics *stats);
-static const char *get_kernel_info(void);
-static uint64_t gettime(void);
-static void kill_created_processes(int signum);
+static const char *get_sys_user_time(const char *line);
+static void get_user_and_system_time(execution_statistics *exec_stats);
+static uint64_t get_time(void);
 static int is_number(char *str);
 static const char *itoa(uint64_t n);
-static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes);
+static void kill_created_processes(int signum);
+static void print_output(int exit_code, int signal, execution_statistics *exec_stats, const char *err_mes);
 static void print_usage(void);
 static const char *read_first_string_from_file(const char *fname);
 static const char *read_string_from_fp(FILE *fp);
@@ -113,13 +118,13 @@ static void redirect(int fd, const char *fname);
 static void remove_cgroup_controllers(void);
 static void set_cgroup_parameter(const char *fname, const char *controller, const char *value);
 static void set_config(char *fconfig);
-static void set_memlimit(void);
+static void set_mem_limit(void);
 static void set_timer(int alarm_time);
 static void stop_timer(void);
 static void terminate(int signum);
 static uint64_t xatol(const char * string);
-static void *xmalloc(size_t size);
 static FILE *xfopen(const char *fname, const char *mode);
+static void *xmalloc(size_t size);
 static void *xrealloc(void *prev, size_t size);
 
 /* Library functions. */
@@ -128,7 +133,7 @@ static void *xrealloc(void *prev, size_t size);
 static void *xmalloc(size_t size)
 {
 	void *newmem;
-	 
+
 	if (size == 0)
 	{
 		exit_res_manager(EINVAL, NULL, "Error: tried to perform a zero-length allocation");
@@ -190,7 +195,7 @@ static const char *itoa(uint64_t n)
 	for (broken_n = n; (broken_n = broken_n / 10) > 0; order++);
 
 	str = (char *)xmalloc(sizeof(char) * (order + 1));
-	
+
 	// Get string representation of n.
 	broken_n = n;
 	for (int i = order - 1; i >= 0; i--)
@@ -198,30 +203,35 @@ static const char *itoa(uint64_t n)
 		str[i] = broken_n % 10 + '0';
 		broken_n = broken_n / 10;
 	}
-	
-	// Last byte.
+
+	// Properly terminate string.
 	str[order] = '\0';
 
 	return str;
 }
 
-// Convert string into uint64_t and finish Resource Manager in case of any errors.
-// Should be used instead of atol/atoi.
-static uint64_t xatol(const char * string)
+/*
+ * Convert string into uint64_t. Finish Resource Manager in case of any errors.
+ * This function should be used instead of atol/atoi.
+ */
+static uint64_t xatol(const char *string)
 {
-	uint64_t converted_result = strtoll(string, (char**)NULL, 10);
-	
-	// Check, if value cannot be represented.
+	uint64_t converted_result = strtoull(string, (char **)NULL, 10);
+
+	// Check if string cannot be represented as uint64_t.
 	if (errno == ERANGE)
 	{
 		exit_res_manager(errno, NULL, concat(strerror(errno), ": ", string, NULL));
 	}
-	
+
 	return converted_result;
 }
 
-// Concatenate variable number of strings (NULL represents the end of this
-// list) and return resulting string (additional memory in this function).
+/*
+ * Concatenate variable number of strings (NULL represents the end of this list)
+ * and return resulting string (additional memory is allocated in this
+ * function).
+ */
 static const char *concat(const char *first, ...)
 {
 	char *result = (char *)xmalloc((strlen(first) + 1) * sizeof(char));
@@ -244,7 +254,7 @@ static const char *concat(const char *first, ...)
 }
 
 // Get current time in microseconds.
-static uint64_t gettime(void)
+static uint64_t get_time(void)
 {
 	struct timeval time;
 
@@ -253,7 +263,7 @@ static uint64_t gettime(void)
 	return time.tv_sec * 1000 + time.tv_usec / 1000;
 }
 
-// Return true, if string is number.
+// Return true if string is number.
 static int is_number(char *str)
 {
 	if (str == NULL)
@@ -272,8 +282,10 @@ static int is_number(char *str)
 	return 1;
 }
 
-// Return current string terminating with '\n' or EOF from opened file.
-// NULL is returned if file wasn't opened or current file position is EOF.
+/*
+ * Return current string terminating with '\n' or EOF from opened file.
+ * NULL is returned if file wasn't opened or current file position is EOF.
+ */
 static const char *read_string_from_fp(FILE *fp)
 {
 	char *line;
@@ -286,14 +298,14 @@ static const char *read_string_from_fp(FILE *fp)
 
 	line = (char *)xmalloc(sizeof(char) * (STR_LEN + 1));
 
-	// Return NULL if current file position is EOF. 
+	// Return NULL if current file position is EOF.
 	if (fgets(line, STR_LEN, fp) == NULL)
 	{
 		return NULL;
 	}
 
 	// Reallocate memory for string if current string length is more then STR_LEN.
-	while(strchr(line, '\n') == NULL)  
+	while(strchr(line, '\n') == NULL)
 	{
 		char *tmp_line = (char *)xrealloc(line, sizeof(char) * (strlen(line) + STR_LEN + 1));
 		char part_of_line[STR_LEN];
@@ -334,7 +346,7 @@ static const char *get_cpu_info(void)
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s", arg, value);
-		
+
 		// Find string "model name : <cpu_model>"
 		if (strcmp(arg, "model") == 0 && strcmp(value, "name") == 0)
 		{
@@ -343,13 +355,13 @@ static const char *get_cpu_info(void)
 
 			broken_line = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 			strcpy(broken_line, line);
-			
+
 			// Delete all white spaces from line.
 			for (i = 0; broken_line[i] != ':'; i++);
 
 			i += 2;
 			num_of_spaces = i;
-			
+
 			// Get to format "cpu_name".
 			for (;broken_line[i] != '\0'; i++)
 			{
@@ -389,14 +401,14 @@ static const char *get_memory_info(void)
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s", arg, value);
-		
-		//Find string "MemTotal: <memory>"
+
+		// Find string "MemTotal: <memory>"
 		if (strcmp(arg, "MemTotal:") == 0)
 		{
 			fclose(fp);
 			free(arg);
 			free((void *)line);
-			
+
 			return value;
 		}
 
@@ -426,7 +438,7 @@ static const char *get_kernel_info(void)
 	value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 	sscanf(line, "%s %s %s", arg, arg, value);
-	
+
 	// Get kernel verion from string "Linux version <version>".
 	for (int i = 0; value[i] != 0; i++)
 	{
@@ -445,8 +457,8 @@ static const char *get_kernel_info(void)
 
 /* Control groups handling. */
 
-// Find memory and cpuacct controllers.
-static void find_cgroup(void)
+// Find existing memory and cpuacct controllers.
+static void find_cgroup_controllers(void)
 {
 	const char *fname = MOUNTS_FILE;
 	FILE *fp;
@@ -462,7 +474,7 @@ static void find_cgroup(void)
 		char *subsystems = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s %s %s", name, fname, type, subsystems);
-		
+
 		// Cpuacct controller.
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
 		{
@@ -474,7 +486,7 @@ static void find_cgroup(void)
 			strcpy(params.cgroup_cpuacct_origin, fname);
 		}
 
-		//Memory controller.
+		// Memory controller.
 		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, MEMORY_CONTROLLER))
 		{
 			// Path to new cgroup.
@@ -493,7 +505,7 @@ static void find_cgroup(void)
 	}
 
 	fclose(fp);
-	
+
 	// If there is no control groups with memory controller.
 	if (params.cgroup_memory == NULL)
 	{
@@ -507,19 +519,21 @@ static void find_cgroup(void)
 	}
 }
 
-// Create new memory and cpuacct controllers for a new task:
-// <path from /proc/mounts>/<resmanager directory>/<resource manager pid>/<controller>.
-static void create_cgroup_controllers(const char *resmanager_dir)
+/*
+ * Create new control group with memory and cpuacct controllers for a new task:
+ * <path from /proc/mounts>/<directory>/<RESOURCE_MANAGER_MODIFIER><pid>/<controller>.
+ */
+static void create_cgroup(const char *dir)
 {
 	const char *pid_str = itoa(getpid());
 	const char *controllers[2];
-	
+
 	int iterations = 1;
 	int mkdir_errno;
 
 	// Get full paths for control cgroup controllers.
-	params.cgroup_memory = (char *)concat(params.cgroup_memory, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_str, NULL);
-	params.cgroup_cpuacct = (char *)concat(params.cgroup_cpuacct, "/", resmanager_dir, "/", RESMANAGER_MODIFIER, pid_str, NULL);
+	params.cgroup_memory = (char *)concat(params.cgroup_memory, "/", dir, "/", RESOURCE_MANAGER_MODIFIER, pid_str, NULL);
+	params.cgroup_cpuacct = (char *)concat(params.cgroup_cpuacct, "/", dir, "/", RESOURCE_MANAGER_MODIFIER, pid_str, NULL);
 
 	controllers[0] = params.cgroup_memory;
 	controllers[1] = params.cgroup_cpuacct;
@@ -534,19 +548,18 @@ static void create_cgroup_controllers(const char *resmanager_dir)
 
 	for (int i = 0; i <= iterations; i++)
 	{
-		// Create new directory.
+		// Create new directory for controller.
 		if (mkdir(controllers[i], 0777) == -1)
 		{
 			mkdir_errno = errno;
 			if (mkdir_errno == EACCES) // Permission error.
 			{
-				// Text message for memory controller.
 				if (strcmp(controllers[i], params.cgroup_memory) == 0)
 				{
 					exit_res_manager(mkdir_errno, NULL, concat(
 						"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", params.cgroup_memory_origin, NULL));
 				}
-				else // Text message for cpuacct controller.
+				else
 				{
 					exit_res_manager(mkdir_errno, NULL, concat(
 						"Error: you need to change permissions in cgroup directory: sudo chmod o+wt ", params.cgroup_cpuacct_origin, NULL));
@@ -559,7 +572,7 @@ static void create_cgroup_controllers(const char *resmanager_dir)
 					rmdir(controllers[i]);
 					mkdir(controllers[i], 0777);
 				}
-				else // If there is a processes in tasks file Resource Manager will be finished.
+				else // If there is a process in tasks file Resource Manager will be finished.
 				{
 					exit_res_manager(mkdir_errno, NULL, concat(
 						"There is control group with running processes in ", controllers[i], NULL));
@@ -573,8 +586,10 @@ static void create_cgroup_controllers(const char *resmanager_dir)
 	}
 }
 
-// Set parameter into file in control groups. In case of errors Resource Manager
-// will be terminated.
+/*
+ * Set parameter into file in control groups. In case of errors Resource Manager
+ * will be terminated.
+ */
 static void set_cgroup_parameter(const char *fname, const char *controller, const char *value)
 {
 	const char *fname_new = concat(controller, "/", fname, NULL);
@@ -593,15 +608,15 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 			exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
 		}
 	}
-	
+
 	if (chmod(fname_new, 0666) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
-	
+
 	fp = xfopen(fname_new, "w+");
 
-	// Write value to the file. 
+	// Write value to the file.
 	fputs(value, fp);
 
 	fclose(fp);
@@ -611,7 +626,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 /*
  * Get parameter from file in control groups.
  * In case of errors during reading Resource Manager will be terminated.
- * Returns found string.
+ * Return found string.
  */
 static const char *get_cgroup_parameter(const char *fname, const char *controller)
 {
@@ -634,7 +649,7 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 
 	str = read_first_string_from_file(fname_new);
 
-	// Parameter can't be read. 
+	// Parameter can't be read.
 	if (str == NULL)
 	{
 		exit_res_manager(ENOENT, NULL, concat("Error: couldn't read parameter from ", fname_new, NULL));
@@ -646,12 +661,12 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 }
 
 // Set memory limit into memory controller.
-static void set_memlimit(void)
+static void set_mem_limit(void)
 {
-	if (params.memlimit > 0)
+	if (params.mem_limit > 0)
 	{
-		set_cgroup_parameter(MEM_LIMIT, params.cgroup_memory, itoa(params.memlimit));
-		set_cgroup_parameter(MEMSW_LIMIT, params.cgroup_memory, itoa(params.memlimit));
+		set_cgroup_parameter(MEM_LIMIT, params.cgroup_memory, itoa(params.mem_limit));
+		set_cgroup_parameter(MEMSW_LIMIT, params.cgroup_memory, itoa(params.mem_limit));
 	}
 }
 
@@ -667,7 +682,7 @@ static void add_task(int pid)
 }
 
 // Read sys/user time and return it.
-static const char *get_time(const char *line)
+static const char *get_sys_user_time(const char *line)
 {
 	const char *time;
 
@@ -679,14 +694,14 @@ static const char *get_time(const char *line)
 	{
 		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
-		
+
 		// Read value from the string (arg is "user" or "system").
 		if(!(strcmp(arg, "user") != 0 && strcmp(arg, "system") != 0))
 			return NULL;
-		
+
 		sscanf(line, "%s %s", arg, value);
 		time = value;
-		
+
 		free((void *)line);
 		free(arg);
 	}
@@ -699,7 +714,7 @@ static const char *get_time(const char *line)
  *   user <number in ms>
  *   sys <number in ms>.
 */
-static void get_user_and_system_time(statistics *stats)
+static void get_user_and_system_time(execution_statistics *exec_stats)
 {
 	FILE *fp;
 	const char *line;
@@ -709,35 +724,35 @@ static void get_user_and_system_time(statistics *stats)
 	free((void *)fcpu_stat);
 
 	line = read_string_from_fp(fp);
-	stats->user_time = xatol(get_time(line)) * 1e1;
+	exec_stats->user_time = xatol(get_sys_user_time(line)) * 1e1;
 
 	line = read_string_from_fp(fp);
-	stats->sys_time = xatol(get_time(line)) * 1e1;
+	exec_stats->sys_time = xatol(get_sys_user_time(line)) * 1e1;
 
 	fclose(fp);
 }
 
-// Read statistics from controllers.
-static void get_memory_and_cpu_usage(statistics *stats)
+// Read resource usage statistics from controllers.
+static void get_memory_and_cpu_usage(execution_statistics *exec_stats)
 {
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	const char *memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, params.cgroup_memory);
-	
+
 	if (memory_usage == NULL)
 	{
 		memory_usage = get_cgroup_parameter(MEM_MAX_USAGE, params.cgroup_memory);
 	}
 
 	// Get cpu time usage.
-	stats->cpu_time = xatol(cpu_usage) / 1e6;
+	exec_stats->cpu_time = xatol(cpu_usage) / 1e6;
 	free((void *)cpu_usage);
 
 	// Get memory usage.
-	stats->memory = xatol(memory_usage);
+	exec_stats->memory = xatol(memory_usage);
 	free((void *)memory_usage);
 
 	// User and system time (not standart format).
-	get_user_and_system_time(stats);
+	get_user_and_system_time(exec_stats);
 }
 
 // Delete control group controllers.
@@ -746,7 +761,7 @@ static void remove_cgroup_controllers(void)
 	if (params.cgroup_memory != NULL)
 	{
 		rmdir(params.cgroup_memory);
-	}	
+	}
 	// Delete two directories only if they are different.
 	if (params.cgroup_memory != NULL && params.cgroup_cpuacct != NULL)
 	{
@@ -762,15 +777,15 @@ static void remove_cgroup_controllers(void)
 
 /* Main Resource Manager functions. */
 
-// Print statistics into file/console.
-static void print_stats(int exit_code, int signal, statistics *stats, const char *err_mes)
+// Print output into file/console.
+static void print_output(int exit_code, int signal, execution_statistics *exec_stats, const char *err_mes)
 {
 	FILE *fp;
 	const char *kernel = get_kernel_info();
 	const char *memory = get_memory_info();
 	const char *cpu = get_cpu_info();
 
-	// If fout is not specified statistics willbe printed into the stdout.
+	// If fout is not specified output will be printed into the stdout.
 	if (params.fout == NULL)
 	{
 		fp = stdout;
@@ -798,8 +813,8 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 
 	// Print Resource Manager settings.
 	fprintf(fp, "Resource manager settings:\n");
-	fprintf(fp, "\tmemory limit: %lu bytes\n", params.memlimit);
-	fprintf(fp, "\ttime limit: %lu ms\n", params.timelimit);
+	fprintf(fp, "\tmemory limit: %lu bytes\n", params.mem_limit);
+	fprintf(fp, "\ttime limit: %lu ms\n", params.time_limit);
 	fprintf(fp, "\tcommand: ");
 
 	if (params.command != NULL)
@@ -832,43 +847,44 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 	}
 
 	// Only if Resource Manager finished correctly.
-	if (exit_code == 0 && pid > 0 && stats != NULL) 
+	if (exit_code == 0 && pid > 0 && exec_stats != NULL)
 	{
 		// Print command execution status.
 		fprintf(fp, "Command execution status:\n");
-		fprintf(fp, "\texit code: %i\n", stats->exit_code);
+		fprintf(fp, "\texit code: %i\n", exec_stats->exit_code);
 
-		if (stats->sig_number != 0)
+		if (exec_stats->sig_number != 0)
 		{
-			fprintf(fp, "\tkilled by signal: %i (%s)\n", stats->sig_number, strsignal(stats->sig_number));
+			fprintf(fp, "\tkilled by signal: %i (%s)\n", exec_stats->sig_number, strsignal(exec_stats->sig_number));
 		}
 
-		if (params.timelimit != 0 && stats->cpu_time > params.timelimit)
+		if (params.time_limit != 0 && exec_stats->cpu_time > params.time_limit)
 		{
 			fprintf(fp, "\ttime exhausted\n");
 		}
-		else if (params.memlimit != 0 && stats->memory >= params.memlimit)
+		else if (params.mem_limit != 0 && exec_stats->memory >= params.mem_limit)
 		{
 			fprintf(fp, "\tmemory exhausted\n");
 		}
-		else if (params.walltimelimit != 0 && stats->wall_time > params.walltimelimit)
+/* TODO fix problem pattern. */
+		else if (params.wall_time_limit != 0 && exec_stats->wall_time > params.wall_time_limit)
 		{
-			fprintf(fp, "\twalltime exhausted\n");
+			fprintf(fp, "\twall time exhausted\n");
 		}
 		else
 		{
 			fprintf(fp, "\tcompleted in limits\n");
 		}
 
-		// Print time and memory usage. 
+		// Print time and memory usage.
 		fprintf(fp, "Time usage statistics:\n");
-		fprintf(fp, "\twall time: %lu ms\n", stats->wall_time);
-		fprintf(fp, "\tcpu time: %lu ms\n", stats->cpu_time);
-		fprintf(fp, "\tuser time: %lu ms\n", stats->user_time);
-		fprintf(fp, "\tsystem time: %lu ms\n", stats->sys_time);
+		fprintf(fp, "\twall time: %lu ms\n", exec_stats->wall_time);
+		fprintf(fp, "\tcpu time: %lu ms\n", exec_stats->cpu_time);
+		fprintf(fp, "\tuser time: %lu ms\n", exec_stats->user_time);
+		fprintf(fp, "\tsystem time: %lu ms\n", exec_stats->sys_time);
 
 		fprintf(fp, "Memory usage statistics:\n");
-		fprintf(fp, "\tpeak memory usage: %lu bytes\n", stats->memory);
+		fprintf(fp, "\tpeak memory usage: %lu bytes\n", exec_stats->memory);
 	}
 
 	if (params.fout != NULL)
@@ -878,12 +894,12 @@ static void print_stats(int exit_code, int signal, statistics *stats, const char
 }
 
 /*
- * Perform actions, which should be made at the end of Resource Manager:
+ * Perform actions which should be made at the end of Resource Manager work:
  *   kill all created processes (if they were created),
- *   print statistics,
- *   remove control group controllers.
+ *   remove control group controllers,
+ *   print output.
  */
-static void exit_res_manager(int exit_code, statistics *stats, const char *err_mes)
+static void exit_res_manager(int exit_code, execution_statistics *exec_stats, const char *err_mes)
 {
 	if (exit_code && !err_mes)
 	{
@@ -895,7 +911,7 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 		exit_res_manager(EINVAL, NULL, "Error: sanity check failed. Error message was specified but Resource Manager is going to finish successfully");
 	}
 
-	// Close files, in which stdout/stderr was redirected.
+	// Close files in which stdout/stderr was redirected.
 	if (params.stdout != -1)
 	{
 		close(params.stdout);
@@ -908,17 +924,17 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 	// Finish all running processes.
 	kill_created_processes(SIGKILL);
 
-	// Get statistics.
-	if (stats != NULL)
+	// Get resource usage statistics.
+	if (exec_stats != NULL)
 	{
-		get_memory_and_cpu_usage(stats);
+		get_memory_and_cpu_usage(exec_stats);
 	}
 
 	// Remove control group controllers.
 	remove_cgroup_controllers();
 
-	// Print statistics.
-	print_stats(exit_code, params.script_signal, stats, err_mes);
+	// Print output.
+	print_output(exit_code, params.script_signal, exec_stats, err_mes);
 
 	// Finish Resource Manager.
 	if (exit_code != 0)
@@ -929,9 +945,8 @@ static void exit_res_manager(int exit_code, statistics *stats, const char *err_m
 
 /*
  * Config file format:
- *   <file> <value>
- * Write <value> into each <file>.
- * Return err_mes or NULL in case of success.
+ *   <controller> <file> <value>
+ * Write <value> into <file> for <controller>.
  */
 static void set_config(char *fconfig)
 {
@@ -947,6 +962,7 @@ static void set_config(char *fconfig)
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
 		sscanf(line, "%s %s %s", controller, fname, value);
+
 		// Set parameters for cpuacct controller.
 		if (strcmp(controller, CPUACCT_CONTROLLER) == 0)
 		{
@@ -957,6 +973,7 @@ static void set_config(char *fconfig)
 		{
 			set_cgroup_parameter(fname, params.cgroup_memory, value);
 		}
+
 		free((void *)line);
 		free(fname);
 		free(value);
@@ -990,7 +1007,7 @@ static int check_tasks(const char *cgroup)
 	return 1;
 }
 
-// Finishe all created processes.
+// Finish all created processes.
 static void kill_created_processes(int signum)
 {
 	if (pid > 0)
@@ -1012,7 +1029,7 @@ static void kill_created_processes(int signum)
 		}
 
 		free((void *)fname);
-		
+
 		// Kill processes by pids from tasks file.
 		while ((line = read_string_from_fp(fp)) != NULL)
 		{
@@ -1068,20 +1085,19 @@ static void stop_timer(void)
 	free(value);
 }
 
-// Handle SIGALRM, check time limit.
+// Handle SIGALRM, check time limits.
 static void check_time(int signum)
 {
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	uint64_t cpu_time = xatol(cpu_usage) / 1e6;
+	uint64_t wall_time = get_time() - params.start_time;
 
-	uint64_t walltime = gettime() - params.start_time;
-	
 	free((void *)cpu_usage);
 
-	
-	if (cpu_time >= params.timelimit)
+	// Check whether cpu time limit happend.
+	if (params.time_limit != 0)
 	{
-		if (params.timelimit != 0)
+		if (cpu_time >= params.time_limit)
 		{
 			kill_created_processes(SIGKILL);
 		}
@@ -1090,11 +1106,11 @@ static void check_time(int signum)
 	{
 		set_timer(params.alarm_time);
 	}
-	
-	// Unless walltime should not be checked.
-	if (params.walltimelimit != 0)
+
+	// Otherwise check whether wall time limit happend.
+	if (params.wall_time_limit != 0)
 	{
-		if (walltime >= params.walltimelimit)
+		if (wall_time >= params.wall_time_limit)
 		{
 			kill_created_processes(SIGKILL);
 		}
@@ -1108,14 +1124,13 @@ static void redirect(int fd, const char *fname)
 
 	if (fname == NULL)
 	{
-		return;
 	}
 
-	close(fd); // Close stdout/stderr in command execution.
+	close(fd); // Close stdout/stderr.
 
 	fdes[0] = fd;
 
-	// Create new file, in which stdout/stderr will be redirected.
+	// Create new file in which stdout/stderr will be redirected.
 	fdes[1] = open(fname, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
 	if (fdes[1] == -1)
 	{
@@ -1134,55 +1149,51 @@ static void redirect(int fd, const char *fname)
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
 
-	// Save file descriptor, in which stdout/stderr will be redirected.
+	// Save file descriptor in which stdout/stderr will be redirected.
 	if (fd == 1)
 	{
 		params.stdout = fdes[1];
 	}
-	else if (fd == 2)
+	else
 	{
 		params.stderr = fdes[1];
 	}
-	else // Not stdout/stderr.
-	{
-		exit_res_manager(EINVAL, NULL, "Error: only stdout/stderr can be redirected.");
-	}
 }
 
-// Print help
+// Print usage instructions.
 static void print_usage(void)
 {
 	printf(
 		"Usage: [options] [command] [arguments] \n"
 
 		"Options:\n"
-		"\t-h\n"
+		"\t-h, --help\n"
 		"\t\tPrint help.\n"
-		"\t-m <number>\n"
+		"\t-m, --memory-limit <number>\n"
 		"\t\tSet memory limit to <number> bytes. Supported binary prefixes: Kb, Mb, Gb, Kib, Mib, Gib; 1Kb = 1000 bytes,\n"
 		"\t\t1Mb = 1000^2, 1Gb = 1000^3, 1Kib = 1024 bytes, 1Mib = 1024^2, 1Gib = 1024^3 (standardized in IEC 60027-2).\n"
 		"\t\tIf there is no binary prefix then size will be specified in bytes. Default value: 100Mb.\n"
-		"\t-t <number>\n"
+		"\t-t, --time-limit <number>\n"
 		"\t\tSet time limit to <number> seconds. Supported prefixes: ms, min; 1ms = 0.001 seconds, 1min = 60 seconds. \n"
 		"\t\tIf there is no prefix then time will be specified in seconds. Default value: 1min.\n"
-		"\t--wall <number>\n"
+		"\t-w, --wall-time-limit <number>\n"
 		"\t\tSet wall time limit to <number> seconds. Supported prefixes: ms, min; 1ms = 0.001 seconds, 1min = 60 seconds. \n"
 		"\t\tIf there is no prefix then time will be specified in seconds. If value set to 0 then wall time won't be checked.\n"
-		"\t\tDefault value: (2 * timelimit).\n"
+		"\t\tDefault value: (2 X time limit).\n"
 		"\t-o <file>\n"
-		"\t\tPrint statistics into file with name <file>. If option isn't specified statistics will be printed into stdout.\n"
-		"\t-l <dir>\n"
-		"\t\tSpecify subdirectory in control group directory for Resource manager. If option isn't specified then will be used\n"
-		"\t\tcontrol group directory itself.\n"
-		"\t--interval <number>\n"
+		"\t\tPrint output into file <file>. If option isn't specified output will be printed into stdout.\n"
+		"\t-d, --command-cgroup-directory <dir>\n"
+		"\t\tSpecify subdirectory in control group directory where Resource manager will \"run\" command. If option isn't specified\n"
+		"\t\tthen will be used control group directory itself.\n"
+		"\t-i, --interval <number>\n"
 		"\t\tSpecify time (in ms) interval in which time limit will be checked. Default value: 1000 (1 second).\n"
-		"\t--stdout <file>\n"
+		"\t-s, --stdout <file>\n"
 		"\t\tRedirect command stdout into <file>. If option isn't specified then stdout won't be redirected for command.\n"
-		"\t--stderr <file>\n"
+		"\t-e, --stderr <file>\n"
 		"\t\tRedirect command stderr into <file>. If option isn't specified then stderr won't be redirected for command.\n"
-		"\t-l <dir>\n"
-		"\t\tSpecify config file. Config file contains pairs <parameter> <value>, parameter - name of the control group \n"
-		"\t\tparameter, value will be specified for this parameter.\n"
+		"\t-c, --config <dir>\n"
+		"\t\tSpecify config file. Config file contains triples <controller> <parameter> <value>, where controller - name of control\n"
+		"\t\tgroup controller, parameter - name of file (parameter) for this controller, value will be specified for this parameter.\n"
 
 		"Requirements:\n"
 		"\tResource manager is using control groups, which require at least kernel 2.6.24 version.\n"
@@ -1207,7 +1218,7 @@ static void print_usage(void)
 		"\tResource manager runs specified command with given arguments. For this command will be created control group. While\n"
 		"\tcommand is running Resource manager checks cpu time and memory usage. If command uses more cpu time or memory then\n"
 		"\tit will be killed by signal SIGKILL. If signal was send to the command or any error occured during it's execution then\n"
-		"\tcommand will be finished. When command finishes (normally or not), statistics will be written into the specified file\n"
+		"\tcommand will be finished. When command finishes (normally or not), output will be written into the specified file\n"
 		"\t(or to standart output), all created control groups will be deleted.\n"
 
 		"Exit status:\n"
@@ -1250,7 +1261,7 @@ int main(int argc, char **argv)
 {
 	char *fstdout = NULL;
 	char *fstderr = NULL;
-	char *resmanager_dir = ""; // Path to Resource Manager directory in control groups.
+	char *dir = ""; // Path to directory in control groups where Resource Manager will "run" command.
 	char *fconfig = NULL;
 	int comm_arg = 0;
 	int c;
@@ -1259,21 +1270,25 @@ int main(int argc, char **argv)
 	uint64_t time_after;
 	int wait_errno;
 	static struct option long_options[] = {
+		{"help", 1, 0, 'h'},
+		{"memory-limit", 1, 0, 'm'},
+		{"time-limit", 1, 0, 't'},
+		{"wall-time-limit", 1, 0, 'w'},
+		{"command-cgroup", 1, 0, 'd'},
 		{"interval", 1, 0, 'i'},
 		{"stdout", 1, 0, 's'},
 		{"stderr", 1, 0, 'e'},
 		{"config", 1, 0, 'c'},
-		{"wall", 1, 0, 'w'},
 		{0, 0, 0, 0}
 	};
 	int status;
 	int wait_res;
-	statistics *stats;
-	int is_timelimits_specified = 0; // True, if there was option "-t" or "--wall".
+	execution_statistics *exec_stats;
+	int is_wall_time_limit_specified = 0; // True if there was option "-w".
 
-	// Set standart values for parameters.
-	params.timelimit = STANDART_TIMELIMIT;
-	params.memlimit = STANDART_MEMLIMIT;
+	// Set default values for parameters.
+	params.time_limit = DEFAULT_TIME_LIMIT;
+	params.mem_limit = DEFAULT_MEM_LIMIT;
 	params.fout = NULL;
 	params.command = NULL;
 	params.alarm_time = 1000;
@@ -1288,7 +1303,7 @@ int main(int argc, char **argv)
 	// Set handlers for all signals except SIGSTOP, SIGKILL, SIGUSR1, SIGUSR2, SIGALRM, SIGWINCH.
 	for (int i = 1; i <= 31; i++)
 	{
-		void *prev_handler; 
+		void *prev_handler;
 		if (i == SIGSTOP || i == SIGKILL ||i == SIGCHLD || i == SIGUSR1 || i == SIGUSR2 || i == SIGALRM || i == SIGWINCH)
 		{
 			continue;
@@ -1304,6 +1319,7 @@ int main(int argc, char **argv)
 	}
 
 	// Parse command line.
+/* TODO: fixme. */
 	while ((c = getopt_long(argc, argv, "-hm:t:o:l:0", long_options, &option_index)) != -1)
 	{
 		switch(c)
@@ -1335,7 +1351,7 @@ int main(int argc, char **argv)
 				params.alarm_time == without_mod))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: converted result for --interval option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.alarm_time), ". Perhaps there was overflow in data converting. ", 
+					optarg, ", after converting ", itoa(params.alarm_time), ". Perhaps there was overflow in data converting. ",
 					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
 			break;
@@ -1349,54 +1365,54 @@ int main(int argc, char **argv)
 		case 'e': // Sterr file.
 			fstderr = optarg;
 			break;
-		case 'l': // Directory in cgroups.
-			resmanager_dir = optarg;
+		case 'd': // Directory in control groups.
+			dir = optarg;
 			break;
 		case 'm': // Memory limit.
 		{
 			uint64_t without_mod = xatol(optarg);
-			params.memlimit = without_mod;
+			params.mem_limit = without_mod;
 			if (strstr(optarg, "Kb") != NULL)
 			{
-				params.memlimit *= 1000;
+				params.mem_limit *= 1000;
 			}
 			else if (strstr(optarg, "Mb") != NULL)
 			{
-				params.memlimit *= 1000 * 1000;
+				params.mem_limit *= 1000 * 1000;
 			}
 			else if (strstr(optarg, "Gb") != NULL)
 			{
-				params.memlimit *= 1000;
-				params.memlimit *= 1000;
-				params.memlimit *= 1000;
+				params.mem_limit *= 1000;
+				params.mem_limit *= 1000;
+				params.mem_limit *= 1000;
 			}
 			else if (strstr(optarg, "Kib") != NULL)
 			{
-				params.memlimit *= 1024;
+				params.mem_limit *= 1024;
 			}
 			else if (strstr(optarg, "Mib") != NULL)
 			{
-				params.memlimit *= 1024 * 1024;
+				params.mem_limit *= 1024 * 1024;
 			}
 			else if (strstr(optarg, "Gib") != NULL)
 			{
-				params.memlimit *= 1024;
-				params.memlimit *= 1024;
-				params.memlimit *= 1024;
+				params.mem_limit *= 1024;
+				params.mem_limit *= 1024;
+				params.mem_limit *= 1024;
 			}
 			else if (!is_number(optarg))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with Kb|Mb|Gb|Kib|Mib|Gib| modifiers as value of -m, got ", optarg, NULL));
 			}
-			
+
 			// Sanity check.
-			if (!(params.memlimit / (1000) == without_mod || params.memlimit / (1000 * 1000) == without_mod ||
-				params.memlimit / (1000 * 1000 * 1000) == without_mod || params.memlimit / (1024) == without_mod ||
-				params.memlimit / (1024 * 1024) == without_mod || params.memlimit / (1024 * 1024 * 1024) == without_mod ||
-				params.memlimit == without_mod))
+			if (!(params.mem_limit / (1000) == without_mod || params.mem_limit / (1000 * 1000) == without_mod ||
+				params.mem_limit / (1000 * 1000 * 1000) == without_mod || params.mem_limit / (1024) == without_mod ||
+				params.mem_limit / (1024 * 1024) == without_mod || params.mem_limit / (1024 * 1024 * 1024) == without_mod ||
+				params.mem_limit == without_mod))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: converted result for -m option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.memlimit), ". Perhaps there was overflow in data converting. ", 
+					optarg, ", after converting ", itoa(params.mem_limit), ". Perhaps there was overflow in data converting. ",
 					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
 			break;
@@ -1404,16 +1420,16 @@ int main(int argc, char **argv)
 		case 't': // Time limit.
 		{
 			uint64_t without_mod = xatol(optarg);
-			params.timelimit = without_mod;
+			params.time_limit = without_mod;
 			// Convert into ms.
-			params.timelimit *= 1000;
+			params.time_limit *= 1000;
 			if (strstr(optarg, "ms") != NULL)
 			{
-				params.timelimit /= 1000;
+				params.time_limit /= 1000;
 			}
 			else if (strstr(optarg, "min") != NULL)
 			{
-				params.timelimit *= 60;
+				params.time_limit *= 60;
 			}
 			else if (!is_number(optarg))
 			{
@@ -1421,47 +1437,47 @@ int main(int argc, char **argv)
 			}
 
 			// Sanity check.
-			if (!(params.timelimit / (60 * 1000) == without_mod || params.timelimit / 1000 == without_mod ||
-				params.timelimit == without_mod))
+			if (!(params.time_limit / (60 * 1000) == without_mod || params.time_limit / 1000 == without_mod ||
+				params.time_limit == without_mod))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: converted result for -t option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.timelimit), ". Perhaps there was overflow in data converting. ", 
+					optarg, ", after converting ", itoa(params.time_limit), ". Perhaps there was overflow in data converting. ",
 					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
-			is_timelimits_specified = 1;
 			break;
 		}
-		case 'w': // Walltime limit.
+/* TODO: the same as before => need a special function. */
+		case 'w': // Wall time limit.
 		{
 			uint64_t without_mod = xatol(optarg);
-			params.walltimelimit = without_mod;
+			params.wall_time_limit = without_mod;
 			// Convert into ms.
-			params.walltimelimit *= 1000;
+			params.wall_time_limit *= 1000;
 			if (strstr(optarg, "ms") != NULL)
 			{
-				params.walltimelimit /= 1000;
+				params.wall_time_limit /= 1000;
 			}
 			else if (strstr(optarg, "min") != NULL)
 			{
-				params.walltimelimit *= 60;
+				params.wall_time_limit *= 60;
 			}
 			else if (!is_number(optarg))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of --wall, got ", optarg, NULL));
 			}
-			
+
 			// Sanity check.
-			if (!(params.walltimelimit / (60 * 1000) == without_mod || params.walltimelimit / 1000 == without_mod ||
-				params.walltimelimit == without_mod))
+			if (!(params.wall_time_limit / (60 * 1000) == without_mod || params.wall_time_limit / 1000 == without_mod ||
+				params.wall_time_limit == without_mod))
 			{
 				exit_res_manager(EINVAL, NULL, concat("Error: converted result for --wall option does not match expectation; got ",
-					optarg, ", after converting ", itoa(params.walltimelimit), ". Perhaps there was overflow in data converting. ", 
+					optarg, ", after converting ", itoa(params.wall_time_limit), ". Perhaps there was overflow in data converting. ",
 					"Please, specify less positive integer number or use other modifier.", NULL));
 			}
-			is_timelimits_specified = 1;
+			is_wall_time_limit_specified = 1;
 			break;
 		}
-		case 'o': // File for statistics.
+		case 'o': // File for output.
 			params.fout = optarg;
 			break;
 		default: // Command.
@@ -1479,12 +1495,12 @@ int main(int argc, char **argv)
 		exit_res_manager(EINVAL, NULL, "Error: command to be executed wasn't specified. See help for details");
 	}
 
-	// If wall time limit was not specified then it will be (2 * timelimit).
-	if (is_timelimits_specified)
+	// If wall time limit was not specified then it will be (2 X time limit).
+	if (!is_wall_time_limit_specified)
 	{
-		params.walltimelimit = 2 * params.timelimit;
+		params.wall_time_limit = 2 * params.time_limit;
 	}
-	
+
 	// Parse command and its args.
 	optind--; // Optind - index of first argument in command; index of command is needed.
 	params.command = (char **)xmalloc(sizeof(char *) * (argc - optind + 1));
@@ -1495,14 +1511,15 @@ int main(int argc, char **argv)
 	}
 	params.command[comm_arg] = NULL;
 
-	// Create new cgroup for command.
-	find_cgroup();
-	create_cgroup_controllers(resmanager_dir);
+	// Find existing control group controllers.
+	find_cgroup_controllers();
+	// Create new control group for command.
+	create_cgroup(dir);
 
 	// Configure control groups.
-	set_memlimit();
+	set_mem_limit();
 
-	if (fconfig != NULL) // configfile was specified
+	if (fconfig != NULL) // Config file was specified.
 	{
 		set_config(fconfig);
 	}
@@ -1515,7 +1532,7 @@ int main(int argc, char **argv)
 	set_timer(params.alarm_time);
 
 	// Save time before executing command.
-	params.start_time = gettime();
+	params.start_time = get_time();
 
 	// Create new process for command.
 	pid = fork();
@@ -1544,38 +1561,38 @@ int main(int argc, char **argv)
 	}
 
 	// Get time after command has been executed.
-	time_after = gettime();
+	time_after = get_time();
 
 	// Stop checking time limit.
 	stop_timer();
 
-	// Create statistics.
-	stats = (statistics *)xmalloc(sizeof(statistics));
+	// Create execution statistics.
+	exec_stats = (execution_statistics *)xmalloc(sizeof(execution_statistics));
 
 	// Compute wall time.
-	stats->wall_time = time_after - params.start_time;
+	exec_stats->wall_time = time_after - params.start_time;
 
 	// If wait was interrupted by signal and exit code, signal number are unknown.
 	if (wait_errno == EINTR)
 	{
-		stats->exit_code = EINTR;
-		stats->sig_number = SIGKILL;
+		exec_stats->exit_code = EINTR;
+		exec_stats->sig_number = SIGKILL;
 	}
 	else // Wait didn't failed.
 	{
-		stats->exit_code = WEXITSTATUS(status);
+		exec_stats->exit_code = WEXITSTATUS(status);
 		if (WIFSIGNALED(status))
 		{
-			stats->sig_number = WTERMSIG(status);
+			exec_stats->sig_number = WTERMSIG(status);
 		}
 		else
 		{
-			stats->sig_number = 0;
+			exec_stats->sig_number = 0;
 		}
 	}
 
 	// Finish normal execution. So no error is specified as a first parameter.
-	exit_res_manager(0, stats, NULL);
+	exit_res_manager(0, exec_stats, NULL);
 
 	return 0;
 }
