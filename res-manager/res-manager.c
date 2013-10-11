@@ -104,8 +104,7 @@ static const char *get_cpu_info(void);
 static const char *get_kernel_info(void);
 static void get_memory_and_cpu_usage(execution_statistics *exec_stats);
 static const char *get_memory_info(void);
-static const char *get_sys_user_time(const char *line);
-static void get_user_and_system_time(execution_statistics *exec_stats);
+static const char *get_sys_or_user_time(const char *line);
 static uint64_t get_time(void);
 static int is_number(char *str);
 static const char *itoa(uint64_t n);
@@ -682,7 +681,7 @@ static void add_task(int pid)
 }
 
 // Read sys/user time and return it.
-static const char *get_sys_user_time(const char *line)
+static const char *get_sys_or_user_time(const char *line)
 {
 	const char *time;
 
@@ -695,11 +694,13 @@ static const char *get_sys_user_time(const char *line)
 		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
-		// Read value from the string (arg is "user" or "system").
-		if(!(strcmp(arg, "user") != 0 && strcmp(arg, "system") != 0))
-			return NULL;
-
 		sscanf(line, "%s %s", arg, value);
+
+		if(!(strcmp(arg, "user") != 0 && strcmp(arg, "system") != 0))
+		{
+			exit_res_manager(ENOENT, NULL, "Error: neither user nor system time was read from file cpuacct.stats");
+		}
+
 		time = value;
 
 		free((void *)line);
@@ -709,50 +710,40 @@ static const char *get_sys_user_time(const char *line)
 	return time;
 }
 
-/*
- * Read user and system time from cpuacct controller with special format:
- *   user <number in ms>
- *   sys <number in ms>.
-*/
-static void get_user_and_system_time(execution_statistics *exec_stats)
-{
-	FILE *fp;
-	const char *line;
-	const char *fcpu_stat = concat(params.cgroup_cpuacct, "/", CPU_STAT, NULL);
-
-	fp = xfopen(fcpu_stat, "rt");
-	free((void *)fcpu_stat);
-
-	line = read_string_from_fp(fp);
-	exec_stats->user_time = xatol(get_sys_user_time(line)) * 1e1;
-
-	line = read_string_from_fp(fp);
-	exec_stats->sys_time = xatol(get_sys_user_time(line)) * 1e1;
-
-	fclose(fp);
-}
-
 // Read resource usage statistics from controllers.
 static void get_memory_and_cpu_usage(execution_statistics *exec_stats)
 {
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	const char *memory_usage = get_cgroup_parameter(MEMSW_MAX_USAGE, params.cgroup_memory);
+	const char *fcpu_stat = concat(params.cgroup_cpuacct, "/", CPU_STAT, NULL);
+	FILE *fp;
 
 	if (memory_usage == NULL)
 	{
 		memory_usage = get_cgroup_parameter(MEM_MAX_USAGE, params.cgroup_memory);
 	}
 
-	// Get cpu time usage.
+	// Save cpu time usage.
 	exec_stats->cpu_time = xatol(cpu_usage) / 1e6;
 	free((void *)cpu_usage);
 
-	// Get memory usage.
+	// Save memory usage.
 	exec_stats->memory = xatol(memory_usage);
 	free((void *)memory_usage);
 
-	// User and system time (not standart format).
-	get_user_and_system_time(exec_stats);
+	/*
+	 * Read user and system time from cpuacct controller. They have a special
+	 * format:
+	 *   user <number in ms>
+	 *   sys <number in ms>.
+	*/
+	fp = xfopen(fcpu_stat, "rt");
+	free((void *)fcpu_stat);
+
+	exec_stats->user_time = xatol(get_sys_or_user_time(read_string_from_fp(fp))) * 1e1;
+	exec_stats->sys_time = xatol(get_sys_or_user_time(read_string_from_fp(fp))) * 1e1;
+
+	fclose(fp);
 }
 
 // Delete control group controllers.
