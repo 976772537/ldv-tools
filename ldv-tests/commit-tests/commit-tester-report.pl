@@ -84,7 +84,7 @@ else
 #######################################################################
 sub help()
 {
-	print (STDERR << "EOH")
+	print (STDERR << "EOH");
 	TODO
 EOH
 	exit(1);
@@ -131,32 +131,46 @@ sub create_report($)
 	my $link;
 	my $run_name = '';
 	my $num_of_tasks = 0;
+	my $sum_time = 0;
+	my $sum_memory = 0;
+	my $num_of_non_unknowns = 0;
 	my %results_map;
 	print_debug_trace "Reading results..";
 	open($file_in, '<', $file_txt) or die "Couldn't open file '$file_txt' for read: $ERRNO!";
 	while(<$file_in>)
 	{
 		chomp($_);
-		if($_ =~ /commit=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=(.*?);#(.*)<@>(.*)$/)
+		if($_ =~ /commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=(.*?);#(.*)<@>(.*)$/)
 		{
 			$num_of_tasks++;
 			$results_map{$num_of_tasks} = {
 					'commit' => $1,
-					'rule' => $2,
-					'kernel' => $3,
-					'driver' => $4,
-					'main' => $5,
-					'new_verdict' => $6,
-					'ideal_verdict' => $7,
-					'old_verdict' => $8,
-					'comment' => $9,
-					'problems' => $10,
+					'memory' => $2,
+					'time' => $3,
+					'rule' => $4,
+					'kernel' => $5,
+					'driver' => $6,
+					'main' => $7,
+					'new_verdict' => $8,
+					'ideal_verdict' => $9,
+					'old_verdict' => $10,
+					'comment' => $11,
+					'problems' => $12,
 					'verdict_type' => 0
 			};
 			if($results_map{$num_of_tasks}{'comment'} =~ /^#/)
 			{
 				$results_map{$num_of_tasks}{'comment'} = $POSTMATCH;
 				$results_map{$num_of_tasks}{'verdict_type'} = 1;
+			}
+			$sum_time += int($results_map{$num_of_tasks}{'time'})
+				if($results_map{$num_of_tasks}{'time'} !~ /-/);
+			
+			if(($results_map{$num_of_tasks}{'memory'} !~ /-/) and
+				($results_map{$num_of_tasks}{'new_verdict'} ne 'unknown'))
+			{
+				$sum_memory += int($results_map{$num_of_tasks}{'memory'});
+				$num_of_non_unknowns++;
 			}
 		}
 		elsif($_ =~ /link_to_results=(.*)/)
@@ -225,6 +239,8 @@ sub create_report($)
 	<th>Main</th>
 	<th><small>Ideal->New verdict<br>$run_name</small></th>
 	<th>Old->New verdict</th>
+	<th>Memory(b)</th>
+	<th>Time(ms)</th>
 	<th>Comment</th>
 	<th>Problems</th>\n</tr>");
 	my $cnt = 0;
@@ -292,6 +308,8 @@ sub create_report($)
 			print($html_results " style=\"color:#CD2626\"")
 				if($results_map{$i}{'old_verdict'} ne $results_map{$i}{'new_verdict'});
 			print($html_results ">$results_map{$i}{'old_verdict'}->$results_map{$i}{'new_verdict'}</td>
+				<td><small>$results_map{$i}{'memory'}</small></td>
+				<td><small>$results_map{$i}{'time'}</small></td>
 				<td><small>$results_map{$i}{'comment'}</small></td>
 				<td><small>$results_map{$i}{'problems'}</small></td>\n</tr>\n");
 		}
@@ -302,6 +320,8 @@ sub create_report($)
 	print($html_results "<\/table>\n<br><br>");
 	print($html_results "<hr>\n<a href=\"$link\">Link to visualizer with your results.</a>");
 	my $num_of_all_bugs = $num_ideal_unsafe_unsafe + $num_ideal_unsafe_safe + $num_ideal_unsafe_unknown;
+	$sum_memory = int($sum_memory/$num_of_non_unknowns);
+	$sum_time = $sum_time/60000;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Summary</big></p>\n<table border=\"1\">\n<tr>
 		<th style=\"color:#00008B;background:#66CD00\"></th>
 		<th style=\"color:#00008B;background:#66CD00\">Ideal->New verdict</th>\n</tr>\n<tr>
@@ -322,7 +342,8 @@ sub create_report($)
 		<th style=\"color:#00008B;background:#66CD00\">No rule</th>
 		<td style=\"color:#00008B;background:#CAFF70\">$num_of_undev_rules</td>\n</tr>\n</table>\n<hr>
 		<p style=\"color:#483D8B\"><big>Target bugs</big></p>
-		<p>Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br>Total number of bugs: $num_of_all_bugs;</p>\n");
+		<p>Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br>Total number of bugs: $num_of_all_bugs;
+		<br>Expended time: $sum_time minutes;<br>Average memory for each non-unknown task: $sum_memory bytes;</p>\n");
 	
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Comparison with old verdicts</big></p><br>\n<table border=\"1\">\n<tr>
 		<th style=\"color:#00008B;background:#66CD00\"></th>
@@ -407,7 +428,13 @@ sub create_double_report($$)
 	my $name2 = 'second';
 	my $full_name1;
 	my $full_name2;
-
+	my $sum_time1 = 0;
+	my $sum_time2 = 0;
+	my $sum_memory1 = 0;
+	my $sum_memory2 = 0;
+	my $num_of_non_unknowns1 = 0;
+	my $num_of_non_unknowns2 = 0;
+	
 	my $link1;
 	my $link2;
 	my $tmp_name1;
@@ -420,20 +447,22 @@ sub create_double_report($$)
 	while(<$file_in>)
 	{
 		chomp($_);
-		if($_ =~ /^commit=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
+		if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
 		{
 			$num_of_tasks++;
 			$results_map{$num_of_tasks} = {
 					'commit' => $1,
-					'rule' => $2,
-					'kernel' => $3,
-					'driver' => $4,
-					'main' => $5,
-					'first_verdict' => $6,
+					'rule' => $4,
+					'kernel' => $5,
+					'driver' => $6,
+					'main' => $7,
+					'first_verdict' => $8,
 					'second_verdict' => 'n/a',
-					'ideal_verdict' => $7,
-					'comment' => $8,
-					'problems' => $9,
+					'ideal_verdict' => $9,
+					'memory' => $2,
+					'time' => $3,
+					'comment' => $10,
+					'problems' => $11,
 					'verdict_type' => 0
 			};
 			if($results_map{$num_of_tasks}{'comment'} =~ /^#/)
@@ -442,7 +471,16 @@ sub create_double_report($$)
 				$results_map{$num_of_tasks}{'verdict_type'} = 1;
 			}
 			$results_map{$num_of_tasks}{'problems'} = '-'
-				if($results_map{$num_of_tasks}{'problems'} eq '');
+			if($results_map{$num_of_tasks}{'problems'} eq '');
+			
+			$sum_time1 += int($results_map{$num_of_tasks}{'time'})
+				if($results_map{$num_of_tasks}{'time'} !~ /-/);
+			if(($results_map{$num_of_tasks}{'memory'} !~ /-/) and
+				($results_map{$num_of_tasks}{'first_verdict'} ne 'unknown'))
+			{
+				$sum_memory1 += int($results_map{$num_of_tasks}{'memory'});
+				$num_of_non_unknowns1++;
+			}
 		}
 		elsif($_ =~ /^link_to_results=(.*)/)
 		{
@@ -468,19 +506,21 @@ sub create_double_report($$)
 	while(<$file_in>)
 	{
 		chomp($_);
-		if($_ =~ /^commit=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
+		if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
 		{
 			my %tmp_results_map;
 			$tmp_results_map{1} = {
 					'commit' => $1,
-					'rule' => $2,
-					'kernel' => $3,
-					'driver' => $4,
-					'main' => $5,
-					'second_verdict' => $6,
-					'ideal_verdict' => $7,
-					'comment' => $8,
-					'problems' => $9,
+					'rule' => $4,
+					'kernel' => $5,
+					'driver' => $6,
+					'main' => $7,
+					'second_verdict' => $8,
+					'ideal_verdict' => $9,
+					'memory' => $2,
+					'time' => $3,
+					'comment' => $10,
+					'problems' => $11,
 					'verdict_type' => 0,
 					'is_found' => 0
 			};
@@ -491,6 +531,15 @@ sub create_double_report($$)
 			}
 			$tmp_results_map{1}{'problems'} = '-'
 				if($tmp_results_map{1}{'problems'} eq '');
+				
+			$sum_time2 += int($tmp_results_map{1}{'time'})
+				if($tmp_results_map{1}{'time'} !~ /-/);
+			if(($tmp_results_map{1}{'memory'} !~ /-/) and
+				($tmp_results_map{1}{'second_verdict'} ne 'unknown'))
+			{
+				$sum_memory2 += int($tmp_results_map{1}{'memory'});
+				$num_of_non_unknowns2++;
+			}
 			foreach my $key (keys %results_map)
 			{
 				if(($tmp_results_map{1}{'commit'} eq $results_map{$key}{'commit'})
@@ -503,6 +552,8 @@ sub create_double_report($$)
 					$results_map{$key}{'second_verdict'} = $tmp_results_map{1}{'second_verdict'};
 					$results_map{$key}{'problems'} = "$name1: " . $results_map{$key}{'problems'} . "<br>$name2: " . $tmp_results_map{1}{'problems'}
 						if(($results_map{$key}{'first_verdict'} eq 'unknown') or ($tmp_results_map{1}{'second_verdict'} eq 'unknown'));
+					$results_map{$key}{'memory'} = "$name1: " . $results_map{$key}{'memory'} . "<br>$name2: " . $tmp_results_map{1}{'memory'};
+					$results_map{$key}{'time'} = "$name1: " . $results_map{$key}{'time'} . "<br>$name2: " . $tmp_results_map{1}{'time'};
 				}
 			}
 			if($tmp_results_map{1}{'is_found'} == 0)
@@ -512,6 +563,8 @@ sub create_double_report($$)
 				$results_map{$num_of_tasks} = {
 					'commit' => $tmp_results_map{1}{'commit'},
 					'rule' => $tmp_results_map{1}{'rule'},
+					'memory' => $tmp_results_map{1}{'memory'},
+					'time' => $tmp_results_map{1}{'time'},
 					'kernel' => $tmp_results_map{1}{'kernel'},
 					'driver' => $tmp_results_map{1}{'driver'},
 					'main' => $tmp_results_map{1}{'main'},
@@ -592,6 +645,8 @@ sub create_double_report($$)
 	<th>Ideal verdict</th>
 	<th><small>$full_name1</small></th>
 	<th><small>$full_name2</small></th>
+	<th>Memory(b)</th>
+	<th>Time(ms)</th>
 	<th>Comment</th>
 	<th>Problems</th>\n</tr>");
 	my $cnt = 0;
@@ -681,6 +736,8 @@ sub create_double_report($$)
 				if($results_map{$i}{'second_verdict'} ne 'n/a');
 			print($html_results "Not found!") if($results_map{$i}{'second_verdict'} eq 'n/a');
 			print($html_results "</td>
+				<td><small>$results_map{$i}{'memory'}</small></td>
+				<td><small>$results_map{$i}{'time'}</small></td>
 				<td><small>$results_map{$i}{'comment'}</small></td>
 				<td><small>$results_map{$i}{'problems'}</small></td>\n</tr>\n");
 		}
@@ -688,6 +745,12 @@ sub create_double_report($$)
 										and ($results_map{$i}{'rule'} ne 'n/a'));
 		$num_of_undev_rules++ if($results_map{$i}{'rule'} eq 'n/a');
 	}
+
+	$sum_memory1 = int($sum_memory1/$num_of_non_unknowns1);
+	$sum_time1 = $sum_time1/60000;
+	$sum_memory2 = int($sum_memory2/$num_of_non_unknowns2);
+	$sum_time2 = $sum_time2/60000;
+
 	print($html_results "<\/table>\n<br><br>");
 	print($html_results "<hr>\n<a href=\"$link1\">Link to visualizer with your $name1 results.</a><br>\n");
 	print($html_results "<a href=\"$link2\">Link to visualizer with your $name2 results.</a>");
@@ -714,7 +777,9 @@ sub create_double_report($$)
 		<td style=\"color:#00008B;background:#CAFF70\">$num1_safe_unknown</td>
 		<td style=\"color:#00008B;background:#CAFF70\">$num2_safe_unknown</td>\n</tr>\n</table>\n<hr>
 		<p style=\"color:#483D8B\"><big>Target bugs</big></p>
-		<p> Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br> Total number of bugs: $num_of_all_bugs;</p>
+		<p> Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br> Total number of bugs: $num_of_all_bugs;
+		<br>Expended time for $name1: $sum_time1 minutes;<br>Average memory for each non-unknown task ($name1): $sum_memory1 bytes;
+		<br>Expended time for $name2: $sum_time2 minutes;<br>Average memory for each non-unknown task ($name2): $sum_memory2 bytes;</p>
 		<br><p> No main: $num_of_unknown_mains;<br> No rule: $num_of_undev_rules</p><br>");
 	my $cnt2 = 0;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>\n<table border=\"1\">\n<tr>
@@ -772,11 +837,13 @@ sub create_double_report($$)
 sub create_several_report(@)
 {
 	my @files = @_;
-	my $first_file;
 	my $num_of_tasks = 0;
 	my @links;
 	my @full_names;
 	my @names;
+	my @sum_time;
+	my @sum_good_time;
+	my @sum_memory;
 	my %results_map;
 	for(my $i = 0; $i < $num_of_files; $i++)
 	{
@@ -789,24 +856,29 @@ sub create_several_report(@)
 		my $tmp_var = $i + 1;
 		$tmp_var .= 'th';
 		push(@names, "$tmp_var") if($i > 2);
+		$sum_time[$i] = 0;
+		$sum_good_time[$i] = 0;
+		$sum_memory[$i] = 0;
 	}
-	open($first_file, '<', $files[0]) or die "Couldn't open file '$files[0]' for read: $ERRNO!";
+	open(my $first_file, '<', $files[0]) or die "Couldn't open file '$files[0]' for read: $ERRNO!";
 	while(<$first_file>)
 	{
 		chomp($_);
-		if($_ =~ /^commit=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
+		if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
 		{
 			$num_of_tasks++;
 			$results_map{$num_of_tasks} = {
 					'commit' => $1,
-					'rule' => $2,
-					'kernel' => $3,
-					'driver' => $4,
-					'main' => $5,
-					'verdict0' => $6,
-					'ideal_verdict' => $7,
-					'comment' => $8,
-					'problems' => $9,
+					'memory' => $2,
+					'time' => $3,
+					'rule' => $4,
+					'kernel' => $5,
+					'driver' => $6,
+					'main' => $7,
+					'verdict0' => $8,
+					'ideal_verdict' => $9,
+					'comment' => $10,
+					'problems' => $11,
 					'verdict_type' => 0
 			};
 			for(my $i = 1; $i < $num_of_files; $i++)
@@ -822,6 +894,16 @@ sub create_several_report(@)
 				if($results_map{$num_of_tasks}{'problems'} eq '');
 			$results_map{$num_of_tasks}{'problems'} = "$names[0]: " . $results_map{$num_of_tasks}{'problems'}
 				if($results_map{$num_of_tasks}{'verdict0'} eq 'unknown');
+			$sum_time[0] += int($results_map{$num_of_tasks}{'time'})
+				if($results_map{$num_of_tasks}{'time'} !~ /-/);
+			$sum_good_time[0] += int($results_map{$num_of_tasks}{'time'})
+				if(($results_map{$num_of_tasks}{'verdict0'} ne 'unknown')
+				and ($results_map{$num_of_tasks}{'time'} !~ /-/));
+			$sum_memory[0] += int($results_map{$num_of_tasks}{'memory'})
+				if(($results_map{$num_of_tasks}{'memory'} !~ /-/)
+				and ($results_map{$num_of_tasks}{'verdict0'} ne 'unknown'));
+			$results_map{$num_of_tasks}{'memory'} = "$names[0]: " . $results_map{$num_of_tasks}{'memory'};
+			$results_map{$num_of_tasks}{'time'} = "$names[0]: " . $results_map{$num_of_tasks}{'time'};
 		}
 		elsif($_ =~ /^link_to_results=(.*)/)
 		{
@@ -846,19 +928,21 @@ sub create_several_report(@)
 		while(<$next_file>)
 		{
 			chomp($_);
-			if($_ =~ /^commit=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
+			if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
 			{
 				my %tmp_results_map;
 				$tmp_results_map{1} = {
 						'commit' => $1,
-						'rule' => $2,
-						'kernel' => $3,
-						'driver' => $4,
-						'main' => $5,
-						'next_verdict' => $6,
-						'ideal_verdict' => $7,
-						'comment' => $8,
-						'problems' => $9,
+						'memory' => $2,
+						'time' => $3,
+						'rule' => $4,
+						'kernel' => $5,
+						'driver' => $6,
+						'main' => $7,
+						'next_verdict' => $8,
+						'ideal_verdict' => $9,
+						'comment' => $10,
+						'problems' => $11,
 						'verdict_type' => 0,
 						'is_found' => 0
 				};
@@ -881,6 +965,17 @@ sub create_several_report(@)
 						$results_map{$key}{"verdict$i"} = $tmp_results_map{1}{'next_verdict'};
 						$results_map{$key}{'problems'} = $results_map{$key}{'problems'} . "<br>$names[$i]: " . $tmp_results_map{1}{'problems'}
 							if($tmp_results_map{1}{'next_verdict'} eq 'unknown');
+						$results_map{$key}{'memory'} = $results_map{$key}{'memory'} . "<br>$names[$i]: " . $tmp_results_map{1}{'memory'};
+						$results_map{$key}{'time'} = $results_map{$key}{'time'} . "<br>$names[$i]: " . $tmp_results_map{1}{'time'};
+						$sum_time[$i] += int($tmp_results_map{1}{'time'})
+							if($tmp_results_map{1}{'time'} !~ /-/);
+						$sum_good_time[$i] += int($tmp_results_map{1}{'time'})
+							if(($results_map{$key}{"verdict$i"} ne 'unknown')
+							and ($tmp_results_map{1}{'time'} !~ /-/));
+						$sum_memory[$i] += int($tmp_results_map{1}{'memory'})
+							if(($tmp_results_map{1}{'memory'} !~ /-/)
+							and ($results_map{$key}{"verdict$i"} ne 'unknown'));
+
 					}
 				}
 				if($tmp_results_map{1}{'is_found'} == 0)
@@ -899,10 +994,17 @@ sub create_several_report(@)
 						'problems' => $tmp_results_map{1}{'problems'},
 						'verdict_type' => $tmp_results_map{1}{'verdict_type'}
 					};
-					for(my $j = 0; $j < $num_of_files; $j++)
-					{
-						$results_map{$num_of_tasks}{"verdict$j"} = 'n/a' if($i != $j);
-					}
+					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
+					$results_map{$num_of_tasks}{'time'} = "$names[$i]: " . $tmp_results_map{1}{'time'};
+					$sum_time[$i] += int($results_map{$num_of_tasks}{'time'})
+						if($results_map{$num_of_tasks}{'time'} !~ /-/);
+					$sum_good_time[$i] += int($results_map{$num_of_tasks}{'time'})
+						if(($results_map{$num_of_tasks}{'verdict$i'} ne 'unknown')
+						and ($results_map{$num_of_tasks}{'time'} !~ /-/));
+					$sum_memory[$i] += int($results_map{$num_of_tasks}{'memory'})
+						if(($results_map{$num_of_tasks}{'memory'} !~ /-/)
+						and ($results_map{$num_of_tasks}{'verdict$i'} ne 'unknown'));
+
 				}
 			}
 			elsif($_ =~ /^link_to_results=(.*)/)
@@ -920,8 +1022,8 @@ sub create_several_report(@)
 	{
 		for(my $k = 0; $k < $num_of_files; $k++)
 		{
-			$results_map{$num_of_tasks}{"verdict$k"} = 'n/a'
-				unless(defined($results_map{$num_of_tasks}{"verdict$k"}));
+			$results_map{$key}{"verdict$k"} = 'n/a'
+				unless(defined($results_map{$key}{"verdict$k"}));
 		}
 	}
 	print_debug_trace "Starting generation of html report..";
@@ -978,7 +1080,9 @@ sub create_several_report(@)
 	{
 		print($html_results "<th><small>$full_names[$i]</small></th>\n	");
 	}
-	print($html_results "<th>Comment</th>
+	print($html_results "<th>Memory(b)</th>
+	<th>Time(ms)</th>
+	<th>Comment</th>
 	<th>Problems</th>\n</tr>");
 	my $cnt = 0;
 	for(my $i = 1; $i <= $num_of_tasks; $i++)
@@ -1048,7 +1152,9 @@ sub create_several_report(@)
 				print($html_results "</td>\n");
 			}
 			
-			print($html_results "<td><small>$results_map{$i}{'comment'}</small></td>
+			print($html_results "<td>$results_map{$i}{'memory'}</td>
+				<td>$results_map{$i}{'time'}</td>
+				<td><small>$results_map{$i}{'comment'}</small></td>
 				<td><small>$results_map{$i}{'problems'}</small></td>\n</tr>\n");
 		}
 		$num_of_unknown_mains++ if(($results_map{$i}{'main'} eq 'n/a')
@@ -1106,6 +1212,14 @@ sub create_several_report(@)
 		<p style=\"color:#483D8B\"><big>Target bugs</big></p>
 		<p> Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br> Total number of bugs: $num_of_all_bugs;</p>
 		<br><p> No main: $num_of_unknown_mains;<br> No rule: $num_of_undev_rules</p><br>");
+	for(my $j = 0; $j < $num_of_files; $j++)
+	{
+		$sum_memory[$j] = int($sum_memory[$j]/($num_unsafe_safe[$j] + $num_unsafe_unsafe[$j] + $num_safe_safe[$j] + $num_safe_unsafe[$j]));
+		$sum_time[$j] = $sum_time[$j]/60000;
+		print($html_results "Expended time for the $names[$j] run: $sum_time[$j] minutes;<br>");
+		print($html_results "Expended time for the $names[$j] run (including only safe/unsafe results: $sum_good_time[$j] minutes;<br>");
+		print($html_results "Memory for each non-unknown task in the $names[$j] run: $sum_memory[$j] bytes;<br><br>");
+	}
 	my $cnt2 = 0;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>\n<table border=\"1\">\n<tr>
 		<th style=\"background:#00C5CD;color:#191970\">№</th>

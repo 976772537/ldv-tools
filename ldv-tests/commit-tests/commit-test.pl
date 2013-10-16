@@ -144,7 +144,7 @@ prepare_files_and_dirs();
 print_debug_normal("Running test..");
 run_commit_test();
 print_debug_normal("Start uploading results..");
-upload_commit_test_results();
+#upload_commit_test_results();
 print_debug_normal("Starting loading results from the database..");
 load_results();
 print_debug_normal("Starting generation of results");
@@ -266,8 +266,8 @@ sub prepare_files_and_dirs()
 	print_debug_debug("Creating directories for work");
 	mkpath("$launcher_work_dir")
 		or die("Couldn't recursively create directory '$launcher_work_dir': $ERRNO");
-	mkpath("$launcher_results_dir")
-		or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
+	#mkpath("$launcher_results_dir")
+	#	or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
 	my $i = 1;
 	my $commit_test_work_dir;
 	while($i <= $num_of_tasks)
@@ -286,8 +286,8 @@ sub prepare_files_and_dirs()
 		}
 		mkpath("$launcher_work_dir/$commit_test_work_dir")
 			or die("Couldn't recursively create work directory '$commit_test_work_dir': $ERRNO");
-		mkpath("$launcher_results_dir/$commit_test_work_dir")
-			or die("Couldn't recursively create result directory '$commit_test_work_dir': $ERRNO");
+		#mkpath("$launcher_results_dir/$commit_test_work_dir")
+		#	or die("Couldn't recursively create result directory '$commit_test_work_dir': $ERRNO");
 		$task_map{$i}{'workdir'} = $commit_test_work_dir;
 		$i++;
 	}
@@ -629,7 +629,7 @@ sub run_commit_test()
 				case 'cool'
 				{
 					print_debug_normal("Kernel HEAD is now at '$task_map{$i}{'commit'}' = '$new_commit'..");
-					run_ldv_tools($i);
+					#run_ldv_tools($i);
 					foreach my $main_key (keys %task_map)
 					{
 						$task_map{$main_key}{'ldv_run'} = 0
@@ -773,7 +773,7 @@ sub check_results_and_print_report()
 	while(my $line = <$file>)
 	{
 		chomp($line);
-		if($line =~ /^driver=.*;origin=kernel;kernel=(.*);model=(.*);module=(.*);main=(.*);verdict=(\w+)/)
+		if($line =~ /^driver=.*;origin=kernel;kernel=(.*);model=(.*);module=(.*);main=(.*);verdict=(.*);memory=(.*);time=(\d+)/)
 		{
 			$num_of_load_tasks++;
 			$temp_map{$num_of_load_tasks} = {
@@ -782,6 +782,8 @@ sub check_results_and_print_report()
 				'rule' => $2,
 				'main' => $4,
 				'verdict' => $5,
+				'memory' => $6,
+				'time' => $7,
 				'status' => 'na',
 				'problems' => 'na'
 			};
@@ -825,7 +827,7 @@ sub check_results_and_print_report()
 				($temp_name_of_kernel eq $temp_map{$j}{'kernel'}))
 			{
 				$task_map{$i}{'is_in_final'} = 'yes';
-				print($final_results "commit=$task_map{$i}{'commit'};");
+				print($final_results "commit=$task_map{$i}{'commit'};memory=$temp_map{$j}{'memory'};time=$temp_map{$j}{'time'};");
 				print($final_results "rule=$task_map{$i}{'rule'};kernel=$task_map{$i}{'kernel_name'};driver=$task_map{$i}{'driver'};");
 				print($final_results "main=$task_map{$i}{'main'};verdict=$temp_map{$j}{'verdict'};");
 				print($final_results "ideal_verdict=$task_map{$i}{'ideal'};old_verdict=$task_map{$i}{'verdict'};#");
@@ -843,7 +845,7 @@ sub check_results_and_print_report()
 			and ($task_map{$i}{'main'} ne 'n/a')
 			and ($task_map{$i}{'rule'} ne 'n/a'))
 		{
-			print($final_results "commit=$task_map{$i}{'commit'};rule=$task_map{$i}{'rule'};");
+			print($final_results "commit=$task_map{$i}{'commit'};memory=0;time=0;rule=$task_map{$i}{'rule'};");
 			print($final_results "kernel=$task_map{$i}{'kernel_name'};driver=$task_map{$i}{'driver'};");
 			print($final_results "main=$task_map{$i}{'main'};verdict=unknown;");
 			print($final_results "ideal_verdict=$task_map{$i}{'ideal'};old_verdict=$task_map{$i}{'verdict'};#");
@@ -854,7 +856,7 @@ sub check_results_and_print_report()
 		}
 		if(($task_map{$i}{'main'} eq 'n/a') or ($task_map{$i}{'rule'} eq 'n/a'))
 		{
-			print($final_results "commit=$task_map{$i}{'commit'};rule=$task_map{$i}{'rule'};kernel=$task_map{$i}{'kernel_name'};");
+			print($final_results "commit=$task_map{$i}{'commit'};memory=-;time=-;rule=$task_map{$i}{'rule'};kernel=$task_map{$i}{'kernel_name'};");
 			print($final_results "driver=$task_map{$i}{'driver'};main=n/a;verdict=unknown;");
 			print($final_results "ideal_verdict=$task_map{$i}{'ideal'};old_verdict=$task_map{$i}{'verdict'};");
 			print($final_results "#$task_map{$i}{'comment'}<@>\n");
