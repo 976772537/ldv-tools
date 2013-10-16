@@ -1216,8 +1216,9 @@ sub create_several_report(@)
 	{
 		$sum_memory[$j] = int($sum_memory[$j]/($num_unsafe_safe[$j] + $num_unsafe_unsafe[$j] + $num_safe_safe[$j] + $num_safe_unsafe[$j]));
 		$sum_time[$j] = $sum_time[$j]/60000;
+		$sum_good_time[$j] = $sum_good_time[$j]/60000;
 		print($html_results "Expended time for the $names[$j] run: $sum_time[$j] minutes;<br>");
-		print($html_results "Expended time for the $names[$j] run (including only safe/unsafe results: $sum_good_time[$j] minutes;<br>");
+		print($html_results "Expended time for the $names[$j] run (including only safe/unsafe results): $sum_good_time[$j] minutes;<br>");
 		print($html_results "Memory for each non-unknown task in the $names[$j] run: $sum_memory[$j] bytes;<br><br>");
 	}
 	my $cnt2 = 0;
