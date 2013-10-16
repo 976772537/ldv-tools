@@ -144,7 +144,7 @@ prepare_files_and_dirs();
 print_debug_normal("Running test..");
 run_commit_test();
 print_debug_normal("Start uploading results..");
-#upload_commit_test_results();
+upload_commit_test_results();
 print_debug_normal("Starting loading results from the database..");
 load_results();
 print_debug_normal("Starting generation of results");
@@ -266,8 +266,8 @@ sub prepare_files_and_dirs()
 	print_debug_debug("Creating directories for work");
 	mkpath("$launcher_work_dir")
 		or die("Couldn't recursively create directory '$launcher_work_dir': $ERRNO");
-	#mkpath("$launcher_results_dir")
-	#	or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
+	mkpath("$launcher_results_dir")
+		or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
 	my $i = 1;
 	my $commit_test_work_dir;
 	while($i <= $num_of_tasks)
@@ -286,8 +286,8 @@ sub prepare_files_and_dirs()
 		}
 		mkpath("$launcher_work_dir/$commit_test_work_dir")
 			or die("Couldn't recursively create work directory '$commit_test_work_dir': $ERRNO");
-		#mkpath("$launcher_results_dir/$commit_test_work_dir")
-		#	or die("Couldn't recursively create result directory '$commit_test_work_dir': $ERRNO");
+		mkpath("$launcher_results_dir/$commit_test_work_dir")
+			or die("Couldn't recursively create result directory '$commit_test_work_dir': $ERRNO");
 		$task_map{$i}{'workdir'} = $commit_test_work_dir;
 		$i++;
 	}
@@ -629,7 +629,7 @@ sub run_commit_test()
 				case 'cool'
 				{
 					print_debug_normal("Kernel HEAD is now at '$task_map{$i}{'commit'}' = '$new_commit'..");
-					#run_ldv_tools($i);
+					run_ldv_tools($i);
 					foreach my $main_key (keys %task_map)
 					{
 						$task_map{$main_key}{'ldv_run'} = 0
