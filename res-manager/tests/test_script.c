@@ -1079,11 +1079,11 @@ int main(int argc, char **argv)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "1min", "-o", outputfile, "-d", "ldv", "--interval", "1", "time/user", "1000ms", (char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
-	/*
+	
 	if (fork()==0)
 		execl(timeout, timeout, "-m", itoa(memlimit), "-t" , "90ms", "-o", outputfile, "-d", "ldv", "--interval", "5", "time/user", "100", (char*)0);
 	wait_timelimit_execution(outputfile);
-	print_stat(outputfile);*/
+	print_stat(outputfile);
 	
 	if (fork()==0)
 		execl(timeout, timeout, "-h", (char*)0);

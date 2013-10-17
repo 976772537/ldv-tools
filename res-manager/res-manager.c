@@ -30,7 +30,6 @@
 #define MEM_MAX_USAGE "memory.max_usage_in_bytes"
 #define MEMSW_LIMIT "memory.memsw.limit_in_bytes"
 #define MEMSW_MAX_USAGE "memory.memsw.max_usage_in_bytes"
-#define MEM_OOM_CONTROL "memory.oom_control"
 
 #define CPUINFO_FILE "/proc/cpuinfo"
 #define MEMINFO_FILE "/proc/meminfo"
@@ -86,11 +85,6 @@ static struct
 
 	// Time of the start execution of the command.
 	uint64_t start_time;
-
-	// Flags for resource exhausting.
-	int time_exhausted;
-	int wall_time_exhausted;
-	int mem_exhausted;
 } params;
 
 // Pid of child process in which command will be executed.
@@ -99,9 +93,8 @@ static int pid = 0;
 /* Function prototypes. */
 
 static void add_task(int pid);
-static int check_memory_limit(void);
 static int check_tasks(const char *cgroup);
-static void check_limits(int signum);
+static void check_time(int signum);
 static const char *concat(const char *first, ...);
 static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter);
 static void convert_time(char *optarg, const char *option_name, uint64_t *parameter);
@@ -675,13 +668,6 @@ static void set_mem_limit(void)
 	{
 		set_cgroup_parameter(MEM_LIMIT, params.cgroup_memory, itoa(params.mem_limit));
 		set_cgroup_parameter(MEMSW_LIMIT, params.cgroup_memory, itoa(params.mem_limit));
-
-		/*
-		 * Disable default OOM killer that sends SIGKILL to tasks in case of OOM.
-		 * Instead OOM will be checked and task will be terminated explicitly by
-		 * Resource Manager.
-		 */
-		set_cgroup_parameter(MEM_OOM_CONTROL, params.cgroup_memory, "1");
 	}
 }
 
@@ -865,17 +851,17 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 			fprintf(fp, "\tkilled by signal: %i (%s)\n", exec_stats->sig_number, strsignal(exec_stats->sig_number));
 		}
 
-		if (params.time_exhausted)
+		if (params.time_limit != 0 && exec_stats->cpu_time > params.time_limit)
 		{
 			fprintf(fp, "\ttime exhausted\n");
 		}
-		else if (params.wall_time_exhausted)
-		{
-			fprintf(fp, "\twall time exhausted\n");
-		}
-		else if (params.mem_exhausted)
+		else if (params.mem_limit != 0 && exec_stats->memory >= params.mem_limit)
 		{
 			fprintf(fp, "\tmemory exhausted\n");
+		}
+		else if (params.wall_time_limit != 0 && exec_stats->wall_time >= params.wall_time_limit)
+		{
+			fprintf(fp, "\twall time exhausted\n");
 		}
 		else
 		{
@@ -1089,46 +1075,8 @@ static void stop_timer(void)
 	free(value);
 }
 
-// Checks value of under_oom - second parameter in file "memory.oom_control".
-// If it's greater then 0 then returns true, otherwise - false.
-static int check_memory_limit(void)
-{
-	const char *oom_control = concat(params.cgroup_memory, "/", MEM_OOM_CONTROL, NULL);
-	FILE *fp;
-	const char *line;
-
-	fp = xfopen(oom_control, "rt");
-	free((void *)oom_control);
-
-	// Get the second line.
-	read_string_from_fp(fp);
-	line = read_string_from_fp(fp);
-	fclose(fp);
-
-	// Check line.
-	if (line != NULL)
-	{
-		char *arg = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
-		char *value = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
-
-		sscanf(line, "%s %s", arg, value);
-
-		free((void *)arg);
-
-		if (xatol(value))
-		{
-			free((void *)value);
-			return 1; // Line is "under_oom 1".
-		}
-
-		free((void *)value);
-	}
-
-	return 0;
-}
-
 // Handle SIGALRM, check time limits.
-static void check_limits(int signum)
+static void check_time(int signum)
 {
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
 	uint64_t cpu_time = xatol(cpu_usage) / 1e6;
@@ -1141,30 +1089,19 @@ static void check_limits(int signum)
 	{
 		if (cpu_time >= params.time_limit)
 		{
-			params.time_exhausted = 1;
 			kill_created_processes(SIGKILL);
 		}
 	}
 
-	// Check whether wall time limit happend.
+	// Otherwise check whether wall time limit happend.
 	if (params.wall_time_limit != 0)
 	{
 		if (wall_time >= params.wall_time_limit)
 		{
-			params.wall_time_exhausted = 1;
 			kill_created_processes(SIGKILL);
 		}
 	}
-
-	// Check whether memory limit happend.
-	if (params.mem_limit != 0)
-	{
-		if (check_memory_limit())
-		{
-			params.mem_exhausted = 1;
-			kill_created_processes(SIGKILL);
-		}
-	}
+	//set_timer(params.alarm_time);
 }
 
 // Redirect stderr/stdout into file.
@@ -1243,7 +1180,7 @@ static void print_usage(void)
 		"\t\tSpecify subdirectory in control group directory where Resource manager will \"run\" command. If option isn't specified\n"
 		"\t\tthen will be used control group directory itself.\n"
 		"\t-i, --interval <number>\n"
-		"\t\tSpecify time interval (in ms) in which time and memory limits will be checked. Default value is 1000 (1 second).\n"
+		"\t\tSpecify time (in ms) interval in which time limit will be checked. Default value: 1000 (1 second).\n"
 		"\t-s, --stdout <file>\n"
 		"\t\tRedirect command stdout into <file>. If option isn't specified then stdout won't be redirected for command.\n"
 		"\t-e, --stderr <file>\n"
@@ -1314,12 +1251,12 @@ static void print_usage(void)
 	);
 }
 
-// Convert time specifying in seconds with modifiers into milliseconds and check errors.
+// Convert time specifying in seconds with modifiers into milliseconds and check errors. 
 static void convert_time(char *optarg, const char *option_name, uint64_t *parameter)
 {
 	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
-	uint64_t converted = without_mod; // Number after converting into ms and applying modifiers.
-
+	uint64_t converted = without_mod; // Number after converting into ms and applying modifiers. 
+	
 	// Convert into ms.
 	converted *= 1000;
 	if (strstr(optarg, "ms") != NULL)
@@ -1332,10 +1269,10 @@ static void convert_time(char *optarg, const char *option_name, uint64_t *parame
 	}
 	else if (!is_number(optarg))
 	{
-		exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of ",
+		exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of ", 
 			option_name," , got ", optarg, NULL));
 	}
-
+	
 	// Sanity check.
 	if (!(converted / (60 * 1000) == without_mod || converted / 1000 == without_mod ||
 		converted == without_mod))
@@ -1344,16 +1281,16 @@ static void convert_time(char *optarg, const char *option_name, uint64_t *parame
 			optarg, ", after converting ", itoa(converted), ". Perhaps there was overflow in data converting. ",
 			"Please, specify less positive integer number or use other modifier.", NULL));
 	}
-
+	
 	// Set result into specified parameter.
 	*parameter = converted;
 }
 
-// Convert memory specifying in bytes with modifiers and check errors.
+// Convert memory specifying in bytes with modifiers and check errors. 
 static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter)
 {
 	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
-	uint64_t converted = without_mod; // Number after and applying modifiers.
+	uint64_t converted = without_mod; // Number after and applying modifiers. 
 
 	if (strstr(optarg, "Kb") != NULL)
 	{
@@ -1398,7 +1335,7 @@ static void convert_memory(char *optarg, const char *option_name, uint64_t *para
 			optarg, ", after converting ", itoa(converted), ". Perhaps there was overflow in data converting. ",
 			"Please, specify less positive integer number or use other modifier.", NULL));
 	}
-
+	
 	// Set result into specified parameter.
 	*parameter = converted;
 }
@@ -1445,9 +1382,6 @@ int main(int argc, char **argv)
 	params.stdout = -1;
 	params.stderr = -1;
 	params.script_signal = 0;
-	params.time_exhausted = 0;
-	params.wall_time_exhausted = 0;
-	params.mem_exhausted = 0;
 
 	// Set handlers for all signals except SIGSTOP, SIGKILL, SIGUSR1, SIGUSR2, SIGALRM, SIGWINCH.
 	for (int i = 1; i <= 31; i++)
@@ -1548,7 +1482,7 @@ int main(int argc, char **argv)
 	}
 
 	// Set timer for checking time limit.
-	if (signal(SIGALRM, check_limits) == SIG_ERR)
+	if (signal(SIGALRM, check_time) == SIG_ERR)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
 	}
@@ -1565,7 +1499,7 @@ int main(int argc, char **argv)
 		redirect(2, fstderr); // Redirect stderr.
 		add_task(getpid()); // Attach process to cgroup.
 		execvp(params.command[0], params.command); // Execute command.
-
+		
 		exit(errno); // Exit on error.
 	}
 	else if (pid == -1)
