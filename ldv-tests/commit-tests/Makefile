@@ -21,7 +21,10 @@ bindir = ${exec_prefix}/bin
 mandir = ${prefix}/man
 
 # Phony target.
-.PHONY: install
+.PHONY: all install
+
+all:
+	@echo "Nothing to do"
 
 install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
