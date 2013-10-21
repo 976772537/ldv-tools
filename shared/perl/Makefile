@@ -39,7 +39,7 @@ $(call prepare_module,%): $(call prepare_module,%).PL
 $(call compile_module,%): $(call prepare_module,%)
 	@$(MAKE) -C $(perl_compiled_src_dir)/$*
 
-$(call install_module,%): $(call compile_module,%)
+$(call install_module,%):
 	@mkdir -p $(perl_install_dir)/auto/$*
 	cp -rf $(perl_compiled_src_dir)/$*/blib/arch/auto/$*/* $(perl_install_dir)/auto/$*/
 	@mkdir -p $(perl_install_dir)/$*
