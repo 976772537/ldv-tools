@@ -35,6 +35,8 @@ endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
+console-tools: $(call forall_subdirs,$(LDV_SUBDIRS),all)
+
 install: install-console-tools install-ldv-git
 
 install-all: $(call forall_subdirs,$(SUBDIRS),install)
