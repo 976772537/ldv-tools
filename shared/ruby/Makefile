@@ -38,14 +38,14 @@ gems-install: $(foreach gem,$(ruby_gems),$(gem)-install) ;
 logging-compile:
 	cd $(gem_src)/logging && rake gem
 
-logging-install: logging-compile
+logging-install:
 	cd $(gem_src)/logging && $(Gem_install) pkg/logging*.gem
 
 # Default commands which are not tested :)
 %-compile:
 	cd $(gem_src)/$* && rake gem
 
-%-install: %-compile
+%-install:
 	cd $(gem_src)/$* ; $(Gem_install) *.gem
 
 # Install scripts
