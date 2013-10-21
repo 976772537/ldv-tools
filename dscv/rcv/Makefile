@@ -137,7 +137,7 @@ cpachecker-build:
 
 # Installation of CPAchecker submodule
 
-cpachecker-install: cpachecker-build
+cpachecker-install:
 	@mkdir -p $(cpachecker_tmp)
 	tar xfj $(cpachecker_dir)/$(cpachecker_tar) -C $(cpachecker_tmp)
 	rm -rf $(cpachecker_target)
