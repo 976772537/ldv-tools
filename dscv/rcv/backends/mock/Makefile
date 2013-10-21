@@ -16,7 +16,7 @@ tools_target=$(tools_cil:$(cil_dir)/%=$(install_toolsdir)/cil/%)
 # Copy command that resolves symlinks
 inscp=cp -L -f
 
-install: all $(patsubst %,$(prefix)/%,$(binaries)) $(tools_target)
+install: $(patsubst %,$(prefix)/%,$(binaries)) $(tools_target)
 	@echo MOCK installed to $(prefix)
 
 # First rule for cil as it's more specific
