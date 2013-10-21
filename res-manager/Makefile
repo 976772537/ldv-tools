@@ -46,7 +46,6 @@ test:
 	@gcc ${tests}/res_manager_in_res_manager.c -o ${build}/${tests}/res_manager_in_res_manager
 	@cd ${build}/${tests}; ./test_script ../res-manager;
 
-
 clean:
 	@rm -rf ${build}
 
