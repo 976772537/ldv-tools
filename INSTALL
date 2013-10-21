@@ -61,7 +61,6 @@ MINIMAL PREREQUISITES
 	o bzip2
 	o xz
 
-
 ADDITIONAL PREREQUISITES
 
 Additional prereqiosites are not necessary for console tools, but are required
@@ -100,10 +99,6 @@ CLUSTER PREREQUISITES
 	o RabbitMQ server 2.0.0 (greater versions are not supported!)
 		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server_2.0.0-1_all.deb (Debian)
 		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server-2.0.0-1.suse.noarch.rpm (Suse)
-
-
-
-
 
 CONFIGURING EXISTSING SOFTWARE
 
@@ -147,8 +142,24 @@ mysql> flush privileges;
 
 INSTALLING LDV
 
-First, install a prerequisites listed above, according to the path of LDV you
-need.
+Run: 
+make console-tools
+and then:
+sudo prefix=/path/to/your/installation/directory make install-console-tools
+
+If you need to install visualization stuff (most likely you need this if you
+are outside ISP RAS), then read stats-visualizer/README, run:
+make visualization
+and then:
+sudo prefix=/path/to/your/installation/directory make install-visualization
+
+Testing stuff, e.g. for rule models testing, can be installed by:
+make testing
+and:
+sudo prefix=/path/to/your/installation/directory make install-testing
+
+
+TODO: sort the text below out
 
 Note, that '3' and '5' most likely require root privelegies and additional
 tuning. See 'stats-visualizer/README' for details. See 'ldv-online/README'
