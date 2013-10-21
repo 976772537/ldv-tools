@@ -27,7 +27,7 @@ clean:
 	rm -r ${TMP_DIR_DRV} || exit 1
 
 # Installation
-install: all
+install:
 	if [ ! -d $(prefix)/$(GENERAL_TEST_DIR) ]; then mkdir -p $(prefix)/$(GENERAL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR_DRV}/*.tar.bz2 $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
 	cp $(TEST_TASK) $(prefix)/$(GENERAL_TEST_DIR) || exit 1;
