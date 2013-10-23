@@ -82,15 +82,6 @@ for arg in $@; do
 			        exit 1;
 			fi;
 		;;
-		--jobs=*)
-			jobs=`echo $arg | sed 's/--jobs=//g'`
-			if [ -z "$jobs" ]; then
-				jobs=1;
-			fi;
-		;;
-		--check_only=*)
-			check_only=`echo $arg | sed 's/--check_only=//g'`
-		;;
  		--kernel-driver)
                 	KERNEL_LEVEL=1;
                 ;;
@@ -211,8 +202,8 @@ for i in `echo $env | sed 's/--env=//' | tr ':' ' '`; do
 	if [ $KERNEL_LEVEL -eq 1 ]; then koption=--kernel-driver=1; fi;
 	if [ -n "$cmdstream" ]; then stream_option="--cmdstream=$cmdstream"; else stream_option="--driver=$driver"; fi;
 	if [ -n "$check_only" ]; then check_only_mod="--check_only=$check_only"; fi;
-	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --jobs=$jobs $check_only_mod --env=$KERNEL_PATH $stream_option --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
-	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --jobs=$jobs $check_only_mod --env=$KERNEL_PATH $stream_option --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;
+	ldv_print "DEBUG: WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --rule-models=$RULES --report-out=$LDV_CORE_REPORT $koption;";
+	WORK_DIR=$WORK_DIR_LOCAL $LDV_CORE_EXEC --env=$KERNEL_PATH $stream_option --rule-models=$RULES $koption --report-out=$LDV_CORE_REPORT $koption;
 
 	if [ $? -ne 0 ]; then
 		ldv_print "ERROR: ldv-core failed.";

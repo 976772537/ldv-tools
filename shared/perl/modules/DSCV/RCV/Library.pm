@@ -825,9 +825,16 @@ sub cpp_one_file
 	chdir $info->{cwd} or die;
 
 	LDV::Utils::push_instrument("cpp");
-
+	my $gcc = 'gcc';
+	if($ENV{'CONFIG_OPT'})
+	{
+		if($ENV{'CONFIG_OPT'} =~ /^.*,.*,(.*)$/)
+		{
+			$gcc = $1 . 'gcc';
+		}
+	}
 	# We add "-x c" here to make GCC preprocess the input file even if it ends with ".i" suffix.  By default, GCC doesn't preprocess such files.  Moreover, we can't use the bare "cpp" here, as the options are for gcc compiler, and the bare preprocessor will report errors.
-	my @cpp_args = ("gcc","-E","-x","c",
+	my @cpp_args = ("$gcc","-E","-x","c",
 		"-o","$info->{i_file}",	#Output file
 		"$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options

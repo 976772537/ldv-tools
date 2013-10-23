@@ -23,13 +23,23 @@ ldv_print "NORMAL: Kernel version is: $k_kernelversion";
 # if options not set =>
 #   i am set default allmodconfig
 #
+KERNEL_INIT_OPTIONS="make init";
 if [ -n "$LDVGIT_CONFIG_CMD" ]; then
         KERNEL_CONFIG_OPTIONS=$LDVGIT_CONFIG_CMD;
 else
 	if [ ! -n "$DSCR_OPTIONS" ]; then 
 		KERNEL_CONFIG_OPTIONS="make allyesconfig"; 
-	else 
-		KERNEL_CONFIG_OPTIONS="make $DSCR_OPTIONS"; 
+	else
+		ldv_config="$(leave_first $DSCR_OPTIONS)";
+		if [ -z "$ldv_config" ]; then ldv_config="allyesconfig"; fi;
+		ldv_arch="$(leave_second "$DSCR_OPTIONS")";
+		if [ -n "$ldv_arch" ]; then ldv_arch="ARCH=$ldv_arch"; fi;
+		ldv_cross="$(leave_third "$DSCR_OPTIONS")";
+		program_required "${ldv_cross}gcc" \
+		"You can download various cross-compilers from http://kernel.org/pub/tools/crosstool";
+		if [ -n "$ldv_cross" ]; then ldv_cross="CROSS_COMPILE=$ldv_cross"; fi;
+		KERNEL_CONFIG_OPTIONS="make $ldv_arch $ldv_cross $ldv_config";
+		KERNEL_INIT_OPTIONS="make init $ldv_arch $ldv_cross";
 	fi;
 fi;
 ldv_print "NORMAL: Kernel configure command is: \"$KERNEL_CONFIG_OPTIONS\"";
@@ -38,10 +48,11 @@ if [ $? -ne 0 ]; then
         ldv_print "ERROR: command \"$KERNEL_CONFIG_OPTIONS\" failed."
         exit 1;
 fi;
-make init;
+
+eval $KERNEL_INIT_OPTIONS;
 if [ $? -ne 0 ]; then
-        ldv_print "ERROR: make init failed."
-        exit 1;
+	ldv_print "ERROR: make init failed."
+	exit 1;
 fi;
 #
 # try to find "scripts/Makefile.build" in kernel source directory

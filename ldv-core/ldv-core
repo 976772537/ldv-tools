@@ -33,8 +33,6 @@ $ENV{'WORK_DIR'} || die"Please, specify WORK_DIR environment variable!";
 
 use Getopt::Long qw(:config require_order);
 
-my $jobs = 0;
-my $check_only;
 my $config = {
         'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
         'workdir' => $ENV{'WORK_DIR'},
@@ -66,9 +64,7 @@ GetOptions(
 		'env|e=s'=>\$config->{'env'},
 		'cmdstream|s=s'=>\$config->{'cmdstream'},
 		'kernel-driver|k=s'=>\$config->{'kernel-driver'},
-		'driver|d=s'=>\$config->{'driver'},
-		'jobs=i' => \$jobs,
-		'check_only=s' => \$check_only
+		'driver|d=s'=>\$config->{'driver'}
 ) or usage;
 
 use File::Path qw(make_path remove_tree);
@@ -259,8 +255,8 @@ sub start_next {
 				} else {
 					push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
 				}
-
-				if($check_only)
+				my $check_only = $ENV{'CHECK_ONLY'};
+				if(-f "$check_only")
 				{
 					my $module_filter_report = $config->{'csd_tempdir'} . "/module-filter-report";
 					my @filter_args = ("$config->{'module-filter'}",
@@ -556,10 +552,19 @@ sub start_bce {
 		"--env=$config->{'env'}",
 		"--basedir=bce_tempdir",
 		"--state=$config->{'bce_state'}",
-		"--cmdfile-out=$config->{'xml_after_bce'}",
+		"--cmdfile-out=$config->{'xml_after_bce'}"
 	);
-	$jobs = 1 if($jobs <= 0);
-	push(@bce_args, "--jobs=$jobs") if($jobs);
+	if($ENV{'KERNEL_JOBS'})
+	{
+		my $jobs = $ENV{'KERNEL_JOBS'};
+		$jobs = 1 if($jobs <= 0);
+		push(@bce_args, "--jobs=$jobs") if($jobs);
+	}
+	if($ENV{'CONFIG_OPT'})
+	{
+		$build_options = $ENV{'CONFIG_OPT'};
+		push(@bce_args, "--extractor_options=$build_options");
+	}
 	if($config->{'cmdstream'}) {
 		push @bce_args, "--cmdstream=$config->{'cmdstream'}";
 		push @bce_args, '--kernel-driver';

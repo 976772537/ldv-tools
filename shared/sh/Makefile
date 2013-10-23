@@ -1,6 +1,7 @@
 LDV_SHARED_DIRNAME = shared
 LDV_SHARED_SHELL_DIRNAME = sh
 LDV_LOG_SCRIPT = log.sh
+LDV_FUNC_SCRIPT = ldv-functions.sh
 LDV_SHARED_SHELL = $(LDV_SHARED_DIRNAME)/$(LDV_SHARED_SHELL_DIRNAME)
 
 # Top level hierarchy
@@ -21,7 +22,7 @@ all:
 
 install: $(targets)
 	if [ ! -d $(prefix)/$(LDV_SHARED_SHELL) ]; then mkdir -p $(prefix)/$(LDV_SHARED_SHELL); fi;
-	cp -r $(srcdir)/$(LDV_SHARED_SHELL)/$(LDV_LOG_SCRIPT) $(prefix)/$(LDV_SHARED_SHELL)/$(LDV_LOG_SCRIPT);
+	cp -r $(srcdir)/$(LDV_SHARED_SHELL)/$(LDV_LOG_SCRIPT) $(srcdir)/$(LDV_SHARED_SHELL)/$(LDV_FUNC_SCRIPT) $(prefix)/$(LDV_SHARED_SHELL)/;
 
 $(prefix)/$(LDV_SHARED_SHELL)/%: %
 	@mkdir -p $(@D)

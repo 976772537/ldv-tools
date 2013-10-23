@@ -39,6 +39,7 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 USAGE_STRING="...";
 LOG_PREFIX="build-cmd-extractor: ";
 source $LDV_HOME/shared/sh/log.sh;
+source $LDV_HOME/shared/sh/ldv-functions.sh;
 
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
@@ -130,6 +131,13 @@ for arg in $@; do
 		;;
 		--kernel-driver)
 			KERNEL_LEVEL=1;
+		;;
+		--extractor_options=*)
+			build_options=`echo $arg | sed 's/--extractor_options=//g'`
+			if [ -z "$build_options" ]; then
+				ldv_print "ERROR: Parameter \"--extractor_options\" - is null. Setup it.";
+				exit 1;
+			fi;
 		;;
 		*)
 			ldv_print "ERROR: Unknown options: '$arg'.";
@@ -276,13 +284,27 @@ else
 
 	fi;
 
+	if [ -z "$build_options" ]; then
+		build_options="make -j $jobs"
+	else
+		ldv_config="$(leave_first "$build_options")";
+		if [ -n "$ldv_config" ]; then ldv_config="allyesconfig"; fi;
+		ldv_arch="$(leave_second "$build_options")";
+		if [ -n "$ldv_arch" ]; then ldv_arch="ARCH=$ldv_arch"; fi;
+		ldv_cross="$(leave_third "$build_options")";
+		program_required "${ldv_cross}gcc" \
+			 "You can download various cross-compilers from http://kernel.org/pub/tools/crosstool";
+		if [ -n "$ldv_cross" ]; then ldv_cross="CROSS_COMPILE=$ldv_cross"; fi;
+		build_options="make $ldv_arch $ldv_cross -j $jobs"
+	fi;
+	ldv_print "DEBUG: Build options is \"$build_options\";"
 	ldv_print "NORMAL: Make driver."
 	if [ $KERNEL_LEVEL -eq 0 ]; then
 		if [ -n "$CORRECT_KBUILD" ]; then
 			ldv_print "DEBUG: Save cmdstream file.";
 			cp $cmdfileout $cmdfileout.backup;
-			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_KBUILD_DIR/ modules > $statefile 2>&1";
-			BUILDFILE=$cmdfileout make V=1 M=$DRIVER_KBUILD_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_KBUILD_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile";
+			BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_KBUILD_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
 			# only if it ldv-online !!!
 			if [ $? -ne 0 -a -n "$CORRECT_MAKEFILE" ]; then
 				ldv_print "DEBUG: Restore cmd stream \"$cmdfileout\" over previously Kbuild compilation.";
@@ -293,18 +315,18 @@ else
 				ldv_print "TRACE: ln -s `readlink -f .` /lib/modules/`uname -r`/build";
 				ln -s `readlink -f .` /lib/modules/`uname -r`/build;
 				if [ $? -eq 0 ]; then								
-					ldv_print "DEBUG: BUILDFILE=$cmdfileout make -j $jobs -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile;";
-					BUILDFILE=$cmdfileout make -j $jobs -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile;
+					ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile";
+					BUILDFILE=$cmdfileout $build_options -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile;
 					# remove symlink !!!
 				fi;
 			fi;
 		else
-			ldv_print "DEBUG: BUILDFILE=$cmdfileout make -j $jobs V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;";
-			BUILDFILE=$cmdfileout make -j $jobs V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile";
+			BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
 		fi;
 	else
 		# TODO: replace this hack!
-		# prepare kernel for external driver
+		# prepare kernel for internal driver
 		make clean 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
@@ -321,7 +343,7 @@ else
 			exit 1;
 		fi;
 
-		make allyesconfig 2>$statefile;
+		make $ldv_arch $ldv_cross $ldv_config 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
 			ldv_print "ERROR: Can't configure kernel.";
@@ -337,7 +359,7 @@ else
 			exit 1;
 		fi;
 
-		make init 2>$statefile;
+		make init $ldv_arch $ldv_cross 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
 			ldv_print "ERROR: Can't init kernel.";
@@ -364,14 +386,14 @@ else
 			ldv_print "INFO: Single driver compile mode.";
 			ldv_print "DEBUG: Replace \"&\" symbols with whitespaces. It needs for more than one targets!";
 			driver=`echo $driver | tr '&' ' '`;
-			ldv_print "DEBUG: BUILDFILE=$cmdfileout make -j $jobs $driver > $KERNEL_COMPILE_LOG 2>$statefile;";
-			BUILDFILE=$cmdfileout make -j $jobs $driver > $KERNEL_COMPILE_LOG 2>$statefile;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options $driver > $KERNEL_COMPILE_LOG 2>$statefile;";
+			BUILDFILE=$cmdfileout $build_options $driver > $KERNEL_COMPILE_LOG 2>$statefile;
 		else 
 			ldv_print "INFO: Kernel folder compile mode.";
 #			for i in `find . -depth -type d | sed "s/\.\///g"`; do if [ "$i" != "." ]; then i="$i/"; fi;
 			for i in `find $driver -depth -type d | grep -v tmp_versions |sed "s/\.\///g"`; do if [ "$i" != "." ]; then i="$i/"; else continue; fi;
-				ldv_print "BUILDFILE=$cmdfileout make -j $jobs V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;";
-				BUILDFILE=$cmdfileout make -j $jobs V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;
+				ldv_print "BUILDFILE=$cmdfileout $build_options V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile";
+				BUILDFILE=$cmdfileout $build_options V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;
 			done;
 #			if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
 #			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";
