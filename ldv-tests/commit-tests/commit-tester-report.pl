@@ -748,6 +748,7 @@ sub create_double_report($$)
 
 	$sum_memory1 = int($sum_memory1/$num_of_non_unknowns1);
 	$sum_time1 = $sum_time1/60000;
+	$num_of_non_unknowns2 = 1 unless($num_of_non_unknowns2);
 	$sum_memory2 = int($sum_memory2/$num_of_non_unknowns2);
 	$sum_time2 = $sum_time2/60000;
 
@@ -994,16 +995,18 @@ sub create_several_report(@)
 						'problems' => $tmp_results_map{1}{'problems'},
 						'verdict_type' => $tmp_results_map{1}{'verdict_type'}
 					};
+#					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
+					print "ERROR: Undefined time for $results_map{$num_of_tasks}{'commit'}; file $i; \n"  unless(defined($results_map{$num_of_tasks}{'time'}));
+					$sum_time[$i] += int($tmp_results_map{1}{'time'})
+						if($tmp_results_map{1}{'time'} !~ /-/);
+					$sum_good_time[$i] += int($tmp_results_map{1}{'time'})
+						if(($tmp_results_map{1}{'verdict$i'} ne 'unknown')
+						and ($tmp_results_map{1}{'time'} !~ /-/));
+					$sum_memory[$i] += int($tmp_results_map{1}{'memory'})
+						if(($tmp_results_map{1}{'memory'} !~ /-/)
+						and ($tmp_results_map{1}{'verdict$i'} ne 'unknown'));
 					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
-					$results_map{$num_of_tasks}{'time'} = "$names[$i]: " . $tmp_results_map{1}{'time'};
-					$sum_time[$i] += int($results_map{$num_of_tasks}{'time'})
-						if($results_map{$num_of_tasks}{'time'} !~ /-/);
-					$sum_good_time[$i] += int($results_map{$num_of_tasks}{'time'})
-						if(($results_map{$num_of_tasks}{'verdict$i'} ne 'unknown')
-						and ($results_map{$num_of_tasks}{'time'} !~ /-/));
-					$sum_memory[$i] += int($results_map{$num_of_tasks}{'memory'})
-						if(($results_map{$num_of_tasks}{'memory'} !~ /-/)
-						and ($results_map{$num_of_tasks}{'verdict$i'} ne 'unknown'));
+                                        $results_map{$num_of_tasks}{'time'} = "$names[$i]: " . $tmp_results_map{1}{'time'};
 
 				}
 			}
@@ -1214,7 +1217,9 @@ sub create_several_report(@)
 		<br><p> No main: $num_of_unknown_mains;<br> No rule: $num_of_undev_rules</p><br>");
 	for(my $j = 0; $j < $num_of_files; $j++)
 	{
-		$sum_memory[$j] = int($sum_memory[$j]/($num_unsafe_safe[$j] + $num_unsafe_unsafe[$j] + $num_safe_safe[$j] + $num_safe_unsafe[$j]));
+		my $delitel = $num_unsafe_safe[$j] + $num_unsafe_unsafe[$j] + $num_safe_safe[$j] + $num_safe_unsafe[$j];
+		$delitel = 1 unless($delitel);
+		$sum_memory[$j] = int($sum_memory[$j]/$delitel);
 		$sum_time[$j] = $sum_time[$j]/60000;
 		$sum_good_time[$j] = $sum_good_time[$j]/60000;
 		print($html_results "Expended time for the $names[$j] run: $sum_time[$j] minutes;<br>");

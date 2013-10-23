@@ -14,20 +14,39 @@ use FindBin;
 
 my $current_dir = Cwd::cwd() or die("Can't obtain current directory!");
 
-my $ct_result = "$current_dir/commit-tester-results.txt";
-open(MYFILE, '>', "cpachecker-report_commit-tester.xml") or die "ERROR 0.";
+my $ct_result;
+my $comment;
+my $xml_out = "cpachecker-report_commit-tester.xml";
+unless (GetOptions('file|f=s' => \$ct_result,'out|o=s' => \$xml_out, 'comment|c=s' => \$comment))
+{
+	warn("Incorrect options!");
+	exit(1);
+}
+die "Couldn't find file $ct_result! Set it in option --file" unless(-f $ct_result);
+$ct_result = abs_path($ct_result);
+my $memlimit;
+my $timelimit;
+my $verifier;
+my $date_time;
+open(CT_FILE, '<', $ct_result) or die "Couldn't open file '$ct_result' for read: $ERRNO";
+while(<CT_FILE>)
+{
+	chomp($_);
+	if($_ =~ /name_of_runtask=(.*);<br>timelimit=(.*);<br>memlimit=(.*?);<br>(.*?)<br>/)
+	{
+		$memlimit = $3;
+		$timelimit = $2;
+		$verifier = $1;
+		$date_time = $4;
+		last;
+	}
+}
+close(CT_FILE);
+$verifier .= "-$comment" if(defined($comment));
+$comment = 'Commit tester' unless($comment);
+open(MYFILE, '>', $xml_out) or die "Couldn't open file '$xml_out' for write: $ERRNO";
 print(MYFILE "<?xml version=\"1.0\" ?>
-<result benchmarkname=\"predicateAnalysis_simple\" date=\"");
-my ($local_time_min, $local_time_hour, $local_time_day, $local_time_mon, $local_time_year) = (localtime)[1,2,3,4,5];
-printf(MYFILE "%02d.%02d.%04d %02d:%02d", $local_time_day, $local_time_mon,
-	$local_time_year + 1900, $local_time_hour, $local_time_min);
-my $memlimit = '1Gb';
-my $timelimit = '900';
-my $verifier = 'BLAST';
-$memlimit = $ENV{'RCV_MEMLIMIT'} if(defined($ENV{'RCV_MEMLIMIT'}));
-$timelimit = $ENV{'RCV_TIMELIMIT'} if(defined($ENV{'RCV_TIMELIMIT'}));
-$verifier = $ENV{'RCV_VERIFIER'} if(defined($ENV{'RCV_VERIFIER'}));
-print(MYFILE "\" memlimit=\"$memlimit\" options=\"-\" timelimit=\"$timelimit\" tool=\"$verifier\" version=\"--\">
+<result benchmarkname=\"$comment\" date=\"$date_time\" memlimit=\"$memlimit\" options=\"\" timelimit=\"$timelimit\" tool=\"$verifier\" version=\"\">
   <systeminfo hostname=\"hb\">
     <os name=\"linux-stable\"/>
     <cpu cores=\"x\" frequency=\"y\" model=\"Unknown\"/>
@@ -39,11 +58,11 @@ print(MYFILE "\" memlimit=\"$memlimit\" options=\"-\" timelimit=\"$timelimit\" t
     <column title=\"memory\"/>
   </columns>");
 
-open(CT_FILE, '<', $ct_result) or die "ERROR 1.";
+open(CT_FILE, '<', $ct_result) or die "Couldn't open file '$ct_result' for read: $ERRNO";
 while(<CT_FILE>)
 {
 	chomp($_);
-	if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=.*;driver=(.*);main=(.*);verdict=(\w+);/)
+	if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=.*;driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(\w+);/)
 	{
 		my $commit = $1;
 		my $memory = $2;
@@ -52,15 +71,16 @@ while(<CT_FILE>)
 		my $main = $6;
 		my $driver = $5;
 		my $verdict = $7;
+		my $ideal = $8;
 		$verdict = 'UNKNOWN' if($verdict eq 'unknown');
 		$verdict = 'SAFE' if($verdict eq 'safe');
 		$verdict = 'UNSAFE' if($verdict eq 'unsafe');
 		if($main ne 'n/a' and $rule ne 'n/a')
 		{
-			print(MYFILE "<sourcefile name=\"commit=$commit;rule=$rule;$driver;\" options=\"-\">
+			print(MYFILE "<sourcefile name=\"commit=$commit;rule=$rule;$driver;main=$main;ideal_$ideal\" options=\"-\">
 							<column title=\"status\" value=\"$verdict\"/>
-							<column title=\"time\" value=\"$time\"/>
-							<column title=\"memory\" value=\"$memory\"/>
+							<column title=\"Time\" value=\"$time\"/>
+							<column title=\"Memory\" value=\"$memory\"/>
 						   </sourcefile>");
 		}
 	}
@@ -68,3 +88,4 @@ while(<CT_FILE>)
 close(CT_FILE);
 print(MYFILE "</result>");
 close(MYFILE);
+print "Report '$xml_out' was successfully written!\n";
