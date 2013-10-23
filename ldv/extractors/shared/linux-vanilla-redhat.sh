@@ -54,6 +54,7 @@ if [ $? -ne 0 ]; then
 	ldv_print "ERROR: make init failed."
 	exit 1;
 fi;
+
 #
 # try to find "scripts/Makefile.build" in kernel source directory
 # 

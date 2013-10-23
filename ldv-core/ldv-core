@@ -562,7 +562,7 @@ sub start_bce {
 	}
 	if($ENV{'CONFIG_OPT'})
 	{
-		$build_options = $ENV{'CONFIG_OPT'};
+		my $build_options = $ENV{'CONFIG_OPT'};
 		push(@bce_args, "--extractor_options=$build_options");
 	}
 	if($config->{'cmdstream'}) {

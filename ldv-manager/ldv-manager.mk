@@ -33,6 +33,7 @@ endif
 
 ifneq ($(CONFIG_OPT),)
 extractor_options="--extractor-options=$(CONFIG_OPT)"
+endif
 
 # Install dir should be absolutized
 LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
