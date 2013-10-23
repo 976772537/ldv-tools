@@ -111,7 +111,9 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 		my $replace = " ";
 		$value =~ s/$find/$replace/g;
 		$text = $tmp->{full_lhs} . "=" . $value . ";";
-		$text =~ s/\$/->/g; # pointers
+		$text =~ s/\$object\./->/g; # pointers
+		$text =~ s/\$object//g; # pointers
+		$text =~ s/\$//g; # pointers
 		if ($is_prev_lo eq "1")
 		{
 			$prev_assignment_text = $tmp->{full_lhs};
