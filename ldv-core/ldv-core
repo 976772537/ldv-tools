@@ -11,6 +11,7 @@ use XML::Twig;
 use IO::Socket::INET;
 #use File::MimeInfo;
 use File::Basename;
+use Cwd qw(abs_path);
 
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
@@ -564,6 +565,12 @@ sub start_bce {
 	{
 		my $build_options = $ENV{'CONFIG_OPT'};
 		push(@bce_args, "--extractor_options=$build_options");
+	}
+	if($ENV{'CONFIG_FILE'})
+	{
+		my $kernel_config_file = $ENV{'CONFIG_FILE'};
+		$kernel_config_file = abs_path($kernel_config_file);
+		push(@bce_args, "--kernel-config-file=$kernel_config_file");
 	}
 	if($config->{'cmdstream'}) {
 		push @bce_args, "--cmdstream=$config->{'cmdstream'}";

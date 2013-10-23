@@ -171,7 +171,7 @@ add_automaton(tail_automaton(50),'stderr');
 
 # Fix files for cross tool
 my $fix_files = "$fix_file_exe -f \"@files\"";
-print "TRACE: Fixing for compile was successfully completed.\n" if(system($fix_files));
+system($fix_files);
 
 my ($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
 

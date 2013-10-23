@@ -92,6 +92,17 @@ for arg in $@; do
 				exit 1;
 			fi;
 		;;
+		--kernel-config-file=*)
+			kernel_config=`echo $arg | sed 's/--kernel-config-file=//g'`
+			if [ ! -n "$kernel_config" ]; then
+				ldv_print "ERROR: Parameter \"--kernel-config-file\" - is null. Setup it.";
+				exit 1;
+			fi;
+			if [ ! -f "$kernel_config" ]; then
+				ldv_print "ERROR: Couldn't find file: '$kernel_config'.";
+				exit 1;
+			fi;
+		;;
 		--basedir=*)
 			basedir=`echo $arg | sed 's/--basedir=//g'`
 			if [ ! -n "$basedir" ]; then
@@ -359,7 +370,10 @@ else
 		        fi;
 			exit 1;
 		fi;
-
+		if [ -n "$kernel_config" ]; then
+			ldv_print "DEBUG: .config substitution to $kernel_config.";
+			cp "$kernel_config" ".config";
+		fi;
 		ldv_print "DEBUG: make init $ldv_arch $ldv_cross 2>$statefile";
 		make init $ldv_arch $ldv_cross 2>$statefile;
 		if [ $? -ne 0 ]; then 

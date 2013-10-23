@@ -13,7 +13,6 @@ warn("Incorrect options!") unless (GetOptions('files|f=s' => \$files));
 my $working_dir = Cwd::cwd() or die("Can't obtain current directory!");
 $tmp_file = "$working_dir/$tmp_file";
 my @all_files = split(' ', $files);
-print "TEST: all files: '@all_files'\n";
 foreach my $file(@all_files)
 {
 	open(INFILE, '<', $file) or die "Error1";
@@ -24,9 +23,21 @@ foreach my $file(@all_files)
 		{
 			print(TMPFILE "typedef __builtin_va_list __gnuc_va_list;\n");
 		}
+		elsif($_ =~ /^\s*__builtin_va_start \( \( \( __va_list \*\)/)
+		{
+			print(TMPFILE "  __builtin_va_start ( ( ( __builtin_va_list *)$POSTMATCH");
+		}
+		elsif($_ =~ /^\s*__builtin_va_end \( \( \( __va_list \*\)/)
+		{
+			print(TMPFILE "  __builtin_va_end ( ( ( __builtin_va_list *)$POSTMATCH");
+		}
+		elsif($_ =~ /^\s*__builtin_va_copy \( \( \( __va_list \*\)/)
+		{
+			print(TMPFILE "  __builtin_va_copy ( ( ( __builtin_va_list *)$POSTMATCH");
+		}
 		else
 		{
-		print(TMPFILE $_);
+			print(TMPFILE $_);
 		}
 	}
 	close(TMPFILE);
