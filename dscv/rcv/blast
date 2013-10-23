@@ -23,6 +23,10 @@
 #
 # In this file you may see examples of how to use $hints, and how to attach additional files to the report.  You may also see more automata examples here.
 
+use FindBin;
+my $fix_file_exe = "$FindBin::RealBin/../build-cmd-extractor/fix_for_compile.pl";
+-x $fix_file_exe or print "ERROR: Couldn't execute $fix_file_exe!\n";
+
 set_tool_name("BLAST");
 
 # locate blast
@@ -164,6 +168,10 @@ add_automaton(ocaml_detect());
 
 # Dump the last 50 lines from stderr output of the tool
 add_automaton(tail_automaton(50),'stderr');
+
+# Fix files for cross tool
+my $fix_files = "$fix_file_exe -f \"@files\"";
+print "TRACE: Fixing for compile was successfully completed.\n" if(system($fix_files));
 
 my ($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
 

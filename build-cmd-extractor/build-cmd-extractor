@@ -173,8 +173,8 @@ if [ ! -n $basedir ]; then
 	ldv_print "ERROR: Option \"$basedir\" is empty.";
 	print_usage_and_exit;	
 fi;
-if [ -z $jobs ]; then
-	jobs = 1;
+if [ -z "$jobs" ]; then
+	jobs=1;
 fi;
 if [ ! -n "$statefile" ]; then
 	ldv_print "ERROR: Parameter \"--state\" - is null. Setup it.";
@@ -288,7 +288,6 @@ else
 		build_options="make -j $jobs"
 	else
 		ldv_config="$(leave_first "$build_options")";
-		if [ -n "$ldv_config" ]; then ldv_config="allyesconfig"; fi;
 		ldv_arch="$(leave_second "$build_options")";
 		if [ -n "$ldv_arch" ]; then ldv_arch="ARCH=$ldv_arch"; fi;
 		ldv_cross="$(leave_third "$build_options")";
@@ -297,6 +296,7 @@ else
 		if [ -n "$ldv_cross" ]; then ldv_cross="CROSS_COMPILE=$ldv_cross"; fi;
 		build_options="make $ldv_arch $ldv_cross -j $jobs"
 	fi;
+	if [ -z "$ldv_config" ]; then ldv_config="allmodconfig"; fi;
 	ldv_print "DEBUG: Build options is \"$build_options\";"
 	ldv_print "NORMAL: Make driver."
 	if [ $KERNEL_LEVEL -eq 0 ]; then
@@ -343,6 +343,7 @@ else
 			exit 1;
 		fi;
 
+		ldv_print "DEBUG: make $ldv_arch $ldv_cross $ldv_config 2>$statefile";
 		make $ldv_arch $ldv_cross $ldv_config 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
@@ -359,6 +360,7 @@ else
 			exit 1;
 		fi;
 
+		ldv_print "DEBUG: make init $ldv_arch $ldv_cross 2>$statefile";
 		make init $ldv_arch $ldv_cross 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
