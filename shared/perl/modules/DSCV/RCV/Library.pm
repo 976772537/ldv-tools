@@ -38,6 +38,8 @@ use IPC::Open3;
 use File::Basename;
 use File::Path qw(mkpath);
 use File::Spec::Functions;
+use FindBin;
+my $fix_file_exe = "$FindBin::RealBin/../oioioi/fix_for_compile.pl";
 
 # Global context; altered by the user from the env
 my $context = undef;
@@ -81,7 +83,10 @@ sub preprocess_all_files
 	my $c_file_opt = {map {$_->[0] => $_->[1]} @$c_file_opt_list};
 	# Make the list itself
 	my $c_file_list = [map {$_->[0]} @$c_file_opt_list];
-
+	vsay ("DEBUG", "Fixing files for ARM.");
+	-x $fix_file_exe or print "ERROR: Couldn't execute $fix_file_exe!\n";
+	my $fix_files = "$fix_file_exe -f \"@$c_file_list\"";
+	system($fix_files);
 	# Preprocessing step (we don't want them to clash);
 	my $prep_step = 1;
 

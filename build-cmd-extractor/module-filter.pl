@@ -121,7 +121,8 @@ sub start()
 	if($module)
 	{
 		open(MYFILE, '>>', $opt_results_file) or die "Couldn't open";
-		print(MYFILE "id=$ld_id;driver=$module:\nfiles:@mod_our_files;\n");
+		my $mod_our_files_str = join(',', @mod_our_files);
+		print(MYFILE "id=$ld_id;driver=$module;files:$mod_our_files_str;\n");
 		close(MYFILE);
 		`sed -i -e 's/ /;/g' $opt_results_file`;
 		print_debug_debug("Driver in command id = $ld_id is found: '$module'");
