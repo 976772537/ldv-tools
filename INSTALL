@@ -27,7 +27,7 @@ MINIMAL PREREQUISITES
 	o MPFR Library, development version
 	o Flex or lex
 	o Yacc or Bison
-	o libcgroup
+	o libcgroup and tools to control and monitor control groups
 	o libncurses
 	o MySQL (with InnoDB) server and console client, with development headers and libraries
 	o Perl modules (install via `sudo cpan Module::Name` or via package manager):
