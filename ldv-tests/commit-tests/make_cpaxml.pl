@@ -16,8 +16,13 @@ my $current_dir = Cwd::cwd() or die("Can't obtain current directory!");
 
 my $ct_result;
 my $comment;
+my $only_unsafe;
 my $xml_out = "cpachecker-report_commit-tester.xml";
-unless (GetOptions('file|f=s' => \$ct_result,'out|o=s' => \$xml_out, 'comment|c=s' => \$comment))
+unless (GetOptions(
+					'file|f=s' => \$ct_result,
+					'out|o=s' => \$xml_out,
+					'comment|c=s' => \$comment,
+					'unsafe|u' =>\$only_unsafe))
 {
 	warn("Incorrect options!");
 	exit(1);
@@ -62,7 +67,7 @@ open(CT_FILE, '<', $ct_result) or die "Couldn't open file '$ct_result' for read:
 while(<CT_FILE>)
 {
 	chomp($_);
-	if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=.*;driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(\w+);/)
+	if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=.*;driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=(\w+);#/)
 	{
 		my $commit = $1;
 		my $memory = $2;
@@ -75,13 +80,17 @@ while(<CT_FILE>)
 		$verdict = 'UNKNOWN' if($verdict eq 'unknown');
 		$verdict = 'SAFE' if($verdict eq 'safe');
 		$verdict = 'UNSAFE' if($verdict eq 'unsafe');
-		if($main ne 'n/a' and $rule ne 'n/a')
+		if((defined($only_unsafe) and ($POSTMATCH !~ /^#/) and ($ideal eq 'unsafe') and ($memory ne '0'))
+			or (! defined($only_unsafe)))
 		{
-			print(MYFILE "<sourcefile name=\"commit=$commit;rule=$rule;$driver;main=$main;ideal_$ideal\" options=\"-\">
-							<column title=\"status\" value=\"$verdict\"/>
-							<column title=\"Time\" value=\"$time\"/>
-							<column title=\"Memory\" value=\"$memory\"/>
-						   </sourcefile>");
+			if($main ne 'n/a' and $rule ne 'n/a')
+			{
+				print(MYFILE "<sourcefile name=\"commit=$commit;rule=$rule;$driver;main=$main;ideal_$ideal\" options=\"-\">
+								<column title=\"status\" value=\"$verdict\"/>
+								<column title=\"Time\" value=\"$time\"/>
+								<column title=\"Memory\" value=\"$memory\"/>
+							   </sourcefile>");
+			}
 		}
 	}
 }
