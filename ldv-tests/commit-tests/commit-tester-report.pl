@@ -320,6 +320,7 @@ sub create_report($)
 	print($html_results "<\/table>\n<br><br>");
 	print($html_results "<hr>\n<a href=\"$link\">Link to visualizer with your results.</a>");
 	my $num_of_all_bugs = $num_ideal_unsafe_unsafe + $num_ideal_unsafe_safe + $num_ideal_unsafe_unknown;
+	$sum_memory = 1 unless($sum_memory);
 	$sum_memory = int($sum_memory/$num_of_non_unknowns);
 	$sum_time = $sum_time/60000;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Summary</big></p>\n<table border=\"1\">\n<tr>
