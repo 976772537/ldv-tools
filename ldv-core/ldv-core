@@ -34,6 +34,8 @@ $ENV{'WORK_DIR'} || die"Please, specify WORK_DIR environment variable!";
 
 use Getopt::Long qw(:config require_order);
 
+my $jobs = 0;
+
 my $config = {
         'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
         'workdir' => $ENV{'WORK_DIR'},
@@ -59,12 +61,13 @@ my $config = {
 };
 
 GetOptions(
-        'rule-models|m=s'=>\$config->{'rule-models'},
-        'report-out|o=s'=>\$config->{'report-out'},
-        'env|e=s'=>\$config->{'env'},
-        'cmdstream|s=s'=>\$config->{'cmdstream'},
-        'kernel-driver|k=s'=>\$config->{'kernel-driver'},
-        'driver|d=s'=>\$config->{'driver'},
+		'rule-models|m=s'=>\$config->{'rule-models'},
+		'report-out|o=s'=>\$config->{'report-out'},
+		'env|e=s'=>\$config->{'env'},
+		'cmdstream|s=s'=>\$config->{'cmdstream'},
+		'kernel-driver|k=s'=>\$config->{'kernel-driver'},
+		'driver|d=s'=>\$config->{'driver'},
+		'jobs=i' => \$jobs,
 ) or usage;
 
 use File::Path qw(make_path remove_tree);
@@ -533,6 +536,8 @@ sub start_bce {
 		"--state=$config->{'bce_state'}",
 		"--cmdfile-out=$config->{'xml_after_bce'}",
 	);
+	$jobs = 1 if($jobs <= 0);
+	push(@bce_args, "--jobs=$jobs") if($jobs);
 	if($config->{'cmdstream'}) {
 		push @bce_args, "--cmdstream=$config->{'cmdstream'}";
 		push @bce_args, '--kernel-driver';
