@@ -39,7 +39,7 @@ use File::Basename;
 use File::Path qw(mkpath);
 use File::Spec::Functions;
 use FindBin;
-my $fix_file_exe = "$FindBin::RealBin/../oioioi/fix_for_compile.pl";
+my $fix_file_exe = "$FindBin::RealBin/../build-cmd-extractor/fix_for_compile.pl";
 
 # Global context; altered by the user from the env
 my $context = undef;
