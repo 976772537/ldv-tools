@@ -13,6 +13,7 @@ warn("Incorrect options!") unless (GetOptions('files|f=s' => \$files));
 my $working_dir = Cwd::cwd() or die("Can't obtain current directory!");
 $tmp_file = "$working_dir/$tmp_file";
 my @all_files = split(' ', $files);
+print "TEST: files: '@all_files'\n";
 foreach my $file(@all_files)
 {
 	open(INFILE, '<', $file) or die "Error1";

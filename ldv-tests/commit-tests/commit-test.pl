@@ -120,6 +120,11 @@ my $tool_aux_dir = "$FindBin::RealBin/../ldv-tests/commit-tests";
 # auxiliary directory.
 my $upload_script = 'commit-upload.pl';
 my $load_script = 'commit-load.pl';
+my $report_script = 'commit-tester-report.pl';
+
+my $comment_for_report;
+
+my $do_rewrite;
 #######################################################################
 # Main section
 #######################################################################
@@ -156,7 +161,9 @@ sub get_test_opt()
 		'result-file|o=s' => \$opt_result_file,
 		'help|h' => \$opt_help,
 		'test-set=s' => \$opt_task_file,
-		'kernels=s' => \$opt_kernels_dir))
+		'kernels=s' => \$opt_kernels_dir,
+		'comment|c=s' => \$comment_for_report,
+		'rewrite' => \$do_rewrite))
 	{
 		warn("Incorrect options may completely change the meaning! Please run script with the --help option to see how you may use this tool.");
 		help();
@@ -167,6 +174,7 @@ sub get_test_opt()
 		$opt_result_file .= ".html" if ($opt_result_file !~ /.html$/);
 		$results_in_html = $opt_result_file;
 	}
+	$comment_for_report = '('.$comment_for_report.')' if($comment_for_report);
 	print_debug_trace("Results in html format will be written  to '$results_in_html'");
 	print_debug_debug("The command-line options are processed successfully");
 }
@@ -217,6 +225,10 @@ OPTIONS
 		If needed repository wouldn't be found it will be downloaded
 		to the current directory. If cloning will failed see file "clone_log"
 		in the current dir.
+	--comment="..."
+		comment that will be showed at the head of the table.
+	--rewrite
+		Do not ask confirm of html file rewriting if it already exists.
 DATABASE SETS
 	LDVDBCTEST=<dbname>
 		<dbname> is name of database where results will be uploaded.
@@ -238,6 +250,48 @@ ldv-manager ENV
 	in your task file.
 EOM
 	exit(1);
+}
+
+sub prepare_files_and_dirs()
+{
+	$upload_script = "$tool_aux_dir/$upload_script";
+	$load_script = "$tool_aux_dir/$load_script";
+	$report_script = "$tool_aux_dir/$report_script";
+	die("Uploader script wasn't found") unless(-x $upload_script);
+	die("Loader script wasn't found") unless(-x $load_script);
+	die("Report script wasn't found") unless(-x $report_script);
+	
+	$launcher_work_dir = $current_working_dir . "/commit-test-work";
+	$launcher_results_dir = $current_working_dir . "/commit-test-results";
+	print_debug_debug("Creating directories for work");
+	mkpath("$launcher_work_dir")
+		or die("Couldn't recursively create directory '$launcher_work_dir': $ERRNO");
+	mkpath("$launcher_results_dir")
+		or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
+	my $i = 1;
+	my $commit_test_work_dir;
+	while($i <= $num_of_tasks)
+	{
+		if($i < 10)
+		{
+			$commit_test_work_dir = 'task-00' . $i . '--' . $task_map{$i}{'kernel_name'} . '--dir';
+		}
+		elsif($i < 100)
+		{
+			$commit_test_work_dir = 'task-0' . $i . '--' . $task_map{$i}{'kernel_name'} . '--dir';
+		}
+		else
+		{
+			$commit_test_work_dir = 'task-' . $i . '--' . $task_map{$i}{'kernel_name'} . '--dir';
+		}
+		mkpath("$launcher_work_dir/$commit_test_work_dir")
+			or die("Couldn't recursively create work directory '$commit_test_work_dir': $ERRNO");
+		mkpath("$launcher_results_dir/$commit_test_work_dir")
+			or die("Couldn't recursively create result directory '$commit_test_work_dir': $ERRNO");
+		$task_map{$i}{'workdir'} = $commit_test_work_dir;
+		$i++;
+	}
+	print_debug_normal("Directories and files were prepared successfully");
 }
 
 sub get_commit_test_tasks()
@@ -342,6 +396,131 @@ sub get_commit_test_tasks()
 			}
 			print_debug_debug("Kernel place = '$kernel_place'");
 		}
+		elsif($task_str =~ /^commit=(.*);arch_opt=(.*);config=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
+		{
+			if(defined($kernel_place) and defined($kernel_name))
+			{
+				$num_of_tasks++;
+				$task_map{$num_of_tasks} = {
+					'commit' => $1,
+					'arch_opt' => $2,
+					'config' => $3,
+					'rule' => $4,
+					'driver' => $5,
+					'main' => $6,
+					'verdict' => $7,
+					'ideal' => $8,
+					'comment' => $9,
+					'is_in_final' => 'no',
+					'verdict_type' => 1,
+					'kernel_name' => $kernel_name,
+					'kernel_place' => $kernel_place,
+					'problem' => '',
+					'ldv_run' => 1
+				};
+				if($task_map{$num_of_tasks}{'comment'} =~ /^#/)
+				{
+					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
+					$task_map{$num_of_tasks}{'verdict_type'} = 2;
+				}
+				if(($task_map{$num_of_tasks}{'main'} eq 'n/a')
+					or ($task_map{$num_of_tasks}{'rule'} eq 'n/a'))
+				{
+					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
+					$task_map{$num_of_tasks}{'ldv_run'} = 0;
+				}
+				die "Couldn't find '$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}'"
+					unless(-f "$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}");
+			}
+			else
+			{
+				print_debug_warning("You must set kernel place before tasks!");
+				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
+				help();
+			}
+		}
+		elsif($task_str =~ /^commit=(.*);arch_opt=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
+		{
+			if(defined($kernel_place) and defined($kernel_name))
+			{
+				$num_of_tasks++;
+				$task_map{$num_of_tasks} = {
+					'commit' => $1,
+					'arch_opt' => $2,
+					'rule' => $3,
+					'driver' => $4,
+					'main' => $5,
+					'verdict' => $6,
+					'ideal' => $7,
+					'comment' => $8,
+					'is_in_final' => 'no',
+					'verdict_type' => 1,
+					'kernel_name' => $kernel_name,
+					'kernel_place' => $kernel_place,
+					'problem' => '',
+					'ldv_run' => 1
+				};
+				if($task_map{$num_of_tasks}{'comment'} =~ /^#/)
+				{
+					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
+					$task_map{$num_of_tasks}{'verdict_type'} = 2;
+				}
+				if(($task_map{$num_of_tasks}{'main'} eq 'n/a')
+					or ($task_map{$num_of_tasks}{'rule'} eq 'n/a'))
+				{
+					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
+					$task_map{$num_of_tasks}{'ldv_run'} = 0;
+				}
+			}
+			else
+			{
+				print_debug_warning("You must set kernel place before tasks!");
+				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
+				help();
+			}
+		}
+		elsif($task_str =~ /^commit=(.*);config=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
+		{
+			if(defined($kernel_place) and defined($kernel_name))
+			{
+				$num_of_tasks++;
+				$task_map{$num_of_tasks} = {
+					'commit' => $1,
+					'config' => $2,
+					'rule' => $3,
+					'driver' => $4,
+					'main' => $5,
+					'verdict' => $6,
+					'ideal' => $7,
+					'comment' => $8,
+					'is_in_final' => 'no',
+					'verdict_type' => 1,
+					'kernel_name' => $kernel_name,
+					'kernel_place' => $kernel_place,
+					'problem' => '',
+					'ldv_run' => 1
+				};
+				if($task_map{$num_of_tasks}{'comment'} =~ /^#/)
+				{
+					$task_map{$num_of_tasks}{'comment'} = $POSTMATCH;
+					$task_map{$num_of_tasks}{'verdict_type'} = 2;
+				}
+				if(($task_map{$num_of_tasks}{'main'} eq 'n/a')
+					or ($task_map{$num_of_tasks}{'rule'} eq 'n/a'))
+				{
+					$task_map{$num_of_tasks}{'verdict'} = 'unknown';
+					$task_map{$num_of_tasks}{'ldv_run'} = 0;
+				}
+				die "Couldn't find '$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}'"
+					unless(-f "$tool_aux_dir/configs/$task_map{$num_of_tasks}{'config'}");
+			}
+			else
+			{
+				print_debug_warning("You must set kernel place before tasks!");
+				close($commit_test_task) or die("Can't close the file '$opt_task_file': $ERRNO\n");
+				help();
+			}
+		}
 		elsif($task_str =~ /^commit=(.*);rule=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);#(.*)$/)
 		{
 			if(defined($kernel_place) and defined($kernel_name))
@@ -428,46 +607,6 @@ sub get_commit_test_tasks()
 	print_debug_normal("Tasks was got successfully. Number of found tasks is $num_of_tasks");
 }
 
-sub prepare_files_and_dirs()
-{
-	$upload_script = "$tool_aux_dir/$upload_script";
-	$load_script = "$tool_aux_dir/$load_script";
-	die("Uploader script wasn't found") unless(-x $upload_script);
-	die("Loader script wasn't found") unless(-x $load_script);
-
-	$launcher_work_dir = $current_working_dir . "/commit-test-work";
-	$launcher_results_dir = $current_working_dir . "/commit-test-results";
-	print_debug_debug("Creating directories for work");
-	mkpath("$launcher_work_dir")
-		or die("Couldn't recursively create directory '$launcher_work_dir': $ERRNO");
-	mkpath("$launcher_results_dir")
-		or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
-	my $i = 1;
-	my $commit_test_work_dir;
-	while($i <= $num_of_tasks)
-	{
-		if($i < 10)
-		{
-			$commit_test_work_dir = 'task-00' . $i . '--' . $task_map{$i}{'kernel_name'} . '--dir';
-		}
-		elsif($i < 100)
-		{
-			$commit_test_work_dir = 'task-0' . $i . '--' . $task_map{$i}{'kernel_name'} . '--dir';
-		}
-		else
-		{
-			$commit_test_work_dir = 'task-' . $i . '--' . $task_map{$i}{'kernel_name'} . '--dir';
-		}
-		mkpath("$launcher_work_dir/$commit_test_work_dir")
-			or die("Couldn't recursively create work directory '$commit_test_work_dir': $ERRNO");
-		mkpath("$launcher_results_dir/$commit_test_work_dir")
-			or die("Couldn't recursively create result directory '$commit_test_work_dir': $ERRNO");
-		$task_map{$i}{'workdir'} = $commit_test_work_dir;
-		$i++;
-	}
-	print_debug_normal("Directories and files were prepared successfully");
-}
-
 sub run_commit_test()
 {
 	my $i = 1;
@@ -516,6 +655,7 @@ sub change_commit($)
 	my $i = shift;
 	my $result = 'unknown';
 	my $file_temp = "$launcher_work_dir/tempfile-$i";
+	print "TEST: 'git checkout $task_map{$i}{'commit'} 2>&1 | tee $file_temp'\n";
 	my $switch_commit_task = "git checkout $task_map{$i}{'commit'} 2>&1 | tee $file_temp";
 	chdir("$task_map{$i}{'kernel_place'}");
 	print_debug_debug("Execute the command '$switch_commit_task'");
@@ -526,7 +666,7 @@ sub change_commit($)
 	open(MYFILE, '<', $file_temp)	or die("Couldn't open $file_temp for read: $ERRNO");
 	while(<MYFILE>)
 	{
-		if($_ =~ /HEAD is now at (.*).../)
+		if($_ =~ /HEAD is now at (.*)... /)
 		{
 			$new_commit = $1;
 			$result = 'cool';
@@ -571,13 +711,13 @@ sub run_ldv_tools($)
 			exit(1);
 		}
 		print_debug_debug("Successfully rename '$task_map{$i}{'kernel_place'}' to '$tmp_kernel_dir'");
-		my @ldv_manager_task = ("ldv-manager",
-								"envs=$tmp_kernel_dir",
-								"kernel_driver=1",
-								"drivers=$task_map{$i}{'driver'}",
-								"rule_models=$task_map{$i}{'rule'}");
-		print_debug_debug("Executing command @ldv_manager_task");
-		system(@ldv_manager_task);
+		my $ldv_manager_task = "";
+		$ldv_manager_task .= "LDV_ASPECTATOR=aspectator CONFIG_OPT=$task_map{$i}{'arch_opt'} " if($task_map{$i}{'arch_opt'});
+		$ldv_manager_task .= "CONFIG_FILE=$tool_aux_dir/configs/$task_map{$i}{'config'} " if($task_map{$i}{'config'});
+		$ldv_manager_task .= "ldv-manager envs=$tmp_kernel_dir kernel_driver=1 drivers=$task_map{$i}{'driver'} rule_models=$task_map{$i}{'rule'}";
+
+		print_debug_debug("Executing command '$ldv_manager_task'");
+		system($ldv_manager_task);
 		if(check_system_call() == -1)
 		{
 			print_debug_warning("There is no the ldv-manager executable in your PATH!");
@@ -628,31 +768,12 @@ sub check_results_and_print_report()
 	my $file;
 	my %temp_map;
 	my $num_of_load_tasks = 0;
-
-	my $num_safe_safe = 0;
-	my $num_safe_unsafe = 0;
-	my $num_safe_unknown = 0;
-	my $num_unsafe_safe = 0;
-	my $num_unsafe_unsafe = 0;
-	my $num_unsafe_unknown = 0;
-	my $num_unknown_safe = 0;
-	my $num_unknown_unsafe = 0;
-	my $num_unknown_unknown = 0;
-	my $num_ideal_safe_safe = 0;
-	my $num_ideal_safe_unsafe = 0;
-	my $num_ideal_safe_unknown = 0;
-	my $num_ideal_unsafe_safe = 0;
-	my $num_ideal_unsafe_unsafe = 0;
-	my $num_ideal_unsafe_unknown = 0;
-	my $num_of_found_bugs = 0;
-	my $num_of_all_bugs = 0;
-	
 	open($file, "<", "$launcher_results_dir/$load_result_file")
 		or die("Couldn't open $load_result_file for read: $ERRNO");
 	while(my $line = <$file>)
 	{
 		chomp($line);
-		if($line =~ /^driver=.*;origin=kernel;kernel=(.*);model=(.*);module=(.*);main=(.*);verdict=(\w+)/)
+		if($line =~ /^driver=.*;origin=kernel;kernel=(.*);model=(.*);module=(.*);main=(.*);verdict=(.*);memory=(.*);time=(\d+)/)
 		{
 			$num_of_load_tasks++;
 			$temp_map{$num_of_load_tasks} = {
@@ -661,6 +782,8 @@ sub check_results_and_print_report()
 				'rule' => $2,
 				'main' => $4,
 				'verdict' => $5,
+				'memory' => $6,
+				'time' => $7,
 				'status' => 'na',
 				'problems' => 'na'
 			};
@@ -676,44 +799,21 @@ sub check_results_and_print_report()
 	
 	open(my $final_results, ">", "$launcher_results_dir/$results_in_txt")
 		or die("Couldn't open $launcher_results_dir/$results_in_txt for write: $ERRNO");
-	open(my $html_results, ">", "$results_in_html")
-		or die("Couldn't open $results_in_html for write: $ERRNO");
-	print($html_results "<!DOCTYPE html>
-<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\n<html>
-	<head>
-		<style type=\"text\/css\">
-		body {background-color:#FFEBCD}
-		p {color:#2F4F4F}
-		th {color:#FFA500}
-		td {background:#98FB98}
-		td {color:#191970}
-		th {background:#3CB371}
-		</style>
-	</head>
-<body>
+		
+	my $verifier = 'blast';
+	$verifier = $ENV{'RCV_VERIFIER'} if($ENV{'RCV_VERIFIER'});
+	my $timelimit = '15m';
+	$timelimit = $ENV{'RCV_TIMELIMIT'} if($ENV{'RCV_TIMELIMIT'});
+	my $memlimit = '1Gb';
+	$memlimit = $ENV{'RCV_MEMLIMIT'} if($ENV{'RCV_MEMLIMIT'});
+	my ($local_time_min, $local_time_hour, $local_time_day, $local_time_mon, $local_time_year) = (localtime)[1,2,3,4,5];
+	printf($final_results "name_of_runtask=$verifier;<br>timelimit=$timelimit;<br>memlimit=$memlimit;<br>%02d.%02d.%04d %02d:%02d<br>$comment_for_report\n",
+		$local_time_day, $local_time_mon, $local_time_year + 1900, $local_time_hour, $local_time_min);
+	print($final_results "verifier=$verifier\n");
 
-<h1 align=center style=\"color:#FF4500\"><u>Commit tests results</u></h1>
-
-<p style=\"color:#483D8B\"><big>Result table:</big></p>
-
-<table border=\"2\">\n<tr>
-	<th>№</th>
-	<th>Rule</th>
-	<th>Kernel</th>
-	<th>Commit</th>
-	<th>Module</th>
-	<th>Main</th>
-	<th>Ideal->New verdict</th>
-	<th>Old->New verdict</th>
-	<th>Comment</th>
-	<th>Problems</th>\n</tr>");
-	my $i = 1;
-	my $cnt = 1;
-	my $num_of_all_checked_bugs = 0;
-	while($i <= $num_of_tasks)
+	for(my $i = 1; $i <= $num_of_tasks; $i++)
 	{
-		my $j = 1;
-		while($j <= $num_of_load_tasks)
+		for(my $j = 1; $j <= $num_of_load_tasks; $j++)
 		{
 			my $temp_name_of_kernel = "$task_map{$i}{'kernel_name'}-$task_map{$i}{'commit'}";
 			while($temp_name_of_kernel =~ /^(.*)~(.*)$/)
@@ -727,140 +827,41 @@ sub check_results_and_print_report()
 				($temp_name_of_kernel eq $temp_map{$j}{'kernel'}))
 			{
 				$task_map{$i}{'is_in_final'} = 'yes';
-				print($final_results "Commit=$task_map{$i}{'commit'}; kernel=$task_map{$i}{'kernel_name'};
-Ideal Verdict: $task_map{$i}{'ideal'}; Real Verdict: $task_map{$i}{'verdict'}->$temp_map{$j}{'verdict'};\n");
-				print($final_results "This unsafe is no-purpose\n")
-					if(($task_map{$i}{'verdict_type'} == 2)
-						and ($task_map{$i}{'verdict'} eq 'unsafe')
-						and ($temp_map{$j}{'verdict'} eq 'unsafe'));
-				print($final_results "Comment: $task_map{$i}{'comment'};");
-				print($final_results "Problems: $temp_map{$j}{'status'};")
-					unless($temp_map{$j}{'status'} eq 'na');
-				print($final_results  " $temp_map{$j}{'problems'}")
-					unless($temp_map{$j}{'problems'} eq 'na');
-
-				print($final_results "\n\n");
-				
-				$num_of_found_bugs++ if(($temp_map{$j}{'verdict'} eq 'unsafe')
-											and ($task_map{$i}{'verdict_type'} == 1)
-											and ($task_map{$i}{'ideal'} eq 'unsafe'));
-				$num_safe_unsafe++ if(($task_map{$i}{'verdict'} eq 'safe')
-										  and ($temp_map{$j}{'verdict'} eq 'unsafe'));
-				$num_safe_unknown++ if(($task_map{$i}{'verdict'} eq 'safe')
-										  and ($temp_map{$j}{'verdict'} eq 'unknown'));
-				$num_unsafe_safe++ if(($task_map{$i}{'verdict'} eq 'unsafe')
-										  and ($temp_map{$j}{'verdict'} eq 'safe'));
-  				$num_safe_safe++ if(($task_map{$i}{'verdict'} eq 'safe')
-										  and ($temp_map{$j}{'verdict'} eq 'safe'));
-  				$num_unsafe_unsafe++ if(($task_map{$i}{'verdict'} eq 'unsafe')
-										  and ($temp_map{$j}{'verdict'} eq 'unsafe'));
-  				$num_unknown_unknown++ if(($task_map{$i}{'verdict'} eq 'unknown')
-										  and ($temp_map{$j}{'verdict'} eq 'unknown'));
-				$num_unsafe_unknown++ if(($task_map{$i}{'verdict'} eq 'unsafe')
-										  and ($temp_map{$j}{'verdict'} eq 'unknown'));
-				$num_unknown_unsafe++ if(($task_map{$i}{'verdict'} eq 'unknown')
-										  and ($temp_map{$j}{'verdict'} eq 'unsafe'));
-				$num_unknown_safe++ if(($task_map{$i}{'verdict'} eq 'unknown')
-										  and ($temp_map{$j}{'verdict'} eq 'safe'));
-				$num_ideal_safe_unsafe++ if(($task_map{$i}{'ideal'} eq 'safe')
-												and ($temp_map{$j}{'verdict'} eq 'unsafe'));
-				$num_ideal_safe_safe++ if(($task_map{$i}{'ideal'} eq 'safe')
-												and ($temp_map{$j}{'verdict'} eq 'safe'));
-				$num_ideal_unsafe_unsafe++ if(($task_map{$i}{'ideal'} eq 'unsafe')
-												and ($temp_map{$j}{'verdict'} eq 'unsafe'));
-				$num_ideal_safe_unknown++ if(($task_map{$i}{'ideal'} eq 'safe')
-												and ($temp_map{$j}{'verdict'} eq 'unknown'));
-				$num_ideal_unsafe_safe++ if(($task_map{$i}{'ideal'} eq 'unsafe')
-												and ($temp_map{$j}{'verdict'} eq 'safe'));
-				$num_ideal_unsafe_unknown++ if(($task_map{$i}{'ideal'} eq 'unsafe')
-												and ($temp_map{$j}{'verdict'} eq 'unknown'));
-				print($html_results "\n<tr>
-						<td>$cnt</td>
-						<td>$task_map{$i}{'rule'}</td>
-						<td>$task_map{$i}{'kernel_name'}</td>
-						<td>$task_map{$i}{'commit'}</td>
-						<td><small>$task_map{$i}{'driver'}</small></td>
-						<td>$task_map{$i}{'main'}</td>
-						<td style=\"color:#");
-				if($task_map{$i}{'ideal'} ne $temp_map{$j}{'verdict'})
-				{
-					print($html_results "CD2626");
-				}
-				else
-				{
-					print($html_results "191970");
-				}
-				print($html_results ";background:#9F79EE")
-					if(($task_map{$i}{'verdict_type'} == 2)
-						and ($task_map{$i}{'ideal'} eq 'unsafe'));
-				print($html_results "\">$task_map{$i}{'ideal'}->$temp_map{$j}{'verdict'}</td>
-						<td");
-				print($html_results " style=\"color:#CD2626\"")
-					if($task_map{$i}{'verdict'} ne $temp_map{$j}{'verdict'});
-				print($html_results ">$task_map{$i}{'verdict'}->$temp_map{$j}{'verdict'}</td>
-						<td><small>$task_map{$i}{'comment'}</small></td>
-						<td><small>");
-				print ($html_results "$temp_map{$j}{'problems'}") unless($temp_map{$j}{'problems'} eq 'na');
-				print($html_results "</small></td>\n</tr>\n");
-				$num_of_all_checked_bugs++ if ($task_map{$i}{'ideal'} eq 'unsafe');
-				$cnt++;
+				print($final_results "commit=$task_map{$i}{'commit'};memory=$temp_map{$j}{'memory'};time=$temp_map{$j}{'time'};");
+				print($final_results "rule=$task_map{$i}{'rule'};kernel=$task_map{$i}{'kernel_name'};driver=$task_map{$i}{'driver'};");
+				print($final_results "main=$task_map{$i}{'main'};verdict=$temp_map{$j}{'verdict'};");
+				print($final_results "ideal_verdict=$task_map{$i}{'ideal'};old_verdict=$task_map{$i}{'verdict'};#");
+				print($final_results "#") if($task_map{$num_of_tasks}{'verdict_type'} == 2);
+				print($final_results "$task_map{$i}{'comment'}<@>");
+				print($final_results "$temp_map{$j}{'status'}; ")	unless($temp_map{$j}{'status'} eq 'na');
+				print($final_results "$temp_map{$j}{'problems'}")	unless($temp_map{$j}{'problems'} eq 'na');
+				print($final_results "\n");
 			}
-			$j++;
 		}
-		$i++;
 	}
-	$i = 1;
-	my $num_of_unknown_mains = 0;
-	my $num_of_undev_rules = 0;
-	while($i <= $num_of_tasks)
+	for(my $i = 1; $i <= $num_of_tasks; $i++)
 	{
 		if(($task_map{$i}{'is_in_final'} eq 'no')
 			and ($task_map{$i}{'main'} ne 'n/a')
 			and ($task_map{$i}{'rule'} ne 'n/a'))
 		{
-			print($final_results "Commit $task_map{$i}{'commit'} wasn't tested in any reason.\n\n");
-			print($html_results "\n<tr>
-						<td>$cnt</td>
-						<td>$task_map{$i}{'rule'}</td>
-						<td>$task_map{$i}{'kernel_name'}</td>
-						<td>$task_map{$i}{'commit'}</td>
-						<td>$task_map{$i}{'driver'}</td>
-						<td>$task_map{$i}{'main'}</td>
-						<td style=\"color:#CD2626");
-						
-			print($html_results ";background:#9F79EE")
-				if(($task_map{$i}{'verdict_type'} == 2)
-					and ($task_map{$i}{'ideal'} eq 'unsafe'));
-			print($html_results "\">$task_map{$i}{'ideal'}->unknown</td>\n\t\t<td");
-			print($html_results " style=\"color:#CD2626\"") if($task_map{$i}{'verdict'} ne 'unknown');
-			print($html_results ">$task_map{$i}{'verdict'}->unknown</td>
-					<td><small>$task_map{$i}{'comment'}</small></td>
-					<td><small>$task_map{$i}{'problem'}</small></td>\n</tr>\n");
-			$num_safe_unknown++ if($task_map{$i}{'verdict'} eq 'safe');
-			$num_unsafe_unknown++ if($task_map{$i}{'verdict'} eq 'unsafe');
-			$num_ideal_safe_unknown++ if($task_map{$i}{'ideal'} eq 'safe');
-			$num_ideal_unsafe_unknown++ if($task_map{$i}{'ideal'} eq 'unsafe');
-			$cnt++;
+			print($final_results "commit=$task_map{$i}{'commit'};memory=0;time=0;rule=$task_map{$i}{'rule'};");
+			print($final_results "kernel=$task_map{$i}{'kernel_name'};driver=$task_map{$i}{'driver'};");
+			print($final_results "main=$task_map{$i}{'main'};verdict=unknown;");
+			print($final_results "ideal_verdict=$task_map{$i}{'ideal'};old_verdict=$task_map{$i}{'verdict'};#");
+			print($final_results "#") if($task_map{$num_of_tasks}{'verdict_type'} == 2);
+			print($final_results "$task_map{$i}{'comment'}");
+			print($final_results "<@>failed before RI");
+			print($final_results "\n");
 		}
-		if(($task_map{$i}{'ideal'} eq 'unsafe'))
+		if(($task_map{$i}{'main'} eq 'n/a') or ($task_map{$i}{'rule'} eq 'n/a'))
 		{
-			$num_of_all_bugs++;
+			print($final_results "commit=$task_map{$i}{'commit'};memory=-;time=-;rule=$task_map{$i}{'rule'};kernel=$task_map{$i}{'kernel_name'};");
+			print($final_results "driver=$task_map{$i}{'driver'};main=n/a;verdict=unknown;");
+			print($final_results "ideal_verdict=$task_map{$i}{'ideal'};old_verdict=$task_map{$i}{'verdict'};");
+			print($final_results "#$task_map{$i}{'comment'}<@>\n");
 		}
-		$num_of_unknown_mains++
-			if(($task_map{$i}{'main'} eq 'n/a') and ($task_map{$i}{'rule'} ne 'n/a'));
-		$num_of_undev_rules++ if($task_map{$i}{'rule'} eq 'n/a');
-		$i++;
 	}
-	print($html_results "<\/table>\n<br>\n<br>");
-
-	print($final_results "SUMMARY\n
-	safe->unsafe: $num_safe_unsafe;
-	safe->unknown: $num_safe_unknown;
-	unsafe->safe: $num_unsafe_safe;
-	unsafe->unknown: $num_unsafe_unknown;
-	unknown->safe: $num_unknown_safe;
-	unknown->unsafe: $num_unknown_unsafe;\n\nTARGET BUGS\nLdv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;<br>
-Total number of bugs: $num_of_all_bugs;\n");
 	my $temp_db_host = 'localhost';
 	$temp_db_host = $LDVDBHOSTCTEST if ($LDVDBHOSTCTEST);
 	my $link_to_results = "http://$temp_db_host:8999/stats/index/name/$LDVDBCTEST/host/$temp_db_host/user/$LDVUSERCTEST/password/";
@@ -872,129 +873,15 @@ Total number of bugs: $num_of_all_bugs;\n");
 	{
 		$link_to_results .= 'no';
 	}
-
-	print($html_results "<hr>\n<a href=\"$link_to_results\">Link to visualizer with your results.</a>");
-	print($html_results "\n<hr>
-	<p style=\"color:#483D8B\"><big>Summary</big></p>
-	<table border=\"1\">\n<tr>
-	<th style=\"color:#00008B;background:#66CD00\"></th>
-	<th style=\"color:#00008B;background:#66CD00\">Old->New verdict</th>
-	<th style=\"color:#00008B;background:#66CD00\">Ideal->New verdict</th>\n</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">safe->safe:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_safe_safe</td>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_safe_safe</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">unsafe->unsafe:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_unsafe_unsafe</td>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_unsafe_unsafe</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">safe->unsafe:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_safe_unsafe</td>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_safe_unsafe</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">safe->unknown:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_safe_unknown</td>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_safe_unknown</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">unsafe->safe:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_unsafe_safe</td>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_unsafe_safe</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">unsafe->unknown:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_unsafe_unknown</td>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_ideal_unsafe_unknown</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">unknown->safe:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_unknown_safe</td>
-	<td style=\"color:#00008B;background:#CAFF70\">-</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">unknown->unsafe:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_unknown_unsafe</td>
-	<td style=\"color:#00008B;background:#CAFF70\">-</td>
-	</tr>
-	<tr>
-	<th style=\"color:#00008B;background:#66CD00\">unknown->unknown:</th>
-	<td style=\"color:#00008B;background:#CAFF70\">$num_unknown_unknown</td>
-	<td style=\"color:#00008B;background:#CAFF70\">-</td>
-	</tr>
-	</table>
-	<p style=\"color:#A52A2A\">No main: $num_of_unknown_mains;<br>No_rule: $num_of_undev_rules;</p>
-	<hr>
-	<p style=\"color:#483D8B\"><big>Target bugs</big></p>
-	<p>Ldv-tools found $num_of_found_bugs of $num_of_all_checked_bugs bugs;<br>
-Total number of bugs: $num_of_all_bugs;</p>\n");
-	my $cnt2 = 0;
-	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>
-		<table border=\"1\">\n<tr>
-			<th style=\"background:#00C5CD;color:#191970\">№</th>
-			<th style=\"background:#00C5CD;color:#191970\">Rule</th>
-			<th style=\"background:#00C5CD;color:#191970\">Kernel</th>
-			<th style=\"background:#00C5CD;color:#191970\">Commit</th>
-			<th style=\"background:#00C5CD;color:#191970\">Module</th>
-			<th style=\"background:#00C5CD;color:#191970\">Ideal verdict</th>
-			<th style=\"background:#00C5CD;color:#191970\">Comment</th>
-			</tr>");
-	$i = 1;
-	while($i <= $num_of_tasks)
-	{
-		if(($task_map{$i}{'main'} eq 'n/a') and ($task_map{$i}{'rule'} ne 'n/a'))
-		{
-			$cnt2++;
-			print($html_results "<tr>
-			<td style=\"background:#87CEFF;color:#551A8B\">$cnt2</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$task_map{$i}{'rule'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$task_map{$i}{'kernel_name'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$task_map{$i}{'commit'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$task_map{$i}{'driver'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$task_map{$i}{'ideal'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$task_map{$i}{'comment'}</td>\n</tr>");
-		}
-		$i++;
-	}
-	print($html_results "</table>\n<br>");
+	print($final_results "link_to_results=$link_to_results\n");
 	
-	my $cnt3 = 0;
-	print($html_results "<hr><p style=\"color:#483D8B\"><big>Undeveloped rules:</big></p><table border=\"1\">\n<tr>
-			<th style=\"background:#CD5555;color:#363636\">№</th>
-			<th style=\"background:#CD5555;color:#363636\">Kernel</th>
-			<th style=\"background:#CD5555;color:#363636\">Commit</th>
-			<th style=\"background:#CD5555;color:#363636\">Module</th>
-			<th style=\"background:#CD5555;color:#363636\">Ideal verdict</th>
-			<th style=\"background:#CD5555;color:#363636\">Comment</th>
-			</tr>");
-	$i = 1;
-	while($i <= $num_of_tasks)
-	{
-		if($task_map{$i}{'rule'} eq 'n/a')
-		{
-			$cnt3++;
-			print($html_results "<tr>
-			<td style=\"background:#FFC1C1;color:#363636\">$cnt3</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$task_map{$i}{'kernel_name'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$task_map{$i}{'commit'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$task_map{$i}{'driver'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$task_map{$i}{'ideal'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$task_map{$i}{'comment'}</td>\n</tr>");
-		}
-		$i++;
-	}
-	print($html_results "\n</table>\n");
-	
-	print($html_results "<p style=\"color:#CD2626\"><big>You have similar tasks in your task file.
-	Results are duplicated!</big></p>\n") if($cnt > ($num_of_tasks + 1));
-	print($html_results "</body>\n</html>");
-
 	close($final_results) or die("Couldn't close $launcher_results_dir/results.txt: $ERRNO");
-	close($html_results) or die("Couldn't close $results_in_html: $ERRNO");
-	print_debug_normal("Results were successfully generated: '$launcher_results_dir/$results_in_txt', '$results_in_html'");
+	print_debug_normal("File with results were generated: '$launcher_results_dir/$results_in_txt'");
+	my $report_command = "$report_script --files $launcher_results_dir/$results_in_txt -o $results_in_html";
+	$report_command .= " --rewrite" if($do_rewrite);
+	print_debug_trace "Execute the command '$report_command'";
+	system($report_command);
+	print_debug_warning "Report script failed!" if(check_system_call());
 }
 
 sub clone_repos($)
