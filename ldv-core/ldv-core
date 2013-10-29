@@ -12,7 +12,6 @@ use IO::Socket::INET;
 #use File::MimeInfo;
 use File::Basename;
 
-
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
         push @INC,"$ENV{'LDV_HOME'}/shared/perl";
@@ -35,7 +34,7 @@ $ENV{'WORK_DIR'} || die"Please, specify WORK_DIR environment variable!";
 use Getopt::Long qw(:config require_order);
 
 my $jobs = 0;
-
+my $check_only;
 my $config = {
         'verbosity' => $ENV{'LDV_DEBUG'} || 'NORMAL',
         'workdir' => $ENV{'WORK_DIR'},
@@ -48,6 +47,7 @@ my $config = {
         'ldv-core-reporter' => "$ENV{'LDV_HOME'}/ldv-core/ldv-core-reporter",
         'bce' => "$ENV{'LDV_HOME'}/build-cmd-extractor/build-cmd-extractor",
         'bce-reporter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/build-cmd-extractor-reporter",
+        'module-filter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/module-filter.pl",
         'deg' => "$ENV{'LDV_HOME'}/drv-env-gen/drv-env-gen",
         'deg-reporter' => "$ENV{'LDV_HOME'}/drv-env-gen/drv-env-gen-reporter",
         'rule-instrumentor' => "$ENV{'LDV_HOME'}/rule-instrumentrule-instrumentor.pl",
@@ -68,6 +68,7 @@ GetOptions(
 		'kernel-driver|k=s'=>\$config->{'kernel-driver'},
 		'driver|d=s'=>\$config->{'driver'},
 		'jobs=i' => \$jobs,
+		'check_only=s' => \$check_only
 ) or usage;
 
 use File::Path qw(make_path remove_tree);
@@ -227,12 +228,12 @@ sub start_next {
 
 		# We will only tolerate this many SOAP errors
 		my $retries = 10;
-
 		my $tasks = {};
 		while(is_exists($csd_pid)){
 			vsay 'TRACE', "Trying to fetch next command...\n";
 			my $command =  eval{ return $csd->getCommand(); };
 			if($command) {
+				my $cmd_after_csd = "$command/cmd_after_csd.xml";
 				vsay 'TRACE', "Calling external interface to submit task\n";
 				vsay 'NORMAL', "Prepared command in: $command\n";
 				vsay 'NORMAL', "Calling drv-env-gen...\n";
@@ -246,7 +247,7 @@ sub start_next {
 				my @deg_args = (
 					$config->{'deg'},
 					"--basedir=deg",
-					"--cmdfile=$command/cmd_after_csd.xml",
+					"--cmdfile=$cmd_after_csd",
 					"--cmdfile-out=$command/cmd_after_deg.xml",
 					"--state-file=$command/deg.state"
 				);
@@ -259,8 +260,29 @@ sub start_next {
 					push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
 				}
 
-				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
-				system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
+				if($check_only)
+				{
+					my $module_filter_report = $config->{'csd_tempdir'} . "/module-filter-report";
+					my @filter_args = ("$config->{'module-filter'}",
+										"--xml_file=$cmd_after_csd",
+										"--check_only=$check_only",
+										"--results=$module_filter_report");
+					vsay 'DEBUG', "@filter_args";
+					system(@filter_args);
+					my $filter_result = check_system_call();
+					vsay 'TRACE', "module-filter exited with value '$filter_result'";
+					die "Module filter failed" unless(($filter_result == 0) or ($filter_result == 61));
+					unless($filter_result)
+					{
+						vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
+						system(@deg_args) and die"$!";
+					}
+				}
+				else
+				{
+					vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
+					system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
+				}
 				$ENV{'WORK_DIR'} = $old_workdir;
 
 				$command =~ m/.*\/+([0-9]+)/ and my $cid=$1;	
