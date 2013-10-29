@@ -31,10 +31,8 @@ else
 Verifier=$(delim)$(notdir $(RCV_VERIFIER))
 endif
 
-ifeq ($(KERNEL_JOBS),)
-jobs=1
-else
-jobs=$(KERNEL_JOBS)
+ifneq ($(CONFIG_OPT),)
+extractor_options="--extractor-options=$(CONFIG_OPT)"
 endif
 
 # Install dir should be absolutized
@@ -146,7 +144,7 @@ $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked: $(if $(cmdstream_drive
 	@$$(G_TargetDir)
 	$(if $(subst $(Current),,$(Tag)), export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH; ) \
 	LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) \
-	ldv task $$(Run_spec)$$(Driver) --jobs=$(jobs) --check_only=$(CHECK_ONLY) --workdir=$$(@D) --env=$$(Ldv_env) $(Kernel_driver) $(Fail_status_set)
+	ldv task $$(Run_spec)$$(Driver) --workdir=$$(@D) --env=$$(Ldv_env) $(Kernel_driver) $(Fail_status_set)
 
 $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/finished: $$(WORK_DIR)/$(1)$(ldv_task_for_targ)$(Verifier)/checked
 	@# Add ancillary information to reports and post it to target directory
@@ -218,7 +216,7 @@ tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed
 		$(if $(subst $(Current),,$(Tag)),	cd $(LDV_INSTALL_DIR)/$$(Tag) && export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH;) \
 		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) ; \
 		echo "Preparing kernel $$(Env) from $$(Env_file)..." ;\
-		ldv kmanager --action=add --src=$$(abspath $$(Env_file)) --extractor=linux-vanilla --name=$$(Env) \
+		ldv kmanager --action=add --src=$$(abspath $$(Env_file)) --extractor=linux-vanilla --name=$$(Env) $(extractor_options) \
 	) 200>$@.lock
 	touch $$@
 endef
