@@ -31,8 +31,6 @@ use LDV::Utils qw(print_debug_warning print_debug_normal print_debug_info
 # retn: nothing.
 sub get_opt();
 
-sub create_double_report($$);
-
 sub create_report($);
 
 sub create_several_report(@);
@@ -41,8 +39,7 @@ sub create_several_report(@);
 # Global variables
 #######################################################################
 my $debug_name = 'commit-tester-report';
-
-my $report_file = "commit-tester-results-x2.html";
+my $report_file = "commit-tester-results.html";
 my $num_of_files;
 my $opt_do_rewrite;
 my @several_files;
@@ -66,11 +63,7 @@ unless($opt_do_rewrite)
 		}
 	}
 }
-if($num_of_files == 2)
-{
-	create_double_report($several_files[0], $several_files[1]);
-}
-elsif($num_of_files == 1)
+if($num_of_files == 1)
 {
 	create_report($several_files[0]);
 }
@@ -78,14 +71,29 @@ else
 {
 	create_several_report(@several_files);
 }
-
 #######################################################################
 # Subroutines.
 #######################################################################
 sub help()
 {
 	print (STDERR << "EOH");
-	TODO
+NAME
+	$PROGRAM_NAME: The program generates commit-tester html report form txt results.
+SYNOPSIS
+	$PROGRAM_NAME [option...]
+OPTIONS
+	-o, --result-file <file>
+	   <file> is a file where results will be put in html format. If it isn't
+	   specified then the output is placed to the file '$report_file'
+	   in the current directory. If file was already existed you will be
+	   asked if you want to rewrite it.
+	-h, --help
+	   Print this help and exit with an error.
+	--files="<file1> <file2> ..."
+		<file1> and next files are commit-tester txt results.
+		It can be found at commit-tester-results/
+	--rewrite
+		Do not ask confirm of html file rewriting if it already exists.
 EOH
 	exit(1);
 }
@@ -237,9 +245,9 @@ sub create_report($)
 	<th>Commit</th>
 	<th>Module</th>
 	<th>Main</th>
-	<th><small>Ideal->New verdict<br>$run_name</small></th>
+	<th><small>Ideal->New verdict;<br>$run_name</small></th>
 	<th>Old->New verdict</th>
-	<th>Memory(b)</th>
+	<th>Memory(KB)</th>
 	<th>Time(ms)</th>
 	<th>Comment</th>
 	<th>Problems</th>\n</tr>");
@@ -320,8 +328,7 @@ sub create_report($)
 	print($html_results "<\/table>\n<br><br>");
 	print($html_results "<hr>\n<a href=\"$link\">Link to visualizer with your results.</a>");
 	my $num_of_all_bugs = $num_ideal_unsafe_unsafe + $num_ideal_unsafe_safe + $num_ideal_unsafe_unknown;
-	$sum_memory = 1 unless($sum_memory);
-	$sum_memory = int($sum_memory/$num_of_non_unknowns);
+	$sum_memory = int($sum_memory/$num_of_non_unknowns) if($sum_memory);
 	$sum_time = $sum_time/60000;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Summary</big></p>\n<table border=\"1\">\n<tr>
 		<th style=\"color:#00008B;background:#66CD00\"></th>
@@ -344,7 +351,7 @@ sub create_report($)
 		<td style=\"color:#00008B;background:#CAFF70\">$num_of_undev_rules</td>\n</tr>\n</table>\n<hr>
 		<p style=\"color:#483D8B\"><big>Target bugs</big></p>
 		<p>Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br>Total number of bugs: $num_of_all_bugs;
-		<br>Expended time: $sum_time minutes;<br>Average memory for each non-unknown task: $sum_memory bytes;</p>\n");
+		<br>Expended time: $sum_time minutes;<br>Average memory for each non-unknown task: $sum_memory KB;</p>\n");
 	
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Comparison with old verdicts</big></p><br>\n<table border=\"1\">\n<tr>
 		<th style=\"color:#00008B;background:#66CD00\"></th>
@@ -367,422 +374,6 @@ sub create_report($)
 		<td style=\"color:#00008B;background:#CAFF70\">$num_unknown_unsafe</td>\n</tr>\n<tr>
 		<th style=\"color:#00008B;background:#66CD00\">unknown->unknown:</th>
 		<td style=\"color:#00008B;background:#CAFF70\">$num_unknown_unknown</td>\n</tr>\n</table>");
-	my $cnt2 = 0;
-	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>\n<table border=\"1\">\n<tr>
-		<th style=\"background:#00C5CD;color:#191970\">№</th>
-		<th style=\"background:#00C5CD;color:#191970\">Rule</th>
-		<th style=\"background:#00C5CD;color:#191970\">Kernel</th>
-		<th style=\"background:#00C5CD;color:#191970\">Commit</th>
-		<th style=\"background:#00C5CD;color:#191970\">Module</th>
-		<th style=\"background:#00C5CD;color:#191970\">Ideal verdict</th>
-		<th style=\"background:#00C5CD;color:#191970\">Comment</th>\n</tr>");
-	for(my $i = 1; $i <= $num_of_tasks; $i++)
-	{
-		if(($results_map{$i}{'main'} eq 'n/a') and ($results_map{$i}{'rule'} ne 'n/a'))
-		{
-			$cnt2++;
-			print($html_results "<tr>
-			<td style=\"background:#87CEFF;color:#551A8B\">$cnt2</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$results_map{$i}{'rule'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$results_map{$i}{'kernel'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$results_map{$i}{'commit'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$results_map{$i}{'driver'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$results_map{$i}{'ideal_verdict'}</td>
-			<td style=\"background:#87CEFF;color:#551A8B\">$results_map{$i}{'comment'}</td>\n</tr>");
-		}
-	}
-	print($html_results "</table>\n<br>");
-	my $cnt3 = 0;
-	print($html_results "<hr><p style=\"color:#483D8B\"><big>Undeveloped rules:</big></p><table border=\"1\">\n<tr>
-			<th style=\"background:#CD5555;color:#363636\">№</th>
-			<th style=\"background:#CD5555;color:#363636\">Kernel</th>
-			<th style=\"background:#CD5555;color:#363636\">Commit</th>
-			<th style=\"background:#CD5555;color:#363636\">Module</th>
-			<th style=\"background:#CD5555;color:#363636\">Ideal verdict</th>
-			<th style=\"background:#CD5555;color:#363636\">Comment</th>
-			</tr>");
-	for(my $i = 1; $i <= $num_of_tasks; $i++)
-	{
-		if($results_map{$i}{'rule'} eq 'n/a')
-		{
-			$cnt3++;
-			print($html_results "<tr>
-			<td style=\"background:#FFC1C1;color:#363636\">$cnt3</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$results_map{$i}{'kernel'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$results_map{$i}{'commit'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$results_map{$i}{'driver'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$results_map{$i}{'ideal_verdict'}</td>
-			<td style=\"background:#FFC1C1;color:#363636\">$results_map{$i}{'comment'}</td>\n</tr>");
-		}
-	}
-	print($html_results "\n</table>\n</body>\n</html>");
-	close($html_results);
-	print_debug_normal "Report '$report_file' was successfully generated";
-}
-
-sub create_double_report($$)
-{
-	my $file1_txt = shift;
-	my $file2_txt = shift;
-	my $file_in;
-	my $name1 = 'first';
-	my $name2 = 'second';
-	my $full_name1;
-	my $full_name2;
-	my $sum_time1 = 0;
-	my $sum_time2 = 0;
-	my $sum_memory1 = 0;
-	my $sum_memory2 = 0;
-	my $num_of_non_unknowns1 = 0;
-	my $num_of_non_unknowns2 = 0;
-	
-	my $link1;
-	my $link2;
-	my $tmp_name1;
-	print_debug_normal "Report would be generated from two results: '$file1_txt' and '$file2_txt'";
-	
-	my $num_of_tasks = 0;
-	my %results_map;
-	print_debug_trace "Reading results..";
-	open($file_in, '<', $file1_txt) or die "Couldn't open file '$file1_txt' for read: $ERRNO!";
-	while(<$file_in>)
-	{
-		chomp($_);
-		if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
-		{
-			$num_of_tasks++;
-			$results_map{$num_of_tasks} = {
-					'commit' => $1,
-					'rule' => $4,
-					'kernel' => $5,
-					'driver' => $6,
-					'main' => $7,
-					'first_verdict' => $8,
-					'second_verdict' => 'n/a',
-					'ideal_verdict' => $9,
-					'memory' => $2,
-					'time' => $3,
-					'comment' => $10,
-					'problems' => $11,
-					'verdict_type' => 0
-			};
-			if($results_map{$num_of_tasks}{'comment'} =~ /^#/)
-			{
-				$results_map{$num_of_tasks}{'comment'} = $POSTMATCH;
-				$results_map{$num_of_tasks}{'verdict_type'} = 1;
-			}
-			$results_map{$num_of_tasks}{'problems'} = '-'
-			if($results_map{$num_of_tasks}{'problems'} eq '');
-			
-			$sum_time1 += int($results_map{$num_of_tasks}{'time'})
-				if($results_map{$num_of_tasks}{'time'} !~ /-/);
-			if(($results_map{$num_of_tasks}{'memory'} !~ /-/) and
-				($results_map{$num_of_tasks}{'first_verdict'} ne 'unknown'))
-			{
-				$sum_memory1 += int($results_map{$num_of_tasks}{'memory'});
-				$num_of_non_unknowns1++;
-			}
-		}
-		elsif($_ =~ /^link_to_results=(.*)/)
-		{
-			$link1 = $1;
-		}
-		elsif($_ =~ /^name_of_runtask=(.*)/)
-		{
-			$full_name1 = $1;
-		}
-		elsif($_ =~ /^verifier=(.*)/)
-		{
-			$tmp_name1 = $1;
-		}
-	}
-	close($file_in);
-	
-	if($num_of_tasks == 0)
-	{
-		print_debug_warning "Entry file '$file1_txt' hasn't results!\n";
-		exit(1);
-	}
-	open($file_in, '<', $file2_txt) or die "Couldn't open file '$file2_txt' for read: $ERRNO!";
-	while(<$file_in>)
-	{
-		chomp($_);
-		if($_ =~ /^commit=(.*);memory=(.*);time=(.*);rule=(.*);kernel=(.*);driver=(.*);main=(.*);verdict=(.*);ideal_verdict=(.*);old_verdict=.*?;#(.*)<@>(.*)$/)
-		{
-			my %tmp_results_map;
-			$tmp_results_map{1} = {
-					'commit' => $1,
-					'rule' => $4,
-					'kernel' => $5,
-					'driver' => $6,
-					'main' => $7,
-					'second_verdict' => $8,
-					'ideal_verdict' => $9,
-					'memory' => $2,
-					'time' => $3,
-					'comment' => $10,
-					'problems' => $11,
-					'verdict_type' => 0,
-					'is_found' => 0
-			};
-			if($tmp_results_map{1}{'comment'} =~ /^#/)
-			{
-				$tmp_results_map{1}{'comment'} = $POSTMATCH;
-				$tmp_results_map{1}{'verdict_type'} = 1;
-			}
-			$tmp_results_map{1}{'problems'} = '-'
-				if($tmp_results_map{1}{'problems'} eq '');
-				
-			$sum_time2 += int($tmp_results_map{1}{'time'})
-				if($tmp_results_map{1}{'time'} !~ /-/);
-			if(($tmp_results_map{1}{'memory'} !~ /-/) and
-				($tmp_results_map{1}{'second_verdict'} ne 'unknown'))
-			{
-				$sum_memory2 += int($tmp_results_map{1}{'memory'});
-				$num_of_non_unknowns2++;
-			}
-			foreach my $key (keys %results_map)
-			{
-				if(($tmp_results_map{1}{'commit'} eq $results_map{$key}{'commit'})
-					and ($tmp_results_map{1}{'driver'} eq $results_map{$key}{'driver'})
-					and ($tmp_results_map{1}{'main'} eq $results_map{$key}{'main'})
-					and ($tmp_results_map{1}{'rule'} eq $results_map{$key}{'rule'})
-					and ($tmp_results_map{1}{'kernel'} eq $results_map{$key}{'kernel'}))
-				{
-					$tmp_results_map{1}{'is_found'} = 1;
-					$results_map{$key}{'second_verdict'} = $tmp_results_map{1}{'second_verdict'};
-					$results_map{$key}{'problems'} = "$name1: " . $results_map{$key}{'problems'} . "<br>$name2: " . $tmp_results_map{1}{'problems'}
-						if(($results_map{$key}{'first_verdict'} eq 'unknown') or ($tmp_results_map{1}{'second_verdict'} eq 'unknown'));
-					$results_map{$key}{'memory'} = "$name1: " . $results_map{$key}{'memory'} . "<br>$name2: " . $tmp_results_map{1}{'memory'};
-					$results_map{$key}{'time'} = "$name1: " . $results_map{$key}{'time'} . "<br>$name2: " . $tmp_results_map{1}{'time'};
-				}
-			}
-			if($tmp_results_map{1}{'is_found'} == 0)
-			{
-				print_debug_debug "New task in the second file was found: commit='$tmp_results_map{1}{'commit'}'";
-				$num_of_tasks++;
-				$results_map{$num_of_tasks} = {
-					'commit' => $tmp_results_map{1}{'commit'},
-					'rule' => $tmp_results_map{1}{'rule'},
-					'memory' => $tmp_results_map{1}{'memory'},
-					'time' => $tmp_results_map{1}{'time'},
-					'kernel' => $tmp_results_map{1}{'kernel'},
-					'driver' => $tmp_results_map{1}{'driver'},
-					'main' => $tmp_results_map{1}{'main'},
-					'first_verdict' => 'n/a',
-					'second_verdict' => $tmp_results_map{1}{'second_verdict'},
-					'ideal_verdict' => $tmp_results_map{1}{'ideal_verdict'},
-					'comment' => $tmp_results_map{1}{'comment'},
-					'problems' => $tmp_results_map{1}{'problems'},
-					'verdict_type' => $tmp_results_map{1}{'verdict_type'}
-				};
-			}
-		}
-		elsif($_ =~ /^link_to_results=(.*)/)
-		{
-			$link2 = $1;
-		}
-		elsif($_ =~ /^name_of_runtask=(.*)/)
-		{
-			$full_name2 = $1;
-		}
-		elsif($_ =~ /^verifier=(.*)/)
-		{
-			my $tmp_name2 = $1;
-			if($tmp_name2 ne $tmp_name1)
-			{
-				$name1 = $tmp_name1;
-				$name2 = $tmp_name2;
-			}
-		}
-	}
-	close($file_in);
-	print_debug_trace "Results were read. Number of found tasks: $num_of_tasks";
-	print_debug_trace "Starting generation of html report..";
-	my $html_results;
-	my $num1_safe_safe = 0;
-	my $num1_safe_unsafe = 0;
-	my $num1_safe_unknown = 0;
-	my $num1_unsafe_safe = 0;
-	my $num1_unsafe_unsafe = 0;
-	my $num1_unsafe_unknown = 0;
-	my $num2_safe_safe = 0;
-	my $num2_safe_unsafe = 0;
-	my $num2_safe_unknown = 0;
-	my $num2_unsafe_safe = 0;
-	my $num2_unsafe_unsafe = 0;
-	my $num2_unsafe_unknown = 0;
-	my $num_of_found_bugs = 0;
-	my $num_of_unknown_mains = 0;
-	my $num_of_undev_rules = 0;
-	my $num_of_all_bugs = 0;
-	
-	open($html_results, '>', $report_file) or die "Couldn't open file '$html_results' for write: $ERRNO!";
-	print($html_results "<!DOCTYPE html>
-<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\n<html>
-	<head>
-		<style type=\"text\/css\">
-		body {background-color:#FFEBCD}
-		p {color:#2F4F4F}
-		th {color:#FFA500}
-		td {background:#98FB98}
-		td {color:#191970}
-		th {background:#3CB371}
-		</style>
-	</head>
-<body>
-
-<h1 align=center style=\"color:#FF4500\"><u>Commit tests double results</u></h1>
-
-<p style=\"color:#483D8B\"><big>Result table:</big></p>
-
-<table border=\"2\">\n<tr>
-	<th>№</th>
-	<th>Rule</th>
-	<th>Kernel</th>
-	<th>Commit</th>
-	<th>Module</th>
-	<th>Main</th>
-	<th>Ideal verdict</th>
-	<th><small>$full_name1</small></th>
-	<th><small>$full_name2</small></th>
-	<th>Memory(b)</th>
-	<th>Time(ms)</th>
-	<th>Comment</th>
-	<th>Problems</th>\n</tr>");
-	my $cnt = 0;
-	for(my $i = 1; $i <= $num_of_tasks; $i++)
-	{
-		if(($results_map{$i}{'main'} ne 'n/a')
-			and ($results_map{$i}{'rule'} ne 'n/a'))
-		{
-			$cnt++;
-			$num_of_found_bugs++ if((($results_map{$i}{'first_verdict'} eq 'unsafe')
-										or ($results_map{$i}{'second_verdict'} eq 'unsafe'))
-										and ($results_map{$i}{'verdict_type'} == 0)
-										and ($results_map{$i}{'ideal_verdict'} eq 'unsafe'));
-			$num_of_all_bugs++ if($results_map{$i}{'ideal_verdict'} eq 'unsafe');
-			$num1_safe_unsafe++ if(($results_map{$i}{'ideal_verdict'} eq 'safe')
-									  and ($results_map{$i}{'first_verdict'} eq 'unsafe'));
-			$num1_safe_unknown++ if(($results_map{$i}{'ideal_verdict'} eq 'safe')
-									  and ($results_map{$i}{'first_verdict'} eq 'unknown'));
-			$num1_unsafe_safe++ if(($results_map{$i}{'ideal_verdict'} eq 'unsafe')
-									  and ($results_map{$i}{'first_verdict'} eq 'safe'));
-  			$num1_safe_safe++ if(($results_map{$i}{'ideal_verdict'} eq 'safe')
-									and ($results_map{$i}{'first_verdict'} eq 'safe'));
-  			$num1_unsafe_unsafe++ if(($results_map{$i}{'ideal_verdict'} eq 'unsafe')
-										and ($results_map{$i}{'first_verdict'} eq 'unsafe'));
-			$num1_unsafe_unknown++ if(($results_map{$i}{'ideal_verdict'} eq 'unsafe')
-										 and ($results_map{$i}{'first_verdict'} eq 'unknown'));
-			$num2_safe_unsafe++ if(($results_map{$i}{'ideal_verdict'} eq 'safe')
-									  and ($results_map{$i}{'second_verdict'} eq 'unsafe'));
-			$num2_safe_unknown++ if(($results_map{$i}{'ideal_verdict'} eq 'safe')
-									  and ($results_map{$i}{'second_verdict'} eq 'unknown'));
-			$num2_unsafe_safe++ if(($results_map{$i}{'ideal_verdict'} eq 'unsafe')
-									  and ($results_map{$i}{'second_verdict'} eq 'safe'));
-  			$num2_safe_safe++ if(($results_map{$i}{'ideal_verdict'} eq 'safe')
-									and ($results_map{$i}{'second_verdict'} eq 'safe'));
-  			$num2_unsafe_unsafe++ if(($results_map{$i}{'ideal_verdict'} eq 'unsafe')
-										and ($results_map{$i}{'second_verdict'} eq 'unsafe'));
-			$num2_unsafe_unknown++ if(($results_map{$i}{'ideal_verdict'} eq 'unsafe')
-										 and ($results_map{$i}{'second_verdict'} eq 'unknown'));
-
-			print($html_results "\n<tr>
-				<td>$cnt</td>
-				<td>$results_map{$i}{'rule'}</td>
-				<td>$results_map{$i}{'kernel'}</td>
-				<td>$results_map{$i}{'commit'}</td>
-				<td><small>$results_map{$i}{'driver'}</small></td>
-				<td><small>$results_map{$i}{'main'}</small></td>
-				<td");
-			print($html_results " style=\"color:#9F79EE\"")
-				if(($results_map{$i}{'verdict_type'} == 1)
-					and ($results_map{$i}{'ideal_verdict'} eq 'unsafe'));
-			print($html_results ">$results_map{$i}{'ideal_verdict'}</td>
-				<td style=\"color:#");
-			if(($results_map{$i}{'ideal_verdict'} ne $results_map{$i}{'first_verdict'})
-				and ($results_map{$i}{'first_verdict'} ne 'unknown'))
-			{
-				print($html_results "CD2626");
-			}
-			elsif($results_map{$i}{'first_verdict'} eq 'unknown')
-			{
-				print($html_results "FF00FF");
-			}
-			else
-			{
-				print($html_results "191970");
-			}
-			print($html_results "\">");
-			print($html_results "$results_map{$i}{'first_verdict'}")
-				if($results_map{$i}{'first_verdict'} ne 'n/a');
-			print($html_results "Not found!") if($results_map{$i}{'first_verdict'} eq 'n/a');
-			print($html_results "</td>
-				<td style=\"color:#");
-			if(($results_map{$i}{'ideal_verdict'} ne $results_map{$i}{'second_verdict'})
-				and ($results_map{$i}{'second_verdict'} ne 'unknown'))
-			{
-				print($html_results "CD2626");
-			}
-			elsif($results_map{$i}{'second_verdict'} eq 'unknown')
-			{
-				print($html_results "FF00FF");
-			}
-			else
-			{
-				print($html_results "191970");
-			}
-			print($html_results "\">");
-			print($html_results "$results_map{$i}{'second_verdict'}")
-				if($results_map{$i}{'second_verdict'} ne 'n/a');
-			print($html_results "Not found!") if($results_map{$i}{'second_verdict'} eq 'n/a');
-			print($html_results "</td>
-				<td><small>$results_map{$i}{'memory'}</small></td>
-				<td><small>$results_map{$i}{'time'}</small></td>
-				<td><small>$results_map{$i}{'comment'}</small></td>
-				<td><small>$results_map{$i}{'problems'}</small></td>\n</tr>\n");
-		}
-		$num_of_unknown_mains++ if(($results_map{$i}{'main'} eq 'n/a')
-										and ($results_map{$i}{'rule'} ne 'n/a'));
-		$num_of_undev_rules++ if($results_map{$i}{'rule'} eq 'n/a');
-	}
-
-	$sum_memory1 = int($sum_memory1/$num_of_non_unknowns1);
-	$sum_time1 = $sum_time1/60000;
-	$num_of_non_unknowns2 = 1 unless($num_of_non_unknowns2);
-	$sum_memory2 = int($sum_memory2/$num_of_non_unknowns2);
-	$sum_time2 = $sum_time2/60000;
-
-	print($html_results "<\/table>\n<br><br>");
-	print($html_results "<hr>\n<a href=\"$link1\">Link to visualizer with your $name1 results.</a><br>\n");
-	print($html_results "<a href=\"$link2\">Link to visualizer with your $name2 results.</a>");
-	print($html_results "<hr><p style=\"color:#483D8B\"><big>Summary</big></p>\n<table border=\"1\">\n<tr>
-		<th style=\"color:#00008B;background:#66CD00\"></th>
-		<th style=\"color:#00008B;background:#66CD00\">$full_name1<br>Ideal->New</th>
-		<th style=\"color:#00008B;background:#66CD00\">$full_name2<br>Ideal->New</th>\n</tr>\n<tr>
-		<th style=\"color:#00008B;background:#66CD00\">unsafe->unsafe:</th>
-		<td style=\"color:#00008B;background:#CAFF70\">$num1_unsafe_unsafe</td>
-		<td style=\"color:#00008B;background:#CAFF70\">$num2_unsafe_unsafe</td>\n</tr>\n<tr>
-		<th style=\"color:#00008B;background:#66CD00\">unsafe->safe:</th>
-		<td style=\"color:#00008B;background:#CAFF70\">$num1_unsafe_safe</td>
-		<td style=\"color:#00008B;background:#CAFF70\">$num2_unsafe_safe</td>\n</tr>\n<tr>
-		<th style=\"color:#00008B;background:#66CD00\">unsafe->unknown:</th>
-		<td style=\"color:#00008B;background:#CAFF70\">$num1_unsafe_unknown</td>
-		<td style=\"color:#00008B;background:#CAFF70\">$num2_unsafe_unknown</td>\n</tr>\n<tr>
-		<th style=\"color:#00008B;background:#66CD00\">safe->safe:</th>
-		<td style=\"color:#00008B;background:#CAFF70\">$num1_safe_safe</td>
-		<td style=\"color:#00008B;background:#CAFF70\">$num2_safe_safe</td>\n</tr>\n<tr>
-		<th style=\"color:#00008B;background:#66CD00\">safe->unsafe:</th>
-		<td style=\"color:#00008B;background:#CAFF70\">$num1_safe_unsafe</td>
-		<td style=\"color:#00008B;background:#CAFF70\">$num2_safe_unsafe</td>\n</tr>\n<tr>
-		<th style=\"color:#00008B;background:#66CD00\">safe->unknown:</th>
-		<td style=\"color:#00008B;background:#CAFF70\">$num1_safe_unknown</td>
-		<td style=\"color:#00008B;background:#CAFF70\">$num2_safe_unknown</td>\n</tr>\n</table>\n<hr>
-		<p style=\"color:#483D8B\"><big>Target bugs</big></p>
-		<p> Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br> Total number of bugs: $num_of_all_bugs;
-		<br>Expended time for $name1: $sum_time1 minutes;<br>Average memory for each non-unknown task ($name1): $sum_memory1 bytes;
-		<br>Expended time for $name2: $sum_time2 minutes;<br>Average memory for each non-unknown task ($name2): $sum_memory2 bytes;</p>
-		<br><p> No main: $num_of_unknown_mains;<br> No rule: $num_of_undev_rules</p><br>");
 	my $cnt2 = 0;
 	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>\n<table border=\"1\">\n<tr>
 		<th style=\"background:#00C5CD;color:#191970\">№</th>
@@ -1084,7 +675,7 @@ sub create_several_report(@)
 	{
 		print($html_results "<th><small>$full_names[$i]</small></th>\n	");
 	}
-	print($html_results "<th>Memory(b)</th>
+	print($html_results "<th>Memory(KB)</th>
 	<th>Time(ms)</th>
 	<th>Comment</th>
 	<th>Problems</th>\n</tr>");
@@ -1216,19 +807,35 @@ sub create_several_report(@)
 		<p style=\"color:#483D8B\"><big>Target bugs</big></p>
 		<p> Ldv-tools found $num_of_found_bugs of $num_of_all_bugs bugs;<br> Total number of bugs: $num_of_all_bugs;</p>
 		<br><p> No main: $num_of_unknown_mains;<br> No rule: $num_of_undev_rules</p><br>");
+	print($html_results "<table border=\"1\">\n<tr>
+		<th style=\"color:#00008B;background:#66CD00\"></th>");
+	for(my $j = 0; $j < $num_of_files; $j++)
+	{
+		print($html_results "<th style=\"color:#00008B;background:#66CD00\"><small>$full_names[$j]</small></th>\n");
+	}
+	print($html_results "</tr>\n<tr>\n   <td style=\"color:#00008B;background:#66CD00\">Expended time for verifying (minutes)</td>\n");
+	for(my $j = 0; $j < $num_of_files; $j++)
+	{
+		$sum_time[$j] = $sum_time[$j]/60000;
+		print($html_results "   <td>$sum_time[$j]</td>\n");
+	}
+	print($html_results "</tr>\n<tr>\n   <td style=\"color:#00008B;background:#66CD00\">Expended time for verifying where result is (un)safe (minutes)</td>\n");
+	for(my $j = 0; $j < $num_of_files; $j++)
+	{
+		$sum_good_time[$j] = $sum_good_time[$j]/60000;
+		print($html_results "   <td>$sum_good_time[$j]</td>\n");
+	}
+	print($html_results "</tr>\n<tr>\n   <td style=\"color:#00008B;background:#66CD00\">Average memory for each (un)safe task (KB)</td>\n");
 	for(my $j = 0; $j < $num_of_files; $j++)
 	{
 		my $delitel = $num_unsafe_safe[$j] + $num_unsafe_unsafe[$j] + $num_safe_safe[$j] + $num_safe_unsafe[$j];
 		$delitel = 1 unless($delitel);
 		$sum_memory[$j] = int($sum_memory[$j]/$delitel);
-		$sum_time[$j] = $sum_time[$j]/60000;
-		$sum_good_time[$j] = $sum_good_time[$j]/60000;
-		print($html_results "Expended time for the $names[$j] run: $sum_time[$j] minutes;<br>");
-		print($html_results "Expended time for the $names[$j] run (including only safe/unsafe results): $sum_good_time[$j] minutes;<br>");
-		print($html_results "Memory for each non-unknown task in the $names[$j] run: $sum_memory[$j] bytes;<br><br>");
+		print($html_results "   <td>$sum_memory[$j]</td>\n");
 	}
+	print($html_results "</tr></table><hr>");
 	my $cnt2 = 0;
-	print($html_results "<hr><p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>\n<table border=\"1\">\n<tr>
+	print($html_results "<p style=\"color:#483D8B\"><big>Modules with unknown mains:</big></p>\n<table border=\"1\">\n<tr>
 		<th style=\"background:#00C5CD;color:#191970\">№</th>
 		<th style=\"background:#00C5CD;color:#191970\">Rule</th>
 		<th style=\"background:#00C5CD;color:#191970\">Kernel</th>

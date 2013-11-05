@@ -77,9 +77,10 @@ sub load_results();
 sub check_results_and_print_report();
 
 # Clone repository to current dir and return path to it
-# args: name of repository (stable or torvalds)
+# args: name of repository
 # retn: path to repository
 sub clone_repos($);
+
 #######################################################################
 # Global variables
 #######################################################################
@@ -136,6 +137,13 @@ get_test_opt();
 
 $current_working_dir = Cwd::cwd() or die("Can't obtain current directory!");
 print_debug_normal("Current directory is '$current_working_dir'");
+$launcher_work_dir = $current_working_dir . "/commit-tester-work";
+$launcher_results_dir = $current_working_dir . "/commit-tester-results";
+print_debug_debug("Creating directories for work");
+mkpath("$launcher_work_dir")
+	or die("Couldn't recursively create directory '$launcher_work_dir': $ERRNO");
+mkpath("$launcher_results_dir")
+	or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
 
 print_debug_normal("Starting getting tasks..");
 get_commit_test_tasks();
@@ -190,7 +198,8 @@ OPTIONS
 	-o, --result-file <file>
 	   <file> is a file where results will be put in html format. If it isn't
 	   specified then the output is placed to the file '$results_in_html'
-	   in the current directory. If file was already existed it will be |>>>rewrited<<<|.
+	   in the current directory. If file was already existed you will be
+	   asked if you want to rewrite it.
 	-h, --help
 	   Print this help and exit with an error.
 	--test-set=<file>
@@ -199,7 +208,7 @@ OPTIONS
 			kernel_place=PATH_TO_KERNEL
 			commit=..;rule=..;driver=...ko;main=<main>;verdict=..;ideal_verdict=..;#Comment
 		You can use 'repository=<name>' instead of 'kernel_place=<path>' where <name> is
-		repository name (for example, 'torvalds' or 'stable').
+		adress of repository (for example 'git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git').
 		You can set a several kernel places:
 			kernel_place=PLACE1
 			commit=...
@@ -207,7 +216,7 @@ OPTIONS
 			kernel_place=PLACE2
 			commit=...
 			...
-		For no-purpose commits (when ideal verdict is save,
+		For no-purpose commits (when ideal verdict is safe,
 		but result is unsafe as a result of another bug in driver)
 		comments should be started with two symbols '##'.
 		
@@ -219,7 +228,7 @@ OPTIONS
 		If rule wasn't developed for any commit you should write 'rule=n/a'.
 		In this case you haven't to set 'verdict' and 'main'.
 		
-		All comments that not in task format are supported.
+		Russian comments are also supported.
 	--kernels=<path>
 		<path> is place where are all needed kernels repositories.
 		If needed repository wouldn't be found it will be downloaded
@@ -261,13 +270,6 @@ sub prepare_files_and_dirs()
 	die("Loader script wasn't found") unless(-x $load_script);
 	die("Report script wasn't found") unless(-x $report_script);
 	
-	$launcher_work_dir = $current_working_dir . "/commit-test-work";
-	$launcher_results_dir = $current_working_dir . "/commit-test-results";
-	print_debug_debug("Creating directories for work");
-	mkpath("$launcher_work_dir")
-		or die("Couldn't recursively create directory '$launcher_work_dir': $ERRNO");
-	mkpath("$launcher_results_dir")
-		or die("Couldn't recursively create directory '$launcher_results_dir': $ERRNO");
 	my $i = 1;
 	my $commit_test_work_dir;
 	while($i <= $num_of_tasks)
@@ -381,7 +383,14 @@ sub get_commit_test_tasks()
 					}
 				}
 			}
-			unless($rep_found)
+			if($rep_found)
+			{
+				print_debug_debug("Repository '$repos_name' was found, copying it...");
+				my $func_return = clone_repos($kernel_place);
+				die "Couldn't detect repository with name '$repos_name' after copying!" unless($func_return);
+				$kernel_place = $func_return;
+			}
+			else
 			{
 				print_debug_debug("Repository '$repos_name' wasn't found, cloning it...");
 				my $func_return = clone_repos($repos_name);
@@ -655,7 +664,6 @@ sub change_commit($)
 	my $i = shift;
 	my $result = 'unknown';
 	my $file_temp = "$launcher_work_dir/tempfile-$i";
-	print "TEST: 'git checkout $task_map{$i}{'commit'} 2>&1 | tee $file_temp'\n";
 	my $switch_commit_task = "git checkout $task_map{$i}{'commit'} 2>&1 | tee $file_temp";
 	chdir("$task_map{$i}{'kernel_place'}");
 	print_debug_debug("Execute the command '$switch_commit_task'");
@@ -888,22 +896,29 @@ sub clone_repos($)
 {
 	my $rep_name = shift;
 	my $ret_place;
+	chdir($rep_name);
+	print_debug_debug("Execute command 'git fetch' at '$rep_name'.");
+	system("git fetch");
+	chdir($launcher_work_dir);
 	print_debug_debug("Execute command 'git clone $rep_name'");
 	system("git clone $rep_name 2>&1 | tee git_clone_log");
-	open(CLOLOG, '<', "git_clone_log") or die "Couldn't open clone_log for read!";
+	chdir($current_working_dir);
+	open(CLOLOG, '<', "$launcher_work_dir/git_clone_log")
+		or die "Couldn't open '$launcher_work_dir/clone_log' for read!";
 	while(<CLOLOG>)
 	{
 		chomp($_);
 		if($_ =~ /Cloning into '(.*)'.../)
 		{
 			close(CLOLOG);
-			$ret_place = $current_working_dir . '/' . $1;
+			$ret_place = $launcher_work_dir . '/' . $1;
 			die "Couldn't clone $rep_name" unless(-d $ret_place);
-			unlink("git_clone_log");
+			unlink("$launcher_work_dir/git_clone_log");
 			return $ret_place;
 		}
 		elsif($_ =~ /fatal:(.*)$/)
 		{
+			close(CLOLOG);
 			die "FATAL ERROR while cloning repository to the current dir:$1";
 		}
 	}
