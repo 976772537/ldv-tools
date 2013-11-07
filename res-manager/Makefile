@@ -9,14 +9,12 @@ build = build
 all:
 	@mkdir -p ${build}
 	@gcc -std=gnu99 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-sign-compare -Wdeclaration-after-statement -Wno-pointer-sign -Werror  res-manager.c -o build/res-manager
-	@./setup-ldv-cgroup
 	
-install:
+install: all
 	@mkdir -p $(bindir)
 	@cp build/res-manager $(bindir)
-	@./setup-ldv-cgroup -i
 
-test:
+test: all
 	@mkdir -p ${build}
 	@mkdir -p ${build}/${tests}/memory
 	@mkdir -p ${build}/${tests}/errors
