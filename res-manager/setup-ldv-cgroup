@@ -18,7 +18,7 @@
 ################################################################################
 
 use English;
-use Env qw(prefix LDV_CONTROL_GROUP_GID);
+use Env qw(prefix);
 use strict;
 
 # File with control groups configuration which is used by default by libcgroup.
@@ -35,10 +35,6 @@ my $ldv_cgconfig_tail = '### Control group for LDV Tools end ###';
 if (!$ARGV[0])
 {
   my @gids = split(/ /, $GID);
-  # Use either value of LDV_CONTROL_GROUP_GID environment variable if so or
-  # current user group id (by default). It is enouch to use control group to
-  # be created.
-  my $ldv_cgroup_gid = $ENV{'LDV_CONTROL_GROUP_GID'} || $gids[0];
   my $ldv_cgconfig_content = <<EOF;
 $ldv_cgconfig_header
 # Mount cpuacct and memory controllers.
@@ -52,10 +48,12 @@ group ldv {
 # and to other files in control group as well.
   perm {
     task {
-      gid = $ldv_cgroup_gid;
+      uid = $UID;
+      gid = $gids[0];
     }
     admin {
-      gid = $ldv_cgroup_gid;
+      uid = $UID;
+      gid = $gids[0];
     }
   }
 # Make available cpuacct and memory controllers for the user specified above.
