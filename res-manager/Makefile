@@ -10,11 +10,11 @@ all:
 	@mkdir -p ${build}
 	@gcc -std=gnu99 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-sign-compare -Wdeclaration-after-statement -Wno-pointer-sign -Werror  res-manager.c -o build/res-manager
 	
-install: all
+install:
 	@mkdir -p $(bindir)
 	@cp build/res-manager $(bindir)
 
-test: all
+test:
 	@mkdir -p ${build}
 	@mkdir -p ${build}/${tests}/memory
 	@mkdir -p ${build}/${tests}/errors
