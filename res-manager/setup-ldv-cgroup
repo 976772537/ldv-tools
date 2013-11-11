@@ -1,0 +1,138 @@
+#! /usr/bin/perl -w
+
+################################################################################
+# Copyright (C) 2013
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+use English;
+use strict;
+
+# File with information on currently mounted file systems.
+my $mounts = '/proc/mounts';
+
+# Type of control groups file system.
+my $cgroup_fs_type = 'cgroup';
+# Mount options for CPU accounting and memory controllers.
+my $cgroup_cpuacct_controller_param = 'cpuacct';
+my $cgroup_memory_controller_param = 'memory';
+
+# Paths to control_groups with CPU accounting and memory controllers.
+my $cgroup_cpuacct_controller;
+my $cgroup_memory_controller;
+
+# File system specifier for LDV control group.
+my $ldv_cgroup_fs_specifier = 'LDV-cgroup';
+# Directory for LDV control group.
+my $ldv_cgroup_dir = 'ldv';
+
+
+# Try to find already mounted contol groups (CPU accounting and memory
+# controllers are searched for).
+open(MOUNTS, '<', $mounts)
+  or die("Couldn't open file '$mounts' for read: $ERRNO");
+foreach my $mount (<MOUNTS>)
+{
+  chomp($mount);
+  # Get four first fields (other are of no interest).
+  my ($fs_specifier, $mount_point, $fs_type, $mount_options) = split(/ /, $mount);
+  # Exchange octal sequences represented as a number of characters with
+  # corresponding characters: '\040' is ' ' (space).
+  $fs_specifier =~ s/\\040/ /g;
+  $mount_point =~ s/\\040/ /g;
+  if ($fs_type eq $cgroup_fs_type)
+  {
+    if (!$cgroup_cpuacct_controller
+      and $mount_options =~ /$cgroup_cpuacct_controller_param/)
+    {
+      $cgroup_cpuacct_controller = $mount_point;
+      print("Path to existing control group (CPU accounting controller) is '$cgroup_cpuacct_controller'\n");
+    }
+    if (!$cgroup_memory_controller
+      and $mount_options =~ /$cgroup_memory_controller_param/)
+    {
+      $cgroup_memory_controller = $mount_point;
+      print("Path to existing control group (memory controller) is '$cgroup_memory_controller'\n");
+    }
+    # Both controllers were successfully found.
+    last if ($cgroup_cpuacct_controller and $cgroup_memory_controller);
+  }
+}
+close(MOUNTS);
+
+# If couldn't find either CPU accounting or memory controller, then mount a new
+# control groups file system in the current working directory with appropriate
+# mount options. Later it will be reused by other LDV Tools launches.
+if (!$cgroup_cpuacct_controller or !$cgroup_memory_controller)
+{
+  my $mount_options = '';
+  if (!$cgroup_cpuacct_controller or !$cgroup_memory_controller)
+  {
+    $mount_options = "$cgroup_cpuacct_controller_param,$cgroup_memory_controller_param";
+  }
+  elsif (!$cgroup_cpuacct_controller)
+  {
+    $mount_options = "$cgroup_cpuacct_controller_param";
+  }
+  else
+  {
+    $mount_options = "$cgroup_memory_controller_param";
+  }
+
+  # Use the same mount point as mount options.
+  my $mount_point = $mount_options;
+  unless (-e $mount_point)
+  {
+    system('mkdir', $mount_point) == 0
+      or die("Couldn't create directory '$mount_point'\n");
+    print("Mount point for LDV control group file system is '$mount_point'\n");
+  }
+
+  system('mount', '-t', $cgroup_fs_type, '-o', $mount_options
+    , $ldv_cgroup_fs_specifier, $mount_point) == 0
+    or die("Couldn't mount LDV control group file system to '$mount_point'\n");
+  print("LDV control group file system was mounted to '$mount_point'\n");
+
+
+  $cgroup_cpuacct_controller = $mount_point if (!$cgroup_cpuacct_controller);
+  $cgroup_memory_controller = $mount_point if (!$cgroup_memory_controller);
+}
+
+# Either find existing directories for LDV control groups or create them. Grant
+# write permissions for these directories for all users in any case.
+my @ldv_cgroup_controllers = (
+  "$cgroup_cpuacct_controller/$ldv_cgroup_dir"
+  , "$cgroup_memory_controller/$ldv_cgroup_dir"
+);
+for (my $i = 0; $i < 2; $i++)
+{
+  unless (-e $ldv_cgroup_controllers[$i])
+  {
+    system('mkdir', $ldv_cgroup_controllers[$i]) == 0
+      or die("Couldn't create directory '$ldv_cgroup_controllers[$i]'\n");
+  }
+  system('chmod', 'o+wt', $ldv_cgroup_controllers[$i]) == 0
+    or die("Couldn't change access permissions for '$ldv_cgroup_controllers[$i]'\n");
+  print("Path to LDV control group ("
+    , $i == 0 ? 'CPU accounting controller' : 'memory controller'
+    , ") is '$ldv_cgroup_controllers[$i]'\n");
+
+  # Do not do the same things twice.
+  if ($cgroup_cpuacct_controller eq $cgroup_memory_controller)
+  {
+    print("And the same for memory controller\n");
+    last;
+  }
+}
