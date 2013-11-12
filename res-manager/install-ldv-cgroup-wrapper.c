@@ -20,6 +20,12 @@ int main()
     return errno;
   }
 
+  if (setgid(0) == -1)
+  {
+    printf("Couldn't change group ID to root: %s\n", strerror(errno));
+    return errno;
+  }
+
   if((ret = system(INSTALL_LDV_CGROUP_SCRIPT)) == -1)
   {
     printf("Couldn't execute" INSTALL_LDV_CGROUP_SCRIPT ": %s\n", strerror(errno));
