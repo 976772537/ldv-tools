@@ -146,6 +146,10 @@ Run:
   make console-tools
 and then:
   sudo prefix=/path/to/your/installation/directory make install-console-tools
+Ubuntu 12.04 users are highly recommended to replace in /etc/default/grub:
+  GRUB_CMDLINE_LINUX=""
+with:
+  GRUB_CMDLINE_LINUX="swapaccount=1"
 
 If you need to install visualization stuff (most likely you need this if you
 are outside ISP RAS), then read stats-visualizer/README, run:
