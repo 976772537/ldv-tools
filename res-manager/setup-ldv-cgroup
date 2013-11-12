@@ -1,4 +1,4 @@
-#! /usr/bin/perl -w
+#! /usr/bin/suidperl -w
 
 ################################################################################
 # Copyright (C) 2013
@@ -104,7 +104,6 @@ if (!$cgroup_cpuacct_controller or !$cgroup_memory_controller)
     , $ldv_cgroup_fs_specifier, $mount_point) == 0
     or die("Couldn't mount LDV control group file system to '$mount_point'\n");
   print("LDV control group file system was mounted to '$mount_point'\n");
-
 
   $cgroup_cpuacct_controller = $mount_point if (!$cgroup_cpuacct_controller);
   $cgroup_memory_controller = $mount_point if (!$cgroup_memory_controller);
