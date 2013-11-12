@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 
-#define INSTALL_LDV_CGROUP_SCRIPT  "./install-ldv-cgroup"
+#define INSTALL_LDV_CGROUP_SCRIPT  "install-ldv-cgroup"
 
 
 int main()
