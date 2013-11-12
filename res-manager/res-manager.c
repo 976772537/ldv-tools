@@ -600,6 +600,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
 		// If there is no files for memsw special error message.
+		// TODO: return; instead of the same operations.
 		if (strcmp(fname, MEMSW_LIMIT) == 0)
 		{
 			free((void *)fname_new);
@@ -619,6 +620,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	fp = xfopen(fname_new, "w+");
 
 	// Write value to the file.
+	// TODO: check return value.
 	fputs(value, fp);
 
 	fclose(fp);
@@ -635,6 +637,7 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 	const char *str;
 	const char *fname_new = concat(controller, "/", fname, NULL);
 
+	// TODO: fix test, see https://lkml.org/lkml/2012/6/26/547.
 	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
 		// If there is no files for memsw special error message.
