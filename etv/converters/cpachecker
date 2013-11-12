@@ -83,6 +83,18 @@ my $src_prev = '';
 # To extract initialization section.
 my $isinit = 0;
 
+# Delete all not supported lines. This has meaning for error traces of new
+# CPAchecker releases (~1.2). 
+
+# Find indexes for not supported lines.
+my @del_indexes = reverse(grep { $et_raw[$_] =~ /Real:/ } 0..$#et_raw);
+
+# Delete lines by their indexes.
+foreach my $index (@del_indexes)
+{
+  splice(@et_raw, $index, 1);
+} 
+
 # Convert a raw error trace into the common format line by line.
 while (@et_raw)
 {

@@ -116,7 +116,7 @@ sub read_next_line($);
 # A supported version of the error trace common format.
 my $et_common_format = '0.1';
 # Supported versions of verifiers error traces.
-my $et_cpachecker_format = '1.1';
+my @et_cpachecker_formats = ('1.1', '1.2');
 my $et_ufo_format = '0.1';
 my $et_blast_format = '2.7';
 
@@ -486,16 +486,19 @@ sub parse_et($)
 
       return parse_et($et_conv_array_ref);
     }
-    elsif ($header =~ /^CPAchecker error trace v(.+)$/
-      and $1 eq $et_cpachecker_format)
+    elsif ($header =~ /^CPAchecker error trace v(.+)$/)
     {
-      print_debug_debug("A given error trace of CPAchecker has supported format"
-        . " ('$et_cpachecker_format')");
+      my $et_cpachecker_format = $1;
+      if (grep(/^$et_cpachecker_format$/, @et_cpachecker_formats))
+      {
+        print_debug_debug("A given error trace of CPAchecker has supported format"
+          . " ('$et_cpachecker_format')");
 
-      $et_conv_array_ref
-        = convert_et_to_common('cpachecker', $et_array_ref);
+        $et_conv_array_ref
+          = convert_et_to_common('cpachecker', $et_array_ref);
 
-      return parse_et($et_conv_array_ref);
+        return parse_et($et_conv_array_ref);
+      }
     }
     elsif ($header =~ /^UFO error trace.*/)
     {

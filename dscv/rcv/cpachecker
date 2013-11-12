@@ -431,7 +431,7 @@ if ($verdict eq 'unsafe') {
 	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cpachecker trace: \"$adjusted_trace_fname\", $!";
 	for (@files) {
 		open(SRC_FILE, '<', $_) or die "Can't open the source file: \"$_\", $!";
-		print TRACE_FILE "CPAchecker error trace v1.1\n";
+		print TRACE_FILE "CPAchecker error trace v1.2\n";
 		print TRACE_FILE "-------$_-------\n";
 		while(<SRC_FILE>) {
 			print TRACE_FILE  $_
