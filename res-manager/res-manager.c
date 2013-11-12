@@ -612,6 +612,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 		}
 	}
 
+	// TODO: try to remove this, since it looks to be useless.
 	if (chmod(fname_new, 0666) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
