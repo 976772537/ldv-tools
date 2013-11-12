@@ -9,10 +9,15 @@ build = build
 all:
 	@mkdir -p ${build}
 	@gcc -std=gnu99 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Wno-sign-compare -Wdeclaration-after-statement -Wno-pointer-sign -Werror  res-manager.c -o build/res-manager
+	@gcc -std=gnu99 -Wall -Werror install-ldv-cgroup-wrapper.c -o build/install-ldv-cgroup-wrapper 
 	
 install:
 	@mkdir -p $(bindir)
 	@cp build/res-manager $(bindir)
+	@cp install-ldv-cgroup $(bindir)
+	@cp build/install-ldv-cgroup-wrapper $(bindir)
+	@chown root:root $(bindir)/install-ldv-cgroup-wrapper
+	@chmod u+s $(bindir)/install-ldv-cgroup-wrapper
 
 test:
 	@mkdir -p ${build}
