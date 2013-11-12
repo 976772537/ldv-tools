@@ -27,7 +27,6 @@ MINIMAL PREREQUISITES
 	o MPFR Library, development version
 	o Flex or lex
 	o Yacc or Bison
-	o libcgroup and tools to control and monitor control groups
 	o libncurses
 	o MySQL (with InnoDB) server and console client, with development headers and libraries
 	o Perl modules (install via `sudo cpan Module::Name` or via package manager):
@@ -147,10 +146,6 @@ Run:
   make console-tools
 and then:
   sudo prefix=/path/to/your/installation/directory make install-console-tools
-Once after installation or after each change of LDV control group configuration
-you need to manually restart libcgroup configuration service, e.g. by means of
-"/etc/init.d/cgconfig restart" on openSUSE (on system rebooting this will be
-done automatically if you have added that service to the autostarting ones). 
 
 If you need to install visualization stuff (most likely you need this if you
 are outside ISP RAS), then read stats-visualizer/README, run:
@@ -159,14 +154,13 @@ and then:
   sudo prefix=/path/to/your/installation/directory make install-visualization
 Once after installation or after each change of LDV Analytics Center
 configuration you need to manually restart apache2 service, e.g. by means of
-"/etc/init.d/apache2 restart" on openSUSE (on system rebooting this will be
-done automatically if you have added that service to the autostarting ones). 
+"/etc/init.d/apache2 restart" on openSUSE 11.2 (on system rebooting this will
+be done automatically if you have added that service to the autostarting ones).
 
 Testing stuff, e.g. for rule models testing, can be installed by:
   make testing
 and:
   sudo prefix=/path/to/your/installation/directory make install-testing
-
 
 
 TODO: sort the text below out

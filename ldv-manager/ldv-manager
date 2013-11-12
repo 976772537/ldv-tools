@@ -2,14 +2,12 @@
 
 #Script to run LDV-MANAGER.  Uses make you supplied within $MAKE variable
 
-echo "Test presence of control group for LDV Tools"
-res-manager -d ldv -o ldv_cgroup_test echo "Control group for LDV Tools was set up properly"
-if [ $? != 0 ]; then
-{
-  echo "You need to set up control group for LDV Tools before using (see \$LDV_TOOLS_SRC/INSTALL for details)"
-  cat ldv_cgroup_test
-  exit 1
-} fi
+echo "Install LDV control group"
+install-ldv-cgroup-wrapper
+rc=$?
+if [[ $rc != 0 ]] ; then
+	exit $rc
+fi
 
 make_prog=${MAKE:-make}
 
