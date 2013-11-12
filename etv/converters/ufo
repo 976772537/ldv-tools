@@ -1,9 +1,9 @@
+use Env qw(LDV_DEBUG LDV_CPACHECKER_ET_CONV_DEBUG);
 sub get_loc_and_val($);
 
 my %src_map;
 my $str = shift(@et_array);
 my $main = 'main';
-
 if (defined($str))
 {
 	if ($str =~ /^Entry point: (.*)\(\)$/)
@@ -45,104 +45,141 @@ if (defined($str))
 	}
 	else
 	{
-		print_debug_trace("Source file isn't specified for UFO");
 		unshift(@et_array, $str);
 	}
 }
 
 my @et_raw = @et_array;
 push(@et_conv_array, "Error trace common format v0.1\n");
-my $src_prev = '';
-my $is_prev_entry = 0;
-my $is_able_to_return = 0;
-my $prev_state;
-
+my @current_function;
 while (@et_raw)
 {
 	$str = shift(@et_raw);
 	chomp($str);
 	next if ($str =~ /^\s*$/);
-	my ($src, $line, $val) = get_loc_and_val($str);
-	# source file (src), line in it (line) and this line (val)
+	my ($src, $line, $val, $action) = get_loc_and_val($str);
+	# source file (src), line in it (line), this line (val)
+	# and what to do with string (action)
 	next if ($val =~ /^\s*$/);
 	
 	my $type = 'BLOCK';
 	my $kind = '';
 	my $skip_reason = '';
-	if($src =~ /^Check/)
-	{
-		$type = '';
-		$src = '';
-	}
-	elsif ($val =~ /^enter:\s+(.*)$/)
-	{
-		$prev_state = $1;
-		$is_prev_entry = 1;
-		$val = '';
-		if($is_able_to_return)
-		{
-			$type = "RETURN";
-		}
-		else
-		{
-			$is_able_to_return = 1;
-		}
-	}
-	elsif ($val =~ /:\s+if(.*) {$/)
-	{
-		$type = 'ASSUME';
-		$val = ": $1";
-	}
-	elsif($is_prev_entry == 1)
+	if($action =~ /^enter:/)
 	{
 		$type = 'CALL';
-		$is_prev_entry = 0;
-		$val = ": $prev_state";
-	}
-	push(@et_conv_array,
-	 join(' ', ($line, $src, $type, $kind, $skip_reason, $val)));
-	 print_debug_warning("$line $src $type $kind $skip_reason $val");
-}
-
-{
-	no warnings 'redefine';
-	sub get_loc_and_val($)
-	{
-		my $val = shift;
-		my $line = '';
-		if ($val =~ /^file:([^:]+):/
-		and $val !~ /4294967295/)
+		if($POSTMATCH =~ /^\s*(.*)\s*$/)
 		{
-			$line = $1 if (defined($1));
-		}
-		elsif (($val =~ /^\s*\%.*true/) or ($val =~ /^\s*\%.*false/))
-		{
-			if($val =~ /:(.*)$/)
+			$val = "$1";
+			my $new_func = "$line $src BLOCK   : $val";
+			my $arr_num = @current_function;
+			if($arr_num)
 			{
-				$val = "Assume next result == $1"
+				my $curr_func = $current_function[$arr_num - 1];
+				push(@current_function, $new_func);
+				if($curr_func =~ /^(\d+) (.*) BLOCK   : (.*)$/)
+				{
+					my ($tmp_line, $tmp_src, $tmp_val) = ($1, $2, $3);
+					push(@et_conv_array, "$tmp_line $tmp_src BLOCK   : Call in function '$tmp_val' of function");
+				}
 			}
-			return ("Check", '', ": " . $val);
+			else
+			{
+				push(@current_function, $new_func);
+			}
 		}
-		elsif ($val =~ /\%/)
+		$val = ": $val";
+	}
+	elsif($action =~ /^exit:/)
+	{
+		$type = 'RETURN';
+		if($val =~ /return\s*(.*)$/)
 		{
-			return ("Check", '', ": " . $val);
+			$val = ": $1";
+			while($val =~ /^(.*)\((.*)\)(.*)$/)
+			{
+				$val = "$1$2$3";
+			}
+			$val = $1 if($val =~ /^(.*);$/);
 		}
-		elsif ($val =~ /(enter:\s*.*)$/)
+		$val = '' if ($val =~ /^:\s*$/);
+		pop(@current_function);
+	}
+	elsif($action =~ /^in: /)
+	{
+		my $func_name = $POSTMATCH;
+		if($func_name =~ /^(.*) ELSE/)
 		{
-			return ('', '', $1);
+			$func_name = $1;
+			$type = 'ASSUME';
+			$val = ': ELSE in this comparison';
+		}
+		elsif($func_name =~ /^(.*) THEN/)
+		{
+			$func_name = $1;
+			$type = 'ASSUME';
+			$val = ': THEN in this comparison';
 		}
 		else
 		{
-			return ('', $line, '')
+			$type = 'BLOCK';
+			$val = $val;
 		}
+		my $arr_size = @current_function;
+		if($current_function[$arr_size - 1] =~ /^\d+ $src BLOCK   : $func_name/)
+		{
+			$current_function[$arr_size - 1] = "$line $src BLOCK   : $func_name";
+		}
+		else
+		{
+			my $first_line = $current_function[$arr_size - 1];
+		}
+	}
+	push(@et_conv_array, join(' ', ($line, $src, $type, $kind, $skip_reason, $val)));
+}
+my $array_size = @et_conv_array;
+for(my $i = 0; $i < $array_size; $i++)
+{
+	while(1)
+	{
+		if($et_conv_array[$i] =~ /^(.*\S)\s+$/)
+		{
+			$et_conv_array[$i] = $1;
+		}
+		elsif($et_conv_array[$i] =~ /^(.*\S)\s{2,}(\S.*)$/)
+		{
+			$et_conv_array[$i] = "$1 $2";
+		}
+		else
+		{
+			last;
+		}
+	}
+}
+{
+no warnings 'redefine';
+sub get_loc_and_val($)
+{
+	my $val = shift;
+	my $line = '';
+	my $action = '';
+	if ($val =~ /^\/.*\/tmp_ufo.c:(\d+):/)
+	{
+		$line = $1;
+		$action = $POSTMATCH;
 		if($src_map{$line})
 		{
 			my $file = $src_map{$line}{'file'};
 			$val = $src_map{$line}{'text'};
 			my $src = '"' . $file . '"';
 			$line = $src_map{$line}{'line'};
-			return ($src, $line, $val);
+			while($val =~ /^:(.*):(.*)$/)
+			{
+				$val = ": $1 $2";
+			}
+			return ($src, $line, $val, $action);
 		}
-		return ('', $line, '');
 	}
+	return ('', $line, '', $action);
+}
 }
