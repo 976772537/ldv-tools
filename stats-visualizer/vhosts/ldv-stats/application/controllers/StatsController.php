@@ -214,7 +214,7 @@ class StatsController extends Zend_Controller_Action
     $errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
 
     // Make error trace visualization.
-    exec("LDV_DEBUG=30 $etv --report=$errorTraceRawFile --report-out=$errorTraceFile --src-files=$sourceCodeFile 2>&1", $output, $retCode);
+    exec("LDV_DEBUG=30 $etv --original-error-trace=$errorTraceRawFile --visualized-error-trace=$errorTraceFile --referred-source-code=$sourceCodeFile 2>&1", $output, $retCode);
 
     // Store log to see it for debug.
     $this->view->entries = array();
