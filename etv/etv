@@ -135,7 +135,7 @@ else
     print_debug_debug("Process source code files related with a given error"
       . " trace");
     $referred_source_code
-      = process_referred_source_code($opts->{'fh referred_source_code'});
+      = process_referred_source_code($opts->{'fh referred source code'});
   }
 
   print_debug_debug("Visualize an error trace specified");
