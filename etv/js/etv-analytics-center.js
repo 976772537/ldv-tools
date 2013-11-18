@@ -27,7 +27,7 @@ $(document).ready(function() {
 // Resize widths of text fields to fit the screen (#4417).
 function resizeTextFieldWidths() {
   // Indeed, this is a magic formula.
-  var screenWidth = $('#SSHeader').width() - 20;
+  var screenWidth = $(window).width() - 40;
   // Keep the ratio between text field widths.
   var newErrorTraceWidth = Math.round(screenWidth * (originalErrorTraceWidth / (originalErrorTraceWidth + originalTabsWidth)));
   var newTabsWidth = Math.round(screenWidth - newErrorTraceWidth);
