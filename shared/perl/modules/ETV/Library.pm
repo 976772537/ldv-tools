@@ -102,7 +102,7 @@ sub parse_et_fh($);
 # found and the error trace isn't in the common format.
 # args: reference to array containing error trace lines.
 # retn: reference to array with a specified error trace processed.
-sub parse_et_as_text($);
+sub parse_et_as_plain_text($);
 # Read a following line from an error trace in the common format.
 # args: Yapp parser.
 # retn: next line if exists or undef.
@@ -525,14 +525,14 @@ sub parse_et($)
         unshift(@{$et_array_ref}, $header);
       }
 
-      $et = parse_et_as_text($et_array_ref);
+      $et = parse_et_as_plain_text($et_array_ref);
     }
   }
 
   return $et;
 }
 
-sub parse_et_as_text($)
+sub parse_et_as_plain_text($)
 {
   my $et = shift;
 
