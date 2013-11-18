@@ -82,7 +82,7 @@ sub get_call_stack($);
 # args: references to two error trace texts.
 # retn: references to call tree hashes.
 sub get_call_trees($$);
-# Process a given error trace in depend on its header if so. There are following
+# Process a given error trace in depend on its format if so. There are following
 # abilities:
 # 1. The error trace is in the common format. It'll be processed by means of
 #    the Yapp parser.
@@ -90,17 +90,19 @@ sub get_call_trees($$);
 # 3. It's a CPAchecker error trace. A CPAchecker error trace converter will be
 #    involved.
 # 4. Otherwise the error trace is treated as a text.
-# args: reference to array containing error trace lines.
+# args: reference to array containing error trace lines and error trace format
+#       ('' means that format wasn't specified via command-line options)
 # retn: reference to array with a specified error trace processed.
-sub parse_et($);
+sub parse_et($$);
 # A wrapper around parse_et subroutine that reads a error trace from a file
 # handler specified first of all.
-# args: file handler corresponding to a error trace.
+# args: file handler corresponding to a error trace and error trace format (''
+#       means that format wasn't specified via command-line options)
 # retn: reference to array with a specified error trace processed.
-sub parse_et_fh($);
-# Process a given error trace as a text because of no appropriate convert is
-# found and the error trace isn't in the common format.
-# args: reference to array containing error trace lines.
+sub parse_et_fh($$);
+# Process a given error trace as a plain text if no appropriate converter can be
+# found or the error trace isn't in the common format.
+# args: reference to array containing error trace lines
 # retn: reference to array with a specified error trace processed.
 sub parse_et_as_plain_text($);
 # Read a following line from an error trace in the common format.
@@ -435,8 +437,8 @@ sub get_call_trees($$)
   my @et2 = split(/\n/, $et2);
 
   # First of all obtain trees representing both error traces.
-  my $et1_root = parse_et(\@et1);
-  my $et2_root = parse_et(\@et2);
+  my $et1_root = parse_et(\@et1, '');
+  my $et2_root = parse_et(\@et2, '');
   print_debug_debug("Error traces were parsed successfully");
 
   # Then obtain function call trees from obtained trees.
@@ -448,23 +450,26 @@ sub get_call_trees($$)
   return ($et1_call_tree, $et2_call_tree);
 }
 
-sub parse_et($)
+sub parse_et($$)
 {
   my $et_array_ref = shift;
+  my $format = shift;
 
   my $et_conv_array_ref;
   my $et = {};
 
-  print_debug_trace("Check that a given error trace is in the common format of"
-    . " the supported format");
-  my $header = shift(@{$et_array_ref});
-  if (defined($header))
+  print_debug_trace("Check that a given error trace is in the common format or"
+    . " in one of supported formats or its format was provided via command-line"
+    . " options");
+  $format = shift(@{$et_array_ref}) unless ($format);
+
+  if (defined($format))
   {
-    if ($header =~ /^Error trace common format v(.+)$/
+    if ($format =~ /^Error trace common format v(.+)$/
       and $1 eq $et_common_format)
     {
-      print_debug_debug("A given error trace is in the common format of"
-        . " the supported format ('$et_common_format')");
+      print_debug_debug("A given error trace is in the common format"
+        . " ('$et_common_format')");
 
       # Create and initialize a special common format parser.
       my $parser = ETV::Parser->new();
@@ -475,7 +480,7 @@ sub parse_et($)
       # Parse a error trace in the common format.
       $et = $parser->YYParse(yylex => \&_Lexer, yyerror => \&_Error);
     }
-    elsif ($header =~ /^BLAST error trace v(.+)$/
+    elsif ($format =~ /^BLAST error trace v(.+)$/
       and $1 eq $et_blast_format)
     {
       print_debug_debug("A given error trace of BLAST has supported format"
@@ -484,23 +489,23 @@ sub parse_et($)
       $et_conv_array_ref
         = convert_et_to_common('blast', $et_array_ref);
 
-      return parse_et($et_conv_array_ref);
+      return parse_et($et_conv_array_ref, '');
     }
-    elsif ($header =~ /^CPAchecker error trace v(.+)$/)
+    elsif ($format =~ /^CPAchecker error trace v(.+)$/)
     {
       my $et_cpachecker_format = $1;
       if (grep(/^$et_cpachecker_format$/, @et_cpachecker_formats))
       {
-        print_debug_debug("A given error trace of CPAchecker has supported format"
-          . " ('$et_cpachecker_format')");
+        print_debug_debug("A given error trace of CPAchecker has supported"
+          . " format ('$et_cpachecker_format')");
 
         $et_conv_array_ref
           = convert_et_to_common('cpachecker', $et_array_ref);
 
-        return parse_et($et_conv_array_ref);
+        return parse_et($et_conv_array_ref, '');
       }
     }
-    elsif ($header =~ /^UFO error trace.*/)
+    elsif ($format =~ /^UFO error trace.*/)
     {
       print_debug_debug("A given error trace of UFO has supported format"
         . " ('$et_ufo_format')");
@@ -508,21 +513,23 @@ sub parse_et($)
       $et_conv_array_ref
         = convert_et_to_common('ufo', $et_array_ref);
 
-      return parse_et($et_conv_array_ref);
+      return parse_et($et_conv_array_ref, '');
     }
     else
     {
       if ($1)
       {
-        print_debug_warning("A given error trace format ('$header') isn't"
+        print_debug_warning("A given error trace format ('$format') isn't"
           . " supported. So it'll be treated as a plain text");
       }
       else
       {
-        print_debug_warning("A given error trace hasn't a header (first line is"
-          . " '$header'). So it will be treated as a plain text");
-        # Return back a first line since it isn't a standard header.
-        unshift(@{$et_array_ref}, $header);
+        print_debug_warning("Proper format wasn't specified for a given error"
+          . " trace (a error trace first line or a command-line option value is"
+          . " '$format'). So it will be treated as a plain text");
+        # Return back a first line since it doesn't reprsent a error trace
+        # format.
+        unshift(@{$et_array_ref}, $format);
       }
 
       $et = parse_et_as_plain_text($et_array_ref);
@@ -565,9 +572,10 @@ sub parse_et_as_plain_text($)
   return $root;
 }
 
-sub parse_et_fh($)
+sub parse_et_fh($$)
 {
   my $fh = shift;
+  my $format = shift;
 
   my @et;
 
@@ -577,7 +585,7 @@ sub parse_et_fh($)
     push(@et, $ARG);
   }
 
-  return parse_et(\@et);
+  return parse_et(\@et, $format);
 }
 
 sub read_next_line($)

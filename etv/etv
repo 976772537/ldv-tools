@@ -106,7 +106,7 @@ print_debug_debug("Process command-line options");
 my $opts = get_opt();
 
 print_debug_debug("Parse a error trace specified");
-my $et = ETV::Library::parse_et_fh($opts->{'fh in'});
+my $et = ETV::Library::parse_et_fh($opts->{'fh in'}, $opts->{'format'});
 
 # There are two modes of error trace visualizer work: collect requirements or
 # visualize error trace.
@@ -248,12 +248,13 @@ sub get_opt()
   }
   print_debug_trace("Options '@ARGV' were passed through the command-line");
 
-  my ($help, $in, $out, $required_files, $referred_source_code);
+  my ($help, $in, $format, $out, $required_files, $referred_source_code);
   my ($fh_in, $fh_out, $fh_required_files, $fh_referred_source_code);
 
   unless (GetOptions(
     'help|h' => \$help,
     'original-error-trace|c=s' => \$in,
+    'format|f=s' => \$format,
     'visualized-error-trace|o=s' => \$out,
     'required-files|r=s' => \$required_files,
     'referred-source-code|s=s' => \$referred_source_code))
@@ -309,6 +310,8 @@ sub get_opt()
       . " put to '$required_files'");
   }
 
+  print_debug_debug("Error trace format is '$format'") if ($format);
+
   print_debug_debug("Command-line options were processed successfully");
 
   return {'in' => $in
@@ -318,7 +321,8 @@ sub get_opt()
     , 'required files' => $required_files
     , 'fh required files' => $fh_required_files
     , 'referred source code' => $referred_source_code
-    , 'fh referred source code' => $fh_referred_source_code};
+    , 'fh referred source code' => $fh_referred_source_code
+    , 'format' => $format};
 }
 
 sub get_required_files($$)
@@ -370,6 +374,17 @@ OPTIONS
   -c, --original-error-trace <path>
     <path> to a file with an error trace to be processed.
 
+  -f, --format <string>
+    By means of <string> one can specify a format for a given error trace. This
+    format will be used to choose appropriate converter. The error trace format
+    should have such the form:
+      <Verification tool name> error trace <verification tool version>
+    For instance, "BLAST error trace v2.7" means that the given error trace was
+    produced by BLAST v2.7 verification tool. Unless a error trace isn't
+    specified via the given option it should become a first line of an error
+    trace to be visualized. Otherwise the error trace will be treated as a plain
+    text.
+
   -o, --visualized-error-trace <path>
     <path> to a file where a visualized error trace will be put.
 
@@ -383,7 +398,6 @@ OPTIONS
     be source code visualization. The file should contain a content of
     files with source code as is separated with:
     ---LDV---path/to/file/with/source/code---LDV---
-
 
 ENVIRONMENT VARIABLES
 
