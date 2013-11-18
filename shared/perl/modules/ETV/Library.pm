@@ -515,12 +515,12 @@ sub parse_et($)
       if ($1)
       {
         print_debug_warning("A given error trace format ('$header') isn't"
-          . " supported. So it'll be treated as text");
+          . " supported. So it'll be treated as a plain text");
       }
       else
       {
         print_debug_warning("A given error trace hasn't a header (first line is"
-          . " '$header'). So it will be treated as text");
+          . " '$header'). So it will be treated as a plain text");
         # Return back a first line since it isn't a standard header.
         unshift(@{$et_array_ref}, $header);
       }
