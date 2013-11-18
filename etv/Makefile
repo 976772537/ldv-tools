@@ -9,6 +9,10 @@ ETV_DIR = etv
 # Directory containing converters for differenet error trace engines.
 CONVERTERS = converters
 
+# Directories with CSS and JS for ETV
+CSS = css
+JS = js
+
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified. 
 ifndef prefix
@@ -32,6 +36,10 @@ install:
 	cp $(ETV) $(bindir)
 	mkdir -p $(prefix)/$(ETV_DIR)/$(CONVERTERS)
 	cp -r $(CONVERTERS)/* $(prefix)/$(ETV_DIR)/$(CONVERTERS)
+	mkdir -p $(prefix)/$(ETV_DIR)/$(CSS)
+	cp -r $(CSS)/* $(prefix)/$(ETV_DIR)/$(CSS)
+	mkdir -p $(prefix)/$(ETV_DIR)/$(JS)
+	cp -r $(JS)/* $(prefix)/$(ETV_DIR)/$(JS)
 
 test:
 	@echo The error trace visualizer doesn\'t have any test
