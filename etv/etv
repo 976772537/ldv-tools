@@ -26,7 +26,7 @@ use strict;
 use Tie::Hash::Indexed;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../etv/modules");
 
 use Text::Highlight;
 
