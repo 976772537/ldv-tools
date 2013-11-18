@@ -82,6 +82,11 @@ sub help();
 # retn: hash with information on files, lines, comments, etc.
 sub process_referred_source_code($);
 
+# Read a specified file into an array of lines.
+# args: file path.
+# retn: array of lines.
+sub read_file($);
+
 # Make visualization of a error trace specified.
 # args: root node of error trace hash, information on source code files,
 #       visualization information, current id.
@@ -136,6 +141,19 @@ else
   print_debug_debug("Visualize an error trace specified");
   my $etv = visualize_et($et, $referred_source_code, {'indent' => 0}
     , {'id' => 0});
+
+  # Inline CSS and JS required by ETV.
+  print({$opts->{'fh out'}}
+    "<style type='text/css'>"
+    , read_file("$FindBin::RealBin/../etv/css/etv.css")
+    , read_file("$FindBin::RealBin/../etv/css/etv-analytics-center.css")
+    , "</style>"
+    , "<script type='text/javascript'>"
+    , read_file("$FindBin::RealBin/../etv/js/jquery-1.4.2.min.js")
+    , read_file("$FindBin::RealBin/../etv/js/etv.js")
+    , read_file("$FindBin::RealBin/../etv/js/etv-analytics-center.js")
+    , "</script>"
+  );
 
   $OUTPUT_FIELD_SEPARATOR = '';
   print({$opts->{'fh out'}} @{$etv});
@@ -545,6 +563,19 @@ sub process_referred_source_code($)
     , 'model comments' => \%model_comments
     , 'model function definitions' => \%model_func_defs
     , 'deg comments' => \%deg_comments};
+}
+
+sub read_file($)
+{
+  my $file = shift;
+
+  open(my $fh, '<', "$file")
+    or die("Can't open file '$file' for read: $ERRNO");
+  my @lines = <$fh>;
+  close($fh)
+    or die("Can't close file handler for '$file': $ERRNO\n");
+
+  return @lines;
 }
 
 sub visualize_et($$$$)
