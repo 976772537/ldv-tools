@@ -746,7 +746,10 @@ sub visualize_et_node($$$$$)
   my %srcs = %{$srcs_ref};
   my %visual = %{$visual_ref};
 
-  my %model_func_defs = %{$srcs{'model function definitions'}};
+  # There might be no related source files.
+  my %model_func_defs = %{$srcs{'model function definitions'}}
+    if ($srcs{'model function definitions'});
+
   # Id for a currently processed entity.
   my $id = ${$id_ref}{'id'}++;
 
