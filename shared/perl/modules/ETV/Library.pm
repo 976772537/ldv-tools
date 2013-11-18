@@ -519,8 +519,8 @@ sub parse_et($)
       }
       else
       {
-        print_debug_warning("A given error trace hasn't a header (first line is
-          '$header'). So it will be treated as text");
+        print_debug_warning("A given error trace hasn't a header (first line is"
+          . " '$header'). So it will be treated as text");
         # Return back a first line since it isn't a standard header.
         unshift(@{$et_array_ref}, $header);
       }
