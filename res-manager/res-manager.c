@@ -466,9 +466,10 @@ static void find_cgroup_controllers(void)
 	const char *line = NULL;
 
 	fp = xfopen(fname, "rt");
-
+	// TODO: stop traversing mounts file on finding required controllers.
 	while ((line = read_string_from_fp(fp)) != NULL)
 	{
+		// TODO: see on proper names for these fields in ./install-ldv-cgroup.
 		char *name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *fname = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 		char *type = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
@@ -599,6 +600,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
 		// If there is no files for memsw special error message.
+		// TODO: return; instead of the same operations.
 		if (strcmp(fname, MEMSW_LIMIT) == 0)
 		{
 			free((void *)fname_new);
@@ -610,6 +612,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 		}
 	}
 
+	// TODO: try to remove this, since it looks to be useless.
 	if (chmod(fname_new, 0666) == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
@@ -618,6 +621,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	fp = xfopen(fname_new, "w+");
 
 	// Write value to the file.
+	// TODO: check return value.
 	fputs(value, fp);
 
 	fclose(fp);
@@ -634,6 +638,7 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 	const char *str;
 	const char *fname_new = concat(controller, "/", fname, NULL);
 
+	// TODO: fix test, see https://lkml.org/lkml/2012/6/26/547.
 	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
 		// If there is no files for memsw special error message.
@@ -1251,12 +1256,12 @@ static void print_usage(void)
 	);
 }
 
-// Convert time specifying in seconds with modifiers into milliseconds and check errors. 
+// Convert time specifying in seconds with modifiers into milliseconds and check errors.
 static void convert_time(char *optarg, const char *option_name, uint64_t *parameter)
 {
 	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
-	uint64_t converted = without_mod; // Number after converting into ms and applying modifiers. 
-	
+	uint64_t converted = without_mod; // Number after converting into ms and applying modifiers.
+
 	// Convert into ms.
 	converted *= 1000;
 	if (strstr(optarg, "ms") != NULL)
@@ -1269,10 +1274,10 @@ static void convert_time(char *optarg, const char *option_name, uint64_t *parame
 	}
 	else if (!is_number(optarg))
 	{
-		exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of ", 
+		exit_res_manager(EINVAL, NULL, concat("Error: expected positive integer number with ms|min| modifiers as value of ",
 			option_name," , got ", optarg, NULL));
 	}
-	
+
 	// Sanity check.
 	if (!(converted / (60 * 1000) == without_mod || converted / 1000 == without_mod ||
 		converted == without_mod))
@@ -1281,16 +1286,16 @@ static void convert_time(char *optarg, const char *option_name, uint64_t *parame
 			optarg, ", after converting ", itoa(converted), ". Perhaps there was overflow in data converting. ",
 			"Please, specify less positive integer number or use other modifier.", NULL));
 	}
-	
+
 	// Set result into specified parameter.
 	*parameter = converted;
 }
 
-// Convert memory specifying in bytes with modifiers and check errors. 
+// Convert memory specifying in bytes with modifiers and check errors.
 static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter)
 {
 	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
-	uint64_t converted = without_mod; // Number after and applying modifiers. 
+	uint64_t converted = without_mod; // Number after and applying modifiers.
 
 	if (strstr(optarg, "Kb") != NULL)
 	{
@@ -1335,7 +1340,7 @@ static void convert_memory(char *optarg, const char *option_name, uint64_t *para
 			optarg, ", after converting ", itoa(converted), ". Perhaps there was overflow in data converting. ",
 			"Please, specify less positive integer number or use other modifier.", NULL));
 	}
-	
+
 	// Set result into specified parameter.
 	*parameter = converted;
 }
@@ -1499,7 +1504,7 @@ int main(int argc, char **argv)
 		redirect(2, fstderr); // Redirect stderr.
 		add_task(getpid()); // Attach process to cgroup.
 		execvp(params.command[0], params.command); // Execute command.
-		
+
 		exit(errno); // Exit on error.
 	}
 	else if (pid == -1)
