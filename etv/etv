@@ -114,6 +114,7 @@ print_debug_debug("Parse a error trace specified");
 my $et = ETV::Library::parse_et_fh({
   'fh' => $opts->{'fh in'}
   , 'format' => $opts->{'format'}
+  , 'fh intermediate source file' => $opts->{'fh intermediate source file'}
 });
 
 # There are two modes of error trace visualizer work: collect requirements or
@@ -269,13 +270,16 @@ sub get_opt()
   }
   print_debug_trace("Options '@ARGV' were passed through the command-line");
 
-  my ($help, $in, $format, $out, $required_files, $referred_source_code);
-  my ($fh_in, $fh_out, $fh_required_files, $fh_referred_source_code);
+  my ($help, $in, $format, $intermediate_source_file, $out, $required_files
+    , $referred_source_code);
+  my ($fh_in, $fh_intermediate_source_file, $fh_out, $fh_required_files
+    , $fh_referred_source_code);
 
   unless (GetOptions(
     'help|h' => \$help,
     'original-error-trace|c=s' => \$in,
     'format|f=s' => \$format,
+    'intermediate-source-file|i=s' => \$intermediate_source_file,
     'visualized-error-trace|o=s' => \$out,
     'required-files|r=s' => \$required_files,
     'referred-source-code|s=s' => \$referred_source_code))
@@ -298,6 +302,14 @@ sub get_opt()
     or die("Can't open file '$in' specified through --original-error-trace (-c)"
       . " for read: $ERRNO");
   print_debug_debug("Error trace to be processed is '$in'");
+
+  if ($intermediate_source_file)
+  {
+    open($fh_intermediate_source_file, '<', "$intermediate_source_file")
+      or die("Can't open file '$intermediate_source_file' specified through"
+        . " --intermediate-source-file (-i) for read: $ERRNO");
+    print_debug_debug("Intermediate source file is '$intermediate_source_file'");
+  }
 
   unless ($out or $required_files)
   {
@@ -337,6 +349,8 @@ sub get_opt()
 
   return {'in' => $in
     , 'fh in' => $fh_in
+    , 'intermediate source file' => $intermediate_source_file
+    , 'fh intermediate source file' => $fh_intermediate_source_file
     , 'out' => $out
     , 'fh out' => $fh_out
     , 'required files' => $required_files
@@ -405,6 +419,12 @@ OPTIONS
     specified via the given option it should become a first line of an error
     trace to be visualized. Otherwise the error trace will be treated as a plain
     text.
+
+  -i, --intermediate-source-file <path>
+    <path> to a file with an intermediate representation of source code referred
+    by a given error trace. This option is useful for, say, CPAchecker that
+    refers to a CIL intermediate file by default rather then to original source
+    code that is referred by that file.
 
   -o, --visualized-error-trace <path>
     <path> to a file where a visualized error trace will be put.
