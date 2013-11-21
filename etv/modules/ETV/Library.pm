@@ -62,7 +62,7 @@ sub call_trees_eq($$);
 # retn: 0 if call trees aren't the same and 1 otherwise.
 sub call_trees_ne($$);
 # Try to convert a given error trace with help of an engine converter.
-# args: engine and reference to array containing error trace lines.
+# args: engine and reference to hash with parsing options.
 # retn: reference to array with a error trace in the common format or reference
 #       to array specified if corresponding converter can't be found.
 sub convert_et_to_common($$);
@@ -295,9 +295,10 @@ sub call_trees_ne($$)
 sub convert_et_to_common($$)
 {
   my $engine = shift;
-  my $et_array_ref = shift;
+  my $opts = shift;
 
   # An original error trace.
+  my $et_array_ref = $opts->{'error trace'};
   my @et_array = @{$et_array_ref};
 
   # Here a converted error trace should be written to.
@@ -487,7 +488,7 @@ sub parse_et($)
         . " ('$et_blast_format')");
 
       $et_conv_array_ref
-        = convert_et_to_common('blast', $et_array_ref);
+        = convert_et_to_common('blast', $opts);
 
       return parse_et({'error trace' => $et_conv_array_ref});
     }
@@ -500,7 +501,7 @@ sub parse_et($)
           . " format ('$et_cpachecker_format')");
 
         $et_conv_array_ref
-          = convert_et_to_common('cpachecker', $et_array_ref);
+          = convert_et_to_common('cpachecker', $opts);
 
         return parse_et({'error trace' => $et_conv_array_ref});
       }
@@ -511,7 +512,7 @@ sub parse_et($)
         . " ('$et_ufo_format')");
 
       $et_conv_array_ref
-        = convert_et_to_common('ufo', $et_array_ref);
+        = convert_et_to_common('ufo', $opts);
 
       return parse_et({'error trace' => $et_conv_array_ref});
     }
