@@ -90,19 +90,17 @@ sub get_call_trees($$);
 # 3. It's a CPAchecker error trace. A CPAchecker error trace converter will be
 #    involved.
 # 4. Otherwise the error trace is treated as a text.
-# args: reference to array containing error trace lines and error trace format
-#       ('' means that format wasn't specified via command-line options)
+# args: reference to hash with parsing options.
 # retn: reference to array with a specified error trace processed.
-sub parse_et($$);
+sub parse_et($);
 # A wrapper around parse_et subroutine that reads a error trace from a file
 # handler specified first of all.
-# args: file handler corresponding to a error trace and error trace format (''
-#       means that format wasn't specified via command-line options)
+# args: reference to hash with parsing options.
 # retn: reference to array with a specified error trace processed.
-sub parse_et_fh($$);
+sub parse_et_fh($);
 # Process a given error trace as a plain text if no appropriate converter can be
 # found or the error trace isn't in the common format.
-# args: reference to array containing error trace lines
+# args: reference to array containing error trace lines.
 # retn: reference to array with a specified error trace processed.
 sub parse_et_as_plain_text($);
 # Read a following line from an error trace in the common format.
@@ -437,8 +435,8 @@ sub get_call_trees($$)
   my @et2 = split(/\n/, $et2);
 
   # First of all obtain trees representing both error traces.
-  my $et1_root = parse_et(\@et1, '');
-  my $et2_root = parse_et(\@et2, '');
+  my $et1_root = parse_et({'error trace' => \@et1});
+  my $et2_root = parse_et({'error trace' => \@et2});
   print_debug_debug("Error traces were parsed successfully");
 
   # Then obtain function call trees from obtained trees.
@@ -450,10 +448,12 @@ sub get_call_trees($$)
   return ($et1_call_tree, $et2_call_tree);
 }
 
-sub parse_et($$)
+sub parse_et($)
 {
-  my $et_array_ref = shift;
-  my $format = shift;
+  my $opts = shift;
+
+  my $et_array_ref = $opts->{'error trace'};
+  my $format = $opts->{'format'};
 
   my $et_conv_array_ref;
   my $et = {};
@@ -463,7 +463,7 @@ sub parse_et($$)
     . " options");
   $format = shift(@{$et_array_ref}) unless ($format);
 
-  if (defined($format))
+  if ($format)
   {
     if ($format =~ /^Error trace common format v(.+)$/
       and $1 eq $et_common_format)
@@ -489,7 +489,7 @@ sub parse_et($$)
       $et_conv_array_ref
         = convert_et_to_common('blast', $et_array_ref);
 
-      return parse_et($et_conv_array_ref, '');
+      return parse_et({'error trace' => $et_conv_array_ref});
     }
     elsif ($format =~ /^CPAchecker error trace v(.+)$/)
     {
@@ -502,7 +502,7 @@ sub parse_et($$)
         $et_conv_array_ref
           = convert_et_to_common('cpachecker', $et_array_ref);
 
-        return parse_et($et_conv_array_ref, '');
+        return parse_et({'error trace' => $et_conv_array_ref});
       }
     }
     elsif ($format =~ /^UFO error trace.*/)
@@ -513,7 +513,7 @@ sub parse_et($$)
       $et_conv_array_ref
         = convert_et_to_common('ufo', $et_array_ref);
 
-      return parse_et($et_conv_array_ref, '');
+      return parse_et({'error trace' => $et_conv_array_ref});
     }
     else
     {
@@ -572,10 +572,11 @@ sub parse_et_as_plain_text($)
   return $root;
 }
 
-sub parse_et_fh($$)
+sub parse_et_fh($)
 {
-  my $fh = shift;
-  my $format = shift;
+  my $opts = shift;
+
+  my $fh = $opts->{'fh'};
 
   my @et;
 
@@ -585,7 +586,9 @@ sub parse_et_fh($$)
     push(@et, $ARG);
   }
 
-  return parse_et(\@et, $format);
+  $opts->{'error trace'} = \@et;
+
+  return parse_et($opts);
 }
 
 sub read_next_line($)

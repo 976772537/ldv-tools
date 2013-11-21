@@ -111,7 +111,10 @@ print_debug_debug("Process command-line options");
 my $opts = get_opt();
 
 print_debug_debug("Parse a error trace specified");
-my $et = ETV::Library::parse_et_fh($opts->{'fh in'}, $opts->{'format'});
+my $et = ETV::Library::parse_et_fh({
+  'fh' => $opts->{'fh in'}
+  , 'format' => $opts->{'format'}
+});
 
 # There are two modes of error trace visualizer work: collect requirements or
 # visualize error trace.
