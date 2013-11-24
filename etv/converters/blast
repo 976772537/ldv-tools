@@ -172,7 +172,7 @@ sub convert_tree_node_to_common($)
   }
 
   $node_common .= "$line " if ($line);
-  # Source file should be printed if it is specified and source file wasn't 
+  # Source file should be printed if it is specified and source file wasn't
   # printed before or current source file differs from the previous one.
   my $issrc_required = ($src and (!$src_prev or $src ne $src_prev));
   $node_common .= "\"$src\" " if ($issrc_required);
@@ -374,8 +374,9 @@ sub convert_tree_node_to_common($)
   }
 
   # Add common representation of the node processed to the beginning of its
-  # children common representation list.
-  unshift(@children_common, $node_common);
+  # children common representation list. Do not add representation for the
+  # Root element that is represented as ''.
+  unshift(@children_common, $node_common) if ($node_common);
 
   # Add information on entry point if so.
   unshift(@children_common, $entry_point) if ($entry_point);
