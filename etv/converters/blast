@@ -132,6 +132,8 @@ print_debug_info("Begin to parse error trace specified");
 my $et_tree_root_node = parse_error_trace(\@et_array);
 print_debug_debug("Error trace was parsed successfully");
 print_debug_info("Begin to convert error trace to the common format");
+# Zeroize previous source file one more time since it was likely set in parsing.
+$src_prev = '';
 my $et_conv = convert_tree_node_to_common($et_tree_root_node);
 print_debug_debug("Error trace was converted to the common format successfully");
 
