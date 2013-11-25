@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2012
+# Copyright (C) 2012-2013
 # Institute for System Programming, Russian Academy of Sciences (ISPRAS).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
