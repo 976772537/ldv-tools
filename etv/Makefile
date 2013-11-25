@@ -34,6 +34,7 @@ all:
 install:
 	mkdir -p $(bindir)
 	mkdir -p $(mandir)
+	mkdir -p $(prefix)/$(ETV_DIR)
 	cp $(ETV) $(prefix)/$(ETV_DIR)/
 	ln -sf $(prefix)/$(ETV_DIR)/$(ETV) $(bindir)/$(ETV)
 	mkdir -p $(prefix)/$(ETV_DIR)/$(CONVERTERS)
