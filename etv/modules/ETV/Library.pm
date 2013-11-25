@@ -507,7 +507,7 @@ sub parse_et($)
         return parse_et({'error trace' => $et_conv_array_ref});
       }
     }
-    elsif ($header =~ /^CBMC error trace v(.+)$/
+    elsif ($format =~ /^CBMC error trace v(.+)$/
       and $1 eq $et_cbmc_format)
     {
       print_debug_debug("A given error trace of CBMC has supported format"
@@ -518,7 +518,7 @@ sub parse_et($)
 
       return parse_et($et_conv_array_ref);
     }
-    elsif ($header =~ /^UFO error trace.*/)
+    elsif ($format =~ /^UFO error trace.*/)
     {
       print_debug_debug("A given error trace of UFO has supported format"
         . " ('$et_ufo_format')");
