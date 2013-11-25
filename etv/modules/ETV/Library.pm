@@ -119,6 +119,7 @@ my $et_common_format = '0.1';
 my @et_cpachecker_formats = ('1.1', '1.2');
 my $et_ufo_format = '0.1';
 my $et_blast_format = '2.7';
+my $et_cbmc_format = '4.5';
 
 
 ################################################################################
@@ -506,7 +507,18 @@ sub parse_et($)
         return parse_et({'error trace' => $et_conv_array_ref});
       }
     }
-    elsif ($format =~ /^UFO error trace.*/)
+    elsif ($header =~ /^CBMC error trace v(.+)$/
+      and $1 eq $et_cbmc_format)
+    {
+      print_debug_debug("A given error trace of CBMC has supported format"
+        . " ('$et_cbmc_format')");
+
+      $et_conv_array_ref
+        = convert_et_to_common('cbmc', $et_array_ref);
+
+      return parse_et($et_conv_array_ref);
+    }
+    elsif ($header =~ /^UFO error trace.*/)
     {
       print_debug_debug("A given error trace of UFO has supported format"
         . " ('$et_ufo_format')");

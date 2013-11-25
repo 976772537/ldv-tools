@@ -1,0 +1,283 @@
+#!/usr/bin/perl
+
+################################################################################
+# Copyright (C) 2013
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+use Env qw(LDV_DEBUG);
+use XML::Simple;
+use Data::Dumper;
+
+# Parsing xml CBMC format.
+
+# function_call 
+# function_return  
+# assignment 
+# location-only 
+
+# Get the xml format
+
+my $xml_et;
+
+my $data;
+
+my $xml = new XML::Simple;
+$data = $xml->XMLin("@et_array");
+
+my %hash = ();
+
+foreach my $arg (@{$data->{'assignment'}})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."ASSIGNMENT"} = $arg;
+}
+
+foreach my $arg (@{$data->{function_call}})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."FUNCTION_CALL"} = $arg;
+}
+
+foreach my $arg (@{$data->{function_return}})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."FUNCTION_RETURN"} = $arg;
+}
+
+foreach my $arg (@{$data->{'location-only'}})
+{
+	my $number = $arg->{step_nr}[0];
+	$hash{$number."LOCATION-ONLY"} = $arg;
+}
+
+# Add such the header to distinguish error traces in the common format.
+push(@et_conv_array, "Error trace common format v0.1");
+
+my $is_entry = "0";
+
+
+my $src_prev = '';
+my $line_prev = '';
+my $text_prev = '';
+
+my $src_prev_lo = '';
+my $line_prev_lo = '';
+my $is_arg = "0";
+
+my $is_prev_lo = "0";
+my $prev_assignment_text = '';
+
+foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
+{
+	my $tmp = $hash{$arg};
+	#print $tmp->{step_nr}[0] . "\n";
+	
+	my $src = '';
+	my $line = '';
+	my $type = '';
+	my $kind = '';
+	my $skip_reason = '';
+	my $text = '';
+	
+	if ($arg =~ /ASSIGNMENT/)
+	{
+		if ($src_prev_lo ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
+			clear_prevs_lo();
+		}
+		$line = $tmp->{location}->{line}[0];
+		$src = $tmp->{location}->{file}[0];
+		if (defined($src))
+		{
+			$src = '"' . $src . '"';
+		}
+		$type = "BLOCK";
+		my $value = $tmp->{full_lhs_value};
+		my $find = "\n";
+		my $replace = " ";
+		$value =~ s/$find/$replace/g;
+		$text = $tmp->{full_lhs} . "=" . $value . ";";
+		$text =~ s/\$object\./->/g; # pointers
+		$text =~ s/\$object//g; # pointers
+		$text =~ s/\$//g; # pointers
+		if ($is_prev_lo eq "1")
+		{
+			$prev_assignment_text = $tmp->{full_lhs};
+		}
+		else
+		{
+			$prev_assignment_text = '';
+		}
+		if ($src_prev ne '')
+		{
+			if ($line_prev eq $line)
+			{
+				if ($is_arg eq "0")
+				{
+					$is_arg = "1";
+					$text_prev .= "$value /* $tmp->{full_lhs} */";
+				}
+				else
+				{
+					$text_prev .= ", $value /* $tmp->{full_lhs} */";
+				}
+			}
+			else
+			{
+				push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev.")")));
+				clear_prevs();
+				if ($is_entry eq "1")
+				{
+					push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+				}
+			}
+		}
+		else
+		{
+			if ($is_entry eq "1")
+			{
+				push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+				
+			}
+		}
+		$is_prev_lo = "0";
+	}
+	if ($arg =~ /FUNCTION_CALL/)
+	{
+		clear_prevs_lo();
+		if ($src_prev ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev.")")));
+			clear_prevs();
+		}
+		$src = $tmp->{location}->{file}[0];
+		if (defined($src))
+		{
+			$src = '"' . $src . '"';
+		}
+		$line = $tmp->{location}->{line}[0] || '';
+		$text = $tmp->{display_name};
+		$type = "CALL";
+		if ($tmp->{display_name} eq "__CPROVER_initialize") # INIT SECTION
+		{
+			$kind = "INIT";
+		}
+		else
+		{
+			if ($line eq '')
+			{
+				$kind = "ENTRY";
+				push(@et_conv_array, join(' ', ($type, $kind, ":", $text)));
+			}
+			else
+			{
+				#save parameters
+				$line_prev = $line;
+				$src_prev = $src;
+				$text_prev = $text . "(";
+				#push(@et_conv_array, join(' ', ($line, $src, $type, $kind, ":", $text)));
+			}
+		}
+		$is_prev_lo = "0";
+		$prev_assignment_text = '';
+	}
+	if ($arg =~ /FUNCTION_RETURN/)
+	{
+		if ($src_prev ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", "SKIP(\"Function call is skipped due to function is undefined\")" ,":", $text_prev.")")));
+			clear_prevs();
+		}
+		else
+		{
+			if ($src_prev_lo ne '')
+			{
+				push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
+				clear_prevs_lo();
+			}
+			$src = $tmp->{location}->{file}[0];
+			if (defined($src))
+			{
+				$src = '"' . $src . '"';
+			}
+			$line = $tmp->{location}->{line}[0] || '';
+			$text = $tmp->{location}->{function}[0];
+			$type = "RETURN";
+			if ($tmp->{display_name} eq "__CPROVER_initialize") # INIT SECTION
+			{
+				$is_entry = "1";
+				#push(@et_conv_array, "CALL ENTRY");
+			}
+			if ($line ne '')
+			{
+				push(@et_conv_array, join(' ', ($line, $src, $type, ":", $prev_assignment_text)));
+			}
+		}
+		$is_prev_lo = "0";
+		$prev_assignment_text = '';
+	}
+	if ($arg =~ /LOCATION-ONLY/)
+	{
+		if ($src_prev ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev, $src_prev, "CALL", ":", $text_prev.")")));
+			clear_prevs();
+		}
+		if ($src_prev_lo ne '')
+		{
+			push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
+			clear_prevs_lo();
+		}
+		$src = $tmp->{location}->{file}[0];
+		if (defined($src))
+		{
+			$src = '"' . $src . '"';
+		}
+		$line = $tmp->{location}->{line}[0] || '';
+		$text = "1";
+		if ($is_entry eq "1")
+		{
+			$src_prev_lo = $src;
+			$line_prev_lo = $line;
+			#push(@et_conv_array, join(' ', ($line, $src, $type, ":", $text)));
+		}
+		$is_prev_lo = "1"; # previous tag was "location-only"
+		$prev_assignment_text = '';
+	}
+	
+}
+
+if ($src_prev_lo ne '')
+{
+	push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
+	clear_prevs_lo();
+}
+
+sub clear_prevs
+{
+	$src_prev = '';
+	$line_prev = '';
+	$text_prev = '';
+	$is_arg = "0";
+}
+
+sub clear_prevs_lo
+{
+	$src_prev_lo = '';
+	$line_prev_lo = '';
+}
+
