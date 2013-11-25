@@ -6,6 +6,9 @@ ETV = etv
 # Directory for error trace visualizer auxiliary stuffs.
 ETV_DIR = etv
 
+# Script that removes line directives from a source file to be verified.
+RM_LINE_DIRECTIVES = rm-line-directives
+
 # Directory containing converters for differenet error trace engines.
 CONVERTERS = converters
 
@@ -37,6 +40,7 @@ install:
 	mkdir -p $(prefix)/$(ETV_DIR)
 	cp $(ETV) $(prefix)/$(ETV_DIR)/
 	ln -sf $(prefix)/$(ETV_DIR)/$(ETV) $(bindir)/$(ETV)
+	cp $(RM_LINE_DIRECTIVES) $(prefix)/$(ETV_DIR)
 	mkdir -p $(prefix)/$(ETV_DIR)/$(CONVERTERS)
 	cp -r $(CONVERTERS)/* $(prefix)/$(ETV_DIR)/$(CONVERTERS)
 	mkdir -p $(prefix)/$(ETV_DIR)/$(CSS)
