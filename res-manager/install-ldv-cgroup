@@ -38,7 +38,6 @@ my $ldv_cgroup_fs_specifier = 'LDV-cgroup';
 # Directory for LDV control group.
 my $ldv_cgroup_dir = 'ldv';
 
-
 # Try to find already mounted contol groups (CPU accounting and memory
 # controllers are searched for).
 open(MOUNTS, '<', $mounts)
@@ -135,3 +134,14 @@ for (my $i = 0; $i < 2; $i++)
     last;
   }
 }
+
+#Checking swap.
+open(SWAP_FILE, '<', $cgroup_memory_controller."/memory.memsw.limit_in_bytes")
+  or die("There is no swap files in memory cgroup directory! For correct memory limitation you need to enable swap accounting by adding kernel parameter \"swapaccount=1\".  ");
+close(SWAP_FILE); 
+my $command = "cat $cgroup_memory_controller/memory.memsw.limit_in_bytes";
+print "Memory controller has swap files.\n";
+`$command` 
+  or die("There is no access to files in memory cgroup directory! For correct memory limitation you need to enable swap accounting by adding kernel parameter \"swapaccount=1\".  ");
+print "Memory controller's swap is working.\n";
+

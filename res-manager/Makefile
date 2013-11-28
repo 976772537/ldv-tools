@@ -46,6 +46,8 @@ test:
 	@gcc ${tests}/errors/sig_num.c -o ${build}/${tests}/errors/sig_num
 	@gcc ${tests}/errors/sig_ign.c -o ${build}/${tests}/errors/sig_ign
 	
+	@$(bindir)/install-ldv-cgroup-wrapper
+	
 	@gcc ${tests}/res_manager_in_res_manager.c -o ${build}/${tests}/res_manager_in_res_manager
 	@cd ${build}/${tests}; ./test_script ../res-manager;
 
