@@ -65,11 +65,11 @@ sub get_line_title($$$$);
 # retn: hash corresponding to options.
 sub get_opt();
 
-# For a given node obtain a list of files required for error trace
+# For a given node obtain a list of source files required for error trace
 # visualization.
-# args: node of error trace hash, requirements hash.
-# retn: list of requirements.
-sub get_required_files($$);
+# args: node of error trace hash, hash with requirements as keys.
+# retn: nothing.
+sub get_required_source_files($$);
 
 # Print help message on the screen and exit.
 # args: no.
@@ -119,16 +119,16 @@ my $et = ETV::Library::parse_et_fh({
 
 # There are two modes of error trace visualizer work: collect requirements or
 # visualize error trace.
-if ($opts->{'fh required files'})
+if ($opts->{'fh required source files'})
 {
   # Hash for requirements (to atomatically remove duplicates).
-  my %required_files;
+  my %required_source_files;
 
   print_debug_debug("Obtain requirements for a specified error trace");
-  get_required_files($et, \%required_files);
+  get_required_source_files($et, \%required_source_files);
 
   $OUTPUT_FIELD_SEPARATOR = "\n";
-  print({$opts->{'fh required files'}} keys(%required_files));
+  print({$opts->{'fh required source files'}} keys(%required_source_files));
 }
 else
 {
@@ -166,11 +166,11 @@ else
 print_debug_debug("Close file handlers");
 close($opts->{'fh in'})
   or die("Can't close file handler for '" . $opts->{'in'} . "': $ERRNO\n");
-if ($opts->{'fh required files'})
+if ($opts->{'fh required source files'})
 {
-  close($opts->{'fh required files'})
-    or die("Can't close file handler for '" . $opts->{'required files'} . "':"
-      . " $ERRNO\n");
+  close($opts->{'fh required source files'})
+    or die("Can't close file handler for '" . $opts->{'required source files'}
+      . "': $ERRNO\n");
 }
 else
 {
@@ -270,9 +270,9 @@ sub get_opt()
   }
   print_debug_trace("Options '@ARGV' were passed through the command-line");
 
-  my ($help, $in, $format, $intermediate_source_file, $out, $required_files
-    , $referred_source_code);
-  my ($fh_in, $fh_intermediate_source_file, $fh_out, $fh_required_files
+  my ($help, $in, $format, $intermediate_source_file, $out
+    , $required_source_files, $referred_source_code);
+  my ($fh_in, $fh_intermediate_source_file, $fh_out, $fh_required_source_files
     , $fh_referred_source_code);
 
   unless (GetOptions(
@@ -281,7 +281,7 @@ sub get_opt()
     'format|f=s' => \$format,
     'intermediate-source-file|i=s' => \$intermediate_source_file,
     'visualized-error-trace|o=s' => \$out,
-    'required-files|r=s' => \$required_files,
+    'required-source-files|r=s' => \$required_source_files,
     'referred-source-code|s=s' => \$referred_source_code))
   {
     warn("Incorrect options may completely change the meaning! Please see help"
@@ -311,10 +311,10 @@ sub get_opt()
     print_debug_debug("Intermediate source file is '$intermediate_source_file'");
   }
 
-  unless ($out or $required_files)
+  unless ($out or $required_source_files)
   {
     warn("You should specify command line option either"
-      . " --visualized-error-trace (-o) or --required-files");
+      . " --visualized-error-trace (-o) or --required-source-files (-r)");
     help();
   }
 
@@ -336,11 +336,11 @@ sub get_opt()
   }
   else
   {
-    open($fh_required_files, '>', $required_files)
-      or die("Can't open file '$required_files' specified through"
-        . " --required-files (-r) for write: $ERRNO");
-    print_debug_debug("Paths to files required by the given error trace will be"
-      . " put to '$required_files'");
+    open($fh_required_source_files, '>', $required_source_files)
+      or die("Can't open file '$required_source_files' specified through"
+        . " --required-sourcefiles (-r) for write: $ERRNO");
+    print_debug_debug("Paths to source files required by the given error trace"
+      . " will be put to '$required_source_files'");
   }
 
   print_debug_debug("Error trace format is '$format'") if ($format);
@@ -353,17 +353,17 @@ sub get_opt()
     , 'fh intermediate source file' => $fh_intermediate_source_file
     , 'out' => $out
     , 'fh out' => $fh_out
-    , 'required files' => $required_files
-    , 'fh required files' => $fh_required_files
+    , 'required source files' => $required_source_files
+    , 'fh required source files' => $fh_required_source_files
     , 'referred source code' => $referred_source_code
     , 'fh referred source code' => $fh_referred_source_code
     , 'format' => $format};
 }
 
-sub get_required_files($$)
+sub get_required_source_files($$)
 {
   my $node_ref = shift;
-  my $required_files = shift;
+  my $required_source_files = shift;
 
   # This case can arise when a error trace is empty.
   return if (!$node_ref);
@@ -382,12 +382,12 @@ sub get_required_files($$)
 
   # Keep a requirement of a node itself.
   # Don't take into account entities that haven't line specified.
-  ${$required_files}{$node{'file'}} = 1 if ($node{'file'} and $node{'line'});
+  ${$required_source_files}{$node{'file'}} = 1 if ($node{'file'} and $node{'line'});
 
   # Walk throught node childrens.
   foreach my $child (@{$node{'children'}})
   {
-    get_required_files($child, $required_files);
+    get_required_source_files($child, $required_source_files);
   }
 }
 
@@ -429,8 +429,8 @@ OPTIONS
   -o, --visualized-error-trace <path>
     <path> to a file where a visualized error trace will be put.
 
-  -r, --required-files <path>
-    <path> to a file where a list of files required for error trace
+  -r, --required-source-files <path>
+    <path> to a file where a list of source files required for error trace
     visualization will be put.
 
   -s, --referred-source-code <path>
