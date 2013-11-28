@@ -844,7 +844,7 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	}
 	else
 	{
-		fprintf(fp, "\tswap: enable\n");
+		fprintf(fp, "\tswap: disable\n");
 	}
 
 	free((void *)kernel);
