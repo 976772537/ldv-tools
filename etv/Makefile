@@ -6,8 +6,16 @@ ETV = etv
 # Directory for error trace visualizer auxiliary stuffs.
 ETV_DIR = etv
 
+# Script that removes line directives from a source file to be verified.
+RM_LINE_DIRECTIVES = rm-line-directives
+
 # Directory containing converters for differenet error trace engines.
 CONVERTERS = converters
+
+# Directories with CSS, JS and Perl modules for ETV
+CSS = css
+JS = js
+MODULES = modules
 
 # Standard Makefile section.
 # Use root installation directory if no prefix was specified. 
@@ -29,9 +37,18 @@ all:
 install:
 	mkdir -p $(bindir)
 	mkdir -p $(mandir)
-	cp $(ETV) $(bindir)
+	mkdir -p $(prefix)/$(ETV_DIR)
+	cp $(ETV) $(prefix)/$(ETV_DIR)/
+	ln -sf $(prefix)/$(ETV_DIR)/$(ETV) $(bindir)/$(ETV)
+	cp $(RM_LINE_DIRECTIVES) $(prefix)/$(ETV_DIR)
 	mkdir -p $(prefix)/$(ETV_DIR)/$(CONVERTERS)
 	cp -r $(CONVERTERS)/* $(prefix)/$(ETV_DIR)/$(CONVERTERS)
+	mkdir -p $(prefix)/$(ETV_DIR)/$(CSS)
+	cp -r $(CSS)/* $(prefix)/$(ETV_DIR)/$(CSS)
+	mkdir -p $(prefix)/$(ETV_DIR)/$(JS)
+	cp -r $(JS)/* $(prefix)/$(ETV_DIR)/$(JS)
+	mkdir -p $(prefix)/$(ETV_DIR)/$(MODULES)
+	cp -r $(MODULES)/* $(prefix)/$(ETV_DIR)/$(MODULES)
 
 test:
 	@echo The error trace visualizer doesn\'t have any test
