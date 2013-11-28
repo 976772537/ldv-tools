@@ -985,8 +985,8 @@ sub add_files_for_trace
 	vsay('INFO', "Getting files for trace $trace_fname with ETV for parent package.\n");
 	my $temp_file = "$context->{tmpdir}/etv.tmp";
 	my @etv = ("$ENV{'DSCV_HOME'}/bin/etv",
-		"--report=$trace_fname",
-		"--reqs-out=$temp_file"
+		"--original-error-trace=$trace_fname",
+		"--required-source-files=$temp_file"
 	);
 	local $"=" ";
 	vsay('DEBUG', "Calling error-trace-visualizer: @etv\n");
