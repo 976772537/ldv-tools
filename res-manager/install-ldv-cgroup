@@ -18,7 +18,7 @@
 ################################################################################
 
 use English;
-use Env qw(LDV_WORK_WITHOUT_SWAP_ACCOUNT)
+use Env qw(LDV_WORK_WITHOUT_SWAP_ACCOUNT);
 use strict;
 
 # File with information on currently mounted file systems.
