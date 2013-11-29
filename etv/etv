@@ -1,7 +1,7 @@
 #! /usr/bin/perl -w
 
 ################################################################################
-# Copyright (C) 2010-2012
+# Copyright (C) 2010-2013
 # Institute for System Programming, Russian Academy of Sciences (ISPRAS).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@ use strict;
 use Tie::Hash::Indexed;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../etv/modules");
 
 use Text::Highlight;
 
@@ -65,22 +65,27 @@ sub get_line_title($$$$);
 # retn: hash corresponding to options.
 sub get_opt();
 
-# For a given node obtain a list of files required for error trace
+# For a given node obtain a list of source files required for error trace
 # visualization.
-# args: node of error trace hash, requirements hash.
-# retn: list of requirements.
-sub get_reqs($$);
+# args: node of error trace hash, hash with requirements as keys.
+# retn: nothing.
+sub get_required_source_files($$);
 
 # Print help message on the screen and exit.
 # args: no.
 # retn: nothing.
 sub help();
 
-# Process a file containing all source code files related with an error trace
+# Process a file containing all source code related with an error trace
 # specified.
 # args: corresponding file handler.
 # retn: hash with information on files, lines, comments, etc.
-sub process_srcs($);
+sub process_referred_source_code($);
+
+# Read a specified file into an array of lines.
+# args: file path.
+# retn: array of lines.
+sub read_file($);
 
 # Make visualization of a error trace specified.
 # args: root node of error trace hash, information on source code files,
@@ -106,33 +111,53 @@ print_debug_debug("Process command-line options");
 my $opts = get_opt();
 
 print_debug_debug("Parse a error trace specified");
-my $et = ETV::Library::parse_et_fh($opts->{'fh in'});
+my $et = ETV::Library::parse_et_fh({
+  'fh' => $opts->{'fh in'}
+  , 'format' => $opts->{'format'}
+  , 'fh intermediate source file' => $opts->{'fh intermediate source file'}
+});
 
 # There are two modes of error trace visualizer work: collect requirements or
 # visualize error trace.
-if ($opts->{'fh reqs out'})
+if ($opts->{'fh required source files'})
 {
   # Hash for requirements (to atomatically remove duplicates).
-  my %reqs;
+  my %required_source_files;
 
   print_debug_debug("Obtain requirements for a specified error trace");
-  get_reqs($et, \%reqs);
+  get_required_source_files($et, \%required_source_files);
 
   $OUTPUT_FIELD_SEPARATOR = "\n";
-  print({$opts->{'fh reqs out'}} keys(%reqs));
+  print({$opts->{'fh required source files'}} keys(%required_source_files));
 }
 else
 {
-  my $srcs_info = {};
+  my $referred_source_code = {};
 
-  if ($opts->{'fh srcs'})
+  if ($opts->{'fh referred source code'})
   {
-    print_debug_debug("Process source code files related with a given error trace");
-    $srcs_info = process_srcs($opts->{'fh srcs'});
+    print_debug_debug("Process source code files related with a given error"
+      . " trace");
+    $referred_source_code
+      = process_referred_source_code($opts->{'fh referred source code'});
   }
 
   print_debug_debug("Visualize an error trace specified");
-  my $etv = visualize_et($et, $srcs_info, {'indent' => 0}, {'id' => 0});
+  my $etv = visualize_et($et, $referred_source_code, {'indent' => 0}
+    , {'id' => 0});
+
+  # Inline CSS and JS required by ETV.
+  print({$opts->{'fh out'}}
+    "<style type='text/css'>"
+    , read_file("$FindBin::RealBin/../etv/css/etv.css")
+    , read_file("$FindBin::RealBin/../etv/css/etv-analytics-center.css")
+    , "</style>"
+    , "<script type='text/javascript'>"
+    , read_file("$FindBin::RealBin/../etv/js/jquery-1.4.2.min.js")
+    , read_file("$FindBin::RealBin/../etv/js/etv.js")
+    , read_file("$FindBin::RealBin/../etv/js/etv-analytics-center.js")
+    , "</script>"
+  );
 
   $OUTPUT_FIELD_SEPARATOR = '';
   print({$opts->{'fh out'}} @{$etv});
@@ -141,22 +166,22 @@ else
 print_debug_debug("Close file handlers");
 close($opts->{'fh in'})
   or die("Can't close file handler for '" . $opts->{'in'} . "': $ERRNO\n");
-if ($opts->{'fh reqs out'})
+if ($opts->{'fh required source files'})
 {
-  close($opts->{'fh reqs out'})
-    or die("Can't close file handler for '" . $opts->{'reqs out'} . "':"
-      . " $ERRNO\n");
+  close($opts->{'fh required source files'})
+    or die("Can't close file handler for '" . $opts->{'required source files'}
+      . "': $ERRNO\n");
 }
 else
 {
   close($opts->{'fh out'})
     or die("Can't close file handler for '" . $opts->{'out'} . "':"
       . " $ERRNO\n");
-  if ($opts->{'fh srcs'})
+  if ($opts->{'fh referred source code'})
   {
-    close($opts->{'fh srcs'})
-      or die("Can't close file handler for '" . $opts->{'srcs'} . "':"
-        . " $ERRNO\n");
+    close($opts->{'fh referred source code'})
+      or die("Can't close file handler for '" . $opts->{'referred source code'}
+        . "': $ERRNO\n");
   }
 }
 
@@ -245,15 +270,19 @@ sub get_opt()
   }
   print_debug_trace("Options '@ARGV' were passed through the command-line");
 
-  my ($help, $in, $out, $reqs_out, $srcs);
-  my ($fh_in, $fh_out, $fh_reqs_out, $fh_srcs);
+  my ($help, $in, $format, $intermediate_source_file, $out
+    , $required_source_files, $referred_source_code);
+  my ($fh_in, $fh_intermediate_source_file, $fh_out, $fh_required_source_files
+    , $fh_referred_source_code);
 
   unless (GetOptions(
     'help|h' => \$help,
-    'report|c=s' => \$in,
-    'report-out|o=s' => \$out,
-    'reqs-out=s' => \$reqs_out,
-    'src-files=s' => \$srcs))
+    'original-error-trace|c=s' => \$in,
+    'format|f=s' => \$format,
+    'intermediate-source-file|i=s' => \$intermediate_source_file,
+    'visualized-error-trace|o=s' => \$out,
+    'required-source-files|r=s' => \$required_source_files,
+    'referred-source-code|s=s' => \$referred_source_code))
   {
     warn("Incorrect options may completely change the meaning! Please see help"
       . " to understand how to use this tool");
@@ -265,63 +294,76 @@ sub get_opt()
   unless ($in)
   {
     warn("You should specify a error trace to be processed by means of"
-      . "command-line option --report (-c)");
+      . "command-line option --original-error-trace (-c)");
     help();
   }
 
   open($fh_in, '<', "$in")
-    or die("Can't open file '$in' specified through --report-in (-c) for read:"
-      . " $ERRNO");
+    or die("Can't open file '$in' specified through --original-error-trace (-c)"
+      . " for read: $ERRNO");
   print_debug_debug("Error trace to be processed is '$in'");
 
-  unless ($out or $reqs_out)
+  if ($intermediate_source_file)
   {
-    warn("You should specify command line option either --report-out (-o) or"
-      . " --reqs-out");
+    open($fh_intermediate_source_file, '<', "$intermediate_source_file")
+      or die("Can't open file '$intermediate_source_file' specified through"
+        . " --intermediate-source-file (-i) for read: $ERRNO");
+    print_debug_debug("Intermediate source file is '$intermediate_source_file'");
+  }
+
+  unless ($out or $required_source_files)
+  {
+    warn("You should specify command line option either"
+      . " --visualized-error-trace (-o) or --required-source-files (-r)");
     help();
   }
 
   if ($out)
   {
-    open($fh_out, '>', "$out")
-      or die("Can't open file '$out' specified through --report-out (-o) for"
-        . " write: $ERRNO");
+    open($fh_out, '>', $out)
+      or die("Can't open file '$out' specified through --visualized-error-trace"
+        . " (-o) for write: $ERRNO");
     print_debug_debug("A proccessed error trace will be put to '$out'");
 
-    if ($srcs)
+    if ($referred_source_code)
     {
-      open($fh_srcs, '<', "$srcs")
-        or die("Can't open file '$srcs' specified through --src-files for"
-          . " read: $ERRNO");
-      print_debug_debug("Related to the given error trace source code is"
-        . " '$srcs'");
+      open($fh_referred_source_code, '<', $referred_source_code)
+        or die("Can't open file '$referred_source_code' specified through"
+          . " --referred-source-code (-s) for read: $ERRNO");
+      print_debug_debug("Related to the given error trace source code will be"
+        . " read from '$referred_source_code'");
     }
   }
   else
   {
-    open($fh_reqs_out, '>', "$reqs_out")
-      or die("Can't open file '$reqs_out' specified through --reqs-out for"
-        . " write: $ERRNO");
-    print_debug_debug("Paths to files required by the given error trace will be"
-      . " put to '$reqs_out'");
+    open($fh_required_source_files, '>', $required_source_files)
+      or die("Can't open file '$required_source_files' specified through"
+        . " --required-sourcefiles (-r) for write: $ERRNO");
+    print_debug_debug("Paths to source files required by the given error trace"
+      . " will be put to '$required_source_files'");
   }
+
+  print_debug_debug("Error trace format is '$format'") if ($format);
 
   print_debug_debug("Command-line options were processed successfully");
 
   return {'in' => $in
     , 'fh in' => $fh_in
+    , 'intermediate source file' => $intermediate_source_file
+    , 'fh intermediate source file' => $fh_intermediate_source_file
     , 'out' => $out
     , 'fh out' => $fh_out
-    , 'reqs out' => $reqs_out
-    , 'fh reqs out' => $fh_reqs_out
-    , 'srcs' => $srcs
-    , 'fh srcs' => $fh_srcs};
+    , 'required source files' => $required_source_files
+    , 'fh required source files' => $fh_required_source_files
+    , 'referred source code' => $referred_source_code
+    , 'fh referred source code' => $fh_referred_source_code
+    , 'format' => $format};
 }
 
-sub get_reqs($$)
+sub get_required_source_files($$)
 {
   my $node_ref = shift;
-  my $reqs = shift;
+  my $required_source_files = shift;
 
   # This case can arise when a error trace is empty.
   return if (!$node_ref);
@@ -340,12 +382,12 @@ sub get_reqs($$)
 
   # Keep a requirement of a node itself.
   # Don't take into account entities that haven't line specified.
-  ${$reqs}{$node{'file'}} = 1 if ($node{'file'} and $node{'line'});
+  ${$required_source_files}{$node{'file'}} = 1 if ($node{'file'} and $node{'line'});
 
   # Walk throught node childrens.
   foreach my $child (@{$node{'children'}})
   {
-    get_reqs($child, $reqs);
+    get_required_source_files($child, $required_source_files);
   }
 }
 
@@ -364,23 +406,39 @@ OPTIONS
   -h, --help
     Print this help and exit with 1.
 
-  -c, --report <path>
+  -c, --original-error-trace <path>
     <path> to a file with an error trace to be processed.
 
-  -o, --report-out <path>
-    <path> to a file where an error trace visualized will be put.
+  -f, --format <string>
+    By means of <string> one can specify a format for a given error trace. This
+    format will be used to choose appropriate converter. The error trace format
+    should have such the form:
+      <Verification tool name> error trace <verification tool version>
+    For instance, "BLAST error trace v2.7" means that the given error trace was
+    produced by BLAST v2.7 verification tool. Unless a error trace isn't
+    specified via the given option it should become a first line of an error
+    trace to be visualized. Otherwise the error trace will be treated as a plain
+    text.
 
-  --reqs-out <path>
-    <path> to a file where a list of files required for error trace
+  -i, --intermediate-source-file <path>
+    <path> to a file with an intermediate representation of source code referred
+    by a given error trace. This option is useful for, say, CPAchecker that
+    refers to a CIL intermediate file by default rather then to original source
+    code that is referred by that file.
+
+  -o, --visualized-error-trace <path>
+    <path> to a file where a visualized error trace will be put.
+
+  -r, --required-source-files <path>
+    <path> to a file where a list of source files required for error trace
     visualization will be put.
 
-  --src-files <path>
-    <path> to a file containing a program source code referenced by a
+  -s, --referred-source-code <path>
+    <path> to a file containing a program source code referred by a
     given error trace. It's optional. Without this option there won't
     be source code visualization. The file should contain a content of
     files with source code as is separated with:
     ---LDV---path/to/file/with/source/code---LDV---
-
 
 ENVIRONMENT VARIABLES
 
@@ -399,9 +457,9 @@ EOM
   exit(1);
 }
 
-sub process_srcs($)
+sub process_referred_source_code($)
 {
-  my $fh_srcs = shift;
+  my $fh_referred_source_code = shift;
 
   # A current location in a source code file processed.
   my $file_name;
@@ -412,11 +470,11 @@ sub process_srcs($)
   # 2. Model comments.
   # 3. Model function definitions.
   # 4. Driver environment generator comments.
-  my %srcs;
+  my %referred_source_code;
   my %model_comments;
   my %model_func_defs;
   my %deg_comments;
-  while (<$fh_srcs>)
+  while (<$fh_referred_source_code>)
   {
     my $line = $_;
     chomp($line);
@@ -520,24 +578,37 @@ sub process_srcs($)
       }
     }
 
-    push(@{$srcs{$file_name}}, "$line");
+    push(@{$referred_source_code{$file_name}}, "$line");
     $line_numb++;
   }
 
-  return {'srcs' => \%srcs
+  return {'referred source code' => \%referred_source_code
     , 'model comments' => \%model_comments
     , 'model function definitions' => \%model_func_defs
     , 'deg comments' => \%deg_comments};
 }
 
+sub read_file($)
+{
+  my $file = shift;
+
+  open(my $fh, '<', "$file")
+    or die("Can't open file '$file' for read: $ERRNO");
+  my @lines = <$fh>;
+  close($fh)
+    or die("Can't close file handler for '$file': $ERRNO\n");
+
+  return @lines;
+}
+
 sub visualize_et($$$$)
 {
   my $root_ref = shift;
-  my $srcs_ref = shift;
+  my $referred_source_code_ref = shift;
   my $visual_ref = shift;
   my $id_ref = shift;
 
-  my %srcs = %{$srcs_ref};
+  my %referred_source_code = %{$referred_source_code_ref};
 
   # Visualized representation for a given error trace.
   my @et_visualized = ();
@@ -625,7 +696,8 @@ sub visualize_et($$$$)
   print_debug_debug("Visualize an error trace itself");
   # Remember visited locations to simplify source code references.
   my %locs;
-  my $etv = visualize_et_node($root_ref, $srcs_ref, $visual_ref, $id_ref, \%locs);
+  my $etv = visualize_et_node($root_ref, $referred_source_code_ref, $visual_ref
+    , $id_ref, \%locs);
   push(@et_visualized
     , "    <div id='ETVErrorTrace'>"
     , @{$etv}
@@ -641,7 +713,8 @@ sub visualize_et($$$$)
 
   print_debug_debug("Visualize a source code related with an error trace");
   # Print source code tabs.
-  foreach my $file (sort(keys(%{$srcs{'srcs'}})))
+  foreach my $file
+    (sort(keys(%{$referred_source_code{'referred source code'}})))
   {
     $file =~ /([^\/]*)$/;
     my $file_short = $1;
@@ -652,7 +725,8 @@ sub visualize_et($$$$)
   push(@et_visualized
     , "      </ul>");
 
-  foreach my $file (sort(keys(%{$srcs{'srcs'}})))
+  foreach my $file
+    (sort(keys(%{$referred_source_code{'referred source code'}})))
   {
     my $file_link = convert_file_to_link($file);
     push(@et_visualized, "      <div id='$file_link' class='ETVSrc'>");
@@ -666,11 +740,13 @@ sub visualize_et($$$$)
         key1    => 'ETVSrcCK',
         key2    => 'ETVSrcCPPK',
       }, wrapper => "%s");
-    my $src = join("\n", @{${$srcs{'srcs'}}{$file}});
-    my $src_highlighted = $syntax_highlighter->highlight('CPP', $src);
-    my @src_highlighted = split(/\n/, $src_highlighted);
+    my $source_code = join("\n"
+      , @{${$referred_source_code{'referred source code'}}{$file}});
+    my $source_code_highlighted = $syntax_highlighter->highlight('CPP'
+      , $source_code);
+    my @source_code_highlighted = split(/\n/, $source_code_highlighted);
     my $line_numb = 1;
-    foreach my $line (@src_highlighted)
+    foreach my $line (@source_code_highlighted)
     {
       my $anchor = '';
       $anchor = "<a name='$file_link:$line_numb'></a>"
@@ -682,7 +758,8 @@ sub visualize_et($$$$)
         , $title
         , $line);
       $line_numb++;
-      push(@et_visualized, "\n") if ($line_numb <= scalar(@src_highlighted));
+      push(@et_visualized, "\n")
+        if ($line_numb <= scalar(@source_code_highlighted));
     }
 
     push(@et_visualized
@@ -731,7 +808,7 @@ sub visualize_et($$$$)
 sub visualize_et_node($$$$$)
 {
   my $node_ref = shift;
-  my $srcs_ref = shift;
+  my $referred_source_code_ref = shift;
   my $visual_ref = shift;
   my $id_ref = shift;
   my $locs_ref = shift;
@@ -743,10 +820,13 @@ sub visualize_et_node($$$$$)
   return \@node_visualized if (!$node_ref);
 
   my %node = %{$node_ref};
-  my %srcs = %{$srcs_ref};
+  my %referred_source_code = %{$referred_source_code_ref};
   my %visual = %{$visual_ref};
 
-  my %model_func_defs = %{$srcs{'model function definitions'}};
+  # There might be no related source files.
+  my %model_func_defs = %{$referred_source_code{'model function definitions'}}
+    if ($referred_source_code{'model function definitions'});
+
   # Id for a currently processed entity.
   my $id = ${$id_ref}{'id'}++;
 
@@ -763,34 +843,37 @@ sub visualize_et_node($$$$$)
 
   # Get short name and related sources name for a node file if so.
   my $file_short = '';
-  my $file_srcs = '';
+  my $file_matched = '';
   if ($file)
   {
     $file =~ /([^\/]*)$/;
     $file_short = $1;
 
-    foreach my $srcs_file (keys(%{$srcs{'srcs'}}))
+    foreach my $referred_file
+      (keys(%{$referred_source_code{'referred source code'}}))
     {
-      # We assume that a node file corresponds just to one related sources file.
-      if ($file =~ /\Q$srcs_file\E$/ or $srcs_file =~ /\Q$file\E$/)
+      # We assume that a node file corresponds just to one referred source code
+      # file.
+      if ($file =~ /\Q$referred_file\E$/ or $referred_file =~ /\Q$file\E$/)
       {
-        if ($file_srcs)
+        if ($file_matched)
         {
           print_debug_warning("A given node file matches more then one sources"
             . " a file name");
         }
         else
         {
-          print_debug_trace("A given node file '$file' matches '$srcs_file'"
-            . " sources file");
-          $file_srcs = $srcs_file;
+          print_debug_trace("A given node file '$file' matches '$referred_file'"
+            . " referred source code file");
+          $file_matched = $referred_file;
         }
       }
     }
   }
 
   # Get a title for a currently printed line.
-  my $title = get_line_title($file_srcs, $line, $visual{'indent'}, $locs_ref);
+  my $title = get_line_title($file_matched, $line, $visual{'indent'}
+    , $locs_ref);
 
   # This hint will be shown for all major entities.
   my $hint = "$file_short:$line";
@@ -799,7 +882,8 @@ sub visualize_et_node($$$$$)
   my $class = '';
 
   # Process special model and driver environment comments.
-  if (my $model_comment = $srcs{'model comments'}{$file_srcs}{($line - 1)})
+  if (my $model_comment
+    = $referred_source_code{'model comments'}{$file_matched}{($line - 1)})
   {
     my $model_event = 'unknown';
 
@@ -853,7 +937,9 @@ sub visualize_et_node($$$$$)
           $class = 'ETVModelCall';
 
           # Try to get corresponding model comment.
-          if (my $model_comment = $srcs{'model comments'}{$model_func_defs{$model_func_name}{'src'}}{$model_func_defs{$model_func_name}{'line'}})
+          if (my $model_comment = $referred_source_code{'model comments'}
+            {$model_func_defs{$model_func_name}{'src'}}
+            {$model_func_defs{$model_func_name}{'line'}})
           {
             $hint .= ": Model function call - "
               . $model_comment->{'comment'} || '';
@@ -868,7 +954,8 @@ sub visualize_et_node($$$$$)
     }
   }
 
-  if (my $deg_comment = $srcs{'deg comments'}{$file_srcs}{($line - 1)})
+  if (my $deg_comment
+    = $referred_source_code{'deg comments'}{$file_matched}{($line - 1)})
   {
     my $deg_event = 'unknown';
 
@@ -1061,8 +1148,9 @@ sub visualize_et_node($$$$$)
     my $indent = $type eq 'ROOT' ? $visual{'indent'}: $visual{'indent'} + 1;
     foreach my $child (@{$node{'children'}})
     {
-      my $child_visualized_ref = visualize_et_node($child, $srcs_ref
-        , {'indent' => $visual{'indent'} + 1}, $id_ref, $locs_ref);
+      my $child_visualized_ref = visualize_et_node($child
+        , $referred_source_code_ref, {'indent' => $visual{'indent'} + 1}
+        , $id_ref, $locs_ref);
       push(@node_visualized, @{$child_visualized_ref});
     }
   }

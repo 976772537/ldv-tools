@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2012
+# Copyright (C) 2013
 # Institute for System Programming, Russian Academy of Sciences (ISPRAS).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -132,6 +132,8 @@ print_debug_info("Begin to parse error trace specified");
 my $et_tree_root_node = parse_error_trace(\@et_array);
 print_debug_debug("Error trace was parsed successfully");
 print_debug_info("Begin to convert error trace to the common format");
+# Zeroize previous source file one more time since it was likely set in parsing.
+$src_prev = '';
 my $et_conv = convert_tree_node_to_common($et_tree_root_node);
 print_debug_debug("Error trace was converted to the common format successfully");
 
@@ -172,7 +174,7 @@ sub convert_tree_node_to_common($)
   }
 
   $node_common .= "$line " if ($line);
-  # Source file should be printed if it is specified and source file wasn't 
+  # Source file should be printed if it is specified and source file wasn't
   # printed before or current source file differs from the previous one.
   my $issrc_required = ($src and (!$src_prev or $src ne $src_prev));
   $node_common .= "\"$src\" " if ($issrc_required);
@@ -374,8 +376,9 @@ sub convert_tree_node_to_common($)
   }
 
   # Add common representation of the node processed to the beginning of its
-  # children common representation list.
-  unshift(@children_common, $node_common);
+  # children common representation list. Do not add representation for the
+  # Root element that is represented as ''.
+  unshift(@children_common, $node_common) if ($node_common);
 
   # Add information on entry point if so.
   unshift(@children_common, $entry_point) if ($entry_point);

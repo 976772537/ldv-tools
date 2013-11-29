@@ -5,7 +5,7 @@ backends=blast
 else
 backends=
 endif
-frontends=blast cpachecker ufo
+frontends=blast cpachecker ufo cbmc
 
 # PTRSAFE
 ifneq ($(LDV_PTRSAFE),)
@@ -42,6 +42,11 @@ $(rcv_install_dir)/ufo: ufo
 	@chmod +x $@
 
 $(rcv_install_dir)/ptrsafe: ptrsafe
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+
+$(rcv_install_dir)/cbmc: cbmc
 	@mkdir -p $(@D)
 	cp $^ $@
 	@chmod +x $@

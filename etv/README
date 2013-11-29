@@ -1,0 +1,3 @@
+To install standalone Error Trace Visualizer you need to install LDV Tools 
+and then copy Error Trace Visualizer like:
+  $ cp -rL $LDV_TOOLS_INSTALL_DIR/etv/* etv/
