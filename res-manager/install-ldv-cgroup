@@ -40,7 +40,7 @@ my $ldv_cgroup_fs_specifier = 'LDV-cgroup';
 my $ldv_cgroup_dir = 'ldv';
 
 # File with memory & swap limit in bytes for memory controller.
-$cgroup_memory_controller_memsw_limit = "memory.memsw.limit_in_bytes";
+my $cgroup_memory_controller_memsw_limit = "memory.memsw.limit_in_bytes";
 
 # Try to find already mounted contol groups (CPU accounting and memory
 # controllers are searched for).
