@@ -841,11 +841,11 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	fprintf(fp, "\tmemory: %s Kb\n", memory);
 	if (params.swap_account_available)
 	{
-		fprintf(fp, "\tswap: enable\n");
+		fprintf(fp, "\tswap account: available\n");
 	}
 	else
 	{
-		fprintf(fp, "\tswap: disable\n");
+		fprintf(fp, "\tswap account: unavailable\n");
 	}
 
 	free((void *)kernel);
