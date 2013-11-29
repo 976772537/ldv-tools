@@ -807,6 +807,7 @@ sub set_up_timeout
 	
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
+        unshift @cmdline,"-a" if $ENV{'LDV_WORK_WITHOUT_SWAP_ACCOUNT'};
 	unshift @cmdline,"-o",$output if $output;
 	unshift @cmdline,"-d", 'ldv';
 	unshift @cmdline,"-w", $walltimelimit if $walltimelimit;
