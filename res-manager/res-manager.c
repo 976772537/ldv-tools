@@ -620,10 +620,9 @@ static void check_swap_account_availability(int work_without_swap_account)
 
 	if (swap_account_available == 0 && work_without_swap_account == 0)
 	{
-		exit_res_manager(errno, NULL, "Error: Swap accounter is disabled. Resource manager may not work as intended. "
-			 "It's strongly recommended to enable kernel parameter 'swapaccount=1'\n"
-			 "and reboot your computer for correct memory limitation. "
-			 "For more information: https://lkml.org/lkml/2012/6/26/547.\n");
+		exit_res_manager(errno, NULL, "Error: swap account is disabled."
+			" Resource Manager may not work as intended on memory exhausting."
+			" Please refer to help for more information");
 	}
 }
 
