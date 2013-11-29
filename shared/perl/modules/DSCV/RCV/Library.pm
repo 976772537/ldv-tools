@@ -179,7 +179,7 @@ sub preprocess_cpp
 			my @words_exit_code = split(" ", $out_err[4]);
 			my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
 ===============================================
-Resource manager settings:
+Resource Manager settings:
 	memory limit: %s (%s bytes)
 	time limit: %s ms
 %s
@@ -452,7 +452,7 @@ sub run
 	my @words_exit_code = split(" ", $out_err[4]);
 	my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
 ===============================================
-Resource manager settings:
+Resource Manager settings:
 	memory limit: %s (%s bytes)
 	time limit: %s ms
 %s
@@ -462,7 +462,7 @@ EOR
 
 	my $descr_ok = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
 ===============================================
-Resource manager settings:
+Resource Manager settings:
 	memory limit: %s (%s bytes)
 %s
 %s
@@ -522,11 +522,11 @@ sub get_err_result_from_file
 		chomp;
 		next unless $_;
 		my @words = split(' ', $_);
-		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		if ($words[1] eq "Manager" && $words[2] eq "settings:")
 		{
 			$command_type = "0";
 		}
-		if ($words[1] eq "manager" && $words[2] eq "execution")
+		if ($words[1] eq "Manager" && $words[2] eq "execution")
 		{
 			$command_type = "1";
 		}
@@ -567,11 +567,11 @@ sub get_result_from_file
 		chomp;
 		next unless $_;
 		my @words = split(' ', $_);
-		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		if ($words[1] eq "Manager" && $words[2] eq "settings:")
 		{
 			$command_type = "0";
 		}
-		if ($words[1] eq "manager" && $words[2] eq "execution")
+		if ($words[1] eq "Manager" && $words[2] eq "execution")
 		{
 			$command_type = "1";
 		}
@@ -614,7 +614,7 @@ sub parse_outputfile
 		next unless $_;
 		my @words = split(" ", $_);
 		
-		if ($words[1] eq "manager" && $words[2] eq "execution")
+		if ($words[1] eq "Manager" && $words[2] eq "execution")
 		{
 			$return_code_section = "1";
 			$signal_section = "1";
