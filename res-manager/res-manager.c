@@ -597,9 +597,9 @@ static void create_cgroup(const char *dir)
 }
 
 /*
- * Check if swapaccount is enable.
- * There is only two swap files should be used: MEMSW_LIMIT and MEMSW_MAX_USAGE.
- * They should be either both exist and ok, or not.
+ * Check if swap account is available.
+ * Only two files from memory controller are used to deal with swap: MEMSW_LIMIT
+ * and MEMSW_MAX_USAGE. They should either both exist and be okay, or not.
  */
 static void check_swap_account_availability(int work_without_swap_account)
 {
@@ -633,10 +633,11 @@ static void check_swap_account_availability(int work_without_swap_account)
  */
 static void set_cgroup_parameter(const char *fname, const char *controller, const char *value)
 {
-	const char *fname_new;// = concat(controller, "/", fname, NULL);
+	const char *fname_new;
 	FILE *fp;
 
-	// Check swap.
+	// TODO: move this specific check to callers.
+	// Switch memory & swap limit to memory limit if swap isn't availalbe.
 	if (params.swap_account_available == 0 && (strcmp(fname, MEMSW_LIMIT) == 0))
 	{
 		fname_new = concat(controller, "/", MEM_LIMIT, NULL);
@@ -654,6 +655,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	fp = xfopen(fname_new, "w+");
 
 	// Write value to the file.
+	// TODO: check return value (man fputs!).
 	fputs(value, fp);
 
 	fclose(fp);
@@ -669,9 +671,10 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 static const char *get_cgroup_parameter(const char *fname, const char *controller)
 {
 	const char *str;
-	const char *fname_new;// = concat(controller, "/", fname, NULL);
+	const char *fname_new;
 
-	// Check swap.
+	// TODO: move this specific check to callers.
+	// Switch memory & swap maximum usage to memory maximum usage if swap isn't availalbe.
 	if (params.swap_account_available == 0 && (strcmp(fname, MEMSW_MAX_USAGE) == 0))
 	{
 		fname_new = concat(controller, "/", MEM_MAX_USAGE, NULL);
@@ -1524,8 +1527,8 @@ int main(int argc, char **argv)
 	// Create new control group for command.
 	create_cgroup(dir);
 
-	// Check if swapaccount is enable. If it's not print a warning and don't use swap (this may cause problems).
-	check_swap(allow_without_swap);
+	// Check if swap account is available. If it's not then print a warning and
+	// don't use swap (this may cause problems on memory exhausting).
 	check_swap_account_availability(work_without_swap_account);
 
 	// Configure control groups.
