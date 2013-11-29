@@ -853,7 +853,7 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	free((void *)cpu);
 
 	// Print Resource Manager settings.
-	fprintf(fp, "Resource manager settings:\n");
+	fprintf(fp, "Resource Manager settings:\n");
 	fprintf(fp, "\tmemory limit: %lu bytes\n", params.mem_limit);
 	fprintf(fp, "\ttime limit: %lu ms\n", params.time_limit);
 	fprintf(fp, "\tcommand: ");
@@ -871,8 +871,8 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	fprintf(fp, "\tcgroup cpuacct controller: %s\n", params.cgroup_cpuacct);
 	fprintf(fp, "\toutputfile: %s\n", params.fout);
 
-	// Print Resource manager execution status.
-	fprintf(fp, "Resource manager execution status:\n");
+	// Print Resource Manager execution status.
+	fprintf(fp, "Resource Manager execution status:\n");
 	if (err_mes != NULL)
 	{
 		fprintf(fp, "\texit code (resource manager): %i (%s)\n", exit_code, err_mes);
@@ -1225,7 +1225,7 @@ static void print_usage(void)
 		"\t-o <file>\n"
 		"\t\tPrint output into file <file>. If option isn't specified output will be printed into stdout.\n"
 		"\t-d, --command-cgroup-directory <dir>\n"
-		"\t\tSpecify subdirectory in control group directory where Resource manager will \"run\" command. If option isn't specified\n"
+		"\t\tSpecify subdirectory in control group directory where Resource Manager will \"run\" command. If option isn't specified\n"
 		"\t\tthen will be used control group directory itself.\n"
 		"\t-i, --interval <number>\n"
 		"\t\tSpecify time (in ms) interval in which time limit will be checked. Default value: 1000 (1 second).\n"
@@ -1257,16 +1257,16 @@ static void print_usage(void)
 		"\tMinimal kernel version for swap computation is 2.6.34.\n"
 
 		"Description:\n"
-		"\tResource manager runs specified command with given arguments. For this command will be created control group. While\n"
-		"\tcommand is running Resource manager checks cpu time and memory usage. If command uses more cpu time or memory then\n"
+		"\tResource Manager runs specified command with given arguments. For this command will be created control group. While\n"
+		"\tcommand is running Resource Manager checks cpu time and memory usage. If command uses more cpu time or memory then\n"
 		"\tit will be killed by signal SIGKILL. If signal was send to the command or any error occured during it's execution then\n"
 		"\tcommand will be finished. When command finishes (normally or not), output will be written into the specified file\n"
 		"\t(or to standart output), all created control groups will be deleted.\n"
 
 		"Exit status:\n"
 		"\tIf there was an error during control group creation (control group is not mounted, wrong permissions, swapaccount=0)\n"
-		"\tResource manager will return error code and discription of error into output file and will finish it's work.\n"
-		"\tIf there were any errors during Resource manager execution or it was killed a by signal then command will be finished by\n"
+		"\tResource Manager will return error code and discription of error into output file and will finish it's work.\n"
+		"\tIf there were any errors during Resource Manager execution or it was killed a by signal then command will be finished by\n"
 		"\tsignal SIGKILL, statistics will be printed with error code or signal number, control groups will be deleted.\n"
 		"\tOtherwise return code is 0.\n"
 
@@ -1275,14 +1275,14 @@ static void print_usage(void)
 		"\t\tkernel version: <version>\n"
 		"\t\tcpu: <name of cpu>\n"
 		"\t\tmemory: <max size> bytes\n"
-		"\tResource manager settings:\n"
+		"\tResource Manager settings:\n"
 		"\t\tmemory limit: <number> bytes\n"
 		"\t\ttime limit: <number> ms\n"
 		"\t\tcommand: command [arguments]\n"
 		"\t\tcgroup memory controller: <path to memory control group>\n"
 		"\t\tcgroup cpuacct controller: <path to cpuacct control group>\n"
 		"\t\toutputfile: <file>\n"
-		"\tResource manager execution status:\n"
+		"\tResource Manager execution status:\n"
 		"\t\texit code (resource manager): <number> (<description>)\n"
 		"\t\tkilled by signal (resource manager): <number> (<name>)\n"
 		"\tCommand execution status:\n"
