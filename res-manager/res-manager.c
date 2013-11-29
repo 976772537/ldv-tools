@@ -85,9 +85,9 @@ static struct
 
 	// Time of the start execution of the command.
 	uint64_t start_time;
-	
-	// Flag for kernel swapaccount parameter.
-	int swapaccount;
+
+	// Flag shows swap account availability.
+	int swap_account_available;
 } params;
 
 // Pid of child process in which command will be executed.
@@ -98,7 +98,7 @@ static int pid = 0;
 static void add_task(int pid);
 static int check_tasks(const char *cgroup);
 static void check_time(int signum);
-static void check_swap(int);
+static void check_swap_account_availability(int);
 static const char *concat(const char *first, ...);
 static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter);
 static void convert_time(char *optarg, const char *option_name, uint64_t *parameter);
@@ -601,25 +601,24 @@ static void create_cgroup(const char *dir)
  * There is only two swap files should be used: MEMSW_LIMIT and MEMSW_MAX_USAGE.
  * They should be either both exist and ok, or not.
  */
-static void check_swap(int allow_without_swap)
+static void check_swap_account_availability(int work_without_swap_account)
 {
 	const char *fname = concat(params.cgroup_memory, "/", MEMSW_LIMIT, NULL);
-	int res = 1;
+	int swap_account_available = 1;
 	const char *str;
-	
+
 	if (access(fname, W_OK) == -1)
 	{
-		res = 0;
+		swap_account_available = 0;
 	}
 	else if ((str = read_first_string_from_file(fname)) == NULL)
 	{
-		res = 0;
+		swap_account_available = 0;
 	}
-	
-	// Swap is enable.
-	params.swapaccount = res;
-	
-	if (res != 1 && allow_without_swap == 0)
+
+	params.swap_account_available = swap_account_available;
+
+	if (swap_account_available == 0 && work_without_swap_account == 0)
 	{
 		exit_res_manager(errno, NULL, "Error: Swap accounter is disabled. Resource manager may not work as intended. "
 			 "It's strongly recommended to enable kernel parameter 'swapaccount=1'\n"
@@ -638,7 +637,7 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	FILE *fp;
 
 	// Check swap.
-	if (params.swapaccount == 0 && (strcmp(fname, MEMSW_LIMIT) == 0)) 
+	if (params.swap_account_available == 0 && (strcmp(fname, MEMSW_LIMIT) == 0))
 	{
 		fname_new = concat(controller, "/", MEM_LIMIT, NULL);
 	}
@@ -673,7 +672,7 @@ static const char *get_cgroup_parameter(const char *fname, const char *controlle
 	const char *fname_new;// = concat(controller, "/", fname, NULL);
 
 	// Check swap.
-	if (params.swapaccount == 0 && (strcmp(fname, MEMSW_MAX_USAGE) == 0)) 
+	if (params.swap_account_available == 0 && (strcmp(fname, MEMSW_MAX_USAGE) == 0))
 	{
 		fname_new = concat(controller, "/", MEM_MAX_USAGE, NULL);
 	}
@@ -838,7 +837,7 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	fprintf(fp, "\tkernel version: %s\n", kernel);
 	fprintf(fp, "\tcpu: %s", cpu);
 	fprintf(fp, "\tmemory: %s Kb\n", memory);
-	if (params.swapaccount)
+	if (params.swap_account_available)
 	{
 		fprintf(fp, "\tswap: enable\n");
 	}
@@ -1409,14 +1408,14 @@ int main(int argc, char **argv)
 		{"stdout", 1, 0, 's'},
 		{"stderr", 1, 0, 'e'},
 		{"config", 1, 0, 'c'},
-		{"allow-without-swap", 0, 0, 'a'},
+		{"work-without-swap-account", 0, 0, 'a'},
 		{0, 0, 0, 0}
 	};
 	int status;
 	int wait_res;
 	execution_statistics *exec_stats;
 	int is_wall_time_limit_specified = 0; // True if there was option "-w".
-	int allow_without_swap = 0; // If true then Resource manager won't work without swap. 
+	int work_without_swap_account = 0; // If true then Resource Manager will work without swap.
 
 	// Set default values for parameters.
 	params.time_limit = DEFAULT_TIME_LIMIT;
@@ -1486,8 +1485,8 @@ int main(int argc, char **argv)
 		case 'o': // File for output.
 			params.fout = optarg;
 			break;
-		case 'a': // Parameter for allowing Resource manager to work without swap.
-			allow_without_swap = 1;
+		case 'a': // Allow Resource Manager to work without swap.
+			work_without_swap_account = 1;
 			break;
 		default: // Command.
 			is_options_ended = 1;
@@ -1527,6 +1526,7 @@ int main(int argc, char **argv)
 
 	// Check if swapaccount is enable. If it's not print a warning and don't use swap (this may cause problems).
 	check_swap(allow_without_swap);
+	check_swap_account_availability(work_without_swap_account);
 
 	// Configure control groups.
 	set_mem_limit();
