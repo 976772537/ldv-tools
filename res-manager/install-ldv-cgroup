@@ -18,6 +18,7 @@
 ################################################################################
 
 use English;
+use Env qw(LDV_WORK_WITHOUT_SWAP)
 use strict;
 
 # File with information on currently mounted file systems.
@@ -29,7 +30,7 @@ my $cgroup_fs_type = 'cgroup';
 my $cgroup_cpuacct_controller_param = 'cpuacct';
 my $cgroup_memory_controller_param = 'memory';
 
-# Paths to control_groups with CPU accounting and memory controllers.
+# Paths to control groups with CPU accounting and memory controllers.
 my $cgroup_cpuacct_controller;
 my $cgroup_memory_controller;
 
@@ -37,6 +38,9 @@ my $cgroup_memory_controller;
 my $ldv_cgroup_fs_specifier = 'LDV-cgroup';
 # Directory for LDV control group.
 my $ldv_cgroup_dir = 'ldv';
+
+# File with memory & swap limit in bytes for memory controller.
+$cgroup_memory_controller_memsw_limit = "memory.memsw.limit_in_bytes";
 
 # Try to find already mounted contol groups (CPU accounting and memory
 # controllers are searched for).
@@ -135,13 +139,21 @@ for (my $i = 0; $i < 2; $i++)
   }
 }
 
-#Checking swap.
-open(SWAP_FILE, '<', $cgroup_memory_controller."/memory.memsw.limit_in_bytes")
-  or die("There is no swap files in memory cgroup directory! For correct memory limitation you need to enable swap accounting by adding kernel parameter \"swapaccount=1\".  ");
-close(SWAP_FILE); 
-my $command = "cat $cgroup_memory_controller/memory.memsw.limit_in_bytes";
-print "Memory controller has swap files.\n";
-`$command` 
-  or die("There is no access to files in memory cgroup directory! For correct memory limitation you need to enable swap accounting by adding kernel parameter \"swapaccount=1\".  ");
-print "Memory controller's swap is working.\n";
+print("Check availability of swap accounting for memory controller of control groups\n");
+my $memsw_limit = "$cgroup_memory_controller/$cgroup_memory_controller_memsw_limit";
+if (-e $memsw_limit)
+{
+  print("Memory controller has file with memory & swap limit in bytes '$memsw_limit'\n");
+  unless (system('cat', $memsw_limit) == 0)
+  {
+    print("Couldn't read file with memory & swap limit in bytes '$memsw_limit'\n");
+    die("To proceed please read INSTALL file\n") unless ($LDV_WORK_WITHOUT_SWAP);
+  }
+  print("Memory will be limited together with swap\n");
+}
+else
+{
+  print("There isn't file with memory & swap limit in bytes '$memsw_limit' for memory controller!\n");
+  die("To proceed please read INSTALL file\n") unless ($LDV_WORK_WITHOUT_SWAP);
+}
 
