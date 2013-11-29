@@ -168,7 +168,7 @@ and then:
   sudo prefix=/path/to/your/installation/directory make install-console-tools
 
 If you need to install visualization stuff (most likely you need this if you
-are outside ISP RAS), then read stats-visualizer/README, run:
+are outside ISP RAS), then follow stats-visualizer/README. Then run:
   make visualization
 and then:
   sudo prefix=/path/to/your/installation/directory make install-visualization
