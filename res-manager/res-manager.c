@@ -501,17 +501,17 @@ static void find_cgroup_controllers(void)
 			strcpy(params.cgroup_memory_origin, mount_point);
 		}
 
-		// Quit if everything have founded.
-		if (params.cgroup_memory != NULL && params.cgroup_cpuacct != NULL)
-		{
-			break;
-		}
-
 		free(fs_specifier);
 		free(mount_point);
 		free(fs_type);
 		free(mount_options);
 		free((void *)line);
+
+		// Quit if everything was founded.
+		if (params.cgroup_memory != NULL && params.cgroup_cpuacct != NULL)
+		{
+			break;
+		}
 	}
 
 	fclose(fp);
