@@ -1215,6 +1215,8 @@ static void print_usage(void)
 		"\t\tSet memory limit to <number> bytes. Supported binary prefixes: Kb, Mb, Gb, Kib, Mib, Gib; 1Kb = 1000 bytes,\n"
 		"\t\t1Mb = 1000^2, 1Gb = 1000^3, 1Kib = 1024 bytes, 1Mib = 1024^2, 1Gib = 1024^3 (standardized in IEC 60027-2).\n"
 		"\t\tIf there is no binary prefix then size will be specified in bytes. Default value: 100Mb.\n"
+		"\t-a, --work-without-swap-account\n"
+		"\t\tAllow Resource Manager to work without swap account available.\n"
 		"\t-t, --time-limit <number>\n"
 		"\t\tSet time limit to <number> seconds. Supported prefixes: ms, min; 1ms = 0.001 seconds, 1min = 60 seconds. \n"
 		"\t\tIf there is no prefix then time will be specified in seconds. Default value: 1min.\n"
