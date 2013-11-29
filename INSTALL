@@ -105,6 +105,26 @@ CONFIGURING EXISTSING SOFTWARE
 Not only LDV requires the software described to be installed.  You also should
 ensure that it's tweaked correctly.
 
+Control groups
+
+LDV accounts and limits CPU and memory on the basis of control groups.
+
+For correct memory computation (memory + swap) next kernel flags should be set:                                      
+  CONFIG_CGROUP_MEM_RES_CTLR_SWAP and CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED                                  
+or if kernel >3.6 version                                                                                            
+  CONFIG_MEMCG_SWAP and CONFIG_MEMCG_SWAP_ENABLED                                                              
+Minimal kernel version for swap computation is 2.6.34.                                                               
+Alternatively kernel boot parameter swapaccount should be set to 1.                                                  
+For Ubuntu 12.04 and 13.04 one needs to:                                                                             
+  1. Add "swapaccount=1" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.                  
+  2. Run sudo update-grub.                                                                                     
+  3. Reboot your system.                                                                                       
+For openSUSE 13.1 and Fedora 19 one needs to:                                                                        
+  1. Add "swapaccount=1" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.                  
+  2. Run sudo /usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg.
+  3. Reboot your system.
+You can use LDV without swap account at your own risk. Set LDV_WORK_WITHOUT_SWAP_ACCOUNT
+environment variable for that.
 
 MySQL
 
@@ -146,10 +166,6 @@ Run:
   make console-tools
 and then:
   sudo prefix=/path/to/your/installation/directory make install-console-tools
-Ubuntu 12.04 users are highly recommended to replace in /etc/default/grub:
-  GRUB_CMDLINE_LINUX=""
-with:
-  GRUB_CMDLINE_LINUX="swapaccount=1"
 
 If you need to install visualization stuff (most likely you need this if you
 are outside ISP RAS), then read stats-visualizer/README, run:
