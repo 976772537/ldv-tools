@@ -1464,7 +1464,7 @@ int main(int argc, char **argv)
 	}
 
 	// Parse command line.
-	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:h0", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:a0:h0", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
