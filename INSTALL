@@ -119,10 +119,11 @@ For Ubuntu 12.04 and 13.04 one needs to:
   1. Add "swapaccount=1" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.                  
   2. Run sudo update-grub.                                                                                     
   3. Reboot your system.                                                                                       
-For openSUSE 13.1 and Fedora 19 one needs to:                                                                        
+For Fedora 17 and Fedora 19 one needs to:                                                                        
   1. Add "swapaccount=1" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.                  
   2. Run sudo /usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg.
   3. Reboot your system.
+Users of openSUSE 12.3 and openSUSE 13.1 have swap account by default.
 You can use LDV without swap account at your own risk. Set LDV_WORK_WITHOUT_SWAP_ACCOUNT
 environment variable for that.
 
