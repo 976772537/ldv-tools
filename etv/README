@@ -1,3 +1,18 @@
 To install standalone Error Trace Visualizer you need to install LDV Tools 
 and then copy Error Trace Visualizer like:
   $ cp -rL $LDV_TOOLS_INSTALL_DIR/etv/* etv/
+To visualize error traces obtained for CIL files that point to source files
+that aren't available, one needs to remove line directives by:
+  $ etv/rm-line-directives -c file.c -o file.c.noline.c
+then run a verifier with corresponding options for file.c.noline.c and then
+visualize an obtained error trace (if so) by means of:
+  $ etv/etv -c original_error_trace -s sources -o visualized_error_trace.html --format "BLAST error trace v2.7"
+where original_error_trace is the verifier error trace, sources is a file
+produced by rm-line-directives script, visualized_error_trace.html is a
+visualized error trace in HTML (it can be opened in a standard browser) and
+format is one of:
+  BLAST error trace v2.7
+  CPAchecker error trace v1.1
+  CPAchecker error trace v1.2
+  UFO error trace
+  CBMC error trace v4.5
