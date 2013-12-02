@@ -23,6 +23,7 @@ use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
+# TODO: avoid this external non core module.
 use Tie::Hash::Indexed;
 
 # Add some local Perl packages.
