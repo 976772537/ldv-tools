@@ -20,3 +20,5 @@ format is one of:
   CPAchecker error trace v1.2
   UFO error trace
   CBMC error trace v4.5
+CBMC error traces should be in XML. For other tools standard error traces 
+should be printed.
