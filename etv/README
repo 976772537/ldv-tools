@@ -1,6 +1,10 @@
+Prerequisites include Perl of minimum 5.10 and Perl modules:
+Tie::Hash::Indexed and XML::Simple (just for CBMC error traces).
+
 To install standalone Error Trace Visualizer you need to install LDV Tools 
 and then copy Error Trace Visualizer like:
   $ cp -rL $LDV_TOOLS_INSTALL_DIR/etv/* etv/
+
 To visualize error traces obtained for CIL files that point to source files
 that aren't available, one needs to remove line directives by:
   $ etv/rm-line-directives -c file.c -o file.c.noline.c
