@@ -514,9 +514,9 @@ sub parse_et($)
         . " ('$et_cbmc_format')");
 
       $et_conv_array_ref
-        = convert_et_to_common('cbmc', $et_array_ref);
+        = convert_et_to_common('cbmc', $opts);
 
-      return parse_et($et_conv_array_ref);
+      return parse_et({'error trace' => $et_conv_array_ref});
     }
     elsif ($format =~ /^UFO error trace.*/)
     {
