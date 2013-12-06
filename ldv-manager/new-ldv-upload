@@ -5,15 +5,9 @@ use XML::Simple;
 use DBI;
 use English;
 use Env qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME);
-use FindBin;
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
-
-# Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
-
-
 
 ################################################################################
 # Subroutine prototypes.
@@ -23,7 +17,7 @@ sub parse_command_line();
 
 sub get_xml_file();
 
-sub finish_up0
+sub finish_upload;
 
 ################################################################################
 # Global variables.
@@ -265,14 +259,14 @@ sub upload
 	my $tmp_res; # Result for DB queries.
 	
 	print_debug("Locking data base\n");
-	#TODO lock data base.
+	sql_query(query => "LOCK TABLES environments READ, environments AS env WRITE, drivers READ, drivers AS dr WRITE, rule_models WRITE, rule_models AS rm READ, toolsets WRITE, toolsets AS ts READ, scenarios WRITE, scenarios AS s READ, tasks WRITE, tasks AS t READ, launches WRITE, launches AS l READ, traces WRITE, traces AS tr READ, sources WRITE, sources AS src READ, stats WRITE, stats AS st READ, processes WRITE, processes AS proc READ, problems WRITE, problems AS prob READ, problems_stats WRITE, problems_stats AS ps READ\n");
 	
 	print_debug("Starting commit\n");
 	$dbh->begin_work; # Begin commit.
 
 	print_debug("Processing unique values\n");
 	# Processing tasks table.
-	$tmp_res = sql_select(query => "SELECT * FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
+	$tmp_res = sql_select(query => "SELECT id FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
 	if ($tmp_res == 0 || $task_name eq '')
 	{
 		$tmp_res = sql_insert(query => "INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin, name) VALUES ('$username', '$timestamp', '$driver', '$driver_origin', '$task_name');");
@@ -280,7 +274,7 @@ sub upload
 	$task_id = $tmp_res; # FK for task.
 	
 	# Processing environments table.
-	$tmp_res = sql_select(query => "SELECT * FROM environments WHERE (environments.version = '$version') LIMIT 1;");
+	$tmp_res = sql_select(query => "SELECT id FROM environments WHERE (environments.version = '$version') LIMIT 1;");
 	if ($tmp_res == 0)
 	{
 		$tmp_res = sql_insert(query => "INSERT INTO environments (version) VALUES ('$version');");
@@ -288,7 +282,7 @@ sub upload
 	$environment_id = $tmp_res; # FK for environment.
 	
 	# Processing drivers table.
-	$tmp_res = sql_select(query => "SELECT * FROM drivers WHERE (drivers.name = '$driver') AND (drivers.origin = '$driver_origin') LIMIT 1;");
+	$tmp_res = sql_select(query => "SELECT id FROM drivers WHERE (drivers.name = '$driver') AND (drivers.origin = '$driver_origin') LIMIT 1;");
 	if ($tmp_res == 0)
 	{
 		$tmp_res = sql_insert(query => "INSERT INTO drivers (name, origin) VALUES ('$driver', '$driver_origin');");
@@ -344,11 +338,10 @@ sub upload
 			$cur_toolset_id = $tmp_res;
 		
 			# Processing rule_models table.
-			$tmp_res = sql_select(query => "SELECT * FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;");
+			$tmp_res = sql_select(query => "SELECT id FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;");
 			if ($tmp_res == 0)
 			{
 				$tmp_res = sql_insert(query => "INSERT INTO rule_models (name) VALUES ('$cur_model');");
-				print_debug ("Record have been added with id=$tmp_res\n");
 			}
 			$cur_model_id = $tmp_res;
 		
@@ -506,7 +499,7 @@ sub upload
 					$cur_desc = $dbh->quote($cur_desc);
 				}
 				sql_query(query => "INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'rcv', '$cur_status', '$cur_time', $cur_desc);\n");
-			
+				
 				# rcv - processes.
 				add_processes(old_time => $cur_rcv->{time}, trace_id => $cur_trace_id, component => 'rcv');
 			
@@ -521,13 +514,16 @@ sub upload
 		}
 	}
 	
-	
+	print_debug ("Unlocking data base\n");
+	sql_query(query => "UNLOCK TABLES\n");
 	
 	$dbh->commit;
 	print_debug ("Commit has been completed\n");
 	
-	#TODO unlock data base
-	print_debug ("Unlocking data base\n");
+	
+	print ("Results were successfully uploaded to database. They can be found at:\n");
+	$db_password = 'no' if $db_password eq '';
+	print ("http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/$db_password/\n");
 }
 
 sub sql_select
@@ -565,7 +561,7 @@ sub sql_query
 	my $info = {@_};
 	my $query = $info->{query};
 	
-	print_debug ($query."\n");
+	#print_debug ($query."\n");
 	
 	my $db_query = $dbh->do($query) or die("Can't do a query: " . $dbh->errstr);
 	
@@ -594,7 +590,7 @@ sub add_problems
 }
 
 #TODO choose one function for adds problems - add_problems (+10-20 sys time) or add_problems_local (how to get local functions?).
-# Same function, works much faster, but required local functions for problem extraction.
+# Same function, works much faster, but requires local functions for problem extraction.
 sub add_problems_local
 {
 	my $info = {@_};
@@ -691,7 +687,7 @@ sub convert_time
 	return %new_time;
 }
 
-#Functions for pgetting problems names by text.
+#Functions for getting problems names by description.
 
 sub rcv_problems
 {
