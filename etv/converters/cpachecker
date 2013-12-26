@@ -43,13 +43,13 @@ unless ($opts->{'fh intermediate source file'})
       {
         my $str = shift(@et_array);
 
-        last if ($str eq "--------------\n");
+        last if ($str eq "--------------");
 
         push(@intermediate_source_file, $str);
       }
 
       print_debug_warning("An intermediate source file isn't terminated with"
-        . " '--------------'");
+        . " '--------------'") unless (scalar(@et_array));
     }
     else
     {
