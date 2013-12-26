@@ -176,7 +176,7 @@ and then:
 Once after installation or after each change of LDV Analytics Center
 configuration you need to manually restart apache2 service, e.g. by means of
 "/etc/init.d/apache2 restart" on openSUSE 11.2 (on system rebooting this will
-be done automatically if you have added that service to the autostarting ones).
+be done automatically if you will add that service to the autostarting ones).
 
 Testing stuff, e.g. for rule models testing, can be installed by:
   make testing
