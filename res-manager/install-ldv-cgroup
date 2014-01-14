@@ -125,7 +125,7 @@ for (my $i = 0; $i < 2; $i++)
     system('mkdir', $ldv_cgroup_controllers[$i]) == 0
       or die("Couldn't create directory '$ldv_cgroup_controllers[$i]'\n");
   }
-  system('chmod', 'o+wt', $ldv_cgroup_controllers[$i]) == 0
+  system('chmod', 'a+wt', $ldv_cgroup_controllers[$i]) == 0
     or die("Couldn't change access permissions for '$ldv_cgroup_controllers[$i]'\n");
   print("Path to LDV control group ("
     , $i == 0 ? 'CPU accounting controller' : 'memory controller'
