@@ -29,13 +29,13 @@ mandir = ${prefix}/man
 
 # Building, testing and cleaning aren't needed for regression tests themselves. Just for subdirectories.
 all:
-	cd $(TEST_SETS_DIR) || exit 1; $(MAKE) $@ || exit 1
+	$(MAKE) -C $(TEST_SETS_DIR) $@
 
 test:
-	cd $(TEST_SETS_DIR) || exit 1; $(MAKE) $@ || exit 1
+	$(MAKE) -C $(TEST_SETS_DIR) $@
 
 clean:
-	cd $(TEST_SETS_DIR) || exit 1; $(MAKE) $@ || exit 1
+	$(MAKE) -C $(TEST_SETS_DIR) $@
 
 install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi

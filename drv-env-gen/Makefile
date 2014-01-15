@@ -19,7 +19,6 @@ all:
 	ant
 
 install:
-	ant
 	if [ ! -d $(prefix)/$(DRV_ENV_GEN_DIR) ]; then mkdir -p $(prefix)/$(DRV_ENV_GEN_DIR); fi
 	cp $(srcdir)/dist/$(DRV_ENV_GEN_CC) $(prefix)/$(DRV_ENV_GEN_DIR)
 	cp $(srcdir)/dist/$(DRV_ENV_GEN_LD) $(prefix)/$(DRV_ENV_GEN_DIR)

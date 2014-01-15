@@ -21,7 +21,7 @@ mandir = ${prefix}/man
 
 # Default make action.
 all:
-	@echo The knowledge base (re)generator doesn\'t require compilation
+	@echo The knowledge base \(re\)generator doesn\'t require compilation
 
 # Install needed executables to specified path.
 install:
@@ -32,7 +32,7 @@ install:
 	cp $(KB_SCHEMA) $(KB_COMMON_DATA) $(prefix)/$(KB_DIR)
 
 test:
-	@echo The knowledge base (re)generator doesn\'t have any test
+	@echo The knowledge base \(re\)generator doesn\'t have any test
 
 clean:
-	@echo The knowledge base (re)generator doesn\'t require cleaning 
+	@echo The knowledge base \(re\)generator doesn\'t require cleaning 

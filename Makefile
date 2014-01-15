@@ -35,6 +35,8 @@ endef
 
 all: $(call forall_subdirs,$(SUBDIRS),all)
 
+console-tools: $(call forall_subdirs,$(LDV_SUBDIRS),all)
+
 install: install-console-tools install-ldv-git
 
 install-all: $(call forall_subdirs,$(SUBDIRS),install)
@@ -49,8 +51,12 @@ install-ri: pre_tests $(call forall_subdirs,$(RI_SUBDIRS),install)
 # Install only error trace visualizer
 install-etv: pre_tests $(call forall_subdirs,$(ETV_SUBDIRS),install)
 
+visualization: $(call forall_subdirs,$(STATS_SUBDIRS),all)
+
 # Install only statistics server
 install-visualization: pre_tests $(call forall_subdirs,$(STATS_SUBDIRS),install)
+
+testing: $(call forall_subdirs,$(TESTS_SUBDIRS),all)
 
 # Install only test stuff
 install-testing: pre_tests $(call forall_subdirs,$(TESTS_SUBDIRS),install)

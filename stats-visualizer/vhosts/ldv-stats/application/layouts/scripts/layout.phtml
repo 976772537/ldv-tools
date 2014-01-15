@@ -17,7 +17,7 @@
  */
 function toolNameVersion()
 {
-  $version = '0.08';
+  $version = '0.09';
   return "LDV Analytics Center $version";
 }
 
@@ -31,12 +31,8 @@ echo $this->doctype(), "\n"
   <?php
     $baseUrl = $this->baseUrl();
     $this->headLink()->appendStylesheet("$baseUrl/css/global.css");
-    $this->headLink()->appendStylesheet("$baseUrl/css/etv.css");
-    $this->headLink()->appendStylesheet("$baseUrl/css/etv-analytics-center.css");
     $this->headScript()->appendFile("$baseUrl/jslib/jquery-1.4.2.min.js", 'text/javascript');
     $this->headScript()->appendFile("$baseUrl/jslib/jquery.jeditable.mini.js", 'text/javascript');
-    $this->headScript()->appendFile("$baseUrl/jslib/etv.js", 'text/javascript');
-    $this->headScript()->appendFile("$baseUrl/jslib/etv-analytics-center.js", 'text/javascript');
     echo $this->headLink();
     echo $this->headScript();
   ?>

@@ -127,7 +127,7 @@ sub load_data()
 		or die("Can't connect to the database: $DBI::errstr");
 
 	my $db_launches = $db_handler->prepare("
-		SELECT tasks.driver_spec as 'driver', tasks.driver_spec_origin as 'origin'
+		SELECT tasks.id, tasks.driver_spec as 'driver', tasks.driver_spec_origin as 'origin'
 			, environments.version as 'kernel', rule_models.name as 'model'
 			, scenarios.executable as 'module', scenarios.main as 'main'
 			, traces.result as 'verdict'
@@ -136,6 +136,7 @@ sub load_data()
 			, stats_3.success as 'DSCV success', stats_3.id as 'DSCV id'
 			, stats_4.success as 'RI success', stats_4.id as 'RI id'
 			, stats_5.success as 'RCV success', stats_5.id as 'RCV id'
+			, launches.trace_id as 'trace_id'
 		FROM launches
 		LEFT JOIN tasks ON launches.task_id=tasks.id
 		LEFT JOIN environments ON launches.environment_id=environments.id
@@ -158,7 +159,9 @@ sub load_data()
 		WHERE stats.id=? AND problems.id IS NOT NULL
 		ORDER BY problems.name")
 		or die("Can't prepare a query: " . $db_handler->errstr);
-
+		
+	
+	
 	$db_launches->execute or die("Can't execute a query: " . $db_handler->errstr);
 	open(my $res_file, '>', "$result_file") or die("Can't open the file '$result_file' for write: $ERRNO");
 	while (my $launch_info = $db_launches->fetchrow_hashref)
@@ -166,7 +169,25 @@ sub load_data()
 		my $model = ${$launch_info}{'model'} || 'NULL';
 		my $module = ${$launch_info}{'module'} || 'NULL';
 		my $main = ${$launch_info}{'main'} || 'NULL';
-		print($res_file "driver=${$launch_info}{'driver'};origin=${$launch_info}{'origin'};kernel=${$launch_info}{'kernel'};model=$model;module=$module;main=$main;verdict=${$launch_info}{'verdict'}");
+		my $rcv_memory = 0;
+		my $rcv_time = 0;
+		my $trace_id = ${$launch_info}{'trace_id'};
+		my $select_time = $db_handler->prepare("
+			SELECT time_average FROM processes
+			WHERE trace_id=$trace_id AND pattern='ALL' AND name='rcv'")
+			or die("Can't prepare a select: " . $db_handler->errstr);
+		my $select_memory = $db_handler->prepare("
+			SELECT time_average FROM processes
+			WHERE trace_id=$trace_id AND pattern='memory' AND name='rcv'")
+			or die("Can't prepare a select: " . $db_handler->errstr);
+	
+		$select_time->execute or die("Can't execute a query: " . $db_handler->errstr);
+		$select_memory->execute or die("Can't execute a query: " . $db_handler->errstr);
+		($select_time = $select_time->fetchrow_hashref and $rcv_time = ${$select_time}{'time_average'})
+			or $rcv_time = '-';
+		($select_memory = $select_memory->fetchrow_hashref and $rcv_memory = ${$select_memory}{'time_average'})
+			or $rcv_memory = '-';
+		print($res_file "driver=${$launch_info}{'driver'};origin=${$launch_info}{'origin'};kernel=${$launch_info}{'kernel'};model=$model;module=$module;main=$main;verdict=${$launch_info}{'verdict'};memory=$rcv_memory;time=$rcv_time;");
 
 		if (${$launch_info}{'verdict'} eq 'unknown')
 		{
@@ -185,38 +206,38 @@ sub load_data()
 							}
 							else
 							{
-								print($res_file ";RCV_status=fail");
+								print($res_file "RCV_status=fail;");
 								$tool_fail_id = ${$launch_info}{'RCV id'};
 							}
 						}
 						else
 						{
-							print($res_file ";RI_status=fail");
+							print($res_file "RI_status=fail;");
 							$tool_fail_id = ${$launch_info}{'RI id'};
 						}
 					}
 					else
 					{
-						print($res_file ";DSCV_status=fail");
+						print($res_file "DSCV_status=fail;");
 						$tool_fail_id = ${$launch_info}{'DSCV id'};
 					}
 				}
 				else
 				{
-					print($res_file ";DEG_status=fail");
+					print($res_file "DEG_status=fail;");
 					$tool_fail_id = ${$launch_info}{'DEG id'};
 				}
 			}
 			else
 			{
-				print($res_file ";BCE_status=fail");
+				print($res_file "BCE_status=fail;");
 				$tool_fail_id = ${$launch_info}{'BCE id'};
 			}
 
 			$db_problems->execute($tool_fail_id)
 				or die("Can't execute a query: " . $db_handler->errstr);
 
-			print($res_file ";problems=");
+			print($res_file "problems=");
 			my $isfirst = 1;
 			while (my $problem = $db_problems->fetchrow_hashref)
 			{
@@ -228,7 +249,7 @@ sub load_data()
 				{
 					print($res_file ",");
 				}
-				print($res_file "${$problem}{'problem'}");
+				print($res_file "${$problem}{'problem'};");
 			}
 		}
 		print($res_file "\n");

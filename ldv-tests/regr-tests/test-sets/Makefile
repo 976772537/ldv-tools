@@ -16,15 +16,15 @@ mandir = ${prefix}/man
 
 # Building, testing, cleaning and installation aren't needed for test sets themselves. Just for subdirectories.
 all:
-	for test_dir in $(TEST_DIRS); do cd $$test_dir || exit 1; $(MAKE) $@ || exit 1; done
+	for test_dir in $(TEST_DIRS); do $(MAKE) -C $$test_dir $@; done
 
 test:
-	for test_dir in $(TEST_DIRS); do cd $$test_dir || exit 1; $(MAKE) $@ || exit 1; done
+	for test_dir in $(TEST_DIRS); do $(MAKE) -C $$test_dir $@; done
 
 clean:
-	for test_dir in $(TEST_DIRS); do cd $$test_dir || exit 1; $(MAKE) $@ || exit 1; done
+	for test_dir in $(TEST_DIRS); do $(MAKE) -C $$test_dir $@; done
 
 install:
 	if [ ! -d $(bindir) ]; then mkdir -p $(bindir) || exit 1; fi
 	if [ ! -d $(mandir) ]; then mkdir -p $(mandir) || exit 1; fi
-	export cwd=$(PWD); for test_dir in $(TEST_DIRS); do cd "$$cwd/$$test_dir" || exit 1; $(MAKE) $@ || exit 1; done
+	for test_dir in $(TEST_DIRS); do $(MAKE) -C $$test_dir $@; done

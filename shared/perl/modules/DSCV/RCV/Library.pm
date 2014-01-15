@@ -38,6 +38,8 @@ use IPC::Open3;
 use File::Basename;
 use File::Path qw(mkpath);
 use File::Spec::Functions;
+use FindBin;
+my $fix_file_exe = "$FindBin::RealBin/../build-cmd-extractor/fix_for_compile.pl";
 
 # Global context; altered by the user from the env
 my $context = undef;
@@ -81,7 +83,10 @@ sub preprocess_all_files
 	my $c_file_opt = {map {$_->[0] => $_->[1]} @$c_file_opt_list};
 	# Make the list itself
 	my $c_file_list = [map {$_->[0]} @$c_file_opt_list];
-
+	vsay ("DEBUG", "Fixing files for ARM.");
+	-x $fix_file_exe or print "ERROR: Couldn't execute $fix_file_exe!\n";
+	my $fix_files = "$fix_file_exe -f \"@$c_file_list\"";
+	system($fix_files);
 	# Preprocessing step (we don't want them to clash);
 	my $prep_step = 1;
 
@@ -174,7 +179,7 @@ sub preprocess_cpp
 			my @words_exit_code = split(" ", $out_err[4]);
 			my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
 ===============================================
-Resource manager settings:
+Resource Manager settings:
 	memory limit: %s (%s bytes)
 	time limit: %s ms
 %s
@@ -421,6 +426,11 @@ sub run
 			$result = 'LIMITS';
 			$mes = "Time exhausted";
 		}
+		if ($timestats{"walltime_exhausted"} == "1")
+		{
+			$result = 'LIMITS';
+			$mes = "Wall time exhausted";
+		}
 		if ($timestats{"signal_script"} > 0)
 		{
 			$result = 'SIGNAL';
@@ -442,7 +452,7 @@ sub run
 	my @words_exit_code = split(" ", $out_err[4]);
 	my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
 ===============================================
-Resource manager settings:
+Resource Manager settings:
 	memory limit: %s (%s bytes)
 	time limit: %s ms
 %s
@@ -452,7 +462,7 @@ EOR
 
 	my $descr_ok = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
 ===============================================
-Resource manager settings:
+Resource Manager settings:
 	memory limit: %s (%s bytes)
 %s
 %s
@@ -512,11 +522,11 @@ sub get_err_result_from_file
 		chomp;
 		next unless $_;
 		my @words = split(' ', $_);
-		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		if ($words[1] eq "Manager" && $words[2] eq "settings:")
 		{
 			$command_type = "0";
 		}
-		if ($words[1] eq "manager" && $words[2] eq "execution")
+		if ($words[1] eq "Manager" && $words[2] eq "execution")
 		{
 			$command_type = "1";
 		}
@@ -557,11 +567,11 @@ sub get_result_from_file
 		chomp;
 		next unless $_;
 		my @words = split(' ', $_);
-		if ($words[1] eq "manager" && $words[2] eq "settings:")
+		if ($words[1] eq "Manager" && $words[2] eq "settings:")
 		{
 			$command_type = "0";
 		}
-		if ($words[1] eq "manager" && $words[2] eq "execution")
+		if ($words[1] eq "Manager" && $words[2] eq "execution")
 		{
 			$command_type = "1";
 		}
@@ -604,7 +614,7 @@ sub parse_outputfile
 		next unless $_;
 		my @words = split(" ", $_);
 		
-		if ($words[1] eq "manager" && $words[2] eq "execution")
+		if ($words[1] eq "Manager" && $words[2] eq "execution")
 		{
 			$return_code_section = "1";
 			$signal_section = "1";
@@ -637,6 +647,10 @@ sub parse_outputfile
 		if ($words[0] eq "time" && $words[1] eq "exhausted")
 		{
 			$statistics{"time_exhausted"} += "1";
+		}
+		if ($words[0] eq "walltime" && $words[1] eq "exhausted")
+		{
+			$statistics{"walltime_exhausted"} += "1";
 		}
 		if ($words[1] eq "time:")
 		{
@@ -789,13 +803,17 @@ sub set_up_timeout
 	my $memlimit = $resource_spec->{memlimit};
 	my $output = $resource_spec->{output};
 	my $idstr = $resource_spec->{id_str};
-
+	my $walltimelimit = $ENV{'RCV_WALLTIMELIMIT'};
+	
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
+        unshift @cmdline,"-a" if $ENV{'LDV_WORK_WITHOUT_SWAP_ACCOUNT'};
 	unshift @cmdline,"-o",$output if $output;
-	unshift @cmdline,"-l", 'ldv';
+	unshift @cmdline,"-d", 'ldv';
+	unshift @cmdline,"-w", $walltimelimit if $walltimelimit;
+	unshift @cmdline,"-w", "0" if $ENV{'RCV_NOWALLTIMELIMIT'};
 	unshift @cmdline,$timeout if $timelimit || $memlimit;
-
+	
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
 
 	return @cmdline;
@@ -813,9 +831,16 @@ sub cpp_one_file
 	chdir $info->{cwd} or die;
 
 	LDV::Utils::push_instrument("cpp");
-
+	my $gcc = 'gcc';
+	if($ENV{'CONFIG_OPT'})
+	{
+		if($ENV{'CONFIG_OPT'} =~ /^.*,.*,(.*)$/)
+		{
+			$gcc = $1 . 'gcc';
+		}
+	}
 	# We add "-x c" here to make GCC preprocess the input file even if it ends with ".i" suffix.  By default, GCC doesn't preprocess such files.  Moreover, we can't use the bare "cpp" here, as the options are for gcc compiler, and the bare preprocessor will report errors.
-	my @cpp_args = ("gcc","-E","-x","c",
+	my @cpp_args = ("$gcc","-E","-x","c",
 		"-o","$info->{i_file}",	#Output file
 		"$info->{c_file}",	#Input file
 		@{$info->{opts}},	#Options
@@ -961,8 +986,8 @@ sub add_files_for_trace
 	vsay('INFO', "Getting files for trace $trace_fname with ETV for parent package.\n");
 	my $temp_file = "$context->{tmpdir}/etv.tmp";
 	my @etv = ("$ENV{'DSCV_HOME'}/bin/etv",
-		"--report=$trace_fname",
-		"--reqs-out=$temp_file"
+		"--original-error-trace=$trace_fname",
+		"--required-source-files=$temp_file"
 	);
 	local $"=" ";
 	vsay('DEBUG', "Calling error-trace-visualizer: @etv\n");

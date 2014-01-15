@@ -1,0 +1,211 @@
+#! /usr/bin/perl -w
+
+################################################################################
+# Copyright (C) 2013
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+use English;
+use Env qw(LDV_DEBUG);
+use FindBin;
+use Getopt::Long qw(GetOptions);
+Getopt::Long::Configure qw(posix_default no_ignore_case);
+use strict;
+
+# Add some local Perl packages.
+use lib("$FindBin::RealBin/../etv/modules");
+
+# Add some nonstandard local Perl packages.
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level);
+
+
+################################################################################
+# Subroutine prototypes.
+################################################################################
+
+# Process command-line options. To see detailed description of these options
+# run script with --help option.
+# args: no.
+# retn: hash corresponding to options.
+sub get_opt();
+
+# Print help message on the screen and exit.
+# args: no.
+# retn: nothing.
+sub help();
+
+
+################################################################################
+# Main section.
+################################################################################
+
+# Obtain the debug level.
+get_debug_level('rm-line-directives', $LDV_DEBUG);
+
+print_debug_debug("Process command-line options");
+my $opts = get_opt();
+
+print_debug_debug("Remove line directives");
+print({$opts->{'fh referred source code'}}
+  "---LDV---"
+  . $opts->{'out'}
+  . "---LDV---\n");
+my $fh_in = $opts->{'fh in'};
+foreach my $line (<$fh_in>)
+{
+  if ($line =~ /^(#line.*)\n$/)
+  {
+    next unless ($opts->{'comment line directives'});
+    $line = "/* $1 */\n";
+  }
+  print({$opts->{'fh out'}} $line);
+  print({$opts->{'fh referred source code'}} $line);
+}
+
+print_debug_debug("Close file handlers");
+close($opts->{'fh in'})
+  or die("Can't close file handler for '" . $opts->{'in'} . "': $ERRNO\n");
+close($opts->{'fh out'})
+  or die("Can't close file handler for '" . $opts->{'out'} . "': $ERRNO\n");
+close($opts->{'fh referred source code'})
+  or die("Can't close file handler for '" . $opts->{'referred source code'}
+    . "': $ERRNO\n");
+
+print_debug_normal("Make all successfully");
+
+################################################################################
+# Subroutines.
+################################################################################
+
+sub get_opt()
+{
+  if (scalar(@ARGV) == 0)
+  {
+    warn("No options were specified through the command-line. Please see help"
+      . " to understand how to use this tool");
+    help();
+  }
+  print_debug_trace("Options '@ARGV' were passed through the command-line");
+
+  my ($help, $in, $comment_line_directives, $out, $referred_source_code);
+  my ($fh_in, $fh_out, $fh_referred_source_code);
+
+  unless (GetOptions(
+    'help|h' => \$help,
+    'c=s' => \$in,
+    'comment-line-directives' => \$comment_line_directives,
+    'o=s' => \$out,
+    's=s' => \$referred_source_code))
+  {
+    warn("Incorrect options may completely change the meaning! Please see help"
+      . " to understand how to use this tool");
+    help();
+  }
+
+  help() if ($help);
+
+  unless ($in)
+  {
+    warn("You should specify a source file to be verified by means of"
+      . "command-line option -c");
+    help();
+  }
+
+  open($fh_in, '<', "$in")
+    or die("Can't open file '$in' specified through -c for read: $ERRNO");
+  print_debug_debug("Source file to be processed is '$in'");
+
+  unless ($out)
+  {
+    $out = "$in.nolines";
+    warn("Source file without line directives wasn't specified via command-line"
+      . " option -o. So it will be put to '$out'");
+  }
+
+  open($fh_out, '>', $out)
+    or die("Can't open file '$out' for write: $ERRNO");
+  print_debug_debug("Source file without line directives will be put to '$out'");
+
+  unless ($referred_source_code)
+  {
+    $referred_source_code = "sources";
+    warn("File to be contained program source code to be referred by an error"
+      . " trace wasn't specified via command-line option -s. So it will be put"
+      . " to '$referred_source_code'");
+  }
+
+  open($fh_referred_source_code, '>', $referred_source_code)
+    or die("Can't open file '$referred_source_code' for write: $ERRNO");
+  print_debug_debug("File to be contained program source code to be referred by"
+    . " an error trace is '$referred_source_code'");
+
+  print_debug_debug("Line directives will be commented") if ($comment_line_directives);
+
+  print_debug_debug("Command-line options were processed successfully");
+
+  return {'in' => $in
+    , 'fh in' => $fh_in
+    , 'out' => $out
+    , 'fh out' => $fh_out
+    , 'referred source code' => $referred_source_code
+    , 'fh referred source code' => $fh_referred_source_code
+    , 'comment line directives' => $comment_line_directives};
+}
+
+sub help()
+{
+    print(STDERR << "EOM");
+
+NAME
+  $PROGRAM_NAME: removes line directives from a source file to be verified
+  and prepares a file with referred source code for error trace visualizer.
+
+SYNOPSIS
+  $PROGRAM_NAME [option...]
+
+OPTIONS
+
+  -h, --help
+    Print this help and exit with 1.
+
+  -c <path>
+    <path> to a source file to be verified.
+
+  --comment-line-directives
+    Comment line directives rather then remove them completely. By default
+    line directives are removed.
+
+  -o <path>
+    <path> to a modified source file without line directives. If this option
+    isn't specified output is placed to file
+    <path_to_a_source_file_to_be_verified.nolines>.
+
+  -s <path>
+    <path> to a file to be contained program source code to be referred by an
+    error trace. If this option isn't specified output is placed to 'sources'.
+
+ENVIRONMENT VARIABLES
+
+  LDV_DEBUG
+    It's an optional environment variable that specifies a debug
+    level. It uses the standard designatures to distinguish different
+    debug information printings. Each next level includes all previous
+    levels and its own messages.
+
+EOM
+
+  exit(1);
+}

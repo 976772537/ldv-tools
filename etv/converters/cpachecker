@@ -23,53 +23,76 @@ use Env qw(LDV_DEBUG LDV_CPACHECKER_ET_CONV_DEBUG);
 sub get_loc_and_val($$);
 
 # We'd like to relate a given CPAchecker error trace with original source code,
-# not with the CIL one. So first of all build a map between sources.
-# Read a CIL source file from the beginning of the error trace.
+# not with the intermediate (CIL) one. So first of all build a map between
+# sources.
 my %src_map;
-my $header = shift(@et_array);
-if (defined($header))
+
+my @intermediate_source_file;
+
+# Read an intermediate source file from the beginning of the error trace.
+unless ($opts->{'fh intermediate source file'})
 {
-  if ($header =~ /^-------(.*)-------$/)
+  my $header = shift(@et_array);
+  if (defined($header))
   {
-    print_debug_trace("Process '$1' CIL source file");
-
-    my $src_cur = '';
-    my $src_line_cur = 0;
-    my $cil_line_cur = 1;
-    while (scalar(@et_array))
+    if ($header =~ /^-------(.*)-------$/)
     {
-      my $str = shift(@et_array);
+      print_debug_trace("Process '$1' intermediate source file");
 
-      chomp($str);
-      last if ($str eq "--------------");
+      while (scalar(@et_array))
+      {
+        my $str = shift(@et_array);
 
-      if ($str =~ /^#line (\d+) "([^"]+)"$/)
-      {
-        $src_line_cur = $1;
-        $src_cur = $2;
-      }
-      elsif ($str =~ /^#line (\d+)$/)
-      {
-        $src_line_cur = $1;
-      }
-      else
-      {
-        $src_map{$cil_line_cur} = {
-            'file' => $src_cur
-          , 'line' => $src_line_cur};
-        $src_line_cur++;
+        last if ($str eq "--------------");
+
+        push(@intermediate_source_file, $str);
       }
 
-      $cil_line_cur++;
+      print_debug_warning("An intermediate source file isn't terminated with"
+        . " '--------------'") unless (scalar(@et_array));
     }
+    else
+    {
+      print_debug_warning("An intermediate source file isn't specified for a"
+        . " CPAchecker error trace processed. A first line is '$header'");
+      # Return the first line of an error trace processed back.
+      unshift(@et_array, $header);
+    }
+  }
+}
+else
+{
+  my $fh = $opts->{'fh intermediate source file'};
+  @intermediate_source_file = <$fh>;
+}
+
+my $src_cur = '';
+my $src_line_cur = 0;
+my $cil_line_cur = 1;
+while (scalar(@intermediate_source_file))
+{
+  my $str = shift(@intermediate_source_file);
+
+  chomp($str);
+
+  if ($str =~ /^#line (\d+) "([^"]+)"$/)
+  {
+    $src_line_cur = $1;
+    $src_cur = $2;
+  }
+  elsif ($str =~ /^#line (\d+)$/)
+  {
+    $src_line_cur = $1;
   }
   else
   {
-    print_debug_warning("A CIL source file isn't specified for a CPAchecker"
-      . " error trace processed. A first line is '$header'");
-    # Return the first line of an error trace processed back.
-    unshift(@et_array, $header);
+    $src_map{$cil_line_cur} = {
+        'file' => $src_cur
+      , 'line' => $src_line_cur};
+    $src_line_cur++;
   }
+
+  $cil_line_cur++;
 }
 
 # Read the whole error trace specified.
@@ -82,6 +105,18 @@ push(@et_conv_array, "Error trace common format v0.1\n");
 my $src_prev = '';
 # To extract initialization section.
 my $isinit = 0;
+
+# Delete all not supported lines. This has meaning for error traces of new
+# CPAchecker releases (~1.2).
+
+# Find indexes for not supported lines.
+my @del_indexes = reverse(grep { $et_raw[$_] =~ /Real:/ } 0..$#et_raw);
+
+# Delete lines by their indexes.
+foreach my $index (@del_indexes)
+{
+  splice(@et_raw, $index, 1);
+}
 
 # Convert a raw error trace into the common format line by line.
 while (@et_raw)

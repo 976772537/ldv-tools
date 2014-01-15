@@ -146,8 +146,8 @@ sub hxml_cmdstream {
 			system('rm','-f',$temp_file);
 			# call visualizer
 			@etv_arg = ($config->{'etv'},
-					"--report=$trace",
-					"--reqs-out=$temp_file");
+					"--original-error-trace=$trace",
+					"--required-source-files=$temp_file");
 			vsay 'TRACE', "Calling error-trace-visualizer: @etv_arg\n";
 			system(@etv_arg) and die("Error trace visualizer failed\n");
 			# read temp file

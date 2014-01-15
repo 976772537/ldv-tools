@@ -3,14 +3,10 @@
 
 # Installation
 # Perl modules config
-perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm File/Cat.pm Text/Highlight.pm Text/Highlight/CPP.pm MetaUtils.pm \
+perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm File/Cat.pm MetaUtils.pm \
 	DSCV/RCV/Utils.pm \
 	DSCV/RCV/Library.pm \
-	DSCV/RCV/Coverage.pm \
-	ETV/Annotation.pm \
-	ETV/Entity.pm \
-	ETV/Parser.pm \
-	ETV/Library.pm
+	DSCV/RCV/Coverage.pm
 
 perl_src_dir=modules
 
@@ -39,7 +35,7 @@ $(call prepare_module,%): $(call prepare_module,%).PL
 $(call compile_module,%): $(call prepare_module,%)
 	@$(MAKE) -C $(perl_compiled_src_dir)/$*
 
-$(call install_module,%): $(call compile_module,%)
+$(call install_module,%):
 	@mkdir -p $(perl_install_dir)/auto/$*
 	cp -rf $(perl_compiled_src_dir)/$*/blib/arch/auto/$*/* $(perl_install_dir)/auto/$*/
 	@mkdir -p $(perl_install_dir)/$*

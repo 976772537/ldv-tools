@@ -56,11 +56,15 @@ sub set_up_timeout
 	my $memlimit = $resource_spec->{memlimit};
 	my $output = $resource_spec->{output};
 	my $idstr = $resource_spec->{id_str};
+	my $walltimelimit = $ENV{'RCV_WALLTIMELIMIT'};
 
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
+	unshift @cmdline,"-a" if $ENV{'LDV_WORK_WITHOUT_SWAP_ACCOUNT'};
 	unshift @cmdline,"-o",$output if $output;
-	unshift @cmdline,"-l", "ldv";
+	unshift @cmdline,"-d", "ldv";
+	unshift @cmdline,"-w", $walltimelimit if $walltimelimit;
+	unshift @cmdline,"-w", "0" if $ENV{'RCV_NOWALLTIMELIMIT'};
 	unshift @cmdline,$timeout;
 
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;

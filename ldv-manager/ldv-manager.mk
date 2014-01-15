@@ -31,6 +31,9 @@ else
 Verifier=$(delim)$(notdir $(RCV_VERIFIER))
 endif
 
+ifneq ($(CONFIG_OPT),)
+extractor_options="--extractor-options=$(CONFIG_OPT)"
+endif
 
 # Install dir should be absolutized
 LDV_INSTALL_DIR:=$(abspath $(LDV_INSTALL_DIR))
@@ -213,7 +216,7 @@ tags/$(1): $(2) tags/$$(call get_tag_fromenv,$(1))/installed
 		$(if $(subst $(Current),,$(Tag)),	cd $(LDV_INSTALL_DIR)/$$(Tag) && export PATH=$(LDV_INSTALL_DIR)/$$(Tag)/bin:$$$$PATH;) \
 		export LDV_ENVS_TARGET=$(LDV_INSTALL_DIR)/$$(Tag) ; \
 		echo "Preparing kernel $$(Env) from $$(Env_file)..." ;\
-		ldv kmanager --action=add --src=$$(abspath $$(Env_file)) --extractor=linux-vanilla --name=$$(Env) \
+		ldv kmanager --action=add --src=$$(abspath $$(Env_file)) --extractor=linux-vanilla --name=$$(Env) $(extractor_options) \
 	) 200>$@.lock
 	touch $$@
 endef

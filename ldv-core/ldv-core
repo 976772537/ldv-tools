@@ -11,7 +11,7 @@ use XML::Twig;
 use IO::Socket::INET;
 #use File::MimeInfo;
 use File::Basename;
-
+use Cwd qw(abs_path);
 
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
@@ -46,6 +46,7 @@ my $config = {
         'ldv-core-reporter' => "$ENV{'LDV_HOME'}/ldv-core/ldv-core-reporter",
         'bce' => "$ENV{'LDV_HOME'}/build-cmd-extractor/build-cmd-extractor",
         'bce-reporter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/build-cmd-extractor-reporter",
+        'module-filter' => "$ENV{'LDV_HOME'}/build-cmd-extractor/module-filter.pl",
         'deg' => "$ENV{'LDV_HOME'}/drv-env-gen/drv-env-gen",
         'deg-reporter' => "$ENV{'LDV_HOME'}/drv-env-gen/drv-env-gen-reporter",
         'rule-instrumentor' => "$ENV{'LDV_HOME'}/rule-instrumentrule-instrumentor.pl",
@@ -59,12 +60,12 @@ my $config = {
 };
 
 GetOptions(
-        'rule-models|m=s'=>\$config->{'rule-models'},
-        'report-out|o=s'=>\$config->{'report-out'},
-        'env|e=s'=>\$config->{'env'},
-        'cmdstream|s=s'=>\$config->{'cmdstream'},
-        'kernel-driver|k=s'=>\$config->{'kernel-driver'},
-        'driver|d=s'=>\$config->{'driver'},
+		'rule-models|m=s'=>\$config->{'rule-models'},
+		'report-out|o=s'=>\$config->{'report-out'},
+		'env|e=s'=>\$config->{'env'},
+		'cmdstream|s=s'=>\$config->{'cmdstream'},
+		'kernel-driver|k=s'=>\$config->{'kernel-driver'},
+		'driver|d=s'=>\$config->{'driver'}
 ) or usage;
 
 use File::Path qw(make_path remove_tree);
@@ -224,12 +225,12 @@ sub start_next {
 
 		# We will only tolerate this many SOAP errors
 		my $retries = 10;
-
 		my $tasks = {};
 		while(is_exists($csd_pid)){
 			vsay 'TRACE', "Trying to fetch next command...\n";
 			my $command =  eval{ return $csd->getCommand(); };
 			if($command) {
+				my $cmd_after_csd = "$command/cmd_after_csd.xml";
 				vsay 'TRACE', "Calling external interface to submit task\n";
 				vsay 'NORMAL', "Prepared command in: $command\n";
 				vsay 'NORMAL', "Calling drv-env-gen...\n";
@@ -243,7 +244,7 @@ sub start_next {
 				my @deg_args = (
 					$config->{'deg'},
 					"--basedir=deg",
-					"--cmdfile=$command/cmd_after_csd.xml",
+					"--cmdfile=$cmd_after_csd",
 					"--cmdfile-out=$command/cmd_after_deg.xml",
 					"--state-file=$command/deg.state"
 				);
@@ -255,9 +256,30 @@ sub start_next {
 				} else {
 					push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
 				}
-
-				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
-				system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
+				my $check_only = $ENV{'CHECK_ONLY'};
+				if(-f "$check_only")
+				{
+					my $module_filter_report = $config->{'csd_tempdir'} . "/module-filter-report";
+					my @filter_args = ("$config->{'module-filter'}",
+										"--xml_file=$cmd_after_csd",
+										"--check_only=$check_only",
+										"--results=$module_filter_report");
+					vsay 'DEBUG', "@filter_args";
+					system(@filter_args);
+					my $filter_result = check_system_call();
+					vsay 'TRACE', "module-filter exited with value '$filter_result'";
+					die "Module filter failed" unless(($filter_result == 0) or ($filter_result == 61));
+					unless($filter_result)
+					{
+						vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
+						system(@deg_args) and die"$!";
+					}
+				}
+				else
+				{
+					vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
+					system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
+				}
 				$ENV{'WORK_DIR'} = $old_workdir;
 
 				$command =~ m/.*\/+([0-9]+)/ and my $cid=$1;	
@@ -531,8 +553,25 @@ sub start_bce {
 		"--env=$config->{'env'}",
 		"--basedir=bce_tempdir",
 		"--state=$config->{'bce_state'}",
-		"--cmdfile-out=$config->{'xml_after_bce'}",
+		"--cmdfile-out=$config->{'xml_after_bce'}"
 	);
+	if($ENV{'KERNEL_JOBS'})
+	{
+		my $jobs = $ENV{'KERNEL_JOBS'};
+		$jobs = 1 if($jobs <= 0);
+		push(@bce_args, "--jobs=$jobs") if($jobs);
+	}
+	if($ENV{'CONFIG_OPT'})
+	{
+		my $build_options = $ENV{'CONFIG_OPT'};
+		push(@bce_args, "--extractor_options=$build_options");
+	}
+	if($ENV{'CONFIG_FILE'})
+	{
+		my $kernel_config_file = $ENV{'CONFIG_FILE'};
+		$kernel_config_file = abs_path($kernel_config_file);
+		push(@bce_args, "--kernel-config-file=$kernel_config_file");
+	}
 	if($config->{'cmdstream'}) {
 		push @bce_args, "--cmdstream=$config->{'cmdstream'}";
 		push @bce_args, '--kernel-driver';

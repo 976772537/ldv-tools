@@ -39,6 +39,7 @@ LDV_HOME=`readlink -f \`dirname $0\`/../`;
 USAGE_STRING="...";
 LOG_PREFIX="build-cmd-extractor: ";
 source $LDV_HOME/shared/sh/log.sh;
+source $LDV_HOME/shared/sh/ldv-functions.sh;
 
 BCE_DIRNAME="build-cmd-extractor";
 BCE_DIR=$LDV_HOME/$BCE_DIRNAME;
@@ -68,67 +69,92 @@ fi;
 # scan and test command line parameters
 #
 for arg in $@; do
-        case $arg in
-                --cmdfile-out=*)
-                	rcmdfileout=`echo $arg | sed 's/--cmdfile-out=//g'`
+	case $arg in
+		--cmdfile-out=*)
+			rcmdfileout=`echo $arg | sed 's/--cmdfile-out=//g'`
 			if [ ! -n "$rcmdfileout" ]; then
 				ldv_print "ERROR: Parameter \"--cmdfile-out=\" - is null. Setup it.";
-			        exit 1;
+				exit 1;
 			fi;
 			cmdfileout=$rcmdfileout;
 		;;
-                --cmdstream=*)
-                        rcmdstream=`echo $arg | sed 's/--cmdstream=//g'`
-                        if [ ! -n "$rcmdstream" ]; then
-                                ldv_print "ERROR: Parameter \"--cmdstream\" - is null. Setup it.";
-                                exit 1;
-                        fi;
-                ;;
-                --basedir=*)
-                	basedir=`echo $arg | sed 's/--basedir=//g'`
+		--jobs=*)
+			jobs=`echo $arg | sed 's/--jobs=//g'`
+			if [ ! -n "$jobs" ]; then
+				ldv_print "ERROR: Parameter \"--jobs\" - is null. Setup it.";
+				exit 1;
+			fi;
+		;;
+		--cmdstream=*)
+			rcmdstream=`echo $arg | sed 's/--cmdstream=//g'`
+			if [ ! -n "$rcmdstream" ]; then
+				ldv_print "ERROR: Parameter \"--cmdstream\" - is null. Setup it.";
+				exit 1;
+			fi;
+		;;
+		--kernel-config-file=*)
+			kernel_config=`echo $arg | sed 's/--kernel-config-file=//g'`
+			if [ ! -n "$kernel_config" ]; then
+				ldv_print "ERROR: Parameter \"--kernel-config-file\" - is null. Setup it.";
+				exit 1;
+			fi;
+			if [ ! -f "$kernel_config" ]; then
+				ldv_print "ERROR: Couldn't find file: '$kernel_config'.";
+				exit 1;
+			fi;
+		;;
+		--basedir=*)
+			basedir=`echo $arg | sed 's/--basedir=//g'`
 			if [ ! -n "$basedir" ]; then
 				ldv_print "ERROR: Parameter \"--basedir\" - is null. Setup it.";
-			        exit 1;
+				exit 1;
 			fi;
 		;;
- 	        --state=*)
-                	statefile=`echo $arg | sed 's/--state=//g'`
+		--state=*)
+			statefile=`echo $arg | sed 's/--state=//g'`
 			if [ ! -n "$statefile" ]; then
 				ldv_print "ERROR: Parameter \"--state\" - is null. Setup it.";
-			        exit 1;
+				exit 1;
 			fi;
 		;;
-                --env=*)
-                	renv=`echo $arg | sed 's/--env=//g'`
+		--env=*)
+			renv=`echo $arg | sed 's/--env=//g'`
 			if [ ! -n "$renv" ]; then
 				ldv_print "ERROR: Parameter \"--env\" - is null. Setup it.";
-			        exit 1;
+				exit 1;
 			fi;
 			env=`readlink -f $renv`;
 			if [ $? -ne 0 ]; then
 				ldv_print "ERROR: Failed to read abs-path for environment dir: \"$renv\"."
-			        exit 1;
+				exit 1;
 			fi;
 			if [ ! -d "$env" ]; then
-			        ldv_print "ERROR: Environment dir not exists: \"$env\".";
-			        exit 1;
-			fi;
-                ;;
-                --driver=*)
-                	driver=`echo $arg | sed 's/--driver=//g'`
-			if [ ! -n "$driver" ]; then
-				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
-			        exit 1;
+				ldv_print "ERROR: Environment dir not exists: \"$env\".";
+				exit 1;
 			fi;
 		;;
- 		--kernel-driver)
-                	KERNEL_LEVEL=1;
-                ;;
-                *)
-                        ldv_print "ERROR: Unknown options: '$arg'.";
+		--driver=*)
+			driver=`echo $arg | sed 's/--driver=//g'`
+			if [ ! -n "$driver" ]; then
+				ldv_print "ERROR: Parameter \"--driver\" - is null. Setup it.";
+				exit 1;
+			fi;
+		;;
+		--kernel-driver)
+			KERNEL_LEVEL=1;
+		;;
+		--extractor_options=*)
+			build_options=`echo $arg | sed 's/--extractor_options=//g'`
+			if [ -z "$build_options" ]; then
+				ldv_print "ERROR: Parameter \"--extractor_options\" - is null. Setup it.";
+				exit 1;
+			fi;
+		;;
+		*)
+			ldv_print "ERROR: Unknown options: '$arg'.";
 			print_usage_and_exit;
-                ;;
-        esac
+		;;
+	esac
 done
 #---------------------------------------------------------------------------
 
@@ -157,6 +183,9 @@ fi;
 if [ ! -n $basedir ]; then
 	ldv_print "ERROR: Option \"$basedir\" is empty.";
 	print_usage_and_exit;	
+fi;
+if [ -z "$jobs" ]; then
+	jobs=1;
 fi;
 if [ ! -n "$statefile" ]; then
 	ldv_print "ERROR: Parameter \"--state\" - is null. Setup it.";
@@ -266,13 +295,27 @@ else
 
 	fi;
 
+	if [ -z "$build_options" ]; then
+		build_options="make -j $jobs"
+	else
+		ldv_config="$(leave_first "$build_options")";
+		ldv_arch="$(leave_second "$build_options")";
+		if [ -n "$ldv_arch" ]; then ldv_arch="ARCH=$ldv_arch"; fi;
+		ldv_cross="$(leave_third "$build_options")";
+		program_required "${ldv_cross}gcc" \
+			 "You can download various cross-compilers from http://kernel.org/pub/tools/crosstool";
+		if [ -n "$ldv_cross" ]; then ldv_cross="CROSS_COMPILE=$ldv_cross"; fi;
+		build_options="make $ldv_arch $ldv_cross -j $jobs"
+	fi;
+	if [ -z "$ldv_config" ]; then ldv_config="allmodconfig"; fi;
+	ldv_print "DEBUG: Build options is \"$build_options\";"
 	ldv_print "NORMAL: Make driver."
 	if [ $KERNEL_LEVEL -eq 0 ]; then
 		if [ -n "$CORRECT_KBUILD" ]; then
 			ldv_print "DEBUG: Save cmdstream file.";
 			cp $cmdfileout $cmdfileout.backup;
-			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_KBUILD_DIR/ modules > $statefile 2>&1";
-			BUILDFILE=$cmdfileout make V=1 M=$DRIVER_KBUILD_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_KBUILD_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile";
+			BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_KBUILD_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
 			# only if it ldv-online !!!
 			if [ $? -ne 0 -a -n "$CORRECT_MAKEFILE" ]; then
 				ldv_print "DEBUG: Restore cmd stream \"$cmdfileout\" over previously Kbuild compilation.";
@@ -283,18 +326,18 @@ else
 				ldv_print "TRACE: ln -s `readlink -f .` /lib/modules/`uname -r`/build";
 				ln -s `readlink -f .` /lib/modules/`uname -r`/build;
 				if [ $? -eq 0 ]; then								
-					ldv_print "DEBUG: BUILDFILE=$cmdfileout make -C $DRIVER_MAKEFILE_DIR V=1 > $KERNEL_COMPILE_LOG 2>$statefile;";
-					BUILDFILE=$cmdfileout make -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile;
+					ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile";
+					BUILDFILE=$cmdfileout $build_options -C $DRIVER_MAKEFILE_DIR > $KERNEL_COMPILE_LOG 2>$statefile;
 					# remove symlink !!!
 				fi;
 			fi;
 		else
-			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $statefile 2>&1";
-			BUILDFILE=$cmdfileout make V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile";
+			BUILDFILE=$cmdfileout $build_options V=1 M=$DRIVER_MAKEFILE_DIR/ modules > $KERNEL_COMPILE_LOG 2>$statefile;
 		fi;
 	else
 		# TODO: replace this hack!
-		# prepare kernel for external driver
+		# prepare kernel for internal driver
 		make clean 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
@@ -311,7 +354,8 @@ else
 			exit 1;
 		fi;
 
-		make allmodconfig 2>$statefile;
+		ldv_print "DEBUG: make $ldv_arch $ldv_cross $ldv_config 2>$statefile";
+		make $ldv_arch $ldv_cross $ldv_config 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
 			ldv_print "ERROR: Can't configure kernel.";
@@ -326,8 +370,12 @@ else
 		        fi;
 			exit 1;
 		fi;
-
-		make init 2>$statefile;
+		if [ -n "$kernel_config" ]; then
+			ldv_print "DEBUG: .config substitution to $kernel_config.";
+			cp "$kernel_config" ".config";
+		fi;
+		ldv_print "DEBUG: make init $ldv_arch $ldv_cross 2>$statefile";
+		make init $ldv_arch $ldv_cross 2>$statefile;
 		if [ $? -ne 0 ]; then 
 			shield_xml $statefile;
 			ldv_print "ERROR: Can't init kernel.";
@@ -354,14 +402,14 @@ else
 			ldv_print "INFO: Single driver compile mode.";
 			ldv_print "DEBUG: Replace \"&\" symbols with whitespaces. It needs for more than one targets!";
 			driver=`echo $driver | tr '&' ' '`;
-			ldv_print "DEBUG: BUILDFILE=$cmdfileout make $driver > $KERNEL_COMPILE_LOG 2>$statefile;";
-			BUILDFILE=$cmdfileout make $driver > $KERNEL_COMPILE_LOG 2>$statefile;
+			ldv_print "DEBUG: BUILDFILE=$cmdfileout $build_options $driver > $KERNEL_COMPILE_LOG 2>$statefile;";
+			BUILDFILE=$cmdfileout $build_options $driver > $KERNEL_COMPILE_LOG 2>$statefile;
 		else 
 			ldv_print "INFO: Kernel folder compile mode.";
 #			for i in `find . -depth -type d | sed "s/\.\///g"`; do if [ "$i" != "." ]; then i="$i/"; fi;
 			for i in `find $driver -depth -type d | grep -v tmp_versions |sed "s/\.\///g"`; do if [ "$i" != "." ]; then i="$i/"; else continue; fi;
-				ldv_print "BUILDFILE=$cmdfileout make V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;";
-				BUILDFILE=$cmdfileout make V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;
+				ldv_print "BUILDFILE=$cmdfileout $build_options V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile";
+				BUILDFILE=$cmdfileout $build_options V=1 M=$i modules >> $KERNEL_COMPILE_LOG 2>>$statefile;
 			done;
 #			if [ "$driver" == "." -o "$driver" == "./" ]; then mdriver=" "; else mdriver="M=$driver/"; fi;
 #			ldv_print "DEBUG: BUILDFILE=$cmdfileout make V=1 $mdriver modules > $KERNEL_COMPILE_LOG 2>$statefile;";

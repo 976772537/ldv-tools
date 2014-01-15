@@ -61,7 +61,6 @@ MINIMAL PREREQUISITES
 	o bzip2
 	o xz
 
-
 ADDITIONAL PREREQUISITES
 
 Additional prereqiosites are not necessary for console tools, but are required
@@ -101,15 +100,32 @@ CLUSTER PREREQUISITES
 		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server_2.0.0-1_all.deb (Debian)
 		http://www.rabbitmq.com/releases/rabbitmq-server/v2.0.0/rabbitmq-server-2.0.0-1.suse.noarch.rpm (Suse)
 
-
-
-
-
-CONFIGURING EXISTSING SOFTWARE
+CONFIGURING EXISTING SOFTWARE
 
 Not only LDV requires the software described to be installed.  You also should
 ensure that it's tweaked correctly.
 
+Control groups
+
+LDV accounts and limits CPU and memory on the basis of control groups.
+
+For correct memory computation (memory + swap) next kernel flags should be set:                                      
+  CONFIG_CGROUP_MEM_RES_CTLR_SWAP and CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED                                  
+or if kernel >3.6 version                                                                                            
+  CONFIG_MEMCG_SWAP and CONFIG_MEMCG_SWAP_ENABLED                                                              
+Minimal kernel version for swap computation is 2.6.34.                                                               
+Alternatively kernel boot parameter swapaccount should be set to 1.                                                  
+For Ubuntu 12.04 and 13.04 one needs to:                                                                             
+  1. Add "swapaccount=1" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.                  
+  2. Run sudo update-grub.                                                                                     
+  3. Reboot your system.                                                                                       
+For Fedora 17 and Fedora 19 one needs to:                                                                        
+  1. Add "swapaccount=1" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.                  
+  2. Run sudo /usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg.
+  3. Reboot your system.
+Users of openSUSE 12.3 and openSUSE 13.1 have swap account by default.
+You can use LDV without swap account at your own risk. Set LDV_WORK_WITHOUT_SWAP_ACCOUNT
+environment variable for that.
 
 MySQL
 
@@ -147,8 +163,28 @@ mysql> flush privileges;
 
 INSTALLING LDV
 
-First, install a prerequisites listed above, according to the path of LDV you
-need.
+Run: 
+  make console-tools
+and then:
+  sudo prefix=/path/to/your/installation/directory make install-console-tools
+
+If you need to install visualization stuff (most likely you need this if you
+are outside ISP RAS), then follow stats-visualizer/README. Then run:
+  make visualization
+and then:
+  sudo prefix=/path/to/your/installation/directory make install-visualization
+Once after installation or after each change of LDV Analytics Center
+configuration you need to manually restart apache2 service, e.g. by means of
+"/etc/init.d/apache2 restart" on openSUSE 11.2 (on system rebooting this will
+be done automatically if you will add that service to the autostarting ones).
+
+Testing stuff, e.g. for rule models testing, can be installed by:
+  make testing
+and:
+  sudo prefix=/path/to/your/installation/directory make install-testing
+
+
+TODO: sort the text below out
 
 Note, that '3' and '5' most likely require root privelegies and additional
 tuning. See 'stats-visualizer/README' for details. See 'ldv-online/README'

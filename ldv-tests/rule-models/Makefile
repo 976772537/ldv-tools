@@ -28,7 +28,7 @@ define test_prefix
         if [ ! -n "$(prefix)" ]; then echo "please specify prefix"; exit 1; fi
 endef
 
-install: all 
+install: 
 	@$(call test_prefix)
 	if [ ! -d $(prefix)/$(MODEL_TEST_DIR) ]; then mkdir -p $(prefix)/$(MODEL_TEST_DIR) || exit 1; fi
 	cp -r ${TMP_DIR_DRV}/*.tar.bz2 $(prefix)/$(MODEL_TEST_DIR) || exit 1;

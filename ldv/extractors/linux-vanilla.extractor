@@ -5,7 +5,7 @@ LDV_HOME=`readlink -f \`dirname $0\`/../../`;
 USAGE_STRING="LDV_DEBUG=loglevel linux-vanilla.extractor descriptor";
 LOG_PREFIX="vanilla-extractor: ";
 source $LDV_HOME/shared/sh/log.sh;
-
+. $LDV_HOME/shared/sh/ldv-functions.sh;
 
 XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/cmd-utils\\/as_gcc";
 BCE_XGCC=`echo $LDV_HOME | sed 's/\//\\\\\//g'`"\\/build-cmd-extractor\\/bce_gcc";
