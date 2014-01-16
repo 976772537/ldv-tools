@@ -132,7 +132,7 @@ statistics * parse_outputfile(const char * file)
 	int sig_number = 0;
 	
 	// passing command options section
-	for (i = 0; i < 12; i++)
+	for (i = 0; i < 13; i++)
 	{
 		line = read_string_from_opened_file(results);
 		
