@@ -4,15 +4,26 @@
 use XML::Simple;
 use DBI;
 use English;
-use Env qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME);
+use FindBin;
+use Env qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME LDV_UPLOAD_DEBUG LDV_DEBUG);
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 use IO::Handle;
 
+# Add some local Perl packages.
+use lib("$FindBin::RealBin/../shared/perl");
+
+# Add some nonstandard local Perl packages.
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
+  check_system_call);
+
 ################################################################################
 # Subroutine prototypes.
 ################################################################################
+
+sub connect_to_db();
 
 sub parse_command_line();
 
@@ -32,8 +43,7 @@ my $db_password = $LDVDBPASSWD || '';
 
 # Command-line options.
 my $uploaded_file;
-# TODO: use the same way for debug printing as in other LDV tools, e.g. see knowledge-base/kb-recalc.pl.
-my $is_debug = 0; # Print debug messages.
+
 my $is_xml = 0; # If true then xml format will be expected instead of pax.
 
 # Data base handler.
@@ -50,6 +60,8 @@ my $is_db_connect = 0;
 ################################################################################
 # Main section.
 ################################################################################
+
+get_debug_level("ldv-upload", $LDV_DEBUG, $LDV_UPLOAD_DEBUG);
 
 parse_command_line();
 
@@ -74,8 +86,9 @@ sub connect_to_db()
 		or die("Can't connect to the database: $DBI::errstr");
 # TODO: remove this flag from everywhere. We can pass through just if connection was established.
 	$is_db_connect = 1;
-	print_debug("Connection to the data base $LDVDB has been established\n");
-	print_debug("\thost $LDVDBHOST\n\tuser $LDVUSER\n\tpassword $db_password\n");
+	print_debug_normal("Connection to the data base $LDVDB has been established");
+	print_debug_normal("host $LDVDBHOST");
+	print_debug_normal("user $LDVUSER");
 }
 
 # TODO: support several uploaded files that should go after options and after "--". See "Mixing command line option with other arguments" at http://perldoc.perl.org/Getopt/Long.html.
@@ -91,18 +104,16 @@ sub parse_command_line()
 # TODO: implement a password prompt - see first message at http://www.perlmonks.org/?node_id=301453.
 	# Parsing options.
 	GetOptions('help|h' => \$print_help,
-			   'debug' => \$is_debug,
 			   'xml' => \$is_xml)
 	or help();
 	
 	# Print help.
 	help() if ($print_help);
 	
-	print_debug("Parsing command line has been completed\n");
+	print_debug_debug("Parsing command line has been completed");
 	
-	print_debug ("Uploaded file is '$uploaded_file'\n");
-	print_debug ("Debug mode\n") if $is_debug;
-	print_debug ("Xml format expected\n") if $is_xml;
+	print_debug_debug("Uploaded file is '$uploaded_file'");
+	print_debug_debug("Xml format expected") if $is_xml;
 }
 
 # Print help and exit.
@@ -120,9 +131,7 @@ OPTIONS
 
   -h, --help
     Print this help and exit with a error.
-  debug
-    Displays debug messages.
-  xml
+  --xml
     Xml format will be uploaded.
 
 ENVIRONMENT VARIABLES
@@ -155,7 +164,7 @@ sub finish_upload()
 	if ($tmpdir ne '')
 	{
 		`rm -rf ../$tmpdir`;
-		print_debug("Tmp directory $tmpdir has been deleted.\n");
+		print_debug_debug("Tmp directory $tmpdir has been deleted");
 	}
 	
 # TODO: also move this to the END section as removing $tmpdir.
@@ -163,7 +172,7 @@ sub finish_upload()
 	if ($is_db_connect)
 	{
 		$dbh->disconnect;
-		print_debug("Disconnecting from data base.\n");
+		print_debug_normal("Disconnecting from data base");
 	}
 }
 
@@ -174,30 +183,30 @@ sub get_xml_file()
 	my $xml_file;
 	if ($is_xml) # "--xml".
 	{
-		print_debug("Uploaded file will be considered as xml file.\n");
+		print_debug_debug("Uploaded file will be considered as xml file");
 		$xml_file = $uploaded_file;
 	}
 	else
 	{
-		print_debug("Uploaded file will be considered as pax file.\n");
+		print_debug_debug("Uploaded file will be considered as pax file");
 # TODO: check return codes of each command like "mktemp", "pax", "find" etc. Use "system" for that, see http://perldoc.perl.org/functions/system.html.
 # TODO: remove $tmpdir whenever ldv-upload-2 exits. See END at http://perldoc.perl.org/perlmod.html.
 		# Create tmp directory '.XXXXXXXXXX'.
 		$tmpdir = `mktemp -d --tmpdir=. .XXXXXXXXXX`;
 		$tmpdir =~ s/\n//g;
-		print_debug("Tmp directory $tmpdir has been created\n");
+		print_debug_debug("Tmp directory $tmpdir has been created");
 		
 # TODO: don't use "chdir", see "directory" in "man pax".
 		# Extract pax file into created directory.
 		chdir ($tmpdir);
 		`pax -O -r -f ../$uploaded_file`;
-		print_debug("Pax archive has been extracted into $tmpdir\n");
+		print_debug_debug("Pax archive has been extracted into $tmpdir");
 
 		# Get xml file from there.
 		$xml_file = `find *.xml`;
 # TODO: use "chomp".
 		$xml_file =~ s/\n//g;
-		print_debug("Xml file $xml_file was found in $tmpdir\n");
+		print_debug_debug("Xml file $xml_file was found in $tmpdir");
 	}
 	return $xml_file;
 }
@@ -209,7 +218,7 @@ sub parse_xml_file
 	my $stats_fname = $info->{xml_file};
 	
 	my $time_before = time;
-	print_debug("Start parsing xml file $stats_fname\n");
+	print_debug_normal("Start parsing xml file $stats_fname");
 	
 	# Set LibXML perser.
 	$XML::Simple::PREFERRED_PARSER = 'XML::LibXML::SAX';
@@ -219,7 +228,7 @@ sub parse_xml_file
 	my $data = $xml->XMLin($stats_fname, SuppressEmpty => 1, ForceArray => ['ld', 'sources', 'time']); # get data structure for xml file representating
 
 	$time_before = time - $time_before;
-	print_debug("Parsing xml file $stats_fname has been completed in $time_before seconds\n");
+	print_debug_normal("Parsing xml file $stats_fname has been completed in $time_before seconds");
 	
 	# Delete 'cc' section from hash.
 	delete $data->{cc};
@@ -288,25 +297,25 @@ sub upload
 	$task_name = $LDV_TASK_NAME || '';
 	
 # TODO: move this debug printing to initialization as well. 
-	print_debug("Unique values\n");
-	print_debug("\tversion=$version\n");
-	print_debug("\tdriver=$driver\n");
-	print_debug("\tdriver_origin=$driver_origin\n");
-	print_debug("\tusername=$username\n");
-	print_debug("\ttimestamp=$timestamp\n");
-	print_debug("\ttask_name=$task_name\n");
+	print_debug_debug("Unique values");
+	print_debug_debug("version=$version");
+	print_debug_debug("driver=$driver");
+	print_debug_debug("driver_origin=$driver_origin");
+	print_debug_debug("username=$username");
+	print_debug_debug("timestamp=$timestamp");
+	print_debug_debug("task_name=$task_name");
 	
 	my $tmp_res; # Result for DB queries.
 	
 	# Lock DB.
-	print_debug("Locking data base\n");
+	print_debug_normal("Locking data base");
 	sql_query(query => "LOCK TABLES environments WRITE, drivers WRITE, rule_models WRITE, toolsets WRITE, scenarios WRITE, tasks WRITE, launches WRITE, traces WRITE, sources WRITE, stats WRITE, processes WRITE, problems WRITE, problems_stats WRITE\n");
 	
 	# Start transaction.
-	print_debug("Starting commit\n");
+	print_debug_normal("Starting commit");
 	$dbh->begin_work;
 
-	print_debug("Processing unique values\n");
+	print_debug_normal("Processing unique values");
 	# Processing tasks table.
 	$tmp_res = sql_select(query => "SELECT id FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
 	if ($tmp_res == 0 || $task_name eq '')
@@ -344,7 +353,7 @@ sub upload
 	$cur_trace_id = sql_select(query => "SELECT max(id) FROM traces;");
 	$cur_stats_id = sql_select(query => "SELECT max(id) FROM stats;");
 	
-	print_debug("Processing data for each launch. This may take some time...\n");
+	print_debug_normal("Processing data for each launch. This may take some time..");
 	
 # TODO: try to upload a build FAILED. "if" below is useless since there is no else... 
 	if ($xml_data->{ld}) # Check if there is ld section (or there is build FAILED).
@@ -569,11 +578,11 @@ sub upload
 	}
 	
 # TODO: I guess that unlocking should follow committing. Otherwise there is a race.-
-	print_debug ("Unlocking data base\n");
+	print_debug_normal ("Unlocking data base");
 	sql_query(query => "UNLOCK TABLES;\n");
 	
 	$dbh->commit;
-	print_debug ("Commit has been completed\n");
+	print_debug_normal ("Commit has been completed");
 
 	print ("Results were successfully uploaded to database. They can be found at:\n");
 	$db_password = 'no' if $db_password eq '';
@@ -588,8 +597,8 @@ sub sql_select
 {
 	my $info = {@_};
 	my $query = $info->{query};
-	
-	#print_debug ($query."\n");
+	chomp($query);
+	print_debug_all ($query);
 	
 	my $db_query = $dbh->prepare($query) or die("Can't prepare a query: " . $dbh->errstr);
 	
@@ -604,8 +613,8 @@ sub sql_insert
 {
 	my $info = {@_};
 	my $query = $info->{query};
-	
-	#print_debug ($query."\n");
+	chomp($query);
+	print_debug_all ($query);
 	
 	my $db_query = $dbh->prepare($query) or die("Can't prepare a query: " . $dbh->errstr);
 	
@@ -618,8 +627,8 @@ sub sql_query
 {
 	my $info = {@_};
 	my $query = $info->{query};
-	
-	#print_debug ($query."\n");
+	chomp($query);
+	print_debug_all ($query);
 	
 	my $db_query = $dbh->do($query) or die("Can't do a query: " . $dbh->errstr);
 }
@@ -708,14 +717,6 @@ sub add_processes
 		{
 			sql_query(query => "INSERT INTO processes (trace_id, name, pattern, time_average, time_detailed) VALUES ('$cur_trace_id', '$component', '$time_name', '$new_time{$time_name}', '$new_time{$time_name}');\n");
 		}
-	}
-}
-
-sub print_debug
-{
-	foreach my $text (@_)
-	{
-		print ($text) if $is_debug;
 	}
 }
 
