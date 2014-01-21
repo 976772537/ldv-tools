@@ -331,10 +331,7 @@ sub upload
 	$cur_stats_id = sql_select("SELECT max(id) FROM stats;");
 	
 	print_debug_normal("Processing data for each launch. This may take some time..");
-	
-# TODO: try to upload a build FAILED. "if" below is useless since there is no else... 
-	if ($xml_data->{ld}) # Check if there is ld section (or there is build FAILED).
-	{
+
 		foreach my $arg (values $xml_data->{ld}) 
 		{
 			# Variables for launches.
@@ -540,7 +537,6 @@ sub upload
 				}
 			}
 		}
-	}
 	
 # TODO: I guess that unlocking should follow committing. Otherwise there is a race.-
 	print_debug_normal ("Unlocking data base");
