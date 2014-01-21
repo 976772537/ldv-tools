@@ -331,7 +331,8 @@ sub upload
 	$cur_stats_id = sql_select("SELECT max(id) FROM stats;");
 	
 	print_debug_normal("Processing data for each launch. This may take some time..");
-
+	if ($xml_data->{ld})
+	{
 		foreach my $arg (values $xml_data->{ld}) 
 		{
 			# Variables for launches.
@@ -536,13 +537,12 @@ sub upload
 				}
 			}
 		}
-	
-# TODO: I guess that unlocking should follow committing. Otherwise there is a race.-
-	print_debug_normal ("Unlocking data base");
-	sql_query("UNLOCK TABLES;\n");
-	
+	}
 	$dbh->commit;
 	print_debug_normal ("Commit has been completed");
+	
+	print_debug_normal ("Unlocking data base");
+	sql_query("UNLOCK TABLES;\n");
 
 	print_debug_normal ("Results were successfully uploaded to database. They can be found at");
 	if ($db_password eq '')
