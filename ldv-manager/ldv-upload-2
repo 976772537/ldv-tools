@@ -27,7 +27,7 @@ sub connect_to_db();
 
 sub parse_command_line();
 
-sub get_xml_file();
+sub get_xml_file($);
 
 sub finish_upload;
 
@@ -42,7 +42,7 @@ my $db_host = $LDVDBHOST || 'localhost';
 my $db_password = $LDVDBPASSWD || '';
 
 # Command-line options.
-my $uploaded_file;
+my @uploaded_files = ();
 
 my $is_xml = 0; # If true then xml format will be expected instead of pax.
 
@@ -64,12 +64,22 @@ parse_command_line();
 
 connect_to_db();
 
-my $xml_file = get_xml_file();
+for (@uploaded_files)
+{
+	my $xml_file = get_xml_file($_);
 
-my $xml_data = parse_xml_file(xml_file => $xml_file);
+	my $xml_data = parse_xml_file(xml_file => $xml_file);
 
-upload(xml_data => $xml_data);
-
+	upload(xml_data => $xml_data);
+	
+	# TODO: sort this after adding END section
+	if ($tmpdir ne '')
+	{
+		chdir ("../");
+		`rm -rf $tmpdir`;
+		print_debug_debug("Tmp directory $tmpdir has been deleted");
+	}
+}
 finish_upload();
 
 ################################################################################
@@ -86,16 +96,15 @@ sub connect_to_db()
 	print_debug_normal("user $LDVUSER");
 }
 
-# TODO: support several uploaded files that should go after options and after "--". See "Mixing command line option with other arguments" at http://perldoc.perl.org/Getopt/Long.html.
-# Format: <upload> <uploaded_file> [options].
+# Format: <upload> <uploaded_file> [options] -- <uploaded_files>.
 # In case of any error help will be printed and execution of the program will be stopped.
 sub parse_command_line()
 {
 	# Getting first argument as uploaded file.
-	$uploaded_file = shift(@ARGV) or help();
+	push (@uploaded_files, shift(@ARGV)) or help();
 	
 	my $print_help = 0;
-		
+	
 # TODO: implement a password prompt - see first message at http://www.perlmonks.org/?node_id=301453.
 	# Parsing options.
 	GetOptions('help|h' => \$print_help,
@@ -105,9 +114,18 @@ sub parse_command_line()
 	# Print help.
 	help() if ($print_help);
 	
-	print_debug_debug("Parsing command line has been completed");
+	# Get options after "--" as other uploaded files.
+	foreach (@ARGV)
+	{
+		push (@uploaded_files, $_) or help();
+	}
 	
-	print_debug_debug("Uploaded file is '$uploaded_file'");
+	print_debug_debug("Parsing command line has been completed");
+	print_debug_debug("Number of uploaded files is ".@uploaded_files);
+	foreach (@uploaded_files)
+	{
+		print_debug_debug("Uploaded file is '$_'");
+	}
 	print_debug_debug("Xml format expected") if $is_xml;
 }
 
@@ -172,6 +190,7 @@ sub finish_upload()
 # Otherwise uploaded file will be concidered as pax file, extracted in tmp directory, and xml file will be there.
 sub get_xml_file()
 {
+	my $uploaded_file = shift;
 	my $xml_file;
 	if ($is_xml) # "--xml".
 	{
