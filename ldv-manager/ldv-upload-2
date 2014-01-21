@@ -203,20 +203,20 @@ sub get_xml_file()
 	else
 	{
 		print_debug_debug("Uploaded file will be considered as pax file");
-# TODO: check return codes of each command like "mktemp", "pax", "find" etc. Use "system" for that, see http://perldoc.perl.org/functions/system.html.
 		# Create tmp directory '.XXXXXXXXXX'.
-		$tmpdir = `mktemp -d --tmpdir=. .XXXXXXXXXX`;
+		$tmpdir = `mktemp -d --tmpdir=. .XXXXXXXXXX` || die "Can't create tmp directory: $!";
+		
 		$tmpdir =~ s/\n//g;
 		print_debug_debug("Tmp directory $tmpdir has been created");
 		
 # TODO: don't use "chdir", see "directory" in "man pax".
 		# Extract pax file into created directory.
 		chdir ($tmpdir);
-		`pax -O -r -f ../$uploaded_file`;
+		system("pax -O -r -f ../$uploaded_file") == 0 || die "Can't extract pax file $uploaded_file: $!";
 		print_debug_debug("Pax archive has been extracted into $tmpdir");
 
 		# Get xml file from there.
-		$xml_file = `find *.xml`;
+		$xml_file = `find *.xml` || die "Can't locate xml file: $!";
 # TODO: use "chomp".
 		$xml_file =~ s/\n//g;
 		print_debug_debug("Xml file $xml_file was found in $tmpdir");
