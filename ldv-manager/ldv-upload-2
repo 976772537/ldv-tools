@@ -12,7 +12,7 @@ use strict;
 use IO::Handle;
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../shared/perl/modules");
 
 # Add some nonstandard local Perl packages.
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
@@ -28,8 +28,6 @@ sub connect_to_db();
 sub parse_command_line();
 
 sub get_xml_file($);
-
-sub finish_upload;
 
 ################################################################################
 # Global variables.
@@ -72,15 +70,8 @@ for (@uploaded_files)
 
 	upload(xml_data => $xml_data);
 	
-	# TODO: sort this after adding END section
-	if ($tmpdir ne '')
-	{
-		chdir ("../");
-		`rm -rf $tmpdir`;
-		print_debug_debug("Tmp directory $tmpdir has been deleted");
-	}
+	remove_tmpdir();
 }
-finish_upload();
 
 ################################################################################
 # Subroutines.
@@ -174,27 +165,28 @@ EOM
 	exit(1);
 }
 
-# Actions which should be completed in case of any errors or after finishing uploading.
-sub finish_upload()
+sub remove_tmpdir()
 {
-# TODO: this function doesn't acquire parameters anywhere.
-	# Print error message.
-	foreach my $text (@_)
-	{
-		print ($text);
-	}
-	
-	# Delete tmp directory.
+	chdir ("../");
 	if ($tmpdir ne '')
 	{
-		`rm -rf ../$tmpdir`;
+		`rm -rf $tmpdir`;
 		print_debug_debug("Tmp directory $tmpdir has been deleted");
 	}
-	
-# TODO: also move this to the END section as removing $tmpdir.
-	# Disconnect from data base.
+	$tmpdir = '';
+}
+
+sub disconnect_from_db()
+{
 	$dbh->disconnect;
 	print_debug_normal("Disconnecting from data base");
+}
+
+# Actions which should be completed in case of any errors or after finishing uploading.
+END 
+{
+	remove_tmpdir();
+	disconnect_from_db();
 }
 
 # If option "--xml" was specified then the xml file is uploaded file.
@@ -212,7 +204,6 @@ sub get_xml_file()
 	{
 		print_debug_debug("Uploaded file will be considered as pax file");
 # TODO: check return codes of each command like "mktemp", "pax", "find" etc. Use "system" for that, see http://perldoc.perl.org/functions/system.html.
-# TODO: remove $tmpdir whenever ldv-upload-2 exits. See END at http://perldoc.perl.org/perlmod.html.
 		# Create tmp directory '.XXXXXXXXXX'.
 		$tmpdir = `mktemp -d --tmpdir=. .XXXXXXXXXX`;
 		$tmpdir =~ s/\n//g;
