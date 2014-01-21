@@ -205,8 +205,7 @@ sub get_xml_file()
 		print_debug_debug("Uploaded file will be considered as pax file");
 		# Create tmp directory '.XXXXXXXXXX'.
 		$tmpdir = `mktemp -d --tmpdir=. .XXXXXXXXXX` || die "Can't create tmp directory: $!";
-		
-		$tmpdir =~ s/\n//g;
+		chomp ($tmpdir);
 		print_debug_debug("Tmp directory $tmpdir has been created");
 		
 # TODO: don't use "chdir", see "directory" in "man pax".
@@ -217,8 +216,7 @@ sub get_xml_file()
 
 		# Get xml file from there.
 		$xml_file = `find *.xml` || die "Can't locate xml file: $!";
-# TODO: use "chomp".
-		$xml_file =~ s/\n//g;
+		chomp($xml_file);
 		print_debug_debug("Xml file $xml_file was found in $tmpdir");
 	}
 	return $xml_file;
