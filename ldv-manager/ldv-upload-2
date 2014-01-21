@@ -320,7 +320,7 @@ sub upload
 	
 	# Lock DB.
 	print_debug_normal("Locking data base");
-	sql_query(query => "LOCK TABLES environments WRITE, drivers WRITE, rule_models WRITE, toolsets WRITE, scenarios WRITE, tasks WRITE, launches WRITE, traces WRITE, sources WRITE, stats WRITE, processes WRITE, problems WRITE, problems_stats WRITE\n");
+	sql_query("LOCK TABLES environments WRITE, drivers WRITE, rule_models WRITE, toolsets WRITE, scenarios WRITE, tasks WRITE, launches WRITE, traces WRITE, sources WRITE, stats WRITE, processes WRITE, problems WRITE, problems_stats WRITE\n");
 	
 	# Start transaction.
 	print_debug_normal("Starting commit");
@@ -328,27 +328,27 @@ sub upload
 
 	print_debug_normal("Processing unique values");
 	# Processing tasks table.
-	$tmp_res = sql_select(query => "SELECT id FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
+	$tmp_res = sql_select("SELECT id FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
 	if ($tmp_res == 0 || $task_name eq '')
 	{
-		$tmp_res = sql_insert(query => "INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin, name) VALUES ('$username', '$timestamp', '$driver', '$driver_origin', '$task_name');");
+		$tmp_res = sql_insert("INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin, name) VALUES ('$username', '$timestamp', '$driver', '$driver_origin', '$task_name');");
 	}
 	$task_id = $tmp_res; # FK for task.
 	
 # TODO: much better to write $var = sql_select(...) || sql_insert(...) here and below. 
 	# Processing environments table.
-	$tmp_res = sql_select(query => "SELECT id FROM environments WHERE (environments.version = '$version') LIMIT 1;");
+	$tmp_res = sql_select("SELECT id FROM environments WHERE (environments.version = '$version') LIMIT 1;");
 	if ($tmp_res == 0)
 	{
-		$tmp_res = sql_insert(query => "INSERT INTO environments (version) VALUES ('$version');");
+		$tmp_res = sql_insert("INSERT INTO environments (version) VALUES ('$version');");
 	}
 	$environment_id = $tmp_res; # FK for environment.
 	
 	# Processing drivers table.
-	$tmp_res = sql_select(query => "SELECT id FROM drivers WHERE (drivers.name = '$driver') AND (drivers.origin = '$driver_origin') LIMIT 1;");
+	$tmp_res = sql_select("SELECT id FROM drivers WHERE (drivers.name = '$driver') AND (drivers.origin = '$driver_origin') LIMIT 1;");
 	if ($tmp_res == 0)
 	{
-		$tmp_res = sql_insert(query => "INSERT INTO drivers (name, origin) VALUES ('$driver', '$driver_origin');");
+		$tmp_res = sql_insert("INSERT INTO drivers (name, origin) VALUES ('$driver', '$driver_origin');");
 	}
 	
 	# Ids for launches.
@@ -361,8 +361,8 @@ sub upload
 	my $cur_model_id;
 	
 	# Get max ids.
-	$cur_trace_id = sql_select(query => "SELECT max(id) FROM traces;");
-	$cur_stats_id = sql_select(query => "SELECT max(id) FROM stats;");
+	$cur_trace_id = sql_select("SELECT max(id) FROM traces;");
+	$cur_stats_id = sql_select("SELECT max(id) FROM stats;");
 	
 	print_debug_normal("Processing data for each launch. This may take some time..");
 	
@@ -395,34 +395,34 @@ sub upload
 			$cur_stats_id++;
 		
 			# Processing toolsets table.
-			$tmp_res = sql_select(query => "SELECT id FROM toolsets WHERE (toolsets.verifier = '$cur_verifier') LIMIT 1;");
+			$tmp_res = sql_select("SELECT id FROM toolsets WHERE (toolsets.verifier = '$cur_verifier') LIMIT 1;");
 			if ($tmp_res == 0)
 			{
-				$tmp_res = sql_insert(query => "INSERT INTO toolsets (verifier, version) VALUES ('$cur_verifier', 'current');");
+				$tmp_res = sql_insert("INSERT INTO toolsets (verifier, version) VALUES ('$cur_verifier', 'current');");
 			}
 			$cur_toolset_id = $tmp_res;
 		
 			# Processing rule_models table.
-			$tmp_res = sql_select(query => "SELECT id FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;");
+			$tmp_res = sql_select("SELECT id FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;");
 			if ($tmp_res == 0)
 			{
-				$tmp_res = sql_insert(query => "INSERT INTO rule_models (name) VALUES ('$cur_model');");
+				$tmp_res = sql_insert("INSERT INTO rule_models (name) VALUES ('$cur_model');");
 			}
 			$cur_model_id = $tmp_res;
 		
 			# Processing drivers table.
-			$tmp_res = sql_select(query => "SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin = '$driver_origin') LIMIT 1;");
+			$tmp_res = sql_select("SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin = '$driver_origin') LIMIT 1;");
 			if ($tmp_res == 0)
 			{
-				$tmp_res = sql_insert(query => "INSERT INTO drivers (name, origin) VALUES ('$cur_module', '$driver_origin');\n");
+				$tmp_res = sql_insert("INSERT INTO drivers (name, origin) VALUES ('$cur_module', '$driver_origin');\n");
 			}
 			$cur_driver_id=$tmp_res;
 		
 			# Processing scenarios table.
-			$cur_scenario_id = sql_insert(query => "INSERT INTO scenarios (driver_id, executable, main) VALUES ($cur_driver_id, '$cur_module', '$cur_main');\n");
+			$cur_scenario_id = sql_insert("INSERT INTO scenarios (driver_id, executable, main) VALUES ($cur_driver_id, '$cur_module', '$cur_main');\n");
 		
 			# Processing launches table.
-			$cur_launch_id = sql_insert(query => "INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', '$cur_model_id', $cur_scenario_id, '$task_id', $cur_trace_id);\n");
+			$cur_launch_id = sql_insert("INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', '$cur_model_id', $cur_scenario_id, '$task_id', $cur_trace_id);\n");
 
 # TODO: check what old script uploads if there is not an error trace (not an UNSAFE).
 			# Error trace file.
@@ -437,7 +437,7 @@ sub upload
 			}
 		
 			# Processing traces table.
-			sql_query(query => "INSERT INTO traces (id, launch_id, result, error_trace, verifier, build_id, maingen_id, dscv_id, ri_id, rcv_id) VALUES ($cur_trace_id, '$cur_launch_id', '$cur_verdict', $et, '$cur_verifier', $cur_stats_id, $cur_stats_id+1, $cur_stats_id+2, $cur_stats_id+3, $cur_stats_id+4);\n");
+			sql_query("INSERT INTO traces (id, launch_id, result, error_trace, verifier, build_id, maingen_id, dscv_id, ri_id, rcv_id) VALUES ($cur_trace_id, '$cur_launch_id', '$cur_verdict', $et, '$cur_verifier', $cur_stats_id, $cur_stats_id+1, $cur_stats_id+2, $cur_stats_id+3, $cur_stats_id+4);\n");
 		
 			# Source files.
 			if ($cur_sources ne '')
@@ -451,7 +451,7 @@ sub upload
 					my $src = $dbh->quote(join ("\n", @source_text));
 				
 					# Processing sources table.
-					sql_query(query => "INSERT INTO sources (trace_id, name, contents) VALUES ('$cur_trace_id', '$source', $src);\n");
+					sql_query("INSERT INTO sources (trace_id, name, contents) VALUES ('$cur_trace_id', '$source', $src);\n");
 				}
 			}
 			
@@ -480,7 +480,7 @@ sub upload
 					$cur_desc = $cur_build->{desc};
 					$cur_desc = $dbh->quote($cur_desc);
 				}
-				sql_query(query => "INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'build', '$cur_status', '$cur_time', $cur_desc);\n");
+				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'build', '$cur_status', '$cur_time', $cur_desc);\n");
 # TODO: pass a hash reference "{...}", not an array.
 				add_processes(old_time => $cur_build->{time}, trace_id => $cur_trace_id, component => 'build-cmd-extractor');
 				if ($cur_verdict eq "UNKNOWN")
@@ -505,7 +505,7 @@ sub upload
 					$cur_desc = $dbh->quote($cur_desc);
 				}
 				my $cur_loc = $cur_deg->{loc};
-				sql_query(query => "INSERT INTO stats (id, trace_id, kind, success, loc, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'maingen', '$cur_status', '$cur_loc', '$cur_time', $cur_desc);\n");
+				sql_query("INSERT INTO stats (id, trace_id, kind, success, loc, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'maingen', '$cur_status', '$cur_loc', '$cur_time', $cur_desc);\n");
 			
 				add_processes(old_time => $cur_deg->{time}, trace_id => $cur_trace_id, component => 'drv-env-gen');
 			}
@@ -523,7 +523,7 @@ sub upload
 					$cur_desc = $cur_dscv->{desc};
 					$cur_desc = $dbh->quote($cur_desc);
 				}
-				sql_query(query => "INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'dscv', '$cur_status', '$cur_time', $cur_desc);\n");
+				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'dscv', '$cur_status', '$cur_time', $cur_desc);\n");
 			
 				add_processes(old_time => $cur_dscv->{time}, trace_id => $cur_trace_id, component => 'dscv');
 				if ($cur_verdict eq "UNKNOWN")
@@ -546,7 +546,7 @@ sub upload
 					$cur_desc = $cur_ri->{desc};
 					$cur_desc = $dbh->quote($cur_desc);
 				}
-				sql_query(query => "INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'ri', '$cur_status', '$cur_time', $cur_desc);\n");
+				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'ri', '$cur_status', '$cur_time', $cur_desc);\n");
 			
 				# ri - processes.
 				add_processes(old_time => $cur_ri->{time}, trace_id => $cur_trace_id, component => 'rule-instrumentor');
@@ -572,7 +572,7 @@ sub upload
 					$cur_desc = $cur_rcv->{desc};
 					$cur_desc = $dbh->quote($cur_desc);
 				}
-				sql_query(query => "INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'rcv', '$cur_status', '$cur_time', $cur_desc);\n");
+				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'rcv', '$cur_status', '$cur_time', $cur_desc);\n");
 				
 				# rcv - processes.
 				add_processes(old_time => $cur_rcv->{time}, trace_id => $cur_trace_id, component => 'rcv');
@@ -590,7 +590,7 @@ sub upload
 	
 # TODO: I guess that unlocking should follow committing. Otherwise there is a race.-
 	print_debug_normal ("Unlocking data base");
-	sql_query(query => "UNLOCK TABLES;\n");
+	sql_query("UNLOCK TABLES;\n");
 	
 	$dbh->commit;
 	print_debug_normal ("Commit has been completed");
@@ -612,8 +612,7 @@ sub upload
 # TODO: three functions below always accepts just one argument. So why are hashes passed to them? 
 sub sql_select
 {
-	my $info = {@_};
-	my $query = $info->{query};
+	my $query = shift;
 	chomp($query);
 	print_debug_all ($query);
 	
@@ -628,8 +627,7 @@ sub sql_select
 
 sub sql_insert
 {
-	my $info = {@_};
-	my $query = $info->{query};
+	my $query = shift;
 	chomp($query);
 	print_debug_all ($query);
 	
@@ -642,8 +640,7 @@ sub sql_insert
 
 sub sql_query
 {
-	my $info = {@_};
-	my $query = $info->{query};
+	my $query = shift;
 	chomp($query);
 	print_debug_all ($query);
 	
@@ -665,14 +662,14 @@ sub add_problems
 		{
 			chomp($prob);
 			next if ($prob =~ /^\s*$/);
-			$tmp_res = sql_select(query => "SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;");
+			$tmp_res = sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;");
 			if ($tmp_res == 0)
 			{
-				$tmp_res = sql_insert(query => "INSERT INTO problems (name) VALUES ('$prob');\n");
+				$tmp_res = sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
 			}
-			#if (sql_select(query => "SELECT * FROM problems_stats WHERE stats_id = $cur_stats_id and problem_id = $tmp_res LIMIT 1;") == 0)
+			#if (sql_select("SELECT * FROM problems_stats WHERE stats_id = $cur_stats_id and problem_id = $tmp_res LIMIT 1;") == 0)
 			{
-				sql_query(query => "INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
+				sql_query("INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
 			}
 		}
 		exit(0);
@@ -710,12 +707,12 @@ sub add_problems_local
 		{
 			chomp($prob);
 			next if ($prob =~ /^\s*$/);
-			$tmp_res = sql_select(query => "SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;");
+			$tmp_res = sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;");
 			if ($tmp_res == 0)
 			{
-				$tmp_res = sql_insert(query => "INSERT INTO problems (name) VALUES ('$prob');\n");
+				$tmp_res = sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
 			}
-			sql_query(query => "INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
+			sql_query("INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
 		}
 	}
 }
@@ -732,7 +729,7 @@ sub add_processes
 		my %new_time = convert_time(old_time => $old_time);
 		foreach my $time_name (keys %new_time)
 		{
-			sql_query(query => "INSERT INTO processes (trace_id, name, pattern, time_average, time_detailed) VALUES ('$cur_trace_id', '$component', '$time_name', '$new_time{$time_name}', '$new_time{$time_name}');\n");
+			sql_query("INSERT INTO processes (trace_id, name, pattern, time_average, time_detailed) VALUES ('$cur_trace_id', '$component', '$time_name', '$new_time{$time_name}', '$new_time{$time_name}');\n");
 		}
 	}
 }
