@@ -309,21 +309,13 @@ sub upload
 	}
 	$task_id = $tmp_res; # FK for task.
 	
-# TODO: much better to write $var = sql_select(...) || sql_insert(...) here and below. 
 	# Processing environments table.
-	$tmp_res = sql_select("SELECT id FROM environments WHERE (environments.version = '$version') LIMIT 1;");
-	if ($tmp_res == 0)
-	{
-		$tmp_res = sql_insert("INSERT INTO environments (version) VALUES ('$version');");
-	}
-	$environment_id = $tmp_res; # FK for environment.
-	
+	$environment_id = sql_select("SELECT id FROM environments WHERE (environments.version = '$version') LIMIT 1;") || 
+			sql_insert("INSERT INTO environments (version) VALUES ('$version');");
+
 	# Processing drivers table.
-	$tmp_res = sql_select("SELECT id FROM drivers WHERE (drivers.name = '$driver') AND (drivers.origin = '$driver_origin') LIMIT 1;");
-	if ($tmp_res == 0)
-	{
-		$tmp_res = sql_insert("INSERT INTO drivers (name, origin) VALUES ('$driver', '$driver_origin');");
-	}
+	sql_select("SELECT id FROM drivers WHERE (drivers.name = '$driver') AND (drivers.origin = '$driver_origin') LIMIT 1;") ||
+			sql_insert("INSERT INTO drivers (name, origin) VALUES ('$driver', '$driver_origin');");
 	
 	# Ids for launches.
 	my $cur_driver_id;
@@ -369,28 +361,17 @@ sub upload
 			$cur_stats_id++;
 		
 			# Processing toolsets table.
-			$tmp_res = sql_select("SELECT id FROM toolsets WHERE (toolsets.verifier = '$cur_verifier') LIMIT 1;");
-			if ($tmp_res == 0)
-			{
-				$tmp_res = sql_insert("INSERT INTO toolsets (verifier, version) VALUES ('$cur_verifier', 'current');");
-			}
-			$cur_toolset_id = $tmp_res;
+			$cur_toolset_id = sql_select("SELECT id FROM toolsets WHERE (toolsets.verifier = '$cur_verifier') LIMIT 1;") || 
+					sql_insert("INSERT INTO toolsets (verifier, version) VALUES ('$cur_verifier', 'current');");
 		
 			# Processing rule_models table.
-			$tmp_res = sql_select("SELECT id FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;");
-			if ($tmp_res == 0)
-			{
-				$tmp_res = sql_insert("INSERT INTO rule_models (name) VALUES ('$cur_model');");
-			}
-			$cur_model_id = $tmp_res;
+			$cur_model_id = sql_select("SELECT id FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;") || 
+					sql_insert("INSERT INTO rule_models (name) VALUES ('$cur_model');");
 		
 			# Processing drivers table.
-			$tmp_res = sql_select("SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin = '$driver_origin') LIMIT 1;");
-			if ($tmp_res == 0)
-			{
-				$tmp_res = sql_insert("INSERT INTO drivers (name, origin) VALUES ('$cur_module', '$driver_origin');\n");
-			}
-			$cur_driver_id=$tmp_res;
+			$cur_driver_id = sql_select("SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin =
+				'$driver_origin') LIMIT 1;") || sql_insert("INSERT INTO drivers (name, origin) VALUES 
+				('$cur_module', '$driver_origin');\n");
 		
 			# Processing scenarios table.
 			$cur_scenario_id = sql_insert("INSERT INTO scenarios (driver_id, executable, main) VALUES ($cur_driver_id, '$cur_module', '$cur_main');\n");
@@ -633,15 +614,9 @@ sub add_problems
 		{
 			chomp($prob);
 			next if ($prob =~ /^\s*$/);
-			$tmp_res = sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;");
-			if ($tmp_res == 0)
-			{
-				$tmp_res = sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
-			}
-			#if (sql_select("SELECT * FROM problems_stats WHERE stats_id = $cur_stats_id and problem_id = $tmp_res LIMIT 1;") == 0)
-			{
-				sql_query("INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
-			}
+			sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;") || 
+					sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
+			sql_query("INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
 		}
 		exit(0);
 	}
@@ -678,11 +653,8 @@ sub add_problems_local
 		{
 			chomp($prob);
 			next if ($prob =~ /^\s*$/);
-			$tmp_res = sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;");
-			if ($tmp_res == 0)
-			{
-				$tmp_res = sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
-			}
+			$tmp_res = sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;") || 
+					sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
 			sql_query("INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
 		}
 	}
