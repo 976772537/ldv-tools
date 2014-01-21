@@ -250,30 +250,11 @@ sub upload
 {
 	my $info = {@_};
 	my $xml_data = $info->{xml_data};
-
-# TODO: replace all work with file handlers with something like suggested there http://www.perlmonks.org/?node_id=1058305.
-	my $read_hdl;
-	my $write_hdl;
-	pipe ($read_hdl, $write_hdl) or die "Can't create pipe!";
 	
-	# Set aftoflash for created pipe so it could work parallel.
-	my $old_fh = select($write_hdl);
-	$| = 1;
-	select($old_fh);
-	
-	if (fork() == 0) #child - create thread for launching kb-recalc.
-	{
-		close $write_hdl;
-		close (STDOUT);
-		close (STDERR);
-		STDIN->fdopen($read_hdl, 'r');
-		exec ("kb-recalc.pl --init-cache --new-launch");
-		exit(1);
-	}
-	
-	# Back to parent process.
-	close $read_hdl;
-	
+	$OUTPUT_AUTOFLUSH = 1;
+	open my $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
+        or  die "Can't fork to run kb-recalc: $!\n";
+    
 	# Unique ids.
 	my $environment_id;
 	my $task_id;
@@ -458,8 +439,7 @@ sub upload
 			# Send id of unsafe launch to the child process (run kb-recalc for this id).
 			if ($cur_verdict eq "UNSAFE")
 			{
-# TODO: why don't use "print $stream $id"?
-				print $write_hdl scalar "$cur_launch_id\n";
+				print $kb_recalc_pipe "$cur_launch_id";
 			}
 			
 			# Processing stats, processes, problems, problems_stats tables for each component.
@@ -605,11 +585,9 @@ sub upload
 		print_debug_normal ("http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/<password>/");
 		print_debug_normal ("Change <password> to your actual password");
 	}
-	close $write_hdl;
-	wait();
+    close $kb_recalc_pipe;
 }
 
-# TODO: three functions below always accepts just one argument. So why are hashes passed to them? 
 sub sql_select
 {
 	my $query = shift;
