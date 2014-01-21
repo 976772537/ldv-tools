@@ -39,7 +39,7 @@ sub finish_upload;
 # The default database host and password. They're used when no host is specified
 # through the environment variables.
 my $db_host = $LDVDBHOST || 'localhost';
-my $db_password = $LDVDBPASSWD || '';
+my $db_password = '';
 
 # Command-line options.
 my @uploaded_files = ();
@@ -104,16 +104,25 @@ sub parse_command_line()
 	push (@uploaded_files, shift(@ARGV)) or help();
 	
 	my $print_help = 0;
+	my $is_password = 0;
 	
-# TODO: implement a password prompt - see first message at http://www.perlmonks.org/?node_id=301453.
 	# Parsing options.
 	GetOptions('help|h' => \$print_help,
-			   'xml' => \$is_xml)
+			   'xml' => \$is_xml,
+			   'p' => \$is_password)
 	or help();
 	
 	# Print help.
 	help() if ($print_help);
 	
+	# Password promt.
+	if ($is_password)
+	{
+		system('stty -echo');
+		print_debug_normal("Enter password for data base");
+		chomp($db_password = <STDIN>);
+		system('stty echo');
+	}
 	# Get options after "--" as other uploaded files.
 	foreach (@ARGV)
 	{
@@ -146,6 +155,8 @@ OPTIONS
     Print this help and exit with a error.
   --xml
     Xml format will be uploaded.
+  -p
+  	Use password to access the data base.
 
 ENVIRONMENT VARIABLES
 
@@ -595,10 +606,16 @@ sub upload
 	$dbh->commit;
 	print_debug_normal ("Commit has been completed");
 
-	print ("Results were successfully uploaded to database. They can be found at:\n");
-	$db_password = 'no' if $db_password eq '';
-	print ("http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/$db_password/\n");
-
+	print_debug_normal ("Results were successfully uploaded to database. They can be found at");
+	if ($db_password eq '')
+	{
+		print_debug_normal ("http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/no/");
+	}
+	else
+	{
+		print_debug_normal ("http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/<password>/");
+		print_debug_normal ("Change <password> to your actual password");
+	}
 	close $write_hdl;
 	wait();
 }
