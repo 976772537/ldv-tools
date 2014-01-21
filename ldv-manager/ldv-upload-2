@@ -260,19 +260,13 @@ sub upload
 	my $task_id;
 	
 	# Unique names.
-	my $version; # Kernel version (from section <build>) - unique - ignored from <ld> - parameter 'envs'.
-	my $driver; # Driver name - parameter 'drivers' - unique.
-	my $driver_origin; # Same as before.
-	my $username; # Unique.
-	my $timestamp; # Unique.
-	my $task_name; # LDV_TASK_NAME - unique.
-	
-# TODO: Move initialization made below to variables declared above. 
-	# Getting unique values from xml file.
-	$version = $xml_data->{build}->{kernel};
-	$driver = $xml_data->{launch_info}->{driver};
-	$driver_origin = $xml_data->{launch_info}->{driver_origin};
-	$username = $xml_data->{launch_info}->{task}->{username};
+	my $version = $xml_data->{build}->{kernel}; # Kernel version (from section <build>).
+	my $driver = $xml_data->{launch_info}->{driver}; # Driver name - parameter 'drivers'.
+	my $driver_origin = $xml_data->{launch_info}->{driver_origin};
+	my $username = $xml_data->{launch_info}->{task}->{username}; 
+	my $timestamp; 
+	my $task_name = $LDV_TASK_NAME || ''; # LDV_TASK_NAME.
+
 # TODO: fix it in ldv-manager/report-fixup and then fix it here.
 	my $month = "";
 	if ($xml_data->{launch_info}->{task}->{timestamp}->{mon} < 10)
@@ -286,7 +280,6 @@ sub upload
 	$timestamp = $xml_data->{launch_info}->{task}->{timestamp}->{year}."-".$month."-".
 			$xml_data->{launch_info}->{task}->{timestamp}->{mday}." ".$xml_data->{launch_info}->{task}->{timestamp}->{hour}.":".
 			$xml_data->{launch_info}->{task}->{timestamp}->{min}.":".$xml_data->{launch_info}->{task}->{timestamp}->{sec};
-	$task_name = $LDV_TASK_NAME || '';
 	
 # TODO: move this debug printing to initialization as well. 
 	print_debug_debug("Unique values");
