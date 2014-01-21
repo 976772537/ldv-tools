@@ -381,8 +381,7 @@ sub upload
 			my $et = '\'\'';
 			if ($cur_verdict eq "UNSAFE")
 			{
-# TODO: always check open return code!
-				open TRACE_FILE, "<", "traces/$cur_trace";
+				open TRACE_FILE, "<", "traces/$cur_trace" or die "Can't open file traces/$cur_trace: $!";
 				my @error_trace = <TRACE_FILE>;
 				close TRACE_FILE;
 				$et = $dbh->quote(join ("\n", @error_trace));
@@ -397,7 +396,7 @@ sub upload
 				foreach my $source (values $cur_sources)
 				{
 					# Trace file.
-					open SOURCE_FILE, "<", "sources/$source";
+					open SOURCE_FILE, "<", "sources/$source" or die "Can't open file sources/$source: $!";;
 					my @source_text = <SOURCE_FILE>;
 					close SOURCE_FILE;
 					my $src = $dbh->quote(join ("\n", @source_text));
