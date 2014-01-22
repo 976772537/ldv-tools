@@ -10,6 +10,7 @@ use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 use IO::Handle;
+use File::Slurp;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl/modules");
@@ -78,6 +79,13 @@ sub sql_select($);
 # retn: nothing.
 sub sql_query($);
 
+sub add_problems(%);
+
+sub add_processes(%);
+
+sub init_problems();
+
+
 ################################################################################
 # Global variables.
 ################################################################################
@@ -90,10 +98,10 @@ my $db_password = '';
 
 my $is_xml = 0; # If true then xml format will be expected instead of pax.
 
-my $problem_dir = "$FindBin::RealBin/../ldv-manager/problems/";
-
 # Name of the tmp directory for extracting pax file.
 my $tmpdir = '';
+
+my %problems_functions;
 
 ################################################################################
 # Main section.
@@ -102,6 +110,8 @@ my $tmpdir = '';
 get_debug_level("ldv-upload", $LDV_DEBUG, $LDV_UPLOAD_DEBUG);
 
 my @uploaded_files = parse_command_line();
+
+%problems_functions = init_problems();
 
 my $dbh = connect_to_db();
 
@@ -233,8 +243,11 @@ sub remove_tmpdir()
 
 sub disconnect_from_db()
 {
-	$dbh->disconnect;
-	print_debug_normal("Disconnecting from data base");
+	if ($dbh)
+	{
+		$dbh->disconnect;
+		print_debug_normal("Disconnecting from data base");
+	}
 }
 
 # Actions which should be completed in case of any errors or after finishing uploading.
@@ -490,9 +503,7 @@ sub upload($$)
 				add_processes(old_time => $cur_build->{time}, trace_id => $cur_trace_id, component => 'build-cmd-extractor');
 				if ($cur_verdict eq "UNKNOWN")
 				{
-# TODO: read problems from files via Perl eval rather then put it to the script.
-					#add_problems(file => "$problem_dir/build/build", desc => $cur_desc, stats_id => $cur_stats_id);
-					add_problems_local(component => "build", desc => $cur_desc, stats_id => $cur_stats_id);
+					add_problems(component => "build", desc => $cur_desc, stats_id => $cur_stats_id);
 				}
 			}
 		
@@ -533,8 +544,7 @@ sub upload($$)
 				add_processes(old_time => $cur_dscv->{time}, trace_id => $cur_trace_id, component => 'dscv');
 				if ($cur_verdict eq "UNKNOWN")
 				{
-					#add_problems(file => "$problem_dir/dscv/problems", desc => $cur_desc, stats_id => $cur_stats_id);
-					add_problems_local(component => "dscv", desc => $cur_desc, stats_id => $cur_stats_id);
+					add_problems(component => "dscv", desc => $cur_desc, stats_id => $cur_stats_id);
 				}
 			}
 		
@@ -559,8 +569,7 @@ sub upload($$)
 				# ri - problems.
 				if ($cur_verdict eq "UNKNOWN")
 				{
-					#add_problems(file => "$problem_dir/ri/aspectator", desc => $cur_desc, stats_id => $cur_stats_id);
-					add_problems_local(component => "ri", desc => $cur_desc, stats_id => $cur_stats_id);
+					add_problems(component => "ri", desc => $cur_desc, stats_id => $cur_stats_id);
 				}
 			}
 		
@@ -585,9 +594,8 @@ sub upload($$)
 				# rcv - problems.
 				if ($cur_verdict eq "UNKNOWN")
 				{
-					#add_problems(file => "$problem_dir/rcv/$cur_verifier", desc => $cur_desc, stats_id => $cur_stats_id);
-					#add_problems(file => "$problem_dir/rcv/generic", desc => $cur_desc, stats_id => $cur_stats_id);
-					add_problems_local(component => "rcv", desc => $cur_desc, stats_id => $cur_stats_id);
+					add_problems(component => "rcv", desc => $cur_desc, stats_id => $cur_stats_id);
+					add_problems(component => "$cur_verifier", desc => $cur_desc, stats_id => $cur_stats_id);
 				}
 			}
 		}
@@ -648,58 +656,59 @@ sub sql_query($)
 	my $db_query = $dbh->do($query) or die("Can't do a query: " . $dbh->errstr);
 }
 
-#TODO: sort functions below later.
 # Adds record in problems and problems_stats for specific component.
-sub add_problems
+sub add_problems(%)
 {
-	my $info = {@_};
-	my $problem_file = $info->{file};
-	my $cur_desc = $info->{desc};
-	my $cur_stats_id = $info->{stats_id};
-	if (fork() == 0)
-	{
-		my @res = `echo \"$cur_desc\" |  $problem_file`;
-		my $tmp_res;
-		foreach my $prob (@res)
-		{
-			chomp($prob);
-			next if ($prob =~ /^\s*$/);
-			sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;") || 
-					sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
-			sql_query("INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n");
-		}
-		exit(0);
-	}
-}
-
-# Adds record in problems and problems_stats for specific component.
-sub add_problems_local
-{
-	my $info = {@_};
-	my $component = $info->{component};
-	my $cur_desc = $info->{desc};
-	my $cur_stats_id = $info->{stats_id};
-	my @res = ();
+	my %info = @_;
+	my $component = $info{component}; # {rcv, rule-instrumentor, dscv, drv-env-gen, build-cmd-extractor, blast, cbmc, cpachecker, ufo}
+	my $cur_desc = $info{desc};
+	my $cur_stats_id = $info{stats_id};
+	my @result = ();
 	if ($cur_desc ne '\'\'') # In case of build failed.
 	{
 		if ($component eq "rcv")
 		{
-			@res = rcv_problems($cur_desc);
+			eval $problems_functions{'rcv'};
+			warn $@ if $@;
 		}
 		if ($component eq "ri")
 		{
-			@res = ri_problems($cur_desc);
+			eval $problems_functions{'ri'};
+			die $@ if $@;
 		}
 		if ($component eq "dscv")
 		{
-			@res = dscv_problems($cur_desc);
+			eval $problems_functions{'dscv'};
+			warn $@ if $@;
 		}
 		if ($component eq "build")
 		{
-			@res = build_problems($cur_desc);
+			eval $problems_functions{'build'};
+			warn $@ if $@;
 		}
+		if ($component eq "blast")
+		{
+			eval $problems_functions{'blast'};
+			warn $@ if $@;
+		}
+		if ($component eq "cpachecker")
+		{
+			eval $problems_functions{'cpachecker'};
+			warn $@ if $@;
+		}
+		if ($component eq "cbmc")
+		{
+			eval $problems_functions{'cbmc'};
+			warn $@ if $@;
+		}
+		if ($component eq "ufo")
+		{
+			eval $problems_functions{'ufo'};
+			warn $@ if $@;
+		}
+		
 		my $tmp_res;
-		foreach my $prob (@res)
+		foreach my $prob (@result)
 		{
 			chomp($prob);
 			next if ($prob =~ /^\s*$/);
@@ -711,7 +720,7 @@ sub add_problems_local
 }
 
 # Adds record in processes for specific component - time/memory.
-sub add_processes
+sub add_processes(%)
 {
 	my $info = {@_};
 	my $old_time = $info->{old_time};
@@ -758,135 +767,64 @@ sub convert_time
 	return %new_time;
 }
 
-#TODO: DELETE it later.
-#Functions for getting problems names by description.
+# Auto generate problem functions, which return array of all problems for specified component and its description.
 
-sub rcv_problems
+# Get text for problem functions
+sub init_problems()
 {
-	$\ = "\n";
-	$, = "\n";
-	my @result;
-	foreach (@_)
-	{
-		chomp;
-		/\bexception\b/i and push(@result, "Exception");
-		/combining structure and non-structure values/i and push(@result, "BLAST_combinig");
-		/Attempt to access a non structure value as a structure/i and push(@result,  "BLAST_LLVM_nonstruct");
-		/Memory Limit Exceeded/i and push(@result,  "Out_of_memory");
-		/Time Limit Exceeded/i and push(@result,  "Time_limit");
-		/Hangup Detected/i and push(@result,  "Hangup_detected");
-		/C_System_Descr.initialize: duplicate function name/i and push(@result,  "Dupl_function", "BLAST_frontend");
-		/Recursive Call Graph/i and push(@result,  "Recursion");
-		/Simplify raised exception End_of_file/i and push(@result,  "Solver");
-		/Unary operation on pointer not supported/i and push(@result,  "BLAST_Unsupported", "BLAST_frontend");
-		/frontc reported an error/i and push(@result,  "BLAST_Compile", "BLAST_frontend");
-		/AlignOfE not handled/i and push(@result,  "BLAST_Unsupported", "BLAST_frontend");
-		/convertCilExp: align not handled/i and push(@result,  "BLAST_Unsupported", "BLAST_frontend");
-		/SMT sovler answer is strange: \*\*\* Parse Error: .*: syntax error/i and push(@result,  "CVC3 Solver parse error");
-		/Errormsg\.Error/i and push(@result,  "Parsing errors");
-		/simplemem: temporary needed outside a function/i and push(@result,  "Temp outside func"); 
-		/Invalid_argument\("Predicate index is less than zero"\)/ and push(@result,  "Large_int");
-		    /SymbolicStore\.Value\.Invalid_access\("Attempt to use Null pointer as a base of offset address"\)/ and push(@result,  "SymStore_Null");
-		    /Failure\("hd"\)/ and push(@result,  "Failure_hd");
-		/FociInterface.SAT/ and push(@result,  "Blocks_SAT");
-		/NoNewPredicatesException/ and push(@result,  "NoNewPredicates");
-		/Fatal error: out of memory./ and push(@result,  "Ocaml_OOM");
-		    /Error: Global __constr_expr_[0-9]* was already defined at/i and push(@result,  "ConstExpr");
-		/Global .* was already defined/ and push(@result,  "Two_globals");
-		/error when reading CSIsat output/ and push(@result,  "CSIsat");
-		/Error: Cannot find input file/ and push(@result,  "No_file");
-		
-		/PREPROCESS/ and push(@result,  "CPP_error");
-		/CIL ERROR/ and push(@result,  "CIL_parse_error");
-		/No entry point or error location found/ and push(@result,   "Main/Label");
-		/\ttime exhausted/ and push(@result,   "Time exhausted");
-		/\twall time exhausted/ and push(@result,   "Wall time exhausted");
-		/memory exhausted/ and push(@result,   "Memory exhausted");
-		/killed by signal: (\d+)/ and push(@result,   "Killed by signal $1");
-		/killed by signal \(resource manager\): ([1-9]\d*)/ and push(@result,   "Res-manager killed by signal $1");
-		/exit code: ([1-9]\d*)/ and push(@result,   "Exit code $1");
-		/exit code \(resource manager\): ([1-9]\d*)/ and push(@result,   "Res-manager exit code $1");
-		/permissions in cgroup/ and push(@result,   "Permissions in cgroup");
-		/need to mount/ and push(@result,   "Cgroup not mounted");
-		/VERIFIER SCRIPT ERROR/ and push(@result,   "Script");
-	}
-	return @result;
+	my $problem_dir = "$FindBin::RealBin/../ldv-manager/problems/";
+	my %result_problems;
+	my $text;
+	
+	# Component 'build'.
+	$text = read_file("$problem_dir/build/build");
+	$text = change_problems_text($text);
+	$result_problems{'build'} = $text;
+	
+	# Component 'dscv'.
+	$text = read_file("$problem_dir/dscv/problems");
+	$text = change_problems_text($text);
+	$result_problems{'dscv'} = $text;
+	
+	# Component 'rcv'.
+	$text = read_file("$problem_dir/rcv/generic");
+	$text = change_problems_text($text);
+	$result_problems{'rcv'} = $text;
+	
+	# Component 'ri'.
+	$text = read_file("$problem_dir/ri/aspectator");
+	$text = change_problems_text($text);
+	$result_problems{'ri'} = $text;
+	
+	# Verifiers.
+	$text = read_file("$problem_dir/rcv/blast");
+	$text = change_problems_text($text);
+	$result_problems{'blast'} = $text;
+	
+	$text = read_file("$problem_dir/rcv/cbmc");
+	$text = change_problems_text($text);
+	$result_problems{'cbmc'} = $text;
+	
+	$text = read_file("$problem_dir/rcv/cpachecker");
+	$text = change_problems_text($text);
+	$result_problems{'cpachecker'} = $text;
+	
+	$text = read_file("$problem_dir/rcv/ufo");
+	$text = change_problems_text($text);
+	$result_problems{'ufo'} = $text;
+	
+	return %result_problems;
 }
 
-sub ri_problems
+sub change_problems_text($)
 {
-	$\ = "\n";
-	$, = "\n";
-	my @result;
-	foreach (@_)
-	{
-		chomp;
-		/error: invalid storage class for function try_module_get/ and push(@result, "<a href =\"http://forge.ispras.ru/issues/380\">bug380:</a> try_module_get");
-		/internal compiler error: Segmentation fault/ and push(@result, "Segmentation fault");
-		/: error: / and push(@result, "Compile error");
-		/: error: LDV: / and push(@result, "LDV error");
-		/: warning: / and push(@result, "Warning");
-		/: warning: LDV: / and push(@result, "LDV warning");
-		/: fatal error: character .* wasn't put to stream/ and push(@result, "<a href=\"http://forge.ispras.ru/issues/349\">Bad_char</a>)");
-		/: fatal error: / and push(@result, "Fatal_err");
-		/tree node '(.*)' isn't supported/ and push(@result, "<a href=\"http://forge.ispras.ru/issues/1167\">$1</a>");
-		# Old interface to Aspectator (aspectator.sh)
-		/Aspectator fails on the (.*) stage/ and push(@result, "$1 stage");
-		# New interface to Aspectator (cif) 
-		/Aspectator failed at '(.*)' stage/ and push(@result, "$1 stage");
-
-		/compiler-core: error: kernel.org: No such file or directory/ and push(@result, "kernel.org");
-		/warning: no return statement in function returning non-void/ and push(@result, "No return warn");
-		/warning: ISO C90 forbids mixed declarations and code/ and push(@result, "Mixed decls warn");
-		/error: implicit declaration of function '(.*)'/ and push(@result, "Implicit decl");
-
-		#drv-env-gen problems
-		/error: storage size of '(.*)' isn't known/ and push(@result, "<a href=\"http://forge.ispras.ru/issues/1293\">Storage size</a>");
-		/error: implicit declaration of function kmalloc/ and push(@result, "DEG: implicit kmalloc");
-		/error: redeclaration of '(.*)' with no linkage/ and push(@result, "DEG: Redeclaration");
-		/error: #endif without #if/ and push(@result, "<a href=\"http://forge.ispras.ru/issues/1293\">DEG: ifdefs</a>");
-		/error: incompatible types when assigning to type '(.*)' from type '(.*)'/ and push(@result, "<a href=\"http://forge.ispras.ru/issues/553\">DEG: return type</a>");
-
-		# misc (see bug #1360)
-		/too few arguments to function 'ldv_check_alloc_flags'/ and push(@result, "<a href=\"http://forge.ispras.ru/issues/1360\">Few_args</a>");
-		/'no_instrument_function' attribute applies only to functions/ and push(@result, "<a href=\"http://forge.ispras.ru/issues/1366\">Bad_attr</a>");
-		/void value not ignored as it ought to be/ and push(@result, "Void_val");
-	}
-
-	return @result;
+	my $text = shift;
+	$text =~ s/\$\\ = "\\n";\n//g;
+	$text =~ s/\$, = "\\n";\n//g;
+	$text =~ s/ and print "/ and push(\@result,  "/g;
+	$text =~ s/";\n/");\n/g;
+	$text =~ s/while \(<>\){/foreach\(\$cur_desc\){/g;
+	return $text;
 }
 
-sub dscv_problems
-{
-	$\ = "\n";
-	$, = "\n";
-	my @result;
-	foreach (@_)
-	{
-		chomp;
-		/No entry points specified/i and push(@result, "No_entries");
-	}
-	return @result;
-}
 
-sub build_problems
-{
-	$\ = "\n";
-	$, = "\n";
-	my @result;
-	foreach (@_)
-	{
-		chomp;
-		/Compile error/ and  push(@result,  "Compile error");
-		/Can\'t find correct Makefile or Kbuild file/ and  push(@result,  "No Makefile or Kbuild file");
-		/Can't detect kernel module .* build command/ and  push(@result,  "No modules");
-		/Incorrect driver archive type/ and  push(@result,  "Incorrect archive type");
-		/Can't detect source type in dir \".*\"/ and  push(@result,  "Can't detect source type in dir");
-		/Can't find target\./ and  push(@result,  "Can not find target");
-		/Couldn't apply patch/ and  push(@result,  "Error during applying patch");
-		/.* - is not a patch or driver archive/ and  push(@result,  "It is not patch or driver archive");
-		/No rule to make target/ and  push(@result,  "Not configured");
-		/Source type ".*" not supported/ and  push(@result,  "Incorrect source type");
-	}
-	return @result;
-}
