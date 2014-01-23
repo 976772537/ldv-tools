@@ -9,7 +9,6 @@ use Env qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME LDV_UPLOAD_DEBUG LD
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
-use IO::Handle;
 use File::Slurp;
 
 # Add some local Perl packages.
@@ -85,7 +84,6 @@ sub add_processes(%);
 
 sub init_problems();
 
-
 ################################################################################
 # Global variables.
 ################################################################################
@@ -101,7 +99,14 @@ my $is_xml = 0; # If true then xml format will be expected instead of pax.
 # Name of the tmp directory for extracting pax file.
 my $tmpdir = '';
 
+# Text of the problem functions.
 my %problems_functions;
+
+# Names of the components.
+my @ldv_components = ('build-cmd-extractor', 'drv-env-gen', 'dscv', 'rule-instrumentor', 'rcv');
+
+# Names of the verifiers.
+my @ldv_verifiers = ('blast', 'cbmc', 'cpachecker', 'ufo');
 
 ################################################################################
 # Main section.
@@ -320,7 +325,7 @@ sub upload($$)
 	
 	$OUTPUT_AUTOFLUSH = 1;
 	open my $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
-        or  die "Can't fork to run kb-recalc: $!\n";
+        or die "Can't fork to run kb-recalc: $!\n";
     
 	# Unique ids.
 	my $environment_id;
@@ -413,14 +418,7 @@ sub upload($$)
 			# For UNSAFEs - error trace and source files.
 			my $cur_trace = $arg->{trace} || '';
 			my $cur_sources = $arg->{sourcefile} || '';
-		
-			# Each component of luanch.
-			my $cur_build = $arg->{build} || '';
-			my $cur_deg = $arg->{'drv-env-gen'} || '';
-			my $cur_dscv = $arg->{dscv} || '';
-			my $cur_ri = $arg->{'rule-instrumentor'} || '';
-			my $cur_rcv = $arg->{rcv} || '';
-		
+
 			# Incrementing these values for each launch (not auto increment).
 			$cur_trace_id++;
 			$cur_stats_id++;
@@ -481,122 +479,21 @@ sub upload($$)
 			}
 			
 			# Processing stats, processes, problems, problems_stats tables for each component.
-# TODO: make a common function for all components since below almost everything is the same.
-			# Processing component 'biuld'.
-			if ($cur_build ne '')
+			foreach my $component_name (@ldv_components)
 			{
-				my $cur_status = 1;
-				if ($cur_build->{status})
+				# Changes for table xml format
+				my $component_name_xml = '';
+				if ($component_name eq "build-cmd-extractor")
 				{
-					$cur_status = 0 if $cur_build->{status} eq "FAILED";
+					$component_name_xml = "build";
 				}
-				my $cur_time = '0';
-# TODO: may be NULL is uplouded if there is not any description?
-				my $cur_desc = '\'\'';
-				if ($cur_build->{desc})
+				else
 				{
-					$cur_desc = $cur_build->{desc};
-					$cur_desc = $dbh->quote($cur_desc);
+					$component_name_xml = $component_name;
 				}
-				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'build', '$cur_status', '$cur_time', $cur_desc);\n");
-# TODO: pass a hash reference "{...}", not an array.
-				add_processes(old_time => $cur_build->{time}, trace_id => $cur_trace_id, component => 'build-cmd-extractor');
-				if ($cur_verdict eq "UNKNOWN")
-				{
-					add_problems(component => "build", desc => $cur_desc, stats_id => $cur_stats_id);
-				}
-			}
-		
-			# Processing component 'deg'.
-			$cur_stats_id++;
-			if ($cur_deg ne '')
-			{
-				my $cur_status = 0;
-				$cur_status = 1 if $cur_deg->{status} eq "OK";
-				my $cur_time = '0';
-				my $cur_desc = '\'\'';
-				if ($cur_deg->{desc})
-				{
-					$cur_desc = $cur_deg->{desc};
-					$cur_desc = $dbh->quote($cur_desc);
-				}
-				my $cur_loc = $cur_deg->{loc};
-				sql_query("INSERT INTO stats (id, trace_id, kind, success, loc, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'maingen', '$cur_status', '$cur_loc', '$cur_time', $cur_desc);\n");
-			
-				add_processes(old_time => $cur_deg->{time}, trace_id => $cur_trace_id, component => 'drv-env-gen');
-			}
-		
-			# Processing component 'dscv'.
-			$cur_stats_id++;
-			if ($cur_dscv ne '')
-			{
-				my $cur_status = 0;
-				$cur_status = 1 if $cur_dscv->{status} eq "OK";
-				my $cur_time = '0';
-				my $cur_desc = '\'\'';
-				if ($cur_dscv->{desc})
-				{
-					$cur_desc = $cur_dscv->{desc};
-					$cur_desc = $dbh->quote($cur_desc);
-				}
-				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'dscv', '$cur_status', '$cur_time', $cur_desc);\n");
-			
-				add_processes(old_time => $cur_dscv->{time}, trace_id => $cur_trace_id, component => 'dscv');
-				if ($cur_verdict eq "UNKNOWN")
-				{
-					add_problems(component => "dscv", desc => $cur_desc, stats_id => $cur_stats_id);
-				}
-			}
-		
-			# Processing component 'ri'.
-			$cur_stats_id++;
-			if ($cur_ri ne '')
-			{
-				my $cur_status = 0;
-				$cur_status = 1 if $cur_ri->{status} eq "OK";
-				my $cur_time = '0';
-				my $cur_desc = '\'\'';
-				if ($cur_ri->{desc})
-				{
-					$cur_desc = $cur_ri->{desc};
-					$cur_desc = $dbh->quote($cur_desc);
-				}
-				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'ri', '$cur_status', '$cur_time', $cur_desc);\n");
-			
-				# ri - processes.
-				add_processes(old_time => $cur_ri->{time}, trace_id => $cur_trace_id, component => 'rule-instrumentor');
-			
-				# ri - problems.
-				if ($cur_verdict eq "UNKNOWN")
-				{
-					add_problems(component => "ri", desc => $cur_desc, stats_id => $cur_stats_id);
-				}
-			}
-		
-			$cur_stats_id++;
-			# Processing component 'rcv'.
-			if ($cur_rcv ne '')
-			{
-				my $cur_status = 0;
-				$cur_status = 1 if $cur_rcv->{status} eq "OK";
-				my $cur_time = '0';
-				my $cur_desc = '\'\'';
-				if ($cur_rcv->{desc})
-				{
-					$cur_desc = $cur_rcv->{desc};
-					$cur_desc = $dbh->quote($cur_desc);
-				}
-				sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) VALUES ($cur_stats_id, '$cur_trace_id', 'rcv', '$cur_status', '$cur_time', $cur_desc);\n");
-				
-				# rcv - processes.
-				add_processes(old_time => $cur_rcv->{time}, trace_id => $cur_trace_id, component => 'rcv');
-			
-				# rcv - problems.
-				if ($cur_verdict eq "UNKNOWN")
-				{
-					add_problems(component => "rcv", desc => $cur_desc, stats_id => $cur_stats_id);
-					add_problems(component => "$cur_verifier", desc => $cur_desc, stats_id => $cur_stats_id);
-				}
+				my $component = $arg->{$component_name_xml} || '';
+				add_component(component => $component, component_name => $component_name, stats_id => $cur_stats_id, trace_id => $cur_trace_id, verdict => $cur_verdict, verifier => $cur_verifier);
+				$cur_stats_id++;
 			}
 		}
 	}
@@ -653,7 +550,70 @@ sub sql_query($)
 	chomp($query);
 	print_debug_all ($query);
 	
-	my $db_query = $dbh->do($query) or die("Can't do a query: " . $dbh->errstr);
+	my $db_query = $dbh->do($query) or die("Can't do a query: $query\n" . $dbh->errstr);
+}
+
+sub add_component(%)
+{
+	my %info = @_;
+	my $component = $info{component} || '';
+	my $component_name = $info{component_name} || '';
+	my $cur_stats_id = $info{stats_id};
+	my $cur_trace_id = $info{trace_id};
+	my $cur_verdict = $info{verdict};
+	my $cur_verifier = $info{verifier};
+	if ($component ne '')
+	{
+		my $cur_status = 0;
+		if ($component->{status})
+		{
+			if ($component->{status} eq "OK")
+			{
+				$cur_status = 1;
+			}
+		}
+		else
+		{
+			$cur_status = 1 if $component_name eq 'build-cmd-extractor';
+		}
+		my $cur_time = '0';
+		my $cur_desc = '\'\'';
+		if ($component->{desc})
+		{
+			$cur_desc = $component->{desc};
+			$cur_desc = $dbh->quote($cur_desc);
+		}
+		# Changes for table stasts;
+		my $component_name_stats = $component_name;
+		$component_name_stats = 'build' if $component_name eq 'build-cmd-extractor';
+		$component_name_stats = 'maingen' if $component_name eq 'drv-env-gen';
+		$component_name_stats = 'ri' if $component_name eq 'rule-instrumetor';
+		if ($component_name_stats eq "maingen")
+		{
+			my $cur_loc = $component->{loc};
+			sql_query("INSERT INTO stats (id, trace_id, kind, success, loc, time, description) 
+				VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc);\n");
+		}
+		else
+		{
+			sql_query("INSERT INTO stats (id, trace_id, kind, success, time, description) 
+				VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_time, $cur_desc);\n");
+		}
+		
+		# processes.
+		add_processes(old_time => $component->{time}, trace_id => $cur_trace_id, component => $component_name);
+		
+		# problems.
+		if ($cur_verdict eq "UNKNOWN")
+		{
+			add_problems(component => $component_name, desc => $cur_desc, stats_id => $cur_stats_id);
+			if ($component_name eq "rcv")
+			{
+				add_problems(component => "$cur_verifier", desc => $cur_desc, stats_id => $cur_stats_id);
+			}
+		}
+		
+	}
 }
 
 # Adds record in problems and problems_stats for specific component.
@@ -666,47 +626,23 @@ sub add_problems(%)
 	my @result = ();
 	if ($cur_desc ne '\'\'') # In case of build failed.
 	{
-		if ($component eq "rcv")
+		foreach my $arg (@ldv_components)
 		{
-			eval $problems_functions{'rcv'};
-			warn $@ if $@;
+			if ($component eq $arg)
+			{
+				eval $problems_functions{$arg};
+				die $@ if $@;
+			}
 		}
-		if ($component eq "ri")
+		foreach my $arg (@ldv_verifiers)
 		{
-			eval $problems_functions{'ri'};
-			die $@ if $@;
+			if ($component eq $arg)
+			{
+				eval $problems_functions{$arg};
+				die $@ if $@;
+			}
 		}
-		if ($component eq "dscv")
-		{
-			eval $problems_functions{'dscv'};
-			warn $@ if $@;
-		}
-		if ($component eq "build")
-		{
-			eval $problems_functions{'build'};
-			warn $@ if $@;
-		}
-		if ($component eq "blast")
-		{
-			eval $problems_functions{'blast'};
-			warn $@ if $@;
-		}
-		if ($component eq "cpachecker")
-		{
-			eval $problems_functions{'cpachecker'};
-			warn $@ if $@;
-		}
-		if ($component eq "cbmc")
-		{
-			eval $problems_functions{'cbmc'};
-			warn $@ if $@;
-		}
-		if ($component eq "ufo")
-		{
-			eval $problems_functions{'ufo'};
-			warn $@ if $@;
-		}
-		
+
 		my $tmp_res;
 		foreach my $prob (@result)
 		{
@@ -722,10 +658,10 @@ sub add_problems(%)
 # Adds record in processes for specific component - time/memory.
 sub add_processes(%)
 {
-	my $info = {@_};
-	my $old_time = $info->{old_time};
-	my $cur_trace_id = $info->{trace_id};
-	my $component = $info->{component};
+	my %info = @_;
+	my $old_time = $info{old_time};
+	my $cur_trace_id = $info{trace_id};
+	my $component = $info{component};
 	if (ref ($old_time) eq 'HASH')
 	{
 		my %new_time = convert_time(old_time => $old_time);
@@ -779,7 +715,7 @@ sub init_problems()
 	# Component 'build'.
 	$text = read_file("$problem_dir/build/build");
 	$text = change_problems_text($text);
-	$result_problems{'build'} = $text;
+	$result_problems{'build-cmd-extractor'} = $text;
 	
 	# Component 'dscv'.
 	$text = read_file("$problem_dir/dscv/problems");
@@ -794,25 +730,15 @@ sub init_problems()
 	# Component 'ri'.
 	$text = read_file("$problem_dir/ri/aspectator");
 	$text = change_problems_text($text);
-	$result_problems{'ri'} = $text;
+	$result_problems{'rule-instrumentor'} = $text;
 	
 	# Verifiers.
-	$text = read_file("$problem_dir/rcv/blast");
-	$text = change_problems_text($text);
-	$result_problems{'blast'} = $text;
-	
-	$text = read_file("$problem_dir/rcv/cbmc");
-	$text = change_problems_text($text);
-	$result_problems{'cbmc'} = $text;
-	
-	$text = read_file("$problem_dir/rcv/cpachecker");
-	$text = change_problems_text($text);
-	$result_problems{'cpachecker'} = $text;
-	
-	$text = read_file("$problem_dir/rcv/ufo");
-	$text = change_problems_text($text);
-	$result_problems{'ufo'} = $text;
-	
+	foreach my $verifier (@ldv_verifiers)
+	{
+		$text = read_file("$problem_dir/rcv/$verifier");
+		$text = change_problems_text($text);
+		$result_problems{"$verifier"} = $text;
+	}
 	return %result_problems;
 }
 
