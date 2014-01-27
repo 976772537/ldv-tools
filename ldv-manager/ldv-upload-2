@@ -154,6 +154,8 @@ sub connect_to_db() {
     return $db_handler;
 }
 
+# TODO: format should be: "<upload> [options] -- <uploaded_files>" or "<upload> [options]", where by means of one option list of uploaded files should be passed.
+# TODO: fix everywhere "uploaded file" with "report to be uploaded".
 # Format: <upload> <uploaded_file> [options] -- <uploaded_files>.
 # In case of any error help will be printed and execution of the program will be stopped.
 # Returns arrray of all file names for upload.
@@ -167,6 +169,7 @@ sub parse_command_line() {
     my $is_password = 0;
 
     # Parsing options.
+# TODO: one may optionally provide a password through command-line options. See mysql --help (-p --password).
     GetOptions(
         'help|h' => \$print_help,
         'xml'    => \$is_xml,
@@ -177,6 +180,7 @@ sub parse_command_line() {
     help() if ($print_help);
 
     # Password promt.
+# TODO: it's recommended to use a library http://docstore.mik.ua/orelly/perl/cookbook/ch15_11.htm.
     if ($is_password) {
         system('stty -echo');
         print_debug_normal("Enter password for data base");
@@ -199,6 +203,7 @@ sub parse_command_line() {
 }
 
 # Print help and exit.
+# TODO: fix help in accordance with a new input format.
 sub help() {
     print( STDERR << "EOM");
 
@@ -215,7 +220,7 @@ OPTIONS
   --xml
     Xml format will be uploaded.
   -p
-  	Use password to access the data base.
+    Use password to access the data base.
 
 ENVIRONMENT VARIABLES
 
@@ -250,6 +255,7 @@ sub disconnect_from_db() {
 }
 
 # Actions which should be completed in case of any errors or after finishing uploading.
+# TODO: Move this to the end of file.
 END {
     remove_tmpdir();
     disconnect_from_db();
@@ -269,19 +275,22 @@ sub get_xml_file($) {
         print_debug_debug("Uploaded file will be considered as pax file");
 
         # Create tmp directory '.XXXXXXXXXX'.
+# TODO: use http://docstore.mik.ua/orelly/perl4/cook/ch07_12.htm, http://perldoc.perl.org/File/Temp.html. So remove_tmpdir() won't be needed.
         $tmpdir = `mktemp -d --tmpdir=. .XXXXXXXXXX`
           || die "Can't create tmp directory: $!";
         chomp($tmpdir);
         print_debug_debug("Tmp directory $tmpdir has been created");
 
-        # TODO: don't use "chdir", see "directory" in "man pax".
+# TODO: don't use "chdir", see "directory" in "man pax".
         # Extract pax file into created directory.
         chdir($tmpdir);
+# TODO: system('pax', '-O', ..., $uploaded_file) ...
         system("pax -O -r -f ../$uploaded_file") == 0
           || die "Can't extract pax file $uploaded_file: $!";
         print_debug_debug("Pax archive has been extracted into $tmpdir");
 
         # Get xml file from there.
+# TODO: system('find', '*.xml') ...
         $xml_file = `find *.xml` || die "Can't locate xml file: $!";
         chomp($xml_file);
         print_debug_debug("Xml file $xml_file was found in $tmpdir");
@@ -321,6 +330,7 @@ sub upload($$) {
     my $info     = {@_};
     my $xml_data = $info->{xml_data};
 
+# TODO: run the only kb-recalc for all reports to be uploaded.
     $OUTPUT_AUTOFLUSH = 1;
     open my $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
       or die "Can't fork to run kb-recalc: $!\n";
@@ -339,7 +349,7 @@ sub upload($$) {
     my $timestamp;
     my $task_name = $LDV_TASK_NAME || '';    # LDV_TASK_NAME.
 
-    # TODO: fix it in ldv-manager/report-fixup and then fix it here.
+# TODO: fix it in ldv-manager/report-fixup and then fix it here.
     my $month = "";
     if ( $xml_data->{launch_info}->{task}->{timestamp}->{mon} < 10 ) {
         $month = "0" . "$xml_data->{launch_info}->{task}->{timestamp}->{mon}";
@@ -348,14 +358,13 @@ sub upload($$) {
         $month = "$xml_data->{launch_info}->{task}->{timestamp}->{mon}";
     }
     $timestamp =
-        $xml_data->{launch_info}->{task}->{timestamp}->{year} . "-" 
+        $xml_data->{launch_info}->{task}->{timestamp}->{year} . "-"
       . $month . "-"
       . $xml_data->{launch_info}->{task}->{timestamp}->{mday} . " "
       . $xml_data->{launch_info}->{task}->{timestamp}->{hour} . ":"
       . $xml_data->{launch_info}->{task}->{timestamp}->{min} . ":"
       . $xml_data->{launch_info}->{task}->{timestamp}->{sec};
 
-    # TODO: move this debug printing to initialization as well.
     print_debug_debug("Unique values");
     print_debug_debug("version=$version");
     print_debug_debug("driver=$driver");
@@ -417,6 +426,7 @@ sub upload($$) {
 
     print_debug_normal(
         "Processing data for each launch. This may take some time..");
+# TODO: remove useless shift from the if below. Use something like foreach my $arg ($xml_data->{ld} and values $xml_data->{ld})
     if ( $xml_data->{ld} ) {
         foreach my $arg ( values $xml_data->{ld} ) {
 
@@ -427,7 +437,7 @@ sub upload($$) {
               || 'UNKNOWN';    # UNKNOWN if not SAFE or UNSAFE.
             my $cur_verifier = $arg->{verifier} || '';
 
-            # TODO: as far as I know old scripts upload NULL in this case.
+# TODO: as far as I know old scripts upload NULL in this case.
             my $cur_model = $arg->{model}
               || 'Fail before RI';   # Specific name if there was no enty point.
 
@@ -457,11 +467,11 @@ sub upload($$) {
             # Processing drivers table.
             $cur_driver_id = sql_select(
 "SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin =
-				'$driver_origin') LIMIT 1;"
+                '$driver_origin') LIMIT 1;"
               )
               || sql_insert(
-                "INSERT INTO drivers (name, origin) VALUES 
-				('$cur_module', '$driver_origin');\n"
+                "INSERT INTO drivers (name, origin) VALUES
+                ('$cur_module', '$driver_origin');\n"
               );
 
             # Processing scenarios table.
@@ -545,6 +555,7 @@ sub upload($$) {
 
     print_debug_normal(
         "Results were successfully uploaded to database. They can be found at");
+# TODO: combine the same part of URL http://... my $url_without_password = ...;
     if ( $db_password eq '' ) {
         print_debug_normal(
 "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/no/"
@@ -556,11 +567,13 @@ sub upload($$) {
         );
         print_debug_normal("Change <password> to your actual password");
     }
+# TODO: in case of die kb-recalc will run forever? May be move to END section. Test it!
     close $kb_recalc_pipe;
 }
 
 sub sql_select($) {
     my $query = shift;
+# TODO: remove useless chomp here and below.
     chomp($query);
     print_debug_all($query);
 
@@ -630,14 +643,14 @@ sub add_component(%) {
         if ( $component_name_stats eq "maingen" ) {
             my $cur_loc = $component->{loc};
             sql_query(
-"INSERT INTO stats (id, trace_id, kind, success, loc, time, description) 
-				VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc);\n"
+"INSERT INTO stats (id, trace_id, kind, success, loc, time, description)
+                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc);\n"
             );
         }
         else {
             sql_query(
-"INSERT INTO stats (id, trace_id, kind, success, time, description) 
-				VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_time, $cur_desc);\n"
+"INSERT INTO stats (id, trace_id, kind, success, time, description)
+                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_time, $cur_desc);\n"
             );
         }
 
