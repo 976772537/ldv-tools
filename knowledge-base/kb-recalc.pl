@@ -11,6 +11,7 @@ use strict;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl");
+use lib("$FindBin::RealBin/../etv/modules");
 
 # Add some nonstandard local Perl packages.
 use ETV::Library qw(call_stacks_eq call_stacks_ne call_trees_eq call_trees_ne);

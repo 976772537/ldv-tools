@@ -1,0 +1,225 @@
+#!/usr/bin/perl
+
+################################################################################
+# Copyright (C) 2013
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# RCV Frontend for CBMC tool.
+
+use strict;
+use DSCV::RCV::Coverage;
+use File::Basename qw(dirname);
+
+# To distinguish when the wrapper works in logs, set up a unique name for the
+# verifier.
+set_tool_name("CBMC");
+
+# path to cbmc should be specified in PATH.
+my $cbmc = "cbmc";
+
+# The options that control input and output files are automatically prepared by
+# LDV internals. You should just specify the rest here.
+set_cil_options(
+    "--printCilAsIs",
+    "--decil",
+    # "--noLowerConstants",
+    "--noInsertImplicitCasts",
+    "--useLogicalOperators",
+    "--ignore-merge-conflicts",
+    "--no-convert-direct-calls",  # Don't transform simple function calls to calls-by-pointers
+    "--no-convert-field-offsets", # Don't transform s->f to pointer arithmetic
+    "--no-split-structs",         # Don't transform structure fields into variables or arrays
+    "--rmUnusedInlines"
+);
+
+# Now, as CIL script and options are prepared, let's invoke the preprocessing.
+my @files = preprocess_all_files('cpp','cil-merge');
+
+# Since we now got the files (one file, to be exact), we may start to form a
+# command line for CBMC.
+my @cbmc_options = ($cbmc,@files);
+
+
+# Check the number of entry points 
+die "You can only specify one main for CBMC!" if (scalar @mains != 1);
+
+# Set the option for the entry point
+my $main = $mains[0];
+push @cbmc_options, "--function",$main;
+
+# Check the number of error locations
+die "You can only specify one error label for CBMC!" if (scalar @errlocs != 1);
+my $errloc = $errlocs[0];
+push @cbmc_options, "--error-label",$errloc;
+
+# unwind options
+if (!($ENV{'CBMC_OPTIONS'} =~ /--unwind/))
+{
+	push @cbmc_options, "--unwind", "2";
+}
+push @cbmc_options, "--no-unwinding-assertions";
+push @cbmc_options, "--xml-ui";
+
+# External settings
+push @cbmc_options,(split /\s+/,$ENV{'CBMC_OPTIONS'});
+
+my $outputpath = "$tmpdir";
+# In CBMC, the trace is stored in the separate file in the output path,
+# and we know its name.
+#my $orig_trace_fname = "$outputpath/error_trace.txt";
+my @error_trace = ();
+
+# We will need to adjust the trace for seamless integration with LDV, so we'll
+# copy the trace here.
+my $adjusted_trace_fname = "$tmpdir/error_trace_m.txt";
+my $trace_fname = "$tmpdir/error_trace.xml";
+
+my $violated_property = '';
+
+# Create verdict calculator.
+add_automaton(cbmc_verdict());
+
+# Automaton for creating cbmc output.
+add_automaton(cbmc_output());
+
+# Dump the last 50 lines from stderr output of the tool into the 'TAIL' bucket.
+# tail_automaton is a library function; you may find the sources in
+# shared/perl/modules/DSCV/RCV/Library.pm
+
+# Note the 'stderr' after the automaton.  It means that it is only applied to
+# the standard error stream.  You may specify 'stdout' here as well or instead.
+# Here, we're more interested in any exceptions the verifier produces
+add_automaton(tail_automaton(50),'stderr');
+
+# Now the limits are set and automatons are added.  We may run the tool
+# (specified by the command line we have already prepared).  As an output, we'll
+# get:
+#   * the result of the run ('OK', 'SIGNAL', or 'LIMITS'), OK meaning that the
+#     tool was not interrupted, but, possibly, returned a nonzero code
+#   * the return code itself
+#   * the merged hash of the automata added.
+#   * the file where gzip-ped debug trace resides
+my ($result, $errcode, $automata_results, $debug_trace) = run(@cbmc_options);
+
+
+# NOTE that you should re-add automata with a fresh state if you plan to perform more runs.
+
+# Now calculate the description and verdict.  Verdict was calculated by our
+# automaton (if it succeeded).  However, if CBMC has been terminated
+# abnormally, the relevant bucket contains an undefined value; assume an unknown
+# verdict
+my $verdict = $automata_results->{VERDICT} || 'unknown';
+
+# Let's prepare the description string step-by-step
+my $description = '';
+
+# If something has prevented CBMC from getting a verdict, we might want to
+# know if there was an exception.  Therefore, we'll add the exception to
+# description.
+if ($verdict eq 'unknown') {
+	my @errbuf = @{$automata_results->{'TAIL'}};
+	# Add error buffers on unknown.  But first, filter some useless things out of them
+	# cbmc's trace is divided into blocks by empty lines.  Some blocks are not interesting to us, and we want the mremoved.
+	local $_;
+	my $cbmcerrmsg = '';
+	my $removing = '';	#if we're removingall stuf until the next empty line
+	for my $ln (@errbuf){
+		$removing=1 if $ln=~/Dead code detected/;
+		$removing=1 if $ln=~/Ignoring inline assembler/;
+		if ($ln =~ /^$/){
+			$removing = '';
+		}else{
+			$cbmcerrmsg.=$ln."\n" unless $removing;
+		}
+	}
+	$description .= $cbmcerrmsg."\n";
+}
+
+# To convert CBMC error traces to the common format and visualize them
+# together with related source code add a header and corresponding CIL source
+# files.
+local $_;
+if ($verdict eq 'unsafe') {
+	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cbmc trace: \"$adjusted_trace_fname\", $!";
+	print TRACE_FILE "CBMC error trace v4.5\n";
+	#print TRACE_FILE "-------$adjusted_trace_fname-------\n";
+	#close TRACE_FILE;
+	#open(TRACE_FILE, '>', $trace_fname) or die "Can't open file with cbmc xml trace: \"$trace_fname\", $!";
+	open(TRACE_FILE_XML, '>', $trace_fname);
+	my $is_print = "0";
+	while (@error_trace) {
+		my $str = shift(@error_trace);
+		chomp($str);
+		if ($str eq "<goto_trace>\n")
+		{
+			$is_print = "1";
+		}
+		if ($is_print eq "1")
+		{
+			print TRACE_FILE $str;
+			print TRACE_FILE_XML $str;
+		}
+		if ($str eq "</goto_trace>\n")
+		{
+			$is_print = "0";
+		}
+	}
+	close TRACE_FILE;
+	close TRACE_FILE_XML;
+}
+
+
+# Return results.  The "verdict", "description", and "error_trace" are
+# obligatory.  You may add more hash entries, the values should contain files,
+# and the keys will distinguish these files by meaning.  The files you've
+# specified this way will be stored in the package with results and associated
+# with the respective launches that generated them.
+result(
+	verdict => $verdict,
+	description => $description,
+	error_trace => $adjusted_trace_fname,
+ 	coverage => "",
+);
+
+
+# CBMC wrapper ends
+# DO NOT INVOKE "exit" FROM HERE!!!
+
+#===================
+#  AUTOMATA
+#===================
+
+sub cbmc_verdict
+{
+	return sub {
+		my $l=shift or return undef;
+		$l=~/SUCCESS/ and return {VERDICT=>'safe'};
+		$l=~/FAILURE/ and return {VERDICT=>'unsafe'};
+		return undef;
+	};
+}
+
+sub cbmc_output
+{
+	return sub{
+		my $l=shift;
+		next if ($l =~ /^\s*$/);
+		$l .= "\n";
+		push (@error_trace, $l);
+		return undef;
+	};
+}
+

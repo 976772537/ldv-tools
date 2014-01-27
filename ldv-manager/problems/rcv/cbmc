@@ -1,0 +1,19 @@
+#!/usr/bin/perl
+# Problem finder for CBMC tool
+
+$\ = "\n";
+$, = "\n";
+while (<>){
+	chomp;
+	/CONVERSION ERROR/ and print "Conversion error";
+	/incomplete type not permitted here/ and print "Incomplete type";
+	/defined twice with different types/ and print "Defined twice";
+	/conflicting definition of tag symbol/ and print "Conflicting definition";
+	/pointer arithmetic with unknown object size/ and print "Pointer arithmetic";
+	/is constant/ and print "Constant";
+	/syntax error/ and print "CIL error";
+	/expected to have two arguments/ and print "Two arguments";
+	/incompatible pointer types/ and print "Incompatible pointer types";
+}
+
+

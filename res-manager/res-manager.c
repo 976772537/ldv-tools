@@ -85,6 +85,9 @@ static struct
 
 	// Time of the start execution of the command.
 	uint64_t start_time;
+
+	// Flag shows swap account availability.
+	int swap_account_available;
 } params;
 
 // Pid of child process in which command will be executed.
@@ -95,6 +98,7 @@ static int pid = 0;
 static void add_task(int pid);
 static int check_tasks(const char *cgroup);
 static void check_time(int signum);
+static void check_swap_account_availability(int);
 static const char *concat(const char *first, ...);
 static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter);
 static void convert_time(char *optarg, const char *option_name, uint64_t *parameter);
@@ -466,44 +470,48 @@ static void find_cgroup_controllers(void)
 	const char *line = NULL;
 
 	fp = xfopen(fname, "rt");
-	// TODO: stop traversing mounts file on finding required controllers.
 	while ((line = read_string_from_fp(fp)) != NULL)
 	{
-		// TODO: see on proper names for these fields in ./install-ldv-cgroup.
-		char *name = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
-		char *fname = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
-		char *type = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
-		char *subsystems = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *fs_specifier = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *mount_point = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *fs_type = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
+		char *mount_options = (char *)xmalloc((strlen(line) + 1) * sizeof(char));
 
-		sscanf(line, "%s %s %s %s", name, fname, type, subsystems);
+		sscanf(line, "%s %s %s %s", fs_specifier, mount_point, fs_type, mount_options);
 
 		// Cpuacct controller.
-		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, CPUACCT_CONTROLLER))
+		if (strcmp(fs_type, CGROUP) == 0 && strstr(mount_options, CPUACCT_CONTROLLER))
 		{
 			// Path to new cgroup.
-			params.cgroup_cpuacct = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
-			strcpy(params.cgroup_cpuacct, fname);
+			params.cgroup_cpuacct = (char *)xmalloc(sizeof(char) * (strlen(mount_point) + 1));
+			strcpy(params.cgroup_cpuacct, mount_point);
 			// Path to original cgroup.
-			params.cgroup_cpuacct_origin = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
-			strcpy(params.cgroup_cpuacct_origin, fname);
+			params.cgroup_cpuacct_origin = (char *)xmalloc(sizeof(char) * (strlen(mount_point) + 1));
+			strcpy(params.cgroup_cpuacct_origin, mount_point);
 		}
 
 		// Memory controller.
-		if (strcmp(type, CGROUP) == 0 && strstr(subsystems, MEMORY_CONTROLLER))
+		if (strcmp(fs_type, CGROUP) == 0 && strstr(mount_options, MEMORY_CONTROLLER))
 		{
 			// Path to new cgroup.
-			params.cgroup_memory = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
-			strcpy(params.cgroup_memory, fname);
+			params.cgroup_memory = (char *)xmalloc(sizeof(char) * (strlen(mount_point) + 1));
+			strcpy(params.cgroup_memory, mount_point);
 			// Path to original cgroup.
-			params.cgroup_memory_origin = (char *)xmalloc(sizeof(char) * (strlen(fname) + 1));
-			strcpy(params.cgroup_memory_origin, fname);
+			params.cgroup_memory_origin = (char *)xmalloc(sizeof(char) * (strlen(mount_point) + 1));
+			strcpy(params.cgroup_memory_origin, mount_point);
 		}
 
-		free(name);
-		free(fname);
-		free(type);
-		free(subsystems);
+		free(fs_specifier);
+		free(mount_point);
+		free(fs_type);
+		free(mount_options);
 		free((void *)line);
+
+		// Quit if everything was founded.
+		if (params.cgroup_memory != NULL && params.cgroup_cpuacct != NULL)
+		{
+			break;
+		}
 	}
 
 	fclose(fp);
@@ -589,42 +597,68 @@ static void create_cgroup(const char *dir)
 }
 
 /*
+ * Check if swap account is available.
+ * Only two files from memory controller are used to deal with swap: MEMSW_LIMIT
+ * and MEMSW_MAX_USAGE. They should either both exist and be okay, or not.
+ */
+static void check_swap_account_availability(int work_without_swap_account)
+{
+	const char *fname = concat(params.cgroup_memory, "/", MEMSW_LIMIT, NULL);
+	int swap_account_available = 1;
+	const char *str;
+
+	if (access(fname, W_OK) == -1)
+	{
+		swap_account_available = 0;
+	}
+	else if ((str = read_first_string_from_file(fname)) == NULL)
+	{
+		swap_account_available = 0;
+	}
+
+	params.swap_account_available = swap_account_available;
+
+	if (swap_account_available == 0 && work_without_swap_account == 0)
+	{
+		exit_res_manager(errno, NULL, "Error: swap account is disabled."
+			" Resource Manager may not work as intended on memory exhausting."
+			" Please refer to help for more information");
+	}
+}
+
+/*
  * Set parameter into file in control groups. In case of errors Resource Manager
  * will be terminated.
  */
 static void set_cgroup_parameter(const char *fname, const char *controller, const char *value)
 {
-	const char *fname_new = concat(controller, "/", fname, NULL);
+	const char *fname_new;
 	FILE *fp;
 
-	if (access(fname_new, F_OK) == -1) // Check if file exists.
+	// TODO: move this specific check to callers.
+	// Switch memory & swap limit to memory limit if swap isn't availalbe.
+	if (params.swap_account_available == 0 && (strcmp(fname, MEMSW_LIMIT) == 0))
 	{
-		// If there is no files for memsw special error message.
-		// TODO: return; instead of the same operations.
-		if (strcmp(fname, MEMSW_LIMIT) == 0)
-		{
-			free((void *)fname_new);
-			fname_new = concat(controller, "/", MEM_LIMIT, NULL);
-		}
-		else
-		{
-			exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
-		}
+		fname_new = concat(controller, "/", MEM_LIMIT, NULL);
+	}
+	else
+	{
+		fname_new = concat(controller, "/", fname, NULL);
 	}
 
-	// TODO: try to remove this, since it looks to be useless.
-	if (chmod(fname_new, 0666) == -1)
+	if (access(fname_new, F_OK) == -1) // Check if file exists (mostly for config file).
 	{
-		exit_res_manager(errno, NULL, strerror(errno));
+		exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
 	}
 
 	fp = xfopen(fname_new, "w+");
 
 	// Write value to the file.
-	// TODO: check return value.
+	// TODO: check return value (man fputs!).
 	fputs(value, fp);
 
 	fclose(fp);
+
 	free((void *)fname_new);
 }
 
@@ -636,21 +670,22 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 static const char *get_cgroup_parameter(const char *fname, const char *controller)
 {
 	const char *str;
-	const char *fname_new = concat(controller, "/", fname, NULL);
+	const char *fname_new;
 
-	// TODO: fix test, see https://lkml.org/lkml/2012/6/26/547.
+	// TODO: move this specific check to callers.
+	// Switch memory & swap maximum usage to memory maximum usage if swap isn't availalbe.
+	if (params.swap_account_available == 0 && (strcmp(fname, MEMSW_MAX_USAGE) == 0))
+	{
+		fname_new = concat(controller, "/", MEM_MAX_USAGE, NULL);
+	}
+	else
+	{
+		fname_new = concat(controller, "/", fname, NULL);
+	}
+
 	if (access(fname_new, F_OK) == -1) // Check if file exists.
 	{
-		// If there is no files for memsw special error message.
-		if (strcmp(fname, MEMSW_MAX_USAGE) == 0)
-		{
-			free((void *)fname_new);
-			fname_new = concat(controller, "/", MEM_MAX_USAGE, NULL);
-		}
-		else
-		{
-			exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
-		}
+		exit_res_manager(errno, NULL, concat("Error: file ", fname_new, " doesn't exist", NULL));
 	}
 
 	str = read_first_string_from_file(fname_new);
@@ -804,13 +839,21 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	fprintf(fp, "\tkernel version: %s\n", kernel);
 	fprintf(fp, "\tcpu: %s", cpu);
 	fprintf(fp, "\tmemory: %s Kb\n", memory);
+	if (params.swap_account_available)
+	{
+		fprintf(fp, "\tswap account: available\n");
+	}
+	else
+	{
+		fprintf(fp, "\tswap account: unavailable\n");
+	}
 
 	free((void *)kernel);
 	free((void *)memory);
 	free((void *)cpu);
 
 	// Print Resource Manager settings.
-	fprintf(fp, "Resource manager settings:\n");
+	fprintf(fp, "Resource Manager settings:\n");
 	fprintf(fp, "\tmemory limit: %lu bytes\n", params.mem_limit);
 	fprintf(fp, "\ttime limit: %lu ms\n", params.time_limit);
 	fprintf(fp, "\tcommand: ");
@@ -828,8 +871,8 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	fprintf(fp, "\tcgroup cpuacct controller: %s\n", params.cgroup_cpuacct);
 	fprintf(fp, "\toutputfile: %s\n", params.fout);
 
-	// Print Resource manager execution status.
-	fprintf(fp, "Resource manager execution status:\n");
+	// Print Resource Manager execution status.
+	fprintf(fp, "Resource Manager execution status:\n");
 	if (err_mes != NULL)
 	{
 		fprintf(fp, "\texit code (resource manager): %i (%s)\n", exit_code, err_mes);
@@ -1172,6 +1215,8 @@ static void print_usage(void)
 		"\t\tSet memory limit to <number> bytes. Supported binary prefixes: Kb, Mb, Gb, Kib, Mib, Gib; 1Kb = 1000 bytes,\n"
 		"\t\t1Mb = 1000^2, 1Gb = 1000^3, 1Kib = 1024 bytes, 1Mib = 1024^2, 1Gib = 1024^3 (standardized in IEC 60027-2).\n"
 		"\t\tIf there is no binary prefix then size will be specified in bytes. Default value: 100Mb.\n"
+		"\t-a, --work-without-swap-account\n"
+		"\t\tAllow Resource Manager to work without swap account available.\n"
 		"\t-t, --time-limit <number>\n"
 		"\t\tSet time limit to <number> seconds. Supported prefixes: ms, min; 1ms = 0.001 seconds, 1min = 60 seconds. \n"
 		"\t\tIf there is no prefix then time will be specified in seconds. Default value: 1min.\n"
@@ -1182,7 +1227,7 @@ static void print_usage(void)
 		"\t-o <file>\n"
 		"\t\tPrint output into file <file>. If option isn't specified output will be printed into stdout.\n"
 		"\t-d, --command-cgroup-directory <dir>\n"
-		"\t\tSpecify subdirectory in control group directory where Resource manager will \"run\" command. If option isn't specified\n"
+		"\t\tSpecify subdirectory in control group directory where Resource Manager will \"run\" command. If option isn't specified\n"
 		"\t\tthen will be used control group directory itself.\n"
 		"\t-i, --interval <number>\n"
 		"\t\tSpecify time (in ms) interval in which time limit will be checked. Default value: 1000 (1 second).\n"
@@ -1195,35 +1240,46 @@ static void print_usage(void)
 		"\t\tgroup controller, parameter - name of file (parameter) for this controller, value will be specified for this parameter.\n"
 
 		"Requirements:\n"
-		"\tResource manager is using control groups, which require at least kernel 2.6.24 version.\n"
-		"\tBefore control groups can be used temporarily file system should be mounted by command:\n"
-		"\t\tsudo mount -t cgroup -o cpuacct,memory <device> <cgroup_directory>\n"
-		"\t\t\tcpuacct,memory - controllers\n"
-		"\t\t\t<device> - name of device (control group)\n"
-		"\t\t\t<cgroup_directoty> - path to control group directory.\n"
+		"\tResource Manager is using control groups, which require at least kernel 2.6.24 version.\n"
+		"\tBefore control groups can be used control group file system should be mounted by command:\n"
+		"\t\tsudo mount -t cgroup -o cpuacct,memory <control group specifier> <control group directory>\n"
+		"\t\t\tcgroup - control group file system type\n"
+		"\t\t\tcpuacct,memory - mount options, controllers to be used for accounting and limiting resources\n"
+		"\t\t\t<control group specifier> - control group file system specifier\n"
+		"\t\t\t<control group directoty> - mount point.\n"
 		"\tIf control groups with controllers cpuacct and memory already has been mounted then there is no need to mount them.\n"
 		"\tInformation about all mounted file systems is contained in file /proc/mounts. For specifing subdirectory in control\n"
-		"\tgroup directory there is an option -l <dir>.\n"
+		"\tgroup directory there is an option -d <dir> of Resource Manager.\n"
 		"\tAfter mounting permissions should be changed for control group directory:\n"
-		"\t\tsudo chmod o+wt <cgroup_directory> or sudo chmod o+wt <path_to_cgroup>/<dir>.\n"
-		"\tFor correct memory computation (memory + swap) next kernel flags should be set to enable:\n"
+		"\t\tsudo chmod o+wt <control group directory> or sudo chmod o+wt <control group directory>/<dir>.\n"
+		"\tFor correct memory computation (memory + swap) next kernel flags should be set:\n"
 		"\t\tCONFIG_CGROUP_MEM_RES_CTLR_SWAP and CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED\n"
-		"\tor if kernel > 3.6 version\n"
+		"\tor if kernel >3.6 version\n"
 		"\t\tCONFIG_MEMCG_SWAP and CONFIG_MEMCG_SWAP_ENABLED\n"
-		"\tAlternatively kernel boot parameter swapaccount should be set to 1.\n"
 		"\tMinimal kernel version for swap computation is 2.6.34.\n"
+		"\tAlternatively kernel boot parameter swapaccount should be set to 1.\n"
+		"\tFor Ubuntu 12.04 and 13.04 one needs to:\n"
+		"\t\t1. Add \"swapaccount=1\" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.\n"
+		"\t\t2. Run sudo update-grub.\n"
+		"\t\t3. Reboot your system.\n"
+		"\tFor Fedora 17 and Fedora 19 one needs to:\n"
+		"\t\t1. Add \"swapaccount=1\" to value of GRUB_CMDLINE_LINUX_DEFAULT located in /etc/default/grub.\n"
+		"\t\t2. Run sudo /usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg.\n"
+		"\t\t3. Reboot your system.\n"
+		"\tUsers of openSUSE 12.3 and openSUSE 13.1 have swap account by default.\n"
+		"\tYou can use Resource Manager without swap account at your own risk. See option -a for that.\n"
 
 		"Description:\n"
-		"\tResource manager runs specified command with given arguments. For this command will be created control group. While\n"
-		"\tcommand is running Resource manager checks cpu time and memory usage. If command uses more cpu time or memory then\n"
+		"\tResource Manager runs specified command with given arguments. For this command will be created control group. While\n"
+		"\tcommand is running Resource Manager checks cpu time and memory usage. If command uses more cpu time or memory then\n"
 		"\tit will be killed by signal SIGKILL. If signal was send to the command or any error occured during it's execution then\n"
 		"\tcommand will be finished. When command finishes (normally or not), output will be written into the specified file\n"
 		"\t(or to standart output), all created control groups will be deleted.\n"
 
 		"Exit status:\n"
 		"\tIf there was an error during control group creation (control group is not mounted, wrong permissions, swapaccount=0)\n"
-		"\tResource manager will return error code and discription of error into output file and will finish it's work.\n"
-		"\tIf there were any errors during Resource manager execution or it was killed a by signal then command will be finished by\n"
+		"\tResource Manager will return error code and discription of error into output file and will finish it's work.\n"
+		"\tIf there were any errors during Resource Manager execution or it was killed a by signal then command will be finished by\n"
 		"\tsignal SIGKILL, statistics will be printed with error code or signal number, control groups will be deleted.\n"
 		"\tOtherwise return code is 0.\n"
 
@@ -1232,14 +1288,15 @@ static void print_usage(void)
 		"\t\tkernel version: <version>\n"
 		"\t\tcpu: <name of cpu>\n"
 		"\t\tmemory: <max size> bytes\n"
-		"\tResource manager settings:\n"
+		"\t\tswap account: (un)available\n"
+		"\tResource Manager settings:\n"
 		"\t\tmemory limit: <number> bytes\n"
 		"\t\ttime limit: <number> ms\n"
 		"\t\tcommand: command [arguments]\n"
 		"\t\tcgroup memory controller: <path to memory control group>\n"
 		"\t\tcgroup cpuacct controller: <path to cpuacct control group>\n"
 		"\t\toutputfile: <file>\n"
-		"\tResource manager execution status:\n"
+		"\tResource Manager execution status:\n"
 		"\t\texit code (resource manager): <number> (<description>)\n"
 		"\t\tkilled by signal (resource manager): <number> (<name>)\n"
 		"\tCommand execution status:\n"
@@ -1367,12 +1424,14 @@ int main(int argc, char **argv)
 		{"stdout", 1, 0, 's'},
 		{"stderr", 1, 0, 'e'},
 		{"config", 1, 0, 'c'},
+		{"work-without-swap-account", 0, 0, 'a'},
 		{0, 0, 0, 0}
 	};
 	int status;
 	int wait_res;
 	execution_statistics *exec_stats;
 	int is_wall_time_limit_specified = 0; // True if there was option "-w".
+	int work_without_swap_account = 0; // If true then Resource Manager will work without swap.
 
 	// Set default values for parameters.
 	params.time_limit = DEFAULT_TIME_LIMIT;
@@ -1407,7 +1466,7 @@ int main(int argc, char **argv)
 	}
 
 	// Parse command line.
-	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:h0", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:a0:h0", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -1441,6 +1500,9 @@ int main(int argc, char **argv)
 			break;
 		case 'o': // File for output.
 			params.fout = optarg;
+			break;
+		case 'a': // Allow Resource Manager to work without swap.
+			work_without_swap_account = 1;
 			break;
 		default: // Command.
 			is_options_ended = 1;
@@ -1477,6 +1539,10 @@ int main(int argc, char **argv)
 	find_cgroup_controllers();
 	// Create new control group for command.
 	create_cgroup(dir);
+
+	// Check if swap account is available. If it's not then print a warning and
+	// don't use swap (this may cause problems on memory exhausting).
+	check_swap_account_availability(work_without_swap_account);
 
 	// Configure control groups.
 	set_mem_limit();
