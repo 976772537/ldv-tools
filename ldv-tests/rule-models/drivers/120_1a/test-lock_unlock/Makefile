@@ -1,0 +1,9 @@
+obj-m += S-all.o
+obj-m += U-lock.o
+obj-m += U-lock_bh.o
+obj-m += U-lock_sched.o
+obj-m += U-lock_srcu.o
+obj-m += U-unlock.o
+obj-m += U-unlock_bh.o
+obj-m += U-unlock_sched.o
+obj-m += U-unlock_srcu.o
