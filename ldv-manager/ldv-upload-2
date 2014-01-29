@@ -97,6 +97,8 @@ my $current_dir = getcwd();
 
 my $tmpdir = './'; # Temp directory for extracting pax archive.
 
+my $kb_recalc_pipe;
+
 # Names of the components.
 my @ldv_components =
   ( 'build-cmd-extractor', 'drv-env-gen', 'dscv', 'rule-instrumentor', 'rcv' );
@@ -246,12 +248,6 @@ sub disconnect_from_db() {
     }
 }
 
-# Actions which should be completed in case of any errors or after finishing uploading.
-# TODO: Move this to the end of file.
-END {
-    disconnect_from_db();
-}
-
 # If option "--xml" was specified then the xml file is uploaded file.
 # Otherwise uploaded file will be concidered as pax file, extracted in tmp directory, and xml file will be there.
 sub get_xml_file($) {
@@ -286,6 +282,7 @@ sub get_xml_file($) {
 
         # Get xml file from there.
 # TODO: system('find', '*.xml') ...
+        #$xml_file = system('find', "$tmpdir*.xml") == 0 || die "Can't locate xml file: $!";
         $xml_file = `find $tmpdir*.xml` || die "Can't locate xml file: $!";
         chomp($xml_file);
         print_debug_debug("Xml file $xml_file was found in $tmpdir");
@@ -327,7 +324,7 @@ sub upload($$) {
 
 # TODO: run the only kb-recalc for all reports to be uploaded.
     $OUTPUT_AUTOFLUSH = 1;
-    open my $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
+    open $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
       or die "Can't fork to run kb-recalc: $!\n";
 
     # Unique ids.
@@ -563,7 +560,6 @@ sub upload($$) {
         print_debug_normal("Change <password> to your actual password");
     }
 # TODO: in case of die kb-recalc will run forever? May be move to END section. Test it!
-    close $kb_recalc_pipe;
 }
 
 sub sql_select($) {
@@ -803,5 +799,11 @@ sub change_problems_text($) {
     $text =~ s/";\n/");\n/g;
     $text =~ s/while \(<>\){/foreach\(\$cur_desc\){/g;
     return $text;
+}
+
+# Actions which should be completed in case of any errors or after finishing uploading.
+END {
+	close $kb_recalc_pipe;
+    disconnect_from_db();
 }
 
