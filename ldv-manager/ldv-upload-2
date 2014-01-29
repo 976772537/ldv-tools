@@ -431,127 +431,123 @@ sub upload($$) {
 
     print_debug_normal(
         "Processing data for each launch. This may take some time..");
-# TODO: remove useless shift from the if below. Use something like foreach my $arg ($xml_data->{ld} and values $xml_data->{ld})
-    if ( $xml_data->{ld} ) {
-        foreach my $arg ( values $xml_data->{ld} ) {
-
-            # Variables for launches.
-            my $cur_main   = $arg->{main}        || '';
-            my $cur_module = $arg->{module_name} || '';
-            my $cur_verdict = $arg->{verdict}
-              || 'UNKNOWN';    # UNKNOWN if not SAFE or UNSAFE.
-            my $cur_verifier = $arg->{verifier} || '';
+    my @lds = ();
+    if ($xml_data->{ld})
+	{
+		@lds = values $xml_data->{ld};
+	}
+	foreach my $arg (@lds) {
+		# Variables for launches.
+		my $cur_main   = $arg->{main}        || '';
+		my $cur_module = $arg->{module_name} || '';
+		my $cur_verdict = $arg->{verdict}    || 'UNKNOWN'; # UNKNOWN if not SAFE or UNSAFE.
+		my $cur_verifier = $arg->{verifier}  || '';
 
 # TODO: as far as I know old scripts upload NULL in this case.
-            my $cur_model = $arg->{model}
-              || 'Fail before RI';   # Specific name if there was no enty point.
+		my $cur_model = $arg->{model} || 'Fail before RI'; # Specific name if there was no enty point.
 
-            # For UNSAFEs - error trace and source files.
-            my $cur_trace   = $arg->{trace}      || '';
-            my $cur_sources = $arg->{sourcefile} || '';
+		# For UNSAFEs - error trace and source files.
+		my $cur_trace   = $arg->{trace}      || '';
+		my $cur_sources = $arg->{sourcefile} || '';
 
-            # Incrementing these values for each launch (not auto increment).
-            $cur_trace_id++;
-            $cur_stats_id++;
+		# Incrementing these values for each launch (not auto increment).
+		$cur_trace_id++;
+		$cur_stats_id++;
 
-            # Processing toolsets table.
-            $cur_toolset_id = sql_select(
+		# Processing toolsets table.
+		$cur_toolset_id = sql_select(
 "SELECT id FROM toolsets WHERE (toolsets.verifier = '$cur_verifier') LIMIT 1;"
-              )
-              || sql_insert(
+		)
+			|| sql_insert(
 "INSERT INTO toolsets (verifier, version) VALUES ('$cur_verifier', 'current');"
-              );
+		);
 
-            # Processing rule_models table.
-            $cur_model_id = sql_select(
+		# Processing rule_models table.
+		$cur_model_id = sql_select(
 "SELECT id FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;"
-              )
-              || sql_insert(
-                "INSERT INTO rule_models (name) VALUES ('$cur_model');");
+		)
+			|| sql_insert(
+"INSERT INTO rule_models (name) VALUES ('$cur_model');"
+		);
 
-            # Processing drivers table.
-            $cur_driver_id = sql_select(
-"SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin =
-                '$driver_origin') LIMIT 1;"
-              )
-              || sql_insert(
-                "INSERT INTO drivers (name, origin) VALUES
-                ('$cur_module', '$driver_origin');\n"
-              );
+		# Processing drivers table.
+		$cur_driver_id = sql_select(
+"SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin = '$driver_origin') LIMIT 1;"
+		)
+			|| sql_insert(
+"INSERT INTO drivers (name, origin) VALUES('$cur_module', '$driver_origin');\n"
+		);
 
-            # Processing scenarios table.
-            $cur_scenario_id = sql_insert(
+		# Processing scenarios table.
+		$cur_scenario_id = sql_insert(
 "INSERT INTO scenarios (driver_id, executable, main) VALUES ($cur_driver_id, '$cur_module', '$cur_main');\n"
-            );
+		);
 
-            # Processing launches table.
-            $cur_launch_id = sql_insert(
+		# Processing launches table.
+		$cur_launch_id = sql_insert(
 "INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', '$cur_model_id', $cur_scenario_id, '$task_id', $cur_trace_id);\n"
-            );
+		);
 
 # TODO: check what old script uploads if there is not an error trace (not an UNSAFE).
-# Error trace file.
-            my $et = '\'\'';
-            if ( $cur_verdict eq "UNSAFE" ) {
-                open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
-                  or die "Can't open file $tmpdir/traces/$cur_trace: $!";
-                my @error_trace = <TRACE_FILE>;
-                close TRACE_FILE;
-                $et = $dbh->quote( join( "\n", @error_trace ) );
-            }
+		# Error trace file.
+		my $et = '\'\'';
+		if ( $cur_verdict eq "UNSAFE" ) {
+			open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
+				or die "Can't open file $tmpdir/traces/$cur_trace: $!";
+			my @error_trace = <TRACE_FILE>;
+			close TRACE_FILE;
+			$et = $dbh->quote( join( "\n", @error_trace ) );
+		}
 
-            # Processing traces table.
-            sql_query(
+		# Processing traces table.
+		sql_query(
 "INSERT INTO traces (id, launch_id, result, error_trace, verifier, build_id, maingen_id, dscv_id, ri_id, rcv_id) VALUES ($cur_trace_id, '$cur_launch_id', '$cur_verdict', $et, '$cur_verifier', $cur_stats_id, $cur_stats_id+1, $cur_stats_id+2, $cur_stats_id+3, $cur_stats_id+4);\n"
-            );
+		);
 
-            # Source files.
-            if ( $cur_sources ne '' ) {
-                foreach my $source ( values $cur_sources ) {
+		# Source files.
+		if ( $cur_sources ne '' ) {
+			foreach my $source ( values $cur_sources ) {
+				# Trace file.
+				open SOURCE_FILE, "<", "$tmpdir/sources/$source"
+					or die "Can't open file $tmpdir/sources/$source: $!";
+				my @source_text = <SOURCE_FILE>;
+				close SOURCE_FILE;
+				my $src = $dbh->quote( join( "\n", @source_text ) );
 
-                    # Trace file.
-                    open SOURCE_FILE, "<", "$tmpdir/sources/$source"
-                      or die "Can't open file $tmpdir/sources/$source: $!";
-                    my @source_text = <SOURCE_FILE>;
-                    close SOURCE_FILE;
-                    my $src = $dbh->quote( join( "\n", @source_text ) );
-
-                    # Processing sources table.
-                    sql_query(
+				# Processing sources table.
+				sql_query(
 "INSERT INTO sources (trace_id, name, contents) VALUES ('$cur_trace_id', '$source', $src);\n"
-                    );
-                }
-            }
+				);
+			}
+		}
 
-    # Send id of unsafe launch to the child process (run kb-recalc for this id).
-            if ( $cur_verdict eq "UNSAFE" ) {
-                print $kb_recalc_pipe "$cur_launch_id";
-            }
+		# Send id of unsafe launch to the child process (run kb-recalc for this id).
+		if ( $cur_verdict eq "UNSAFE" ) {
+			print $kb_recalc_pipe "$cur_launch_id";
+		}
 
-# Processing stats, processes, problems, problems_stats tables for each component.
-            foreach my $component_name (@ldv_components) {
-
-                # Changes for table xml format
-                my $component_name_xml = '';
-                if ( $component_name eq "build-cmd-extractor" ) {
-                    $component_name_xml = "build";
-                }
-                else {
-                    $component_name_xml = $component_name;
-                }
-                my $component = $arg->{$component_name_xml} || '';
-                add_component(
-                    component      => $component,
-                    component_name => $component_name,
-                    stats_id       => $cur_stats_id,
-                    trace_id       => $cur_trace_id,
-                    verdict        => $cur_verdict,
-                    verifier       => $cur_verifier
-                );
-                $cur_stats_id++;
-            }
-        }
-    }
+		# Processing stats, processes, problems, problems_stats tables for each component.
+		foreach my $component_name (@ldv_components) {
+			# Changes for table xml format
+			my $component_name_xml = '';
+			if ( $component_name eq "build-cmd-extractor" ) {
+				$component_name_xml = "build";
+			}
+			else {
+				$component_name_xml = $component_name;
+			}
+			my $component = $arg->{$component_name_xml} || '';
+			add_component(
+				component      => $component,
+				component_name => $component_name,
+				stats_id       => $cur_stats_id,
+				trace_id       => $cur_trace_id,
+				verdict        => $cur_verdict,
+				verifier       => $cur_verifier
+			);
+			$cur_stats_id++;
+		}
+	}
     $dbh->commit;
     print_debug_normal("Commit has been completed");
 
