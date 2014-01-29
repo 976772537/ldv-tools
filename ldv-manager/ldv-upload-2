@@ -149,8 +149,7 @@ sub connect_to_db() {
     return $db_handler;
 }
 
-# TODO: fix everywhere "uploaded file" with "report to be uploaded".
-# Format: <upload> [options] -- <uploaded_files>.
+# Format: <upload> [options] -- <report_to_be_uploaded>.
 # In case of any error help will be printed and execution of the program will be stopped.
 # Returns arrray of all file names for upload.
 sub parse_command_line() {
@@ -181,7 +180,7 @@ sub parse_command_line() {
     help() if ($print_help);
 	
 	foreach my $fname (@fnames_by_option) {
-        print_debug_debug("Uploaded file is '$fname' (specified by option)");
+        print_debug_debug("Report to be uploaded is '$fname' (specified by option)");
         push( @result_fnames, File::Spec->rel2abs($fname) );
     }
 	
@@ -194,15 +193,15 @@ sub parse_command_line() {
         system('stty echo');
     }
 
-    # Get options after "--" as other uploaded files.
+    # Get options after "--" as other reports to be uploaded.
     foreach my $fname (@ARGV) {
         push( @result_fnames, File::Spec->rel2abs($fname) ) or help();
     }
 
     print_debug_debug("Parsing command line has been completed");
-    print_debug_debug( "Number of uploaded files is " . @result_fnames );
+    print_debug_debug("Number of reports to be uploaded is " . @result_fnames );
     foreach (@result_fnames) {
-        print_debug_debug("Uploaded file is '$_'");
+        print_debug_debug("Report to be uploaded is '$_'");
     }
     print_debug_debug("Xml format expected") if $file_format eq "xml";
 
@@ -210,7 +209,6 @@ sub parse_command_line() {
 }
 
 # Print help and exit.
-# TODO: fix help in accordance with a new input format.
 sub help() {
     print( STDERR << "EOM");
 
@@ -218,7 +216,7 @@ NAME
   $PROGRAM_NAME: the tool is intended to upload results to the database.
 
 SYNOPSIS
-  $PROGRAM_NAME uploaded_file [option...]
+  $PROGRAM_NAME [option...] -- <reports>
 
 OPTIONS
 
@@ -228,8 +226,16 @@ OPTIONS
     Xml format will be uploaded.
   -p
     Use password to access the data base.
+  -f
+  	Specify report to be uploaded.
 
 ENVIRONMENT VARIABLES
+
+  LDV_UPLOAD_DEBUG
+    It is an optional environment variable that specifies a debug
+    level. It uses the standard designatures to distinguish different
+    debug information printings. Each next level includes all previous
+    levels and its own messages.
 
   LDV_TASK_NAME
     The name of the task, which is uploaded to the data base.
@@ -239,7 +245,7 @@ ENVIRONMENT VARIABLES
     Keeps settings (host, database, user and password) for connection
     to the database. Note that LDVDB and LDVUSER must always be
     presented!
-
+    
 EOM
 
     exit(1);
@@ -255,17 +261,17 @@ sub disconnect_from_db() {
 # If option "--xml" was specified then the xml file is uploaded file.
 # Otherwise uploaded file will be concidered as pax file, extracted in tmp directory, and xml file will be there.
 sub get_xml_file($) {
-    my $uploaded_file = shift;
+    my $report = shift;
     my $xml_file;
 	my $current_dir = getcwd();
     if ($file_format eq "xml")
     {
-        print_debug_debug("Uploaded file will be considered as xml file");
-        $xml_file = $uploaded_file;
+        print_debug_debug("Report to be uploaded will be considered as xml file");
+        $xml_file = $report;
     }
     else {
     	$file_format = "pax";
-        print_debug_debug("Uploaded file will be considered as pax file");
+        print_debug_debug("Report to be uploaded will be considered as pax file");
 
         # Create tmp directory '.ldv_upload_tmp_XXXXXXXXXX'.
         my $tmpdirname = tempdir('.ldv_upload_tmp_XXXXXXXXXX', CLEANUP => 1 )
@@ -278,8 +284,8 @@ sub get_xml_file($) {
         chdir($tmpdir)
         	|| die "Can't change directory to $tmpdir: $!";
 		print_debug_debug("Changing directory to $tmpdir");
-		system('pax', '-O', '-r', '-f', "$uploaded_file") == 0
-			|| die "Can't extract pax file $uploaded_file: $!";
+		system('pax', '-O', '-r', '-f', "$report") == 0
+			|| die "Can't extract pax file $report: $!";
 		chdir("$tmpdir/..")
         	|| die "Can't change directory to $tmpdir/..: $!";
         print_debug_debug("Leaving directory $tmpdir");
