@@ -172,9 +172,7 @@ sub parse_command_line() {
     
     # Print help.
     help() if ($print_help);
-    
-    
-    
+
 	if ($file_format)
 	{
 		$file_format = "xml";
@@ -303,7 +301,7 @@ sub get_xml_file($) {
 
         # Get xml file from there.
 # TODO: system('find', '*.xml') ...
-        #$xml_file = system('find', "$tmpdir*.xml") == 0 || die "Can't locate xml file: $!";
+        #$xml_file = system('find', "$tmpdir*") == 0 || die "Can't locate xml file: $!";
         $xml_file = `find $tmpdir*.xml` || die "Can't locate xml file: $!";
         chomp($xml_file);
         print_debug_debug("Xml file $xml_file was found in $tmpdir");
@@ -373,10 +371,12 @@ sub upload($$) {
     my $timestamp;
     my $task_name = $LDV_TASK_NAME || '';    # LDV_TASK_NAME.
 
-# TODO: fix it in ldv-manager/report-fixup and then fix it here.
+	# Using format "yyyy-mm-dd".
+	# In report month can be only one digit ("8" instead of "08").
+	# If month specified correctly (for fixed results) it will remain correct.
     my $month = "";
     if ( $xml_data->{launch_info}->{task}->{timestamp}->{mon} < 10 ) {
-        $month = "0" . "$xml_data->{launch_info}->{task}->{timestamp}->{mon}";
+        $month = "0" . ($xml_data->{launch_info}->{task}->{timestamp}->{mon} + 0);
     }
     else {
         $month = "$xml_data->{launch_info}->{task}->{timestamp}->{mon}";
