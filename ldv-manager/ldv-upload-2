@@ -12,6 +12,8 @@ use strict;
 use File::Slurp;
 use File::Temp qw/ tempdir /;
 use Cwd;
+use Term::ReadKey;
+
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl/modules");
@@ -164,9 +166,15 @@ sub parse_command_line() {
     GetOptions(
         'help|h' => \$print_help, # Print help.
         'xml'    => \$file_format, # Use xml format instead of pax.
-        'p'      => \$is_password, # Ask password.
+        'p|password'      => \$is_password, # Ask password.
         'f=s'    => \@fnames_by_option, # Reports to be uploaded.
     ) or help();
+    
+    # Print help.
+    help() if ($print_help);
+    
+    
+    
 	if ($file_format)
 	{
 		$file_format = "xml";
@@ -176,21 +184,23 @@ sub parse_command_line() {
 		$file_format = "pax";
 	}
 	
-    # Print help.
-    help() if ($print_help);
-	
 	foreach my $fname (@fnames_by_option) {
         print_debug_debug("Report to be uploaded is '$fname' (specified by option)");
         push( @result_fnames, File::Spec->rel2abs($fname) );
     }
 	
+	# Get password from $LDVDBPASSWD.
+    if ($LDVDBPASSWD)
+    {
+    	$db_password = $LDVDBPASSWD;
+    }
     # Password promt.
-# TODO: it's recommended to use a library http://docstore.mik.ua/orelly/perl/cookbook/ch15_11.htm.
     if ($is_password) {
-        system('stty -echo');
-        print_debug_normal("Enter password for data base");
-        chomp( $db_password = <STDIN> );
-        system('stty echo');
+		print_debug_normal("Enter password for data base");
+		ReadMode 'noecho';
+		$db_password = ReadLine 0;
+		chomp $db_password;
+		ReadMode 'normal';
     }
 
     # Get options after "--" as other reports to be uploaded.
