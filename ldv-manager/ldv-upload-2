@@ -11,6 +11,7 @@ Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 use File::Slurp;
 use File::Temp qw/ tempdir /;
+use Cwd;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl/modules");
@@ -38,11 +39,6 @@ sub parse_command_line();
 # args: no.
 # retn: nothing.
 sub help();
-
-# Deletes tmp directory and all it content (if it exists).
-# args: no.
-# retn: nothing.
-sub leave_tmpdir();
 
 # Disconnects from data base.
 # args: no.
@@ -97,6 +93,10 @@ my $db_password = '';
 
 my $file_format = '';
 
+my $current_dir = getcwd();
+
+my $tmpdir = './'; # Temp directory for extracting pax archive.
+
 # Names of the components.
 my @ldv_components =
   ( 'build-cmd-extractor', 'drv-env-gen', 'dscv', 'rule-instrumentor', 'rcv' );
@@ -122,8 +122,6 @@ for (@uploaded_files) {
     my $xml_data = parse_xml_file($xml_file);
 
     upload( xml_data => $xml_data );
-
-    leave_tmpdir();
 }
 
 ################################################################################
@@ -158,7 +156,7 @@ sub parse_command_line() {
     my @result_fnames = ();
 
     # Getting first argument as uploaded file.
-    push( @result_fnames, shift(@ARGV) ) or help();
+    push( @result_fnames, File::Spec->rel2abs(shift(@ARGV)) ) or help();
 
     my $print_help  = 0;
     my $is_password = 0;
@@ -192,8 +190,8 @@ sub parse_command_line() {
     }
 
     # Get options after "--" as other uploaded files.
-    foreach (@ARGV) {
-        push( @result_fnames, $_ ) or help();
+    foreach my $fname (@ARGV) {
+        push( @result_fnames, File::Spec->rel2abs($fname) ) or help();
     }
 
     print_debug_debug("Parsing command line has been completed");
@@ -241,15 +239,6 @@ EOM
     exit(1);
 }
 
-sub leave_tmpdir() {
-    if ($file_format eq "pax")
-    {
-    	chdir("../");
-    	print_debug_debug("Leaving temp directory");
-    	$file_format = "none";
-    }
-}
-
 sub disconnect_from_db() {
     if ($dbh) {
         $dbh->disconnect;
@@ -260,7 +249,6 @@ sub disconnect_from_db() {
 # Actions which should be completed in case of any errors or after finishing uploading.
 # TODO: Move this to the end of file.
 END {
-    leave_tmpdir();
     disconnect_from_db();
 }
 
@@ -279,21 +267,26 @@ sub get_xml_file($) {
         print_debug_debug("Uploaded file will be considered as pax file");
 
         # Create tmp directory '.ldv_upload_tmp_XXXXXXXXXX'.
-		my $tmpdir = tempdir('.ldv_upload_tmp_XXXXXXXXXX', CLEANUP => 1 )
+        my $tmpdirname = tempdir('.ldv_upload_tmp_XXXXXXXXXX', CLEANUP => 1 )
 			|| die "Can't create tmp directory: $!";
+		$tmpdir = "$current_dir/$tmpdirname/";
         print_debug_debug("Tmp directory $tmpdir has been created");
 
-# TODO: don't use "chdir", see "directory" in "man pax".
-        # Extract pax file into created directory.
-        chdir($tmpdir);
-
-		system('pax', '-O', '-r', '-f', "../$uploaded_file") == 0
-          || die "Can't extract pax file $uploaded_file: $!";
+        # Extract pax file into created directory. Need to change directory for this operation.
+        print_debug_debug("Extracting pax archive into $tmpdir");
+        chdir($tmpdir)
+        	|| die "Can't change directory to $tmpdir: $!";
+		print_debug_debug("Changing directory to $tmpdir");
+		system('pax', '-O', '-r', '-f', "$uploaded_file") == 0
+			|| die "Can't extract pax file $uploaded_file: $!";
+		chdir("$tmpdir/..")
+        	|| die "Can't change directory to $tmpdir/..: $!";
+        print_debug_debug("Leaving directory $tmpdir");
         print_debug_debug("Pax archive has been extracted into $tmpdir");
 
         # Get xml file from there.
 # TODO: system('find', '*.xml') ...
-        $xml_file = `find *.xml` || die "Can't locate xml file: $!";
+        $xml_file = `find $tmpdir*.xml` || die "Can't locate xml file: $!";
         chomp($xml_file);
         print_debug_debug("Xml file $xml_file was found in $tmpdir");
     }
@@ -490,8 +483,8 @@ sub upload($$) {
 # Error trace file.
             my $et = '\'\'';
             if ( $cur_verdict eq "UNSAFE" ) {
-                open TRACE_FILE, "<", "traces/$cur_trace"
-                  or die "Can't open file traces/$cur_trace: $!";
+                open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
+                  or die "Can't open file $tmpdir/traces/$cur_trace: $!";
                 my @error_trace = <TRACE_FILE>;
                 close TRACE_FILE;
                 $et = $dbh->quote( join( "\n", @error_trace ) );
@@ -507,8 +500,8 @@ sub upload($$) {
                 foreach my $source ( values $cur_sources ) {
 
                     # Trace file.
-                    open SOURCE_FILE, "<", "sources/$source"
-                      or die "Can't open file sources/$source: $!";
+                    open SOURCE_FILE, "<", "$tmpdir/sources/$source"
+                      or die "Can't open file $tmpdir/sources/$source: $!";
                     my @source_text = <SOURCE_FILE>;
                     close SOURCE_FILE;
                     my $src = $dbh->quote( join( "\n", @source_text ) );
