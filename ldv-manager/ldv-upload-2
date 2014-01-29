@@ -81,6 +81,8 @@ sub add_processes(%);
 
 sub init_problems();
 
+sub run_kb_recalc();
+
 ################################################################################
 # Global variables.
 ################################################################################
@@ -96,8 +98,6 @@ my $file_format = '';
 my $current_dir = getcwd();
 
 my $tmpdir = './'; # Temp directory for extracting pax archive.
-
-my $kb_recalc_pipe;
 
 # Names of the components.
 my @ldv_components =
@@ -117,6 +117,8 @@ my @uploaded_files = parse_command_line();
 my %problems_functions = init_problems();
 
 my $dbh = connect_to_db();
+
+my $kb_recalc_pipe = run_kb_recalc();
 
 for (@uploaded_files) {
     my $xml_file = get_xml_file($_);
@@ -318,14 +320,25 @@ sub parse_xml_file($) {
     return $data;
 }
 
+sub run_kb_recalc()
+{
+	$OUTPUT_AUTOFLUSH = 1;
+    open my $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
+      or die "Can't fork to run kb-recalc: $!\n";
+    return $kb_recalc_pipe;
+}
+
+sub stop_kb_recalc()
+{
+	if ($kb_recalc_pipe) 
+	{
+		close $kb_recalc_pipe;
+	}
+}
+
 sub upload($$) {
     my $info     = {@_};
     my $xml_data = $info->{xml_data};
-
-# TODO: run the only kb-recalc for all reports to be uploaded.
-    $OUTPUT_AUTOFLUSH = 1;
-    open $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
-      or die "Can't fork to run kb-recalc: $!\n";
 
     # Unique ids.
     my $environment_id;
@@ -559,13 +572,10 @@ sub upload($$) {
         );
         print_debug_normal("Change <password> to your actual password");
     }
-# TODO: in case of die kb-recalc will run forever? May be move to END section. Test it!
 }
 
 sub sql_select($) {
     my $query = shift;
-# TODO: remove useless chomp here and below.
-    chomp($query);
     print_debug_all($query);
 
     my $db_query = $dbh->prepare($query)
@@ -580,7 +590,6 @@ sub sql_select($) {
 
 sub sql_insert($) {
     my $query = shift;
-    chomp($query);
     print_debug_all($query);
 
     my $db_query = $dbh->prepare($query)
@@ -593,7 +602,6 @@ sub sql_insert($) {
 
 sub sql_query($) {
     my $query = shift;
-    chomp($query);
     print_debug_all($query);
 
     my $db_query = $dbh->do($query)
@@ -803,7 +811,7 @@ sub change_problems_text($) {
 
 # Actions which should be completed in case of any errors or after finishing uploading.
 END {
-	close $kb_recalc_pipe;
+	stop_kb_recalc();
     disconnect_from_db();
 }
 
