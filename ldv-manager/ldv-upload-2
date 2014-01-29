@@ -95,8 +95,6 @@ my $db_password = '';
 
 my $file_format = '';
 
-my $current_dir = getcwd();
-
 my $tmpdir = './'; # Temp directory for extracting pax archive.
 
 # Names of the components.
@@ -151,26 +149,24 @@ sub connect_to_db() {
     return $db_handler;
 }
 
-# TODO: format should be: "<upload> [options] -- <uploaded_files>" or "<upload> [options]", where by means of one option list of uploaded files should be passed.
 # TODO: fix everywhere "uploaded file" with "report to be uploaded".
-# Format: <upload> <uploaded_file> [options] -- <uploaded_files>.
+# Format: <upload> [options] -- <uploaded_files>.
 # In case of any error help will be printed and execution of the program will be stopped.
 # Returns arrray of all file names for upload.
 sub parse_command_line() {
     my @result_fnames = ();
 
-    # Getting first argument as uploaded file.
-    push( @result_fnames, File::Spec->rel2abs(shift(@ARGV)) ) or help();
-
     my $print_help  = 0;
-    my $is_password = 0;
+    my @fnames_by_option = ();
 
     # Parsing options.
 # TODO: one may optionally provide a password through command-line options. See mysql --help (-p --password).
+	my $is_password = 0;
     GetOptions(
-        'help|h' => \$print_help,
-        'xml'    => \$file_format,
-        'p'      => \$is_password
+        'help|h' => \$print_help, # Print help.
+        'xml'    => \$file_format, # Use xml format instead of pax.
+        'p'      => \$is_password, # Ask password.
+        'f=s'    => \@fnames_by_option, # Reports to be uploaded.
     ) or help();
 	if ($file_format)
 	{
@@ -183,7 +179,12 @@ sub parse_command_line() {
 	
     # Print help.
     help() if ($print_help);
-
+	
+	foreach my $fname (@fnames_by_option) {
+        print_debug_debug("Uploaded file is '$fname' (specified by option)");
+        push( @result_fnames, File::Spec->rel2abs($fname) );
+    }
+	
     # Password promt.
 # TODO: it's recommended to use a library http://docstore.mik.ua/orelly/perl/cookbook/ch15_11.htm.
     if ($is_password) {
@@ -204,6 +205,7 @@ sub parse_command_line() {
         print_debug_debug("Uploaded file is '$_'");
     }
     print_debug_debug("Xml format expected") if $file_format eq "xml";
+
     return @result_fnames;
 }
 
@@ -255,6 +257,7 @@ sub disconnect_from_db() {
 sub get_xml_file($) {
     my $uploaded_file = shift;
     my $xml_file;
+	my $current_dir = getcwd();
     if ($file_format eq "xml")
     {
         print_debug_debug("Uploaded file will be considered as xml file");
