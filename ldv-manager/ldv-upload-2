@@ -10,6 +10,7 @@ use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
 use File::Slurp;
+use File::Temp qw/ tempdir /;
 
 # Add some local Perl packages.
 use lib("$FindBin::RealBin/../shared/perl/modules");
@@ -95,9 +96,6 @@ my $db_host = $LDVDBHOST || 'localhost';
 my $db_password = '';
 
 my $is_xml = 0;    # If true then xml format will be expected instead of pax.
-
-# Name of the tmp directory for extracting pax file.
-my $tmpdir = '';
 
 # Text of the problem functions.
 my %problems_functions;
@@ -240,11 +238,6 @@ EOM
 
 sub remove_tmpdir() {
     chdir("../");
-    if ( $tmpdir ne '' ) {
-        `rm -rf $tmpdir`;
-        print_debug_debug("Tmp directory $tmpdir has been deleted");
-    }
-    $tmpdir = '';
 }
 
 sub disconnect_from_db() {
@@ -274,11 +267,9 @@ sub get_xml_file($) {
     else {
         print_debug_debug("Uploaded file will be considered as pax file");
 
-        # Create tmp directory '.XXXXXXXXXX'.
-# TODO: use http://docstore.mik.ua/orelly/perl4/cook/ch07_12.htm, http://perldoc.perl.org/File/Temp.html. So remove_tmpdir() won't be needed.
-        $tmpdir = `mktemp -d --tmpdir=. .XXXXXXXXXX`
-          || die "Can't create tmp directory: $!";
-        chomp($tmpdir);
+        # Create tmp directory '.ldv_upload_tmp_XXXXXXXXXX'.
+		my $tmpdir = tempdir('.ldv_upload_tmp_XXXXXXXXXX', CLEANUP => 1 )
+			|| die "Can't create tmp directory: $!";
         print_debug_debug("Tmp directory $tmpdir has been created");
 
 # TODO: don't use "chdir", see "directory" in "man pax".
