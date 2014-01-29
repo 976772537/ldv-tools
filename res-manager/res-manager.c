@@ -1288,6 +1288,7 @@ static void print_usage(void)
 		"\t\tkernel version: <version>\n"
 		"\t\tcpu: <name of cpu>\n"
 		"\t\tmemory: <max size> bytes\n"
+		"\t\tswap account: (un)available\n"
 		"\tResource Manager settings:\n"
 		"\t\tmemory limit: <number> bytes\n"
 		"\t\ttime limit: <number> ms\n"
