@@ -560,15 +560,16 @@ sub upload($$) {
 
     print_debug_normal(
         "Results were successfully uploaded to database. They can be found at");
-# TODO: combine the same part of URL http://... my $url_without_password = ...;
+
+	my $url_without_password = "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password";
     if ( $db_password eq '' ) {
         print_debug_normal(
-"http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/no/"
+"$url_without_password/no/"
         );
     }
     else {
         print_debug_normal(
-"http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password/<password>/"
+"$url_without_password/<password>/"
         );
         print_debug_normal("Change <password> to your actual password");
     }
