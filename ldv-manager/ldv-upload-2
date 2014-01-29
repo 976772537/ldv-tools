@@ -488,9 +488,8 @@ sub upload($$) {
 "INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', '$cur_model_id', $cur_scenario_id, '$task_id', $cur_trace_id);\n"
 		);
 
-# TODO: check what old script uploads if there is not an error trace (not an UNSAFE).
 		# Error trace file.
-		my $et = '\'\'';
+		my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
 		if ( $cur_verdict eq "UNSAFE" ) {
 			open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
 				or die "Can't open file $tmpdir/traces/$cur_trace: $!";
