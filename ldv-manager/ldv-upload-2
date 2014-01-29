@@ -42,7 +42,7 @@ sub help();
 # Deletes tmp directory and all it content (if it exists).
 # args: no.
 # retn: nothing.
-sub remove_tmpdir();
+sub leave_tmpdir();
 
 # Disconnects from data base.
 # args: no.
@@ -95,10 +95,7 @@ sub init_problems();
 my $db_host = $LDVDBHOST || 'localhost';
 my $db_password = '';
 
-my $is_xml = 0;    # If true then xml format will be expected instead of pax.
-
-# Text of the problem functions.
-my %problems_functions;
+my $file_format = '';
 
 # Names of the components.
 my @ldv_components =
@@ -115,7 +112,7 @@ get_debug_level( "ldv-upload", $LDV_DEBUG, $LDV_UPLOAD_DEBUG );
 
 my @uploaded_files = parse_command_line();
 
-%problems_functions = init_problems();
+my %problems_functions = init_problems();
 
 my $dbh = connect_to_db();
 
@@ -126,7 +123,7 @@ for (@uploaded_files) {
 
     upload( xml_data => $xml_data );
 
-    remove_tmpdir();
+    leave_tmpdir();
 }
 
 ################################################################################
@@ -170,10 +167,18 @@ sub parse_command_line() {
 # TODO: one may optionally provide a password through command-line options. See mysql --help (-p --password).
     GetOptions(
         'help|h' => \$print_help,
-        'xml'    => \$is_xml,
+        'xml'    => \$file_format,
         'p'      => \$is_password
     ) or help();
-
+	if ($file_format)
+	{
+		$file_format = "xml";
+	}
+	else
+	{
+		$file_format = "pax";
+	}
+	
     # Print help.
     help() if ($print_help);
 
@@ -196,7 +201,7 @@ sub parse_command_line() {
     foreach (@result_fnames) {
         print_debug_debug("Uploaded file is '$_'");
     }
-    print_debug_debug("Xml format expected") if $is_xml;
+    print_debug_debug("Xml format expected") if $file_format eq "xml";
     return @result_fnames;
 }
 
@@ -236,8 +241,13 @@ EOM
     exit(1);
 }
 
-sub remove_tmpdir() {
-    chdir("../");
+sub leave_tmpdir() {
+    if ($file_format eq "pax")
+    {
+    	chdir("../");
+    	print_debug_debug("Leaving temp directory");
+    	$file_format = "none";
+    }
 }
 
 sub disconnect_from_db() {
@@ -250,7 +260,7 @@ sub disconnect_from_db() {
 # Actions which should be completed in case of any errors or after finishing uploading.
 # TODO: Move this to the end of file.
 END {
-    remove_tmpdir();
+    leave_tmpdir();
     disconnect_from_db();
 }
 
@@ -259,12 +269,13 @@ END {
 sub get_xml_file($) {
     my $uploaded_file = shift;
     my $xml_file;
-    if ($is_xml)    # "--xml".
+    if ($file_format eq "xml")
     {
         print_debug_debug("Uploaded file will be considered as xml file");
         $xml_file = $uploaded_file;
     }
     else {
+    	$file_format = "pax";
         print_debug_debug("Uploaded file will be considered as pax file");
 
         # Create tmp directory '.ldv_upload_tmp_XXXXXXXXXX'.
@@ -275,8 +286,8 @@ sub get_xml_file($) {
 # TODO: don't use "chdir", see "directory" in "man pax".
         # Extract pax file into created directory.
         chdir($tmpdir);
-# TODO: system('pax', '-O', ..., $uploaded_file) ...
-        system("pax -O -r -f ../$uploaded_file") == 0
+
+		system('pax', '-O', '-r', '-f', "../$uploaded_file") == 0
           || die "Can't extract pax file $uploaded_file: $!";
         print_debug_debug("Pax archive has been extracted into $tmpdir");
 
