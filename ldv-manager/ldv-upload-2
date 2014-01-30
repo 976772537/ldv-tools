@@ -295,8 +295,6 @@ sub get_xml_file($) {
         print_debug_debug("Pax archive has been extracted into $tmpdir");
 
         # Get xml file from there.
-# TODO: system('find', '*.xml') ...
-        #$xml_file = system("find $tmpdir*.xml") == 0 || die "Can't locate xml file: $!";
         $xml_file = `find $tmpdir*.xml` || die "Can't locate xml file: $!";
         chomp($xml_file);
         print_debug_debug("Xml file $xml_file was found in $tmpdir");
@@ -789,6 +787,9 @@ sub init_problems() {
     $text = read_file("$problem_dir/build/build");
     $text = change_problems_text($text);
     $result_problems{'build-cmd-extractor'} = $text;
+
+    # Component 'deg' (No specified problems).
+    $result_problems{'drv-env-gen'} = "";
 
     # Component 'dscv'.
     $text                    = read_file("$problem_dir/dscv/problems");
