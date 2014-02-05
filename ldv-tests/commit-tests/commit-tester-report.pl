@@ -587,19 +587,18 @@ sub create_several_report(@)
 						'problems' => $tmp_results_map{1}{'problems'},
 						'verdict_type' => $tmp_results_map{1}{'verdict_type'}
 					};
-#					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
-					print "ERROR: Undefined time for $results_map{$num_of_tasks}{'commit'}; file $i; \n"  unless(defined($results_map{$num_of_tasks}{'time'}));
+					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
+					$results_map{$num_of_tasks}{'time'} = "$names[$i]: " . $tmp_results_map{1}{'time'};
+					print "ERROR: Undefined time for $results_map{$num_of_tasks}{'commit'}; file $i; \n"
+						unless(defined($results_map{$num_of_tasks}{'time'}));
 					$sum_time[$i] += int($tmp_results_map{1}{'time'})
 						if($tmp_results_map{1}{'time'} !~ /-/);
 					$sum_good_time[$i] += int($tmp_results_map{1}{'time'})
-						if(($tmp_results_map{1}{'verdict$i'} ne 'unknown')
+						if(($results_map{$num_of_tasks}{"verdict$i"} ne 'unknown')
 						and ($tmp_results_map{1}{'time'} !~ /-/));
 					$sum_memory[$i] += int($tmp_results_map{1}{'memory'})
 						if(($tmp_results_map{1}{'memory'} !~ /-/)
-						and ($tmp_results_map{1}{'verdict$i'} ne 'unknown'));
-					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
-                                        $results_map{$num_of_tasks}{'time'} = "$names[$i]: " . $tmp_results_map{1}{'time'};
-
+						and ($results_map{$num_of_tasks}{"verdict$i"} ne 'unknown'));
 				}
 			}
 			elsif($_ =~ /^link_to_results=(.*)/)
