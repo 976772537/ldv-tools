@@ -171,6 +171,22 @@ sub patch_headers {
 		}
 		close FILE or die("Can't close file after patching: $!");
 	}
+
+	# linux-3.14-rc1 started to use __int128 type that can't be understood by CIL.
+	# Replace it with a standard int type as C-backend does.
+        if (-f $kernel_info->{'header_linux_math64_h'}) {
+                vsay 'NORMAL', "Patching header file: \"$kernel_info->{'header_linux_math64_h'}\".\n";
+                open (FILE, $kernel_info->{'header_linux_math64_h'}) or die("Can't file reading while patching: $!");
+                @string = <FILE>;
+                close FILE or die("Can't close file after reading for patching: $!");
+                open (FILE,">".$kernel_info->{'header_linux_math64_h'}) or die("Can't open file for patching: $!");
+                $state = 1;
+                foreach (@string) {
+			s/__int128/int/;
+			print FILE;
+                }
+                close FILE or die("Can't close file after patching: $!");
+        }
 }
 
 sub patch_arch_files {
@@ -266,6 +282,7 @@ sub get_kernel_info {
 	$kernel_info{'header_linux_bug_h'} = $path_to_kernel.'/include/linux/bug.h';
 	$kernel_info{'header_net_inet_sock_h'} = $path_to_kernel.'/include/net/inet_sock.h';
 	$kernel_info{'header_spinlock_types_h'} = $path_to_kernel.'/include/linux/spinlock_types.h';
+	$kernel_info{'header_linux_math64_h'} = $path_to_kernel.'/include/linux/math64.h';
 	close FILE or die("Can't close main makefile after reading kernel information.");
 	return {%kernel_info};
 }
