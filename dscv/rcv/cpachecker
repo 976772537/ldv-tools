@@ -542,6 +542,9 @@ sub cpachecker_verdict
 		# Even more newer versions change the format again...
 		$l =~ /Verification result: UNSAFE/ and return {'VERDICT' => 'unsafe'};
 		$l =~ /Verification result: SAFE/ and return {'VERDICT' => 'safe'};
+		# New format for CPAchecker-1.3 (as in SV-COMP'14)
+		$l =~ /Verification result: FALSE/ and return {'VERDICT' => 'unsafe'};
+		$l =~ /Verification result: TRUE/ and return {'VERDICT' => 'safe'};
 
 		$l =~ /No error locations reachable from .*, analysis not necessary/ and return {'VERDICT' => "safe"};
 		return undef;
