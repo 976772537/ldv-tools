@@ -89,7 +89,6 @@ sub run_kb_recalc();
 # Global variables.
 ################################################################################
 
-# TODO: don't use global variables - use (hash for) function parameters, see etv/modules/ETV/Library.pm as example.
 # The default database host and password. They're used when no host is specified
 # through the environment variables.
 my $db_host = $LDVDBHOST || 'localhost';
@@ -333,8 +332,8 @@ sub parse_xml_file($) {
 sub run_kb_recalc()
 {
 	$OUTPUT_AUTOFLUSH = 1;
-    open my $kb_recalc_pipe, "| kb-recalc.pl --init-cache --new-launch"
-      or die "Can't fork to run kb-recalc: $!\n";
+    open my $kb_recalc_pipe, "|kb-recalc.pl --init-cache --new-launch"
+      // die "Can't fork to run kb-recalc: $!\n";
     return $kb_recalc_pipe;
 }
 
@@ -539,7 +538,7 @@ sub upload($$) {
 
 		# Send id of unsafe launch to the child process (run kb-recalc for this id).
 		if ( $cur_verdict eq "UNSAFE" ) {
-			print $kb_recalc_pipe "$cur_launch_id";
+			print $kb_recalc_pipe "$cur_launch_id\n";
 		}
 
 		# Processing stats, processes, problems, problems_stats tables for each component.
