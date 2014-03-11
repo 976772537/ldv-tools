@@ -1153,6 +1153,7 @@ static void check_time(int signum)
 }
 
 // Redirect stderr/stdout into file.
+//TODO: there is no support for redirecting both stderr and stdout in one file.
 static void redirect(int fd, const char *fname)
 {
 	int fdes[2];
