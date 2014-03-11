@@ -1174,6 +1174,7 @@ static void redirect(int fd, const char *fname)
 
 	// Create new file in which stdout/stderr will be redirected.
 	fdes[1] = open(fname, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	
 	if (fdes[1] == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
@@ -1466,7 +1467,7 @@ int main(int argc, char **argv)
 	}
 
 	// Parse command line.
-	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:a0:h0", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:a0:h0s:e:", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
