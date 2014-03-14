@@ -1174,7 +1174,7 @@ static void redirect(int fd, const char *fname)
 	fdes[0] = fd;
 
 	// Create new file in which stdout/stderr will be redirected.
-	fdes[1] = open(fname, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	fdes[1] = open(fname, O_CREAT|O_WRONLY|O_TRUNC, 00644);
 	
 	if (fdes[1] == -1)
 	{
