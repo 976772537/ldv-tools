@@ -1089,28 +1089,36 @@ int main(int argc, char **argv)
 		execl(timeout, timeout, "-h", (char*)0);
 	wait_help_option(outputfile);
 	print_stat(outputfile);
-	
+
+	// Config - few options in config file.
 	system("echo -e \"memory memory.limit_in_bytes 10000000\nmemory memory.memsw.limit_in_bytes 10000000\" > tmp_file_");
-	if (fork()==0)
-		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
-	wait_signal_execution(outputfile);
-	print_stat(outputfile);
-	system("rm tmp_file_");
-	
-	system("echo -e \"memory memory.swappiness 0\" > tmp_file_");
+	system("sleep 1"); // To avoid race condition.
 	if (fork()==0)
 		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_normal_execution(outputfile);
 	print_stat(outputfile);
 	system("rm tmp_file_");
 	
-	system("echo -e \"memory memory.limit_in_bytes_ 10000000\" > tmp_file_");
+	// Config - single option in config file.
+	system("echo -e \"memory memory.swappiness 0\" > tmp_file_");
+	system("sleep 1"); // To avoid race condition.
+	if (fork()==0)
+		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
+	wait_normal_execution(outputfile);
+	print_stat(outputfile);
+	system("rm tmp_file_");
+	
+	// Config - wrong option in config file (with nonexistent cgroup parameter -> res-manager will crush with exit_res_manager).
+	system("echo \"memory memory.limit_in_kbytes 10000000\" > tmp_file_");
+	system("sleep 1"); // To avoid race condition.
 	if (fork()==0)
 		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
 	print_stat(outputfile);
 	system("rm tmp_file_");
 	
+	// Config - wrong name of config file (res-manager will crush with exit_res_manager).
+	system("sleep 1"); // To avoid race condition.
 	if (fork()==0)
 		execl(timeout, timeout, "--config", "tmp_file_", "-o", outputfile, "-d", "ldv", "memory/limit", "11000000",(char*)0);
 	wait_exitcode_execution_script(outputfile);
