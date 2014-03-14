@@ -654,8 +654,10 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	fp = xfopen(fname_new, "w+");
 
 	// Write value to the file.
-	// TODO: check return value (man fputs!).
-	fputs(value, fp);
+	if (fputs(value, fp) == EOF)
+	{
+		exit_res_manager(errno, NULL, strerror(errno));
+	}
 
 	fclose(fp);
 
