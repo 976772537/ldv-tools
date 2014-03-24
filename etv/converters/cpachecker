@@ -270,8 +270,14 @@ sub get_loc_and_val($$)
 
   # Try to get a corresponding line number.
   my $line = '';
-  if ($val =~ /^\s*Line\s*([^:]+):/)
+  if ($val =~ /^\s*none\s*:/) {
+    $val = $POSTMATCH;
+  }
+  elsif ($val =~ /^\s*[Ll]ine\s+([^:]+):/)
   {
+    $val = $POSTMATCH;
+    $line = $1 if (defined($1));
+  } elsif ($val =~ /^\s*lines\s+(\d+)\s*-\s*\d+\s*:/) {
     $val = $POSTMATCH;
     $line = $1 if (defined($1));
   }
