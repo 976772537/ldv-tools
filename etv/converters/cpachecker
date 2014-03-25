@@ -110,7 +110,7 @@ my $isinit = 0;
 # CPAchecker releases (~1.2).
 
 # Find indexes for not supported lines.
-my @del_indexes = reverse(grep { $et_raw[$_] =~ /Real:/ } 0..$#et_raw);
+my @del_indexes = reverse(grep { $et_raw[$_] =~ /Real:/ || $et_raw[$_] =~ /^\t/} 0..$#et_raw);
 
 # Delete lines by their indexes.
 foreach my $index (@del_indexes)
