@@ -243,13 +243,13 @@ sub upload_right_results {
     print_debug_debug
 "The database '$LDVDBCTEST' and the user '$LDVUSERCTEST' is setup for the ldv-upload";
     if ($LDVDBHOSTCTEST) {
-        local $ENV{$ldv_uploader_host} = $LDVDBHOSTCTEST;
+        $ENV{$ldv_uploader_host} = $LDVDBHOSTCTEST;
         print_debug_debug
           "The host '$LDVDBHOSTCTEST' is setup for the ldv-upload";
     }
 
     if ($LDVDBPASSWDCTEST) {
-        local $ENV{$ldv_uploader_password} = $LDVDBPASSWDCTEST;
+        $ENV{$ldv_uploader_password} = $LDVDBPASSWDCTEST;
         print_debug_debug
           "The password '$LDVDBPASSWDCTEST' is setup for the ldv-upload";
     }

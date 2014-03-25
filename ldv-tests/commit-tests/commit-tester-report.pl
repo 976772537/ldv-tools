@@ -309,8 +309,7 @@ sub create_report($)
 				print($html_results "191970");
 			}
 			print($html_results ";background:#9F79EE")
-				if(($results_map{$i}{'verdict_type'} == 1)
-					and ($results_map{$i}{'ideal_verdict'} eq 'unsafe'));
+				if($results_map{$i}{'verdict_type'} == 1);
 			print($html_results "\">$results_map{$i}{'ideal_verdict'}->$results_map{$i}{'new_verdict'}</td>
 				<td");
 			print($html_results " style=\"color:#CD2626\"")
@@ -720,8 +719,7 @@ sub create_several_report(@)
 				<td><small>$results_map{$i}{'main'}</small></td>
 				<td");
 			print($html_results " style=\"color:#9F79EE\"")
-				if(($results_map{$i}{'verdict_type'} == 1)
-					and ($results_map{$i}{'ideal_verdict'} eq 'unsafe'));
+				if($results_map{$i}{'verdict_type'} == 1);
 			print($html_results ">$results_map{$i}{'ideal_verdict'}</td>");
 			for(my $j = 0; $j < $num_of_files; $j++)
 			{
