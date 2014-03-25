@@ -141,7 +141,7 @@ set_cil_options(
 );
 
 # Now, as CIL script and options are prepared, let's invoke the preprocessing.
-my @files = preprocess_all_files('cpp','cil-merge');
+my @files = preprocess_all_files('cpp');
 
 # If you need more preprocessing, just invoke your own preprocessor here.  As
 # we've specified 'cil-merge', the @files array now contains one file.
