@@ -25,9 +25,16 @@ sub get_loc_and_val($$);
 # We'd like to relate a given CPAchecker error trace with original source code,
 # not with the intermediate (CIL) one. So first of all build a map between
 # sources.
+
 my %src_map;
 
 my @intermediate_source_file;
+
+my $cil = 'yes';
+
+my @sources = ();
+
+my $prev_src = '';
 
 # Read an intermediate source file from the beginning of the error trace.
 unless ($opts->{'fh intermediate source file'})
@@ -37,19 +44,39 @@ unless ($opts->{'fh intermediate source file'})
   {
     if ($header =~ /^-------(.*)-------$/)
     {
-      print_debug_trace("Process '$1' intermediate source file");
-
-      while (scalar(@et_array))
+      if ($1 eq 'NO_CIL')
       {
-        my $str = shift(@et_array);
+        $cil = 'no';
+        # Get the absolute names of the sources.
+        while (scalar(@et_array))
+        {
+          my $src = shift(@et_array);
 
-        last if ($str eq "--------------");
+          last if ($src eq "--------------");
 
-        push(@intermediate_source_file, $str);
+          if ($src =~ /^-------(.*)-------$/)
+          {
+            push(@sources, $1);
+          }
+        }
+        print_debug_warning("The absolute names of the sources isn't terminated with"
+          . " '--------------'") unless (scalar(@et_array));
       }
+      else
+      {
+        print_debug_trace("Process '$1' intermediate source file");
 
-      print_debug_warning("An intermediate source file isn't terminated with"
-        . " '--------------'") unless (scalar(@et_array));
+        while (scalar(@et_array))
+        {
+          my $str = shift(@et_array);
+
+          last if ($str eq "--------------");
+
+          push(@intermediate_source_file, $str);
+        }
+        print_debug_warning("An intermediate source file isn't terminated with"
+          . " '--------------'") unless (scalar(@et_array));
+      }
     }
     else
     {
@@ -66,9 +93,13 @@ else
   @intermediate_source_file = <$fh>;
 }
 
+if ($cil eq 'yes')
+{
+
 my $src_cur = '';
 my $src_line_cur = 0;
 my $cil_line_cur = 1;
+
 while (scalar(@intermediate_source_file))
 {
   my $str = shift(@intermediate_source_file);
@@ -93,6 +124,8 @@ while (scalar(@intermediate_source_file))
   }
 
   $cil_line_cur++;
+}
+
 }
 
 # Read the whole error trace specified.
@@ -192,7 +225,7 @@ while (@et_raw)
     $type = 'BLOCK';
     $text = ": $1 = $2;";
   }
-  elsif ($val =~ /^return\s*(.*);$/)
+  elsif ($val =~ /^[Rr]eturn\s*(.*)$/ || $val =~ /^default return\s*$/)
   {
     $type = 'RETURN';
     if ($1)
@@ -255,6 +288,15 @@ while (@et_raw)
     , join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
 }
 
+=com
+print"START\n";
+foreach my $elem (@et_conv_array)
+{
+	print"$elem\n";
+}
+print"END\n";
+=cut
+
 {
 # Supress warnings like 'Subroutine get_loc_and_val redefined' in the manner
 # recommended at http://perldoc.perl.org/perldiag.html.
@@ -267,6 +309,32 @@ sub get_loc_and_val($$)
 
   # At the beginning a node value equals to a node string.
   my $val = $str;
+
+  # name, lines N1-N2 : ...
+  my $src = '';
+  if ($cil eq 'no')
+  {
+  
+  if ($val =~ /^\s*(.*),\s*[Ll]ine/ || $val =~ /^\s*(.*),\s*none/) 
+  {
+    $src = $1 if (defined($1));
+    if ($val =~ /^\s*$src,\s*/) {
+      $val = $POSTMATCH;
+    }
+    # Get absolute name.
+    foreach my $abs_src (@sources)
+    {
+      if ($abs_src =~ /$src$/)
+      {
+        $src = $abs_src;
+      }
+    }
+    
+    $src = '"'.$src.'"';
+    
+  }
+  
+  }
 
   # Try to get a corresponding line number.
   my $line = '';
@@ -290,16 +358,19 @@ sub get_loc_and_val($$)
   else
   {
     print_debug_warning("A CPAchecker error trace specified has unsupported"
-     . " format in string '$str'");
-    # So don't process this string further.
+    . " format in string '$str'");
+    # So don't process this string further.Parsing failed 
     return ('', $line, '');
   }
 
   # Do not get a source code reference for empty nodes.
   return ('', $line, $val) if ($val =~ /^\s*$/);
 
+  
+
   # Try to get a corresponding source code location.
-  my $src = '';
+  if ($cil eq 'yes')
+  {
   if ($src_map{$line})
   {
     # Use a corresponding path just in case when it exists and differs from the
@@ -320,7 +391,7 @@ sub get_loc_and_val($$)
     print_debug_trace("Can't find a corresponding source code for line"
       . " '$line'");
   }
-
+  }
   return ($src, $line, $val);
 }
 
