@@ -16,7 +16,7 @@ use Term::ReadKey;
 
 
 # Add some local Perl packages.
-use lib("$FindBin::RealBin/../shared/perl/modules");
+use lib("$FindBin::RealBin/../shared/perl");
 
 # Add some nonstandard local Perl packages.
 use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
