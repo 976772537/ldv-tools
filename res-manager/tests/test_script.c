@@ -23,13 +23,13 @@ typedef struct statistics
 	int exit_code;
 	int memory_exhausted;
 	int time_exhausted;
-	long memlimit;
+	unsigned long long memlimit;
 	double timelimit;
 	double wall_time;
 	double cpu_time;
 	double user_time;
 	double sys_time;
-	long memory;
+	unsigned long long memory;
 } statistics;
 
 double time_inacc = 0.6;
@@ -72,20 +72,20 @@ char * read_string_from_file(const char * path)
 	return line;
 }
 
-int get_num(long num)
+int get_num(unsigned long long num)
 {
 	int ret = 1;
-	long count = num;
+	unsigned long long count = num;
 	while ((count = count/10) > 0) ret++;
 	return ret;
 }
 
-char * itoa(long num)
+char * itoa(unsigned long long num)
 {
 	int number_of_chars = get_num(num);
 	char * str = (char *) malloc (sizeof(char *) * (number_of_chars + 1));
 	int i;
-	long count = num;
+	unsigned long long count = num;
 	for (i = number_of_chars - 1; i >= 0; i--)
 	{
 		str[i] = count%10 + '0';
@@ -198,7 +198,7 @@ statistics * parse_outputfile(const char * file)
 		line = read_string_from_opened_file(results);
 		sscanf(line,"%s %s %s %s",tmp,arg,tmp,value);
 		if (strcmp(arg,"memory") == 0)
-			stats->memory = atol(value);
+			stats->memory = atoll(value);
 	
 	}
 	fclose(results);
@@ -246,13 +246,13 @@ int check_outputfile_time(const char * outputfile, double time)
 	return 0;
 }
 
-int check_outputfile_memory(const char * outputfile, int mem)
+int check_outputfile_memory(const char * outputfile, long long unsigned mem)
 //returns true, if ((mem - cmem) / time) <= mem_inacc
 {
 	statistics * stats = parse_outputfile(outputfile);
 	if (stats == NULL)
 		return 0;
-	double inaccuracy = fabs(mem - stats->memory) / (mem + EPS);
+	double inaccuracy = llabs(mem - stats->memory) / (mem + EPS);
 	if (inaccuracy <= mem_inacc)
 		return 1;
 	return 0;
@@ -436,7 +436,7 @@ void wait_help_option(const char * outputfile)
 	}
 }
 
-void wait_and_check_memory(const char * outputfile, int mem)
+void wait_and_check_memory(const char * outputfile, long long unsigned mem)
 // compare memory with known memory
 {
 	print_test_header();
@@ -845,7 +845,7 @@ int main(int argc, char **argv)
 	system(concat("(time -p ",timeout," -m 100000000 -t 100 -o tmpfile -d ldv time/real_childs_2 32 12000) 2> time_file_"));
 	wait_and_check_time_command(outputfile, time_file);
 	print_stat(outputfile);	
-	
+
 	// 5. memlimit
 	printf("\n\n5.Tests for memory limits\n");
 	
