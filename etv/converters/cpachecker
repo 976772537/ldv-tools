@@ -110,7 +110,7 @@ my $isinit = 0;
 # CPAchecker releases (~1.2).
 
 # Find indexes for not supported lines.
-my @del_indexes = reverse(grep { $et_raw[$_] =~ /Real:/ } 0..$#et_raw);
+my @del_indexes = reverse(grep { $et_raw[$_] =~ /Real:/ || $et_raw[$_] =~ /^\t/} 0..$#et_raw);
 
 # Delete lines by their indexes.
 foreach my $index (@del_indexes)
@@ -270,8 +270,14 @@ sub get_loc_and_val($$)
 
   # Try to get a corresponding line number.
   my $line = '';
-  if ($val =~ /^\s*Line\s*([^:]+):/)
+  if ($val =~ /^\s*none\s*:/) {
+    $val = $POSTMATCH;
+  }
+  elsif ($val =~ /^\s*[Ll]ine\s+([^:]+):/)
   {
+    $val = $POSTMATCH;
+    $line = $1 if (defined($1));
+  } elsif ($val =~ /^\s*lines\s+(\d+)\s*-\s*\d+\s*:/) {
     $val = $POSTMATCH;
     $line = $1 if (defined($1));
   }
