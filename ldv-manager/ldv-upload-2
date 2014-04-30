@@ -486,23 +486,38 @@ sub upload($$) {
 			$cur_model_id = 'NULL';
 		}
 
-		# Processing drivers table.
+		# Processing drivers table.		
 		$cur_driver_id = sql_select(
-"SELECT id FROM drivers WHERE (drivers.name = '$cur_module' and drivers.origin = '$driver_origin') LIMIT 1;"
+"SELECT id FROM drivers WHERE (CONVERT(name USING latin1) COLLATE latin1_bin = '$cur_module' and drivers.origin = '$driver_origin') LIMIT 1;"
 		)
 			|| sql_insert(
 "INSERT INTO drivers (name, origin) VALUES('$cur_module', '$driver_origin');\n"
 		);
 
 		# Processing scenarios table.
-		$cur_scenario_id = sql_insert(
+		$cur_scenario_id = sql_select(
+"SELECT id FROM scenarios WHERE (driver_id = '$cur_driver_id' and CONVERT(executable USING latin1) COLLATE latin1_bin = '$cur_module' and main = '$cur_main') LIMIT 1;"
+		)
+			|| sql_insert(
 "INSERT INTO scenarios (driver_id, executable, main) VALUES ($cur_driver_id, '$cur_module', '$cur_main');\n"
 		);
 
 		# Processing launches table.
-		$cur_launch_id = sql_insert(
+		$tmp_res = sql_select("
+SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_toolset_id and environment_id = $environment_id and (rule_model_id = $cur_model_id or '$cur_model_id' = 'NULL') and scenario_id = $cur_scenario_id and task_id = $task_id) LIMIT 1;");
+		my $is_update = ($tmp_res != 0);
+
+		if ($is_update) # Update.
+		{
+			$cur_launch_id = $tmp_res;
+			sql_query("UPDATE launches SET task_id = $task_id WHERE id = $cur_launch_id");
+		}
+		else # Insert.
+		{
+			$cur_launch_id = sql_insert(
 "INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', $cur_model_id, $cur_scenario_id, '$task_id', $cur_trace_id);\n"
-		);
+			);
+		}
 
 		# Error trace file.
 		my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
