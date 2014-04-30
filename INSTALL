@@ -44,7 +44,12 @@ MINIMAL PREREQUISITES
 		- XML::Twig
 		- XML::Writer
 		- SOAP::Lite (0.714 or 0.715 versions work, 1.0 works with warnings, to install 0.715 version you need to run `sudo cpan M/MK/MKUTTER/SOAP-Lite-0.715.tar.gz`)
-		- IO::Socket::INET;
+		- IO::Socket::INET
+		- File::Slurp
+		- File::Temp
+		- Term::ReadKey
+		- XML::LibXML::SAX
+		- XML::Simple;
 	o CPIO archiver
 	o PAX archiver
 	o Ruby gem manager
