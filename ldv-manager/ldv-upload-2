@@ -526,7 +526,7 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
 				or die "Can't open file $tmpdir/traces/$cur_trace: $!";
 			my @error_trace = <TRACE_FILE>;
 			close TRACE_FILE;
-			$et = $dbh->quote( join( "\n", @error_trace ) );
+			$et = $dbh->quote( join( "", @error_trace ) );
 		}
 
 		# Processing traces table.
@@ -542,7 +542,7 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
 					or die "Can't open file $tmpdir/sources/$source: $!";
 				my @source_text = <SOURCE_FILE>;
 				close SOURCE_FILE;
-				my $src = $dbh->quote( join( "\n", @source_text ) );
+				my $src = $dbh->quote( join( "", @source_text ) );
 
 				# Processing sources table.
 				sql_query(
