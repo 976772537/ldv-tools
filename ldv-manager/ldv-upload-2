@@ -9,9 +9,11 @@ use Env
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
+# TODO: do not use this library!
 use File::Slurp;
 use File::Temp qw/ tempdir /;
 use Cwd;
+# TODO: do not use this library!
 use Term::ReadKey;
 
 
@@ -132,7 +134,7 @@ for (@uploaded_files) {
 ################################################################################
 
 sub connect_to_db() {
-
+# TODO: check whether LDVDB is defined.
     # connect to DB
     my $db_handler =
       DBI->connect( "DBI:mysql:$LDVDB:$db_host", $LDVUSER, $db_password )
@@ -161,38 +163,38 @@ sub parse_command_line() {
 
     # Parsing options.
 # TODO: one may optionally provide a password through command-line options. See mysql --help (-p --password).
-	my $is_password = 0;
+    my $is_password = 0;
     GetOptions(
         'help|h' => \$print_help, # Print help.
         'xml'    => \$file_format, # Use xml format instead of pax.
         'p|password'      => \$is_password, # Ask password.
         'f=s'    => \@fnames_by_option, # Reports to be uploaded.
     ) or help();
-    
+
     # Print help.
     help() if ($print_help);
 
-	if ($file_format)
-	{
-		$file_format = "xml";
-	}
-	else
-	{
-		$file_format = "pax";
-	}
-	
-	foreach my $fname (@fnames_by_option) {
+    if ($file_format)
+    {
+        $file_format = "xml";
+    }
+    else
+    {
+        $file_format = "pax";
+    }
+
+    foreach my $fname (@fnames_by_option) {
         print_debug_debug("Report to be uploaded is '$fname' (specified by option)");
         push( @result_fnames, File::Spec->rel2abs($fname) );
     }
 
     # Password promt.
     if ($is_password) {
-		print_debug_normal("Enter password for data base");
-		ReadMode 'noecho';
-		$db_password = ReadLine 0;
-		chomp $db_password;
-		ReadMode 'normal';
+        print_debug_normal("Enter password for data base");
+        ReadMode 'noecho';
+        $db_password = ReadLine 0;
+        chomp $db_password;
+        ReadMode 'normal';
     }
 
     # Get options after "--" as other reports to be uploaded.
@@ -229,7 +231,7 @@ OPTIONS
   -p
     Use password to access the data base.
   -f
-  	Specify report to be uploaded.
+    Specify report to be uploaded.
 
 ENVIRONMENT VARIABLES
 
@@ -247,7 +249,7 @@ ENVIRONMENT VARIABLES
     Keeps settings (host, database, user and password) for connection
     to the database. Note that LDVDB and LDVUSER must always be
     presented!
-    
+
 EOM
 
     exit(1);
@@ -265,31 +267,31 @@ sub disconnect_from_db() {
 sub get_xml_file($) {
     my $report = shift;
     my $xml_file;
-	my $current_dir = getcwd();
+    my $current_dir = getcwd();
     if ($file_format eq "xml")
     {
         print_debug_debug("Report to be uploaded will be considered as xml file");
         $xml_file = $report;
     }
     else {
-    	$file_format = "pax";
+        $file_format = "pax";
         print_debug_debug("Report to be uploaded will be considered as pax file");
 
         # Create tmp directory '.ldv_upload_tmp_XXXXXXXXXX'.
         my $tmpdirname = tempdir('.ldv_upload_tmp_XXXXXXXXXX', CLEANUP => 1 )
-			|| die "Can't create tmp directory: $!";
-		$tmpdir = "$current_dir/$tmpdirname/";
+            || die "Can't create tmp directory: $!";
+        $tmpdir = "$current_dir/$tmpdirname/";
         print_debug_debug("Tmp directory $tmpdir has been created");
 
         # Extract pax file into created directory. Need to change directory for this operation.
         print_debug_debug("Extracting pax archive into $tmpdir");
         chdir($tmpdir)
-        	|| die "Can't change directory to $tmpdir: $!";
-		print_debug_debug("Changing directory to $tmpdir");
-		system('pax', '-O', '-r', '-f', "$report") == 0
-			|| die "Can't extract pax file $report: $!";
-		chdir("$tmpdir/..")
-        	|| die "Can't change directory to $tmpdir/..: $!";
+            || die "Can't change directory to $tmpdir: $!";
+        print_debug_debug("Changing directory to $tmpdir");
+        system('pax', '-O', '-r', '-f', "$report") == 0
+            || die "Can't extract pax file $report: $!";
+        chdir("$tmpdir/..")
+            || die "Can't change directory to $tmpdir/..: $!";
         print_debug_debug("Leaving directory $tmpdir");
         print_debug_debug("Pax archive has been extracted into $tmpdir");
 
@@ -331,7 +333,7 @@ sub parse_xml_file($) {
 
 sub run_kb_recalc()
 {
-	$OUTPUT_AUTOFLUSH = 1;
+    $OUTPUT_AUTOFLUSH = 1;
     open my $kb_recalc_pipe, "|kb-recalc.pl --init-cache --new-launch"
       // die "Can't fork to run kb-recalc: $!\n";
     return $kb_recalc_pipe;
@@ -339,10 +341,10 @@ sub run_kb_recalc()
 
 sub stop_kb_recalc()
 {
-	if ($kb_recalc_pipe) 
-	{
-		close $kb_recalc_pipe;
-	}
+    if ($kb_recalc_pipe)
+    {
+        close $kb_recalc_pipe;
+    }
 }
 
 sub upload($$) {
@@ -361,11 +363,12 @@ sub upload($$) {
     my $driver_origin = $xml_data->{launch_info}->{driver_origin};
     my $username      = $xml_data->{launch_info}->{task}->{username};
     my $timestamp;
+# TODO: use NULL rather then empty string. Be careful with further usages of $task_name!
     my $task_name = $LDV_TASK_NAME || '';    # LDV_TASK_NAME.
 
-	# Using format "yyyy-mm-dd".
-	# In report month can be only one digit ("8" instead of "08").
-	# If month specified correctly (for fixed results) it will remain correct.
+    # Using format "yyyy-mm-dd".
+    # In report month can be only one digit ("8" instead of "08").
+    # If month specified correctly (for fixed results) it will remain correct.
     my $month = "";
     if ( $xml_data->{launch_info}->{task}->{timestamp}->{mon} < 10 ) {
         $month = "0" . ($xml_data->{launch_info}->{task}->{timestamp}->{mon} + 0);
@@ -444,140 +447,140 @@ sub upload($$) {
         "Processing data for each launch. This may take some time..");
     my @lds = ();
     if ($xml_data->{ld})
-	{
-		@lds = values $xml_data->{ld};
-	}
-	foreach my $arg (@lds) {
-		# Variables for launches.
-		my $cur_main   = $arg->{main}        || '';
-		my $cur_module = $arg->{module_name} || '';
-		my $cur_verdict = $arg->{verdict}    || 'UNKNOWN'; # UNKNOWN if not SAFE or UNSAFE.
-		my $cur_verifier = $arg->{verifier}  || '';
+    {
+        @lds = values $xml_data->{ld};
+    }
+    foreach my $arg (@lds) {
+        # Variables for launches.
+        my $cur_main   = $arg->{main}        || '';
+        my $cur_module = $arg->{module_name} || '';
+        my $cur_verdict = $arg->{verdict}    || 'UNKNOWN'; # UNKNOWN if not SAFE or UNSAFE.
+        my $cur_verifier = $arg->{verifier}  || '';
 
-		my $cur_model = $arg->{model} || ''; # In case of NULL value rule_model_id in launches should be NULL.
+        my $cur_model = $arg->{model} || ''; # In case of NULL value rule_model_id in launches should be NULL.
 
-		# For UNSAFEs - error trace and source files.
-		my $cur_trace   = $arg->{trace}      || '';
-		my $cur_sources = $arg->{sourcefile} || '';
+        # For UNSAFEs - error trace and source files.
+        my $cur_trace   = $arg->{trace}      || '';
+        my $cur_sources = $arg->{sourcefile} || '';
 
-		# Incrementing these values for each launch (not auto increment).
-		$cur_trace_id++;
-		$cur_stats_id++;
+        # Incrementing these values for each launch (not auto increment).
+        $cur_trace_id++;
+        $cur_stats_id++;
 
-		# Processing toolsets table.
-		$cur_toolset_id = sql_select(
+        # Processing toolsets table.
+        $cur_toolset_id = sql_select(
 "SELECT id FROM toolsets WHERE (toolsets.verifier = '$cur_verifier') LIMIT 1;"
-		)
-			|| sql_insert(
+        )
+            || sql_insert(
 "INSERT INTO toolsets (verifier, version) VALUES ('$cur_verifier', 'current');"
-		);
+        );
 
-		# Processing rule_models table.
-		if ($cur_model ne '') {
-			$cur_model_id = sql_select(
+        # Processing rule_models table.
+        if ($cur_model ne '') {
+            $cur_model_id = sql_select(
 "SELECT id FROM rule_models WHERE (rule_models.name = '$cur_model') LIMIT 1;"
-			)
-				|| sql_insert(
+            )
+                || sql_insert(
 "INSERT INTO rule_models (name) VALUES ('$cur_model');"
-			);
-		}
-		else
-		{
-			$cur_model_id = 'NULL';
-		}
+            );
+        }
+        else
+        {
+            $cur_model_id = 'NULL';
+        }
 
-		# Processing drivers table.		
-		$cur_driver_id = sql_select(
+        # Processing drivers table.
+        $cur_driver_id = sql_select(
 "SELECT id FROM drivers WHERE (CONVERT(name USING latin1) COLLATE latin1_bin = '$cur_module' and drivers.origin = '$driver_origin') LIMIT 1;"
-		)
-			|| sql_insert(
+        )
+            || sql_insert(
 "INSERT INTO drivers (name, origin) VALUES('$cur_module', '$driver_origin');\n"
-		);
+        );
 
-		# Processing scenarios table.
-		$cur_scenario_id = sql_select(
+        # Processing scenarios table.
+        $cur_scenario_id = sql_select(
 "SELECT id FROM scenarios WHERE (driver_id = '$cur_driver_id' and CONVERT(executable USING latin1) COLLATE latin1_bin = '$cur_module' and main = '$cur_main') LIMIT 1;"
-		)
-			|| sql_insert(
+        )
+            || sql_insert(
 "INSERT INTO scenarios (driver_id, executable, main) VALUES ($cur_driver_id, '$cur_module', '$cur_main');\n"
-		);
+        );
 
-		# Processing launches table.
-		$tmp_res = sql_select("
+        # Processing launches table.
+        $tmp_res = sql_select("
 SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_toolset_id and environment_id = $environment_id and (rule_model_id = $cur_model_id or '$cur_model_id' = 'NULL') and scenario_id = $cur_scenario_id and task_id = $task_id) LIMIT 1;");
-		my $is_update = ($tmp_res != 0);
+        my $is_update = ($tmp_res != 0);
 
-		if ($is_update) # Update.
-		{
-			$cur_launch_id = $tmp_res;
-			sql_query("UPDATE launches SET task_id = $task_id WHERE id = $cur_launch_id");
-		}
-		else # Insert.
-		{
-			$cur_launch_id = sql_insert(
+        if ($is_update) # Update.
+        {
+            $cur_launch_id = $tmp_res;
+            sql_query("UPDATE launches SET task_id = $task_id WHERE id = $cur_launch_id");
+        }
+        else # Insert.
+        {
+            $cur_launch_id = sql_insert(
 "INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', $cur_model_id, $cur_scenario_id, '$task_id', $cur_trace_id);\n"
-			);
-		}
+            );
+        }
 
-		# Error trace file.
-		my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
-		if ( $cur_verdict eq "UNSAFE" ) {
-			open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
-				or die "Can't open file $tmpdir/traces/$cur_trace: $!";
-			my @error_trace = <TRACE_FILE>;
-			close TRACE_FILE;
-			$et = $dbh->quote( join( "\n", @error_trace ) );
-		}
+        # Error trace file.
+        my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
+        if ( $cur_verdict eq "UNSAFE" ) {
+            open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
+                or die "Can't open file $tmpdir/traces/$cur_trace: $!";
+            my @error_trace = <TRACE_FILE>;
+            close TRACE_FILE;
+            $et = $dbh->quote( join( "\n", @error_trace ) );
+        }
 
-		# Processing traces table.
-		sql_query(
+        # Processing traces table.
+        sql_query(
 "INSERT INTO traces (id, launch_id, result, error_trace, verifier, build_id, maingen_id, dscv_id, ri_id, rcv_id) VALUES ($cur_trace_id, '$cur_launch_id', '$cur_verdict', $et, '$cur_verifier', $cur_stats_id, $cur_stats_id+1, $cur_stats_id+2, $cur_stats_id+3, $cur_stats_id+4);\n"
-		);
+        );
 
-		# Source files.
-		if ( $cur_sources ne '' ) {
-			foreach my $source ( values $cur_sources ) {
-				# Trace file.
-				open SOURCE_FILE, "<", "$tmpdir/sources/$source"
-					or die "Can't open file $tmpdir/sources/$source: $!";
-				my @source_text = <SOURCE_FILE>;
-				close SOURCE_FILE;
-				my $src = $dbh->quote( join( "\n", @source_text ) );
+        # Source files.
+        if ( $cur_sources ne '' ) {
+            foreach my $source ( values $cur_sources ) {
+                # Trace file.
+                open SOURCE_FILE, "<", "$tmpdir/sources/$source"
+                    or die "Can't open file $tmpdir/sources/$source: $!";
+                my @source_text = <SOURCE_FILE>;
+                close SOURCE_FILE;
+                my $src = $dbh->quote( join( "\n", @source_text ) );
 
-				# Processing sources table.
-				sql_query(
+                # Processing sources table.
+                sql_query(
 "INSERT INTO sources (trace_id, name, contents) VALUES ('$cur_trace_id', '$source', $src);\n"
-				);
-			}
-		}
+                );
+            }
+        }
 
-		# Send id of unsafe launch to the child process (run kb-recalc for this id).
-		if ( $cur_verdict eq "UNSAFE" ) {
-			print $kb_recalc_pipe "$cur_launch_id\n";
-		}
+        # Send id of unsafe launch to the child process (run kb-recalc for this id).
+        if ( $cur_verdict eq "UNSAFE" ) {
+            print $kb_recalc_pipe "$cur_launch_id\n";
+        }
 
-		# Processing stats, processes, problems, problems_stats tables for each component.
-		foreach my $component_name (@ldv_components) {
-			# Changes for table xml format
-			my $component_name_xml = '';
-			if ( $component_name eq "build-cmd-extractor" ) {
-				$component_name_xml = "build";
-			}
-			else {
-				$component_name_xml = $component_name;
-			}
-			my $component = $arg->{$component_name_xml} || '';
-			add_component(
-				component      => $component,
-				component_name => $component_name,
-				stats_id       => $cur_stats_id,
-				trace_id       => $cur_trace_id,
-				verdict        => $cur_verdict,
-				verifier       => $cur_verifier
-			);
-			$cur_stats_id++;
-		}
-	}
+        # Processing stats, processes, problems, problems_stats tables for each component.
+        foreach my $component_name (@ldv_components) {
+            # Changes for table xml format
+            my $component_name_xml = '';
+            if ( $component_name eq "build-cmd-extractor" ) {
+                $component_name_xml = "build";
+            }
+            else {
+                $component_name_xml = $component_name;
+            }
+            my $component = $arg->{$component_name_xml} || '';
+            add_component(
+                component      => $component,
+                component_name => $component_name,
+                stats_id       => $cur_stats_id,
+                trace_id       => $cur_trace_id,
+                verdict        => $cur_verdict,
+                verifier       => $cur_verifier
+            );
+            $cur_stats_id++;
+        }
+    }
     $dbh->commit;
     print_debug_normal("Commit has been completed");
 
@@ -587,7 +590,7 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
     print_debug_normal(
         "Results were successfully uploaded to database. They can be found at");
 
-	my $url_without_password = "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password";
+    my $url_without_password = "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password";
     if ( $db_password eq '' ) {
         print_debug_normal(
 "$url_without_password/no/"
@@ -841,7 +844,7 @@ sub change_problems_text($) {
 
 # Actions which should be completed in case of any errors or after finishing uploading.
 END {
-	stop_kb_recalc();
+    stop_kb_recalc();
     disconnect_from_db();
 }
 
