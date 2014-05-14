@@ -134,8 +134,16 @@ for (@uploaded_files) {
 ################################################################################
 
 sub connect_to_db() {
-# TODO: check whether LDVDB is defined.
-    # connect to DB
+    # Check environment variables.
+    if ( !$LDVDB )
+    {
+    	die "Error: Database was not specified. Please specify it with environment variable LDVDB.";
+    }
+    if ( !$LDVUSER )
+    {
+    	die "Error: User was not specified. Please specify it with environment variable LDVUSER.";
+    }
+    # Connect to Database.
     my $db_handler =
       DBI->connect( "DBI:mysql:$LDVDB:$db_host", $LDVUSER, $db_password )
       or die("Can't connect to the database: $DBI::errstr");
