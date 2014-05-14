@@ -371,8 +371,7 @@ sub upload($$) {
     my $driver_origin = $xml_data->{launch_info}->{driver_origin};
     my $username      = $xml_data->{launch_info}->{task}->{username};
     my $timestamp;
-# TODO: use NULL rather then empty string. Be careful with further usages of $task_name!
-    my $task_name = $LDV_TASK_NAME || '';    # LDV_TASK_NAME.
+    my $task_name = $LDV_TASK_NAME || 'NULL';    # LDV_TASK_NAME (should not be 'NULL').
 
     # Using format "yyyy-mm-dd".
     # In report month can be only one digit ("8" instead of "08").
@@ -417,7 +416,7 @@ sub upload($$) {
     # Processing tasks table.
     $tmp_res = sql_select(
         "SELECT id FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
-    if ( $tmp_res == 0 || $task_name eq '' ) {
+    if ( $tmp_res == 0 || !$task_name || $task_name eq 'NULL') {
         $tmp_res = sql_insert(
 "INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin, name) VALUES ('$username', '$timestamp', '$driver', '$driver_origin', '$task_name');"
         );
