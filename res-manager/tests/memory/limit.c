@@ -4,14 +4,14 @@
 
 int main(int argv, char **argc)
 {
-	int allocate_bytes = 0;
+	unsigned long long allocate_bytes = 0;
 	if (argv > 1)
 	{
-		allocate_bytes = atoi(argc[1]);
+		allocate_bytes = atoll(argc[1]);
 	}
-	printf("Allocate %ib.\n",allocate_bytes);
+	printf("Allocate %llub.\n",allocate_bytes);
 	char *allocated_array = (char *)malloc (allocate_bytes);
-	int i;
+	unsigned long long i;
 	for(i=0;i<allocate_bytes;i++)
 	{
 		allocated_array[i] = '0';
