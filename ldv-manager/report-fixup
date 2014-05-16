@@ -19,6 +19,10 @@ sub current_date
 	my ($name) = @_;
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 	$year+=1900; $mon+=1;	#required due to date-time format printed by localtime.  Months usually start with 1.
+	if ($mon < 10)
+	{
+		$mon = "0"."$mon";
+	}
 	my @vals = qw(sec min hour mday mon year wday yday isdst);
 	my $elt_result = XML::Twig::Elt->new($name);
 	# Print variable values into tags that correspond to their names
