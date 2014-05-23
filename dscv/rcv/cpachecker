@@ -140,8 +140,18 @@ set_cil_options(
     "--rmUnusedInlines"
 );
 
+my $no_cil = $ENV{'CPACHECKER_NO_CIL'} || ''; # Should CIL be used for CPAchecker or not. Default - yes.
+
 # Now, as CIL script and options are prepared, let's invoke the preprocessing.
-my @files = preprocess_all_files('cpp','cil-merge');
+my @files;
+if ($no_cil)
+{
+  @files = preprocess_all_files('cpp');
+}
+else
+{
+  @files = preprocess_all_files('cpp', 'cil-merge');
+}
 
 # If you need more preprocessing, just invoke your own preprocessor here.  As
 # we've specified 'cil-merge', the @files array now contains one file.
@@ -218,6 +228,11 @@ my $memlimit = convert_memory(specified_mem => $ENV{'RCV_MEMLIMIT'});
 if($timelimit>60) {
     say $CPA_CFG "# Set CPAchecker internal time limit";
     say $CPA_CFG "cpa.conditions.global.time.wall=".($timelimit - 60)."s";
+}
+
+if ($no_cil)
+{
+  say $CPA_CFG "parser.readLineDirectives = true\n";
 }
 
 close $CPA_CFG;
@@ -429,16 +444,25 @@ local $_;
 if ($verdict eq 'unsafe') {
 	open(ORIG_TRACE_FILE, '<', $orig_trace_fname) or die "Can't open file with cpachecker trace: \"$orig_trace_fname\", $!";
 	open(TRACE_FILE, '>', $adjusted_trace_fname) or die "Can't open file with adjsuted cpachecker trace: \"$adjusted_trace_fname\", $!";
-	for (@files) {
-		open(SRC_FILE, '<', $_) or die "Can't open the source file: \"$_\", $!";
-		print TRACE_FILE "CPAchecker error trace v1.2\n";
-		print TRACE_FILE "-------$_-------\n";
-		while(<SRC_FILE>) {
-			print TRACE_FILE  $_
+	print TRACE_FILE "CPAchecker error trace v1.2\n"; # Using one format for error traces.
+	print TRACE_FILE "-------NO_CIL-------\n" if ($no_cil);
+	for my $src_file (@files) {
+		print TRACE_FILE "-------$src_file-------\n" if ($no_cil);
+		
+		if (!$no_cil)
+		{
+			open(SRC_FILE, '<', $src_file) or die "Can't open the source file: \"$src_file\", $!";
+		
+			print TRACE_FILE "-------$src_file-------\n";
+			while(<SRC_FILE>) {
+				print TRACE_FILE  $_
+			}
+			print TRACE_FILE "\n--------------\n";
+			close(SRC_FILE);
 		}
-		print TRACE_FILE "\n--------------\n";
-		close(SRC_FILE);
+
 	}
+	print TRACE_FILE "\n--------------\n" if ($no_cil);
 	while (<ORIG_TRACE_FILE>) {
 		print TRACE_FILE $_;
 	}
