@@ -131,7 +131,7 @@ ifeq ($(no_cpachecker),)
 cpachecker_dir=backends/cpachecker
 cpachecker_target=$(rcv_install_dir)/backends/cpachecker/
 cpachecker_tmp=$(rcv_install_dir)/backends/tmp/
-cpachecker_dist=CPAchecker-1.2-svn-unix
+cpachecker_dist=CPAchecker-1.3*-svn*-unix
 cpachecker_tar=$(cpachecker_dist).tar.bz2
 
 # CPAchecker compilation

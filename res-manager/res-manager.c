@@ -48,11 +48,11 @@ typedef struct
 	int memory_exhausted;
 	int time_exhausted;
 	int wall_time_exhausted;
-	uint64_t wall_time;
-	uint64_t cpu_time;
-	uint64_t user_time;
-	uint64_t sys_time;
-	uint64_t memory;
+	unsigned long long wall_time;
+	unsigned long long cpu_time;
+	unsigned long long user_time;
+	unsigned long long sys_time;
+	unsigned long long memory;
 } execution_statistics;
 
 /*
@@ -63,12 +63,12 @@ typedef struct
 static struct
 {
 	// Command-line parameters.
-	uint64_t time_limit; // In milliseconds.
-	uint64_t wall_time_limit; // In milliseconds.
-	uint64_t mem_limit; // In bytes.
+	unsigned long long time_limit; // In milliseconds.
+	unsigned long long wall_time_limit; // In milliseconds.
+	unsigned long long mem_limit; // In bytes.
 	char *fout; // File for printing statistics.
 	char **command; // Command for execution.
-	uint64_t alarm_time; // Time in ms (10^-3 seconds) for specifing interval in which time limit will be checked.
+	unsigned long long alarm_time; // Time in ms (10^-3 seconds) for specifing interval in which time limit will be checked.
 
 	// Control group parameters.
 	char *cgroup_memory_origin;
@@ -84,7 +84,7 @@ static struct
 	int script_signal;
 
 	// Time of the start execution of the command.
-	uint64_t start_time;
+	unsigned long long start_time;
 
 	// Flag shows swap account availability.
 	int swap_account_available;
@@ -100,8 +100,8 @@ static int check_tasks(const char *cgroup);
 static void check_time(int signum);
 static void check_swap_account_availability(int);
 static const char *concat(const char *first, ...);
-static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter);
-static void convert_time(char *optarg, const char *option_name, uint64_t *parameter);
+static void convert_memory(char *optarg, const char *option_name, unsigned long long *parameter);
+static void convert_time(char *optarg, const char *option_name, unsigned long long *parameter);
 static void create_cgroup(const char *dir);
 static void exit_res_manager(int exit_code, execution_statistics *exec_stats, const char *err_mes);
 static void find_cgroup_controllers(void);
@@ -111,9 +111,9 @@ static const char *get_kernel_info(void);
 static void get_memory_and_cpu_usage(execution_statistics *exec_stats);
 static const char *get_memory_info(void);
 static const char *get_sys_or_user_time(const char *line);
-static uint64_t get_time(void);
+static unsigned long long get_time(void);
 static int is_number(char *str);
-static const char *itoa(uint64_t n);
+static const char *itoa(unsigned long long n);
 static void kill_created_processes(int signum);
 static void print_output(int exit_code, int signal, execution_statistics *exec_stats, const char *err_mes);
 static void print_usage(void);
@@ -127,7 +127,7 @@ static void set_mem_limit(void);
 static void set_timer(int alarm_time);
 static void stop_timer(void);
 static void terminate(int signum);
-static uint64_t xatol(const char * string);
+static unsigned long long xatol(const char * string);
 static FILE *xfopen(const char *fname, const char *mode);
 static void *xmalloc(size_t size);
 static void *xrealloc(void *prev, size_t size);
@@ -190,10 +190,10 @@ static FILE *xfopen(const char *fname, const char *mode)
 }
 
 // Get string representing number.
-static const char *itoa(uint64_t n)
+static const char *itoa(unsigned long long n)
 {
 	int order = 1;
-	uint64_t broken_n;
+	unsigned long long broken_n;
 	char *str;
 
 	// Get order of number.
@@ -216,14 +216,14 @@ static const char *itoa(uint64_t n)
 }
 
 /*
- * Convert string into uint64_t. Finish Resource Manager in case of any errors.
+ * Convert string into unsigned long long. Finish Resource Manager in case of any errors.
  * This function should be used instead of atol/atoi.
  */
-static uint64_t xatol(const char *string)
+static unsigned long long xatol(const char *string)
 {
-	uint64_t converted_result = strtoull(string, (char **)NULL, 10);
+	unsigned long long converted_result = strtoull(string, (char **)NULL, 10);
 
-	// Check if string cannot be represented as uint64_t.
+	// Check if string cannot be represented as unsigned long long.
 	if (errno == ERANGE)
 	{
 		exit_res_manager(errno, NULL, concat(strerror(errno), ": ", string, NULL));
@@ -259,7 +259,7 @@ static const char *concat(const char *first, ...)
 }
 
 // Get current time in milliseconds.
-static uint64_t get_time(void)
+static unsigned long long get_time(void)
 {
 	struct timeval time;
 
@@ -654,8 +654,10 @@ static void set_cgroup_parameter(const char *fname, const char *controller, cons
 	fp = xfopen(fname_new, "w+");
 
 	// Write value to the file.
-	// TODO: check return value (man fputs!).
-	fputs(value, fp);
+	if (fputs(value, fp) == EOF)
+	{
+		exit_res_manager(errno, NULL, strerror(errno));
+	}
 
 	fclose(fp);
 
@@ -854,8 +856,8 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 
 	// Print Resource Manager settings.
 	fprintf(fp, "Resource Manager settings:\n");
-	fprintf(fp, "\tmemory limit: %lu bytes\n", params.mem_limit);
-	fprintf(fp, "\ttime limit: %lu ms\n", params.time_limit);
+	fprintf(fp, "\tmemory limit: %llu bytes\n", params.mem_limit);
+	fprintf(fp, "\ttime limit: %llu ms\n", params.time_limit);
 	fprintf(fp, "\tcommand: ");
 
 	if (params.command != NULL)
@@ -918,13 +920,13 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 
 		// Print time and memory usage.
 		fprintf(fp, "Time usage statistics:\n");
-		fprintf(fp, "\twall time: %lu ms\n", exec_stats->wall_time);
-		fprintf(fp, "\tcpu time: %lu ms\n", exec_stats->cpu_time);
-		fprintf(fp, "\tuser time: %lu ms\n", exec_stats->user_time);
-		fprintf(fp, "\tsystem time: %lu ms\n", exec_stats->sys_time);
+		fprintf(fp, "\twall time: %llu ms\n", exec_stats->wall_time);
+		fprintf(fp, "\tcpu time: %llu ms\n", exec_stats->cpu_time);
+		fprintf(fp, "\tuser time: %llu ms\n", exec_stats->user_time);
+		fprintf(fp, "\tsystem time: %llu ms\n", exec_stats->sys_time);
 
 		fprintf(fp, "Memory usage statistics:\n");
-		fprintf(fp, "\tpeak memory usage: %lu bytes\n", exec_stats->memory);
+		fprintf(fp, "\tpeak memory usage: %llu bytes\n", exec_stats->memory);
 	}
 
 	if (params.fout != NULL)
@@ -1127,8 +1129,8 @@ static void stop_timer(void)
 static void check_time(int signum)
 {
 	const char *cpu_usage = get_cgroup_parameter(CPU_USAGE, params.cgroup_cpuacct);
-	uint64_t cpu_time = xatol(cpu_usage) / 1e6;
-	uint64_t wall_time = get_time() - params.start_time;
+	unsigned long long cpu_time = xatol(cpu_usage) / 1e6;
+	unsigned long long wall_time = get_time() - params.start_time;
 
 	free((void *)cpu_usage);
 
@@ -1153,6 +1155,7 @@ static void check_time(int signum)
 }
 
 // Redirect stderr/stdout into file.
+//TODO: there is no support for redirecting both stderr and stdout in one file.
 static void redirect(int fd, const char *fname)
 {
 	int fdes[2];
@@ -1173,7 +1176,8 @@ static void redirect(int fd, const char *fname)
 	fdes[0] = fd;
 
 	// Create new file in which stdout/stderr will be redirected.
-	fdes[1] = open(fname, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	fdes[1] = open(fname, O_CREAT|O_WRONLY|O_TRUNC, 00644);
+	
 	if (fdes[1] == -1)
 	{
 		exit_res_manager(errno, NULL, strerror(errno));
@@ -1314,10 +1318,10 @@ static void print_usage(void)
 }
 
 // Convert time specifying in seconds with modifiers into milliseconds and check errors.
-static void convert_time(char *optarg, const char *option_name, uint64_t *parameter)
+static void convert_time(char *optarg, const char *option_name, unsigned long long *parameter)
 {
-	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
-	uint64_t converted = without_mod; // Number after converting into ms and applying modifiers.
+	unsigned long long without_mod = xatol(optarg); // Number without any modifiers.
+	unsigned long long converted = without_mod; // Number after converting into ms and applying modifiers.
 
 	// Convert into ms.
 	converted *= 1000;
@@ -1349,10 +1353,10 @@ static void convert_time(char *optarg, const char *option_name, uint64_t *parame
 }
 
 // Convert memory specifying in bytes with modifiers and check errors.
-static void convert_memory(char *optarg, const char *option_name, uint64_t *parameter)
+static void convert_memory(char *optarg, const char *option_name, unsigned long long *parameter)
 {
-	uint64_t without_mod = xatol(optarg); // Number without any modifiers.
-	uint64_t converted = without_mod; // Number after and applying modifiers.
+	unsigned long long without_mod = xatol(optarg); // Number without any modifiers.
+	unsigned long long converted = without_mod; // Number after and applying modifiers.
 
 	if (strstr(optarg, "Kb") != NULL)
 	{
@@ -1412,7 +1416,7 @@ int main(int argc, char **argv)
 	int c;
 	int is_options_ended = 0;
 	int option_index = 0;
-	uint64_t time_after;
+	unsigned long long time_after;
 	int wait_errno;
 	static struct option long_options[] = {
 		{"help", 0, 0, 'h'},
@@ -1466,7 +1470,7 @@ int main(int argc, char **argv)
 	}
 
 	// Parse command line.
-	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:a0:h0", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "-o:d:m:t:i:w:a0:h0s:e:", long_options, &option_index)) != -1)
 	{
 		switch(c)
 		{
