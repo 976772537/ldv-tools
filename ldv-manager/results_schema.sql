@@ -259,6 +259,13 @@ CREATE  TABLE IF NOT EXISTS `kb` (
   `verdict` ENUM('False positive', 'True positive', 'Unknown', 'Inconclusive') NOT NULL DEFAULT 'Unknown' ,
   `tags` TEXT NULL DEFAULT NULL ,
   `comment` MEDIUMTEXT NULL DEFAULT NULL ,
+-- New information for PPoB (Public Pool of Bugs).
+  `found_time` DATETIME NULL DEFAULT NULL , -- When this bug was revealed.
+  `fix_time` DATETIME NULL DEFAULT NULL , -- When this bug was corrected (time of corresponding commit).
+  `author` VARCHAR(256) NULL DEFAULT NULL , -- Author of the corresponding commit.
+  `committer` VARCHAR(256) NULL DEFAULT NULL ,
+  `commit` VARCHAR(256) NULL DEFAULT NULL ,
+  
   PRIMARY KEY (`id`) )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
