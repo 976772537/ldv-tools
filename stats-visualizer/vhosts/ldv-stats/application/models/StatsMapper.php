@@ -1087,7 +1087,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       ->select()->setIntegrityCheck(false);
     $select = $select
       ->from('kb',
-        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment'))
+        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Find date' => 'kb.found_time', 'Fix date' => 'kb.fix_time', 'Author' => 'kb.author', 'Committer' => 'kb.committer', 'Commit' => 'kb.commit'))
       ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
       ->joinLeft('traces', "results_kb.trace_id=traces.id", array())
       ->where("traces.id = ?", $trace_id);

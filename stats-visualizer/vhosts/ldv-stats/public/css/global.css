@@ -486,6 +486,52 @@ body
   width: 300px;
 }
 
+.SETVKBFinddate
+{
+  font-size: 10pt;
+  height: 50px;
+  text-align: left;
+  width: 80px;
+}
+
+.SETVKBFixdate
+{
+  font-size: 10pt;
+  height: 50px;
+  text-align: left;
+  width: 80px;
+}
+
+.SETVKBAuthor
+{
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 100px;
+}
+
+.SETVKBCommitter
+{
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 100px;
+}
+
+.SETVKBCommit
+{
+  font-size: 8pt;
+  height: 50px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre;
+  width: 100px;
+}
+
 #SETVKBNewEmptyKBRecord, #SETVKBNewFilledKBRecord
 {
   display: none;
@@ -529,6 +575,31 @@ body
 #SETVKBTags
 {
   background-color: #7976FF;
+}
+
+#SETVKBFinddate
+{
+  background-color: #7986FF;
+}
+
+#SETVKBFixdate
+{
+  background-color: #7996FF;
+}
+
+#SETVKBAuthor
+{
+  background-color: #79A6FF;
+}
+
+#SETVKBCommitter
+{
+  background-color: #79A6FF;
+}
+
+#SETVKBCommit
+{
+  background-color: #79A6FF;
 }
 
 #SETVKBComment

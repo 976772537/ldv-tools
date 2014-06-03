@@ -349,7 +349,7 @@ else {
   echo "<td class='SETVKBAuxTitle'></td>";
   // Print auxiliary column that will contain delete action.
   echo "<td class='SETVKBAuxTitle'></td>";
-  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment');
+  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment', 'Find date', 'Fix date', 'Author', 'Committer', 'Commit');
   foreach ($columns as $columnName) {
     echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
   }
