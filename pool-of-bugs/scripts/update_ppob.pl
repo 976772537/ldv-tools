@@ -1,6 +1,6 @@
 #! /usr/bin/perl -w
 
-# Update PPoB according to KB.
+# Update PPoB.
 
 use XML::Simple;
 use DBI;
@@ -32,19 +32,17 @@ my $ppob_password = $LDVDBPASSWD || '';
 my $ppob_user = $LDVUSER;
 my $ppob_db = $LDVDB;
 
-my $kb_host = 'localhost';
-my $kb_password = '';
-my $kb_user;
-my $kb_db;
+my @developers_columns=('author', 'committer');
+my $main_table = 'bugs';
 
 sub help();
 sub connect_to_db($$$$);
-
+sub update_ppob($$);
 ################################################################################
 # Main section.
 ################################################################################
 
-get_debug_level("sync-kb-with-ppob", $LDV_DEBUG, $LDV_UPLOAD_DEBUG);
+get_debug_level("update-ppob", $LDV_DEBUG, $LDV_UPLOAD_DEBUG);
 
 my $ppob_dbh = connect_to_db($ppob_db, $ppob_host, $ppob_user, $ppob_password);
 
@@ -52,14 +50,13 @@ my $print_help;
 my $is_old_kb_format;
 my $is_unsafes;
 
+my $table;
+my %new_info;
+
 GetOptions(
 	'help|h' => \$print_help, # Print help.
-	'old' => \$is_old_kb_format, # Old KB format (without author, commit, etc.).
-	'unsafes' => \$is_unsafes, # Get all unsafes (not just marked in KB).
-	'host=s' => \$kb_host,
-	'password=s' => \$kb_password,
-	'user=s' => \$kb_user,
-	'db=s' => \$kb_db
+	'table=s' => \$table,
+	'values=s' => \%new_info,
 	) or help();
 
 if ($print_help)
@@ -67,9 +64,22 @@ if ($print_help)
 	help();
 }
 
-my $kb_dbh = connect_to_db($kb_db, $kb_host, $kb_user, $kb_password);
+if (!$table)
+{
+	help();
+}
 
-sync_kb_with_ppob();
+print_debug_debug("Table to be updated is $table");
+
+foreach my $column (keys %new_info)
+{
+	print_debug_debug("Column to be updated is $column, new value will be set to '$new_info{$column}'");
+}
+
+# TODO:
+#check_columns($table, \%new_info);
+
+update_ppob($table, \%new_info); # Update table 'bugs' with columns 'id' (required), 'fix_time', 'author', 'committer', 'commit'.
 
 ################################################################################
 # Subroutines.
@@ -79,22 +89,21 @@ sub help() {
     print( STDERR << "EOM");
 
 NAME
-  $PROGRAM_NAME: the tool is intended to syncronize information in the Knowledge base with the Public Pool of Bugs.
+  $PROGRAM_NAME: the tool is intended to update information in the Public Pool of Bugs.
 
 SYNOPSIS
-  $PROGRAM_NAME [options]
+  $PROGRAM_NAME --table <table_name> [--values <column>=<new_value>]
 
 OPTIONS
 
   -h, --help
     Print this help and exit with a error.
-  --old
-  	Use old KB format (without author, commit, etc.).
-  --host, --password, --user, --db
-  	Settings for connection to the KB database. Note that --user and --db 
-  	must always be presented!
-  --unsafes
-  	Get all unsafes (not just marked in KB). Corresponding fields will be empty.
+  --table
+  	The name of the table, in which columns should be updated/inserted.
+  --values
+  	Inserted/updated columns with new values.
+  	If column 'id' was specified, then the corresponding row will be updated,
+  	otherwise new row will be inserted.
 
 ENVIRONMENT VARIABLES
 
@@ -154,6 +163,151 @@ sub disconnect_from_db($$) {
         print_debug_normal("Disconnecting from $name database");
     }
 }
+
+sub check_columns()
+{
+	my $table = shift;
+	my $values_ref = shift;
+	my %values = %{$values_ref};
+	
+	print_debug_debug("Checking table '$table' for existence'");
+	
+	my $res = sql_select("SELECT table_name FROM information_schema.tables WHERE table_name='$table';", $ppob_dbh);
+	if (!$res)
+	{
+		die "Error: Table to be updated '$table' doesn't exist.";
+	}
+	
+	my @available_columns;
+	my $get_columns_query = $ppob_dbh->prepare("SELECT column_name FROM information_schema.columns WHERE table_name='$table';")
+		or die( "Can't prepare a query: " . $ppob_dbh->errstr );
+    $get_columns_query->execute or die( "Can't execute a query: " . $ppob_dbh->errstr );
+	while (my @tmp = $get_columns_query->fetchrow_array())
+	{
+		push (@available_columns, $tmp[0]);
+	}
+	
+	print_debug_debug("Available for table '$table' columns are");
+	foreach my $tmp (@available_columns)
+	{
+		print_debug_debug(" - $tmp");
+	}
+	
+	foreach my $column (keys %values)
+	{
+		print_debug_debug("Checking column '$column' for existence");
+		if (!($column ~~ @available_columns))
+		{
+			die "Error: Column to be updated '$column' doesn't exist in the table '$table'.";
+		}
+	}
+}
+
+sub update_ppob($$)
+{
+	my $table = shift;
+	my $values_ref = shift;
+	my %values = %{$values_ref};
+	
+	# Check for id column. If this column exist then corresponding row will be updating, 
+	# otherwise new column will be inserted.
+	my $id = $values{'id'};
+	delete $values{'id'};
+	
+	my $is_main_table = ($table eq $main_table);
+	if ($is_main_table)
+	{
+		my %developers;
+		foreach my $cur_dev (@developers_columns)
+		{
+			$developers{$cur_dev}=$values{$cur_dev};
+			delete $values{$cur_dev};
+			
+			if ($developers{$cur_dev})
+			{
+				my $cur_dev_id = sql_select(
+					"SELECT id FROM developers WHERE (name = '$developers{$cur_dev}') LIMIT 1;", $ppob_dbh)
+				|| sql_insert(
+					"INSERT INTO developers (name) VALUES ('$developers{$cur_dev}');", $ppob_dbh);
+				$values{"$cur_dev"."_id"}=$cur_dev_id;
+			}
+		}
+	}
+	
+	if ($id) # Update.
+	{
+		update_table($table, \%values, $id);
+	}
+	else # Insert.
+	{
+		insert_table($table, \%values);
+	}
+}
+
+sub update_table($$)
+{
+	my $table = shift;
+	my $values_ref = shift;
+	my $id = shift;
+	my %values = %{$values_ref};
+
+	my $query = "UPDATE $table SET";
+	my $is_comma = '';
+	foreach my $column (keys %values)
+	{
+		if ($is_comma)
+		{
+			$query = $query.",";
+		}
+		else
+		{
+			$is_comma = 'y';
+		}
+		$query = $query." $column='$values{$column}'";
+	}
+	$query = $query." WHERE id='$id'";
+	sql_query($query, $ppob_dbh);
+}
+
+sub insert_table($$)
+{
+	my $table = shift;
+	my $values_ref = shift;
+	my %values = %{$values_ref};
+
+	my $query = "INSERT INTO $table (";
+	my $is_comma = '';
+	foreach my $column (keys %values)
+	{
+		if ($is_comma)
+		{
+			$query = $query.", ";
+		}
+		else
+		{
+			$is_comma = 'y';
+		}
+		$query = $query."$column";
+	}
+	$query = $query.") VALUES (";
+	$is_comma = '';
+	foreach my $column (keys %values)
+	{
+		if ($is_comma)
+		{
+			$query = $query.", ";
+		}
+		else
+		{
+			$is_comma = 'y';
+		}
+		$query = $query."'$values{$column}'";
+	}
+	$query = $query.");";
+	sql_query($query, $ppob_dbh);
+}
+
+=com
 
 sub sync_kb_with_ppob {
     my $kb_query;
@@ -426,7 +580,7 @@ sub store_kb_record
 		}
 	}
 }
-
+=cut
 sub sql_select($$) {
     my $query = shift;
     my $dbh = shift;
@@ -466,6 +620,5 @@ sub sql_query($$) {
 
 END {
     disconnect_from_db($ppob_dbh,'PPoB');
-    disconnect_from_db($kb_dbh,'KB');
 }
 
