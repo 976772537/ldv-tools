@@ -64,9 +64,21 @@ function resizeTabWidths(isResize) {
   }
 }
 
+// Resize to fit the available height.
+function resizeHeight(isResize) {
+  var resizedHeight = window.screen.availHeight - 200;
+  $('#ETVErrorTrace').height(resizedHeight + 'px');
+  $('.ETVSrc').height(resizedHeight + 'px');
+}
+
 $(document).ready(function() {
   resizeTabWidths(false);
 });
+
+$(document).ready(function() {
+  resizeHeight(false);
+});
+
 
 // Allow to choose a current tab.
 $(document).ready(function() {
