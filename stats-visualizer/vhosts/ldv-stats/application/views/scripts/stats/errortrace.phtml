@@ -75,6 +75,31 @@ else {
 
       return false;
     });
+
+    // KB publish.
+    $('#SETVKBPublish').click(function() {
+      var rowCur = $(this).parent().parent();
+      var traceId = rowCur.find('.SETVKBErrortrace').text();
+
+      $.ajaxSetup({ 'error': function() {
+        alert('Something goes wrong while trace was published');
+      }});
+
+      $.getJSON(
+        '<?php echo $this->url(array('action' => 'publish-kb')); ?>'
+        , {'trace id': traceId}
+        , function(results) {
+          if (results.errors == '') {
+            alert('Information about given error trace was published into the Public Pool of Bugs successfully.');
+            window.location.reload();
+          }
+          else
+            alert($.makeArray(results.errors).join('\\n'));
+        }
+      );
+
+      return false;
+    });
   });
 </script>
 <?php
@@ -405,6 +430,7 @@ else {
   echo " <a href='#' id='SETVKBCreateFilledKBRecord'>Create filled KB record</a></td>";
   echo " <a href='#' id='SETVKBStore'>Store KB</a></td>";
   echo " <a href='#' id='SETVKBRestore'>Restore KB</a></td>";
+  echo " <a href='#' id='SETVKBPublish'>Publish error trace information</a></td>";
 }
 
 // Print show/hide plugin for error trace visualizer help. By default it isn't shown.

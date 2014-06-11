@@ -305,6 +305,62 @@ class StatsController extends Zend_Controller_Action
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
 
+  public function publishKbAction()
+  {
+    // Find out database connection settings.
+    $statsMapper = new Application_Model_StatsMapper();
+    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+
+    $db = $dbConnection['dbname'];
+    $user = $dbConnection['username'];
+    $host = $dbConnection['host'];
+    $passwd = '';
+    if ($dbConnection['password'] != '')
+      $passwd = "LDVDBPASSWD=$dbConnection[password]";
+
+    # TODO: review this location.
+	$prepairedKBRecord = "/tmp/prepairedKBRecord";
+
+	// Obtain the path to the ppob-publisher script.
+    $ppobPublisherConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'ppob-publisher');
+    $ppobPublisher = $ppobPublisherConfig->script;
+
+	// Obtain current trace id.
+	$traceId=$this->_getParam('trace_id');
+	$main=$this->_getParam('main');
+
+	// Create published record.
+    exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $ppobPublisher --id=$traceId --output=$prepairedKBRecord" . " 2>&1" , $output, $retCode);
+
+    $errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
+    $errorTrace = file_get_contents($errorTraceFile)
+        or die("Can't read processed error trace from the file '$errorTraceFile'");
+
+    $info = file_get_contents($prepairedKBRecord)
+        or die("Can't read information from the file '$prepairedKBRecord'");
+    parse_str($info, $out);
+
+    $kernel = $out['kernel'];
+    $module = $out['module'];
+    $rule = $out['rule'];
+    $verifier = $out['verifier'];
+    $main = $out['main'];
+
+    // $res = "kernel=$kernel\nmodule=$module\nrule=$rule\nverifier=$verifier\nmain=$main\nprocessed trace:\n$errorTrace";
+
+	// TODO: Send $res to the PPoB.
+
+	// TODO: it should be filed from the output.
+    $result = '';
+
+    // Show output in case of errors.
+    $error = '';
+    if ($retCode)
+      $error = $output;
+
+    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
+  }
+  
   public function deleteKbRecordAction()
   {
     // Find out database connection settings.
