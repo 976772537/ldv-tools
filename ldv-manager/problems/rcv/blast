@@ -20,7 +20,7 @@ while (<>){
 	/convertCilExp: align not handled/i and print "BLAST_Unsupported", "BLAST_frontend";
 	/SMT sovler answer is strange: \*\*\* Parse Error: .*: syntax error/i and print "CVC3 Solver parse error";
 	/Errormsg\.Error/i and print "Parsing errors";
-	/simplemem: temporary needed outside a function/i and print "Temp outside func"; 
+	/simplemem: temporary needed outside a function/i and print "Temp outside func";
 	/Invalid_argument\("Predicate index is less than zero"\)/ and print "Large_int";
         /SymbolicStore\.Value\.Invalid_access\("Attempt to use Null pointer as a base of offset address"\)/ and print "SymStore_Null";
         /Failure\("hd"\)/ and print "Failure_hd";
@@ -30,6 +30,7 @@ while (<>){
         /Error: Global __constr_expr_[0-9]* was already defined at/i and print "ConstExpr";
 	/Global .* was already defined/ and print "Two_globals";
 	/error when reading CSIsat output/ and print "CSIsat";
-	/Error: Cannot find input file/ and print "No_file"
+	/Error: Cannot find input file/ and print "No_file";
+	/Failure.*lookup_field_lval: strange lval/ and print "lookup_field";
 }
 
