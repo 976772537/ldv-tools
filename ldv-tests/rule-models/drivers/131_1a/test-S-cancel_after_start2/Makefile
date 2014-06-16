@@ -1,1 +1,1 @@
-obj-m := S_cancel_after_start2.o
+obj-m += S-cancel_after_start2.o

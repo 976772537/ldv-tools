@@ -15,11 +15,10 @@ static int __init my_init(void)
 {
 	struct hrtimer *timer;
 	ktime_t tim;
-	unsigned long delta_ns;
 	const enum hrtimer_mode mode;
 	int i;
 
-	i = hrtimer_start(timer, tim, delta_ns, mode);
+	i = hrtimer_start(timer, tim, mode);
 	i = hrtimer_try_to_cancel(timer);
 
 	return 0;

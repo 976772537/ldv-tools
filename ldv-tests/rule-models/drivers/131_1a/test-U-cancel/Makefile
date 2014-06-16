@@ -1,1 +1,1 @@
-obj-m := U_cancel.o
+obj-m	+= U-cancel.o
