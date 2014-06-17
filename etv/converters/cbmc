@@ -65,7 +65,7 @@ foreach my $arg (@{$data->{'location-only'}})
 # Add such the header to distinguish error traces in the common format.
 push(@et_conv_array, "Error trace common format v0.1");
 
-my $is_entry = "0";
+my $is_entry = "1";
 
 
 my $src_prev = '';
@@ -78,6 +78,7 @@ my $is_arg = "0";
 
 my $is_prev_lo = "0";
 my $prev_assignment_text = '';
+my $prev_assignment_line = '';
 
 foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
 {
@@ -116,10 +117,12 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
     if ($is_prev_lo eq "1")
     {
       $prev_assignment_text = $tmp->{full_lhs};
+      $prev_assignment_line = $line;
     }
     else
     {
       $prev_assignment_text = '';
+      $prev_assignment_line = '';
     }
     if ($src_prev ne '')
     {
@@ -173,13 +176,15 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
     $type = "CALL";
     if ($tmp->{display_name} eq "__CPROVER_initialize") # INIT SECTION
     {
-      $kind = "INIT";
+      $kind = "INIT"; # First function call - init section.
+      push(@et_conv_array, join(' ', ($type, $kind, ":", $text)));
     }
     else
     {
       if ($line eq '')
       {
         $kind = "ENTRY";
+        
         push(@et_conv_array, join(' ', ($type, $kind, ":", $text)));
       }
       else
@@ -193,6 +198,7 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
     }
     $is_prev_lo = "0";
     $prev_assignment_text = '';
+    $prev_assignment_line = '';
   }
   if ($arg =~ /FUNCTION_RETURN/)
   {
@@ -203,31 +209,24 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
     }
     else
     {
-      if ($src_prev_lo ne '')
-      {
-        push(@et_conv_array, join(' ', ($line_prev_lo, $src_prev_lo, "BLOCK", ":", "/*location-only*/")));
-        clear_prevs_lo();
-      }
       $src = $tmp->{location}->{file}[0];
       if (defined($src))
       {
         $src = '"' . $src . '"';
       }
-      $line = $tmp->{location}->{line}[0] || '';
+      $line = $prev_assignment_line;
+      if ($line eq '')
+      {
+        $line = $line_prev_lo;
+      }
       $text = $tmp->{location}->{function}[0];
       $type = "RETURN";
-      if ($tmp->{display_name} eq "__CPROVER_initialize") # INIT SECTION
-      {
-        $is_entry = "1";
-        #push(@et_conv_array, "CALL ENTRY");
-      }
-      if ($line ne '')
-      {
-        push(@et_conv_array, join(' ', ($line, $src, $type, ":", $prev_assignment_text)));
-      }
+      
+      push(@et_conv_array, join(' ', ($line, $src, $type, ":", $prev_assignment_text)));
     }
     $is_prev_lo = "0";
     $prev_assignment_text = '';
+    $prev_assignment_line = '';clear_prevs_lo();
   }
   if ($arg =~ /LOCATION-ONLY/)
   {
@@ -258,6 +257,11 @@ foreach my $arg (sort {($a =~ /^(\d+)/)[0] <=> ($b =~ /^(\d+)/)[0]} keys %hash)
     $prev_assignment_text = '';
   }
 
+}
+
+foreach my $a (@et_conv_array)
+{
+	print ("$a\n");
 }
 
 if ($src_prev_lo ne '')
