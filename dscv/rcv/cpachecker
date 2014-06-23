@@ -227,7 +227,7 @@ my $memlimit = convert_memory(specified_mem => $ENV{'RCV_MEMLIMIT'});
 
 if($timelimit>60) {
     say $CPA_CFG "# Set CPAchecker internal time limit";
-    say $CPA_CFG "cpa.conditions.global.time.wall=".($timelimit - 60)."s";
+    say $CPA_CFG "limits.time.wall=".($timelimit - 60)."s";
 }
 
 if ($no_cil)
