@@ -100,7 +100,6 @@ install:
 	@if [ ! -d $(LDV_STATS_CONF_DIR) ]; then echo 'The specified web server configuration directory "$(LDV_STATS_CONF_DIR)" does not exist' && exit 1; fi;
 	@if [ ! -d $(LDV_STATS_VHOSTS_CONF_DIR) ]; then echo 'The specified web server virtual hosts configuration directory "$(LDV_STATS_VHOSTS_CONF_DIR)" does not exist' && exit 1; fi;
 	@if [ ! -d $(LDV_STATS_VHOSTS_DIR) ]; then echo 'The specified web server virtual hosts directory "$(LDV_STATS_VHOSTS_DIR)" does not exist' && exit 1; fi;
-
 	@if [ ! -n "$(LDV_STATS_PORT)" ]; then echo 'The default LDV_STATS_PORT "$(DEFAULT_PORT)" is used' && export LDV_STATS_PORT=$(DEFAULT_PORT); else echo 'LDV_STATS_PORT is $(LDV_STATS_PORT)'; export LDV_STATS_PORT=$(LDV_STATS_PORT); fi; \
 	if [ ! -n "$(LDV_STATS_APPLICATION_ENV)" ]; then echo 'The default LDV_STATS_APPLICATION_ENV "$(DEFAULT_APPLICATION_ENV)" is used' && export LDV_STATS_APPLICATION_ENV=$(DEFAULT_APPLICATION_ENV); else echo 'LDV_STATS_APPLICATION_ENV is $(LDV_STATS_APPLICATION_ENV)'; export LDV_STATS_APPLICATION_ENV=$(LDV_STATS_APPLICATION_ENV); fi; \
 	\
@@ -113,7 +112,6 @@ install:
 	    -e 's|$(WEB_SERVER_VHOSTS_CONF_STATS_ROOT)|$(STATS_DIR)/$(STATS_ROOT)|g' \
 	    -e "s|$(WEB_SERVER_VHOSTS_CONF_APPLICATION_ENV)|$$LDV_STATS_APPLICATION_ENV|g" \
 	  | if [ $$WEB_SERVER_CONF_ABS == $$WEB_SERVER_VHOSTS_CONF_ABS ]; then echo '' >> $$WEB_SERVER_VHOSTS_CONF_ABS && cat >> $$WEB_SERVER_VHOSTS_CONF_ABS && echo 'Concatenate virtual host configuration to general configuration'; else cat > $$WEB_SERVER_VHOSTS_CONF_ABS && echo 'Write virtual host configuration and general configuration to different files'; fi;
-
 	cp -r $(VHOST_DIR)/$(STATS_DIR) $(LDV_STATS_VHOSTS_DIR) || exit 1;
 	@if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) || exit 1; fi
 	ln -sfT "$(prefix)/$(ZEND_FRAMEWORK_DIR)" "$(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR)/$(ZEND_FRAMEWORK_LINK)" || exit 1;

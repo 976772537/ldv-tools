@@ -304,7 +304,7 @@ class StatsController extends Zend_Controller_Action
 
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
-
+  
   public function publishKbAction()
   {
     // Find out database connection settings.
@@ -327,7 +327,6 @@ class StatsController extends Zend_Controller_Action
 
 	// Obtain current trace id.
 	$traceId=$this->_getParam('trace_id');
-	$main=$this->_getParam('main');
 
 	// Create published record.
     exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $ppobPublisher --id=$traceId --output=$prepairedKBRecord" . " 2>&1" , $output, $retCode);
@@ -358,6 +357,77 @@ class StatsController extends Zend_Controller_Action
     if ($retCode)
       $error = $output;
 
+    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
+  }
+  
+  public function publishKbRecordAction()
+  {
+    // Find out database connection settings.
+    $statsMapper = new Application_Model_StatsMapper();
+    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+
+    $db = $dbConnection['dbname'];
+    $user = $dbConnection['username'];
+    $host = $dbConnection['host'];
+    $passwd = '';
+    if ($dbConnection['password'] != '')
+      $passwd = "LDVDBPASSWD=$dbConnection[password]";
+
+    # TODO: review this location.
+	$prepairedKBRecord = "/tmp/prepairedKBRecord";
+
+	// Obtain the path to the ppob-publisher script.
+    $ppobPublisherConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'ppob-publisher');
+    $ppobPublisher = $ppobPublisherConfig->script;
+
+	// Obtain current trace id and other useful information.
+	$traceId=$this->_getParam('trace_id');
+	$kbId=$this->_getParam('KB_id');
+	$comment=$this->_getParam('comment');
+	$verdict=$this->_getParam('verdict');
+
+	// Create published record.
+    exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $ppobPublisher --id=$traceId --output=$prepairedKBRecord" . " 2>&1" , $output, $retCode);
+
+	// File with processed error trace.
+    $errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
+
+	// Process file with information from ppob-publisher.
+	// TODO: It is possible to get all this information from in a way like trace_id and kb_id, but
+	// those fields in KB can be corrupted (for example main='%' means any main in SELECT query).
+    $info = file_get_contents($prepairedKBRecord)
+        or die("Can't read information from the file '$prepairedKBRecord'");
+    parse_str($info, $out);
+    $kernel = $out['kernel'];
+    $module = $out['module'];
+    $rule = $out['rule'];
+    $verifier = $out['verifier'];
+    $main = $out['main'];
+
+	// Send information into the PPoB.
+	$ppob_url = "http://localhost:8080/php/impl_reports_admin.php?action=submit_ppob"; //TODO: real address!
+	$data = array(
+		'kernel' => $kernel, 
+		'module' => $module, 
+		'rule' => $rule, 
+		'verifier' => $verifier, 
+		'main' => $main,
+		'comment' => $comment,
+		'verdict' => $verdict,
+		'kb_id' => $kbId,
+		'error_trace_file' => $errorTraceFile);
+	$options = array(
+		'http' => array(
+		    'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+		    'method'  => 'POST',
+		    'content' => http_build_query($data),
+		),
+	);
+	$context  = stream_context_create($options);
+	$result = file_get_contents($ppob_url, false, $context);
+	
+	$result = '';
+	$error = '';
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
   

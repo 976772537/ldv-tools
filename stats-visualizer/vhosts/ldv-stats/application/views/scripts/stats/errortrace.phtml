@@ -76,8 +76,8 @@ else {
       return false;
     });
 
-    // KB publish.
-    $('#SETVKBPublish').click(function() {
+    // Trace publish.
+    $('#SETVTracePublish').click(function() {
       var rowCur = $(this).parent().parent();
       var traceId = rowCur.find('.SETVKBErrortrace').text();
 
@@ -97,9 +97,9 @@ else {
             alert($.makeArray(results.errors).join('\\n'));
         }
       );
-
-      return false;
+       return false;
     });
+
   });
 </script>
 <?php
@@ -126,6 +126,39 @@ else {
         , function(results) {
           if (results.errors == '') {
             rowCur.remove();
+          }
+          else
+            alert($.makeArray(results.errors).join('\\n'));
+        }
+      );
+
+      return false;
+    });
+    
+    $('.SETVKBPublishKBRecord').click(function() {
+      var rowCur = $(this).parent().parent();
+      var kbId = rowCur.find('.SETVKBId').text();
+      var traceId = rowCur.find('.SETVKBErrortrace').text();
+      var comment = rowCur.find('.SETVKBComment').text();
+      var verdict = rowCur.find('.SETVKBVerdict').text();
+
+      if (!kbId) {
+        alert('Can\'t find corresponding KB id for the record to be published');
+        return false;
+      }
+      
+      if (!traceId) {
+        alert('Can\'t find corresponding trace id for the record to be published');
+        return false;
+      }
+
+      $.getJSON(
+        '<?php echo $this->url(array('action' => 'publish-kb-record')); ?>'
+        , { 'KB id': kbId , 'trace id': traceId , 'comment':comment, 'verdict' : verdict}
+        , function(results) {
+          if (results.errors == '') {
+            alert('Information about KB record was send to the Public Pool of Bugs successfully.');
+            window.location.reload();
           }
           else
             alert($.makeArray(results.errors).join('\\n'));
@@ -374,6 +407,8 @@ else {
   echo "<td class='SETVKBAuxTitle'></td>";
   // Print auxiliary column that will contain delete action.
   echo "<td class='SETVKBAuxTitle'></td>";
+  // Print auxiliary column that will contain publish action.
+  echo "<td class='SETVKBAuxTitle'></td>";
   $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment', 'Find date', 'Fix date', 'Author', 'Committer', 'Commit');
   foreach ($columns as $columnName) {
     echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
@@ -382,9 +417,10 @@ else {
     echo '<tr>';
     echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record'>edit</a></td>";
     echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
+    echo "<td><a href='#' class='SETVKBPublishKBRecord' title='Publish KB record into PPoB'>publish</a></td>";
     foreach ($kbRecord as $columnName => $kbCellValue) {
       if ($columnName == 'Error trace')
-        $kbCellValue = '';
+        $kbCellValue = $results['Trace id'];
       if ($columnName == 'Verdict')
         $kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
       echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
@@ -397,6 +433,7 @@ else {
   // Auxiliary edit and delete columns.
   echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
   echo "<td></td>";
+  echo "<td></td>";
   foreach ($columns as $columnName) {
     echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'></div></td>";
   }
@@ -406,6 +443,7 @@ else {
   echo "<tr id='SETVKBNewFilledKBRecord'>";
   // Auxiliary edit and delete columns.
   echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
+  echo "<td></td>";
   echo "<td></td>";
   $restrictions = $results['Restrictions'];
 
@@ -430,7 +468,7 @@ else {
   echo " <a href='#' id='SETVKBCreateFilledKBRecord'>Create filled KB record</a></td>";
   echo " <a href='#' id='SETVKBStore'>Store KB</a></td>";
   echo " <a href='#' id='SETVKBRestore'>Restore KB</a></td>";
-  echo " <a href='#' id='SETVKBPublish'>Publish error trace information</a></td>";
+  echo " <a href='#' id='SETVTracePublish'>Publish error trace information</a></td>";
 }
 
 // Print show/hide plugin for error trace visualizer help. By default it isn't shown.
