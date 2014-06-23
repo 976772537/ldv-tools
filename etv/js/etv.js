@@ -66,7 +66,7 @@ function resizeTabWidths(isResize) {
 
 // Resize to fit the available height.
 function resizeHeight(isResize) {
-  var resizedHeight = window.screen.availHeight - 200;
+  var resizedHeight = window.screen.availHeight * 0.65;
   $('#ETVErrorTrace').height(resizedHeight + 'px');
   $('.ETVSrc').height(resizedHeight + 'px');
 }
