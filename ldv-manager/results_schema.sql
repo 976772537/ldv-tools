@@ -260,11 +260,10 @@ CREATE  TABLE IF NOT EXISTS `kb` (
   `tags` TEXT NULL DEFAULT NULL ,
   `comment` MEDIUMTEXT NULL DEFAULT NULL ,
 -- New information for PPoB (Public Pool of Bugs).
-  `found_time` DATETIME NULL DEFAULT NULL , -- When this bug was revealed.
-  `fix_time` DATETIME NULL DEFAULT NULL , -- When this bug was corrected (time of corresponding commit).
-  `author` VARCHAR(256) NULL DEFAULT NULL , -- Author of the corresponding commit.
-  `committer` VARCHAR(256) NULL DEFAULT NULL ,
-  `commit` VARCHAR(256) NULL DEFAULT NULL ,
+  `status` ENUM('Fixed', 'Reported', 'Unreported', 'Rejected') NOT NULL DEFAULT 'Unreported',
+  `published_trace_id` INT NULL DEFAULT NULL,
+  `internal_status` ENUM('Unpublished', 'Synchronized', 'Unsynchronized') NOT NULL DEFAULT 'Unpublished'
+
   
   PRIMARY KEY (`id`) )
 ENGINE = InnoDB
