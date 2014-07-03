@@ -1085,9 +1085,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $kb = $this->getDbTable('Application_Model_DbTable_KnowledgeBase', NULL, $this->_db);
     $select = $kb
       ->select()->setIntegrityCheck(false);
+    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status', 'Published record' => 'kb.published_trace_id');
+    
+    // , 'Find date' => 'kb.found_time', 'Fix date' => 'kb.fix_time', 'Author' => 'kb.author', 'Committer' => 'kb.committer', 'Commit' => 'kb.commit'
     $select = $select
-      ->from('kb',
-        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Find date' => 'kb.found_time', 'Fix date' => 'kb.fix_time', 'Author' => 'kb.author', 'Committer' => 'kb.committer', 'Commit' => 'kb.commit'))
+      ->from('kb', $values)
       ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
       ->joinLeft('traces', "results_kb.trace_id=traces.id", array())
       ->where("traces.id = ?", $trace_id);
@@ -1585,6 +1587,16 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       die("KB verdict isn't specified");
     }
     $verdict = $params['KB_verdict'];
+    
+    if (!array_key_exists('KB_status', $params)) {
+      die("KB status isn't specified");
+    }
+    $status = $params['KB_status'];
+    
+    if (!array_key_exists('KB_internal_status', $params)) {
+      die("KB internal status isn't specified");
+    }
+    $internalStatus = $params['KB_internal_status'];
 
     if (!array_key_exists('KB_tags', $params)) {
       die("KB tags isn't specified");
@@ -1610,6 +1622,8 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       , 'main' => $main
       , 'script' => $script
       , 'verdict' => $verdict
+      , 'status' => $status
+      , 'internal_status' => $internalStatus
       , 'tags' => $tags
       , 'comment' => $comment);
     if ($isNew) {

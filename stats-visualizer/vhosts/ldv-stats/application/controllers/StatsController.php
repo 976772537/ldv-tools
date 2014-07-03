@@ -304,62 +304,7 @@ class StatsController extends Zend_Controller_Action
 
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
-  
-  public function publishKbAction()
-  {
-    // Find out database connection settings.
-    $statsMapper = new Application_Model_StatsMapper();
-    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
 
-    $db = $dbConnection['dbname'];
-    $user = $dbConnection['username'];
-    $host = $dbConnection['host'];
-    $passwd = '';
-    if ($dbConnection['password'] != '')
-      $passwd = "LDVDBPASSWD=$dbConnection[password]";
-
-    # TODO: review this location.
-	$prepairedKBRecord = "/tmp/prepairedKBRecord";
-
-	// Obtain the path to the ppob-publisher script.
-    $ppobPublisherConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'ppob-publisher');
-    $ppobPublisher = $ppobPublisherConfig->script;
-
-	// Obtain current trace id.
-	$traceId=$this->_getParam('trace_id');
-
-	// Create published record.
-    exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $ppobPublisher --id=$traceId --output=$prepairedKBRecord" . " 2>&1" , $output, $retCode);
-
-    $errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
-    $errorTrace = file_get_contents($errorTraceFile)
-        or die("Can't read processed error trace from the file '$errorTraceFile'");
-
-    $info = file_get_contents($prepairedKBRecord)
-        or die("Can't read information from the file '$prepairedKBRecord'");
-    parse_str($info, $out);
-
-    $kernel = $out['kernel'];
-    $module = $out['module'];
-    $rule = $out['rule'];
-    $verifier = $out['verifier'];
-    $main = $out['main'];
-
-    // $res = "kernel=$kernel\nmodule=$module\nrule=$rule\nverifier=$verifier\nmain=$main\nprocessed trace:\n$errorTrace";
-
-	// TODO: Send $res to the PPoB.
-
-	// TODO: it should be filed from the output.
-    $result = '';
-
-    // Show output in case of errors.
-    $error = '';
-    if ($retCode)
-      $error = $output;
-
-    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
-  }
-  
   public function publishKbRecordAction()
   {
     // Find out database connection settings.
@@ -385,6 +330,7 @@ class StatsController extends Zend_Controller_Action
 	$kbId=$this->_getParam('KB_id');
 	$comment=$this->_getParam('comment');
 	$verdict=$this->_getParam('verdict');
+	$status=$this->_getParam('status');
 
 	// Create published record.
     exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $ppobPublisher --id=$traceId --output=$prepairedKBRecord" . " 2>&1" , $output, $retCode);
@@ -404,8 +350,11 @@ class StatsController extends Zend_Controller_Action
     $verifier = $out['verifier'];
     $main = $out['main'];
 
+    // Clear any previous data.
+	file_put_contents("/tmp/ppob_id", "");
+
 	// Send information into the PPoB.
-	$ppob_url = "http://localhost:8080/php/impl_reports_admin.php?action=submit_ppob"; //TODO: real address!
+	$ppob_url = "http://localhost:8080/php/impl_reports_admin.php"; //TODO: real address!
 	$data = array(
 		'kernel' => $kernel, 
 		'module' => $module, 
@@ -414,6 +363,7 @@ class StatsController extends Zend_Controller_Action
 		'main' => $main,
 		'comment' => $comment,
 		'verdict' => $verdict,
+		'status' => $status,
 		'kb_id' => $kbId,
 		'error_trace_file' => $errorTraceFile);
 	$options = array(
@@ -424,10 +374,72 @@ class StatsController extends Zend_Controller_Action
 		),
 	);
 	$context  = stream_context_create($options);
-	$result = file_get_contents($ppob_url, false, $context);
-	
-	$result = '';
-	$error = '';
+	$result = file_get_contents($ppob_url."?action=submit_ppob", false, $context);
+
+	$ppob_id = file_get_contents("/tmp/ppob_id"); // TODO: location
+
+	if ($ppob_id) // Success.
+	{
+		$error = "KB record has been published ino the linuxtesting.\nPublished trace id=$ppob_id.\n" .
+			"In order to edit it use the following link:\n$ppob_url?action=details_ppob&num=$ppob_id";
+
+		$kb_table = "$db.kb";
+		$link = mysql_connect($host, $user, $passwd);
+		mysql_query ("UPDATE $kb_table SET internal_status='Synchronized', published_trace_id=$ppob_id where id=$kbId");
+		mysql_close($link);
+	}
+	else
+	{
+		$error = "There was en error during KB record publishing.\n" .
+			"Please, make sure you have the proper access.\n";
+	}
+    echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
+  }
+  
+  public function getKbRecordAction()
+  {
+    // Find out database connection settings.
+    $statsMapper = new Application_Model_StatsMapper();
+    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+
+    $db = $dbConnection['dbname'];
+    $user = $dbConnection['username'];
+    $host = $dbConnection['host'];
+    $passwd = '';
+    if ($dbConnection['password'] != '')
+      $passwd = "LDVDBPASSWD=$dbConnection[password]";
+
+	// Obtain the path to the ppob-publisher script.
+    $ppobPublisherConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'ppob-publisher');
+    $ppobPublisher = $ppobPublisherConfig->script;
+
+	// Obtain kb_id.
+	$kbId=$this->_getParam('KB_id');
+
+	// Send information into the PPoB.
+	$ppob_url = "http://localhost:8080/php/impl_reports_admin.php"; //TODO: real address!
+	$result = file_get_contents($ppob_url."?action=details_ppob&kb_id=$kbId");
+	$params = "";
+	foreach(preg_split("/((\r?\n)|(\r\n?))/", $result) as $line){
+		if (preg_match("/<p type=\"get\" (\w*)=\"(.*)\"><\/p>/", $line, $array))
+		{
+			$name = $array[1];
+			$value = $array[2];
+			if (!$params)
+			{
+				$params = $params."$name='$value' ";
+			}
+			else
+			{
+				$params = $params.", $name='$value' ";
+			}
+		}
+	}
+	$kb_table = "$db.kb";
+	$link = mysql_connect($host, $user, $passwd);
+	mysql_query ("UPDATE $kb_table SET $params, internal_status='Synchronized' where id=$kbId");
+    mysql_close($link);
+    $error = "";
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
   
@@ -447,8 +459,11 @@ class StatsController extends Zend_Controller_Action
     $kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
     $kbRecalc = $kbRecalcConfig->script;
 
+	// Obtain kb_id.
+	$kbId=$this->_getParam('KB_id');
+
     // Delete KB id.
-    exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --delete=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+    exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --delete=$kbId 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';
@@ -457,6 +472,17 @@ class StatsController extends Zend_Controller_Action
     $error = '';
     if ($retCode)
       $error = $output;
+
+    // Delete from PPoB (or try to delete).
+    $ppob_url = "http://localhost:8080/php/impl_reports_admin.php"; //TODO: real address!
+	$options = array(
+		'http' => array(
+		    'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+		    'method'  => 'POST',
+		),
+	);
+	$context  = stream_context_create($options);
+	$result = file_get_contents($ppob_url."?action=del_ppob&kb_id=$kbId", false, $context);
 
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
@@ -517,7 +543,8 @@ class StatsController extends Zend_Controller_Action
 
       if ($this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')
         or $this->_getParam('KB_tags') != $this->_getParam('KB_tags_old')
-        or $this->_getParam('KB_comment') != $this->_getParam('KB_comment_old')) {
+        or $this->_getParam('KB_comment') != $this->_getParam('KB_comment_old')
+        or $this->_getParam('KB_status') != $this->_getParam('KB_status_old')) {
         // Regenerate KB cache for a given KB id (in fact nothing will be done).
         // KB comment is also assigned to result here.
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
