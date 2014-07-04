@@ -521,7 +521,7 @@ body
   background-color: #91C4CE;
 }
 
-#SETVKBId
+#SETVKBId, #SETVKBKBid
 {
   background-color: #00D1FB;
 }
@@ -531,12 +531,12 @@ body
   background-color: #00AFD2;
 }
 
-#SETVKBTaskattributes, #SETVKBModel, #SETVKBModule, #SETVKBMain
+#SETVKBTaskattributes, #SETVKBModel, #SETVKBModule, #SETVKBMain, #SETVKBKernel, #SETVKBRule, #SETVKBVerifier
 {
   background-color: #55C5FF;
 }
 
-#SETVKBErrortrace
+#SETVKBErrortrace, #SETVKBTraceid
 {
   background-color: #0D70DB;
 }

@@ -243,6 +243,19 @@ class StatsController extends Zend_Controller_Action
     }
   }
 
+  public function unsafesAction()
+  {
+	// Get all parameters including page name, trace id and so on.
+	$params = $this->_getAllParams();
+
+	$statsMapper = new Application_Model_StatsMapper();
+	$results = $statsMapper->getUnsafes($this->_profileInfo, $params);
+	$this->view->entries = array();
+	$this->view->entries = array_merge($this->view->entries, $results);
+	$this->view->entries['Globals'] = $this->_globals;
+	$this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
+  }
+
   public function comparisonAction()
   {
     // Get all parameters including page name, statistics key names and values

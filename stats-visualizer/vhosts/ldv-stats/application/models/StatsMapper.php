@@ -1009,6 +1009,111 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     return $result;
   }
 
+  public function getUnsafes($profile, $params) {
+	if (array_key_exists('page', $params)) {
+		$pageName = $params['page'];
+	}
+	else {
+		throw new Exception('Page name is not specified');
+	}	
+/*
+	// Get corresponding information (if any of them is specified).
+	if (array_key_exists('value', $params)) {
+		$verdict = $params['value'];
+	}
+	else {
+		$verdict = NULL; // No KB records - unmarked unsafes.
+	}
+	$result['verdict'] = $verdict;
+*/
+
+	$possible_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status');
+	// Get 'extended' verdict:
+	// - standart values: 'True positive', 'False positive', 'Unknown';
+	// - any trace without KB records: 'Unmarked';
+	// - any trace with KB record: <anything else> -> 'All'.
+	$isUnmarked = false;
+	$conditions = "";
+
+	if (array_key_exists('Verdict', $params))
+	{
+		$tmpVerdict = $params['Verdict'];
+		if ($tmpVerdict == 'True positive' || $tmpVerdict == 'False positive' || $tmpVerdict == 'Unknown')
+		{
+			//$verdict = $tmpVerdict;
+			$possible_restrictions['Verdict'] = 'kb.verdict';
+		}
+		elseif ($tmpVerdict == 'Unmarked')
+		{
+			$isUnmarked = true;
+			$result['Restrictions']['Verdict'] = 'Unmarked';
+		}
+		else
+		{
+			$conditions = "kb.verdict like '%'";
+			$result['Restrictions']['Verdict'] = 'All';
+		}
+	}
+	else
+	{
+		$conditions = "kb.verdict like '%'";
+		$result['Restrictions']['Verdict'] = 'All';
+	}
+	foreach (array_keys($possible_restrictions) as $key) 
+	{
+		$dbKey = $possible_restrictions[$key];
+		if (array_key_exists($key, $params)) 
+		{
+			$result['Restrictions'][$key] = $params[$key];
+			if (!$conditions)
+				$conditions = "$dbKey='$params[$key]'";
+			else
+				$conditions = $conditions . " and $dbKey='$params[$key]'";
+		}
+	}
+
+	// Connect to the profile database and remember connection settings.
+	$result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+	if (!$isUnmarked)
+	{
+		$kb = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
+		$select = $kb
+			->select()->setIntegrityCheck(false);
+		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status', 'Published record' => 'kb.published_trace_id');
+		$select = $select
+			->from('kb', $values)
+			->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
+			->joinLeft('traces', "results_kb.trace_id=traces.id", array())
+			->joinLeft('launches', "traces.launch_id=launches.id", array())
+			->joinLeft('environments', "launches.environment_id=environments.id", array())
+			->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
+			->where($conditions);
+		$result['Unsafes'] = $kb->fetchAll($select)->toArray();
+	}
+	else
+	{
+		$trace = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
+		$select = $trace
+			->select()->setIntegrityCheck(false);
+		$values = array('Kernel' => 'environments.version', 'Module' => 'scenarios.executable', 'Rule' => 'rule_models.name', 'Verifier' => 'toolsets.verifier', 'Main' => 'scenarios.main', 'Trace id' => 'traces.id');
+		$select = $select
+			->from('traces', $values)
+			->joinLeft('launches', "traces.launch_id=launches.id", array())
+			->joinLeft('environments', "launches.environment_id=environments.id", array())
+			->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
+			->joinLeft('scenarios', "launches.scenario_id=scenarios.id", array())
+			->joinLeft('rule_models', "launches.rule_model_id=rule_models.id", array())
+			->where("traces.result = 'unsafe'")
+			->where($conditions)
+			->where("traces.id NOT IN (SELECT results_kb.trace_id FROM results_kb)")
+			->order('Trace id');
+		$result['Unmarked unsafes'] = $trace->fetchAll($select)->toArray();
+	}
+	
+	return $result;
+  }
+
   public function getErrorTrace($profile, $params) {
     if (array_key_exists('page', $params)) {
       $pageName = $params['page'];
@@ -1086,8 +1191,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $select = $kb
       ->select()->setIntegrityCheck(false);
     $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status', 'Published record' => 'kb.published_trace_id');
-    
-    // , 'Find date' => 'kb.found_time', 'Fix date' => 'kb.fix_time', 'Author' => 'kb.author', 'Committer' => 'kb.committer', 'Commit' => 'kb.commit'
+
     $select = $select
       ->from('kb', $values)
       ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
