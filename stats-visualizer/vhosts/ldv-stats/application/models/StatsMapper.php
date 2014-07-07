@@ -1027,7 +1027,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 	$result['verdict'] = $verdict;
 */
 
-	$possible_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status');
+	$possible_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status', 'KB id' => 'kb.id');
 	// Get 'extended' verdict:
 	// - standart values: 'True positive', 'False positive', 'Unknown';
 	// - any trace without KB records: 'Unmarked';
@@ -1046,6 +1046,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 		elseif ($tmpVerdict == 'Unmarked')
 		{
 			$isUnmarked = true;
+			$conditions = " ";
 			$result['Restrictions']['Verdict'] = 'Unmarked';
 		}
 		else
@@ -1104,8 +1105,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 			->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
 			->joinLeft('scenarios', "launches.scenario_id=scenarios.id", array())
 			->joinLeft('rule_models', "launches.rule_model_id=rule_models.id", array())
-			->where("traces.result = 'unsafe'")
-			->where($conditions)
+			->where("traces.result = 'unsafe' $conditions")
 			->where("traces.id NOT IN (SELECT results_kb.trace_id FROM results_kb)")
 			->order('Trace id');
 		$result['Unmarked unsafes'] = $trace->fetchAll($select)->toArray();
