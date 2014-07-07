@@ -1076,6 +1076,58 @@ if ($resultsNumb) {
   echo $this->formPrintCSV;
 }
 
+
+echo "<table>";
+echo "<tr>";
+$link = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Error trace')),
+	'default',
+	true);
+printData("<td><a href='$link'>All unsafes</a></td>", null);
+
+$link = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Error trace',
+		'Verdict' => 'True positive')),
+	'default',
+	true);
+printData("<td><a href='$link'>True positives</a></td>", null);
+
+$link = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'Verdict' => 'False positive',
+		'page' => 'Error trace')),
+	'default',
+	true);
+printData("<td><a href='$link'>False positives</a></td>", null); 
+$link = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'Verdict' => 'Unknown',
+		'page' => 'Error trace')),
+	'default',
+	true);
+printData("<td><a href='$link'>Unknown</a></td>", null); 
+$link = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Error trace',
+		'Verdict' => 'Unmarked')),
+	'default',
+	true);
+printData("<td><a href='$link'>Unmarked</a></td>", null); 
+echo "</tr>";
+echo "</table>";
+
 printInfo($results);
 
 // Print CSV if it's needed.
