@@ -677,7 +677,7 @@ sub add_component(%) {
         $component_name_stats = 'maingen' if $component_name eq 'drv-env-gen';
         $component_name_stats = 'ri' if $component_name eq 'rule-instrumetor';
         if ( $component_name_stats eq "maingen" ) {
-            my $cur_loc = $component->{loc};
+            my $cur_loc = $component->{loc} || 0;
             sql_query(
 "INSERT INTO stats (id, trace_id, kind, success, loc, time, description)
                 VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc);\n"
