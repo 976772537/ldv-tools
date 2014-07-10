@@ -846,6 +846,7 @@ sub change_problems_text($) {
     $text =~ s/ and print "/ and push(\@result,  "/g;
     $text =~ s/";\n/");\n/g;
     $text =~ s/while \(<>\){/foreach\(\$cur_desc\){/g;
+    $text =~ s/'/\\\\'/g;
     return $text;
 }
 
