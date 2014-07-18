@@ -189,7 +189,7 @@ and:
   sudo prefix=/path/to/your/installation/directory make install-testing
 
 
-TODO: sort the text below out
+TODO: do not read the text below!
 
 Note, that '3' and '5' most likely require root privelegies and additional
 tuning. See 'stats-visualizer/README' for details. See 'ldv-online/README'
