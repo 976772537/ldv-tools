@@ -433,7 +433,7 @@ body
   color: #9200ED;
 }
 
-.SSKBRejected, .SSKBUnsynchronized
+.SSKBRejected, .SSKBDesynchronized
 {
   color: #FF8000;
 }
@@ -453,7 +453,7 @@ body
   color: #FF0000;
 }
 
-.SSKBUnpublished
+.SSKBUnpublished, .SSKBObsolete
 {
   color: #A000FF;
 }
@@ -556,7 +556,7 @@ body
   background-color: #A080FF;
 }
 
-#SETVKBInternalstatus
+#SETVKBSynchronizedstatus
 {
   background-color: #B080FF;
 }

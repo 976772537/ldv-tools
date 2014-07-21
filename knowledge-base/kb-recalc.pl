@@ -323,7 +323,7 @@ sub generate_cache($$)
 
     print_debug_debug("Begin to perform fast KB cache initialization$kb_ids_str$launch_ids_str...");
     $dbh->do(
-      "INSERT INTO results_kb
+      "INSERT INTO results_kb (trace_id, kb_id, fit)
        SELECT traces.id, kb.id, IF(kb.script IS NULL, 'Exact' , 'Require script')
        FROM kb, launches
          LEFT JOIN traces on traces.id=launches.trace_id

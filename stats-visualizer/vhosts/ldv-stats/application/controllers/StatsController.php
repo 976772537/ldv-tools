@@ -340,10 +340,11 @@ class StatsController extends Zend_Controller_Action
 
 	// Obtain current trace id and other useful information.
 	$traceId=$this->_getParam('trace_id');
-	$kbId=$this->_getParam('KB_id');
 	$comment=$this->_getParam('comment');
 	$verdict=$this->_getParam('verdict');
 	$status=$this->_getParam('status');
+	$ppobId=$this->_getParam('ppob_id');
+	$kbId=$this->_getParam('KB_id');
 
 	// Create published record.
     exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $ppobPublisher --id=$traceId --output=$prepairedKBRecord" . " 2>&1" , $output, $retCode);
@@ -352,8 +353,6 @@ class StatsController extends Zend_Controller_Action
     $errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
 
 	// Process file with information from ppob-publisher.
-	// TODO: It is possible to get all this information from in a way like trace_id and kb_id, but
-	// those fields in KB can be corrupted (for example main='%' means any main in SELECT query).
     $info = file_get_contents($prepairedKBRecord)
         or die("Can't read information from the file '$prepairedKBRecord'");
     parse_str($info, $out);
@@ -368,6 +367,8 @@ class StatsController extends Zend_Controller_Action
 
 	// Send information into the PPoB.
 	$ppob_url = "http://localhost:8080/php/impl_reports_admin.php"; //TODO: real address!
+	$current_link = "http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+	$current_link = preg_replace("/publish-kb-record/", "errortrace", $current_link);
 	$data = array(
 		'kernel' => $kernel, 
 		'module' => $module, 
@@ -377,8 +378,9 @@ class StatsController extends Zend_Controller_Action
 		'comment' => $comment,
 		'verdict' => $verdict,
 		'status' => $status,
-		'kb_id' => $kbId,
-		'error_trace_file' => $errorTraceFile);
+		'error_trace_file' => $errorTraceFile,
+		'sync_status' => 'KB-Synchronized',
+		'link' => $current_link);
 	$options = array(
 		'http' => array(
 		    'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
@@ -387,18 +389,25 @@ class StatsController extends Zend_Controller_Action
 		),
 	);
 	$context  = stream_context_create($options);
-	$result = file_get_contents($ppob_url."?action=submit_ppob", false, $context);
+	if ($ppobId) // Update.
+	{
+		$result = file_get_contents($ppob_url."?action=update_ppob&num=$ppobId", false, $context);
+	}
+	else // Insert.
+	{
+		$result = file_get_contents($ppob_url."?action=submit_ppob", false, $context);
+	}
 
 	$ppob_id = file_get_contents("/tmp/ppob_id"); // TODO: location
 
 	if ($ppob_id) // Success.
 	{
-		$error = "KB record has been published ino the linuxtesting.\nPublished trace id=$ppob_id.\n" .
+		$error = "KB record has been published into the linuxtesting.\nPublished trace id=$ppob_id.\n" .
 			"In order to edit it use the following link:\n$ppob_url?action=details_ppob&num=$ppob_id";
 
-		$kb_table = "$db.kb";
+		$kb_table = "$db.results_kb";
 		$link = mysql_connect($host, $user, $passwd);
-		mysql_query ("UPDATE $kb_table SET internal_status='Synchronized', published_trace_id=$ppob_id where id=$kbId");
+		mysql_query ("UPDATE $kb_table SET sync_status='Synchronized', published_trace_id=$ppob_id where kb_id=$kbId AND trace_id=$traceId");
 		mysql_close($link);
 	}
 	else
@@ -408,8 +417,8 @@ class StatsController extends Zend_Controller_Action
 	}
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
-  
-  public function getKbRecordAction()
+
+  public function getKbRecordAction()//TODO:...
   {
     // Find out database connection settings.
     $statsMapper = new Application_Model_StatsMapper();
@@ -428,10 +437,12 @@ class StatsController extends Zend_Controller_Action
 
 	// Obtain kb_id.
 	$kbId=$this->_getParam('KB_id');
+	$traceId=$this->_getParam('trace_id');
+	$ppobId=$this->_getParam('ppob_id');
 
 	// Send information into the PPoB.
 	$ppob_url = "http://localhost:8080/php/impl_reports_admin.php"; //TODO: real address!
-	$result = file_get_contents($ppob_url."?action=details_ppob&kb_id=$kbId");
+	$result = file_get_contents($ppob_url."?action=details_ppob&num=$ppobId");
 	$params = "";
 	foreach(preg_split("/((\r?\n)|(\r\n?))/", $result) as $line){
 		if (preg_match("/<p type=\"get\" (\w*)=\"(.*)\"><\/p>/", $line, $array))
@@ -449,13 +460,29 @@ class StatsController extends Zend_Controller_Action
 		}
 	}
 	$kb_table = "$db.kb";
+	$results_kb_table = "$db.results_kb";
 	$link = mysql_connect($host, $user, $passwd);
-	mysql_query ("UPDATE $kb_table SET $params, internal_status='Synchronized' where id=$kbId");
+	if (!mysql_query ("UPDATE $kb_table, $results_kb_table SET $params, sync_status='Synchronized' where $kb_table.id=$kbId AND $results_kb_table.kb_id=$kbId AND $results_kb_table.trace_id=$traceId"))
+		$error = "UPDATE $kb_table, $results_kb_table SET $params, sync_status='Synchronized' where $kb_table.id=$kbId AND $results_kb_table.kb_id=$kbId AND $results_kb_table.trace_id=$traceId\n$ppobId";
     mysql_close($link);
     $error = "";
+    
+    // Send query for sync in PPoB.
+    $ppob_url = "http://localhost:8080/php/impl_reports_admin.php"; //TODO: real address!
+	$data = array('sync_status' => 'KB-Synchronized');
+	$options = array(
+		'http' => array(
+		    'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+		    'method'  => 'POST',
+		    'content' => http_build_query($data),
+		),
+	);
+	$context  = stream_context_create($options);
+	$result = file_get_contents($ppob_url."?action=update_ppob&num=$ppobId", false, $context);
+	
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
-  
+
   public function deleteKbRecordAction()
   {
     // Find out database connection settings.

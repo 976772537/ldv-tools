@@ -1081,7 +1081,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 		$kb = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
 		$select = $kb
 			->select()->setIntegrityCheck(false);
-		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status', 'Published record' => 'kb.published_trace_id');
+		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id');
 		$select = $select
 			->from('kb', $values)
 			->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
@@ -1190,7 +1190,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $kb = $this->getDbTable('Application_Model_DbTable_KnowledgeBase', NULL, $this->_db);
     $select = $kb
       ->select()->setIntegrityCheck(false);
-    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status', 'Published record' => 'kb.published_trace_id');
+    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id');
 
     $select = $select
       ->from('kb', $values)
@@ -1697,10 +1697,20 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     }
     $status = $params['KB_status'];
     
-    if (!array_key_exists('KB_internal_status', $params)) {
-      die("KB internal status isn't specified");
+    if (!array_key_exists('KB_verdict_old', $params)) {
+      die("Old KB verdict isn't specified");
     }
-    $internalStatus = $params['KB_internal_status'];
+    $verdictOld = $params['KB_verdict_old'];
+    
+    if (!array_key_exists('KB_status_old', $params)) {
+      die("Old KB status isn't specified");
+    }
+    $statusOld = $params['KB_status_old'];
+    
+    if (!array_key_exists('KB_internal_status_old', $params)) {
+      die("Old KB internal status isn't specified");
+    }
+    $internalStatus = $params['KB_internal_status_old'];
 
     if (!array_key_exists('KB_tags', $params)) {
       die("KB tags isn't specified");
@@ -1726,8 +1736,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       , 'main' => $main
       , 'script' => $script
       , 'verdict' => $verdict
-      , 'status' => $status
-      , 'internal_status' => $internalStatus
       , 'tags' => $tags
       , 'comment' => $comment);
     if ($isNew) {
@@ -1736,10 +1744,16 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       // Save corresponding error trace directly to KB if this is required.
       if ($traceId) {
         $this->_db->query("UPDATE kb SET error_trace = (SELECT traces.error_trace FROM traces WHERE traces.id=$traceId) WHERE kb.id=$kbNewId");
+        $this->_db->query("UPDATE results_kb SET status='$status' WHERE kb_id=$id AND trace_id=$traceId");
       }
     }
-    else
+    else {
       $this->_db->update('kb', $data, "id = $id");
+      $this->_db->query("UPDATE results_kb SET status='$status' WHERE kb_id=$id AND trace_id=$traceId");
+      if ($traceId && ($statusOld != $status || $verdictOld != $verdict) && $internalStatus == "Synchronized") {
+        $this->_db->query("UPDATE results_kb SET sync_status='Desynchronized' WHERE kb_id=$id AND trace_id=$traceId");
+      }
+    }
 
     return $result;
   }

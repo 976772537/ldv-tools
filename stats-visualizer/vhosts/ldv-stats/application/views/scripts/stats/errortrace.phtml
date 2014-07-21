@@ -117,12 +117,21 @@ else {
       var comment = rowCur.find('.SETVKBComment').text();
       var verdict = rowCur.find('.SETVKBVerdict').text();
       var status = rowCur.find('.SETVKBStatus').text();
+      var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
+      var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      publishedRecord = publishedRecord.substring(recordIndex + 9);
+
+      if (status == 'Obsolete')
+      {
+        alert('Can\'t publish obsolete KB record');
+        return false;
+      }
 
       if (!kbId) {
         alert('Can\'t find corresponding KB id for the record to be published');
         return false;
       }
-      
+
       if (!traceId) {
         alert('Can\'t find corresponding trace id for the record to be published');
         return false;
@@ -130,7 +139,7 @@ else {
 
       $.getJSON(
         '<?php echo $this->url(array('action' => 'publish-kb-record')); ?>'
-        , { 'KB id': kbId , 'trace id': traceId , 'comment':comment, 'verdict' : verdict, 'status' : status}
+        , { 'KB id': kbId , 'trace id': traceId , 'comment':comment, 'verdict' : verdict, 'status' : status, 'ppob id': publishedRecord}
         , function(results) {
           if (results.errors == '') {
             alert('Information about KB record was send to the Public Pool of Bugs successfully.');
@@ -148,6 +157,15 @@ else {
     $('.SETVKBUpdateKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var kbId = rowCur.find('.SETVKBId').text();
+      var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
+      var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      var traceId = rowCur.find('.SETVKBErrortrace').text();
+      publishedRecord = publishedRecord.substring(recordIndex + 9);
+
+      if (!publishedRecord) {
+        alert('Can\'t update unpublished KB record');
+        return false;
+      }
 
       if (!kbId) {
         alert('Can\'t find corresponding KB id for the record to be published');
@@ -156,7 +174,7 @@ else {
 
       $.getJSON(
         '<?php echo $this->url(array('action' => 'get-kb-record')); ?>'
-        , { 'KB id': kbId }
+        , { 'KB id': kbId, 'trace id': traceId, 'ppob id': publishedRecord }
         , function(results) {
           if (results.errors == '') {
             alert('Information about KB record was updated from Public Pool of Bugs successfully.');
@@ -190,7 +208,7 @@ else {
     return tagsArray.join(';');
   }
 
-  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, statusOld, status, internalStatusOld, internalStatus, tagsOld, tags, commentOld, comment) {
+  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, statusOld, status, internalStatusOld, tagsOld, tags, commentOld, comment) {
     $.ajaxSetup({ 'error': function() {
       if (isNew)
         alert('Something goes wrong while KB record was created');
@@ -222,7 +240,6 @@ else {
           , 'KB status old': statusOld
           , 'KB status': status
           , 'KB internal status old': internalStatusOld
-          , 'KB internal status': internalStatus
           , 'KB tags old': tagsOld
           , 'KB tags': tags
           , 'KB comment old': commentOld
@@ -262,7 +279,6 @@ else {
       var kbVerdictOld = '';
       var kbStatusOld = '';
       var kbInternalStatusOld = '';
-      var kbInternalStatus = '';
       var kbTagsOld = '';
       var kbCommentOld = '';
 
@@ -338,6 +354,7 @@ else {
         var isReportedChecked = '';
         var isFixedChecked = '';
         var isRejectedChecked = '';
+        var isObsoleteChecked = '';
 
         kbStatusOld = $(this).text();
         if (kbStatusOld == 'Fixed')
@@ -346,15 +363,18 @@ else {
           isReportedChecked = 'checked';
         else if (kbStatusOld == 'Rejected')
           isRejectedChecked = 'checked';
-         else
+        else if (kbStatusOld == 'Obsolete')
+          isObsoleteChecked = 'checked';
+        else
           isUnreportedChecked = 'checked';
 
         $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' " + isUnreportedChecked + " form='UpdateKBRecord' />Unreported"
           + "<input type='radio' id='KBStatus' name='KBStatus' value='Reported' " + isReportedChecked + " form='UpdateKBRecord' />Reported"
           + "<input type='radio' id='KBStatus' name='KBStatus' value='Rejected' " + isRejectedChecked + " form='UpdateKBRecord' />Rejected"
-          + "<input type='radio' id='KBStatus' name='KBStatus' value='Fixed' " + isFixedChecked + " form='UpdateKBRecord' />Fixed");
+          + "<input type='radio' id='KBStatus' name='KBStatus' value='Fixed' " + isFixedChecked + " form='UpdateKBRecord' />Fixed"
+          + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' " + isObsoleteChecked + " form='UpdateKBRecord' />Obsolete");
       });
-      rowCur.find('.SETVKBInternalstatus').parent().each(function() {
+      rowCur.find('.SETVKBSynchronizedstatus').parent().each(function() {
         kbInternalStatusOld = $(this).text();
       });
 
@@ -373,19 +393,8 @@ else {
       kbTagsOld = "'" + kbTagsOld + "'";
       kbCommentOld = escape(kbCommentOld);
       kbCommentOld = "'" + kbCommentOld + "'";
-
-	  kbInternalStatus = kbInternalStatusOld;
-	  if (kbInternalStatusOld == "Synchronized")
-	  {
-	  	kbInternalStatus = "Unsynchronized";
-	  }
-	  else if (kbInternalStatusOld != "Unsynchronized")
-	  {
-	  	kbInternalStatus = "Unpublished";
-	  }
 	  kbInternalStatusOld = "'" + kbInternalStatusOld + "'";
-	  kbInternalStatus = "'" + kbInternalStatus + "'";
-	  
+
       var submitText = '';
       if (isNew)
         submitText = 'Create';
@@ -408,7 +417,7 @@ else {
           + kbScriptOld + ",  getElementById('KBScript').value, "
           + kbVerdictOld + ",  getRadioValue(getElementsByName('KBVerdict')), "
           + kbStatusOld + ",  getRadioValue(getElementsByName('KBStatus')), "
-          + kbInternalStatusOld + ", " + kbInternalStatus + ", "
+          + kbInternalStatusOld + ", "
           + kbTagsOld + ",  trimTags(getElementById('KBTags').value), "
           + kbCommentOld + ",  getElementById('KBComment').value);"
           + " return false;\">"
@@ -460,7 +469,7 @@ else {
   echo "<td class='SETVKBAuxTitle'></td>";
   // Print auxiliary column that will contain update action.
   echo "<td class='SETVKBAuxTitle'></td>";
-  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment', 'Status', 'Internal status', 'Published record');
+  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record');
   foreach ($columns as $columnName) {
     echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
   }
@@ -476,7 +485,7 @@ else {
       if ($columnName == 'Published record')
       {
         if ($kbCellValue)
-        	$link = "http://localhost:8080/php/report?ppob_id=$kbCellValue"; //TODO:real link!
+        	$link = "http://localhost:8080/php/trace?id=$kbCellValue"; //TODO:real link!
         else
         	$link = "";
         $kbCellValue = "<a href='$link'>$link</a>"; 
@@ -485,7 +494,7 @@ else {
         $kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
       if ($columnName == 'Status')
         $kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
-      if ($columnName == 'Internal status')
+      if ($columnName == 'Synchronized status')
         $kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
       echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
     }
