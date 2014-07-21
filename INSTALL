@@ -12,7 +12,7 @@ MINIMAL PREREQUISITES
 	o OCaml 3.10 or 3.11.0-3.11.2 (for BLAST verifier)
 	o Perl 5.10
 	o Ruby 1.8.7
-	o JDK or OpenJDK 1.6.0
+	o JDK or OpenJDK 1.6.0 (1.7 for CPAchecker verifier)
 	o ant 1.8.0 or greater
 	o GNU Make 3.81
 	o GCC (32-bit version) with C++ support
