@@ -418,7 +418,7 @@ class StatsController extends Zend_Controller_Action
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
 
-  public function getKbRecordAction()//TODO:...
+  public function getKbRecordAction()
   {
     // Find out database connection settings.
     $statsMapper = new Application_Model_StatsMapper();
@@ -501,6 +501,7 @@ class StatsController extends Zend_Controller_Action
 
 	// Obtain kb_id.
 	$kbId=$this->_getParam('KB_id');
+	$ppobId=$this->_getParam('ppob_id');
 
     // Delete KB id.
     exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --delete=$kbId 2>&1" , $output, $retCode);
@@ -522,7 +523,7 @@ class StatsController extends Zend_Controller_Action
 		),
 	);
 	$context  = stream_context_create($options);
-	$result = file_get_contents($ppob_url."?action=del_ppob&kb_id=$kbId", false, $context);
+	$result = file_get_contents($ppob_url."?action=del_ppob&num=$ppobId", false, $context);
 
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }

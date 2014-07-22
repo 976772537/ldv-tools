@@ -1027,7 +1027,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 	$result['verdict'] = $verdict;
 */
 
-	$possible_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'kb.status', 'Internal status' => 'kb.internal_status', 'KB id' => 'kb.id');
+	$kb_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'KB id' => 'kb.id', 'Trace id' => 'results_kb.trace_id', 'Tags' => 'kb.tags', 'Published record' => 'results_kb.published_trace_id');
+	$trace_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'rule_models.name', 'Module' => 'scenarios.executable', 'Verifier' => 'toolsets.verifier', 'Main' => 'scenarios.main', 'Trace id' => 'traces.id');
+	
 	// Get 'extended' verdict:
 	// - standart values: 'True positive', 'False positive', 'Unknown';
 	// - any trace without KB records: 'Unmarked';
@@ -1041,13 +1043,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 		if ($tmpVerdict == 'True positive' || $tmpVerdict == 'False positive' || $tmpVerdict == 'Unknown')
 		{
 			//$verdict = $tmpVerdict;
-			$possible_restrictions['Verdict'] = 'kb.verdict';
+			$kb_restrictions['Verdict'] = 'kb.verdict';
 		}
-		elseif ($tmpVerdict == 'Unmarked')
+		elseif ($tmpVerdict == 'Unassociated')
 		{
 			$isUnmarked = true;
 			$conditions = " ";
-			$result['Restrictions']['Verdict'] = 'Unmarked';
+			$result['Restrictions']['Verdict'] = 'Unassociated';
 		}
 		else
 		{
@@ -1060,28 +1062,30 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 		$conditions = "kb.verdict like '%'";
 		$result['Restrictions']['Verdict'] = 'All';
 	}
-	foreach (array_keys($possible_restrictions) as $key) 
-	{
-		$dbKey = $possible_restrictions[$key];
-		if (array_key_exists($key, $params)) 
-		{
-			$result['Restrictions'][$key] = $params[$key];
-			if (!$conditions)
-				$conditions = "$dbKey='$params[$key]'";
-			else
-				$conditions = $conditions . " and $dbKey='$params[$key]'";
-		}
-	}
 
 	// Connect to the profile database and remember connection settings.
 	$result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
 
 	if (!$isUnmarked)
 	{
+		// Got Unassociated restrictions.
+		foreach (array_keys($kb_restrictions) as $key) 
+		{
+			$dbKey = $kb_restrictions[$key];
+			if (array_key_exists($key, $params)) 
+			{
+				$result['Restrictions'][$key] = $params[$key];
+				if (!$conditions)
+					$conditions = "$dbKey='$params[$key]'";
+				else
+					$conditions = $conditions . " and $dbKey='$params[$key]'";
+			}
+		}
+
 		$kb = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
 		$select = $kb
 			->select()->setIntegrityCheck(false);
-		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id');
+		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id');
 		$select = $select
 			->from('kb', $values)
 			->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
@@ -1094,6 +1098,20 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 	}
 	else
 	{
+		// Got Unassociated restrictions.
+		foreach (array_keys($trace_restrictions) as $key) 
+		{
+			$dbKey = $trace_restrictions[$key];
+			if (array_key_exists($key, $params)) 
+			{
+				$result['Restrictions'][$key] = $params[$key];
+				if (!$conditions)
+					$conditions = "$dbKey='$params[$key]'";
+				else
+					$conditions = $conditions . " and $dbKey='$params[$key]'";
+			}
+		}
+
 		$trace = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
 		$select = $trace
 			->select()->setIntegrityCheck(false);
@@ -1744,7 +1762,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       // Save corresponding error trace directly to KB if this is required.
       if ($traceId) {
         $this->_db->query("UPDATE kb SET error_trace = (SELECT traces.error_trace FROM traces WHERE traces.id=$traceId) WHERE kb.id=$kbNewId");
-        $this->_db->query("UPDATE results_kb SET status='$status' WHERE kb_id=$id AND trace_id=$traceId");
+        $this->_db->query("UPDATE results_kb SET status='$status' WHERE kb_id=$kbNewId AND trace_id=$traceId");
       }
     }
     else {
