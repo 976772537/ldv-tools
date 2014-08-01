@@ -1,0 +1,189 @@
+<?php
+/*
+ * Copyright (C) 2010-2012
+ * Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+include 'general.php';
+
+if (isset($_SESSION['cookie']))
+{
+	$cookie = $_SESSION['cookie'];
+}
+$user = '';
+if (isset($cookie))
+{
+	$user = checkIfLogin($cookie);
+}
+
+// Get all infomation to be displayed.
+$results = $this->entries;
+$globals = $results['Globals'];
+
+
+?>
+<script type='text/javascript'>
+  $(document).ready(function() {
+    $('#SETVKBTable tr:odd').addClass('SETVKBTableRowOdd');
+    $('#SETVKBTable tr:even').addClass('SETVKBTableRowEven');
+  });
+</script>
+
+<script type='text/javascript'>
+  $(document).ready(function() {
+
+    // Delete action.
+    $('.SETVKBDeleteKBRecord').click(function() {
+      var rowCur = $(this).parent().parent();
+      var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
+      var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      publishedRecord = publishedRecord.substring(recordIndex + 9);
+      var kbId = rowCur.find('.SETVKBKBid').text();
+	  var user = <?php echo json_encode("$user"); ?>;
+
+	  // Restrictions.
+	  if (!user && publishedRecord)
+      {
+        alert('You are not authorized for this operation (since this record has been published).');
+        return false;
+      }
+      if (!kbId) {
+        alert('Can\'t find corresponding KB id for the record to be deleted');
+        return false;
+      }
+
+      $.ajaxSetup({ 'error': function() {
+        alert('Something goes wrong while KB record was deleted');
+      }});
+
+      $.getJSON(
+        '<?php echo $this->url(array('action' => 'delete-kb-record')); ?>'
+        , { 'KB id': kbId , 'ppob id': publishedRecord }
+        , function(results) {
+          if (results.errors == '') {
+            if (publishedRecord)
+            {
+              alert("Error trace # " + publishedRecord + " successfully has been deleted in linuxtesting " +
+              	"along with KB record # " + kbId + ".");
+            }
+            else
+            {
+              alert("KB record # " + kbId + " successfully has been deleted.");
+            }
+            window.location.reload();
+          }
+          else
+            alert($.makeArray(results.errors).join('\\n'));
+        }
+      );
+
+      return false;
+    });
+  });
+</script>
+<?php
+
+echo "<div id='SETVKBTableTitle'>Unsafes with verdict '" . $results['Restrictions']['Verdict'] . "'</div>";
+echo "<table id='SETVKBTable' border='1'>";
+echo "<tr id='SETVKBTableFirstRow'>";
+
+if (isset($results['Unsafes']))
+{
+	$unsafes = $results['Unsafes'];
+	$columns = array('KB id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record');
+	// Print auxiliary column that will contain delete action.
+	echo "<td class='SETVKBAuxTitle'></td>";
+	$isUnmarked = 0;
+}
+else
+{
+	$unsafes = $results['Unmarked unsafes'];
+	$columns = array('Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id');
+	$isUnmarked = 1;
+	// Print auxiliary column that will contain number of rows.
+	echo "<td class='SETVKBAuxTitle'></td>";
+}
+
+foreach ($columns as $columnName) 
+{
+	echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
+}
+
+$counter = 0;
+
+foreach ($unsafes as $unsafe) 
+{
+	echo '<tr>';
+	$counter++;
+	if (!$isUnmarked)
+		echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
+	else
+		echo "<td>$counter</td>";
+	foreach ($unsafe as $columnName => $kbCellValue) 
+	{
+		if ($columnName == 'Kernel')
+			$kernel = $kbCellValue;
+		if ($columnName == 'Module')
+			$module = $kbCellValue;
+		if ($columnName == 'Rule')
+			$rule = $kbCellValue;
+		if ($columnName == 'Main')
+			$main = $kbCellValue;
+
+		if ($columnName == 'Trace id')
+		{
+			$link = $this->url(array_merge($globals,
+				array(
+					'controller' => 'stats',
+					'action' => 'errortrace',
+					'page' => 'Error trace',
+					'value' => $kbCellValue,
+					'Environment version' => $kernel,
+					'Rule name' => $rule,
+					'Module' => $module,
+					'Entry point' => $main)),
+				'default',
+				true);
+			$kbCellValue = "<a href='$link'>$kbCellValue</a>"; 
+		}
+		if ($columnName == 'Published record')
+		{
+			if ($kbCellValue)
+				$link = "http://localhost:8080/php/trace?id=$kbCellValue"; //TODO:real link!
+			else
+				$link = "";
+			$kbCellValue = "<a href='$link'>$link</a>"; 
+		}
+		if ($columnName == 'Verdict')
+			$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
+		if ($columnName == 'Status')
+			$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
+		if ($columnName == 'Synchronized status')
+			$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
+		echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
+	}
+	echo '</tr>';
+}
+
+echo "</tr>";
+echo '</table>';
+  
+
+
+
+
+printInfo($results);
+
+?>
