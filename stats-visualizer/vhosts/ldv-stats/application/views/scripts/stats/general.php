@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+$GLOBALS['url'] = 'http://linuxtesting.org/';
 // Count the number of tree leaves for a given array.
 function countLeaves($array) {
   if (is_null($array)) {
@@ -253,5 +254,165 @@ function returnProfile($info) {
 
   return '';
 }
+
+ /*
+  * Function returns name of the user if user has logged into the linuxtesting in current session and FALSE otherwise.
+  */
+  function checkIfLogin($cookie)
+  {
+  	$url = $GLOBALS['url'];
+  	$result = curlGetRequestByCookie($url . "user", $cookie);
+  	if (!preg_match("/My account/", $result, $array))
+	{
+		return "";
+	}
+	if (preg_match("/<title>(.+) \| Linux Verification Center<\/title>/", $result, $array))
+	{
+		return $array[1];
+	}
+	return "";
+  }
+
+ /*
+  * Checks if current user is editor.
+  */
+  function checkUserRights($name, $cookie)
+  {
+  	$url = $GLOBALS['url'];
+
+  	// Check first page.
+  	$result = curlGetRequestByCookie($url . "user_list/4");
+  	if (preg_match("/$name/", $result, $array))
+	{
+		return TRUE;
+	}
+
+	// Check next pages.
+	while (preg_match("/<li class=\"pager-next\"><a href=\"(.+)\" title=\"Go to next page\"/", $result, $array))
+	{
+		$url_tmp = $array[1];
+		$result = curlGetRequestByCookie($url_tmp);
+		if (preg_match("/$name/", $result, $array))
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+  }
+
+ /*
+  * Function executes curl GET request for selected url and known cookie.
+  * Returns content of url after executing GET request.
+  */
+  function curlGetRequestByCookie($url, $cookie)
+  {
+    // Init curl.
+	$curl = curl_init();
+
+	// Set parameters.
+	curl_setopt($curl, CURLOPT_URL, $url);
+	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
+	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
+	curl_setopt($curl, CURLOPT_COOKIE, "$cookie");
+	// Execute request.
+	$result = curl_exec($curl);
+
+	// Close connection.
+	curl_close($curl);
+
+	return $result;
+  }
+
+ /*
+  * Function logins on selected url by POST curl request.
+  * In case of success returns Success and sets cookie field.
+  * Otherwise returns error message.
+  */
+  function curlLogin($name, $pass)
+  {
+  	$url = $GLOBALS['url'];
+  	// Init curl.
+  	$curl = curl_init();
+
+  	// Set parameters.
+	curl_setopt($curl, CURLOPT_URL, $url . "user/login");  
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); 
+	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
+	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
+	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
+	curl_setopt($curl, CURLOPT_POST, 1);
+	curl_setopt($curl, CURLOPT_POSTFIELDS, "name=$name&pass=$pass&form_id=user_login");
+	curl_setopt($curl, CURLOPT_HEADER, TRUE);
+	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
+
+	// Execute curl POST request.
+	$result = curl_exec($curl);
+
+	// Close connection.
+	curl_close($curl);
+
+	// Check for errors.
+	if (preg_match("/Sorry, unrecognized username or password./", $result, $array))
+	{
+		return "Unrecognized username or password";
+	}
+	elseif (preg_match("/(\w+) field is required/", $result, $array))
+	{
+		return "$array[1] field is required";
+	}
+	elseif (!preg_match("/My account/", $result, $array))
+	{
+		return "Cannot connect to $url/user/login";
+	}
+file_put_contents("/tmp/ppob_id", $result);
+	// Login successful.
+
+	// Get cookie.
+	$cookie = "";
+	if (preg_match_all("/Set-Cookie: (.+); expires=/", $result, $matches))
+	{
+		foreach ($matches[1] as $val)
+		{
+			$cookie = $val;
+		}
+	}
+
+	// Create global cookie.
+	$_SESSION['cookie'] = $cookie;
+
+	return "Success";
+  }
+
+ /*
+  * Function logouts current user.
+  */
+  function curlLogout($cookie)
+  {
+  	$url = $GLOBALS['url'];
+
+  	// Init curl.
+  	$curl = curl_init();
+  	
+  	// Set parameters.
+	curl_setopt($curl, CURLOPT_URL, $url . "logout");  
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); 
+	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
+	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
+	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
+	curl_setopt($curl, CURLOPT_POST, 1);
+	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
+	curl_setopt($curl, CURLOPT_COOKIE, "$cookie");
+	// Execute curl POST request.
+	$result = curl_exec($curl);
+	
+	// Close connection.
+	curl_close($curl);
+
+	// Remove global cookie.
+	unset ($_SESSION['cookie']);
+
+  }
 
 ?>

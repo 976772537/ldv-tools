@@ -15,8 +15,130 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+//TODO: check all links
 include 'general.php';
+
+// Get cookie from Session global variable.
+if (isset($_SESSION['cookie']))
+{
+	$cookie = $_SESSION['cookie'];
+}
+
+// Get page URI.
+$ADDR_SELF = $_SERVER['REQUEST_URI'];
+
+// Check if there were any POST requests for login/logout.
+if (isset($_POST['action']))
+	$action = $_POST['action'];
+
+// Get error message (in case it exists).
+$errorMessage = '';
+if (isset($_GET['error']))
+{
+	$errorMessage = $_GET['error'];
+	$ADDR_SELF = substr($ADDR_SELF, 0, strpos($ADDR_SELF, "?error=")); // Delete error from page's address.
+}
+
+// Logout action.
+if (isset($action) && $action == "logout")
+{
+	curlLogout($cookie);
+	header("Location: $ADDR_SELF");
+}
+
+// Login action.
+if (isset($action) && $action == "login")
+{
+	$name = $_POST['name'];
+	$pass = $_POST['pass'];
+	$result = curlLogin($name, $pass);
+	if ($result == "Success")
+	{
+		$result = checkUserRights($name, $_SESSION['cookie']);
+		if ($result)
+		{
+			header("Location: $ADDR_SELF");
+		}
+		else
+		{
+			$error = "User '$name' is not an Editor on linuxtesting";
+			unset ($_SESSION['cookie']);
+			header("Location: $ADDR_SELF?error=$error");
+		}
+	}
+	else
+	{
+		header("Location: $ADDR_SELF?error=$result");
+	}
+}
+
+function loginForm($errorMessage)
+{
+	global $ADDR_SELF;
+	?>
+	<form action="<?php print($ADDR_SELF); ?>" method="post" enctype="multipart/form-data">
+	<table>
+	<?php if ($errorMessage) { ?>
+	<p>
+	<tr>
+		<td align=middle colspan=1><b>Error: </b></td>
+		<td><b><?php print($errorMessage); ?></b></td>
+	</tr>
+	</p>
+	<?php } ?>
+	<tr>
+	<p>
+		<td><b>Username: </b></td>
+		<td><input type="name" name="name" value="" size=30></td>
+		<td><b>Password: </b></td>
+		<td><input type="password" name="pass" value="" size=30></td>
+		<td>
+			<input type="submit" name="action" value="login" />
+		</td>
+	</tr>
+	</p>
+	</table>
+	</form>	
+	<?php
+}
+
+function logoutForm($user)
+{
+	global $ADDR_SELF;
+	?>
+	<form action="<?php print($ADDR_SELF); ?>" method="post" enctype="multipart/form-data">
+	<table>
+	<p>
+	<tr>
+		<td><b>Linuxtesting user: <?php print($user); ?></b></td>
+		<td align=middle colspan=3>
+			<input type="submit" name="action" value="logout" />
+		</td>
+	</tr>
+	</p>
+	</table>
+	</form>	
+	<?php
+}
+
+// Print login/logout form.
+$user = '';
+if (isset($cookie))
+{
+	$user = checkIfLogin($cookie);
+	if ($user)
+	{
+		logoutForm($user);
+	}
+	else
+	{
+		loginForm($errorMessage);
+	}
+}
+else
+{
+	loginForm($errorMessage);
+}
 
 // Get all infomation to be displayed.
 $results = $this->entries;
@@ -79,24 +201,28 @@ else {
   });
 </script>
 <?php
-  // Plugin for KB record delete action.
+  // Plugin for KB record actions.
 ?>
 <script type='text/javascript'>
   $(document).ready(function() {
+
+    // Delete action.
     $('.SETVKBDeleteKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("trace?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 9);
       var kbId = rowCur.find('.SETVKBId').text();
+	  var user = <?php echo json_encode("$user"); ?>;
 
-      if (!publishedRecord) {
-        alert('Can\'t find corresponding trace id for the record to be published');
+	  // Restrictions.
+	  if (!user && publishedRecord)
+      {
+        alert('You are not authorized for this operation (since this record has been published).');
         return false;
       }
-
       if (!kbId) {
-        alert('Can\'t find corresponding KB id for the record to be published');
+        alert('Can\'t find corresponding KB id for the record to be deleted');
         return false;
       }
 
@@ -109,7 +235,16 @@ else {
         , { 'KB id': kbId , 'ppob id': publishedRecord }
         , function(results) {
           if (results.errors == '') {
-            rowCur.remove();
+            if (publishedRecord)
+            {
+              alert("Error trace # " + publishedRecord + " successfully has been deleted in linuxtesting " +
+              	"along with KB record # " + kbId + ".");
+            }
+            else
+            {
+              alert("KB record # " + kbId + " successfully has been deleted.");
+            }
+            window.location.reload();
           }
           else
             alert($.makeArray(results.errors).join('\\n'));
@@ -119,6 +254,7 @@ else {
       return false;
     });
 
+	// Publish action.
     $('.SETVKBPublishKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var kbId = rowCur.find('.SETVKBId').text();
@@ -129,18 +265,23 @@ else {
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("trace?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 9);
+      var user = <?php echo json_encode("$user"); ?>;
 
+      // Restrictions.
+      if (!user)
+      {
+        alert('You are not authorized for this operation');
+        return false;
+      }
       if (status == 'Obsolete')
       {
         alert('Can\'t publish obsolete KB record');
         return false;
       }
-
       if (!kbId) {
         alert('Can\'t find corresponding KB id for the record to be published');
         return false;
       }
-
       if (!traceId) {
         alert('Can\'t find corresponding trace id for the record to be published');
         return false;
@@ -151,18 +292,25 @@ else {
         , { 'KB id': kbId , 'trace id': traceId , 'comment':comment, 'verdict' : verdict, 'status' : status, 'ppob id': publishedRecord}
         , function(results) {
           if (results.errors == '') {
-            alert('Information about KB record was send to the Public Pool of Bugs successfully.');
+            if (publishedRecord)
+            {
+              alert("Error trace # " + results.result + " successfully has been updated in linuxtesting.");
+            }
+            else
+            {
+              alert("Error trace # " + results.result + " successfully has been published in linuxtesting.");
+            }
             window.location.reload();
           }
           else
             alert($.makeArray(results.errors).join('\\n'));
-            window.location.reload();
         }
       );
 
       return false;
     });
-    
+
+    // Update action.
     $('.SETVKBUpdateKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var kbId = rowCur.find('.SETVKBId').text();
@@ -170,24 +318,44 @@ else {
       var recordIndex = publishedRecord.lastIndexOf("trace?id=");
       var traceId = rowCur.find('.SETVKBErrortrace').text();
       publishedRecord = publishedRecord.substring(recordIndex + 9);
+      var verdict = rowCur.find('.SETVKBVerdict').text();
+      var status = rowCur.find('.SETVKBStatus').text();
+      var user = <?php echo json_encode("$user"); ?>;
+      var syncStatus = rowCur.find('.SETVKBSynchronizedstatus').text();
 
+	  // Restrictions.
+	  if (!user)
+      {
+        alert('You are not authorized for this operation');
+        return false;
+      }
       if (!publishedRecord) {
         alert('Can\'t update unpublished KB record');
         return false;
       }
-
       if (!kbId) {
-        alert('Can\'t find corresponding KB id for the record to be published');
+        alert('Can\'t find corresponding KB id for the record to be updated');
+        return false;
+      }
+      if (!traceId) {
+        alert('Can\'t find corresponding trace id for the record to be updated');
         return false;
       }
 
       $.getJSON(
         '<?php echo $this->url(array('action' => 'get-kb-record')); ?>'
-        , { 'KB id': kbId, 'trace id': traceId, 'ppob id': publishedRecord }
+        , { 'KB id': kbId, 'trace id': traceId, 'ppob id': publishedRecord, 'verdict' : verdict, 'status' : status, 'sync status' : syncStatus}
         , function(results) {
           if (results.errors == '') {
-            alert('Information about KB record was updated from Public Pool of Bugs successfully.');
-            window.location.reload();
+            if (results.log != '') {
+              alert("KB record # " + kbId + " successfully has been updated from linuxtesting " + 
+            	"(correponding Trace # " + publishedRecord + ").\n" + results.log);
+              window.location.reload();
+            }
+            else
+            {
+              alert("KB record # " + kbId + " is up to date.");
+            }
           }
           else
             alert($.makeArray(results.errors).join('\\n'));
