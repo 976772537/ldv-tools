@@ -1762,7 +1762,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       // Save corresponding error trace directly to KB if this is required.
       if ($traceId) {
         $this->_db->query("UPDATE kb SET error_trace = (SELECT traces.error_trace FROM traces WHERE traces.id=$traceId) WHERE kb.id=$kbNewId");
-        $this->_db->query("UPDATE results_kb SET status='$status' WHERE kb_id=$kbNewId AND trace_id=$traceId");
       }
     }
     else {

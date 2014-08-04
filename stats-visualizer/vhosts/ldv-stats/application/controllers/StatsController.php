@@ -793,6 +793,14 @@ class StatsController extends Zend_Controller_Action
         // Regenerate KB cache by means of script application for a given KB id.
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
         $result = $output;
+
+        // Set status and sync_status (must be after kb-recalc).
+        $kbId = $results['New KB id'];
+        $status = $this->_getParam('KB_status');
+        $query = "UPDATE results_kb SET status='$status' WHERE kb_id=$kbId";
+        $updateStatusResult = $this->mysqlQuery($query);
+		if (!$updateStatusResult)
+		  $error = "There was an error during executing query:\n$query\nwhile updating status of KB record";
       }
       else
         $error = $results['Errors'];
