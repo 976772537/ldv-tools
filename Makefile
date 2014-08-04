@@ -3,13 +3,13 @@ VPATH =  ${srcdir}
 
 SHELL= /bin/sh
 
-BUILD_SUBDIRS = ri etv cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby res-manager pool-of-bugs
-LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh etv res-manager pool-of-bugs
+BUILD_SUBDIRS = ri etv cmd-utils build-cmd-extractor drv-env-gen dscv kernel-rules ldv ldv-core shared/perl shared/php shared/sh ldv-manager ldv-online ldv-git watcher cluster shared/ruby res-manager
+LDV_MANAGER_SUBDIRS = ldv-manager $(DSCV_SUBDIRS) ldv drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/sh etv res-manager
 ETV_SUBDIRS = etv shared/perl
-KB_SUBDIRS = knowledge-base shared/perl pool-of-bugs
+KB_SUBDIRS = knowledge-base shared/perl
 RI_SUBDIRS = ri kernel-rules shared/perl
 DSCV_SUBDIRS = ri dscv kernel-rules shared/perl
-LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ETV_SUBDIRS) $(KB_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby res-manager pool-of-bugs
+LDV_SUBDIRS = $(DSCV_SUBDIRS) $(LDV_MANAGER_SUBDIRS) $(ETV_SUBDIRS) $(KB_SUBDIRS) drv-env-gen cmd-utils build-cmd-extractor ldv ldv-core shared/perl shared/sh watcher shared/ruby res-manager
 STATS_SUBDIRS = $(ETV_SUBDIRS) $(KB_SUBDIRS) stats-visualizer kernel-rules shared/php
 ONLINE_SUBDIRS = ldv-online 
 CLUSTER_SUBDIRS = cluster shared/ruby
