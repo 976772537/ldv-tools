@@ -127,7 +127,7 @@ foreach ($unsafes as $unsafe)
 {
 	echo '<tr>';
 	$counter++;
-	if (!$isUnmarked)
+	if (!$isUnmarked && !$unsafe['Trace id'])
 		echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
 	else
 		echo "<td>$counter</td>";

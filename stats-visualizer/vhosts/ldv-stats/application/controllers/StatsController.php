@@ -125,7 +125,7 @@ class StatsController extends Zend_Controller_Action
     // Make a form for the profiles update.
     $formUpdateProfiles = new Application_Form_UpdateProfiles();
 
-    if ($this->getRequest()->isPost()) {
+    if ($this->getRequest()->isPost() && !isset($_POST['authorization_action'])) {
       if ($formTasksComparison->isValid($request->getPost())) {
         $taskIdsStr = $formTasksComparison->getValue('SSTaskIds');
         // Replace commas with usual spaces.
@@ -159,8 +159,7 @@ class StatsController extends Zend_Controller_Action
 
     // Make a form for the csv export.
     $formPrintCSV = new Application_Form_PrintCSV();
-
-    if ($this->getRequest()->isPost()) {
+    if ($this->getRequest()->isPost() && !isset($_POST['authorization_action'])) {
       if ($formPrintCSV->isValid($request->getPost())) {
         return $this->_helper->redirector->gotoSimple(
           'index'

@@ -415,4 +415,127 @@ file_put_contents("/tmp/ppob_id", $result);
 
   }
 
+// Get cookie from Session global variable.
+if (isset($_SESSION['cookie']))
+{
+	$cookie = $_SESSION['cookie'];
+}
+
+// Get page URI.
+$ADDR_SELF = $_SERVER['REQUEST_URI'];
+
+// Check if there were any POST requests for login/logout.
+if (isset($_POST['authorization_action']))
+	$authorization_action = $_POST['authorization_action'];
+
+// Get error message (in case it exists).
+$errorMessage = '';
+if (isset($_GET['error']))
+{
+	$errorMessage = $_GET['error'];
+	$ADDR_SELF = substr($ADDR_SELF, 0, strpos($ADDR_SELF, "?error=")); // Delete error from page's address.
+}
+
+// Logout authorization_action.
+if (isset($authorization_action) && $authorization_action == "logout")
+{
+	curlLogout($cookie);
+	header("Location: $ADDR_SELF");
+}
+
+// Login authorization_action.
+if (isset($authorization_action) && $authorization_action == "login")
+{
+	$name = $_POST['name'];
+	$pass = $_POST['pass'];
+	$result = curlLogin($name, $pass);
+	if ($result == "Success")
+	{
+		$result = checkUserRights($name, $_SESSION['cookie']);
+		if ($result)
+		{
+			header("Location: $ADDR_SELF");
+		}
+		else
+		{
+			$error = "User '$name' is not an Editor on linuxtesting";
+			unset ($_SESSION['cookie']);
+			header("Location: $ADDR_SELF?error=$error");
+		}
+	}
+	else
+	{
+		header("Location: $ADDR_SELF?error=$result");
+	}
+}
+
+function loginForm($errorMessage)
+{
+	global $ADDR_SELF;
+	?>
+	<form authorization_action="<?php print($ADDR_SELF); ?>" method="post" enctype="multipart/form-data">
+	<table>
+	<?php if ($errorMessage) { ?>
+	<p>
+	<tr>
+		<td align=middle colspan=1><b>Error: </b></td>
+		<td><b><?php print($errorMessage); ?></b></td>
+	</tr>
+	</p>
+	<?php } ?>
+	<tr>
+	<p>
+		<td><b>Username: </b></td>
+		<td><input type="name" name="name" value="" size=30></td>
+		<td><b>Password: </b></td>
+		<td><input type="password" name="pass" value="" size=30></td>
+		<td>
+			<input type="submit" name="authorization_action" value="login" />
+		</td>
+	</tr>
+	</p>
+	</table>
+	</form>	
+	<?php
+}
+
+function logoutForm($user)
+{
+	global $ADDR_SELF;
+	?>
+	<form authorization_action="<?php print($ADDR_SELF); ?>" method="post" enctype="multipart/form-data">
+	<table>
+	<p>
+	<tr>
+		<td><b>Linuxtesting user: <?php print($user); ?></b></td>
+		<td align=middle colspan=3>
+			<input type="submit" name="authorization_action" value="logout" />
+		</td>
+	</tr>
+	</p>
+	</table>
+	</form>	
+	<?php
+}
+
+// Print login/logout form.
+$user = '';
+if (isset($cookie))
+{
+	$user = checkIfLogin($cookie);
+	if ($user)
+	{
+		logoutForm($user);
+	}
+	else
+	{
+		loginForm($errorMessage);
+	}
+}
+else
+{
+	loginForm($errorMessage);
+}
+
+
 ?>
