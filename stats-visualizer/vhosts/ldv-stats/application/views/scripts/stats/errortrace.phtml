@@ -280,7 +280,14 @@ else {
       else
         alert('Something goes wrong while KB record was updated');
     }});
-
+    
+    if ((status == 'Fixed' && verdict == 'Unknown') || 
+		(status == 'Fixed' && verdict == 'False positive') ||
+		(status == 'Reported' && verdict == 'False positive'))
+	{
+	  	alert('Combination of status=\'' + status + '\' and verdict=\'' + verdict + '\' is impossible.');
+	  	return;
+	}
     $.getJSON(
       '<?php echo $this->url(array('action' => 'update-kb-record')); ?>'
       , {'KB new record': isNew
@@ -439,6 +446,7 @@ else {
           + "<input type='radio' id='KBStatus' name='KBStatus' value='Fixed' " + isFixedChecked + " form='UpdateKBRecord' />Fixed"
           + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' " + isObsoleteChecked + " form='UpdateKBRecord' />Obsolete");
       });
+
       rowCur.find('.SETVKBSynchronizedstatus').parent().each(function() {
         kbInternalStatusOld = $(this).text();
       });
