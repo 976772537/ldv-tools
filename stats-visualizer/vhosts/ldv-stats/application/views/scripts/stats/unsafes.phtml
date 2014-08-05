@@ -28,10 +28,38 @@ if (isset($cookie))
 	$user = checkIfLogin($cookie);
 }
 
+function html($text)
+{
+	return htmlspecialchars($text, ENT_QUOTES);
+}
+
 // Get all infomation to be displayed.
 $results = $this->entries;
 $globals = $results['Globals'];
+$page = $results['Page'];
 
+// Deal with POST request for filter.
+if (isset($_POST['action']) && $_POST['action'] == 'filter')
+{
+	$data = array('KB_id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace_id', 'Verdict', 'Tags', 'Status', 'Synchronized_status', 'Published_record');
+
+	// Fill array with posted data.
+	$filter = array('controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Table');
+	foreach ($data as $column)
+	{
+		if (isset($_POST[$column]) && $_POST[$column])
+		{
+			$processedColumn = preg_replace("/_/", " ", $column);
+			$filter["$processedColumn"] = $_POST[$column];
+		}
+	}
+
+	// Create page url.
+	$linkUnreported = $this->url(array_merge($globals,$filter), 'default', true);
+	header("Location: http://$_SERVER[HTTP_HOST]$linkUnreported");
+}
 
 ?>
 <script type='text/javascript'>
@@ -54,9 +82,9 @@ $globals = $results['Globals'];
 	  var user = <?php echo json_encode("$user"); ?>;
 
 	  // Restrictions.
-	  if (!user && publishedRecord)
+	  if (!user)
       {
-        alert('You are not authorized for this operation (since this record has been published).');
+        alert('You are not authorized for this operation.');
         return false;
       }
       if (!kbId) {
@@ -95,93 +123,350 @@ $globals = $results['Globals'];
 </script>
 <?php
 
-echo "<div id='SETVKBTableTitle'>Unsafes with verdict '" . $results['Restrictions']['Verdict'] . "'</div>";
-echo "<table id='SETVKBTable' border='1'>";
-echo "<tr id='SETVKBTableFirstRow'>";
+echo "<h3>Page: '" . $page . "'</h3>";
+if ($page == 'Table') {
+	echo "<div id='SETVKBTableTitle'>Unsafes with verdict '" . $results['Restrictions']['Verdict'] . "'</div>";
+	$link = $this->url(array_merge($globals,
+		array(
+			'controller' => 'stats',
+			'action' => 'unsafes',
+			'page' => 'Knowledge base')),
+		'default',
+		true);
+	echo "<a href='$link'>Back to Knowledge base page</a>"; 
+	echo "<table id='SETVKBTable' border='1'>";
+	echo "<tr id='SETVKBTableFirstRow'>";
 
-if (isset($results['Unsafes']))
-{
-	$unsafes = $results['Unsafes'];
-	$columns = array('KB id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record');
-	// Print auxiliary column that will contain delete action.
-	echo "<td class='SETVKBAuxTitle'></td>";
-	$isUnmarked = 0;
-}
-else
-{
-	$unsafes = $results['Unmarked unsafes'];
-	$columns = array('Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id');
-	$isUnmarked = 1;
-	// Print auxiliary column that will contain number of rows.
-	echo "<td class='SETVKBAuxTitle'></td>";
-}
-
-foreach ($columns as $columnName) 
-{
-	echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
-}
-
-$counter = 0;
-
-foreach ($unsafes as $unsafe) 
-{
-	echo '<tr>';
-	$counter++;
-	if (!$isUnmarked && !$unsafe['Trace id'])
-		echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
-	else
-		echo "<td>$counter</td>";
-	foreach ($unsafe as $columnName => $kbCellValue) 
+	if (isset($results['Unsafes']))
 	{
-		if ($columnName == 'Kernel')
-			$kernel = $kbCellValue;
-		if ($columnName == 'Module')
-			$module = $kbCellValue;
-		if ($columnName == 'Rule')
-			$rule = $kbCellValue;
-		if ($columnName == 'Main')
-			$main = $kbCellValue;
-
-		if ($columnName == 'Trace id')
-		{
-			$link = $this->url(array_merge($globals,
-				array(
-					'controller' => 'stats',
-					'action' => 'errortrace',
-					'page' => 'Error trace',
-					'value' => $kbCellValue,
-					'Environment version' => $kernel,
-					'Rule name' => $rule,
-					'Module' => $module,
-					'Entry point' => $main)),
-				'default',
-				true);
-			$kbCellValue = "<a href='$link'>$kbCellValue</a>"; 
-		}
-		if ($columnName == 'Published record')
-		{
-			if ($kbCellValue)
-				$link = "http://localhost:8080/php/trace?id=$kbCellValue"; //TODO:real link!
-			else
-				$link = "";
-			$kbCellValue = "<a href='$link'>$link</a>"; 
-		}
-		if ($columnName == 'Verdict')
-			$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
-		if ($columnName == 'Status')
-			$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
-		if ($columnName == 'Synchronized status')
-			$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
-		echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
+		$unsafes = $results['Unsafes'];
+		$columns = array('KB id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record');
+		// Print auxiliary column that will contain delete action.
+		echo "<td class='SETVKBAuxTitle'></td>";
+		$isUnmarked = 0;
 	}
-	echo '</tr>';
+	else
+	{
+		$unsafes = $results['Unmarked unsafes'];
+		$columns = array('Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id');
+		$isUnmarked = 1;
+		// Print auxiliary column that will contain number of rows.
+		echo "<td class='SETVKBAuxTitle'></td>";
+	}
+
+	foreach ($columns as $columnName) 
+	{
+		echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
+	}
+
+	$counter = 0;
+
+	foreach ($unsafes as $unsafe) 
+	{
+		echo '<tr>';
+		$counter++;
+		if (!$isUnmarked && !$unsafe['Trace id'])
+			echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
+		else
+			echo "<td>$counter</td>";
+		foreach ($unsafe as $columnName => $kbCellValue) 
+		{
+			if ($columnName == 'Kernel')
+				$kernel = $kbCellValue;
+			if ($columnName == 'Module')
+				$module = $kbCellValue;
+			if ($columnName == 'Rule')
+				$rule = $kbCellValue;
+			if ($columnName == 'Main')
+				$main = $kbCellValue;
+
+			if ($columnName == 'Trace id')
+			{
+				$link = $this->url(array_merge($globals,
+					array(
+						'controller' => 'stats',
+						'action' => 'errortrace',
+						'page' => 'Error trace',
+						'value' => $kbCellValue,
+						'Environment version' => $kernel,
+						'Rule name' => $rule,
+						'Module' => $module,
+						'Entry point' => $main)),
+					'default',
+					true);
+				$kbCellValue = "<a href='$link'>$kbCellValue</a>"; 
+			}
+			if ($columnName == 'Published record')
+			{
+				if ($kbCellValue)
+					$link = "http://localhost:8080/php/trace?id=$kbCellValue"; //TODO:real link!
+				else
+					$link = "";
+				$kbCellValue = "<a href='$link'>$link</a>"; 
+			}
+			if ($columnName == 'Verdict')
+				$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
+			if ($columnName == 'Status')
+				$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
+			if ($columnName == 'Synchronized status')
+				$kbCellValue = "<span class='SSKB" . preg_replace('/\s*/', '', $kbCellValue) . "'>$kbCellValue</span>";
+			echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
+		}
+		echo '</tr>';
+	}
+
+	echo "</tr>";
+	echo '</table>';
 }
+elseif ($page == 'Knowledge base')
+{
+	// Craete a table with few useful links.
+	$linkAllUnsafes = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Table')),
+	'default',
+	true);
+	$linkTP = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Table',
+		'Verdict' => 'True positive')),
+	'default',
+	true);
+	$linkFP = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'Verdict' => 'False positive',
+		'page' => 'Table')),
+	'default',
+	true);
+	$linkUnk = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'Verdict' => 'Unknown',
+		'page' => 'Table')),
+	'default',
+	true);
+	$linkUnassociated = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Table',
+		'Verdict' => 'Unassociated')),
+	'default',
+	true);
+	$linkUnpublished = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Table',
+		'Synchronized status' => 'Unpublished')),
+	'default',
+	true);
+	$linkUnreported = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Table',
+		'Status' => 'Unreported')),
+	'default',
+	true);
+	$ADDR_SELF = $_SERVER['REDIRECT_URL'];
 
-echo "</tr>";
-echo '</table>';
-  
+	?>
+	<p>This page represents LDV Knowledge Base.</p>
 
+	<table id='SETVKBTable' border='1'>
+	<tr>
+		<td><b>Type</b></td>
+		<td><b>Link</b></td>
+	</tr>
 
+	<tr>
+		<td><b>All marked unsafes: </b></td>
+		<td><a href="<?php print($linkAllUnsafes); ?>">...</a></td>
+	</tr>
+
+	<tr>
+		<td><b>All marked True positives: </b></td>
+		<td><a href="<?php print($linkTP); ?>">...</a></td>
+	</tr>
+
+	<tr>
+		<td><b>All marked False positives: </b></td>
+		<td><a href="<?php print($linkFP); ?>">...</a></td>
+	</tr>
+
+	<tr>
+		<td><b>All marked Unknowns: </b></td>
+		<td><a href="<?php print($linkUnk); ?>">...</a></td>
+	</tr>
+
+	<tr>
+		<td><b>All unassociated traces: </b></td>
+		<td><a href="<?php print($linkUnassociated); ?>">...</a></td>
+	</tr>
+
+	<tr>
+		<td><b>All unpublished records: </b></td>
+		<td><a href="<?php print($linkUnpublished); ?>">...</a></td>
+	</tr>
+
+	<tr>
+		<td><b>All unreported records: </b></td>
+		<td><a href="<?php print($linkUnreported); ?>">...</a></td>
+	</tr>
+	</table>
+
+	<?php
+		// Create a form for manual filter.
+	?>
+
+	<h3>Create manual filter</h3>
+
+	<form action="<?php print(html($ADDR_SELF)); ?>" method="POST" name="postform">
+		<table class="left_aligned">
+		<tr>
+			<td><b>KB Id: </b></td>
+			<td><input type="text" name="KB_id" size=30 maxlength=255></td>
+		</tr>
+
+		<tr>
+			<td><b>Kernel: </b></td>
+			<td><input type="text" name="Kernel" size=30 maxlength=255></td>
+		</tr>
+
+		<tr>
+			<td><b>Module: </b></td>
+			<td><input type="text" name="Module" size=30 maxlength=255></td>
+		</tr>
+
+		<tr>
+			<td><b>Rule: </b></td>
+			<td><input type="text" name="Rule" size=30 maxlength=255></td>
+		</tr>
+
+		<tr>
+			<td><b>Verifier: </b></td>
+			<td><input type="text" name="Verifier" size=30 maxlength=255></td>
+		</tr>
+
+		<tr>
+			<td><b>Main: </b></td>
+			<td><input type="text" name="Main" size=30 maxlength=255></td>
+		</tr>
+
+		<tr>
+			<td><b>Trace id: </b></td>
+			<td><input type="text" name="Trace_id" size=30 maxlength=255></td>
+		</tr>
+
+		<?php
+		$verdict = 'All';
+		$verdicts['All'] = 1;
+		$verdicts['Unknown'] = 1;
+		$verdicts['True positive'] = 1;
+		$verdicts['False positive'] = 1;
+		$verdicts['Unassociated'] = 1;
+		?>
+		<tr">
+			<td><b>Verdict: </b></td>
+			<td>
+				<select name="Verdict">
+				<?php
+				foreach ( $verdicts as $kind => $val) {
+					if ($kind != $verdict) {
+						?><option value="<?php print(html($kind)); ?>"><?php print(html($kind)); ?></option>
+						<?php
+					}
+					else {
+						?><option value="<?php print(html($kind)); ?>" selected><?php print(html($kind)); ?></option>
+						<?php
+					}
+				} ?>
+				</select>
+			</td>
+		</tr>
+
+		<tr>
+			<td><b>Tags: </b></td>
+			<td><input type="text" name="Tags" size=30 maxlength=255></td>
+		</tr>
+
+		<?php
+		$status = '';
+		$statuses[''] = 1;
+		$statuses['Unreported'] = 1;
+		$statuses['Reported'] = 1;
+		$statuses['Fixed'] = 1;
+		$statuses['Rejected'] = 1;
+		$statuses['Obsolete'] = 1;
+		?>
+		<tr>
+			<td><b>Status: </b></td>
+		    <td>
+				<select name="Status">
+				<?php
+				foreach ( $statuses as $kind => $val) {
+					if ($kind != $status) {
+						?><option value="<?php print(html($kind)); ?>"><?php print(html($kind)); ?></option>
+						<?php
+					}
+					else {
+						?><option value="<?php print(html($kind)); ?>" selected><?php print(html($kind)); ?></option>
+						<?php
+					}
+				} ?>
+				</select>
+			</td>
+		</tr>
+
+		<?php
+		$sync_status = '';
+		$sync_statuses[''] = 1;
+		$sync_statuses['Unpublished'] = 1;
+		$sync_statuses['Synchronized'] = 1;
+		$sync_statuses['Desynchronized'] = 1;
+		?>
+		<tr>
+			<td><b>Synchronized status: </b></td>
+		    <td>
+				<select name="Synchronized_status">
+				<?php
+				foreach ( $sync_statuses as $kind => $val) {
+					if ($kind != $status) {
+						?><option value="<?php print(html($kind)); ?>"><?php print(html($kind)); ?></option>
+						<?php
+					}
+					else {
+						?><option value="<?php print(html($kind)); ?>" selected><?php print(html($kind)); ?></option>
+						<?php
+					}
+				} ?>
+				</select>
+			</td>
+		</tr>
+
+		<tr>
+			<td><b>Published record id: </b></td>
+			<td><input type="text" name="Published_record" size=30 maxlength=255></td>
+		</tr>
+
+		<tr class="<?php print(3-$rclass); ?>">
+			<td align=middle colspan=2><input type=submit value="Submit"></td>
+		</tr>
+		</table>
+
+		<input type="hidden" name="action" value="filter">
+
+		</form>
+	<?php
+}
 
 
 printInfo($results);
