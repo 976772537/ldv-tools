@@ -835,6 +835,24 @@ class StatsController extends Zend_Controller_Action
         // KB comment is also assigned to result here.
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
       }
+file_put_contents("/tmp/test", $this->_getParam('KB_internal_status_old'));
+      // If status or verdict was changed, then set status to 'Desynchronized' on linuxtesting.
+      if (($this->_getParam('KB_status') != $this->_getParam('KB_status_old') or 
+      	   $this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')) and 
+      	   $this->_getParam('KB_internal_status_old') != "Unpublished") {
+      	$data = array('sync_status' => 'Desynchronized');
+		$cookie = $_SESSION['cookie'];
+		$url = $this->url_local;
+		$ppobId = $this->_getParam('ppob_id');
+		
+		$result = $this->curlPostRequestByCookie($url . "?action=update_ppob&num=$ppobId", $cookie, $data);
+		if (!preg_match("/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/", $result, $array))
+		{
+			$error = "Can not update status for linuxtesting Trace # $ppobId";
+			echo Zend_Json::encode(array('result' => $error, 'errors' => $error));
+			return;
+		}
+      }
 
       // Take KB (ge)nerator output if so as result at the moment;
       $result = $output;

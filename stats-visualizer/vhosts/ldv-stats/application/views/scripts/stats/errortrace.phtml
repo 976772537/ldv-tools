@@ -51,6 +51,14 @@ else {
         alert('Something goes wrong while KB was stored');
       }});
 
+      var user = <?php echo json_encode("$user"); ?>;
+	  // Restrictions.
+	  if (!user)
+      {
+        alert('You are not authorized for this operation.');
+        return false;
+      }
+
       $.getJSON(
         '<?php echo $this->url(array('action' => 'store-kb')); ?>'
         , { }
@@ -70,6 +78,14 @@ else {
       $.ajaxSetup({ 'error': function() {
         alert('Something goes wrong while KB was restored');
       }});
+
+      var user = <?php echo json_encode("$user"); ?>;
+	  // Restrictions.
+	  if (!user)
+      {
+        alert('You are not authorized for this operation.');
+        return false;
+      }
 
       $.getJSON(
         '<?php echo $this->url(array('action' => 'restore-kb')); ?>'
@@ -104,9 +120,9 @@ else {
 	  var user = <?php echo json_encode("$user"); ?>;
 
 	  // Restrictions.
-	  if (!user && publishedRecord)
+	  if (!user)
       {
-        alert('You are not authorized for this operation (since this record has been published).');
+        alert('You are not authorized for this operation.');
         return false;
       }
       if (!kbId) {
@@ -273,14 +289,13 @@ else {
     return tagsArray.join(';');
   }
 
-  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, statusOld, status, internalStatusOld, tagsOld, tags, commentOld, comment) {
+  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, statusOld, status, internalStatusOld, tagsOld, tags, commentOld, comment, publishedRecord) {
     $.ajaxSetup({ 'error': function() {
       if (isNew)
         alert('Something goes wrong while KB record was created');
       else
         alert('Something goes wrong while KB record was updated');
     }});
-    
     if ((status == 'Fixed' && verdict == 'Unknown') || 
 		(status == 'Fixed' && verdict == 'False positive') ||
 		(status == 'Reported' && verdict == 'False positive'))
@@ -316,6 +331,7 @@ else {
           , 'KB tags': tags
           , 'KB comment old': commentOld
           , 'KB comment': comment
+          , 'ppob id': publishedRecord
         }
       , function(results) {
         if (results.errors == '') {
@@ -337,6 +353,14 @@ else {
 
   $(document).ready(function() {
     $('.SETVKBEditKBRecord').click(function() {
+      var user = <?php echo json_encode("$user"); ?>;
+	  // Restrictions.
+	  if (!user)
+      {
+        alert('You are not authorized for this operation.');
+        return false;
+      }
+
       var rowCur = $(this).parent().parent();
       var isNew = rowCur.attr('id') == '' ? false : true;
       var kbId = '';
@@ -353,6 +377,12 @@ else {
       var kbInternalStatusOld = '';
       var kbTagsOld = '';
       var kbCommentOld = '';
+      var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
+      if (publishedRecord) 
+      {
+      	var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      	publishedRecord = publishedRecord.substring(recordIndex + 9);
+      }
 
       rowCur.find('.SETVKBId').each(function() {
         kbId = $(this).text();
@@ -492,7 +522,8 @@ else {
           + kbStatusOld + ",  getRadioValue(getElementsByName('KBStatus')), "
           + kbInternalStatusOld + ", "
           + kbTagsOld + ",  trimTags(getElementById('KBTags').value), "
-          + kbCommentOld + ",  getElementById('KBComment').value);"
+          + kbCommentOld + ",  getElementById('KBComment').value, '"
+          + publishedRecord + "');"
           + " return false;\">"
         + "</form>"
         + "<input type='submit' value='" + submitText + "' form='UpdateKBRecord' />"
@@ -508,12 +539,26 @@ else {
 <script type='text/javascript'>
   $(document).ready(function() {
     $('#SETVKBCreateEmptyKBRecord').click(function() {
+      var user = <?php echo json_encode("$user"); ?>;
+	  // Restrictions.
+	  if (!user)
+      {
+        alert('You are not authorized for this operation.');
+        return false;
+      }
       $('#SETVKBNewEmptyKBRecord').show().each(function() {
-        $(this).find('.SETVKBEditKBRecord').trigger('click');
+      	$(this).find('.SETVKBEditKBRecord').trigger('click');
       });
       return false;
     });
     $('#SETVKBCreateFilledKBRecord').click(function() {
+      var user = <?php echo json_encode("$user"); ?>;
+	  // Restrictions.
+	  if (!user)
+      {
+        alert('You are not authorized for this operation.');
+        return false;
+      }
       $('#SETVKBNewFilledKBRecord').show().each(function() {
         $(this).find('.SETVKBEditKBRecord').trigger('click');
       });
