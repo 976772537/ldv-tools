@@ -699,9 +699,28 @@ class StatsController extends Zend_Controller_Action
 		$log .= "\tsync_status=Synchronized (was $newSyncStatus)\n";
 	}
 
+	// Run kb-recalc in case of changing status.
+	$output = '';
+	if ($newVerdict != $verdict) 
+	{
+    	$kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
+    	$kbRecalc = $kbRecalcConfig->script;
+		$statsMapper = new Application_Model_StatsMapper();
+    	$dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+		$db = $dbConnection['dbname'];
+		$user = $dbConnection['username'];
+		$host = $dbConnection['host'];
+		$passwd = '';
+		if ($dbConnection['password'] != '')
+			$passwd = "LDVDBPASSWD=$dbConnection[password]";
+        exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=$kbId 2>&1" , $output, $retCode);
+        //$db = $this->_profileInfo->dbName;
+        //$log = "LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=$kbId 2>&1";
+      }
+
 	// Successful return.
 	// Log keeps all updated fields. If it is empty, then nothing was actually updated.
-    echo Zend_Json::encode(array('log' => $log, 'errors' => ''));
+    echo Zend_Json::encode(array('log' => $log, 'output' => $output, 'errors' => ''));
   }
 
  /*
@@ -829,13 +848,12 @@ class StatsController extends Zend_Controller_Action
 
       if ($this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')
         or $this->_getParam('KB_tags') != $this->_getParam('KB_tags_old')
-        or $this->_getParam('KB_comment') != $this->_getParam('KB_comment_old')
-        or $this->_getParam('KB_status') != $this->_getParam('KB_status_old')) {
+        or $this->_getParam('KB_comment') != $this->_getParam('KB_comment_old')) {
         // Regenerate KB cache for a given KB id (in fact nothing will be done).
         // KB comment is also assigned to result here.
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
       }
-file_put_contents("/tmp/test", $this->_getParam('KB_internal_status_old'));
+
       // If status or verdict was changed, then set status to 'Desynchronized' on linuxtesting.
       if (($this->_getParam('KB_status') != $this->_getParam('KB_status_old') or 
       	   $this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')) and 

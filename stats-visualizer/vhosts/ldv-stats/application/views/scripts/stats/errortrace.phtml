@@ -253,7 +253,7 @@ else {
           if (results.errors == '') {
             if (results.log != '') {
               alert("KB record # " + kbId + " successfully has been updated from linuxtesting " + 
-            	"(correponding Trace # " + publishedRecord + ").\n" + results.log);
+            	"(correponding Trace # " + publishedRecord + ").\n" + results.log + $.makeArray(results.output).join('\n'));
               window.location.reload();
             }
             else
