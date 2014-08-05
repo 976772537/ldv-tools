@@ -276,6 +276,14 @@ elseif ($page == 'Knowledge base')
 		'Status' => 'Unreported')),
 	'default',
 	true);
+	$linkNoTrace = $this->url(array_merge($globals,
+	array(
+		'controller' => 'stats',
+		'action' => 'unsafes',
+		'page' => 'Table',
+		'Trace id' => 'NULL')),
+	'default',
+	true);
 	$ADDR_SELF = $_SERVER['REDIRECT_URL'];
 
 	?>
@@ -320,6 +328,11 @@ elseif ($page == 'Knowledge base')
 	<tr>
 		<td><b>All unreported records: </b></td>
 		<td><a href="<?php print($linkUnreported); ?>">...</a></td>
+	</tr>
+
+	<tr>
+		<td><b>Records without trace: </b></td>
+		<td><a href="<?php print($linkNoTrace); ?>">...</a></td>
 	</tr>
 	</table>
 

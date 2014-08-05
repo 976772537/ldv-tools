@@ -1037,6 +1037,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 	$isUnmarked = false;
 	$conditions = "";
 
+	$isNullTraceId = false;
+	if (array_key_exists('Trace id', $params) && $params['Trace id'] == 'NULL')
+	{
+		$isNullTraceId = true;
+		unset($params['Trace id']);
+	}
+		
 	if (array_key_exists('Verdict', $params))
 	{
 		$tmpVerdict = $params['Verdict'];
@@ -1068,7 +1075,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 
 	if (!$isUnmarked)
 	{
-		// Got Unassociated restrictions.
+		
 		foreach (array_keys($kb_restrictions) as $key) 
 		{
 			$dbKey = $kb_restrictions[$key];
@@ -1095,6 +1102,17 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 			->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
 			->where($conditions);
 		$result['Unsafes'] = $kb->fetchAll($select)->toArray();
+		if ($isNullTraceId)
+		{
+			$tmp = "";
+			foreach ($result['Unsafes'] as $key => $row)
+			{
+				$tmp .= $row['Trace id'] . "\n";
+				if ($row['Trace id'])
+					unset($result['Unsafes'][$key]);
+			}
+			file_put_contents("/tmp/test", $tmp);
+		}
 	}
 	else
 	{
