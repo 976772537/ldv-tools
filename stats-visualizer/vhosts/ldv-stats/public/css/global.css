@@ -433,14 +433,14 @@ body
   color: #9200ED;
 }
 
-.SSKBRejected, .SSKBDesynchronized
+.SSKBRejected
 {
-  color: #FF8000;
+  color: #D68A00;
 }
 
 .SSKBFixed, .SSKBSynchronized
 {
-  color: #008000;
+  color: #00A100;
 }
 
 .SSKBReported
@@ -448,14 +448,14 @@ body
   color: #0000FF;
 }
 
-.SSKBUnreported
+.SSKBUnreported, .SSKBDesynchronized
 {
   color: #FF0000;
 }
 
 .SSKBUnpublished, .SSKBObsolete
 {
-  color: #A000FF;
+  color: #9200ED;
 }
 
 .SSKBFitNote
