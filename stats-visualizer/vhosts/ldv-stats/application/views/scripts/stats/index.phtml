@@ -70,15 +70,6 @@ function printData($str, $data) {
   }
 }
 
-$link = $this->url(array_merge($globals,
-	array(
-		'controller' => 'stats',
-		'action' => 'unsafes',
-		'page' => 'Knowledge base')),
-	'default',
-	true);
-echo "<a href='$link'>Knowledge base</a>"; 
-
 $resultsNumb = count($stats);
 echo "<div id='SSStatsTableTitle'>Statistics for '$page' page (" . $resultsNumb . " rows)</div>";
 
