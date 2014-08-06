@@ -650,6 +650,11 @@ class StatsController extends Zend_Controller_Action
 	if (preg_match("/<td><b>Verdict: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(.+)<\/font>/", $result, $array))
 	{
 		$newVerdict = $array[4];
+		// Change verdicts name.
+		if ($newVerdict == 'False alarm')
+			$newVerdict = 'False positive';
+		elseif ($newVerdict == 'Bug')
+			$newVerdict = 'True positive';
 	}
 	if (preg_match("/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/", $result, $array))
 	{
