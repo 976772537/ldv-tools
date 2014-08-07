@@ -469,14 +469,18 @@ else {
           isObsoleteChecked = 'checked';
         else
           isUnreportedChecked = 'checked';
-
-        $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' " + isUnreportedChecked + " form='UpdateKBRecord' />Unreported"
-          + "<input type='radio' id='KBStatus' name='KBStatus' value='Reported' " + isReportedChecked + " form='UpdateKBRecord' />Reported"
-          + "<input type='radio' id='KBStatus' name='KBStatus' value='Rejected' " + isRejectedChecked + " form='UpdateKBRecord' />Rejected"
-          + "<input type='radio' id='KBStatus' name='KBStatus' value='Fixed' " + isFixedChecked + " form='UpdateKBRecord' />Fixed"
+		if ((kbStatusOld != 'Unreported' && kbStatusOld != 'Obsolete') && !isNew)
+		{
+			$(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' form='UpdateKBRecord' />Unreported"
+          + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' form='UpdateKBRecord' />Obsolete"
+          + "<input type='radio' id='KBStatus' name='KBStatus' value='" + kbStatusOld + "' checked form='UpdateKBRecord' />" + kbStatusOld);
+		}
+		else
+		{
+          $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' " + isUnreportedChecked + " form='UpdateKBRecord' />Unreported"
           + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' " + isObsoleteChecked + " form='UpdateKBRecord' />Obsolete");
+        }
       });
-
       rowCur.find('.SETVKBSynchronizedstatus').parent().each(function() {
         kbInternalStatusOld = $(this).text();
       });
