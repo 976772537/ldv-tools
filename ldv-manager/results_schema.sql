@@ -467,4 +467,4 @@ delimiter ;
 -- ----------------------------
 -- INSERT DATABASE PARAMETERS
 -- ----------------------------
-insert into db_properties (name, value) values ("version","4");
+insert into db_properties (name, value) values ("version","5");
