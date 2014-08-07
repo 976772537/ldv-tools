@@ -336,6 +336,9 @@ function returnProfile($info) {
   	// Init curl.
   	$curl = curl_init();
 
+	$data = array('name' => $name, 'pass' => $pass, 'form_id' => 'user_login');
+	$processedData = http_build_query($data);
+
   	// Set parameters.
 	curl_setopt($curl, CURLOPT_URL, $url . "user/login");  
 	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); 
@@ -343,7 +346,7 @@ function returnProfile($info) {
 	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
 	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
 	curl_setopt($curl, CURLOPT_POST, 1);
-	curl_setopt($curl, CURLOPT_POSTFIELDS, "name=$name&pass=$pass&form_id=user_login");
+	curl_setopt($curl, CURLOPT_POSTFIELDS, "$processedData");
 	curl_setopt($curl, CURLOPT_HEADER, TRUE);
 	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
 
@@ -366,7 +369,7 @@ function returnProfile($info) {
 	{
 		return "Cannot connect to $url/user/login";
 	}
-file_put_contents("/tmp/ppob_id", $result);
+
 	// Login successful.
 
 	// Get cookie.
