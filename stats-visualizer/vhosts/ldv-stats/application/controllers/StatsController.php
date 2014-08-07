@@ -22,7 +22,7 @@ class StatsController extends Zend_Controller_Action
   protected $_profileInfo;
   
   protected $url = "http://linuxtesting.org/";
-  protected $url_local = "http://localhost:8080/php/impl_reports_admin";//TODO:change all those links to $url
+  protected $url_local = "http://torvalds:8080/php/impl_reports_admin";//TODO:change all those links to $url
   
   public function init()
   {
