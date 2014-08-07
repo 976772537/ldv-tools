@@ -1016,16 +1016,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 	else {
 		throw new Exception('Page name is not specified');
 	}	
-/*
-	// Get corresponding information (if any of them is specified).
-	if (array_key_exists('value', $params)) {
-		$verdict = $params['value'];
-	}
-	else {
-		$verdict = NULL; // No KB records - unmarked unsafes.
-	}
-	$result['verdict'] = $verdict;
-*/
 
 	$kb_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'KB id' => 'kb.id', 'Trace id' => 'results_kb.trace_id', 'Tags' => 'kb.tags', 'Published record' => 'results_kb.published_trace_id');
 	$trace_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'rule_models.name', 'Module' => 'scenarios.executable', 'Verifier' => 'toolsets.verifier', 'Main' => 'scenarios.main', 'Trace id' => 'traces.id');
@@ -1082,10 +1072,18 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 			if (array_key_exists($key, $params)) 
 			{
 				$result['Restrictions'][$key] = $params[$key];
-				if (!$conditions)
-					$conditions = "$dbKey='$params[$key]'";
+				if ($key == 'KB id' || $key == 'Trace id' || $key == 'Published record')
+				{
+					$newCondition = "$dbKey in ($params[$key])";
+				}
 				else
-					$conditions = $conditions . " and $dbKey='$params[$key]'";
+				{
+					$newCondition = "$dbKey like '$params[$key]'";
+				}
+				if (!$conditions)
+					$conditions = $newCondition;
+				else
+					$conditions = $conditions . " and " . $newCondition;
 			}
 		}
 
@@ -1111,7 +1109,6 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 				if ($row['Trace id'])
 					unset($result['Unsafes'][$key]);
 			}
-			file_put_contents("/tmp/test", $tmp);
 		}
 	}
 	else
@@ -1123,10 +1120,18 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 			if (array_key_exists($key, $params)) 
 			{
 				$result['Restrictions'][$key] = $params[$key];
-				if (!$conditions)
-					$conditions = "$dbKey='$params[$key]'";
+				if ($key == 'Trace id')
+				{
+					$newCondition = "$dbKey in ($params[$key])";
+				}
 				else
-					$conditions = $conditions . " and $dbKey='$params[$key]'";
+				{
+					$newCondition = "$dbKey like '$params[$key]'";
+				}
+				if (!$conditions)
+					$conditions = $newCondition;
+				else
+					$conditions = $conditions . " and " . $newCondition;
 			}
 		}
 
