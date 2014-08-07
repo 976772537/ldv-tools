@@ -15,8 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//TODO: check all links
+
 include 'general.php';
+
+//TODO: add this link.
+// Get url.
+$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
+$url = $linuxtesting->link;
 
 if (isset($_SESSION['cookie']))
 {
@@ -115,7 +120,7 @@ else {
       var rowCur = $(this).parent().parent();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
-      publishedRecord = publishedRecord.substring(recordIndex + 9);
+      publishedRecord = publishedRecord.substring(recordIndex + 7);
       var kbId = rowCur.find('.SETVKBId').text();
 	  var user = <?php echo json_encode("$user"); ?>;
 
@@ -168,7 +173,7 @@ else {
       var status = rowCur.find('.SETVKBStatus').text();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
-      publishedRecord = publishedRecord.substring(recordIndex + 9);
+      publishedRecord = publishedRecord.substring(recordIndex + 7);
       var user = <?php echo json_encode("$user"); ?>;
 
       // Restrictions.
@@ -221,7 +226,7 @@ else {
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       var traceId = rowCur.find('.SETVKBErrortrace').text();
-      publishedRecord = publishedRecord.substring(recordIndex + 9);
+      publishedRecord = publishedRecord.substring(recordIndex + 7);
       var verdict = rowCur.find('.SETVKBVerdict').text();
       var status = rowCur.find('.SETVKBStatus').text();
       var user = <?php echo json_encode("$user"); ?>;
@@ -381,7 +386,7 @@ else {
       if (publishedRecord) 
       {
       	var recordIndex = publishedRecord.lastIndexOf("bug?id=");
-      	publishedRecord = publishedRecord.substring(recordIndex + 9);
+      	publishedRecord = publishedRecord.substring(recordIndex + 7);
       }
 
       rowCur.find('.SETVKBId').each(function() {

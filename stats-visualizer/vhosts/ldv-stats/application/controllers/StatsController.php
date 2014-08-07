@@ -20,8 +20,7 @@ class StatsController extends Zend_Controller_Action
 {
   protected $_globals;
   protected $_profileInfo;
-  
-  protected $url = "http://linuxtesting.org/";
+
   protected $url_local = "http://torvalds:8080/php/impl_reports_admin";//TODO:change all those links to $url
   
   public function init()
@@ -335,12 +334,15 @@ class StatsController extends Zend_Controller_Action
 	$cookie = $_SESSION['cookie'];
 
 	// Get url.
-	$url = $this->url; // Good url.
-	
-	// Get 
+	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
+    $url = $linuxtesting->link;
+
+	// POST request.
+	$id=$this->_getParam('KB_id');
+	$status=$this->_getParam('status');
 	$data = array(
-			'num' => 'TEST_0001',
-			'sh_descr_ru' => 'Test desc 0001');
+			'num' => "TEST_00$id",
+			'sh_descr_ru' => $status);
 	$result = $this->curlPostRequestByCookie($url . "results/impl_reports_admin?action=submit", $cookie, $data);
 
 	// Check status.

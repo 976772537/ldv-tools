@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-$GLOBALS['url'] = 'http://linuxtesting.org/';
+// Get url.
+$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
+$GLOBALS['url'] = $linuxtesting->link;
 // Count the number of tree leaves for a given array.
 function countLeaves($array) {
   if (is_null($array)) {

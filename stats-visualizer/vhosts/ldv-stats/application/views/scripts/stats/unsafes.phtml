@@ -18,6 +18,11 @@
 
 include 'general.php';
 
+//TODO: add this link.
+// Get url.
+$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
+$url = $linuxtesting->link;
+
 if (isset($_SESSION['cookie']))
 {
 	$cookie = $_SESSION['cookie'];
@@ -77,7 +82,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
       var rowCur = $(this).parent().parent();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
-      publishedRecord = publishedRecord.substring(recordIndex + 9);
+      publishedRecord = publishedRecord.substring(recordIndex + 7);
       var kbId = rowCur.find('.SETVKBKBid').text();
 	  var user = <?php echo json_encode("$user"); ?>;
 
