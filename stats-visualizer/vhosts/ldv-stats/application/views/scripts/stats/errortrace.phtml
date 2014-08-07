@@ -300,7 +300,7 @@ else {
 		(status == 'Fixed' && verdict == 'False positive') ||
 		(status == 'Reported' && verdict == 'False positive'))
 	{
-	  	alert('Combination of status=\'' + status + '\' and verdict=\'' + verdict + '\' is impossible.');
+	  	alert('Combination of status \'' + status + '\' and verdict \'' + verdict + '\' is impossible.');
 	  	return;
 	}
     $.getJSON(
