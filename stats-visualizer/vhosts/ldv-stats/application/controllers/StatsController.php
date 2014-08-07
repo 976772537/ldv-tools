@@ -865,10 +865,13 @@ class StatsController extends Zend_Controller_Action
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
       }
 
+	  // Get authorization flag.
+	  $aut = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'authorization');
+	  $isAut = $aut->set;
       // If status or verdict was changed, then set status to 'Desynchronized' on linuxtesting.
       if (($this->_getParam('KB_status') != $this->_getParam('KB_status_old') or 
       	   $this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')) and 
-      	   $this->_getParam('KB_internal_status_old') != "Unpublished") {
+      	   $this->_getParam('KB_internal_status_old') != "Unpublished" and $isAut) {
       	$data = array('sync_status' => 'Desynchronized');
 		$cookie = $_SESSION['cookie'];
 		$url = $this->url_local;

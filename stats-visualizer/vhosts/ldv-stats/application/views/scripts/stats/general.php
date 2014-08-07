@@ -19,6 +19,11 @@
 // Get url.
 $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
 $GLOBALS['url'] = $linuxtesting->link;
+
+// Get authorization flag.
+$aut = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'authorization');
+$isAut = $aut->set;
+
 // Count the number of tree leaves for a given array.
 function countLeaves($array) {
   if (is_null($array)) {
@@ -525,6 +530,7 @@ function logoutForm($user)
 
 // Print login/logout form.
 $user = '';
+if ($isAut)
 if (isset($cookie))
 {
 	$user = checkIfLogin($cookie);

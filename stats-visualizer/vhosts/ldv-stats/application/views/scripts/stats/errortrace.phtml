@@ -23,16 +23,6 @@ include 'general.php';
 $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
 $url = $linuxtesting->link;
 
-if (isset($_SESSION['cookie']))
-{
-	$cookie = $_SESSION['cookie'];
-}
-$user = '';
-if (isset($cookie))
-{
-	$user = checkIfLogin($cookie);
-}
-
 // Get all infomation to be displayed.
 $results = $this->entries;
 $globals = $results['Globals'];
@@ -57,8 +47,10 @@ else {
       }});
 
       var user = <?php echo json_encode("$user"); ?>;
-	  // Restrictions.
-	  if (!user)
+      var isAut = <?php echo json_encode("$isAut"); ?>;
+
+	    // Restrictions.
+	    if (!user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -85,8 +77,10 @@ else {
       }});
 
       var user = <?php echo json_encode("$user"); ?>;
-	  // Restrictions.
-	  if (!user)
+      var isAut = <?php echo json_encode("$isAut"); ?>;
+
+	    // Restrictions.
+	    if (!user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -122,10 +116,17 @@ else {
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 7);
       var kbId = rowCur.find('.SETVKBId').text();
-	  var user = <?php echo json_encode("$user"); ?>;
+	    var user = <?php echo json_encode("$user"); ?>;
+	    var isAut = <?php echo json_encode("$isAut"); ?>;
 
-	  // Restrictions.
-	  if (!user)
+      // Do not send any requests to linuxtesting if Analytics Center don't has authorization module.
+      if (!isAut)
+      {
+        publishedRecord = '';
+      }
+
+	    // Restrictions.
+	    if (!user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -163,7 +164,7 @@ else {
       return false;
     });
 
-	// Publish action.
+	  // Publish action.
     $('.SETVKBPublishKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var kbId = rowCur.find('.SETVKBId').text();
@@ -232,8 +233,8 @@ else {
       var user = <?php echo json_encode("$user"); ?>;
       var syncStatus = rowCur.find('.SETVKBSynchronizedstatus').text();
 
-	  // Restrictions.
-	  if (!user)
+	    // Restrictions.
+	    if (!user)
       {
         alert('You are not authorized for this operation');
         return false;
@@ -304,10 +305,12 @@ else {
     if ((status == 'Fixed' && verdict == 'Unknown') || 
 		(status == 'Fixed' && verdict == 'False positive') ||
 		(status == 'Reported' && verdict == 'False positive'))
-	{
+	  {
 	  	alert('Combination of status \'' + status + '\' and verdict \'' + verdict + '\' is impossible.');
 	  	return;
-	}
+  	}
+  	if (!status)
+      status = "Unreported";
     $.getJSON(
       '<?php echo $this->url(array('action' => 'update-kb-record')); ?>'
       , {'KB new record': isNew
@@ -359,8 +362,10 @@ else {
   $(document).ready(function() {
     $('.SETVKBEditKBRecord').click(function() {
       var user = <?php echo json_encode("$user"); ?>;
-	  // Restrictions.
-	  if (!user)
+      var isAut = <?php echo json_encode("$isAut"); ?>;
+
+	    // Restrictions.
+	    if (!user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -549,8 +554,9 @@ else {
   $(document).ready(function() {
     $('#SETVKBCreateEmptyKBRecord').click(function() {
       var user = <?php echo json_encode("$user"); ?>;
-	  // Restrictions.
-	  if (!user)
+      var isAut = <?php echo json_encode("$isAut"); ?>;
+	    // Restrictions.
+	    if (!user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -562,8 +568,9 @@ else {
     });
     $('#SETVKBCreateFilledKBRecord').click(function() {
       var user = <?php echo json_encode("$user"); ?>;
-	  // Restrictions.
-	  if (!user)
+      var isAut = <?php echo json_encode("$isAut"); ?>;
+	    // Restrictions.
+	    if (!user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -592,11 +599,23 @@ else {
   echo "<td class='SETVKBAuxTitle'></td>";
   // Print auxiliary column that will contain delete action.
   echo "<td class='SETVKBAuxTitle'></td>";
-  // Print auxiliary column that will contain publish action.
-  echo "<td class='SETVKBAuxTitle'></td>";
-  // Print auxiliary column that will contain update action.
-  echo "<td class='SETVKBAuxTitle'></td>";
+  if ($isAut)
+  {
+    // Print auxiliary column that will contain publish action.
+    echo "<td class='SETVKBAuxTitle'></td>";
+    // Print auxiliary column that will contain update action.
+    echo "<td class='SETVKBAuxTitle'></td>";
+  }
   $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record', 'Show all traces');
+  if (!$isAut)
+  {
+    if(($key = array_search('Status', $columns)) !== false) 
+      unset($columns[$key]);
+    if(($key = array_search('Synchronized status', $columns)) !== false) 
+      unset($columns[$key]);
+    if(($key = array_search('Published record', $columns)) !== false) 
+      unset($columns[$key]);
+  }
   foreach ($columns as $columnName) {
     echo "<td id='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$columnName</td>";
   }
@@ -604,10 +623,14 @@ else {
     echo '<tr>';
     echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record'>edit</a></td>";
     echo "<td><a href='#' class='SETVKBDeleteKBRecord' title='Delete KB record'>delete</a></td>";
-    echo "<td><a href='#' class='SETVKBPublishKBRecord' title='Publish KB record into PPoB'>publish</a></td>";
-    echo "<td><a href='#' class='SETVKBUpdateKBRecord' title='Update KB record from PPoB'>update</a></td>";
-    
+    if ($isAut)
+    {
+      echo "<td><a href='#' class='SETVKBPublishKBRecord' title='Publish KB record into PPoB'>publish</a></td>";
+      echo "<td><a href='#' class='SETVKBUpdateKBRecord' title='Update KB record from PPoB'>update</a></td>";
+    }
     foreach ($kbRecord as $columnName => $kbCellValue) {
+      if (($columnName == 'Status' || $columnName == 'Synchronized status' || $columnName == 'Published record') && !$isAut)
+        continue;
       if ($columnName == 'Error trace')
         $kbCellValue = $results['Trace id'];
       if ($columnName == 'Published record')
@@ -645,8 +668,11 @@ else {
   // Auxiliary edit and delete columns.
   echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
   echo "<td></td>";
-  echo "<td></td>";
-  echo "<td></td>";
+  if ($isAut)
+  {
+    echo "<td></td>";
+    echo "<td></td>";
+  }
   foreach ($columns as $columnName) {
     echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'></div></td>";
   }
@@ -657,8 +683,11 @@ else {
   // Auxiliary edit and delete columns.
   echo "<td><a href='#' class='SETVKBEditKBRecord' title='Edit KB record' style='display:none'>edit</a></td>";
   echo "<td></td>";
-  echo "<td></td>";
-  echo "<td></td>";
+  if ($isAut)
+  {
+    echo "<td></td>";
+    echo "<td></td>";
+  }
   $restrictions = $results['Restrictions'];
 
   foreach ($columns as $columnName) {
