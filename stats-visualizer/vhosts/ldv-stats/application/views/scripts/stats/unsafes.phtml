@@ -76,7 +76,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
     $('.SETVKBDeleteKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
-      var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 9);
       var kbId = rowCur.find('.SETVKBKBid').text();
 	  var user = <?php echo json_encode("$user"); ?>;
@@ -199,7 +199,7 @@ if ($page == 'Table') {
 			if ($columnName == 'Published record')
 			{
 				if ($kbCellValue)
-					$link = "http://torvalds:8080/php/trace?id=$kbCellValue"; //TODO:real link!
+					$link = "http://torvalds:8080/php/bug?id=$kbCellValue"; //TODO:real link!
 				else
 					$link = "";
 				$kbCellValue = "<a href='$link'>$link</a>"; 

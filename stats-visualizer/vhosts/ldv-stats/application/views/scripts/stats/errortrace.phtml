@@ -114,7 +114,7 @@ else {
     $('.SETVKBDeleteKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
-      var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 9);
       var kbId = rowCur.find('.SETVKBId').text();
 	  var user = <?php echo json_encode("$user"); ?>;
@@ -167,7 +167,7 @@ else {
       var verdict = rowCur.find('.SETVKBVerdict').text();
       var status = rowCur.find('.SETVKBStatus').text();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
-      var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 9);
       var user = <?php echo json_encode("$user"); ?>;
 
@@ -219,7 +219,7 @@ else {
       var rowCur = $(this).parent().parent();
       var kbId = rowCur.find('.SETVKBId').text();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
-      var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       var traceId = rowCur.find('.SETVKBErrortrace').text();
       publishedRecord = publishedRecord.substring(recordIndex + 9);
       var verdict = rowCur.find('.SETVKBVerdict').text();
@@ -380,7 +380,7 @@ else {
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       if (publishedRecord) 
       {
-      	var recordIndex = publishedRecord.lastIndexOf("trace?id=");
+      	var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       	publishedRecord = publishedRecord.substring(recordIndex + 9);
       }
 
@@ -608,7 +608,7 @@ else {
       if ($columnName == 'Published record')
       {
         if ($kbCellValue)
-        	$link = "http://torvalds:8080/php/trace?id=$kbCellValue"; //TODO:real link!
+        	$link = "http://torvalds:8080/php/bug?id=$kbCellValue"; //TODO:real link!
         else
         	$link = "";
         $kbCellValue = "<a href='$link'>$link</a>"; 
