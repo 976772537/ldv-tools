@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-// Get url.
+// Get linuxtesting url for authorization action.
 $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
 $GLOBALS['url'] = $linuxtesting->link;
 

@@ -21,8 +21,8 @@ class StatsController extends Zend_Controller_Action
   protected $_globals;
   protected $_profileInfo;
 
-  protected $url_local = "http://torvalds:8080/php/impl_reports_admin";//TODO:change all those links to $url
-  
+  protected $url_local = "http://torvalds:8080/php/impl_reports_admin"; // TODO: delete it and all its usages.
+
   public function init()
   {
     // Disable rendering and layout printing for AJAX requests.
@@ -381,10 +381,15 @@ class StatsController extends Zend_Controller_Action
 	// Get url.
 	$url = $this->url_local;
 
+	// Get linuxtesting URL (impl_reports_admin page).
+    $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
+    $ltAdminURL = $linuxtesting->link;
+
 	if ($ppobId) // Update existed Trace into linuxtesting.
 	{
 		// Check status of that Trace. If it is not equal to 'Unreported', stop updating.
-		if (!$this->checkForUnreported($url . "?action=details_ppob&num=$ppobId", $cookie))
+		// TODO: change to "$ltAdminURL?action=details_ppob&num=$ppobId"
+		if (!$this->checkForUnreported($url . "?action=details_ppob&num=$ppobId", $cookie)) 
 		{
 			$error = "Status of Trace # $ppobId is no longer 'Unreported'.\n" .
 				"In order to changed it please contact the Expert with access to linuxtesting.";
@@ -397,6 +402,7 @@ class StatsController extends Zend_Controller_Action
 			'verdict' => $verdict,
 			'status' => $status,
 			'sync_status' => 'KB-Synchronized');
+		// TODO: change to "$ltAdminURL?action=update_ppob&num=$ppobId"
 		$result = $this->curlPostRequestByCookie($url . "?action=update_ppob&num=$ppobId", $cookie, $data);
 	}
 	else // Insert new Trace into linuxtesting.
@@ -447,6 +453,7 @@ class StatsController extends Zend_Controller_Action
 			'error_trace_file' => $errorTraceFile,
 			'sync_status' => 'KB-Synchronized',
 			'link' => $currentLink);
+		// TODO: change to "$ltAdminURL?action=submit_ppob"
 		$result = $this->curlPostRequestByCookie($url . "?action=submit_ppob", $cookie, $data);
 	}
 
@@ -643,7 +650,12 @@ class StatsController extends Zend_Controller_Action
 	// Get url.
 	$url = $this->url_local;
 
+	// Get linuxtesting URL (impl_reports_admin page).
+    $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
+    $ltAdminURL = $linuxtesting->link;
+
 	// Get information from linuxtesting - status and verdict fields.
+	// TODO: change to "$ltAdminURL?action=details_ppob&num=$ppobId"
 	$result = $this->curlGetRequestByCookie($url . "?action=details_ppob&num=$ppobId", $cookie);
 	if (preg_match("/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/", $result, $array))
 	{
@@ -699,6 +711,7 @@ class StatsController extends Zend_Controller_Action
 	if ($newSyncStatus != "Synchronized")
 	{
 		$data = array('sync_status' => 'KB-Synchronized');
+		// TODO: change to "$ltAdminURL?action=update_ppob&num=$ppobId"
 		$result = $this->curlPostRequestByCookie($url . "?action=update_ppob&num=$ppobId", $cookie, $data);
 		if (!preg_match("/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/", $result, $array))
 		{
@@ -725,10 +738,7 @@ class StatsController extends Zend_Controller_Action
 		if ($dbConnection['password'] != '')
 			$passwd = "LDVDBPASSWD=$dbConnection[password]";
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=$kbId 2>&1" , $output, $retCode);
-        //$db = $this->_profileInfo->dbName;
-        //$log = "LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=$kbId 2>&1";
-      }
-
+    }
 	// Successful return.
 	// Log keeps all updated fields. If it is empty, then nothing was actually updated.
     echo Zend_Json::encode(array('log' => $log, 'output' => $output, 'errors' => ''));
@@ -752,6 +762,10 @@ class StatsController extends Zend_Controller_Action
 		// Get url.
 		$url = $this->url_local;
 
+		// Get linuxtesting URL (impl_reports_admin page).
+    	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
+    	$ltAdminURL = $linuxtesting->link;
+
 		// Check status of that Trace. If it is not equal to 'Unreported', stop deleting.
 		if (!$this->checkForUnreported($url . "?action=details_ppob&num=$ppobId", $cookie))
 		{
@@ -760,6 +774,7 @@ class StatsController extends Zend_Controller_Action
 			echo Zend_Json::encode(array('errors' => $error));
 			return;
 		}
+		// TODO: change to "$ltAdminURL?action=del_ppob&num=$ppobId"
 		$result = $this->curlPostRequestByCookie($url . "?action=del_ppob&num=$ppobId", $cookie, array());
 	}
 	
@@ -876,7 +891,12 @@ class StatsController extends Zend_Controller_Action
 		$cookie = $_SESSION['cookie'];
 		$url = $this->url_local;
 		$ppobId = $this->_getParam('ppob_id');
-		
+
+		// Get linuxtesting URL (impl_reports_admin page).
+    	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
+    	$ltAdminURL = $linuxtesting->link;
+
+		// TODO: change to "$ltAdminURL?action=update_ppob&num=$ppobId"
 		$result = $this->curlPostRequestByCookie($url . "?action=update_ppob&num=$ppobId", $cookie, $data);
 		if (!preg_match("/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/", $result, $array))
 		{

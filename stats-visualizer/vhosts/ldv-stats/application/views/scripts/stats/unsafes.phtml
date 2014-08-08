@@ -18,10 +18,9 @@
 
 include 'general.php';
 
-//TODO: add this link.
-// Get url.
-$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
-$url = $linuxtesting->link;
+// Get linuxtesting URL (bug page).
+$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-bug');
+$ltBugURL = $linuxtesting->link;
 
 function html($text)
 {
@@ -201,7 +200,7 @@ if ($page == 'Table') {
 			if ($columnName == 'Published record')
 			{
 				if ($kbCellValue)
-					$link = "http://torvalds:8080/php/bug?id=$kbCellValue"; //TODO:real link!
+					$link = "http://torvalds:8080/php/bug?id=$kbCellValue"; //TODO: change to "$ltBugURL?id=$kbCellValue"
 				else
 					$link = "";
 				$kbCellValue = "<a href='$link'>$link</a>"; 

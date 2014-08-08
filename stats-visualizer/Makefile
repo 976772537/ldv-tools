@@ -56,6 +56,8 @@ STATS_CONFIG_DATA = data.ini
 STATS_CONFIG_ERROR_TRACE_VISUALIZER = [error-trace-visualizer]
 STATS_CONFIG_KB_RECALC = [kb-recalc]
 STATS_CONFIG_LINUXTESTING = [linuxtesting]
+STATS_CONFIG_LINUXTESTING_BUG = [linuxtesting-bug]
+STATS_CONFIG_LINUXTESTING_ADMIN = [linuxtesting-admin]
 STATS_CONFIG_AUTHORIZATION = [authorization]
 STATS_CONFIG_SCRIPT = script=
 STATS_CONFIG_MODEL_DB = [model-database]
@@ -134,10 +136,12 @@ install:
 	export ETV="$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)"; \
 	export KBR="$(STATS_CONFIG_KB_RECALC)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(KB_RECALC)"; \
 	export LT="$(STATS_CONFIG_LINUXTESTING)\nlink=http://linuxtesting.org/"; \
+	export LTB="$(STATS_CONFIG_LINUXTESTING_BUG)\nlink=http://linuxtesting.org/results/bug"; \
+	export LTA="$(STATS_CONFIG_LINUXTESTING_ADMIN)\nlink=http://linuxtesting.org/results/impl_reports_admin"; \
 	export AUT="$(STATS_CONFIG_AUTHORIZATION)\nset=$(LDV_AUTHORIZATION)"; \
 	export MODEL_DB="$(STATS_CONFIG_MODEL_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_MODEL_DB_FILE)"; \
 	export RULE_DB="$(STATS_CONFIG_RULE_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_RULE_DB_FILE)"; \
-	printf "$$ETV\n$$KBR\n$$MODEL_DB\n$$RULE_DB\n$$LT\n$$AUT\n" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
+	printf "$$ETV\n$$KBR\n$$MODEL_DB\n$$RULE_DB\n$$LT\n$$LTB\n$$LTA\n$$AUT\n" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
 
 test:
 	@echo The statistics server doesn\'t have any test
