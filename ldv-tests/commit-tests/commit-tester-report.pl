@@ -309,8 +309,7 @@ sub create_report($)
 				print($html_results "191970");
 			}
 			print($html_results ";background:#9F79EE")
-				if(($results_map{$i}{'verdict_type'} == 1)
-					and ($results_map{$i}{'ideal_verdict'} eq 'unsafe'));
+				if($results_map{$i}{'verdict_type'} == 1);
 			print($html_results "\">$results_map{$i}{'ideal_verdict'}->$results_map{$i}{'new_verdict'}</td>
 				<td");
 			print($html_results " style=\"color:#CD2626\"")
@@ -587,19 +586,18 @@ sub create_several_report(@)
 						'problems' => $tmp_results_map{1}{'problems'},
 						'verdict_type' => $tmp_results_map{1}{'verdict_type'}
 					};
-#					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
-					print "ERROR: Undefined time for $results_map{$num_of_tasks}{'commit'}; file $i; \n"  unless(defined($results_map{$num_of_tasks}{'time'}));
+					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
+					$results_map{$num_of_tasks}{'time'} = "$names[$i]: " . $tmp_results_map{1}{'time'};
+					print "ERROR: Undefined time for $results_map{$num_of_tasks}{'commit'}; file $i; \n"
+						unless(defined($results_map{$num_of_tasks}{'time'}));
 					$sum_time[$i] += int($tmp_results_map{1}{'time'})
 						if($tmp_results_map{1}{'time'} !~ /-/);
 					$sum_good_time[$i] += int($tmp_results_map{1}{'time'})
-						if(($tmp_results_map{1}{'verdict$i'} ne 'unknown')
+						if(($results_map{$num_of_tasks}{"verdict$i"} ne 'unknown')
 						and ($tmp_results_map{1}{'time'} !~ /-/));
 					$sum_memory[$i] += int($tmp_results_map{1}{'memory'})
 						if(($tmp_results_map{1}{'memory'} !~ /-/)
-						and ($tmp_results_map{1}{'verdict$i'} ne 'unknown'));
-					$results_map{$num_of_tasks}{'memory'} = "$names[$i]: " . $tmp_results_map{1}{'memory'};
-                                        $results_map{$num_of_tasks}{'time'} = "$names[$i]: " . $tmp_results_map{1}{'time'};
-
+						and ($results_map{$num_of_tasks}{"verdict$i"} ne 'unknown'));
 				}
 			}
 			elsif($_ =~ /^link_to_results=(.*)/)
@@ -721,8 +719,7 @@ sub create_several_report(@)
 				<td><small>$results_map{$i}{'main'}</small></td>
 				<td");
 			print($html_results " style=\"color:#9F79EE\"")
-				if(($results_map{$i}{'verdict_type'} == 1)
-					and ($results_map{$i}{'ideal_verdict'} eq 'unsafe'));
+				if($results_map{$i}{'verdict_type'} == 1);
 			print($html_results ">$results_map{$i}{'ideal_verdict'}</td>");
 			for(my $j = 0; $j < $num_of_files; $j++)
 			{
