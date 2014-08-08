@@ -189,50 +189,17 @@ and:
   sudo prefix=/path/to/your/installation/directory make install-testing
 
 
-TODO: do not read the text below!
-
-Note, that '3' and '5' most likely require root privelegies and additional
-tuning. See 'stats-visualizer/README' for details. See 'ldv-online/README'
-before installing '6' and '7'.
-
-  1. To install the LDV console tools use:
-     prefix=/path/to/your/installation/directory make install
-
-  2. To install verifiers only:
-     prefix=/path/to/your/installation/directory make install-verifiers
-
-  3. To install the statistics server use (please, refer to
-     stats-visualizer/README for details and problems!)
-     sudo prefix=/path/to/some/directory make install-visualization
-     (Since it will most likely require root access, install it separately)
-
-  4. To install tests use:
-     prefix=/path/to/your/installation/directory make install-testing
-
-  5. To install everything use (also including ldv-online):
-     prefix=/path/to/your/installation/directory make install-all
-
-  6. To install ldv-git:
-     prefix=/path/to/your/installation/directory make install-ldv-git
-
-  7. To install cluster (both node and server):
-     prefix=/path/to/your/installation/directory make install-ldv-cluster
-
-  8. To install error trace visualizer:
-     prefix=/path/to/your/installation/directory make install-etv
-
 For some tools that use LDV to work, you need to add directory with binaries to
 your path:
 
-	export PATH=$PATH:/path/to/prefix/bin
-
-Here `/path/to/prefix` is what you've specified as prefix wile installing the
-above tools.
+  export PATH=$PATH:/path/to/your/installation/directory
 
 You may skip installing BLAST reachability C verifier (this is useful if you
 have your own, and are not going to use the default one).  To do this, add the
 following variable when installing:
 
-	no_blast=y prefix=/path make install
+  no_blast=y [prefix=/path/to/your/installation/directory] make [...]
 
+Ditto to CPAchecker:
 
+  no_cpachecker=y [prefix=/path/to/your/installation/directory] make [...]
