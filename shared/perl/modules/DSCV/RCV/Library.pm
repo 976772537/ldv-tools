@@ -490,6 +490,186 @@ EOR
 
 }
 
+
+my $timeout_idstr = "DSCV_TIMEOUT ";
+# Return current timeout script settings
+sub get_timeout_opts {
+	# Guard the command line with the timeout script
+	my $time_pattern = join(';',map{ sprintf("%s,%s",$context->{timewatches}->{$_},$_) } keys %{$context->{timewatches}});
+	my @args = DSCV::RCV::Utils::set_up_timeout({
+		timelimit => $context->{limits}->{timelimit},
+		memlimit => $context->{limits}->{memlimit},
+		#pattern => $time_pattern,
+		output => $context->{timestats_file},
+		id_str => $timeout_idstr,
+		kill_at_once => $context->{limits}->{kill_at_once},
+		ldvdir => 'ldv'
+		}
+	);
+	# NOTE that the timestats file is common for several runs! This is done to get the statistics on all the runs in one place.
+
+	return @args;
+}
+
+# Runs the verifier, packaging the trace into the indexed trace file.
+# May be called multiple times
+my $automata_discarded = '';
+my $automata_added = '';
+sub run
+{
+	my @args = @_;
+	local $_;
+
+	my @timeout_opts = get_timeout_opts();
+	unshift @args, @timeout_opts;	
+
+	vsay ('NORMAL',sprintf ("Running %s for %s, entry %s...",$context->{name},$context->{dbg_target}, join(", ",@{$context->{entries}})));
+	vsay ('INFO',(map {($_ eq '')? '""' : $_} @args),"\n");
+
+	# Determine the id of the current run.  We'll need it if we need several runs in one verification task.
+	my $run_id = $context->{next_run_id}++;
+	# Adjust the reports to have this number in them 
+	my $target = $context->{dbg_target};
+	my $debug_trace = catfile($context->{tmpdir},"runs","$target.$run_id.gz");
+
+
+	# Open a pipe to the debug trace archiver.  It will run in a separate thread, and won't interfere with our automatons
+	mkpath(dirname($debug_trace));
+	open (my $DEBUG_TRACE, "| /bin/gzip -c >\Q$debug_trace") or die "Can't start gzip archiver: $!";
+
+	vsay ('INFO',"The debug trace will be written to ".$debug_trace);
+
+	# Add the default automata that check for time limits
+	my $limit_automaton = StreamAutomaton::limits_check($timeout_idstr);
+	# Prepare automatons for trace reading
+	my $out_atmt = StreamAutomaton->new([],[],[@{$context->{stdout_automata}}]);
+	my $err_atmt = StreamAutomaton->new([$limit_automaton],[],[@{$context->{stderr_automata}}]);
+
+	# Warn user if he forgot to set up his automata
+	vsay('WARNING',"\nNo user-supplied automatons present!  Didn't you forget that you should add_automaton() before each run()?\n\n") if ($automata_discarded and not $automata_added);
+
+	# Prepare tail buffer
+	$context->{tailbuf} = [];
+
+	# Now open3 the commandline we have, and get the result
+	my %child = Utils::open3_callbacks({
+		# Stdout callback
+		out => sub{ my $line = shift;
+			$out_atmt->chew_line($line);
+			print $DEBUG_TRACE $line;
+		},
+		# Stderr callback
+		'err' => sub{ my $line = shift;
+			$err_atmt->chew_line($line);
+			print $DEBUG_TRACE $line;
+		},
+		close_out=>sub{ vsay ('TRACE',"Child's stdout stream closed.\n");},
+		close_err=>sub{ vsay ('TRACE',"Child's stderr stream closed.\n");},
+		},
+		# Instrument call string
+		@args
+	);
+
+	my $errcode = $?;
+	vsay ('TRACE',"wait3 return value: $errcode\n");
+
+	# Close gzipped trace
+	close $DEBUG_TRACE;
+
+	# Discard "undef" results and merge hashes
+	my %out_atmt_results = %{$out_atmt->result()};
+	do {delete $out_atmt_results{$_} unless defined $out_atmt_results{$_}} for keys %out_atmt_results;
+	my %err_atmt_results = %{$err_atmt->result()};
+	do {delete $err_atmt_results{$_} unless defined $err_atmt_results{$_}} for keys %err_atmt_results;
+
+	my $atmt_results = { %out_atmt_results, %err_atmt_results};
+
+	# Adjust result
+	my $result = 'OK';
+	my $mes = "";
+	my $timestats_fname = $context->{timestats_file};
+	my %timestats;
+	if ( -f $timestats_fname && ! -z $timestats_fname) {
+		
+		%timestats = parse_outputfile(outputfile => $timestats_fname);
+		$errcode = $timestats{"exit_code_script"};
+		if ($timestats{"memory_exhausted"} == "1")
+		{
+			$result = 'LIMITS';
+			$mes = "Memory exhausted";
+		}
+		if ($timestats{"time_exhausted"} == "1")
+		{
+			$result = 'LIMITS';
+			$mes = "Time exhausted";
+		}
+		if ($timestats{"walltime_exhausted"} == "1")
+		{
+			$result = 'LIMITS';
+			$mes = "Wall time exhausted";
+		}
+		if ($timestats{"signal_script"} > 0)
+		{
+			$result = 'SIGNAL';
+		}
+	}
+
+	# Just say something to the user
+	vsay('NORMAL',sprintf("Finished with code %d term by %s. %s",$errcode,$result,$mes));
+
+	# Prepare a description boilerplate
+	# NOTE that we _rewrite_ the description if it's not the first run!  Motivation: if the first run has failed due to an artificially set up time limit, we do not want this time limit message to get into the final report.
+	my $descr;
+	my $script_exit_code = $timestats{"exit_code_script"};
+	my $script_signal = $timestats{"signal_script"} || 0;
+	my @out = get_result_from_file(outputfile => $timestats_fname);
+	my @out_err = get_err_result_from_file(outputfile => $timestats_fname);
+	my @words_memlimit = split(" ", $out[1]);
+	my @words_timelimit = split(" ", $out[2]);
+	my @words_exit_code = split(" ", $out_err[4]);
+	my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
+===============================================
+Resource Manager settings:
+	memory limit: %s (%s bytes)
+	time limit: %s ms
+%s
+%s
+EOR
+
+
+	my $descr_ok = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
+===============================================
+Resource Manager settings:
+	memory limit: %s (%s bytes)
+%s
+%s
+%s
+%s
+%s
+EOR
+	# Prepare the result
+	if ($script_exit_code == 0 && $script_signal == 0)
+	{
+		$context->{auto_description} = $descr_ok;
+	}
+	else
+	{
+		$context->{auto_description} = $descr_err;
+	}
+	
+	$context->{auto_result} = ($result eq 'OK')? 'OK' : 'FAILED';
+
+	# Discard all the automatons, since they are now in final states.
+	$context->{automata} = {};
+	$automata_discarded = 1;
+
+	return ($result, $errcode, $atmt_results, $debug_trace);
+
+}
+
+
+
+
 # Add stream automaton to the next run.  After the automata, you should specify one or more of strings 'stdout', 'stderr'.  The automata will be used to parse the streams you've specified for each of them.
 # You HAVE TO create new automata and add them before EACH run!
 sub add_automaton
