@@ -25,7 +25,7 @@ use DSCV::RCV::Utils;
 use strict;
 use vars qw(@ISA @EXPORT_OK @EXPORT);
 # List here the functions available to the user (don't forget the & in front of them)
-@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &add_automaton &result &tail_automaton &set_limits &set_cil_options);
+@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &docker_run &add_automaton &result &tail_automaton &set_limits &set_cil_options);
 use base qw(Exporter);
 
 use LDV::Utils;
@@ -40,6 +40,8 @@ use File::Path qw(mkpath);
 use File::Spec::Functions;
 use File::Copy;
 use FindBin;
+use Readonly;
+use UUID::Generator::PurePerl;
 my $fix_file_exe = "$FindBin::RealBin/../build-cmd-extractor/fix_for_compile.pl";
 
 # Global context; altered by the user from the env
@@ -357,16 +359,13 @@ sub get_timeout_opts
 # May be called multiple times
 my $automata_discarded = '';
 my $automata_added = '';
-sub run
+sub rcv_run
 {
-	my @args = @_;
+	my ($opts_list, $remote_opts) = @_;
+
+	my @args = @{$opts_list};
+
 	local $_;
-
-	my @timeout_opts = get_timeout_opts();
-	unshift @args, @timeout_opts;	
-
-	vsay ('NORMAL',sprintf ("Running %s for %s, entry %s...",$context->{name},$context->{dbg_target}, join(", ",@{$context->{entries}})));
-	vsay ('INFO',(map {($_ eq '')? '""' : $_} @args),"\n");
 
 	# Determine the id of the current run.  We'll need it if we need several runs in one verification task.
 	my $run_id = $context->{next_run_id}++;
@@ -393,27 +392,54 @@ sub run
 	# Prepare tail buffer
 	$context->{tailbuf} = [];
 
-	# Now open3 the commandline we have, and get the result
-	my %child = Utils::open3_callbacks({
-		# Stdout callback
-		out => sub{ my $line = shift;
+	my $errcode;
+	if(defined $remote_opts){
+		my $stdout_file = $remote_opts->{stdout};
+		my $stderr_file = $remote_opts->{stderr};
+		die 'Please, provide correct stdout file' if not defined $stdout_file;
+		die 'Please, provide correct stderr file' if not defined $stderr_file;
+
+		# Read stdout
+		open my $fd, '<', $stdout_file
+			or die "Can't open file with collected stdout '$stdout_file'";
+		while(my $line = <$fd>){
 			$out_atmt->chew_line($line);
 			print $DEBUG_TRACE $line;
-		},
-		# Stderr callback
-		'err' => sub{ my $line = shift;
+		}
+		close $fd;
+
+		# Read stderr
+		open my $fd, '<', $stderr_file
+			or die "Can't open file with collected stdout '$stderr_file'";
+		while(my $line = <$fd>){
 			$err_atmt->chew_line($line);
 			print $DEBUG_TRACE $line;
-		},
-		close_out=>sub{ vsay ('TRACE',"Child's stdout stream closed.\n");},
-		close_err=>sub{ vsay ('TRACE',"Child's stderr stream closed.\n");},
-		},
-		# Instrument call string
-		@args
-	);
+		}
+		close $fd;
+	}
+	else{
+		# Now open3 the commandline we have, and get the result
+		my %child = Utils::open3_callbacks({
+			# Stdout callback
+			out => sub{ my $line = shift;
+				$out_atmt->chew_line($line);
+				print $DEBUG_TRACE $line;
+			},
+			# Stderr callback
+			'err' => sub{ my $line = shift;
+				$err_atmt->chew_line($line);
+				print $DEBUG_TRACE $line;
+			},
+			close_out=>sub{ vsay ('TRACE',"Child's stdout stream closed.\n");},
+			close_err=>sub{ vsay ('TRACE',"Child's stderr stream closed.\n");},
+			},
+			# Instrument call string
+			@args
+		);
 
-	my $errcode = $?;
-	vsay ('TRACE',"wait3 return value: $errcode\n");
+		$errcode = $?;
+		vsay ('TRACE',"wait3 return value: $errcode\n");
+	}
 
 	# Close gzipped trace
 	close $DEBUG_TRACE;
@@ -506,155 +532,174 @@ EOR
 	$automata_discarded = 1;
 
 	return ($result, $errcode, $atmt_results, $debug_trace);
-
 }
 
-# Just check results as it do 'run' but whithout execution
-# Thus subrogram is nested by RCV wrappers around cloud-based verifiers
-sub post_run_processing
+# Run RCV on this host and look after its progress
+sub run
 {
-	my ($stdout_file, $stderr_file, $timout_out_file) = @_;
+	my @args = @_;
 	local $_;
 
-	vsay ('NORMAL', "Going to import results from stdout '%s' and stderr '%s' and timout '%s' files", $stdout_file, $stderr_file, $timout_out_file);
+	my @timeout_opts = get_timeout_opts();
+	unshift @args, @timeout_opts;	
 
-	vsay ("Copy provided timout results to expected place '$context->{timestats}'");
-	copy($timout_out_file, $context->{timestats})
-		or die "Copy failed: $!";
+	vsay ('NORMAL',sprintf ("Running %s for %s, entry %s...",$context->{name},$context->{dbg_target}, join(", ",@{$context->{entries}})));
+	vsay ('INFO',(map {($_ eq '')? '""' : $_} @args),"\n");
 
-	# Determine the id of the current run.  We'll need it if we need several runs in one verification task.
-	my $run_id = $context->{next_run_id}++;
-	# Adjust the reports to have this number in them 
-	my $target = $context->{dbg_target};
-	my $debug_trace = catfile($context->{tmpdir},"runs","$target.$run_id.gz");
-
-	# Open a pipe to the debug trace archiver.  It will run in a separate thread, and won't interfere with our automatons
-	mkpath(dirname($debug_trace));
-	open (my $DEBUG_TRACE, "| /bin/gzip -c >\Q$debug_trace") or die "Can't start gzip archiver: $!";
-
-	vsay ('INFO',"The debug trace will be written to ".$debug_trace);
-
-	# Add the default automata that check for time limits
-	my $limit_automaton = StreamAutomaton::limits_check($timeout_idstr);
-	# Prepare automatons for trace reading
-	my $out_atmt = StreamAutomaton->new([],[],[@{$context->{stdout_automata}}]);
-	my $err_atmt = StreamAutomaton->new([$limit_automaton],[],[@{$context->{stderr_automata}}]);
-
-	# Warn user if he forgot to set up his automata
-	vsay('WARNING',"\nNo user-supplied automatons present!  Didn't you forget that you should add_automaton() before each run()?\n\n") if ($automata_discarded and not $automata_added);
-
-	# Read stdout
-	open my $fd, '<', $stdout_file
-		or die "Can't open file with collected stdout '$stdout_file'";
-	while(my $line = <$fd>){
-		$out_atmt->chew_line($line);
-		print $DEBUG_TRACE $line;
-	}
-	close $fd;
-
-	# Read stderr
-	open my $fd, '<', $stderr_file
-		or die "Can't open file with collected stdout '$stderr_file'";
-	while(my $line = <$fd>){
-		$err_atmt->chew_line($line);
-		print $DEBUG_TRACE $line;
-	}
-	close $fd;
-
-	# Close gzipped trace
-	close $DEBUG_TRACE;
-
-	# Discard "undef" results and merge hashes
-	my %out_atmt_results = %{$out_atmt->result()};
-	do {delete $out_atmt_results{$_} unless defined $out_atmt_results{$_}} for keys %out_atmt_results;
-	my %err_atmt_results = %{$err_atmt->result()};
-	do {delete $err_atmt_results{$_} unless defined $err_atmt_results{$_}} for keys %err_atmt_results;
-
-	my $atmt_results = { %out_atmt_results, %err_atmt_results};
-
-	# Adjust result
-	my $result = 'OK';
-	my $mes = "";
-	my $timestats_fname = $context->{timestats_file};
-	my %timestats;
-	my $errcode;
-	if ( -f $timestats_fname && ! -z $timestats_fname) {
-		
-		%timestats = parse_outputfile(outputfile => $timestats_fname);
-		$errcode = $timestats{"exit_code_script"};
-		if ($timestats{"memory_exhausted"} == "1")
-		{
-			$result = 'LIMITS';
-			$mes = "Memory exhausted";
-		}
-		if ($timestats{"time_exhausted"} == "1")
-		{
-			$result = 'LIMITS';
-			$mes = "Time exhausted";
-		}
-		if ($timestats{"walltime_exhausted"} == "1")
-		{
-			$result = 'LIMITS';
-			$mes = "Wall time exhausted";
-		}
-		if ($timestats{"signal_script"} > 0)
-		{
-			$result = 'SIGNAL';
-		}
-	}
-
-	# Just say something to the user
-	vsay('NORMAL',sprintf("Finished with code %d term by %s. %s",$errcode,$result,$mes));
-
-	# Prepare a description boilerplate
-	# NOTE that we _rewrite_ the description if it's not the first run!  Motivation: if the first run has failed due to an artificially set up time limit, we do not want this time limit message to get into the final report.
-	my $descr;
-	my $script_exit_code = $timestats{"exit_code_script"};
-	my $script_signal = $timestats{"signal_script"} || 0;
-	my @out = get_result_from_file(outputfile => $timestats_fname);
-	my @out_err = get_err_result_from_file(outputfile => $timestats_fname);
-	my @words_memlimit = split(" ", $out[1]);
-	my @words_timelimit = split(" ", $out[2]);
-	my @words_exit_code = split(" ", $out_err[4]);
-	my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
-===============================================
-Resource Manager settings:
-	memory limit: %s (%s bytes)
-	time limit: %s ms
-%s
-%s
-EOR
-
-
-	my $descr_ok = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
-===============================================
-Resource Manager settings:
-	memory limit: %s (%s bytes)
-%s
-%s
-%s
-%s
-%s
-EOR
-	# Prepare the result
-	if ($script_exit_code == 0 && $script_signal == 0)
-	{
-		$context->{auto_description} = $descr_ok;
-	}
-	else
-	{
-		$context->{auto_description} = $descr_err;
-	}
-	
-	$context->{auto_result} = ($result eq 'OK')? 'OK' : 'FAILED';
-
-	# Discard all the automatons, since they are now in final states.
-	$context->{automata} = {};
-	$automata_discarded = 1;
-
-	return ($result, $errcode, $atmt_results, $debug_trace);
+	return rcv_run(\@args);
 }
 
+# Send data to docker server on remote host and then retrieve
+# results from there
+sub docker_run
+{
+	my ($options_ptrlist, $transfer_files_ptrlist, $docker_image) = @_;
+	my @args = @{$options_ptrlist};
+	my @transfer_files = @{$transfer_files_ptrlist};
+
+	Readonly my $STDOUT_FILENAME => 'stdout.txt';
+	Readonly my $STDERR_FILENAME => 'stderr.txt';
+	Readonly my $TIMOUT_OUT => 'timout_report.txt';
+	Readonly my $CONTROL_FILE_NAME => 'control.cfg';
+	Readonly my $ARCHIVE_NAME => 'results.tar';
+	Readonly my $VERIFICATION_NESTED_STATE => 'ready';
+	Readonly my $DOCKER_DONE_FILE => '.done';
+
+	# get options for timout script
+	my @timeout_opts = get_timeout_opts($STDOUT_FILENAME, $STDERR_FILENAME, $TIMOUT_OUT);
+	
+	# remove absolute path from timout scipt name
+	$timeout_opts[0] = fileparse($timeout_opts[0]);
+
+	unshift @args, @timeout_opts;
+
+	# Generate id 
+	my $ug = UUID::Generator::PurePerl->new();
+	my $run_id = $ug->generate_v1();
+	$run_id = $run_id->as_string; 
+	vsay('TRACE', "RCV launch id is '$run_id'");
+
+	# Prepare dir with files
+	my $workdir = get_tmp_dir();
+	my $full_path = "$workdir/$run_id";
+	mkpath $full_path;
+	vsay('DEBUG', "Copy data before sending to a remote host to '$full_path'");
+
+	foreach my $file (@transfer_files){
+		copy($file, $full_path) 
+			or die "Copy failed: $!"; 
+	}
+
+	# First, send data
+	my @cmd = (
+		'rsync',
+		'-q',
+		'-r',
+		$full_path,
+		"$ENV{'RCV_REMOTE_HOST'}/"
+	);
+	vsay('DEBUG', q{Sending data to remote host: '} . (join ' ', @cmd) . q{'});
+	system(@cmd) and die "Cannot send dir '$full_path' to '$ENV{'RCV_REMOTE_HOST'}'";
+
+	# Then prepare control file content
+	my %cfg_hash = (
+		'status' => $VERIFICATION_NESTED_STATE,
+		'image' => $docker_image,
+		'command' => (join ' ', @args),
+	);
+
+	# Prepare run command and control file
+	my $control_file = "$full_path/$CONTROL_FILE_NAME";
+	my @strings = ();
+	foreach my $key (keys %cfg_hash){
+	    push @strings, $key . ': ' . $cfg_hash{$key} . "\n";
+	}
+
+	# Print strings
+	vsay('TRACE', "Save control file to '$control_file'");
+	open my $fd, '>', $control_file
+		or die "Cannot open file '$control_file': $!";
+	foreach (@strings) {
+        print {$fd} $_
+                or "Cannot write file '$control_file': $!";
+	}
+	close $fd
+		or die "Cannot close file '$control_file': $!";
+
+	# Send it
+	@cmd = (
+		'rsync',
+		'-q',
+		$control_file,
+		"$ENV{'RCV_REMOTE_HOST'}/$run_id/"
+	);
+	vsay('DEBUG', q{Sending control file to remote host: '} . (join ' ', @cmd) . q{'});
+	system(@cmd) and die "Cannot send control file '$control_file' to '$ENV{'RCV_REMOTE_HOST'}/$run_id/'";
+
+	# Wait, periodically checking it
+	@cmd = (
+		'rsync',
+		'-q',
+		'--dry-run',
+		"$ENV{'RCV_REMOTE_HOST'}/$run_id/$DOCKER_DONE_FILE",
+		"$full_path/"
+	);
+	vsay('TRACE', q{Waiting until file will appear on server: '} . (join ' ', @cmd) . q{'});
+	my $retval;
+	# 5888 - rsync missing file ret code
+	while(!defined $retval || $retval == 5888){
+		$retval = system( 
+			'sh' => (
+				'-c' => '"$@" 2>/dev/null',
+				'--',
+				@cmd
+			)
+		);
+		sleep 1;
+	}
+	if($retval){
+		die "Cannot copy file from the remote host, rsync failed: '$retval'";
+	}
+
+	# Send results back
+	@cmd = (
+		'rsync',
+		'-q',
+		"$ENV{'RCV_REMOTE_HOST'}/$run_id/$ARCHIVE_NAME",
+		$full_path
+	);
+	vsay('DEBUG', q{Retrieving results: '} . (join ' ', @cmd) . q{'});
+	system(@cmd) and die "Cannot retrieve results from there '$ENV{'RCV_REMOTE_HOST'}/$run_id/$ARCHIVE_NAME'";
+
+	# Unpacking them
+	@cmd = (
+		'tar',
+		'-xf',
+		"$full_path/$ARCHIVE_NAME",
+		'-C',
+		$full_path
+	);
+	vsay('DEBUG', q{Unpacking archive: '} . (join ' ', @cmd) . q{'});
+	system(
+		'sh' => (
+			'-c' => '"$@" >/dev/null 2>&1',
+			'--',
+			@cmd
+		)
+	) and die "Cannot unpack archive '$full_path/$ARCHIVE_NAME'";
+
+	# Replace common timout file
+	vsay('TRACE', "Copy '$full_path/$TIMOUT_OUT' to '$context->{timestats_file}'");
+	copy("$full_path/$TIMOUT_OUT", $context->{timestats_file})
+		or die "Copy failed: $!";
+
+	my %run_params = (
+		'stdout' => "$full_path/$STDOUT_FILENAME",
+		'stderr' => "$full_path/$STDERR_FILENAME"
+	);
+
+	return rcv_run(\@args, \%run_params);
+}
 
 # Add stream automaton to the next run.  After the automata, you should specify one or more of strings 'stdout', 'stderr'.  The automata will be used to parse the streams you've specified for each of them.
 # You HAVE TO create new automata and add them before EACH run!

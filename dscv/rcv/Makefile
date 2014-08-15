@@ -24,7 +24,6 @@ frontend_target=$(rcv_install_dir)/$1
 backend_install_dir=$(rcv_install_dir)/backends/$1
 
 install: $(patsubst %,backends/%-subdir-install,$(backends)) $(foreach frontend,$(frontends),$(call frontend_target,$(frontend)))
-	 cp remote_blast $(rcv_install_dir)/
 
 clean: $(patsubst %,backends/%-subdir-clean,$(backends))
 

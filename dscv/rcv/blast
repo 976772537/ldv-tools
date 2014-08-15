@@ -25,19 +25,46 @@
 
 set_tool_name("BLAST");
 
-# locate blast
-my $blast_bin_dir = $ENV{'BLAST_PATH'} || "$installed_backends_dir/blast/bin";
-my $blast_exe = "$blast_bin_dir/pblast.opt";
-
--d $blast_bin_dir or die "The selected BLAST's backend directory '$blast_bin_dir' is not a directory";
-
-# Add path for BLAST's supplementary scripts.  Prepending to system's to override other PATHs.
-my $new_path = "$blast_bin_dir:".$ENV{'PATH'};
-vsay 30,"Setting PATH to '$new_path'";
-$ENV{'PATH'} = $new_path;
-vsay 40,"CSIsat to be used is ".`which csisat`;
+my $remote_mode = 0;
+if(defined $ENV{'RCV_REMOTE_HOST'} && $ENV{'RCV_REMOTE_HOST'} ne ''){
+	vsay('INFO', "Going to run BLAST on remote host '$ENV{'RCV_REMOTE_HOST'}'");
+	$remote_mode = 1;
+}
+else{
+	vsay('INFO', 'Going to run BLAST on this host');
+}
 
 my @files = preprocess_all_files('cpp');
+
+my $blast_exe;
+my @transfer_files = @files;
+my $docker_blast_image;
+if($remote_mode){
+	$blast_exe = 'pblast.opt';
+	if(defined $ENV{'RCV_DOCKER_IMAGE'} && $ENV{'RCV_DOCKER_IMAGE'} ne ''){
+		$docker_blast_image = $ENV{'RCV_DOCKER_IMAGE'};
+	}
+	else{
+		$docker_blast_image = 'ubuntu:blast';
+	}
+
+	# Get file basenames
+	@files = map { my $name = fileparse($_);$name; } @files;
+}
+else{
+	# locate blast
+	my $blast_bin_dir = $ENV{'BLAST_PATH'} || "$installed_backends_dir/blast/bin";
+	$blast_exe = "$blast_bin_dir/pblast.opt";
+
+	-d $blast_bin_dir or die "The selected BLAST's backend directory '$blast_bin_dir' is not a directory";
+
+	# Add path for BLAST's supplementary scripts.  Prepending to system's to override other PATHs.
+	my $new_path = "$blast_bin_dir:".$ENV{'PATH'};
+	vsay 30,"Setting PATH to '$new_path'";
+	$ENV{'PATH'} = $new_path;
+	vsay 40,"CSIsat to be used is ".`which csisat`;	
+}
+
 
 # Options that will be passed to the blast tool
 my @blast_options = ($blast_exe,@files);
@@ -143,10 +170,12 @@ unless ($ENV{'BLAST_NOOCAMLTUNE'}){
 	vsay ('NORMAL',sprintf("OCaml machine-specific tuning is not performed."));
 }
 
-add_time_watch(
-	'PBLAST.OPT' => '.*pblast\.opt.*',
-	'SMT_SOLVER' => 'CHILD:.*smtlibServer.*',
-);
+unless($remote_mode){
+	add_time_watch(
+		'PBLAST.OPT' => '.*pblast\.opt.*',
+		'SMT_SOLVER' => 'CHILD:.*smtlibServer.*',
+	);
+}
 
 # Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 
@@ -165,7 +194,14 @@ add_automaton(ocaml_detect());
 # Dump the last 50 lines from stderr output of the tool
 add_automaton(tail_automaton(50),'stderr');
 
-my ($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
+my ($result, $errcode, $automata_results, $debug_trace);
+if($remote_mode){
+	($result, $errcode, $automata_results, $debug_trace) = docker_run(\@blast_options, \@transfer_files, $docker_blast_image);
+}
+else{
+ 	($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
+}
+
 
 # BLAST prints the verdict into the standard output.  It was read by the relevant automaton.
 my $verdict = $automata_results->{VERDICT} || 'unknown';
