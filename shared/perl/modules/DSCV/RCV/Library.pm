@@ -25,7 +25,7 @@ use DSCV::RCV::Utils;
 use strict;
 use vars qw(@ISA @EXPORT_OK @EXPORT);
 # List here the functions available to the user (don't forget the & in front of them)
-@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &docker_run &add_automaton &result &tail_automaton &set_limits &set_cil_options);
+@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &docker_run &rcv_run &add_automaton &result &tail_automaton &set_limits &set_cil_options &get_timeout_file);
 use base qw(Exporter);
 
 use LDV::Utils;
@@ -315,11 +315,6 @@ sub add_time_watch
 	$context->{timewatches}->{$_} = $timewatches{$_} for keys %timewatches;
 }
 
-sub get_timeout_file 
-{
-	return $context->{timestats_file};
-}
-
 sub set_tool_name
 {
 	my $name = shift;
@@ -330,6 +325,10 @@ sub set_tool_name
 	LDV::Utils::push_instrument($name);
 }
 
+sub get_timeout_file 
+{
+	return $context->{timestats_file};
+}
 
 my $timeout_idstr = "DSCV_TIMEOUT ";
 # Return current timeout script settings
