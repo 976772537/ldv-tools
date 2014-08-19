@@ -315,6 +315,11 @@ sub add_time_watch
 	$context->{timewatches}->{$_} = $timewatches{$_} for keys %timewatches;
 }
 
+sub get_timeout_file 
+{
+	return $context->{timestats_file};
+}
+
 sub set_tool_name
 {
 	my $name = shift;
@@ -647,6 +652,7 @@ sub docker_run
 	vsay('TRACE', q{Waiting until file will appear on server: '} . (join ' ', @cmd) . q{'});
 	my $retval;
 	# 5888 - rsync missing file ret code
+	# TODO: Should we add '--dry-run'
 	while(!defined $retval || $retval == 5888){
 		$retval = system( 
 			'sh' => (
