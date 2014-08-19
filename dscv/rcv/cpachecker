@@ -71,7 +71,12 @@ set_tool_name("CPAchecker");
 my @cpachecker_options;
 my $cpachecker_config;
 my $cpachecker;
-my $configs_dir;
+# The LDV distribution of CPAchecker contains some additional files that are
+# installed alongside the whole toolset. The paths to these places are accessed
+# via pre-set variables $installed_frontends_dir and $installed_backends_dir.
+# Initialize the directory where the default config files reside.
+my $configs_dir = "$installed_frontends_dir/etc/";
+
 # This section check usage of verification cloud
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	unshift @cpachecker_options, 'curl';
@@ -86,12 +91,6 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	}
 }
 else{
-	# The LDV distribution of CPAchecker contains some additional files that are
-	# installed alongside the whole toolset. The paths to these places are accessed
-	# via pre-set variables $installed_frontends_dir and $installed_backends_dir.
-	# Initialize the directory where the default config files reside.
-	$configs_dir = "$installed_frontends_dir/etc/";
-
 	# Get a path to the user-specified config, if any, via Perl's ENV hash for
 	# environemnt variables.  If the user hasn't specified the environment
 	# variable, the value of $cpachecker_config will be undef.
@@ -223,6 +222,11 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 		@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
 	}
 
+	# Add level - it is still necessary because beside memory and time limits it 
+	# specifies number of cpu cores
+	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	@cpachecker_options = ( @cpachecker_options, 'limitations=' . $level );
+
 	# Choose config: Cloud accept any configuration from cpachecker trunk
 	# We should provide relative path to it from repository root dir 
 	$cpachecker_config = $ENV{'CPACHECKER_CLOUD_CONFIG'};
@@ -344,7 +348,7 @@ my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	# Add specification
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'specFile@$tmpdir/$LDV_errloc_autom' . $main);
+	@cpachecker_options = ( @cpachecker_options, 'specFile@' . "$tmpdir/$LDV_errloc_autom");
 
 	# Add mains
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
@@ -480,8 +484,10 @@ add_automaton(tail_automaton(50),'stderr');
 #   * the file where gzip-ped debug trace resides
 my ($result, $errcode, $automata_results, $debug_trace);
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
-	# Perform request
+	# Add host and execute request
+	@cpachecker_options = (@cpachecker_options, $ENV{RCV_REMOTE_HOST});
 	vsay('INFO', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
+	
 	my $id = `@cpachecker_options`;
 	if(!defined $id){
 		die 'Cannot obtain run id from the cloud';
@@ -526,6 +532,7 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		'unzip', 
 		'-u',
 		'-q',
+		'-o',
 		$zip,
 		'-d',
 		$tmpdir
@@ -549,6 +556,7 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		usedMemory => undef
 	);
 	my $timeout_file = "$tmpdir/run_info";
+	vsay('DEBUG', "Open file with run info: '$timeout_file'");
 	open my $fd, '<', $timeout_file
 		or die "Cannot open file '$timeout_file'";
 	my @lines = <$fd>;
@@ -556,14 +564,17 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		or die "Cannot save file '$timeout_file'";
 	chomp @lines;
 	foreach my $line (@lines){
-		my ($key, $val) = split '=', @lines;
+		my ($key, $val) = split '=', $line;
 		$expected_results{$key} = $val;
 	}
 
-	# TODO: Translate value format
+	# Convert values
+	$expected_results{wallTime} = convert_wi_time($expected_results{wallTime});
+	$expected_results{cpuTime} = convert_wi_time($expected_results{cpuTime});
+	$expected_results{usedMemory} = convert_memory('specified_mem', $expected_results{usedMemory});
 
 	# Prepare artificial report from cloud one
-	my $descr_err = sprintf (<<EOR , $expected_results{exitCode}, convert_time($expected_results{wallTime}), convert_time($expected_results{cpuTime}), convert_memory($expected_results{usedMemory}));
+	my $descr_err = sprintf (<<EOR , $expected_results{exitCode}, $expected_results{wallTime}, $expected_results{cpuTime}, $expected_results{usedMemory});
 Command execution status:
 	exit code: %s
 Time usage statistics:
@@ -574,10 +585,11 @@ Memory usage statistics:
 EOR
 
 	# Write it to the file which is expected by RCV
-	my $timeout_file = get_timeout_file();
+	$timeout_file = get_timeout_file();
+	vsay('DEBUG', "Save run info in timout common ldv format: '$timeout_file'");
 	open my $fd, '>', $timeout_file
 		or die "Cannot open file '$timeout_file'";
-	print {$fd} $timeout_file
+	print {$fd} $descr_err
 		or die "Cannot write to file '$timeout_file'";
 	close $fd 
 		or die "Cannot save file '$timeout_file'";
@@ -817,22 +829,31 @@ sub convert_time
 	}
 }
 
+sub convert_wi_time
+{
+	my $in = shift;
+	my ($min, $sec) = split ' ', $in;
+	$min =~ s/min//;
+	$sec =~ s/s//;
+	return ($min*60 + $sec);
+}
+
 sub convert_memory
 {
 	my $info = {@_};
 	my $mem = $info->{specified_mem};
-	if ($mem =~ /^(\d+)(Kb|Mb|Gb|Kib|Mib|Gib|)$/)
+	if ($mem =~ /^(\d+)\s{0,}(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|)$/)
 	{
 		my $res = $1;
 		if ($2 eq "Kb")
 		{
 			$res *= 1000;
 		}
-		if ($2 eq "Mb")
+		if ($2 eq "Mb" || $2 eq "MB" )
 		{
 			$res *= 1000 * 1000;
 		}
-		if ($2 eq "Gb")
+		if ($2 eq "Gb" || $2 eq "GB")
 		{
 			$res *= 1000 * 1000 * 1000;
 		}
@@ -852,7 +873,7 @@ sub convert_memory
 	}
 	else
 	{
-		die "Wrong format for memory limit option: <number><Kb|Mb|Gb|Kib|Mib|Gib|> was expected";
+		die "Wrong format for memory limit option: <number><Kb|Mb|MB|GB|Gb|Kib|Mib|Gib> was expected";
 	}
 }
 
