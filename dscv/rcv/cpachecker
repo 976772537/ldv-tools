@@ -842,18 +842,18 @@ sub convert_memory
 {
 	my $info = {@_};
 	my $mem = $info->{specified_mem};
-	if ($mem =~ /^(\d+)\s{0,}(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|)$/)
+	if ($mem =~ /^(\d+[.]{0,1}\d{0,})\s{0,}(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|)$/)
 	{
 		my $res = $1;
 		if ($2 eq "Kb")
 		{
 			$res *= 1000;
 		}
-		if ($2 eq "Mb" || $2 eq "MB" )
+		if ($2 eq "Mb")
 		{
 			$res *= 1000 * 1000;
 		}
-		if ($2 eq "Gb" || $2 eq "GB")
+		if ($2 eq "Gb")
 		{
 			$res *= 1000 * 1000 * 1000;
 		}
@@ -861,11 +861,11 @@ sub convert_memory
 		{
 			$res *= 1024;
 		}
-		if ($2 eq "Mib")
+		if ($2 eq "Mib" || $2 eq "MB")
 		{
 			$res *= 1024 * 1024;
 		}
-		if ($2 eq "Gib")
+		if ($2 eq "Gib" || $2 eq "GB")
 		{
 			$res *= 1024 * 1024 * 1024;
 		}
