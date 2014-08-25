@@ -517,6 +517,9 @@ sub upload($$) {
 SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_toolset_id and environment_id = $environment_id and (rule_model_id = $cur_model_id or '$cur_model_id' = 'NULL') and scenario_id = $cur_scenario_id and task_id = $task_id) LIMIT 1;");
         my $is_update = ($tmp_res != 0);
 
+		next if ($cur_model_id eq 'NULL' and $is_update); # Do not update launches with NULL rules.
+		print ("$cur_model_id\n");
+
         if ($is_update) # Update.
         {
             $cur_launch_id = $tmp_res;
