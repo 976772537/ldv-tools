@@ -519,13 +519,23 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		"$ENV{RCV_REMOTE_HOST}/$id"
 	);
 	vsay('DEBUG', q{Download results: '} . ( join ' ', @opts ) . q{'});
-	my $out = `@opts`;
-	open my $fd, '>', $zip
-		or die "Cannot open file '$zip'";
-	print {$fd} $out
-		or die "Cannot write to file '$zip'";
-	close $fd 
-		or die "Cannot save file '$zip'";
+
+	my $code;
+	my $tries = 3;
+	while((!defined $code || $code == 0) && $tries > 0){
+		my $data = `@opts`;
+		$code = $?;
+		if($code == 0){
+			open my $fh, '>', $zip or die "Cannot open file '$zip': $!";
+			print {$fh} $data or die "Cannot write to the file '$zip': $!";
+			close $fh or die "Cannot close file '$zip': $!";
+		}
+		$tries--;
+	}
+
+	unless(-f $zip || $code != 0){
+		die "Cannot fetch data from server";
+	}
 
 	# Extract it in working dir
 	@opts = (
