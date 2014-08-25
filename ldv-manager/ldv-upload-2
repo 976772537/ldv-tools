@@ -203,6 +203,8 @@ sub parse_command_line() {
         $db_password = ReadLine 0;
         chomp $db_password;
         ReadMode 'normal';
+        # Set this passwor for KB Recalc.
+        $ENV{LDVDBPASSWD} = $db_password;
     }
 
     # Get options after "--" as other reports to be uploaded.
