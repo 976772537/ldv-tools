@@ -146,11 +146,11 @@ sub connect_to_db() {
     # Check environment variables.
     if ( !$LDVDB )
     {
-    	die "Error: Database was not specified. Please specify it with environment variable LDVDB.";
+        die "Error: Database was not specified. Please specify it with environment variable LDVDB.";
     }
     if ( !$LDVUSER )
     {
-    	die "Error: User was not specified. Please specify it with environment variable LDVUSER.";
+        die "Error: User was not specified. Please specify it with environment variable LDVUSER.";
     }
     # Connect to Database.
     my $db_handler =
@@ -352,70 +352,70 @@ sub parse_xml_file($) {
 
 sub run_kb_recalc()
 {
-	# Manually create a pipe for redirecting input into child process.
-	my $read_hdl;
-	my $write_hdl;
-	pipe ($read_hdl, $write_hdl) 
-		or die "Can not create a pipe";
+    # Manually create a pipe for redirecting input into child process.
+    my $read_hdl;
+    my $write_hdl;
+    pipe ($read_hdl, $write_hdl) 
+        or die "Can not create a pipe";
 
-	# Set aftoflash for created pipe so it could work parallel
-	# (it still will be waiting for commit though).
-	my $old_fh = select($write_hdl);
-	$| = 1;
-	select($old_fh);
+    # Set aftoflash for created pipe so it could work parallel
+    # (it still will be waiting for commit though).
+    my $old_fh = select($write_hdl);
+    $| = 1;
+    select($old_fh);
 
-	# Create a child process for kb-recalc.
-	if (fork() == 0) # Child process.
-	{
-		close $write_hdl;
-		STDIN->fdopen($read_hdl, 'r');
-		exec ("kb-recalc.pl --init-cache --new-launch")
-			or die "Can not run kb-recalc";
+    # Create a child process for kb-recalc.
+    if (fork() == 0) # Child process.
+    {
+        close $write_hdl;
+        STDIN->fdopen($read_hdl, 'r');
+        exec ("kb-recalc.pl --init-cache --new-launch")
+            or die "Can not run kb-recalc";
 
-		# Child process can not get there.
-	}
-	close $read_hdl;
-	
-	# Return file descriptor for writing into child process.
-	return $write_hdl;
+        # Child process can not get there.
+    }
+    close $read_hdl;
+    
+    # Return file descriptor for writing into child process.
+    return $write_hdl;
 }
 
 sub wait_for_kb_recalc($)
 {
-	my $sent_ids = shift;
+    my $sent_ids = shift;
 
-	# Send kb-recalc EOF so it could stop waiting for more ids.
-	print_debug_debug("Closing kb-recalc descriptor");
-	close $kb_recalc_pipe;
+    # Send kb-recalc EOF so it could stop waiting for more ids.
+    print_debug_debug("Closing kb-recalc descriptor");
+    close $kb_recalc_pipe;
 
-	# Wait for child process (kb-recalc).
-	print_debug_normal("Waiting for kb-recalc to finish..");
-	wait();
+    # Wait for child process (kb-recalc).
+    print_debug_normal("Waiting for kb-recalc to finish..");
+    wait();
 
-	# Check kb-recalc finish status.
-	if ($?) # There was an error during kb-recalc execution.
-	{
-		my $command = "LDVDB=$LDVDB LDVUSER=$LDVUSER LDVDBHOST=$db_host kb-recalc.pl --init-cache --new-launch $sent_ids";
-		print_debug_warning("Kb-recalc has been finished with an error status '$?'");
-		print_debug_warning("Please manually restart kb-recalc using command");
-		if ($db_password)
-		{
-			$command = "LDVDBPASSWD=<your password> " . $command;
-		}
-		print_debug_warning($command);
-	}
-	else
-	{
-		print_debug_normal("Kb-recalc has been finished successfully");
-	}
+    # Check kb-recalc finish status.
+    if ($?) # There was an error during kb-recalc execution.
+    {
+        my $command = "LDVDB=$LDVDB LDVUSER=$LDVUSER LDVDBHOST=$db_host kb-recalc.pl --init-cache --new-launch $sent_ids";
+        print_debug_warning("Kb-recalc has been finished with an error status '$?'");
+        print_debug_warning("Please manually restart kb-recalc using command");
+        if ($db_password)
+        {
+            $command = "LDVDBPASSWD=<your password> " . $command;
+        }
+        print_debug_warning($command);
+    }
+    else
+    {
+        print_debug_normal("Kb-recalc has been finished successfully");
+    }
 }
 
 sub upload($$) {
     my $info     = {@_};
     my $xml_data = $info->{xml_data};
 
-	# Ids of launches, which require kb-recalc.
-	my $sent_ids = "";
+    # Ids of launches, which require kb-recalc.
+    my $sent_ids = "";
 
     # Unique ids.
     my $environment_id;
@@ -460,8 +460,8 @@ sub upload($$) {
     my $tmp_res;    # Result for DB queries.
 
     # Allow other processes to read updated data.
-	sql_query("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;");
-	
+    sql_query("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;");
+    
     # Start transaction.
     print_debug_normal("Starting commit");
     $dbh->begin_work;
@@ -482,7 +482,7 @@ sub upload($$) {
     sql_query("SELECT COUNT(*) FROM problems_stats FOR UPDATE;");
     
     # Run KB-recalc and get file descriptor for writing there.
-	$kb_recalc_pipe = run_kb_recalc();
+    $kb_recalc_pipe = run_kb_recalc();
 
     print_debug_normal("Processing unique values");
 
@@ -601,36 +601,36 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
         {
             $cur_launch_id = sql_insert(
 "INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', $cur_model_id, $cur_scenario_id, '$task_id', $cur_trace_id);\n"
-			);
-		}
+            );
+        }
 
-		# Error trace file.
-		my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
-		if ( $cur_verdict eq "UNSAFE" ) {
-			open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
-				or die "Can't open file $tmpdir/traces/$cur_trace: $!";
-			my @error_trace = <TRACE_FILE>;
-			close TRACE_FILE;
-			$et = $dbh->quote( join( "", @error_trace ) );
-		}
+        # Error trace file.
+        my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
+        if ( $cur_verdict eq "UNSAFE" ) {
+            open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
+                or die "Can't open file $tmpdir/traces/$cur_trace: $!";
+            my @error_trace = <TRACE_FILE>;
+            close TRACE_FILE;
+            $et = $dbh->quote( join( "", @error_trace ) );
+        }
 
-		# Processing traces table.
-		sql_query(
+        # Processing traces table.
+        sql_query(
 "INSERT INTO traces (id, launch_id, result, error_trace, verifier, build_id, maingen_id, dscv_id, ri_id, rcv_id) VALUES ($cur_trace_id, '$cur_launch_id', '$cur_verdict', $et, '$cur_verifier', $cur_stats_id, $cur_stats_id+1, $cur_stats_id+2, $cur_stats_id+3, $cur_stats_id+4);\n"
-		);
+        );
 
-		# Source files.
-		if ( $cur_sources ne '' ) {
-			foreach my $source ( values $cur_sources ) {
-				# Trace file.
-				open SOURCE_FILE, "<", "$tmpdir/sources/$source"
-					or die "Can't open file $tmpdir/sources/$source: $!";
-				my @source_text = <SOURCE_FILE>;
-				close SOURCE_FILE;
-				my $src = $dbh->quote( join( "", @source_text ) );
+        # Source files.
+        if ( $cur_sources ne '' ) {
+            foreach my $source ( values $cur_sources ) {
+                # Trace file.
+                open SOURCE_FILE, "<", "$tmpdir/sources/$source"
+                    or die "Can't open file $tmpdir/sources/$source: $!";
+                my @source_text = <SOURCE_FILE>;
+                close SOURCE_FILE;
+                my $src = $dbh->quote( join( "", @source_text ) );
 
-				# Processing sources table.
-				sql_query(
+                # Processing sources table.
+                sql_query(
 "INSERT INTO sources (trace_id, name, contents) VALUES ('$cur_trace_id', '$source', $src);\n"
                 );
             }
@@ -641,11 +641,11 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
             print $kb_recalc_pipe "$cur_launch_id\n";
             if (!$sent_ids)
             {
-            	$sent_ids = $cur_launch_id;
+                $sent_ids = $cur_launch_id;
             }
             else
             {
-            	$sent_ids .= ",$cur_launch_id";
+                $sent_ids .= ",$cur_launch_id";
             }
         }
 
@@ -937,7 +937,7 @@ sub change_problems_text($) {
 END {
     if ($kb_recalc_pipe)
     {
-    	# File descriptor should be closed in order to stop kb-recalc in case of any unexpected end.
+        # File descriptor should be closed in order to stop kb-recalc in case of any unexpected end.
         close $kb_recalc_pipe;
     }
     disconnect_from_db();
