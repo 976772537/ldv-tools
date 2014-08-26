@@ -85,7 +85,15 @@ sub add_processes(%);
 
 sub init_problems();
 
+# Run kb-recalc for uploading specified data.
+# args: nothing.
+# retn: file descriptor for writing into child process.
 sub run_kb_recalc();
+
+# Wait for kb-recalc to finish.
+# args: string with all ids, which were send to the kb-recalc child process.
+# retn: nothing.
+sub wait_for_kb_recalc($);
 
 ################################################################################
 # Global variables.
@@ -107,6 +115,9 @@ my @ldv_components =
 # Names of the verifiers.
 my @ldv_verifiers = ( 'blast', 'cbmc', 'cpachecker', 'ufo' );
 
+# Current file descriptor for writing into kb-recalc child process.
+my $kb_recalc_pipe;
+
 ################################################################################
 # Main section.
 ################################################################################
@@ -118,8 +129,6 @@ my @uploaded_files = parse_command_line();
 my %problems_functions = init_problems();
 
 my $dbh = connect_to_db();
-
-my $kb_recalc_pipe = run_kb_recalc();
 
 for (@uploaded_files) {
     my $xml_file = get_xml_file($_);
@@ -343,23 +352,70 @@ sub parse_xml_file($) {
 
 sub run_kb_recalc()
 {
-    $OUTPUT_AUTOFLUSH = 1;
-    open my $kb_recalc_pipe, "|kb-recalc.pl --init-cache --new-launch"
-      // die "Can't fork to run kb-recalc: $!\n";
-    return $kb_recalc_pipe;
+	# Manually create a pipe for redirecting input into child process.
+	my $read_hdl;
+	my $write_hdl;
+	pipe ($read_hdl, $write_hdl) 
+		or die "Can not create a pipe";
+
+	# Set aftoflash for created pipe so it could work parallel
+	# (it still will be waiting for commit though).
+	my $old_fh = select($write_hdl);
+	$| = 1;
+	select($old_fh);
+
+	# Create a child process for kb-recalc.
+	if (fork() == 0) # Child process.
+	{
+		close $write_hdl;
+		STDIN->fdopen($read_hdl, 'r');
+		exec ("kb-recalc.pl --init-cache --new-launch")
+			or die "Can not run kb-recalc";
+
+		# Child process can not get there.
+	}
+	close $read_hdl;
+	
+	# Return file descriptor for writing into child process.
+	return $write_hdl;
 }
 
-sub stop_kb_recalc()
+sub wait_for_kb_recalc($)
 {
-    if ($kb_recalc_pipe)
-    {
-        close $kb_recalc_pipe;
-    }
+	my $sent_ids = shift;
+
+	# Send kb-recalc EOF so it could stop waiting for more ids.
+	print_debug_debug("Closing kb-recalc descriptor");
+	close $kb_recalc_pipe;
+
+	# Wait for child process (kb-recalc).
+	print_debug_normal("Waiting for kb-recalc to finish..");
+	wait();
+
+	# Check kb-recalc finish status.
+	if ($?) # There was an error during kb-recalc execution.
+	{
+		my $command = "LDVDB=$LDVDB LDVUSER=$LDVUSER LDVDBHOST=$db_host kb-recalc.pl --init-cache --new-launch $sent_ids";
+		print_debug_warning("Kb-recalc has been finished with an error status '$?'");
+		print_debug_warning("Please manually restart kb-recalc using command");
+		if ($db_password)
+		{
+			$command = "LDVDBPASSWD=<your password> " . $command;
+		}
+		print_debug_warning($command);
+	}
+	else
+	{
+		print_debug_normal("Kb-recalc has been finished successfully");
+	}
 }
 
 sub upload($$) {
     my $info     = {@_};
     my $xml_data = $info->{xml_data};
+
+	# Ids of launches, which require kb-recalc.
+	my $sent_ids = "";
 
     # Unique ids.
     my $environment_id;
@@ -403,15 +459,30 @@ sub upload($$) {
 
     my $tmp_res;    # Result for DB queries.
 
-    # Lock DB.
-    print_debug_normal("Locking data base");
-    sql_query(
-"LOCK TABLES environments WRITE, drivers WRITE, rule_models WRITE, toolsets WRITE, scenarios WRITE, tasks WRITE, launches WRITE, traces WRITE, sources WRITE, stats WRITE, processes WRITE, problems WRITE, problems_stats WRITE\n"
-    );
-
+    # Allow other processes to read updated data.
+	sql_query("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;");
+	
     # Start transaction.
     print_debug_normal("Starting commit");
     $dbh->begin_work;
+    
+    # Lock tables for write for other processes.
+    sql_query("SELECT COUNT(*) FROM environments FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM drivers FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM rule_models FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM toolsets FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM scenarios FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM tasks FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM launches FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM traces FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM sources FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM stats FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM processes FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM problems FOR UPDATE;");
+    sql_query("SELECT COUNT(*) FROM problems_stats FOR UPDATE;");
+    
+    # Run KB-recalc and get file descriptor for writing there.
+	$kb_recalc_pipe = run_kb_recalc();
 
     print_debug_normal("Processing unique values");
 
@@ -568,6 +639,14 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
         # Send id of unsafe launch to the child process (run kb-recalc for this id).
         if ( $cur_verdict eq "UNSAFE" ) {
             print $kb_recalc_pipe "$cur_launch_id\n";
+            if (!$sent_ids)
+            {
+            	$sent_ids = $cur_launch_id;
+            }
+            else
+            {
+            	$sent_ids .= ",$cur_launch_id";
+            }
         }
 
         # Processing stats, processes, problems, problems_stats tables for each component.
@@ -595,8 +674,8 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
     $dbh->commit;
     print_debug_normal("Commit has been completed");
 
-    print_debug_normal("Unlocking data base");
-    sql_query("UNLOCK TABLES;\n");
+    # Wait for kb-recalc child process.
+    wait_for_kb_recalc($sent_ids);
 
     print_debug_normal(
         "Results were successfully uploaded to database. They can be found at");
@@ -856,7 +935,11 @@ sub change_problems_text($) {
 
 # Actions which should be completed in case of any errors or after finishing uploading.
 END {
-    stop_kb_recalc();
+    if ($kb_recalc_pipe)
+    {
+    	# File descriptor should be closed in order to stop kb-recalc in case of any unexpected end.
+        close $kb_recalc_pipe;
+    }
     disconnect_from_db();
 }
 
