@@ -222,10 +222,35 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 		@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
 	}
 
+
 	# Add level - it is still necessary because beside memory and time limits it 
 	# specifies number of cpu cores
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'limitations=' . $level );
+
+	# Adjust java heap size (with cpa.sh option) to be consistent with RCV_MEMLIMIT
+	# 1/4 (in MB) for static memory i.e. Java VM, stack, and native libraries e.g. MathSAT
+	my $heap;
+	if(defined $ENV{'CPACHECKER_HEAP'}){
+		$heap = $ENV{'CPACHECKER_HEAP'};
+		$heap =~ s/GB//;
+	}
+	else{
+		$heap = $memlimit / 4;
+		$heap =~ /(\d{0,}[.]{0,}?[.]{0,1}\d{1,2})?\d{0,}$/;
+		$heap = $1;
+		if($heap  !~ /^\d{1,}[.]{0,1}\d{0,2}$/){
+			die "Cannot calculate heap size, expect value in GB: '$heap'";
+		}
+	}
+	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	@cpachecker_options = ( @cpachecker_options, 'maxHeapSize=' . $heap . 'GB' );
+
+	# Specify revision if it necessary
+	if(defined $ENV{"SVN_REVISION"}){
+		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+		@cpachecker_options = ( @cpachecker_options, 'revision=' . $ENV{"SVN_REVISION"} );
+	}
 
 	# Choose config: Cloud accept any configuration from cpachecker trunk
 	# We should provide relative path to it from repository root dir 
@@ -489,7 +514,7 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	vsay('INFO', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
 	my $id = `@cpachecker_options`;
-	if(!defined $id){
+	if(!defined $id || $? != 0){
 		die 'Cannot obtain run id from the cloud';
 	}
 
@@ -530,11 +555,19 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 			print {$fh} $data or die "Cannot write to the file '$zip': $!";
 			close $fh or die "Cannot close file '$zip': $!";
 		}
+		else{
+			vsay('WARNING', "Cannot fetch data, exit code '$?': $!");
+			sleep 1;
+			vsay('DEBUG', "Making another attempt...");
+		}
 		$tries--;
 	}
 
-	unless(-f $zip || $code != 0){
-		die "Cannot fetch data from server";
+	if($code != 0){
+		die "Cannot fetch data from server, exit code '$code'";
+	}
+	if(!-f $zip){
+		die "Cannot fetch data from server, file doesn't exist '$zip'";
 	}
 
 	# Extract it in working dir
