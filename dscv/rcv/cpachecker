@@ -511,12 +511,13 @@ my ($result, $errcode, $automata_results, $debug_trace);
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	# Add host and execute request
 	@cpachecker_options = (@cpachecker_options, $ENV{RCV_REMOTE_HOST});
-	vsay('INFO', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
+	vsay('NORMAL', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
 	my $id = `@cpachecker_options`;
 	if(!defined $id || $? != 0){
 		die 'Cannot obtain run id from the cloud';
 	}
+	vsay('NORMAL', "Got an ID from the server '$id'");
 
 	# Wait for results
 	my @opts = (
@@ -532,7 +533,8 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		sleep 0.5;
 	}
 	if($state eq 'UNKNOWN'){
-		die "Cannot get results from the server for the run with id '$id'";
+		# TODO: repeate ?
+		die "Seems that server lost results for the id '$id'";
 	}
 
 	# Get package with results
