@@ -513,78 +513,16 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	@cpachecker_options = (@cpachecker_options, $ENV{RCV_REMOTE_HOST});
 	vsay('NORMAL', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
-	my $id = `@cpachecker_options`;
-	if(!defined $id || $? != 0){
-		die 'Cannot obtain run id from the cloud';
-	}
-	vsay('NORMAL', "Got an ID from the server '$id'");
-
-	# Wait for results
-	my @opts = (
-		'curl', 
-		'-u',
-		$ENV{RCV_ACCESS},
-		"$ENV{RCV_REMOTE_HOST}/state/$id"
-	);
-	my $state;
-	vsay('TRACE', q{Waiting for the results: '} . ( join ' ', @opts ) . q{'});
-	while(!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING'){
-		$state = `@opts`;
-		sleep 0.5;
-	}
-	if($state eq 'UNKNOWN'){
-		# TODO: repeate ?
-		die "Seems that server lost results for the id '$id'";
-	}
-
-	# Get package with results
-	my $zip = "$tmpdir/results.zip";
-	@opts = (
-		'curl', 
-		'-u',
-		$ENV{RCV_ACCESS},
-		"$ENV{RCV_REMOTE_HOST}/$id"
-	);
-	vsay('DEBUG', q{Download results: '} . ( join ' ', @opts ) . q{'});
-
-	my $code;
+	# make request several times in case of problems with a network
 	my $tries = 3;
-	while((!defined $code || $code == 0) && $tries > 0){
-		my $data = `@opts`;
-		$code = $?;
-		if($code == 0){
-			open my $fh, '>', $zip or die "Cannot open file '$zip': $!";
-			print {$fh} $data or die "Cannot write to the file '$zip': $!";
-			close $fh or die "Cannot close file '$zip': $!";
-		}
-		else{
-			vsay('WARNING', "Cannot fetch data, exit code '$?': $!");
-			sleep 1;
-			vsay('DEBUG', "Making another attempt...");
-		}
+	my $msg = 1;
+	while($tries > 0 && $msg){
+		$msg = request_to_server(@cpachecker_options);
 		$tries--;
 	}
-
-	if($code != 0){
-		die "Cannot fetch data from server, exit code '$code'";
+	if($msg){
+		die $msg;
 	}
-	if(!-f $zip){
-		die "Cannot fetch data from server, file doesn't exist '$zip'";
-	}
-
-	# Extract it in working dir
-	@opts = (
-		'unzip', 
-		'-u',
-		'-q',
-		'-o',
-		$zip,
-		'-d',
-		$tmpdir
-	);
-	vsay('DEBUG', q{Extract results: '} . ( join ' ', @opts ) . q{'});
-	system(@opts)
-		and die "Cannot extract data from package '$zip': $!";
 
 	# Check that stdout and stderr were created
 	my $stdout = "$tmpdir/stdout";
@@ -926,3 +864,135 @@ sub convert_memory
 	}
 }
 
+sub request_to_server
+{
+	my @cmd = @_;
+	my $msg;
+
+	my $id = `@cpachecker_options`;
+	if(!defined $id || $? != 0){
+		$msg = "Cannot obtain run id from the cloud: $!";
+		vsay('WARNING', $msg);
+		return $msg;
+	}
+	vsay('NORMAL', "Got an ID from the server '$id'");
+
+	# Wait for results
+	my @opts = (
+		'curl',
+		'-u',
+		$ENV{RCV_ACCESS},
+		"$ENV{RCV_REMOTE_HOST}/state/$id"
+	);
+	vsay('TRACE', q{Check request status: '} . ( join ' ', @opts ) . q{'});
+	my $state;
+	my $ret;
+	while(!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING'){
+		$state = `@opts`;
+		$ret = $?;
+		if($? != 0){
+			$msg = "Cannot check status of results for the id '$id': $!";
+			vsay('WARNING', $msg);
+		}
+		sleep 0.5;
+	}
+	if($ret != 0){
+		return $msg;
+	}
+	if($state eq 'UNKNOWN'){
+		$msg = "Seems that server lost results for the id '$id'";
+		vsay('WARNING', $msg);
+		return $msg;
+	}
+
+	# Download results and install them to the working dir
+	my $tries = 3;
+	$msg = 1;
+	while($tries > 0 && $msg){
+		# Get package with results
+		my $zip = "$tmpdir/results.zip";
+		$msg  = fetch_results($zip, $id);
+
+		# Extract package
+		$msg = extract_results($zip);
+
+		$tries--;
+	}
+
+	if($msg){
+		return $msg;
+	}	
+
+	return 0;
+}
+
+sub fetch_results
+{
+	my ($zip, $id) =@_;
+	my $msg;
+
+	my @opts = (
+		'curl', 
+		'-u',
+		$ENV{RCV_ACCESS},
+		"$ENV{RCV_REMOTE_HOST}/$id"
+	);
+	vsay('DEBUG', q{Download results: '} . ( join ' ', @opts ) . q{'});
+
+	my $code;
+	my $tries = 3;
+	while((!defined $code || $code == 0) && $tries > 0){
+		my $data = `@opts`;
+		$code = $?;
+		if($code == 0){
+			open my $fh, '>', $zip or die "Cannot open file '$zip': $!";
+			print {$fh} $data or die "Cannot write to the file '$zip': $!";
+			close $fh or die "Cannot close file '$zip': $!";
+		}
+		else{
+			$msg = "Cannot fetch data, exit code '$?': $!";
+			vsay('WARNING', $msg);
+			sleep 1;
+			vsay('DEBUG', "Making another attempt...");
+		}
+		$tries--;
+	}
+
+	if($code != 0){
+		$msg = "Cannot fetch data from server, exit code '$code': $!";
+		vsay('WARNING', $msg);
+		return $msg;
+	}
+	if(!-f $zip){
+		$msg = "Cannot fetch data from server, file doesn't exist '$zip'";
+		vsay('WARNING', $msg);
+		return $msg;
+	}
+
+	return 0;
+}
+
+# Extract results from the archive
+sub extract_results
+{
+	my ($zip) = @_;
+
+	# Extract it in working dir
+	my @opts = (
+		'unzip', 
+		'-u',
+		'-q',
+		'-o',
+		$zip,
+		'-d',
+		$tmpdir
+	);
+	vsay('DEBUG', q{Extract results: '} . ( join ' ', @opts ) . q{'});
+	my $code = system(@opts);
+
+	if($code){
+		return $!;
+	}
+
+	return 0;
+}
