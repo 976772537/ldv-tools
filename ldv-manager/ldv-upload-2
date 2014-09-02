@@ -466,9 +466,6 @@ sub upload($$) {
     print_debug_normal("Starting commit");
     $dbh->begin_work;
 
-    # Run KB-recalc and get file descriptor for writing there.
-    $kb_recalc_pipe = run_kb_recalc();
-
     print_debug_normal("Processing unique values");
 
     # Processing tasks table.
@@ -623,7 +620,6 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
 
         # Send id of unsafe launch to the child process (run kb-recalc for this id).
         if ( $cur_verdict eq "UNSAFE" ) {
-            print $kb_recalc_pipe "$cur_launch_id\n";
             if (!$sent_ids)
             {
                 $sent_ids = $cur_launch_id;
@@ -661,6 +657,14 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
     
     print_debug_normal("Releasing lock 'ldv_upload_lock'");
     sql_query("SELECT RELEASE_LOCK('ldv_upload_lock');");
+
+    # Run KB-recalc and get file descriptor for writing there.
+    $kb_recalc_pipe = run_kb_recalc();
+
+    foreach my $id (split(',', $sent_ids))
+    {
+        print $kb_recalc_pipe "$id\n";
+    }
 
     # Wait for kb-recalc child process.
     wait_for_kb_recalc($sent_ids);
