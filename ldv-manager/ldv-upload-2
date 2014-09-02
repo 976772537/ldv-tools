@@ -355,6 +355,8 @@ sub run_kb_recalc()
     # Manually create a pipe for redirecting input into child process.
     my $read_hdl;
     my $write_hdl;
+
+    print_debug_debug("Running kb-recalc");
     pipe ($read_hdl, $write_hdl) 
         or die "Can not create a pipe";
 
@@ -659,6 +661,7 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
     sql_query("SELECT RELEASE_LOCK('ldv_upload_lock');");
 
     # Run KB-recalc and get file descriptor for writing there.
+    
     $kb_recalc_pipe = run_kb_recalc();
 
     foreach my $id (split(',', $sent_ids))
@@ -739,10 +742,11 @@ sub add_component(%) {
             $cur_status = 1 if $component_name eq 'build-cmd-extractor';
         }
         my $cur_time = '0';
-        my $cur_desc = '\'\'';
+        my $cur_desc = '';
+        my $cur_desc_quote = '\'\'';
         if ( $component->{desc} ) {
             $cur_desc = $component->{desc};
-            $cur_desc = $dbh->quote($cur_desc);
+            $cur_desc_quote = $dbh->quote($cur_desc);
         }
 
         # Changes for table stasts;
@@ -755,13 +759,13 @@ sub add_component(%) {
             my $cur_loc = $component->{loc} || 0;
             sql_query(
 "INSERT INTO stats (id, trace_id, kind, success, loc, time, description)
-                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc);\n"
+                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc_quote);\n"
             );
         }
         else {
             sql_query(
 "INSERT INTO stats (id, trace_id, kind, success, time, description)
-                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_time, $cur_desc);\n"
+                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_time, $cur_desc_quote);\n"
             );
         }
 
@@ -799,7 +803,7 @@ sub add_problems(%) {
     my $cur_desc     = $info{desc};
     my $cur_stats_id = $info{stats_id};
     my @result       = ();
-    if ( $cur_desc ne '\'\'' )    # In case of build failed.
+    if ( $cur_desc )    # In case of build failed.
     {
         foreach my $arg (@ldv_components) {
             if ( $component eq $arg ) {
@@ -921,7 +925,7 @@ sub change_problems_text($) {
     $text =~ s/ and print "/ and push(\@result,  "/g;
     $text =~ s/";\n/");\n/g;
     $text =~ s/while \(<>\){/foreach\(\$cur_desc\){/g;
-    $text =~ s/'/\\\\'/g;
+    #$text =~ s/'/\\\\'/g;
     return $text;
 }
 
