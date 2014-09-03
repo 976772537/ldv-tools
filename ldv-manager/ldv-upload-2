@@ -5,7 +5,7 @@ use DBI;
 use English;
 use FindBin;
 use Env
-  qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME LDV_UPLOAD_DEBUG LDV_DEBUG);
+  qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME LDV_TASK_ID LDV_UPLOAD_DEBUG LDV_DEBUG);
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
@@ -178,6 +178,10 @@ sub parse_command_line() {
     my $print_help  = 0;
     my @fnames_by_option = ();
 
+    # Sanity check: options LDV_TASK_ID and LDV_TASK_NAME should not be specified both at once.
+    die "Sanity check failed: options LDV_TASK_ID and LDV_TASK_NAME should not be specified both at once." 
+        if ($LDV_TASK_ID && $LDV_TASK_NAME);
+
     # Parsing options.
 # TODO: one may optionally provide a password through command-line options. See mysql --help (-p --password).
     my $is_password = 0;
@@ -260,9 +264,10 @@ ENVIRONMENT VARIABLES
     debug information printings. Each next level includes all previous
     levels and its own messages.
 
-  LDV_TASK_NAME
-    The name of the task, which is uploaded to the data base.
+  LDV_TASK_NAME, LDV_TASK_ID
+    The name (id) of the task, which is uploaded to the data base.
     Uses when a few files should be uploaded as one task.
+  
 
   LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD
     Keeps settings (host, database, user and password) for connection
@@ -421,7 +426,7 @@ sub upload($$) {
 
     # Unique ids.
     my $environment_id;
-    my $task_id;
+    my $task_id = $LDV_TASK_ID || '';
 
     # Unique names.
     my $version =
@@ -431,7 +436,7 @@ sub upload($$) {
     my $driver_origin = $xml_data->{launch_info}->{driver_origin};
     my $username      = $xml_data->{launch_info}->{task}->{username};
     my $timestamp;
-    my $task_name = $LDV_TASK_NAME || 'NULL';    # LDV_TASK_NAME (should not be 'NULL').
+    my $task_name = $LDV_TASK_NAME || '';
 
     # Using format "yyyy-mm-dd".
     # In report month can be only one digit ("8" instead of "08").
@@ -457,13 +462,12 @@ sub upload($$) {
     print_debug_debug("driver_origin=$driver_origin");
     print_debug_debug("username=$username");
     print_debug_debug("timestamp=$timestamp");
-    print_debug_debug("task_name=$task_name");
 
     my $tmp_res;    # Result for DB queries.
     # Lock tables.
     print_debug_normal("Acquiring lock 'ldv_upload_lock'");
     sql_query("SELECT GET_LOCK('ldv_upload_lock', -1);");
-    
+
     # Start transaction.
     print_debug_normal("Starting commit");
     $dbh->begin_work;
@@ -472,11 +476,30 @@ sub upload($$) {
 
     # Processing tasks table.
     $tmp_res = sql_select(
-        "SELECT id FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
-    if ( $tmp_res == 0 || !$task_name || $task_name eq 'NULL') {
-        $tmp_res = sql_insert(
+        "SELECT id FROM tasks WHERE (tasks.name = '$task_name' or tasks.id = '$task_id') LIMIT 1;");
+
+    # Sanity check: if specified unexisted LDV_TASK_ID - stop uploading.
+    die "Sanity check failed: specified task id '$task_id' (by means of LDV_TASK_ID) does not exist."
+        if ($tmp_res == 0 && $task_id);
+
+    if ( $tmp_res == 0 ) {
+        if ($task_name)
+        {
+            $tmp_res = sql_insert(
 "INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin, name) VALUES ('$username', '$timestamp', '$driver', '$driver_origin', '$task_name');"
-        );
+            );
+        }
+        else
+        {
+            $tmp_res = sql_insert(
+"INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin) VALUES ('$username', '$timestamp', '$driver', '$driver_origin');"
+            );
+        }
+        print_debug_debug("New task id '$tmp_res' will be used");
+    }
+    else
+    {
+        print_debug_debug("Old task id '$tmp_res' will be used");
     }
     $task_id = $tmp_res;    # FK for task.
 
