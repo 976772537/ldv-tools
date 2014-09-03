@@ -698,7 +698,7 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
     print_debug_normal(
         "Results were successfully uploaded to database. They can be found at");
 
-    my $url_without_password = "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password";
+    my $url_without_password = "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/filter/TA.id=$task_id/password";
     if ( $db_password eq '' ) {
         print_debug_normal(
 "$url_without_password/no/"
