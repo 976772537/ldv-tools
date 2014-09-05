@@ -80,6 +80,7 @@ my $configs_dir = "$installed_frontends_dir/etc/";
 # This section check usage of verification cloud
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	unshift @cpachecker_options, 'curl';
+	@cpachecker_options = (@cpachecker_options, '-s');
 
 	# Futher check other settings
 	if(defined $ENV{RCV_ACCESS}){
@@ -538,13 +539,14 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		cpuTime => undef,
 		usedMemory => undef
 	);
-	my $timeout_file = "$tmpdir/run_info";
+
+	my $timeout_file = "$tmpdir/hostInformation.txt";
 	vsay('DEBUG', "Open file with run info: '$timeout_file'");
 	open my $fd, '<', $timeout_file
-		or die "Cannot open file '$timeout_file'";
+		or die "Cannot open file '$timeout_file': $!";
 	my @lines = <$fd>;
 	close $fd 
-		or die "Cannot save file '$timeout_file'";
+		or die "Cannot save file '$timeout_file': $!";
 	chomp @lines;
 	foreach my $line (@lines){
 		my ($key, $val) = split '=', $line;
@@ -880,6 +882,7 @@ sub request_to_server
 	# Wait for results
 	my @opts = (
 		'curl',
+		'-s',
 		'-u',
 		$ENV{RCV_ACCESS},
 		"$ENV{RCV_REMOTE_HOST}/state/$id"
@@ -932,7 +935,8 @@ sub fetch_results
 	my $msg;
 
 	my @opts = (
-		'curl', 
+		'curl',
+		'-s',
 		'-u',
 		$ENV{RCV_ACCESS},
 		"$ENV{RCV_REMOTE_HOST}/$id"
@@ -941,7 +945,7 @@ sub fetch_results
 
 	my $code;
 	my $tries = 3;
-	while((!defined $code || $code == 0) && $tries > 0){
+	while((!defined $code || $code != 0) && $tries > 0){
 		my $data = `@opts`;
 		$code = $?;
 		if($code == 0){
