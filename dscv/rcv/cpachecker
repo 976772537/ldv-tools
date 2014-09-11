@@ -537,7 +537,9 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		exitCode => undef,
 		wallTime => undef,
 		cpuTime => undef,
-		usedMemory => undef
+		usedMemory => undef,
+		memoryLimit => undef,
+		timeLimit => undef,
 	);
 
 	my $timeout_file = "$tmpdir/hostInformation.txt";
@@ -554,12 +556,19 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	}
 
 	# Convert values
+	$expected_results{timeLimit} = convert_wi_time($expected_results{timeLimit});
 	$expected_results{wallTime} = convert_wi_time($expected_results{wallTime});
 	$expected_results{cpuTime} = convert_wi_time($expected_results{cpuTime});
 	$expected_results{usedMemory} = convert_memory('specified_mem', $expected_results{usedMemory});
+	$expected_results{memoryLimit} = convert_memory('specified_mem', $expected_results{memoryLimit});
 
 	# Prepare artificial report from cloud one
-	my $descr_err = sprintf (<<EOR , $expected_results{exitCode}, $expected_results{wallTime}, $expected_results{cpuTime}, $expected_results{usedMemory});
+	my $descr_err = sprintf (<<EOR , $expected_results{memoryLimit}, $expected_results{timeLimit}, $expected_results{exitCode}, $expected_results{wallTime}, $expected_results{cpuTime}, $expected_results{usedMemory});
+Resource Manager settings:
+	memory limit: %s bytes
+	time limit: %s ms
+Resource Manager execution status:
+	exit code (resource manager): 0
 Command execution status:
 	exit code: %s
 Time usage statistics:
