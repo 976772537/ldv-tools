@@ -33,6 +33,8 @@ while (<>){
 	/Unrecognized C code/ and print "Unrecognized C code";
 	/IllegalArgumentException: Can't add cast/ and print "Can't add cast";
 	/IllegalArgumentException: Can't assign different types/ and print "Different types";
+	
+	/The walltime limit of (\d+)s has elapsed/ and print "Time exhausted";
 
 	# CIL errors
 	# subtypes of CIL_parse_error
