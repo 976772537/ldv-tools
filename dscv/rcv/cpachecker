@@ -194,7 +194,7 @@ $memlimit = convert_memory(specified_mem => $ENV{'RCV_MEMLIMIT'});
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	foreach my $file (@files){
 		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-		@cpachecker_options = ( @cpachecker_options, 'cFile@' . $file );
+		@cpachecker_options = ( @cpachecker_options, 'programText@' . $file );
 	}
 
 	# Prepare limit options. We can specify limits explicitly or with 
@@ -245,7 +245,7 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 		}
 	}
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'maxHeapSize=' . $heap . 'GB' );
+	@cpachecker_options = ( @cpachecker_options, 'heap=' . $heap . 'GB' );
 
 	# Specify revision if it necessary
 	if(defined $ENV{"SVN_REVISION"}){
@@ -257,15 +257,15 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	# We should provide relative path to it from repository root dir 
 	$cpachecker_config = $ENV{'CPACHECKER_CLOUD_CONFIG'};
 	if(!defined $cpachecker_config || $cpachecker_config ne ''){
-		$cpachecker_config = 'config/ldv.properties'
+		$cpachecker_config = 'ldv'
 	}
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'configFile=' . $cpachecker_config );
+	@cpachecker_options = ( @cpachecker_options, 'configuration=' . $cpachecker_config );
 
 	# TODO: Implement this
 	# Choose log level
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'property=log.level=FINE' );
+	@cpachecker_options = ( @cpachecker_options, 'option=log.level=FINE' );
 }
 else{
 	@cpachecker_options = ($cpachecker,@files);
@@ -374,11 +374,11 @@ my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	# Add specification
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'specFile@' . "$tmpdir/$LDV_errloc_autom");
+	@cpachecker_options = ( @cpachecker_options, 'specificationText@' . "$tmpdir/$LDV_errloc_autom");
 
 	# Add mains
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'property=analysis.entryFunction=' . $main);
+	@cpachecker_options = ( @cpachecker_options, 'option=analysis.entryFunction=' . $main);
 
 	$outputpath = $tmpdir;
 	# In CPAchecker, the trace is stored in the separate file in the output path,
@@ -511,7 +511,7 @@ add_automaton(tail_automaton(50),'stderr');
 my ($result, $errcode, $automata_results, $debug_trace);
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	# Add host and execute request
-	@cpachecker_options = (@cpachecker_options, $ENV{RCV_REMOTE_HOST});
+	@cpachecker_options = (@cpachecker_options, $ENV{RCV_REMOTE_HOST} . '/runs');
 	vsay('NORMAL', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
 	# make request several times in case of problems with a network
@@ -894,7 +894,7 @@ sub request_to_server
 		'-s',
 		'-u',
 		$ENV{RCV_ACCESS},
-		"$ENV{RCV_REMOTE_HOST}/state/$id"
+		"$ENV{RCV_REMOTE_HOST}/runs/$id/state"
 	);
 	vsay('TRACE', q{Check request status: '} . ( join ' ', @opts ) . q{'});
 	my $state;
@@ -948,7 +948,7 @@ sub fetch_results
 		'-s',
 		'-u',
 		$ENV{RCV_ACCESS},
-		"$ENV{RCV_REMOTE_HOST}/$id"
+		"$ENV{RCV_REMOTE_HOST}/runs/$id/result"
 	);
 	vsay('DEBUG', q{Download results: '} . ( join ' ', @opts ) . q{'});
 
