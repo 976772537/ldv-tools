@@ -186,66 +186,60 @@ my $LDV_errloc_autom = "LDVErrorLabel.spc";
 # command line for CPAchecker.
 
 my %limits = DSCV::RCV::Library::get_limits();
-
 vsay 'TRACE', "LIMITS: RCV_MEMLIMIT=$limits{'memlimit'}, RCV_TIMELIMIT=$limits{'timelimit'}s";
-my $cpa_cfg_new = "$tmpdir/wrapper.properties";
-$timelimit = convert_time(specified_time => $ENV{'RCV_TIMELIMIT'});
+
+# Set RCV_MEMLIMIT and RCV_TIMELIMIT environment variables according to the values
+# provided by the library (and set by rcv_launcher). If the variables were set
+# explicitely by the user, the values in the library should be the same as the 
+# values in the variables.
+
+check_limit("RCV_MEMLIMIT", 'memlimit');
+check_limit("RCV_TIMELIMIT", 'timelimit');
 $memlimit = convert_memory(specified_mem => $ENV{'RCV_MEMLIMIT'});
+$timelimit = convert_time(specified_time => $ENV{'RCV_TIMELIMIT'});
+# Adjust java heap size (with cpa.sh option) to be consistent with RCV_MEMLIMIT
+# 1/4 (in MB) for static memory i.e. Java VM, stack, and native libraries e.g. MathSAT
+my $heap_size = get_heap_size($memlimit);
+
+my $cpa_cfg_new = "$tmpdir/wrapper.properties";
 if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	foreach my $file (@files){
 		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 		@cpachecker_options = ( @cpachecker_options, 'programText@' . $file );
 	}
 
-	# Prepare limit options. We can specify limits explicitly or with 
-	# four profiles: low, medium, high
-	my $level = 'medium';
-	
-	# In Gb
-	my $memlimit = $limits{'memlimit'};
-	$memlimit =~ s/[G|g][B|b]//;
-	# In sec
-	my $timelimit = $limits{'timelimit'};
-	if($memlimit <= 2 && $timelimit <= 300){
-		$level = 'low';
-	}
-	elsif($memlimit <= 7 && $timelimit <= 900){
-		$level = 'medium';
-	}
-	elsif($memlimit <= 15 && $timelimit <= 1500){
-		$level = 'high';
-	}
-	else{
-		# Add additional options:
-		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-		@cpachecker_options = ( @cpachecker_options, 'memoryLimitation=' . $memlimit . 'GB' );
-		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-		@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
-	}
-
-
+	# This section set limits according to default cloud levels: low, medium, high
+	#my $level = 'medium';
+	#if($memlimit <= 2 && $timelimit <= 300){
+	#	$level = 'low';
+	#}
+	#elsif($memlimit <= 7 && $timelimit <= 900){
+	#	$level = 'medium';
+	#}
+	#elsif($memlimit <= 15 && $timelimit <= 1500){
+	#	$level = 'high';
+	#}
+	#else{
+	#	# Add additional options:
+	#	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	#	@cpachecker_options = ( @cpachecker_options, 'memoryLimitation=' . $memlimit . 'GB' );
+	#	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	#	@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
+	#}
 	# Add level - it is still necessary because beside memory and time limits it 
 	# specifies number of cpu cores
+	#@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	#@cpachecker_options = ( @cpachecker_options, 'limitations=' . $level );
+	
+	# Set limits
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'limitations=' . $level );
+	@cpachecker_options = ( @cpachecker_options, 'memoryLimitation=' . $memlimit );
+	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
 
-	# Adjust java heap size (with cpa.sh option) to be consistent with RCV_MEMLIMIT
-	# 1/4 (in MB) for static memory i.e. Java VM, stack, and native libraries e.g. MathSAT
-	my $heap;
-	if(defined $ENV{'CPACHECKER_HEAP'}){
-		$heap = $ENV{'CPACHECKER_HEAP'};
-		$heap =~ s/GB//;
-	}
-	else{
-		$heap = $memlimit / 4;
-		$heap =~ /(\d{0,}[.]{0,}?[.]{0,1}\d{1,2})?\d{0,}$/;
-		$heap = $1;
-		if($heap  !~ /^\d{1,}[.]{0,1}\d{0,2}$/){
-			die "Cannot calculate heap size, expect value in GB: '$heap'";
-		}
-	}
+	# Set heap size
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'heap=' . $heap . 'GB' );
+	@cpachecker_options = ( @cpachecker_options, 'heap=' . $heap_size );
 
 	# Specify revision if it necessary
 	if(defined $ENV{"SVN_REVISION"}){
@@ -277,26 +271,6 @@ else{
 	# adding .patched extension to it, and then patch it.  Otherwise, we use the
 	# default CPAchecker config shipped with LDV.
 
-	# Set RCV_MEMLIMIT and RCV_TIMELIMIT environment variables according to the values
-	# provided by the library (and set by rcv_launcher). If the variables were set
-	# explicitely by the user, the values in the library should be the same as the 
-	# values in the variables.
-
-	sub check_limit
-	{
-		my $env_variable = $_[0];
-		my $key = $_[1];
-		if (! defined $ENV{$env_variable}) {
-			$ENV{$env_variable} = $limits{$key};
-		} else {
-			$ENV{$env_variable} == $limits{$key} or	die
-				"The value of $env_variable differs from the limit returned by get_limits ($ENV{$env_variable} != $limits{$key})"
-		}
-	}
-
-	&check_limit("RCV_MEMLIMIT", 'memlimit');
-	&check_limit("RCV_TIMELIMIT", 'timelimit');
-
 	# If no config file is specified ($cpachecker_config, which was set up at the
 	# beginning of the script), use the default one.
 	my $cpa_cfg = $cpachecker_config || "$configs_dir/default.properties";
@@ -319,9 +293,6 @@ else{
 	say $CPA_CFG "";
 	say $CPA_CFG "# this automaton defines which locations are the error locations";
 	say $CPA_CFG "specification = $tmpdir/$LDV_errloc_autom";
-
-	$timelimit = convert_time(specified_time => $ENV{'RCV_TIMELIMIT'});
-	$memlimit = convert_memory(specified_mem => $ENV{'RCV_MEMLIMIT'});
 
 	if($timelimit>60) {
 	    say $CPA_CFG "# Set CPAchecker internal time limit";
@@ -404,9 +375,10 @@ else{
 	# Disable java assertions in "release" mode
 	push @cpachecker_options, "-disable-java-assertions";
 
-	# Adjust java heap size (with cpa.sh option) to be consistent with RCV_MEMLIMIT
-	# 1/4 (in MB) for static memory i.e. Java VM, stack, and native libraries e.g. MathSAT
-	push @cpachecker_options, "-heap", ($memlimit * 3 / 4000000)."m" unless $ENV{'CPACHECKER_OPTIONS'} =~ m/-heap\s+[0-9]+m/;
+	# Set java heap size
+	if($ENV{'CPACHECKER_OPTIONS'} !~ m/-heap\s+[0-9]+m/){
+		push @cpachecker_options, "-heap", $heap_size;
+	}
 
 	# Additional options a user may specify (watch for the spaces in options!)
 	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
@@ -749,6 +721,14 @@ result(
 #  AUTOMATA
 #===================
 
+sub get_heap_size
+{
+	my $heap_size = shift;
+	$heap_size = $heap_size * 3 / 4;
+	$heap_size = $heap_size / 1000000 . 'm';
+	return $heap_size;
+}
+
 sub java_oom
 {
 	return sub{
@@ -804,7 +784,7 @@ sub convert_time
 {
 	my $info = {@_};
 	my $time = $info->{specified_time};
-	if ($time =~ /^(\d+)(min|ms|)$/)
+	if ($time =~ /^(\d+[.]{0,1}\d{0,})(min|ms|s|)$/)
 	{
 		my $res = $1;
 		if ($2 eq "min")
@@ -819,24 +799,36 @@ sub convert_time
 	}
 	else
 	{
-		die "Wrong format for time limit option: <number><min|ms|> was expected";
+		die "Wrong format for time limit option: <number><min|ms|s|> was expected";
 	}
 }
 
 sub convert_wi_time
 {
 	my $in = shift;
-	my ($min, $sec) = split ' ', $in;
-	$min =~ s/min//;
-	$sec =~ s/s//;
-	return ($min*60 + $sec);
+	# Value can be in several parts
+	my @values = split ' ', $in;
+	my $out = 0;
+	if(scalar @values > 0){
+		foreach my $val (@values){
+			$out = $out + convert_time(specified_time => $val);			
+		}
+	}
+	else{
+		die 'unknown time format of CPAchecker cloud output';
+	}
+
+	# Convert to ms	
+	$out = $out * 1000;
+	$out =~ s/[.]\d{1,}//;	
+	return $out;
 }
 
 sub convert_memory
 {
 	my $info = {@_};
 	my $mem = $info->{specified_mem};
-	if ($mem =~ /^(\d+[.]{0,1}\d{0,})\s{0,}(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|B)$/)
+	if ($mem =~ /^(\d+[.]{0,1}\d{0,})\s{0,}(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|B|)$/)
 	{
 		my $res = $1;
 		if ($2 eq "Kb")
@@ -875,14 +867,26 @@ sub convert_memory
 	}
 }
 
+sub check_limit
+{
+	my $env_variable = $_[0];
+	my $key = $_[1];
+	if (! defined $ENV{$env_variable}) {
+		$ENV{$env_variable} = $limits{$key};
+	} else {
+		$ENV{$env_variable} == $limits{$key} or	die
+			"The value of $env_variable differs from the limit returned by get_limits ($ENV{$env_variable} != $limits{$key})"
+	}
+}
+
 sub request_to_server
 {
 	my @cmd = @_;
 	my $msg;
 
 	my $id = `@cpachecker_options`;
-	if(!defined $id || $? != 0){
-		$msg = "Cannot obtain run id from the cloud: $!";
+	if(!defined $id || $id !~ /^\d+/ || $? != 0){
+		$msg = "Cannot obtain run id from the cloud, got instead: '$id'";
 		vsay('WARNING', $msg);
 		return $msg;
 	}
