@@ -231,9 +231,12 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	#@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	#@cpachecker_options = ( @cpachecker_options, 'limitations=' . $level );
 	
+	# TODO: Remove this when CPA web intf will support bytes as default format
+	my $fixed_limit = ($memlimit / 1000000) . 'M';
+
 	# Set limits
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'memoryLimitation=' . $memlimit );
+	@cpachecker_options = ( @cpachecker_options, 'memoryLimitation=' . $fixed_limit );
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
 
@@ -512,9 +515,11 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 		usedMemory => undef,
 		memoryLimit => undef,
 		timeLimit => undef,
+		command => undef
 	);
 
-	my $timeout_file = "$tmpdir/hostInformation.txt";
+	# Read WEb interface output file
+	my $timeout_file = "$tmpdir/runInformation.txt";
 	vsay('DEBUG', "Open file with run info: '$timeout_file'");
 	open my $fd, '<', $timeout_file
 		or die "Cannot open file '$timeout_file': $!";
@@ -522,9 +527,20 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	close $fd 
 		or die "Cannot save file '$timeout_file': $!";
 	chomp @lines;
+	
+	# Parse WEb interface output file
 	foreach my $line (@lines){
-		my ($key, $val) = split '=', $line;
-		$expected_results{$key} = $val;
+		if($line =~ /^(\w{1,})=/){
+			my $key = $1;
+			my $val = $';
+			if( !defined $key ){
+				die "Unknown output format of the file: '$tmpdir/runInformation.txt'";
+			}
+			$expected_results{$key} = $val;
+		}
+		else{
+			die "Unknown output format of the file: '$tmpdir/runInformation.txt'";
+		}
 	}
 
 	# Convert values
@@ -534,11 +550,22 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	$expected_results{usedMemory} = convert_memory('specified_mem', $expected_results{usedMemory});
 	$expected_results{memoryLimit} = convert_memory('specified_mem', $expected_results{memoryLimit});
 
+	my @values = (
+		$expected_results{memoryLimit},
+		$expected_results{timeLimit},
+		$expected_results{command},
+		$expected_results{exitCode},
+		$expected_results{wallTime},
+		$expected_results{cpuTime},
+		$expected_results{usedMemory}
+	);
+
 	# Prepare artificial report from cloud one
-	my $descr_err = sprintf (<<EOR , $expected_results{memoryLimit}, $expected_results{timeLimit}, $expected_results{exitCode}, $expected_results{wallTime}, $expected_results{cpuTime}, $expected_results{usedMemory});
+	my $descr_err = sprintf (<<EOR , @values);
 Resource Manager settings:
 	memory limit: %s bytes
 	time limit: %s ms
+	command: %s
 Resource Manager execution status:
 	exit code (resource manager): 0
 Command execution status:
@@ -885,7 +912,7 @@ sub request_to_server
 	my $msg;
 
 	my $id = `@cpachecker_options`;
-	if(!defined $id || $id !~ /^\d+/ || $? != 0){
+	if(!defined $id || $id !~ /^\w+/ || $? != 0){
 		$msg = "Cannot obtain run id from the cloud, got instead: '$id'";
 		vsay('WARNING', $msg);
 		return $msg;
