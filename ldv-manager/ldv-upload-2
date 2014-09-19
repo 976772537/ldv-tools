@@ -825,7 +825,7 @@ sub add_problems(%) {
       $info{component}; # {rcv, rule-instrumentor, dscv, drv-env-gen, build-cmd-extractor, blast, cbmc, cpachecker, ufo}
     my $cur_desc     = $info{desc};
     my $cur_stats_id = $info{stats_id};
-    my @result       = ();
+    my %result;
     if ( $cur_desc )    # In case of build failed.
     {
         foreach my $arg (@ldv_components) {
@@ -842,16 +842,22 @@ sub add_problems(%) {
         }
 
         my $tmp_res;
-        foreach my $prob (@result) {
+        foreach my $prob (keys %result) {
             chomp($prob);
             next if ( $prob =~ /^\s*$/ );
             $tmp_res = sql_select(
                 "SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;"
               )
               || sql_insert("INSERT INTO problems (name) VALUES ('$prob');\n");
-            sql_query(
+            my $is_record_exist = sql_select(
+                "SELECT * FROM problems_stats WHERE stats_id = '$cur_stats_id' AND problem_id = '$tmp_res' LIMIT 1;"
+              );
+            if (!$is_record_exist)
+            {
+                sql_query(
 "INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);\n"
-            );
+                   );
+            }
         }
     }
 }
@@ -945,10 +951,9 @@ sub change_problems_text($) {
     my $text = shift;
     $text =~ s/\$\\ = "\\n";\n//g;
     $text =~ s/\$, = "\\n";\n//g;
-    $text =~ s/ and print "/ and push(\@result,  "/g;
-    $text =~ s/";\n/");\n/g;
+    $text =~ s/ and print "/ and \$result{"/g;
+    $text =~ s/";\n/"}=1;\n/g;
     $text =~ s/while \(<>\){/foreach\(\$cur_desc\){/g;
-    #$text =~ s/'/\\\\'/g;
     return $text;
 }
 
