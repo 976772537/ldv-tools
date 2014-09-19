@@ -36,6 +36,13 @@ while (<>){
 	
 	/The walltime limit of (\d+)s has elapsed/ and print "Time exhausted";
 
+	# CPAchecker without CIL
+	/Unrecognized C code \(Unhandled initializer\)/ and print "Unhandled initializer";
+	/Error: Parsing failed \(Cannot access field ldv_(.*) in struct/ and print "Auto-generated ldv_ field";
+	/Name of global variable (.*) from line (.*) is reused as function declaration:/ and print "Global name as function";
+	/is no CLeftHandside but should be\.:/ and print "No CLeftHandside";
+	/Error: Parsing failed \(Syntax error in line (.*): \*\) 0 \) , 0L \)/ and print "Cast to local struct";
+	/Error: Parsing failed \(Unsupported statement type CASTIfStatement at end of compound-statement expression in line/ and print "Unsupported CASTIfStatement";
 	# CIL errors
 	# subtypes of CIL_parse_error
 	# Error: global static initializer
