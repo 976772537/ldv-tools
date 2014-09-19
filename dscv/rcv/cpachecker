@@ -197,7 +197,7 @@ sub check_limit
 
 # If no config file is specified ($cpachecker_config, which was set up at the
 # beginning of the script), use the default one.
-my $cpa_cfg = $cpachecker_config || "$configs_dir/default.properties";
+my $cpa_cfg = $cpachecker_config || "$installed_backends_dir/config/ldv.properties";
 
 # Get the full path of the config file specified
 my $cpa_cfg_fullpath = File::Spec->rel2abs($cpa_cfg);
