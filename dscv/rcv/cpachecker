@@ -494,6 +494,14 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	my $msg = 1;
 	while($tries > 0 && $msg){
 		$msg = request_to_server(@cpachecker_options);
+		if($msg){
+			if($tries == 3){
+				sleep 5;
+			}
+			else{
+				sleep 120;
+			}
+		}
 		$tries--;
 	}
 	if($msg){
@@ -955,13 +963,22 @@ sub request_to_server
 		# Get package with results
 		my $zip = "$tmpdir/results.zip";
 		$msg  = fetch_results($zip, $id);
-
+		if($msg){
+			$msg = "Result download failed: '$msg'";
+			vsay 'WARNING', $msg;
+		}
+		else{
+			$msg = extract_results($zip);
+			if($msg){
+				$msg = "Result extraction failed: '$msg'";
+				vsay 'WARNING', $msg;
+			}
+		}
 		# Extract package
-		$msg = extract_results($zip);
 
 		$tries--;
+		sleep 1;
 	}
-
 	if($msg){
 		return $msg;
 	}	
