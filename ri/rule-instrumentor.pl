@@ -1526,6 +1526,12 @@ sub process_cmd_cc()
 
     # Keep CIF intermediate files for debug levels higher then DEBUG.
     push(@keep, '--keep') if (LDV::Utils::check_verbosity('DEBUG'));
+    
+    #to fix problem #1285: http://forge.ispras.ru/issues/1285
+    foreach (@opts)
+    {
+      s/\"/\\\"/g;
+    }
 
     my @args = (
       $ldv_timeout_script,
