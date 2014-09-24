@@ -113,7 +113,7 @@ if ($do_aliases){
 	;
 }else{
 	vsay ('DEBUG',"Running BLAST without alias analysis.\n");
-	push @blast_options, "-alias","";	# Turn alias analysis off
+	push @blast_options, q{-alias ""};	# Turn alias analysis off
 }
 
 # Show a warning if an obsolete variable to trigger alias analysis is used
@@ -196,7 +196,16 @@ add_automaton(tail_automaton(50),'stderr');
 
 my ($result, $errcode, $automata_results, $debug_trace);
 if($remote_mode){
-	($result, $errcode, $automata_results, $debug_trace) = docker_run(\@blast_options, \@transfer_files, $docker_blast_image);
+	my @quoted_opts = ();
+	while(scalar @blast_options){
+		my $opt = shift @blast_options;
+		$opt =~ s/[\"]/\\"/g;
+		$opt =~ s/[\']/\\'/g;
+		push @quoted_opts, $opt;
+	}
+
+	vsay 'TRACE', q{Going to execute: '} . join (' ', @quoted_opts) . q{'}; 
+	($result, $errcode, $automata_results, $debug_trace) = docker_run(\@quoted_opts, \@transfer_files, $docker_blast_image);
 }
 else{
  	($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
@@ -274,7 +283,6 @@ result(
 #===================
 #  AUTOMATA
 #===================
-
 # Verdict check automaton
 sub safe_unsafe
 {

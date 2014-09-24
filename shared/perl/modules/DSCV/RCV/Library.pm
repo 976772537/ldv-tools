@@ -438,7 +438,7 @@ sub rcv_run
 			close_err=>sub{ vsay ('TRACE',"Child's stderr stream closed.\n");},
 			},
 			# Instrument call string
-			@args
+			join(' ', @args)
 		);
 
 		$errcode = $?;
@@ -603,7 +603,7 @@ sub docker_run
 		"$ENV{'RCV_REMOTE_HOST'}/"
 	);
 	vsay('DEBUG', q{Sending data to remote host: '} . (join ' ', @cmd) . q{'});
-	system(@cmd) and die "Cannot send dir '$full_path' to '$ENV{'RCV_REMOTE_HOST'}'";
+	system(@cmd) and die "Cannot send dir '$full_path' to '$ENV{'RCV_REMOTE_HOST'}': $!";
 
 	# Then prepare control file content
 	my %cfg_hash = (
