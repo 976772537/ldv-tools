@@ -592,7 +592,7 @@ sub create_configs($$)
     }
   }
   
-  # To fix bug 4402
+  # To fix bug 4402 http://forge.ispras.ru/issues/4402
   $isconfig = 1;
   
   return @config_dir;
