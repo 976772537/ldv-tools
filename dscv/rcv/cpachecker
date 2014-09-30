@@ -473,7 +473,7 @@ add_automaton(cpachecker_syntax());
 # Note the 'stderr' after the automaton.  It means that it is only applied to
 # the standard error stream.  You may specify 'stdout' here as well or instead.
 # Here, we're more interested in any exceptions the verifier produces
-add_automaton(tail_automaton(50),'stderr');
+add_automaton(tail_automaton(50), 'stderr');
 
 # Now the limits are set and automatons are added.  We may run the tool
 # (specified by the command line we have already prepared).  As an output, we'll
@@ -490,29 +490,38 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
 	vsay('NORMAL', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
 	# make request several times in case of problems with a network
-	my $tries = 3;
+	my $connection_limit = 7200;
+	my $waiting = 0;
 	my $msg = 1;
-	while($tries > 0 && $msg){
+	while($waiting < $connection_limit && $msg){
 		$msg = request_to_server(@cpachecker_options);
 		if($msg){
-			if($tries == 3){
+			if($waiting < 30){
 				sleep 5;
+				$waiting = $waiting + 5;
 			}
 			else{
-				sleep 120;
+				sleep 30;
+				# Add also internal subprogramm overhead on retries
+				$waiting = $waiting + 40;
 			}
 		}
-		$tries--;
 	}
 	if($msg){
 		die $msg;
 	}
 
 	# Check that stdout and stderr were created
+	my $common_file = '$tmpdir/output.txt';
 	my $stdout = "$tmpdir/stdout";
 	my $stderr = "$tmpdir/stderr";
-	if(!-f $stdout || !-f $stderr){
-		die "Cannot find both or one of neccessary files '$stdout' and '$stderr'";
+
+	if(!(-f $stdout && -f $stderr) && !-f $common_file){
+		die "Cannot find both or one of neccessary files '$stdout' and '$stderr' or '$common_file'";
+	}
+	elsif(-f $common_file){
+		$stderr = $common_file;
+		$stdout = $common_file;
 	}
 
 	# Extract data from report about resource consumption
@@ -942,7 +951,7 @@ sub request_to_server
 		$state = `@opts`;
 		$ret = $?;
 		if($? != 0){
-			$msg = "Cannot check status of results for the id '$id': $!";
+			$msg = "Cannot check status of results for the id '$id'";
 			vsay('WARNING', $msg);
 		}
 		sleep 0.5;
@@ -974,8 +983,8 @@ sub request_to_server
 				vsay 'WARNING', $msg;
 			}
 		}
-		# Extract package
 
+		# Extract package
 		$tries--;
 		sleep 1;
 	}
