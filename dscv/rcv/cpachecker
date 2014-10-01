@@ -439,6 +439,15 @@ else{
 	);
 }
 
+# Check that all files provided to the CPAchecker tool are not empty
+if(-z "$tmpdir/$LDV_errloc_autom"){
+	die "Empty file was provided as a specification '$tmpdir/$LDV_errloc_autom'";
+}
+foreach my $file (@files){
+	if(-z $file){
+		die "An empty file was given ffor checking '$file'";
+	}
+}
 
 
 # HANDLING THE OUTPUT
