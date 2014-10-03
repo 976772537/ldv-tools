@@ -33,6 +33,9 @@ while (<>){
 	/Unrecognized C code/ and print "Unrecognized C code";
 	/IllegalArgumentException: Can't add cast/ and print "Can't add cast";
 	/IllegalArgumentException: Can't assign different types/ and print "Different types";
+	/CRITICAL - VerifierCloud run executor: OSError 2 while waiting for termination of \/bin\/sh/ and print "Cloud timeout";
+	/An empty file was provided for checking/ and print "Empty entry";
+	/WARNING - VerifierCloud run executor: Run has left-over process/ and print "Cloud OSError 2";
 
 	# CIL errors
 	# subtypes of CIL_parse_error
