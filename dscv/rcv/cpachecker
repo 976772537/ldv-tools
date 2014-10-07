@@ -78,7 +78,7 @@ my $cpachecker;
 my $configs_dir = "$installed_frontends_dir/etc/";
 
 # This section check usage of verification cloud
-if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
+if(defined $ENV{RCV_REMOTE_HOST}){
 	unshift @cpachecker_options, 'curl';
 	@cpachecker_options = (@cpachecker_options, '-s');
 
@@ -202,7 +202,7 @@ $timelimit = convert_time(specified_time => $ENV{'RCV_TIMELIMIT'});
 my $heap_size = get_heap_size($memlimit);
 
 my $cpa_cfg_new = "$tmpdir/wrapper.properties";
-if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
+if(defined $ENV{RCV_REMOTE_HOST}){
 	foreach my $file (@files){
 		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 		@cpachecker_options = ( @cpachecker_options, 'programText@' . $file );
@@ -253,8 +253,8 @@ if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne ''){
 	# Choose config: Cloud accept any configuration from cpachecker trunk
 	# We should provide relative path to it from repository root dir 
 	$cpachecker_config = $ENV{'CPACHECKER_CLOUD_CONFIG'};
-	if(!defined $cpachecker_config || $cpachecker_config ne ''){
-		$cpachecker_config = 'ldv'
+	if(!defined $cpachecker_config){
+		$cpachecker_config = 'ldv';
 	}
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'configuration=' . $cpachecker_config );
@@ -345,7 +345,7 @@ my $outputpath;
 # We will need to adjust the trace for seamless integration with LDV, so we'll
 # copy the trace here.
 my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
-if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
+if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 	# Add specification
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'specificationText@' . "$tmpdir/$LDV_errloc_autom");
@@ -493,26 +493,27 @@ add_automaton(tail_automaton(50), 'stderr');
 #   * the merged hash of the automata added.
 #   * the file where gzip-ped debug trace resides
 my ($result, $errcode, $automata_results, $debug_trace);
-if(defined $ENV{RCV_REMOTE_HOST} && $ENV{RCV_REMOTE_HOST} ne '' && $main){
+my $total_sleeping = 0;
+if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 	# Add host and execute request
 	@cpachecker_options = (@cpachecker_options, $ENV{RCV_REMOTE_HOST} . '/runs');
 	vsay('NORMAL', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
 	# make request several times in case of problems with a network
-	my $connection_limit = 7200;
-	my $waiting = 0;
+	my $connection_limit = $ENV{RCV_SLEEPING_LIMIT} || 7200;
+	vsay('NORMAL', "Ready for pending cloud for '$connection_limit' sec");
 	my $msg = 1;
-	while($waiting < $connection_limit && $msg){
+	while($total_sleeping < $connection_limit && $msg){
 		$msg = request_to_server(@cpachecker_options);
 		if($msg){
-			if($waiting < 30){
+			if($total_sleeping < 30){
 				sleep 5;
-				$waiting = $waiting + 5;
+				$total_sleeping = $total_sleeping + 5;
 			}
 			else{
 				sleep 30;
 				# Add also internal subprogramm overhead on retries
-				$waiting = $waiting + 40;
+				$total_sleeping = $total_sleeping + 30;
 			}
 		}
 	}
@@ -964,6 +965,7 @@ sub request_to_server
 			vsay('WARNING', $msg);
 		}
 		sleep 0.5;
+		$total_sleeping = $total_sleeping + 0.5;
 	}
 	if($ret != 0){
 		return $msg;
@@ -995,7 +997,8 @@ sub request_to_server
 
 		# Extract package
 		$tries--;
-		sleep 1;
+		sleep 0.5;
+		$total_sleeping = $total_sleeping + 0.5;
 	}
 	if($msg){
 		return $msg;
@@ -1031,7 +1034,8 @@ sub fetch_results
 		else{
 			$msg = "Cannot fetch data, exit code '$?': $!";
 			vsay('WARNING', $msg);
-			sleep 1;
+			sleep 0.5;
+			$total_sleeping = $total_sleeping + 0.5;
 			vsay('DEBUG', "Making another attempt...");
 		}
 		$tries--;
