@@ -522,7 +522,7 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 	}
 
 	# Check that stdout and stderr were created
-	my $common_file = "$tmpdir/workerResultFile.log";
+	my $common_file = "$tmpdir/output.log";
 	my $stdout = "$tmpdir/stdout";
 	my $stderr = "$tmpdir/stderr";
 
