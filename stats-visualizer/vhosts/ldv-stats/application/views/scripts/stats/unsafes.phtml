@@ -73,7 +73,6 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 7);
       var kbId = rowCur.find('.SETVKBKBid').text();
-	  var user = <?php echo json_encode("$user"); ?>;
 	  var isAut = <?php echo json_encode("$isAut"); ?>;
 
       // Do not send any requests to linuxtesting if Analytics Center don't has authorization module.
@@ -83,7 +82,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
       }
 
 	  // Restrictions.
-	  if (!user && isAut)
+	  if (!window.user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;

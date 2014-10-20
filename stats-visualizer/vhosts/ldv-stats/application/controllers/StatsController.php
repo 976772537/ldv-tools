@@ -20,11 +20,10 @@ class StatsController extends Zend_Controller_Action
 {
   protected $_globals;
   protected $_profileInfo;
-
-  protected $url_local = "http://torvalds:8080/php/impl_reports_admin"; // TODO: delete it and all its usages.
-
+  
   public function init()
   {
+
     // Disable rendering and layout printing for AJAX requests.
     if ($this->getRequest()->isXmlHttpRequest()) {
       $this->_helper->viewRenderer->setNoRender();
@@ -179,6 +178,25 @@ class StatsController extends Zend_Controller_Action
     $statsMapper = new Application_Model_StatsMapper();
     $results = $statsMapper->getErrorTrace($this->_profileInfo, $params);
 
+	// Get verifier name.
+	$traceId = $results['Trace id'];
+	$query = "
+		SELECT 
+			toolsets.verifier as verifier
+		FROM traces
+			LEFT JOIN launches on launches.trace_id=traces.id
+			LEFT JOIN toolsets on launches.toolset_id=toolsets.id
+		WHERE traces.id=$traceId
+		LIMIT 1";
+	$queryResult = $this->mysqlSelectQuery($query);
+	if (!$queryResult)
+	{
+		$error = "There was an error during executing query:$query\nwhile getting non KB specific information";
+		//echo Zend_Json::encode(array('errors' => $error));
+		return;
+	}
+	$results['Restrictions']['Verifier'] = $queryResult['verifier'];
+
     // Write raw representation of error trace directly to the file.
     $errorTraceRawFile = APPLICATION_PATH . "/../data/trace/original";
     $handleErrorTrace = fopen($errorTraceRawFile, 'r+')
@@ -324,40 +342,6 @@ class StatsController extends Zend_Controller_Action
   }
 
  /*
-  * Test function, which creates new bug_report on linuxtesting.
-  * TODO: delete it!
-  * Edit: was successfully tested.
-  */
-  public function testCookieAction()
-  {
-	// Get cookie.
-	$cookie = $_SESSION['cookie'];
-
-	// Get url.
-	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
-    $url = $linuxtesting->link;
-
-	// POST request.
-	$id=$this->_getParam('KB_id');
-	$status=$this->_getParam('status');
-	$data = array(
-			'num' => "TEST_00$id",
-			'sh_descr_ru' => $status);
-	$result = $this->curlPostRequestByCookie($url . "results/impl_reports_admin?action=submit", $cookie, $data);
-
-	// Check status.
-	if (!preg_match("/<h1>Issue of the Implementation No. (\S+)<\/h1>/", $result, $array))
-	{
-		$error = "There was an error during uploading on linuxtesting.";
-		echo Zend_Json::encode(array('errors' => $error));
-		return;
-	}
-
-	// Successful exit from function.
-	echo Zend_Json::encode(array('errors' => ''));
-  }
-
- /*
   * Function implements 'publish' action from errortrace page.
   * Intends to publish or update Traces in linuxtesting from LDV Analytics Center. 
   */
@@ -365,114 +349,13 @@ class StatsController extends Zend_Controller_Action
   {
 	// Obtain KB specific data.
 	$traceId=$this->_getParam('trace_id');
-	$comment=$this->_getParam('comment');
-	$verdict=$this->_getParam('verdict');
-	$status=$this->_getParam('status');
 	$ppobId=$this->_getParam('ppob_id');
 	$kbId=$this->_getParam('KB_id');
-
-	// Get current link.
-	$currentLink = "http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-	$currentLink = preg_replace("/publish-kb-record/", "errortrace", $currentLink);
-
-	// Get cookie.
-	$cookie = $_SESSION['cookie'];
-
-	// Get url.
-	$url = $this->url_local;
-
-	// Get linuxtesting URL (impl_reports_admin page).
-    $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
-    $ltAdminURL = $linuxtesting->link;
-
-	if ($ppobId) // Update existed Trace into linuxtesting.
-	{
-		// Check status of that Trace. If it is not equal to 'Unreported', stop updating.
-		// TODO: change to "$ltAdminURL?action=details_ppob&num=$ppobId"
-		if (!$this->checkForUnreported($url . "?action=details_ppob&num=$ppobId", $cookie)) 
-		{
-			$error = "Status of Trace # $ppobId is no longer 'Unreported'.\n" .
-				"In order to changed it please contact the Expert with access to linuxtesting.";
-			echo Zend_Json::encode(array('errors' => $error));
-			return;
-		}
-
-		// Combine all data to be updated. Only 'verdict' and 'status' fields will be updated. 
-		$data = array(
-			'verdict' => $verdict,
-			'status' => $status,
-			'sync_status' => 'KB-Synchronized');
-		// TODO: change to "$ltAdminURL?action=update_ppob&num=$ppobId"
-		$result = $this->curlPostRequestByCookie($url . "?action=update_ppob&num=$ppobId", $cookie, $data);
-	}
-	else // Insert new Trace into linuxtesting.
-	{
-		// Get non KB specific data.
-		$query = "
-		SELECT 
-			environments.version as kernel, 
-			drivers.name as module, 
-			rule_models.name as rule, 
-			toolsets.verifier as verifier, 
-			scenarios.main as main
-		FROM traces
-			LEFT JOIN launches on launches.trace_id=traces.id
-			LEFT JOIN environments on launches.environment_id=environments.id
-			LEFT JOIN toolsets on launches.toolset_id=toolsets.id
-			LEFT JOIN rule_models on launches.rule_model_id=rule_models.id
-			LEFT JOIN drivers on launches.driver_id=drivers.id
-			LEFT JOIN scenarios on launches.scenario_id=scenarios.id
-		WHERE traces.id=$traceId
-		LIMIT 1";
-		$result = $this->mysqlSelectQuery($query);
-		if (!$result)
-		{
-			$error = "There was an error during executing query:$query\nwhile getting non KB specific information";
-			echo Zend_Json::encode(array('errors' => $error));
-			return;
-		}
-		$kernel = $result['kernel'];
-		$module = $result['module'];
-		$rule = $result['rule'];
-		$verifier = $result['verifier'];
-		$main = $result['main'];
-
-		// File with processed error trace.
-		$errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
-
-		// Combine all data to be published.
-		$data = array(
-			'kernel' => $kernel, 
-			'module' => $module, 
-			'rule' => $rule, 
-			'verifier' => $verifier, 
-			'main' => $main,
-			'comment' => $comment,
-			'verdict' => $verdict,
-			'status' => $status,
-			'error_trace_file' => $errorTraceFile,
-			'sync_status' => 'KB-Synchronized',
-			'link' => $currentLink);
-		// TODO: change to "$ltAdminURL?action=submit_ppob"
-		$result = $this->curlPostRequestByCookie($url . "?action=submit_ppob", $cookie, $data);
-	}
-
-	// Check status and get inserted/updated Trace id.
-	if (preg_match("/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/", $result, $array))
-	{
-		$newPpobId = $array[1];
-	}
-	else
-	{
-		$error = "There was an error during uploading to linuxtesting.";
-		echo Zend_Json::encode(array('errors' => $error));
-		return;
-	}
 
 	// Now KB record should be updated (fields "Synchronized status" and "Published record" should be updated).
 	$query = "
 	UPDATE results_kb 
-	SET sync_status = 'Synchronized', published_trace_id = $newPpobId
+	SET sync_status = 'Synchronized', published_trace_id = $ppobId
 	WHERE trace_id = $traceId AND kb_id = $kbId";
 	$result = $this->mysqlQuery($query);
 	if (!$result)
@@ -482,28 +365,7 @@ class StatsController extends Zend_Controller_Action
 		echo Zend_Json::encode(array('errors' => $error));
 		return;
 	}
-
-	// Successful exit from function.
-	// Returned value: result - inserted/updated Trace id.
-	echo Zend_Json::encode(array('result' => $newPpobId, 'errors' => ''));
-  }
-
- /*
-  * Function checks if trace with known id has 'Unereported' status on linuxtesting 
-  * and thus can be updated/deleted from LDV Analytics Center.
-  */
-  protected function checkForUnreported($url, $cookie)
-  {
-	$result = $this->curlGetRequestByCookie($url, $cookie);
-	if (preg_match("/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/", $result, $array))
-	{
-		$status = $array[4];
-		if ($status == 'Unreported')
-			return TRUE;
-		else
-			return FALSE;
-	}
-	return FALSE;
+	echo Zend_Json::encode(array('errors' => ''));
   }
 
  /*
@@ -573,63 +435,6 @@ class StatsController extends Zend_Controller_Action
   }
 
  /*
-  * Function executes curl GET request for selected url and known cookie.
-  * Returns content of url after executing GET request.
-  */
-  protected function curlGetRequestByCookie($url, $cookie)
-  {
-	// Init curl.
-	$curl = curl_init();
-
-	// Set parameters.
-	curl_setopt($curl, CURLOPT_URL, $url);
-	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
-	curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
-	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
-	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
-	curl_setopt($curl, CURLOPT_COOKIE, "$cookie");
-	// Execute request.
-	$result = curl_exec($curl);
-
-	// Close connection.
-	curl_close($curl);
-
-	return $result;
-  }
-
- /*
-  * Function executes curl POST request for selected url and known cookie.
-  * Returns content of url after executing POST request.
-  */
-  protected function curlPostRequestByCookie($url, $cookie, $data)
-  {
-	// Init curl.
-	$curl = curl_init();
-
-	// Get url representation of array $data.
-	$processedData = http_build_query($data);
-
-	// Set parameters.
-	curl_setopt($curl, CURLOPT_URL, $url);
-	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
-	curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
-	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
-	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
-	curl_setopt($curl, CURLOPT_COOKIEFILE, "cookie.txt");
-	curl_setopt($curl, CURLOPT_COOKIE, "$cookie");
-	curl_setopt($curl, CURLOPT_POST, 1);
-	curl_setopt($curl, CURLOPT_POSTFIELDS, "$processedData");
-
-	// Execute request.
-	$result = curl_exec($curl);
-
-	// Close connection.
-	curl_close($curl);
-
-	return $result;
-  }
-
- /*
   * Function implements 'update' action from errortrace page.
   * Intends to update KB record in LDV Analytics Center from linuxtesting.
   * Only fields 'status' and 'verdict' will be updated.
@@ -639,93 +444,27 @@ class StatsController extends Zend_Controller_Action
 	// Obtain useful ids.
 	$kbId=$this->_getParam('KB_id');
 	$traceId=$this->_getParam('trace_id');
-	$ppobId=$this->_getParam('ppob_id');
 	$status=$this->_getParam('status');
 	$verdict=$this->_getParam('verdict');
 	$syncStatus=$this->_getParam('sync_status');
+	$verdictOld=$this->_getParam('verdict_old');
 
-	// Get cookie.
-	$cookie = $_SESSION['cookie'];
-
-	// Get url.
-	$url = $this->url_local;
-
-	// Get linuxtesting URL (impl_reports_admin page).
-    $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
-    $ltAdminURL = $linuxtesting->link;
-
-	// Get information from linuxtesting - status and verdict fields.
-	// TODO: change to "$ltAdminURL?action=details_ppob&num=$ppobId"
-	$result = $this->curlGetRequestByCookie($url . "?action=details_ppob&num=$ppobId", $cookie);
-	if (preg_match("/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/", $result, $array))
+	// Update KB record.
+	$query = "
+	UPDATE kb, results_kb
+	SET verdict = '$verdict', status = '$status', sync_status = 'Synchronized'
+	WHERE kb.id = $kbId AND results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId";
+	$result = $this->mysqlQuery($query);
+	if (!$result)
 	{
-		$newStatus = $array[4];
-	}
-	if (preg_match("/<td><b>Verdict: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(.+)<\/font>/", $result, $array))
-	{
-		$newVerdict = $array[4];
-		// Change verdicts name.
-		if ($newVerdict == 'False alarm')
-			$newVerdict = 'False positive';
-		elseif ($newVerdict == 'Bug')
-			$newVerdict = 'True positive';
-	}
-	if (preg_match("/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/", $result, $array))
-	{
-		$newSyncStatus = $array[4];
-	}
-	if (!isset($newStatus) || !isset($newVerdict) || !isset($newSyncStatus))
-	{
-		$error = "Can not retrieve information from linuxtesting on Trace # $ppobId.";
+		$error = "There was an error during executing query:$query\nwhile updating KB record";
 		echo Zend_Json::encode(array('errors' => $error));
 		return;
 	}
 
-	// Log of updated fields.
-	$log = ""; 
-	// Check if update for KB record is really needed.
-	if (($newStatus != $status) || ($newVerdict != $verdict) || ($syncStatus != "Synchronized"))
-	{
-		// Update KB record.
-		$query = "
-		UPDATE kb, results_kb
-		SET verdict = '$newVerdict', status = '$newStatus', sync_status = 'Synchronized'
-		WHERE kb.id = $kbId AND results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId";
-		$this->mysqlQuery($query);
-		if (!$result)
-		{
-			$error = "There was an error during executing query:$query\nwhile updating KB record";
-			echo Zend_Json::encode(array('errors' => $error));
-			return;
-		}
-		$log .= "Updated on LDV Analytics Center:\n"; 
-		if ($newStatus != $status)
-			$log .= "\tstatus=$newStatus (was $status)\n";
-		if ($syncStatus != "Synchronized")
-			$log .= "\tsync_status=Synchronized (was $syncStatus)\n";
-		if ($newVerdict != $verdict)
-			$log .= "\tverdict=$newVerdict (was $verdict)\n";
-	}
-
-	// Check if sync_status of linuxtesting Trace should be updated.
-	if ($newSyncStatus != "Synchronized")
-	{
-		$data = array('sync_status' => 'KB-Synchronized');
-		// TODO: change to "$ltAdminURL?action=update_ppob&num=$ppobId"
-		$result = $this->curlPostRequestByCookie($url . "?action=update_ppob&num=$ppobId", $cookie, $data);
-		if (!preg_match("/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/", $result, $array))
-		{
-			$error = "Can not update status for linuxtesting Trace # $ppobId";
-			echo Zend_Json::encode(array('errors' => $error));
-			return;
-		}
-		$log .= "Updated on linuxtesting:\n";
-		$log .= "\tsync_status=Synchronized (was $newSyncStatus)\n";
-	}
-
 	// Run kb-recalc in case of changing status.
 	$output = '';
-	if ($newVerdict != $verdict) 
+	if ($verdictOld != $verdict) 
 	{
     	$kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
     	$kbRecalc = $kbRecalcConfig->script;
@@ -741,7 +480,7 @@ class StatsController extends Zend_Controller_Action
     }
 	// Successful return.
 	// Log keeps all updated fields. If it is empty, then nothing was actually updated.
-    echo Zend_Json::encode(array('log' => $log, 'output' => $output, 'errors' => ''));
+    echo Zend_Json::encode(array('output' => $output, 'errors' => ''));
   }
 
  /*
@@ -751,34 +490,6 @@ class StatsController extends Zend_Controller_Action
   */
   public function deleteKbRecordAction()
   {
-	// First, Trace from linuxtesting should be deleted (if it exists).
-	// Get Trace id.
-	$ppobId=$this->_getParam('ppob_id');
-	if ($ppobId)
-	{
-		// Get cookie.
-		$cookie = $_SESSION['cookie'];
-
-		// Get url.
-		$url = $this->url_local;
-
-		// Get linuxtesting URL (impl_reports_admin page).
-    	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
-    	$ltAdminURL = $linuxtesting->link;
-
-		// Check status of that Trace. If it is not equal to 'Unreported', stop deleting.
-		if (!$this->checkForUnreported($url . "?action=details_ppob&num=$ppobId", $cookie))
-		{
-			$error = "Status of Trace # $ppobId is no longer 'Unreported'.\n" .
-				"In order to delete it please contact the Expert with access to linuxtesting.";
-			echo Zend_Json::encode(array('errors' => $error));
-			return;
-		}
-		// TODO: change to "$ltAdminURL?action=del_ppob&num=$ppobId"
-		$result = $this->curlPostRequestByCookie($url . "?action=del_ppob&num=$ppobId", $cookie, array());
-	}
-	
-	// Second, KB record should be deleted from LDV Analytics Center (as before).
     // Find out database connection settings.
     $statsMapper = new Application_Model_StatsMapper();
     $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
@@ -878,32 +589,6 @@ class StatsController extends Zend_Controller_Action
         // Regenerate KB cache for a given KB id (in fact nothing will be done).
         // KB comment is also assigned to result here.
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
-      }
-
-	  // Get authorization flag.
-	  $aut = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'authorization');
-	  $isAut = $aut->set;
-      // If status or verdict was changed, then set status to 'Desynchronized' on linuxtesting.
-      if (($this->_getParam('KB_status') != $this->_getParam('KB_status_old') or 
-      	   $this->_getParam('KB_verdict') != $this->_getParam('KB_verdict_old')) and 
-      	   $this->_getParam('KB_internal_status_old') != "Unpublished" and $isAut) {
-      	$data = array('sync_status' => 'Desynchronized');
-		$cookie = $_SESSION['cookie'];
-		$url = $this->url_local;
-		$ppobId = $this->_getParam('ppob_id');
-
-		// Get linuxtesting URL (impl_reports_admin page).
-    	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
-    	$ltAdminURL = $linuxtesting->link;
-
-		// TODO: change to "$ltAdminURL?action=update_ppob&num=$ppobId"
-		$result = $this->curlPostRequestByCookie($url . "?action=update_ppob&num=$ppobId", $cookie, $data);
-		if (!preg_match("/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/", $result, $array))
-		{
-			$error = "Can not update status for linuxtesting Trace # $ppobId";
-			echo Zend_Json::encode(array('result' => $error, 'errors' => $error));
-			return;
-		}
       }
 
       // Take KB (ge)nerator output if so as result at the moment;

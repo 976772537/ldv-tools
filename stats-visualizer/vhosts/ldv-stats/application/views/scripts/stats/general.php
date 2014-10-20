@@ -262,27 +262,8 @@ function returnProfile($info) {
   return '';
 }
 
- /*
-  * Function returns name of the user if user has logged into the linuxtesting in current session and FALSE otherwise.
-  */
-  function checkIfLogin($cookie)
-  {
-  	$url = $GLOBALS['url'];
-  	$result = curlGetRequestByCookie($url . "user", $cookie);
-  	if (!preg_match("/My account/", $result, $array))
-	{
-		return "";
-	}
-	if (preg_match("/<title>(.+) \| Linux Verification Center<\/title>/", $result, $array))
-	{
-		return $array[1];
-	}
-	return "";
-  }
-
- /*
-  * Checks if current user is editor.
-  */
+/*
+  // Checks if current user is editor.
   function checkUserRights($name, $cookie)
   {
   	$url = $GLOBALS['url'];
@@ -306,247 +287,262 @@ function returnProfile($info) {
 	}
 	return FALSE;
   }
-
- /*
-  * Function executes curl GET request for selected url and known cookie.
-  * Returns content of url after executing GET request.
-  */
-  function curlGetRequestByCookie($url, $cookie)
-  {
-    // Init curl.
-	$curl = curl_init();
-
-	// Set parameters.
-	curl_setopt($curl, CURLOPT_URL, $url);
-	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
-	curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
-	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
-	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
-	curl_setopt($curl, CURLOPT_COOKIE, "$cookie");
-	// Execute request.
-	$result = curl_exec($curl);
-
-	// Close connection.
-	curl_close($curl);
-
-	return $result;
-  }
-
- /*
-  * Function logins on selected url by POST curl request.
-  * In case of success returns Success and sets cookie field.
-  * Otherwise returns error message.
-  */
-  function curlLogin($name, $pass)
-  {
-  	$url = $GLOBALS['url'];
-  	// Init curl.
-  	$curl = curl_init();
-
-	$data = array('name' => $name, 'pass' => $pass, 'form_id' => 'user_login');
-	$processedData = http_build_query($data);
-
-  	// Set parameters.
-	curl_setopt($curl, CURLOPT_URL, $url . "user/login");  
-	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); 
-	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
-	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
-	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
-	curl_setopt($curl, CURLOPT_POST, 1);
-	curl_setopt($curl, CURLOPT_POSTFIELDS, "$processedData");
-	curl_setopt($curl, CURLOPT_HEADER, TRUE);
-	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
-
-	// Execute curl POST request.
-	$result = curl_exec($curl);
-
-	// Close connection.
-	curl_close($curl);
-
-	// Check for errors.
-	if (preg_match("/Sorry, unrecognized username or password./", $result, $array))
-	{
-		return "Unrecognized username or password";
-	}
-	elseif (preg_match("/(\w+) field is required/", $result, $array))
-	{
-		return "$array[1] field is required";
-	}
-	elseif (!preg_match("/My account/", $result, $array))
-	{
-		return "Cannot connect to $url/user/login";
-	}
-
-	// Login successful.
-
-	// Get cookie.
-	$cookie = "";
-	if (preg_match_all("/Set-Cookie: (.+); expires=/", $result, $matches))
-	{
-		foreach ($matches[1] as $val)
-		{
-			$cookie = $val;
-		}
-	}
-
-	// Create global cookie.
-	$_SESSION['cookie'] = $cookie;
-
-	return "Success";
-  }
-
- /*
-  * Function logouts current user.
-  */
-  function curlLogout($cookie)
-  {
-  	$url = $GLOBALS['url'];
-
-  	// Init curl.
-  	$curl = curl_init();
-  	
-  	// Set parameters.
-	curl_setopt($curl, CURLOPT_URL, $url . "logout");  
-	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); 
-	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
-	curl_setopt($curl, CURLOPT_COOKIEJAR, "cookie.txt");
-	curl_setopt($curl, CURLOPT_COOKIEFILE, 'cookie.txt');
-	curl_setopt($curl, CURLOPT_POST, 1);
-	curl_setopt($curl, CURLOPT_COOKIESESSION, FALSE);
-	curl_setopt($curl, CURLOPT_COOKIE, "$cookie");
-	// Execute curl POST request.
-	$result = curl_exec($curl);
-	
-	// Close connection.
-	curl_close($curl);
-
-	// Remove global cookie.
-	unset ($_SESSION['cookie']);
-
-  }
-
-// Get cookie from Session global variable.
-if (isset($_SESSION['cookie']))
-{
-	$cookie = $_SESSION['cookie'];
-}
-
-// Get page URI.
-$ADDR_SELF = $_SERVER['REQUEST_URI'];
-
-// Check if there were any POST requests for login/logout.
-if (isset($_POST['authorization_action']))
-	$authorization_action = $_POST['authorization_action'];
-
-// Get error message (in case it exists).
-$errorMessage = '';
-if (isset($_GET['error']))
-{
-	$errorMessage = $_GET['error'];
-	$ADDR_SELF = substr($ADDR_SELF, 0, strpos($ADDR_SELF, "?error=")); // Delete error from page's address.
-}
-
-// Logout authorization_action.
-if (isset($authorization_action) && $authorization_action == "logout")
-{
-	curlLogout($cookie);
-	header("Location: $ADDR_SELF");
-}
-
-// Login authorization_action.
-if (isset($authorization_action) && $authorization_action == "login")
-{
-	$name = $_POST['name'];
-	$pass = $_POST['pass'];
-	$result = curlLogin($name, $pass);
-	if ($result == "Success")
-	{
-		$result = checkUserRights($name, $_SESSION['cookie']);
-		if ($result)
-		{
-			header("Location: $ADDR_SELF");
-		}
-		else
-		{
-			$error = "User '$name' is not an Editor on linuxtesting";
-			unset ($_SESSION['cookie']);
-			header("Location: $ADDR_SELF?error=$error");
-		}
-	}
-	else
-	{
-		header("Location: $ADDR_SELF?error=$result");
-	}
-}
-
-function loginForm($errorMessage)
-{
-	global $ADDR_SELF;
-	?>
-	<form authorization_action="<?php print($ADDR_SELF); ?>" method="post" enctype="multipart/form-data">
-	<table>
-	<?php if ($errorMessage) { ?>
-	<p>
-	<tr>
-		<td align=middle colspan=1><b>Error: </b></td>
-		<td><b><?php print($errorMessage); ?></b></td>
-	</tr>
-	</p>
-	<?php } ?>
-	<tr>
-	<p>
-		<td><b>Username: </b></td>
-		<td><input type="name" name="name" value="" size=30></td>
-		<td><b>Password: </b></td>
-		<td><input type="password" name="pass" value="" size=30></td>
-		<td>
-			<input type="submit" name="authorization_action" value="login" />
-		</td>
-	</tr>
-	</p>
-	</table>
-	</form>	
-	<?php
-}
-
-function logoutForm($user)
-{
-	global $ADDR_SELF;
-	?>
-	<form authorization_action="<?php print($ADDR_SELF); ?>" method="post" enctype="multipart/form-data">
-	<table>
-	<p>
-	<tr>
-		<td><b>Linuxtesting user: <?php print($user); ?></b></td>
-		<td align=middle colspan=3>
-			<input type="submit" name="authorization_action" value="logout" />
-		</td>
-	</tr>
-	</p>
-	</table>
-	</form>	
-	<?php
-}
-
+*/
 // Print login/logout form.
-$user = '';
+// TODO: check user rights
 if ($isAut)
-if (isset($cookie))
 {
-	$user = checkIfLogin($cookie);
-	if ($user)
-	{
-		logoutForm($user);
-	}
-	else
-	{
-		loginForm($errorMessage);
-	}
-}
-else
-{
-	loginForm($errorMessage);
-}
+	$url = $GLOBALS['url'];
+	?>
+	<script type='text/javascript'>
+		window.user = ""; // Global var - keeps the name of currently logged user.
 
+		function checkIfLogin()
+		{
+			var url = <?php echo json_encode($url);?> + "user";
+			$.ajax({
+				url: url,
+				type: "POST",
+				async: false,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				success: function(data,status,xhr){
+		       	  if (data.search(/<title>(\w+) \| Linux Verification Center<\/title>/) != -1)//TODO
+		       	  {
 
+		       	    var tmp = data.match(/<title>(\w+) \| Linux Verification Center<\/title>/);
+		       	    window.user = tmp[1];
+		       	  }
+		       	  else
+		       	  {
+
+		       	  }
+				},
+			});
+		}
+
+		// Prints login form.
+		function loginForm() {
+			var loginForm = document.createElement("form");
+			loginForm.setAttribute('id',"login_form");
+			loginForm.setAttribute('onsubmit',"loginAction(); return false;");
+
+			var nameField = document.createElement("input");
+			nameField.setAttribute('type',"text");
+			nameField.setAttribute('name',"name");
+			nameField.setAttribute('value', '');
+
+			var passField = document.createElement("input");
+			passField.setAttribute('type',"password");
+			passField.setAttribute('name',"pass");
+			passField.setAttribute('value', '');
+
+			var submitButton = document.createElement("input");
+			submitButton.setAttribute('type',"submit");
+			submitButton.setAttribute('value',"Login");
+
+			var loginTable = document.createElement("table");
+			var tableRow = document.createElement("tr");
+			
+			var td = document.createElement("td");
+			td.innerHTML = "<b>User:</b>";
+			tableRow.appendChild(td);
+			
+			td = document.createElement("td");
+			td.appendChild(nameField);
+			tableRow.appendChild(td);
+
+			td = document.createElement("td");
+			td.innerHTML = "<b>Password:</b>";
+			tableRow.appendChild(td);
+			
+			td = document.createElement("td");
+			td.appendChild(passField);
+			tableRow.appendChild(td);
+			
+			td = document.createElement("td");
+			td.appendChild(submitButton);
+			tableRow.appendChild(td);
+			
+			loginTable.appendChild(tableRow);
+			loginForm.appendChild(loginTable);
+
+			document.getElementById("authorization_form_JS").appendChild(loginForm);
+		}
+
+		// Prints logout form.
+		function logoutForm() {
+
+			var logoutButton = document.createElement("input");
+			logoutButton.type = "button";
+			logoutButton.value = "Logout";
+			logoutButton.onclick = function() {
+				logoutAction();
+				window.location.reload();
+			};
+
+			var logoutTable = document.createElement("table");
+			var tableRow = document.createElement("tr");
+			
+			var td = document.createElement("td");
+			td.innerHTML = "<b>User:</b>";
+			tableRow.appendChild(td);
+			
+			td = document.createElement("td");
+			td.innerHTML = window.user;
+			tableRow.appendChild(td);
+			
+			td = document.createElement("td");
+			td.appendChild(logoutButton);
+			tableRow.appendChild(td);
+			
+			logoutTable.appendChild(tableRow);
+
+			document.getElementById("authorization_form_JS").appendChild(logoutTable);
+		}
+		
+		// Post request to login in linuxtesting.
+		function loginAction() {
+			var url = <?php echo json_encode($url);?> + "user/login";
+			name = document.getElementById('login_form').name.value;
+			pass = document.getElementById('login_form').pass.value;
+			$.ajax({
+				url: url,
+				type: "POST",
+				data: {"name": name, "pass": pass, "form_id": "user_login"},
+				async: true,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				success: function(data,status, xhr){
+		       	  if (data.search(/My account/gi) != -1)
+		       	  {
+		       	    alert("You have been authorized in linuxtesting successfully.");
+		       	    window.location.reload();
+		       	  }
+		       	  else
+		       	  {
+		       	    if (data.search(/Username field is required./gi) != -1)
+		       	      alert("Username field is required");
+		       	    else if (data.search(/Password field is required./gi) != -1)
+		       	      alert("Password field is required");
+		       	    else if (data.search(/Sorry, unrecognized username or password./gi) != -1)
+		       	      alert("Unrecognized username or password");
+		       	  }
+				},
+				/*error: function (request, status, error) {
+					alert("Can not send a post request to linuxtesting.");
+				}*/
+			});
+		}
+		
+		// Post request to logout in linuxtesting.
+		function logoutAction() {
+			var url = <?php echo json_encode($url);?> + "logout";
+			$.ajax({
+				url: url,
+				type: "POST",
+				async: false,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				success: function(data,status, xhr){
+					alert("You have been logged out from linuxtesting successfully.");
+				},
+				/*error: function (request, status, error) {
+					alert("Can not send a post request to linuxtesting.");
+				}*/
+			});
+		}
+		var kbId, traceId;
+		function publish(data) {
+			var newPublishedRecordId;
+			
+			// Check post request status.
+			var tmp = data.match(/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/);
+			if (tmp[1])
+			{
+				newPublishedRecordId = tmp[1];
+			}
+			else
+			{
+				alert("There was an error during uploading to linuxtesting.");
+				return false;
+			}
+			$.getJSON(
+		    '<?php echo $this->url(array('action' => 'publish-kb-record')); ?>'
+		    , { 'KB id': kbId , 'trace id': traceId , 'ppob id': newPublishedRecordId}
+		    , function(results) {
+		      if (results.errors == '') {
+		        alert("Publishing has been completed.");
+		        window.location.reload();
+		      }
+		      else
+		        alert($.makeArray(results.errors).join('\\n'));
+		    }
+		  );
+		}
+		
+		// Post request.
+		function postRequest(url, data, onSuccess) {
+			$.ajax({
+				url: url,
+				type: "POST",
+				data: data,
+				async: true,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				success: function(data,status, xhr){
+		       		//alert("Post request has been executed successfully.");
+		       		if (onSuccess)
+		       		  onSuccess(data);
+				},
+				/*error: function (request, status, error) {
+					//alert("Can not send a post request to linuxtesting.");
+				},*/
+			});
+		}
+		
+		// Get request.
+		function getRequest(url) {
+			var ajaxRequest = $.ajax({
+				url: url,
+				type: "GET",
+				async: false,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				success: function(data,status, xhr){
+					
+				},
+				error: function (request, status, error) {
+					alert("Can not send a post request to linuxtesting.");
+				}
+			});
+			return ajaxRequest.responseText;
+		}
+		
+		// Executes in page load.
+		window.onload = function()
+		{
+			checkIfLogin(); // Check if user logged in linuxtesting in current session.
+			if (window.user)
+			{
+				logoutForm();
+			}
+			else
+			{
+				loginForm();
+			}
+		};
+		
+	</script>
+
+	<p id="authorization_form_JS">
+	</p>
+
+	<?php
+}
 ?>
