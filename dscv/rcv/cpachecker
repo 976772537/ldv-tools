@@ -939,7 +939,7 @@ sub request_to_server
 	my $msg;
 
 	my $id = `@cpachecker_options`;
-	if(!defined $id || $id !~ /^\w+/ || $? != 0){
+	if(!defined $id || $id =~ /\s/ || $? != 0){
 		$msg = "Cannot obtain run id from the cloud, got instead: '$id'";
 		vsay('WARNING', $msg);
 		return $msg;
