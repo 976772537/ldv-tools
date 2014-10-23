@@ -337,7 +337,7 @@ sub get_timeout_opts
 	my ($redirected_stdout, $redirected_stderr, $timout_out) = @_;
 
 	if(!defined $timout_out || $timout_out eq ''){
-		$timout_out = $context->{timestats};
+		$timout_out = get_timeout_file();
 	}
 
 	# Guard the command line with the timeout script
