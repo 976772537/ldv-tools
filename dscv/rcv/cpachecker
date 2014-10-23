@@ -263,10 +263,13 @@ if(defined $ENV{RCV_REMOTE_HOST}){
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'configuration=' . $cpachecker_config );
 
-	# TODO: Implement this
 	# Choose log level
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'option=log.level=FINE' );
+
+	# Disable java assertions
+	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	@cpachecker_options = ( @cpachecker_options, 'disableJavaAssertions=true' );
 }
 else{
 	@cpachecker_options = ($cpachecker,@files);
@@ -546,7 +549,10 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 		usedMemory => undef,
 		memoryLimit => undef,
 		timeLimit => undef,
-		command => undef
+		command => undef,
+		termination_status => 'completed in limits',
+		signal => undef,
+		kernel_dumped_flag => undef
 	);
 
 	# Read WEb interface output file
@@ -581,11 +587,56 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 	$expected_results{usedMemory} = convert_memory('specified_mem', $expected_results{usedMemory});
 	$expected_results{memoryLimit} = convert_memory('specified_mem', $expected_results{memoryLimit});
 
+	# TODO: This code is far from perfect, but CPAchecker team promised
+	# that they will implement it on server side someday
+	# Determine termination status
+
+	# Extract exit code
+	my $original_code = $expected_results{exitCode};
+	if($original_code > 255){
+		$original_code = int($original_code / 256);
+	}
+	$expected_results{signal} = $original_code & 127;
+	$expected_results{kernel_dumped_flag} = $original_code & 128;
+	$expected_results{exitCode} = $original_code >> 8;
+
+	# Extract signal
+	vsay('TRACE', "Returned exit code, signal and dump flag: '$expected_results{exitCode}', '$expected_results{signal}', '$expected_results{kernel_dumped_flag}'");
+
+	if($expected_results{signal}){
+		$expected_results{termination_status} = "killed by signal: $expected_results{signal} (Killed)";
+		
+		if($expected_results{memoryLimit} == 0 
+			|| $expected_results{timeLimit} == 0
+			||  $expected_results{wallTime} == 0){
+			die "One of the resource limits was provided as 0";
+		}
+		else{
+			my $mem_pr = int(($expected_results{usedMemory} / $expected_results{memoryLimit}) * 100);
+			my $wall_pr = int(($expected_results{wallTime} / $expected_results{timeLimit}) * 100);
+			my $cpu_pr = int(($expected_results{cpuTime} /$expected_results{timeLimit}) * 100);
+
+			if( 99 <= $mem_pr ){
+				$expected_results{termination_status} = $expected_results{termination_status} . "\n\tmemory exhausted";
+				vsay('TRACE', "$mem_pr% of memory exhausted");
+			}
+			elsif( 99 <= $wall_pr ){
+				$expected_results{termination_status} = $expected_results{termination_status} . "\n\twall time exhausted";
+				vsay('TRACE', "$wall_pr% of wall time exhausted");
+			}
+			elsif( 99 <= $cpu_pr ){
+				$expected_results{termination_status} = $expected_results{termination_status} . "\n\ttime exhausted";
+				vsay('TRACE', "$cpu_pr% of cpu time exhausted");
+			}
+		}
+	}
+
 	my @values = (
 		$expected_results{memoryLimit},
 		$expected_results{timeLimit},
 		$expected_results{command},
 		$expected_results{exitCode},
+		$expected_results{termination_status},
 		$expected_results{wallTime},
 		$expected_results{cpuTime},
 		$expected_results{usedMemory}
@@ -601,6 +652,7 @@ Resource Manager execution status:
 	exit code (resource manager): 0
 Command execution status:
 	exit code: %s
+	%s
 Time usage statistics:
 	wall time: %s ms
 	cpu time: %s ms
