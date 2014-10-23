@@ -240,6 +240,10 @@ if(defined $ENV{RCV_REMOTE_HOST}){
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
 
+	# Add soft time limit as we do it locally
+	#@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
+	#@cpachecker_options = ( @cpachecker_options, 'option=limits.time.cpu=' . ($timelimit - 60) );
+
 	# Set heap size
 	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	@cpachecker_options = ( @cpachecker_options, 'heap=' . $heap_size );
@@ -297,10 +301,10 @@ else{
 	say $CPA_CFG "# this automaton defines which locations are the error locations";
 	say $CPA_CFG "specification = $tmpdir/$LDV_errloc_autom";
 
-	if($timelimit>60) {
-	    say $CPA_CFG "# Set CPAchecker internal time limit";
-	    say $CPA_CFG "limits.time.wall=".($timelimit - 60)."s";
-	}
+	#if($timelimit>60) {
+	#    say $CPA_CFG "# Set CPAchecker internal time limit";
+	#    say $CPA_CFG "limits.time.wall=".($timelimit - 60)."s";
+	#}
 
 	if ($no_cil)
 	{
@@ -957,23 +961,39 @@ sub request_to_server
 	vsay('TRACE', q{Check request status: '} . ( join ' ', @opts ) . q{'});
 	my $state;
 	my $ret;
-	while(!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING'){
+	my $last_state = '';
+	while(!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING'){
 		$state = `@opts`;
 		$ret = $?;
 		if($? != 0){
 			$msg = "Cannot check status of results for the id '$id'";
 			vsay('WARNING', $msg);
+			return $msg
 		}
-		sleep 0.5;
-		$total_sleeping = $total_sleeping + 0.5;
-	}
-	if($ret != 0){
-		return $msg;
-	}
-	if($state eq 'UNKNOWN'){
-		$msg = "Seems that server lost results for the id '$id'";
-		vsay('WARNING', $msg);
-		return $msg;
+		else{
+			if($last_state ne $state){
+				vsay('NORMAL', "Current state of the task: '$state'");
+				$last_state = $state;
+			}
+		}
+
+		if($state eq 'UNKNOWN'){
+			$msg = "Seems that server lost results for the id '$id'";
+			vsay('WARNING', $msg);
+			return $msg;
+		}
+		elsif($state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING'){
+			sleep 0.5;
+			$total_sleeping = $total_sleeping + 0.5;
+		}
+		elsif($state eq 'FINISHED'){
+			last;
+		}
+		else{
+			$msg = "Unsupported CPAchecker Web-interface response: '$state'";
+			vsay('WARNING', $msg);
+			return $msg;
+		}
 	}
 
 	# Download results and install them to the working dir
@@ -1022,7 +1042,7 @@ sub fetch_results
 	vsay('DEBUG', q{Download results: '} . ( join ' ', @opts ) . q{'});
 
 	my $code;
-	my $tries = 3;
+	my $tries = 5;
 	while((!defined $code || $code != 0) && $tries > 0){
 		my $data = `@opts`;
 		$code = $?;
@@ -1032,7 +1052,7 @@ sub fetch_results
 			close $fh or die "Cannot close file '$zip': $!";
 		}
 		else{
-			$msg = "Cannot fetch data, exit code '$?': $!";
+			$msg = "Cannot fetch data, exit code '$?'";
 			vsay('WARNING', $msg);
 			sleep 0.5;
 			$total_sleeping = $total_sleeping + 0.5;
