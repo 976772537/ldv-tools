@@ -606,11 +606,19 @@ sub docker_run
 	system(@cmd) and die "Cannot send dir '$full_path' to '$ENV{'RCV_REMOTE_HOST'}': $!";
 
 	# Then prepare control file content
+	my %limits = get_limits();
 	my %cfg_hash = (
 		'status' => $VERIFICATION_NESTED_STATE,
 		'image' => $docker_image,
+		'memlimit' => $limits{memlimit},
 		'command' => (join ' ', @args),
+		'priority' => 'LOW',
 	);
+
+	# There are two accepted priority levels: LOW and HIGH
+	if(defined $ENV{TASK_PRIORITY} && $ENV{TASK_PRIORITY} eq 'HIGH' ){
+		$cfg_hash{priority} = $ENV{TASK_PRIORITY};
+	}
 
 	# Prepare run command and control file
 	my $control_file = "$full_path/$CONTROL_FILE_NAME";
@@ -705,6 +713,8 @@ sub docker_run
 
 	return rcv_run(\@args, \%run_params);
 }
+
+sub get_new_tasks
 
 # Add stream automaton to the next run.  After the automata, you should specify one or more of strings 'stdout', 'stderr'.  The automata will be used to parse the streams you've specified for each of them.
 # You HAVE TO create new automata and add them before EACH run!
