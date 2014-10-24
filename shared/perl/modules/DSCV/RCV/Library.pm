@@ -172,24 +172,6 @@ sub preprocess_cpp
 			# Add the discriminator that it's a preprocess error trace to the description
 			unshift @answer,"PREPROCESS ERROR!\n";
 			$context->{preproces_error_log} = [@answer];
-			
-			# New format for cpp errors.
-			my $timestats_fname = $context->{timestats_file};
-			my @out = get_result_from_file(outputfile => $timestats_fname);
-			my @out_err = get_err_result_from_file(outputfile => $timestats_fname);
-			my @words_memlimit = split(" ", $out[1]);
-			my @words_timelimit = split(" ", $out[2]);
-			my @words_exit_code = split(" ", $out_err[4]);
-			my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
-===============================================
-Resource Manager settings:
-	memory limit: %s (%s bytes)
-	time limit: %s ms
-%s
-%s
-EOR
-
-			$context->{auto_description} = $descr_err;
 			die "PREPROCESS ERROR!";
 		};
 
@@ -460,30 +442,40 @@ sub rcv_run
 	my $result = 'OK';
 	my $mes = "";
 	my $timestats_fname = $context->{timestats_file};
-	my %timestats;
+	my %stats;
+	my $desc;
+	my $errcode = 0;
 	if ( -f $timestats_fname && ! -z $timestats_fname) {
-		
-		%timestats = parse_outputfile(outputfile => $timestats_fname);
-		$errcode = $timestats{"exit_code_script"};
-		if ($timestats{"memory_exhausted"} == "1")
+		%stats = parse_outputfile($timestats_fname);
+		$desc = create_verdict(%stats);
+		if ($stats{"RM_exit_code"})
 		{
-			$result = 'LIMITS';
-			$mes = "Memory exhausted";
+			$result = "Res-manager ERROR";
+			$mes = $stats{"RM_exit_code_desc"};
 		}
-		if ($timestats{"time_exhausted"} == "1")
+		elsif ($stats{"RM_signal"})
 		{
-			$result = 'LIMITS';
-			$mes = "Time exhausted";
+			$result = "Res-manager ERROR";
+			$mes = $stats{"RM_signal_desc"};
 		}
-		if ($timestats{"walltime_exhausted"} == "1")
+		elsif ($stats{"exit_code"})
 		{
-			$result = 'LIMITS';
-			$mes = "Wall time exhausted";
+			$result = "OK";
+			$mes = $stats{"exit_code_desc"};
 		}
-		if ($timestats{"signal_script"} > 0)
+		elsif ($stats{"wall_time_exhausted"} || $stats{"time_exhausted"} || $stats{"memory_exhausted"})
 		{
-			$result = 'SIGNAL';
+			$result = "LIMITS";
+			$mes = "Memory exhausted" if ($stats{"memory_exhausted"});
+			$mes = "Time exhausted" if ($stats{"time_exhausted"});
+			$mes = "Wall time exhausted" if ($stats{"wall_time_exhausted"});
 		}
+		elsif ($stats{"signal"})
+		{
+			$result = "SIGNAL";
+			$mes = $stats{"signal_desc"};
+		}
+		$errcode = $stats{"exit_code"};
 	}
 
 	# Just say something to the user
@@ -491,44 +483,9 @@ sub rcv_run
 
 	# Prepare a description boilerplate
 	# NOTE that we _rewrite_ the description if it's not the first run!  Motivation: if the first run has failed due to an artificially set up time limit, we do not want this time limit message to get into the final report.
-	my $descr;
-	my $script_exit_code = $timestats{"exit_code_script"};
-	my $script_signal = $timestats{"signal_script"} || 0;
-	my @out = get_result_from_file(outputfile => $timestats_fname);
-	my @out_err = get_err_result_from_file(outputfile => $timestats_fname);
-	my @words_memlimit = split(" ", $out[1]);
-	my @words_timelimit = split(" ", $out[2]);
-	my @words_exit_code = split(" ", $out_err[4]);
-	my $descr_err = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $words_timelimit[2], $out_err[4], $out_err[5] || "");
-===============================================
-Resource Manager settings:
-	memory limit: %s (%s bytes)
-	time limit: %s ms
-%s
-%s
-EOR
-
-
-	my $descr_ok = sprintf (<<EOR , $context->{limits}->{memlimit}, $words_memlimit[2], $out[2], $out[3], $out[4], $out[5], $out[6] || "");
-===============================================
-Resource Manager settings:
-	memory limit: %s (%s bytes)
-%s
-%s
-%s
-%s
-%s
-EOR
-	# Prepare the result
-	if ($script_exit_code == 0 && $script_signal == 0)
-	{
-		$context->{auto_description} = $descr_ok;
-	}
-	else
-	{
-		$context->{auto_description} = $descr_err;
-	}
 	
+	$context->{auto_description} = $desc;
+
 	$context->{auto_result} = ($result eq 'OK')? 'OK' : 'FAILED';
 
 	# Discard all the automatons, since they are now in final states.
@@ -733,169 +690,111 @@ sub add_automaton
 	}
 }
 
-sub get_err_result_from_file
-{
-	my $info = {@_};
-	my $timestats_fname = $info->{outputfile};
-	local $_;
-	open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
-	my $command_type = "-1";
-	my @result_string;
-	my $i = 0;
-	while(<STATS_FILE>) {
-		chomp;
-		next unless $_;
-		my @words = split(' ', $_);
-		if ($words[1] eq "Manager" && $words[2] eq "settings:")
-		{
-			$command_type = "0";
-		}
-		if ($words[1] eq "Manager" && $words[2] eq "execution")
-		{
-			$command_type = "1";
-		}
-		if ($words[0] eq "Command" && $words[1] eq "execution")
-		{
-			$command_type = "2";
-		}
-		if ($words[0] eq "Time" && $words[1] eq "usage")
-		{
-			$command_type = "3";
-		}
-		if ($command_type eq "0")
-		{
-			if ($words[0] ne "command:" && $words[0] ne "cgroup" && $words[0] ne "outputfile:")
-			{
-				$result_string[$i++] = $_;
-			}
-		}
-		if ($command_type eq "1")
-		{
-			$result_string[$i++] = $_;
-		}
-	}
-	close STATS_FILE;
-	return @result_string;
-}
-
-sub get_result_from_file
-{
-	my $info = {@_};
-	my $timestats_fname = $info->{outputfile};
-	local $_;
-	open(STATS_FILE, '<', $timestats_fname) or die "Can't open file with time statistics: $timestats_fname, $!";
-	my $command_type = "-1";
-	my @result_string;
-	my $i = 0;
-	while(<STATS_FILE>) {
-		chomp;
-		next unless $_;
-		my @words = split(' ', $_);
-		if ($words[1] eq "Manager" && $words[2] eq "settings:")
-		{
-			$command_type = "0";
-		}
-		if ($words[1] eq "Manager" && $words[2] eq "execution")
-		{
-			$command_type = "1";
-		}
-		if ($words[0] eq "Command" && $words[1] eq "execution")
-		{
-			$command_type = "2";
-		}
-		if ($words[0] eq "Time" && $words[1] eq "usage")
-		{
-			$command_type = "3";
-		}
-		if ($command_type eq "0")
-		{
-			if ($words[0] ne "command:" && $words[0] ne "cgroup" && $words[0] ne "outputfile:")
-			{
-				$result_string[$i++] = $_;
-			}
-		}
-		if ($command_type eq "2")
-		{
-			$result_string[$i++] = $_;
-		}
-	}
-	close STATS_FILE;
-	return @result_string;
-}
-
-#function for parse output file from res_manager
+# Parse res-manager output file.
 sub parse_outputfile
 {
-	my $info = {@_};
-	my $outputfile = $info->{outputfile};
+	my $outputfile = shift;
 	my %statistics;
-	local $_;
-	open(STATS_FILE, '<', $outputfile) or die "Can't open file with time statistics: $outputfile, $!";
-	my $return_code_section = "0"; # 0 - don't parse section; 1 - for res_manager; 2 - for command
-	my $signal_section = "0"; # 0 - don't parse section; 1 - for res_manager; 2 - for command
+	open(STATS_FILE, '<', $outputfile) or 
+		die "Can't open file with time statistics: $outputfile, $!";
 	while(<STATS_FILE>) {
-		chomp;
-		next unless $_;
-		my @words = split(" ", $_);
-		
-		if ($words[1] eq "Manager" && $words[2] eq "execution")
-		{
-			$return_code_section = "1";
-			$signal_section = "1";
-		}
-		if ($words[0] eq "Command" && $words[1] eq "execution")
-		{
-			$return_code_section = "2";
-			$signal_section = "2";
-		}
-		if ($words[0] eq "exit" && $return_code_section eq "1")
-		{
-			$statistics{"exit_code_script"} += $words[4];
-		}
-		if ($words[0] eq "exit" && $return_code_section eq "2")
-		{
-			$statistics{"exit_code"} += $words[2];
-		}
-		if ($words[0] eq "killed" && $signal_section eq "1")
-		{
-			$statistics{"signal_script"} += $words[5];
-		}
-		if ($words[0] eq "killed" && $signal_section eq "2")
-		{
-			$statistics{"signal"} += $words[3];
-		}
-		if ($words[0] eq "memory" && $words[1] eq "exhausted")
-		{
-			$statistics{"memory_exhausted"} += "1";
-		}
-		if ($words[0] eq "time" && $words[1] eq "exhausted")
-		{
-			$statistics{"time_exhausted"} += "1";
-		}
-		if ($words[0] eq "walltime" && $words[1] eq "exhausted")
-		{
-			$statistics{"walltime_exhausted"} += "1";
-		}
-		if ($words[1] eq "time:")
-		{
-			if ($words[0] eq "cpu")
-			{
-				$statistics{"ALL"} += int($words[2]);
-			}
-			else
-			{
-				$statistics{$words[0]} += int($words[2]);
-			}
-		}
-		if ($words[0] eq "peak")
-		{
-			$statistics{$words[1]} += int($words[3] / 1000);
-		}
+		/exit code \(resource manager\): (\d+)/ and $statistics{"RM_exit_code"} = $1;
+		/exit code \(resource manager\): (\d+) \((.+)\)/ and $statistics{"RM_exit_code_desc"} = $2;
+		/killed by signal \(resource manager\): (\d+)/ and $statistics{"RM_signal"} = $1;
+		/killed by signal \(resource manager\): (\d+) \((.+)\)/ and $statistics{"RM_signal_desc"} = $2;
+		/exit code: (\d+)/ and $statistics{"exit_code"} = $1;
+		/exit code: (\d+) \((.+)\)/ and $statistics{"exit_code_desc"} = $2;
+		/killed by signal: (\d+)/ and $statistics{"signal"} = $1;
+		/killed by signal: (\d+) \((.+)\)/ and $statistics{"signal_desc"} = $2;
+		/wall time: (\d+)/ and $statistics{"wall_time"} = $1;
+		/cpu time: (\d+)/ and $statistics{"cpu_time"} = $1;
+		/user time: (\d+)/ and $statistics{"user_time"} = $1;
+		/system time: (\d+)/ and $statistics{"system_time"} = $1;
+		/peak memory usage: (\d+)/ and $statistics{"memory"} = int($1 / 1000);
+		/memory limit: (\d+)/ and $statistics{"memlimit"} = $1;
+		/time limit: (\d+)/ and $statistics{"timelimit"} = $1;
+		/memory exhausted/ and $statistics{"memory_exhausted"} = 1;
+		/time exhausted/ and $statistics{"time_exhausted"} = 1;
+		/wall time exhausted/ and $statistics{"wall_time_exhausted"} = 1;
 	}
 	close STATS_FILE;
 	return %statistics;
 }
 
+# Checks parsed statistics from res-manager and returns description. 
+sub check_result
+{
+	my %stats = @_;
+	my @result = ();
+	if ($stats{"RM_exit_code"})
+	{
+		if ($stats{"RM_exit_code_desc"})
+		{
+			push @result, "ALERT: res-manager was exited with code: $stats{'RM_exit_code'} ($stats{'RM_exit_code_desc'})";
+		}
+		else
+		{
+			push @result, "ALERT: res-manager was exited with code: $stats{'RM_exit_code'}";
+		}
+	}
+	if ($stats{"RM_signal"})
+	{
+		if ($stats{'RM_signal_desc'})
+		{
+			push @result, "ALERT: res-manager was terminated by signal: $stats{'RM_signal'} ($stats{'RM_signal_desc'})";
+		}
+		else
+		{
+			push @result, "ALERT: res-manager was terminated by signal: $stats{'RM_signal'}";
+		}
+	}
+	push @result, "cpu time exhausted"
+		if ($stats{"time_exhausted"});
+	push @result, "wall time exhausted"
+		if ($stats{"wall_time_exhausted"});
+	push @result, "memory exhausted"
+		if ($stats{"memory_exhausted"});
+	if ($stats{"exit_code"})
+	{
+		if ($stats{"exit_code_desc"})
+		{
+			push @result, "command was exited with code: $stats{'exit_code'} ($stats{'exit_code_desc'})";
+		}
+		else
+		{
+			push @result, "command was exited with code: $stats{'exit_code'}";
+		}
+	}
+	if ($stats{"signal"})
+	{
+		if ($stats{"signal_desc"})
+		{
+			push @result, "command was terminated by signal: $stats{'signal'} ($stats{'signal_desc'})";
+		}
+		else
+		{
+			push @result, "command was terminated by signal: $stats{'signal'}";
+		}
+	}
+	push @result, "OK"
+		if (!@result);
+	return join ("\n\t", @result);
+}
+
+# Creates verdict based on Res-manager statistics.
+sub create_verdict
+{
+	my %stats = @_;
+	my $descr = sprintf (<<EOR , $stats{'memlimit'}, $stats{'timelimit'}, check_result(%stats));
+===============================================
+Resource Manager settings:
+	memory limit: %s bytes
+	time limit: %s ms
+Command execution status:
+	%s
+EOR
+	return $descr;
+}
 
 # Send the result to the outer world
 sub result
@@ -958,20 +857,14 @@ sub result
 	# TODO: this is the hack for name generation.  A more generic mechanism should superseed it later.
 	my $timestats_fname = $context->{timestats_file};
 	if ( -f $timestats_fname && ! -z $timestats_fname) {
-		
-		my %timestats = parse_outputfile(outputfile => $timestats_fname);
-		
-		for my $pat (keys %timestats) 
-		{
-			if ($pat eq "ALL" || $pat eq "wall" || $pat eq "system" || $pat eq "user")
-			{
-				XML::Twig::Elt->new('time',{name => $pat}, $timestats{$pat})->paste($rcvResultT);
-			}
-			if ($pat eq "memory")
-			{
-				XML::Twig::Elt->new('time',{name => $pat}, $timestats{$pat})->paste($rcvResultT);
-			}
-		}
+
+		my %timestats = parse_outputfile($timestats_fname);
+		XML::Twig::Elt->new('time',{name => "ALL"}, $timestats{'cpu_time'})->paste($rcvResultT);
+		XML::Twig::Elt->new('time',{name => "user"}, $timestats{'user_time'})->paste($rcvResultT);
+		XML::Twig::Elt->new('time',{name => "system"}, $timestats{'system_time'})->paste($rcvResultT);
+		XML::Twig::Elt->new('time',{name => "wall"}, $timestats{'wall_time'})->paste($rcvResultT);
+		XML::Twig::Elt->new('time',{name => "memory"}, $timestats{'memory'})->paste($rcvResultT);
+
 	} else {
 		XML::Twig::Elt->new('time',{name => 'ALL'},0)->paste($rcvResultT);
 	};
@@ -1072,7 +965,6 @@ sub cpp_one_file
 
 	# Measure time of CPP as well.  Add it to the common timestat file.
 	@cpp_args = DSCV::RCV::Utils::set_up_timeout({
-		pattern => '.*,CPP',
 		output => $context->{timestats_file},
 		},@cpp_args
 	);
@@ -1094,7 +986,11 @@ sub cpp_one_file
 		@cpp_args
 	);
 
-	my $result = $?;
+	# Get res-manager exit status.
+	my %stats = parse_outputfile($context->{timestats_file});
+	push @prep_err, "CPP component\n";
+	push @prep_err, create_verdict(%stats);
+	my $result = $stats{"RM_exit_code"} || $stats{"RM_signal"} || $stats{"exit_code"} || $stats{"signal"};
 
 	LDV::Utils::pop_instrument();
 	chdir $current_dir;
@@ -1139,8 +1035,7 @@ sub cil_one_file
 
 	# Measure time of CIL as well.  Add it to the common timestat file.
 	@cil_args = DSCV::RCV::Utils::set_up_timeout({
-		pattern => '.*,CIL',
-		output => $context->{timestats_file},
+		output => $context->{timestats_file}
 		},@cil_args
 	);
 
@@ -1165,7 +1060,11 @@ sub cil_one_file
 		@cil_args
 	);
 
-	my $result = $?;
+	# Get res-manager exit status.
+	my %stats = parse_outputfile($context->{timestats_file});
+	push @prep_err, "CIL component\n";
+	push @prep_err, create_verdict(%stats);
+	my $result = $stats{"RM_exit_code"} || $stats{"RM_signal"} || $stats{"exit_code"} || $stats{"signal"};
 
 	LDV::Utils::pop_instrument();
 	chdir $current_dir;

@@ -816,7 +816,7 @@ sub check_results_and_print_report()
 	$memlimit = $ENV{'RCV_MEMLIMIT'} if($ENV{'RCV_MEMLIMIT'});
 	my ($local_time_min, $local_time_hour, $local_time_day, $local_time_mon, $local_time_year) = (localtime)[1,2,3,4,5];
 	printf($final_results "name_of_runtask=$verifier;<br>timelimit=$timelimit;<br>memlimit=$memlimit;<br>%02d.%02d.%04d %02d:%02d<br>$comment_for_report\n",
-		$local_time_day, $local_time_mon, $local_time_year + 1900, $local_time_hour, $local_time_min);
+		$local_time_day, $local_time_mon + 1, $local_time_year + 1900, $local_time_hour, $local_time_min);
 	print($final_results "verifier=$verifier\n");
 
 	for(my $i = 1; $i <= $num_of_tasks; $i++)
@@ -859,7 +859,7 @@ sub check_results_and_print_report()
 			print($final_results "ideal_verdict=$task_map{$i}{'ideal'};old_verdict=$task_map{$i}{'verdict'};#");
 			print($final_results "#") if($task_map{$num_of_tasks}{'verdict_type'} == 2);
 			print($final_results "$task_map{$i}{'comment'}");
-			print($final_results "<@>failed before RI");
+			print($final_results "<@>failed before or at RI");
 			print($final_results "\n");
 		}
 		if(($task_map{$i}{'main'} eq 'n/a') or ($task_map{$i}{'rule'} eq 'n/a'))

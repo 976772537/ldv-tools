@@ -592,6 +592,9 @@ sub create_configs($$)
     }
   }
 
+  # To fix bug 4402 http://forge.ispras.ru/issues/4402.
+  $isconfig = 1;
+
   return @config_dir;
 }
 
@@ -1526,6 +1529,12 @@ sub process_cmd_cc()
 
     # Keep CIF intermediate files for debug levels higher then DEBUG.
     push(@keep, '--keep') if (LDV::Utils::check_verbosity('DEBUG'));
+    
+    # To fix issue #1285 (http://forge.ispras.ru/issues/1285).
+    foreach (@opts)
+    {
+      s/\"/\\\"/g;
+    }
 
     my @args = (
       $ldv_timeout_script,
