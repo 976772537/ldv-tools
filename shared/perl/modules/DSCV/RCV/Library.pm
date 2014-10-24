@@ -714,8 +714,6 @@ sub docker_run
 	return rcv_run(\@args, \%run_params);
 }
 
-sub get_new_tasks
-
 # Add stream automaton to the next run.  After the automata, you should specify one or more of strings 'stdout', 'stderr'.  The automata will be used to parse the streams you've specified for each of them.
 # You HAVE TO create new automata and add them before EACH run!
 sub add_automaton
