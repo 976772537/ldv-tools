@@ -27,14 +27,15 @@ $results = $this->entries;
 $globals = $results['Globals'];
 
 $errorTraceFile = APPLICATION_PATH . "/../data/trace/processed";
-
+$et;
 // Print error if so.
 if (isset($this->error)) {
   echo $this->error;
+  $et=$this->error;
 }
 else {
   print_r($results['Error trace']->errorTrace);
-
+  $et=$results['Error trace']->errorTrace;
   // Print KB records relevant to a given error trace.
   $kbRecords = $results['Knowledge base'];
 
@@ -139,10 +140,9 @@ else {
 
 	  if (publishedRecord)
 	  {
-	    var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
-      var url_to_be_removed = "http://torvalds.intra.ispras.ru:8080/php/impl_reports_admin";
-	    // Check for unreported.
-      var data = getRequest(url_to_be_removed + "?action=details_ppob&num=" + publishedRecord);
+	  var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
+	  // Check for unreported.
+      var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
       var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
       if (tmp[4] != 'Unreported')
       {
@@ -153,7 +153,7 @@ else {
       
       // Remove form linuxtesting.
       var sendData = {};
-      postRequest(url_to_be_removed + "?action=del_ppob&num=" + publishedRecord, sendData);
+      postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);
     }
     
     // Remove from KB.
@@ -173,7 +173,7 @@ else {
       return false;
     });
 
-	  // Publish action.
+	// Publish action.
     $('.SETVKBPublishKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       kbId = rowCur.find('.SETVKBId').text();
@@ -213,14 +213,13 @@ else {
       }
       
       var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
-      var url_to_be_removed = "http://torvalds.intra.ispras.ru:8080/php/impl_reports_admin";
 
-      var etFile = <?php echo json_encode($errorTraceFile);?>;
+      var etFile = <?php echo json_encode($et);?>;
 
       if (publishedRecord) // Update existed Trace into linuxtesting.
       {
         // Check for unreported.
-        var data = getRequest(url_to_be_removed + "?action=details_ppob&num=" + publishedRecord);
+        var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
         var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
         if (tmp[4] != 'Unreported')
         {
@@ -231,7 +230,7 @@ else {
         
         // Post request for update.
         var sendData = {"verdict": verdict, "status": status, "sync_status": "KB-Synchronized"};
-        data = postRequest(url_to_be_removed + "?action=update_ppob&num=" + publishedRecord, sendData, publish);
+        data = postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData, publish);
       }
       else // Insert new Trace into linuxtesting.
       {
@@ -248,7 +247,7 @@ else {
           'error_trace_file': etFile,
           'sync_status': 'KB-Synchronized',
           'link': document.URL};
-        postRequest(url_to_be_removed + "?action=submit_ppob", sendData, publish);
+        postRequest(url + "?action=submit_ppob", sendData, publish);
       }
 
       return false;
@@ -286,10 +285,9 @@ else {
       }
       
       var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
-      var url_to_be_removed = "http://torvalds.intra.ispras.ru:8080/php/impl_reports_admin";
 
       // Get verdict, status and sync_status from linuxtesting.
-      var data = getRequest(url_to_be_removed + "?action=details_ppob&num=" + publishedRecord);
+      var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
       var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
       if (!tmp[4])
       {
@@ -322,7 +320,7 @@ else {
       if (syncStatus != "Synchronized")
       {
       	var sendData = {'sync_status': 'KB-Synchronized'};
-        postRequest(url_to_be_removed + "?action=update_ppob&num=" + publishedRecord, sendData);
+        postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData);
       }
 
 	  // Update KB and run kb-recalc.
@@ -706,7 +704,7 @@ else {
       if ($columnName == 'Published record')
       {
         if ($kbCellValue)
-        	$link = "http://torvalds:8080/php/bug?id=$kbCellValue"; //TODO: change to "$ltBugURL?id=$kbCellValue"
+        	$link = "$ltBugURL?id=$kbCellValue";
         else
         	$link = "";
         $kbCellValue = "<a href='$link'>$link</a>";

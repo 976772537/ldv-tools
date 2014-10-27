@@ -412,6 +412,7 @@ if ($isAut)
 				type: "POST",
 				data: {"name": name, "pass": pass, "form_id": "user_login"},
 				async: true,
+				
 				beforeSend: function(xhr){
 					xhr.withCredentials = true;
 				},
@@ -436,7 +437,6 @@ if ($isAut)
 				}*/
 			});
 		}
-		
 		// Post request to logout in linuxtesting.
 		function logoutAction() {
 			var url = <?php echo json_encode($url);?> + "logout";
@@ -499,9 +499,9 @@ if ($isAut)
 		       		if (onSuccess)
 		       		  onSuccess(data);
 				},
-				/*error: function (request, status, error) {
+				error: function (request, status, error) {
 					//alert("Can not send a post request to linuxtesting.");
-				},*/
+				},
 			});
 		}
 		
@@ -518,7 +518,7 @@ if ($isAut)
 					
 				},
 				error: function (request, status, error) {
-					alert("Can not send a post request to linuxtesting.");
+					alert("Can not send a get request to linuxtesting.");
 				}
 			});
 			return ajaxRequest.responseText;

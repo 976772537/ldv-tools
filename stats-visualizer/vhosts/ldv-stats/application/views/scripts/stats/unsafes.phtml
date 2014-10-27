@@ -66,13 +66,13 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
 <script type='text/javascript'>
   $(document).ready(function() {
 
-    // Delete action.
+        // Delete action.
     $('.SETVKBDeleteKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 7);
-      var kbId = rowCur.find('.SETVKBKBid').text();
+      var kbId = rowCur.find('.SETVKBId').text();
 	  var isAut = <?php echo json_encode("$isAut"); ?>;
 
       // Do not send any requests to linuxtesting if Analytics Center don't has authorization module.
@@ -96,20 +96,31 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
         alert('Something goes wrong while KB record was deleted');
       }});
 
-      $.getJSON(
+	  if (publishedRecord)
+	  {
+	  var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
+	  // Check for unreported.
+      var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
+      var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
+      if (tmp[4] != 'Unreported')
+      {
+        alert("Status of Trace # " + publishedRecord + " is no longer 'Unreported'.\n" +
+          "In order to changed it please contact the Expert with access to linuxtesting");
+		    return false;
+      }
+      
+      // Remove form linuxtesting.
+      var sendData = {};
+      postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);
+    }
+    
+    // Remove from KB.
+    $.getJSON(
         '<?php echo $this->url(array('action' => 'delete-kb-record')); ?>'
-        , { 'KB id': kbId , 'ppob id': publishedRecord }
+        , { 'KB id': kbId }
         , function(results) {
           if (results.errors == '') {
-            if (publishedRecord)
-            {
-              alert("Error trace # " + publishedRecord + " successfully has been deleted in linuxtesting " +
-              	"along with KB record # " + kbId + ".");
-            }
-            else
-            {
-              alert("KB record # " + kbId + " successfully has been deleted.");
-            }
+            alert("KB record # " + kbId + " successfully has been deleted.");
             window.location.reload();
           }
           else
@@ -199,7 +210,7 @@ if ($page == 'Table') {
 			if ($columnName == 'Published record')
 			{
 				if ($kbCellValue)
-					$link = "http://torvalds:8080/php/bug?id=$kbCellValue"; //TODO: change to "$ltBugURL?id=$kbCellValue"
+					$link = "$ltBugURL?id=$kbCellValue";
 				else
 					$link = "";
 				$kbCellValue = "<a href='$link'>$link</a>"; 
