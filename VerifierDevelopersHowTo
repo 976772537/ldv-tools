@@ -132,7 +132,7 @@ CPACHECKER_CONFIG=/path/to/config.cfg
   adjusted in it!
   Sorry, the file name must be absolute.
 
-CPACHECKER_OPTIONS=
+CPACHECKER_OPTIONS='-setprop limits.time.wall=240s'
   Additional options for CPAchecker.  You should not set "-config" option
   here.
 
