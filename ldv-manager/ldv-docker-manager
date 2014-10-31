@@ -25,6 +25,7 @@ use Env qw(DOCKER_OPTS);
 use File::stat;
 use File::Touch;
 use FindBin;
+use Fcntl qw(:flock);
 use threads;
 use threads::shared;
 use File::Pid;
@@ -47,10 +48,13 @@ my $task_limit = 1;
 my $queue_keep = 0;
 my $cnt_workdir = '/work';
 my $debug_level = 'NORMAL';
+my @pool;
+my $thread_flag = 0;
 
 # Constants
 Readonly::Scalar my $queue_file => '.queued';
 Readonly::Scalar my $pidlock => '/var/run/ldv_docker_daemon.pid';
+Readonly::Scalar my $lockfile => '/tmp/ldv-docker-manager.lock';
 
 # Shared vars
 my $free_mem : shared = 0;
@@ -66,27 +70,33 @@ my @docker_opts = (
     '--privileged=true',
 );
 
-# TODO: Replace this code, because this code does not
-# work because of bug in File::Pid
-#my $pidfile = File::Pid->new({
-#    file => $pidlock,
-#});
+# Lock file
+open(my $fhpid, '>', $lockfile) or die "Cannot open '$lockfile': $!";
+flock($fhpid, LOCK_EX|LOCK_NB) or die "Cannot lock '$lockfile': $!";
 
-#if ( my $num = $pidfile->running ) {
-#    die "LDV Docker Manager is already running: '$num'\n";
-#}
-#else{
-#    $pidfile->write 
-#        or die "Cannot write process file '$pidlock'";
-#}
-
-#$SIG{INT} = sub { 
-#    print_debug_normal("Release pidfile '$pidlock'");
-#    $pidfile->remove;
-#    die "Caught a sigint $!" 
-#};
+$SIG{INT} = sub { 
+    if(!$thread_flag){
+        print_debug_debug("Joining threads");
+        foreach my $thr (@pool){
+            # Send a signal to a thread
+            $thr->kill('SIGUSR1');
+            $thr->join;
+        }
+        print_debug_debug("Remove created queue locks");
+        foreach my $path (@verification_queue){
+            if(-f $path.'/'.$queue_file){
+                print_debug_trace("Removing lock '$path/$queue_file'");
+                remove_tree $path.'/'.$queue_file;
+            }
+        }
+        print_debug_normal("Unlock '$lockfile'");
+        close $fhpid;
+        die "Killed by signal";
+    }
+};
 
 main();
+close $fhpid;
 exit 0;
 
 ##############################################################################
@@ -148,9 +158,21 @@ sub main {
 sub run_tasks{
     print_debug_normal("Run worker threads: '$task_limit'");
 
-    my @pool = map{
+    @pool = map{
         threads->create( 
             sub {
+                # Wait for a signal
+                my $lock;
+                $thread_flag = 1;
+                $SIG{USR1} = sub {
+                    print_debug_debug("Terminating working thread");
+                    if(defined $lock && -f $lock){
+                        print_debug_trace("Removing lock '$lock'");
+                        remove_tree $lock;
+                    }
+                    threads->exit();
+                };
+
                 # Thread will loop until no more work
                 while (1) {
                     if(scalar @verification_queue == 0){
@@ -166,6 +188,7 @@ sub run_tasks{
 
                         # If this file exists
                         if(defined $task_path){
+                            $lock = $task_path.'/'.$queue_file;
                             print_debug_debug("Going to process task in '$task_path'");
                             if(-f "$task_path/$control_file"){
                                 # Extract options
@@ -199,11 +222,12 @@ sub run_tasks{
                                 }
                                 else{
                                     print_debug_warning("Cannot process '$task_path'");
-                                }                                
+                                }   
                             }
                             else{
                                 print_debug_warning("Task file does not exist in '$task_path'");
                             }
+                            $lock = undef;                             
                         }
                     }
                 }
