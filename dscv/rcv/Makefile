@@ -138,7 +138,8 @@ cpachecker_tar=$(cpachecker_dist).tar.bz2
 # CPAchecker compilation
 .PHONY: cpachecker-build
 
-cpachecker-build: 
+cpachecker-build:
+	rm -f $(cpachecker_dir)/$(cpachecker_tar) 
 	cd $(cpachecker_dir) && ant tar
 
 # Installation of CPAchecker submodule
