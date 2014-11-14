@@ -864,7 +864,12 @@ static void print_output(int exit_code, int signal, execution_statistics *exec_s
 	{
 		for (int i = 0; params.command[i] != NULL; i++)
 		{
-			fprintf(fp, "%s ", params.command[i]);
+			if (strcmp(params.command[i], "") == 0)
+				fprintf(fp, "\"\" ");
+			else if (strstr(params.command[i], " ") != NULL)
+				fprintf(fp, "\"%s\" ", params.command[i]);
+			else
+				fprintf(fp, "%s ", params.command[i]);
 		}
 	}
 

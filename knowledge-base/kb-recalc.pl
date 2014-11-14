@@ -305,18 +305,13 @@ sub generate_cache($$)
   {
     # Before fast initialization of the whole KB cache by means of db tools
     # we need to delete the whole cache. Also we need to delete those records
-    # from KB cache that corresponds to KB entities with updated patterns or
-    # to new launches.
+    # from KB cache that corresponds to KB entities with updated patterns.
     if ($kb_ids_ref)
     {
       delete_cache($kb_ids_ref, undef)
         if ($opt_update_pattern);
     }
-    elsif ($launch_ids_ref)
-    {
-      delete_cache(undef, $launch_ids_ref)
-    }
-    else
+    elsif (not $launch_ids_ref)
     {
       delete_cache(undef, undef);
     }

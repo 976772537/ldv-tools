@@ -5,7 +5,7 @@ use DBI;
 use English;
 use FindBin;
 use Env
-  qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME LDV_UPLOAD_DEBUG LDV_DEBUG);
+  qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME LDV_TASK_ID LDV_UPLOAD_DEBUG LDV_DEBUG);
 use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(posix_default no_ignore_case);
 use strict;
@@ -85,7 +85,15 @@ sub add_processes(%);
 
 sub init_problems();
 
+# Run kb-recalc for uploading specified data.
+# args: nothing.
+# retn: file descriptor for writing into child process.
 sub run_kb_recalc();
+
+# Wait for kb-recalc to finish.
+# args: string with all ids, which were send to the kb-recalc child process.
+# retn: nothing.
+sub wait_for_kb_recalc($);
 
 ################################################################################
 # Global variables.
@@ -107,6 +115,9 @@ my @ldv_components =
 # Names of the verifiers.
 my @ldv_verifiers = ( 'blast', 'cbmc', 'cpachecker', 'ufo' );
 
+# Current file descriptor for writing into kb-recalc child process.
+my $kb_recalc_pipe;
+
 ################################################################################
 # Main section.
 ################################################################################
@@ -118,8 +129,6 @@ my @uploaded_files = parse_command_line();
 my %problems_functions = init_problems();
 
 my $dbh = connect_to_db();
-
-my $kb_recalc_pipe = run_kb_recalc();
 
 for (@uploaded_files) {
     my $xml_file = get_xml_file($_);
@@ -137,11 +146,11 @@ sub connect_to_db() {
     # Check environment variables.
     if ( !$LDVDB )
     {
-    	die "Error: Database was not specified. Please specify it with environment variable LDVDB.";
+        die "Error: Database was not specified. Please specify it with environment variable LDVDB.";
     }
     if ( !$LDVUSER )
     {
-    	die "Error: User was not specified. Please specify it with environment variable LDVUSER.";
+        die "Error: User was not specified. Please specify it with environment variable LDVUSER.";
     }
     # Connect to Database.
     my $db_handler =
@@ -168,6 +177,10 @@ sub parse_command_line() {
 
     my $print_help  = 0;
     my @fnames_by_option = ();
+
+    # Sanity check: options LDV_TASK_ID and LDV_TASK_NAME should not be specified both at once.
+    die "Sanity check failed: options LDV_TASK_ID and LDV_TASK_NAME should not be specified both at once." 
+        if ($LDV_TASK_ID && $LDV_TASK_NAME);
 
     # Parsing options.
 # TODO: one may optionally provide a password through command-line options. See mysql --help (-p --password).
@@ -203,6 +216,8 @@ sub parse_command_line() {
         $db_password = ReadLine 0;
         chomp $db_password;
         ReadMode 'normal';
+        # Set this passwor for KB Recalc.
+        $ENV{LDVDBPASSWD} = $db_password;
     }
 
     # Get options after "--" as other reports to be uploaded.
@@ -249,9 +264,10 @@ ENVIRONMENT VARIABLES
     debug information printings. Each next level includes all previous
     levels and its own messages.
 
-  LDV_TASK_NAME
-    The name of the task, which is uploaded to the data base.
+  LDV_TASK_NAME, LDV_TASK_ID
+    The name (id) of the task, which is uploaded to the data base.
     Uses when a few files should be uploaded as one task.
+  
 
   LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD
     Keeps settings (host, database, user and password) for connection
@@ -341,17 +357,63 @@ sub parse_xml_file($) {
 
 sub run_kb_recalc()
 {
-    $OUTPUT_AUTOFLUSH = 1;
-    open my $kb_recalc_pipe, "|kb-recalc.pl --init-cache --new-launch"
-      // die "Can't fork to run kb-recalc: $!\n";
-    return $kb_recalc_pipe;
+    # Manually create a pipe for redirecting input into child process.
+    my $read_hdl;
+    my $write_hdl;
+
+    print_debug_debug("Running kb-recalc");
+    pipe ($read_hdl, $write_hdl) 
+        or die "Can not create a pipe";
+
+    # Set aftoflash for created pipe so it could work parallel
+    # (it still will be waiting for commit though).
+    my $old_fh = select($write_hdl);
+    $| = 1;
+    select($old_fh);
+
+    # Create a child process for kb-recalc.
+    if (fork() == 0) # Child process.
+    {
+        close $write_hdl;
+        STDIN->fdopen($read_hdl, 'r');
+        exec ("kb-recalc.pl --init-cache --new-launch")
+            or die "Can not run kb-recalc";
+
+        # Child process can not get there.
+    }
+    close $read_hdl;
+    
+    # Return file descriptor for writing into child process.
+    return $write_hdl;
 }
 
-sub stop_kb_recalc()
+sub wait_for_kb_recalc($)
 {
-    if ($kb_recalc_pipe)
+    my $sent_ids = shift;
+
+    # Send kb-recalc EOF so it could stop waiting for more ids.
+    print_debug_debug("Closing kb-recalc descriptor");
+    close $kb_recalc_pipe;
+
+    # Wait for child process (kb-recalc).
+    print_debug_normal("Waiting for kb-recalc to finish..");
+    wait();
+
+    # Check kb-recalc finish status.
+    if ($?) # There was an error during kb-recalc execution.
     {
-        close $kb_recalc_pipe;
+        my $command = "LDVDB=$LDVDB LDVUSER=$LDVUSER LDVDBHOST=$db_host kb-recalc.pl --init-cache --new-launch $sent_ids";
+        print_debug_warning("Kb-recalc has been finished with an error status '$?'");
+        print_debug_warning("Please manually restart kb-recalc using command");
+        if ($db_password)
+        {
+            $command = "LDVDBPASSWD=<your password> " . $command;
+        }
+        print_debug_warning($command);
+    }
+    else
+    {
+        print_debug_normal("Kb-recalc has been finished successfully");
     }
 }
 
@@ -359,9 +421,12 @@ sub upload($$) {
     my $info     = {@_};
     my $xml_data = $info->{xml_data};
 
+    # Ids of launches, which require kb-recalc.
+    my $sent_ids = "";
+
     # Unique ids.
     my $environment_id;
-    my $task_id;
+    my $task_id = $LDV_TASK_ID || '';
 
     # Unique names.
     my $version =
@@ -371,7 +436,7 @@ sub upload($$) {
     my $driver_origin = $xml_data->{launch_info}->{driver_origin};
     my $username      = $xml_data->{launch_info}->{task}->{username};
     my $timestamp;
-    my $task_name = $LDV_TASK_NAME || 'NULL';    # LDV_TASK_NAME (should not be 'NULL').
+    my $task_name = $LDV_TASK_NAME || '';
 
     # Using format "yyyy-mm-dd".
     # In report month can be only one digit ("8" instead of "08").
@@ -397,15 +462,11 @@ sub upload($$) {
     print_debug_debug("driver_origin=$driver_origin");
     print_debug_debug("username=$username");
     print_debug_debug("timestamp=$timestamp");
-    print_debug_debug("task_name=$task_name");
 
     my $tmp_res;    # Result for DB queries.
-
-    # Lock DB.
-    print_debug_normal("Locking data base");
-    sql_query(
-"LOCK TABLES environments WRITE, drivers WRITE, rule_models WRITE, toolsets WRITE, scenarios WRITE, tasks WRITE, launches WRITE, traces WRITE, sources WRITE, stats WRITE, processes WRITE, problems WRITE, problems_stats WRITE\n"
-    );
+    # Lock tables.
+    print_debug_normal("Acquiring lock 'ldv_upload_lock'");
+    sql_query("SELECT GET_LOCK('ldv_upload_lock', -1);");
 
     # Start transaction.
     print_debug_normal("Starting commit");
@@ -415,11 +476,30 @@ sub upload($$) {
 
     # Processing tasks table.
     $tmp_res = sql_select(
-        "SELECT id FROM tasks WHERE (tasks.name = '$task_name') LIMIT 1;");
-    if ( $tmp_res == 0 || !$task_name || $task_name eq 'NULL') {
-        $tmp_res = sql_insert(
+        "SELECT id FROM tasks WHERE (tasks.name = '$task_name' or tasks.id = '$task_id') LIMIT 1;");
+
+    # Sanity check: if specified unexisted LDV_TASK_ID - stop uploading.
+    die "Sanity check failed: specified task id '$task_id' (by means of LDV_TASK_ID) does not exist."
+        if ($tmp_res == 0 && $task_id);
+
+    if ( $tmp_res == 0 ) {
+        if ($task_name)
+        {
+            $tmp_res = sql_insert(
 "INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin, name) VALUES ('$username', '$timestamp', '$driver', '$driver_origin', '$task_name');"
-        );
+            );
+        }
+        else
+        {
+            $tmp_res = sql_insert(
+"INSERT INTO tasks (username, timestamp, driver_spec, driver_spec_origin) VALUES ('$username', '$timestamp', '$driver', '$driver_origin');"
+            );
+        }
+        print_debug_debug("New task id '$tmp_res' will be used");
+    }
+    else
+    {
+        print_debug_debug("Old task id '$tmp_res' will be used");
     }
     $task_id = $tmp_res;    # FK for task.
 
@@ -517,7 +597,7 @@ sub upload($$) {
 SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_toolset_id and environment_id = $environment_id and (rule_model_id = $cur_model_id or '$cur_model_id' = 'NULL') and scenario_id = $cur_scenario_id and task_id = $task_id) LIMIT 1;");
         my $is_update = ($tmp_res != 0);
 
-		next if ($cur_model_id eq 'NULL' and $is_update); # Do not update launches with NULL rules.
+        next if ($cur_model_id eq 'NULL' and $is_update);
 
         if ($is_update) # Update.
         {
@@ -528,36 +608,36 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
         {
             $cur_launch_id = sql_insert(
 "INSERT INTO launches (driver_id, toolset_id, environment_id, rule_model_id, scenario_id, task_id, trace_id) VALUES ($cur_driver_id, '$cur_toolset_id', '$environment_id', $cur_model_id, $cur_scenario_id, '$task_id', $cur_trace_id);\n"
-			);
-		}
+            );
+        }
 
-		# Error trace file.
-		my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
-		if ( $cur_verdict eq "UNSAFE" ) {
-			open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
-				or die "Can't open file $tmpdir/traces/$cur_trace: $!";
-			my @error_trace = <TRACE_FILE>;
-			close TRACE_FILE;
-			$et = $dbh->quote( join( "", @error_trace ) );
-		}
+        # Error trace file.
+        my $et = '\'\''; # Representation of null for compatibility with $dbh->quote(...).
+        if ( $cur_verdict eq "UNSAFE" ) {
+            open TRACE_FILE, "<", "$tmpdir/traces/$cur_trace"
+                or die "Can't open file $tmpdir/traces/$cur_trace: $!";
+            my @error_trace = <TRACE_FILE>;
+            close TRACE_FILE;
+            $et = $dbh->quote( join( "", @error_trace ) );
+        }
 
-		# Processing traces table.
-		sql_query(
+        # Processing traces table.
+        sql_query(
 "INSERT INTO traces (id, launch_id, result, error_trace, verifier, build_id, maingen_id, dscv_id, ri_id, rcv_id) VALUES ($cur_trace_id, '$cur_launch_id', '$cur_verdict', $et, '$cur_verifier', $cur_stats_id, $cur_stats_id+1, $cur_stats_id+2, $cur_stats_id+3, $cur_stats_id+4);\n"
-		);
+        );
 
-		# Source files.
-		if ( $cur_sources ne '' ) {
-			foreach my $source ( values $cur_sources ) {
-				# Trace file.
-				open SOURCE_FILE, "<", "$tmpdir/sources/$source"
-					or die "Can't open file $tmpdir/sources/$source: $!";
-				my @source_text = <SOURCE_FILE>;
-				close SOURCE_FILE;
-				my $src = $dbh->quote( join( "", @source_text ) );
+        # Source files.
+        if ( $cur_sources ne '' ) {
+            foreach my $source ( values $cur_sources ) {
+                # Trace file.
+                open SOURCE_FILE, "<", "$tmpdir/sources/$source"
+                    or die "Can't open file $tmpdir/sources/$source: $!";
+                my @source_text = <SOURCE_FILE>;
+                close SOURCE_FILE;
+                my $src = $dbh->quote( join( "", @source_text ) );
 
-				# Processing sources table.
-				sql_query(
+                # Processing sources table.
+                sql_query(
 "INSERT INTO sources (trace_id, name, contents) VALUES ('$cur_trace_id', '$source', $src);\n"
                 );
             }
@@ -565,7 +645,14 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
 
         # Send id of unsafe launch to the child process (run kb-recalc for this id).
         if ( $cur_verdict eq "UNSAFE" ) {
-            print $kb_recalc_pipe "$cur_launch_id\n";
+            if (!$sent_ids)
+            {
+                $sent_ids = $cur_launch_id;
+            }
+            else
+            {
+                $sent_ids .= ",$cur_launch_id";
+            }
         }
 
         # Processing stats, processes, problems, problems_stats tables for each component.
@@ -592,14 +679,26 @@ SELECT id FROM launches WHERE (driver_id = $cur_driver_id and toolset_id = $cur_
     }
     $dbh->commit;
     print_debug_normal("Commit has been completed");
+    
+    print_debug_normal("Releasing lock 'ldv_upload_lock'");
+    sql_query("SELECT RELEASE_LOCK('ldv_upload_lock');");
 
-    print_debug_normal("Unlocking data base");
-    sql_query("UNLOCK TABLES;\n");
+    # Run KB-recalc and get file descriptor for writing there.
+    
+    $kb_recalc_pipe = run_kb_recalc();
+
+    foreach my $id (split(',', $sent_ids))
+    {
+        print $kb_recalc_pipe "$id\n";
+    }
+
+    # Wait for kb-recalc child process.
+    wait_for_kb_recalc($sent_ids);
 
     print_debug_normal(
         "Results were successfully uploaded to database. They can be found at");
 
-    my $url_without_password = "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/password";
+    my $url_without_password = "http://$db_host:8999/stats/index/profilename/default/name/$LDVDB/user/$LDVUSER/host/$db_host/filter/TA.id=$task_id/password";
     if ( $db_password eq '' ) {
         print_debug_normal(
 "$url_without_password/no/"
@@ -666,10 +765,11 @@ sub add_component(%) {
             $cur_status = 1 if $component_name eq 'build-cmd-extractor';
         }
         my $cur_time = '0';
-        my $cur_desc = '\'\'';
+        my $cur_desc = '';
+        my $cur_desc_quote = '\'\'';
         if ( $component->{desc} ) {
             $cur_desc = $component->{desc};
-            $cur_desc = $dbh->quote($cur_desc);
+            $cur_desc_quote = $dbh->quote($cur_desc);
         }
 
         # Changes for table stasts;
@@ -682,13 +782,13 @@ sub add_component(%) {
             my $cur_loc = $component->{loc} || 0;
             sql_query(
 "INSERT INTO stats (id, trace_id, kind, success, loc, time, description)
-                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc);\n"
+                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_loc, $cur_time, $cur_desc_quote);\n"
             );
         }
         else {
             sql_query(
 "INSERT INTO stats (id, trace_id, kind, success, time, description)
-                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_time, $cur_desc);\n"
+                VALUES ($cur_stats_id, $cur_trace_id, '$component_name_stats', $cur_status, $cur_time, $cur_desc_quote);\n"
             );
         }
 
@@ -726,7 +826,7 @@ sub add_problems(%) {
     my $cur_desc     = $info{desc};
     my $cur_stats_id = $info{stats_id};
     my @result       = ();
-    if ( $cur_desc ne '\'\'' )    # In case of build failed.
+    if ( $cur_desc )    # In case of build failed.
     {
         foreach my $arg (@ldv_components) {
             if ( $component eq $arg ) {
@@ -848,13 +948,17 @@ sub change_problems_text($) {
     $text =~ s/ and print "/ and push(\@result,  "/g;
     $text =~ s/";\n/");\n/g;
     $text =~ s/while \(<>\){/foreach\(\$cur_desc\){/g;
-    $text =~ s/'/\\\\'/g;
+    #$text =~ s/'/\\\\'/g;
     return $text;
 }
 
 # Actions which should be completed in case of any errors or after finishing uploading.
 END {
-    stop_kb_recalc();
+    if ($kb_recalc_pipe)
+    {
+        # File descriptor should be closed in order to stop kb-recalc in case of any unexpected end.
+        close $kb_recalc_pipe;
+    }
     disconnect_from_db();
 }
 
