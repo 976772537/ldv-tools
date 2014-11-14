@@ -15,17 +15,22 @@
  * limitations under the License.
  */
 
-// Calculate original widths of text fields just once (they are set up in
-// CSS).
+// Calculate original widths and heights of text fields just once (they
+// are set up in CSS).
 var originalErrorTraceWidth;
+var originalErrorTraceHeight;
 var originalTabsWidth;
+var originalSrcHeight;
 $(document).ready(function() {
   originalErrorTraceWidth = $('#ETVErrorTrace').width();
+  originalErrorTraceHeight = $('#ETVErrorTrace').height();
   originalTabsWidth = $('#ETVTabs').width();
+  originalSrcHeight = $('.ETVSrc').height();
 });
 
-// Resize widths of text fields to fit the screen (#4417).
-function resizeTextFieldWidths() {
+// Resize widths (#4417) and heights (#4581) of text fields to fit the
+// screen.
+function resizeTextFieldWidthsAndHeights() {
   // Indeed, this is a magic formula.
   var screenWidth = $(window).width() - 40;
   // Keep the ratio between text field widths.
@@ -36,12 +41,16 @@ function resizeTextFieldWidths() {
     $('#ETVErrorTrace').width(newErrorTraceWidth);
     $('#ETVTabs').width(newTabsWidth);
   }
-  else {
-    $('#ETVErrorTrace').width(originalErrorTraceWidth);
-    $('#ETVTabs').width(originalTabsWidth);
-  }
   resizeTabWidths(true);
+
+  // One more magic formula.
+  var screenHeight = $(window).height() - 200;
+  // Resize just if new heights will be more then the original ones.
+  if (originalErrorTraceHeight < screenHeight && originalSrcHeight < screenHeight) {
+    $('#ETVErrorTrace').height(screenHeight);
+    $('.ETVSrc').height(screenHeight);
+  }
 }
 
-$(document).ready(resizeTextFieldWidths);
-$(window).resize(resizeTextFieldWidths);
+$(document).ready(resizeTextFieldWidthsAndHeights);
+$(window).resize(resizeTextFieldWidthsAndHeights);
