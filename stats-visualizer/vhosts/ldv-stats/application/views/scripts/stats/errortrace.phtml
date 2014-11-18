@@ -1,3 +1,10 @@
+<head>
+  <?php
+    $baseUrl = $this->baseUrl();
+    $this->headScript()->appendFile("$baseUrl/jslib/etv-analytics-center.js", 'text/javascript');
+    echo $this->headScript();
+  ?>
+</head>
 <?php
 /*
  * Copyright (C) 2010-2012
@@ -41,6 +48,7 @@ else {
 
   // Plugin for KB store/restore.
 ?>
+
 <script type='text/javascript'>
   $(document).ready(function() {
     $('#SETVKBStore').click(function() {
@@ -815,5 +823,4 @@ echo implode('<br />', $results['ETV log']);
 echo "</div>";
 
 printInfo($results);
-print($restrictions['Verifier']);
 ?>

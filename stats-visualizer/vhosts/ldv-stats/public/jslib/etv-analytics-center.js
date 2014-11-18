@@ -41,7 +41,11 @@ function resizeTextFieldWidthsAndHeights() {
     $('#ETVErrorTrace').width(newErrorTraceWidth);
     $('#ETVTabs').width(newTabsWidth);
   }
-  resizeTabWidths(true);
+  if (typeof resizeTabWidths ==='function'){
+    resizeTabWidths(true);
+  }
+  else
+    return;
 
   // One more magic formula.
   var screenHeight = $(window).height() - 300;
