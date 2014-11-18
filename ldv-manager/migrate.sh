@@ -94,7 +94,7 @@ if [ -d "$LDV_MANAGER_MIGRATES_DIR" ]; then
         for i in `ls $LDV_MANAGER_MIGRATES_DIR`; do
                 if [ -d "$LDV_MANAGER_MIGRATES_DIR/$gnumber" ]; then
                         echo "Start migration: from version $DB_CURRENT_VERSION to : \"$LDV_MANAGER_MIGRATES_DIR/$gnumber\"";
-			for i in `find $LDV_MANAGER_MIGRATES_DIR/$gnumber -maxdepth 1 -type f -name *.sql`; do
+			for i in `find $LDV_MANAGER_MIGRATES_DIR/$gnumber -maxdepth 1 -type f -name "*.sql"`; do
 				echo "Apply updates from SQL-script: \"$i\".";
 				$DBRUN <$i;
 				if [ $? -ne 0 ]; then
