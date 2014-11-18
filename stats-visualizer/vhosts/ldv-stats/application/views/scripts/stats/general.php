@@ -16,10 +16,6 @@
  * limitations under the License.
  */
 
-// Get linuxtesting url for authorization action.
-$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
-$GLOBALS['url'] = $linuxtesting->link;
-
 // Get authorization flag.
 $aut = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'authorization');
 $isAut = $aut->set;
@@ -290,9 +286,13 @@ function returnProfile($info) {
 */
 // Print login/logout form.
 // TODO: check user rights
+$url = ''; // Stab for access from javascript.
 if ($isAut)
 {
-	$url = $GLOBALS['url'];
+  // Get linuxtesting url for authorization action.
+  $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
+	$url = $linuxtesting->link;
+
 	?>
 	<script type='text/javascript'>
 		window.user = ""; // Global var - keeps the name of currently logged user.

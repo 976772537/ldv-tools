@@ -25,9 +25,12 @@
 
 include 'general.php';
 
-// Get linuxtesting URL (bug page).
-$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-bug');
-$ltBugURL = $linuxtesting->link;
+if ($isAut)
+{
+  // Get linuxtesting URL (bug page).
+  $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-bug');
+  $ltBugURL = $linuxtesting->link;
+}
 
 // Get all infomation to be displayed.
 $results = $this->entries;
@@ -57,8 +60,8 @@ else {
       }});
       var isAut = <?php echo json_encode("$isAut"); ?>;
 
-	  // Restrictions.
-	  if (!window.user && isAut)
+      // Restrictions.
+      if (!window.user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -86,8 +89,8 @@ else {
 
       var isAut = <?php echo json_encode("$isAut"); ?>;
 
-	  // Restrictions.
-	  if (!window.user && isAut)
+      // Restrictions.
+      if (!window.user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -123,7 +126,7 @@ else {
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 7);
       var kbId = rowCur.find('.SETVKBId').text();
-	  var isAut = <?php echo json_encode("$isAut"); ?>;
+      var isAut = <?php echo json_encode("$isAut"); ?>;
 
       // Do not send any requests to linuxtesting if Analytics Center don't has authorization module.
       if (!isAut)
@@ -131,8 +134,8 @@ else {
         publishedRecord = '';
       }
 
-	  // Restrictions.
-	  if (!window.user && isAut)
+      // Restrictions.
+      if (!window.user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -146,26 +149,26 @@ else {
         alert('Something goes wrong while KB record was deleted');
       }});
 
-	  if (publishedRecord)
-	  {
-	  var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
-	  // Check for unreported.
-      var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
-      var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
-      if (tmp[4] != 'Unreported')
+      if (publishedRecord)
       {
-        alert("Status of Trace # " + publishedRecord + " is no longer 'Unreported'.\n" +
-          "In order to changed it please contact the Expert with access to linuxtesting");
-		    return false;
+        var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
+        // Check for unreported.
+        var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
+        var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
+        if (tmp[4] != 'Unreported')
+        {
+          alert("Status of Trace # " + publishedRecord + " is no longer 'Unreported'.\n" +
+            "In order to changed it please contact the Expert with access to linuxtesting");
+          return false;
+        }
+        
+        // Remove form linuxtesting.
+        var sendData = {};
+        postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);
       }
       
-      // Remove form linuxtesting.
-      var sendData = {};
-      postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);
-    }
-    
-    // Remove from KB.
-    $.getJSON(
+      // Remove from KB.
+      $.getJSON(
         '<?php echo $this->url(array('action' => 'delete-kb-record')); ?>'
         , { 'KB id': kbId }
         , function(results) {
@@ -181,7 +184,7 @@ else {
       return false;
     });
 
-	// Publish action.
+    // Publish action.
     $('.SETVKBPublishKBRecord').click(function() {
       var rowCur = $(this).parent().parent();
       kbId = rowCur.find('.SETVKBId').text();
@@ -233,7 +236,7 @@ else {
         {
           alert("Status of Trace # " + publishedRecord + " is no longer 'Unreported'.\n" +
             "In order to changed it please contact the Expert with access to linuxtesting");
-		  return false;
+          return false;
         }
         
         // Post request for update.
@@ -273,8 +276,8 @@ else {
       var statusOld = rowCur.find('.SETVKBStatus').text();
       var syncStatusOld = rowCur.find('.SETVKBSynchronizedstatus').text();
 
-	  // Restrictions.
-	  if (!window.user)
+      // Restrictions.
+      if (!window.user)
       {
         alert('You are not authorized for this operation');
         return false;
@@ -300,38 +303,38 @@ else {
       if (!tmp[4])
       {
         alert("Cannot extract status from linuxtesting.");
-		return false;
+        return false;
       }
       var status = tmp[4];
       tmp = data.match(/<td><b>Verdict: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(.+)<\/font>/);
       if (!tmp[4])
       {
         alert("Cannot extract verdict from linuxtesting.");
-		return false;
+        return false;
       }
       var verdict = tmp[4];
       if (verdict == 'False alarm')
-	  {
-	  	verdict = 'False positive';
-	  }
-	  else if (verdict == 'Bug')
-		verdict = 'True positive';
-	  tmp = data.match(/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
+      {
+        verdict = 'False positive';
+      }
+      else if (verdict == 'Bug')
+      verdict = 'True positive';
+      tmp = data.match(/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
       if (!tmp[4])
       {
         alert("Cannot extract syncronized status from linuxtesting.");
-		return false;
+       return false;
       }
       var syncStatus = tmp[4];
       
       // Send post request to change sync status.
       if (syncStatus != "Synchronized")
       {
-      	var sendData = {'sync_status': 'KB-Synchronized'};
+        var sendData = {'sync_status': 'KB-Synchronized'};
         postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData);
       }
 
-	  // Update KB and run kb-recalc.
+      // Update KB and run kb-recalc.
       $.getJSON(
         '<?php echo $this->url(array('action' => 'get-kb-record')); ?>'
         , { 'KB id': kbId, 'trace id': traceId, 'verdict' : verdict, 'status' : status, 'sync status' : syncStatus, 'verdict old': verdictOld}
@@ -339,7 +342,7 @@ else {
           if (results.errors == '') {
             /*if (results.log != '') {
               alert("KB record # " + kbId + " successfully has been updated from linuxtesting " + 
-            	"(correponding Trace # " + publishedRecord + ").\n" + results.log + $.makeArray(results.output).join('\n'));*/
+              "(correponding Trace # " + publishedRecord + ").\n" + results.log + $.makeArray(results.output).join('\n'));*/
               alert("Updating has been completed.");
               window.location.reload();
           /*  }
@@ -383,13 +386,13 @@ else {
         alert('Something goes wrong while KB record was updated');
     }});
     if ((status == 'Fixed' && verdict == 'Unknown') || 
-		(status == 'Fixed' && verdict == 'False positive') ||
-		(status == 'Reported' && verdict == 'False positive'))
-	  {
-	  	alert('Combination of status \'' + status + '\' and verdict \'' + verdict + '\' is impossible.');
-	  	return;
-  	}
-  	if (!status)
+    (status == 'Fixed' && verdict == 'False positive') ||
+    (status == 'Reported' && verdict == 'False positive'))
+    {
+      alert('Combination of status \'' + status + '\' and verdict \'' + verdict + '\' is impossible.');
+      return;
+    }
+    if (!status)
       status = "Unreported";
     $.getJSON(
       '<?php echo $this->url(array('action' => 'update-kb-record')); ?>'
@@ -442,8 +445,8 @@ else {
   $(document).ready(function() {
     $('.SETVKBEditKBRecord').click(function() {
       var isAut = <?php echo json_encode("$isAut"); ?>;
-	  // Restrictions.
-	  if (!window.user && isAut)
+    // Restrictions.
+    if (!window.user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -468,8 +471,8 @@ else {
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       if (publishedRecord) 
       {
-      	var recordIndex = publishedRecord.lastIndexOf("bug?id=");
-      	publishedRecord = publishedRecord.substring(recordIndex + 7);
+        var recordIndex = publishedRecord.lastIndexOf("bug?id=");
+        publishedRecord = publishedRecord.substring(recordIndex + 7);
       }
 
       rowCur.find('.SETVKBId').each(function() {
@@ -557,14 +560,14 @@ else {
           isObsoleteChecked = 'checked';
         else
           isUnreportedChecked = 'checked';
-		if ((kbStatusOld != 'Unreported' && kbStatusOld != 'Obsolete') && !isNew)
-		{
-			$(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' form='UpdateKBRecord' />Unreported"
+    if ((kbStatusOld != 'Unreported' && kbStatusOld != 'Obsolete') && !isNew)
+    {
+      $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' form='UpdateKBRecord' />Unreported"
           + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' form='UpdateKBRecord' />Obsolete"
           + "<input type='radio' id='KBStatus' name='KBStatus' value='" + kbStatusOld + "' checked form='UpdateKBRecord' />" + kbStatusOld);
-		}
-		else
-		{
+    }
+    else
+    {
           $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' " + isUnreportedChecked + " form='UpdateKBRecord' />Unreported"
           + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' " + isObsoleteChecked + " form='UpdateKBRecord' />Obsolete");
         }
@@ -588,7 +591,7 @@ else {
       kbTagsOld = "'" + kbTagsOld + "'";
       kbCommentOld = escape(kbCommentOld);
       kbCommentOld = "'" + kbCommentOld + "'";
-	  kbInternalStatusOld = "'" + kbInternalStatusOld + "'";
+      kbInternalStatusOld = "'" + kbInternalStatusOld + "'";
 
       var submitText = '';
       if (isNew)
@@ -632,21 +635,21 @@ else {
   $(document).ready(function() {
     $('#SETVKBCreateEmptyKBRecord').click(function() {
       var isAut = <?php echo json_encode("$isAut"); ?>;
-	    // Restrictions.
-	    if (!window.user && isAut)
+      // Restrictions.
+      if (!window.user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
       }
       $('#SETVKBNewEmptyKBRecord').show().each(function() {
-      	$(this).find('.SETVKBEditKBRecord').trigger('click');
+        $(this).find('.SETVKBEditKBRecord').trigger('click');
       });
       return false;
     });
     $('#SETVKBCreateFilledKBRecord').click(function() {
       var isAut = <?php echo json_encode("$isAut"); ?>;
-	    // Restrictions.
-	    if (!window.user && isAut)
+      // Restrictions.
+      if (!window.user && isAut)
       {
         alert('You are not authorized for this operation.');
         return false;
@@ -712,9 +715,9 @@ else {
       if ($columnName == 'Published record')
       {
         if ($kbCellValue)
-        	$link = "$ltBugURL?id=$kbCellValue";
+          $link = "$ltBugURL?id=$kbCellValue";
         else
-        	$link = "";
+          $link = "";
         $kbCellValue = "<a href='$link'>$link</a>";
       }
       if ($columnName == 'Id')
@@ -728,14 +731,14 @@ else {
       echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$kbCellValue</div></td>";
     }
     $link = $this->url(array_merge($globals,
-		array(
-			'controller' => 'stats',
-			'action' => 'unsafes',
-			'page' => 'Table',
-			'KB id' => $kbId)),
-		'default',
-		true);
-	echo "<td><a href='$link'>all traces</a></td>";
+    array(
+      'controller' => 'stats',
+      'action' => 'unsafes',
+      'page' => 'Table',
+      'KB id' => $kbId)),
+    'default',
+    true);
+  echo "<td><a href='$link'>all traces</a></td>";
     echo '</tr>';
   }
 
