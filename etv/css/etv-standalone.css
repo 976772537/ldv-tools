@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
-/* LDV Analytics Center bindings. */
+/* How error traces will be visualized without any specific environment
+   (like LDV Analytics Center, linuxtesting.org, etc.). Most likely
+   corresponding HTML pages will be opened in a web browser as is. */
 #ETVErrorTrace
 {
   height: 450px;

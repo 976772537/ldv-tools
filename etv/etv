@@ -148,30 +148,24 @@ else
     , {'id' => 0});
 
   # Inline CSS and JS required by ETV.
+  print({$opts->{'fh out'}}
+    "<style type='text/css'>"
+    , read_file("$FindBin::RealBin/../etv/css/etv.css")
+    , "</style>"
+    , "<script type='text/javascript'>"
+    , read_file("$FindBin::RealBin/../etv/js/jquery-1.4.2.min.js")
+    , read_file("$FindBin::RealBin/../etv/js/etv.js")
+    , "</script>"
+  );
   # In case of standalone ETV.
   if ($opts->{'standalone'})
   {
     print({$opts->{'fh out'}}
       "<style type='text/css'>"
-      , read_file("$FindBin::RealBin/../etv/css/etv.css")
       , read_file("$FindBin::RealBin/../etv/css/etv-standalone.css")
       , "</style>"
       , "<script type='text/javascript'>"
-      , read_file("$FindBin::RealBin/../etv/js/jquery-1.4.2.min.js")
-      , read_file("$FindBin::RealBin/../etv/js/etv.js")
       , read_file("$FindBin::RealBin/../etv/js/etv-standalone.js")
-      , "</script>"
-    );
-  }
-  else # Default.
-  {
-    print({$opts->{'fh out'}}
-      "<style type='text/css'>"
-      , read_file("$FindBin::RealBin/../etv/css/etv.css")
-      , "</style>"
-      , "<script type='text/javascript'>"
-      , read_file("$FindBin::RealBin/../etv/js/jquery-1.4.2.min.js")
-      , read_file("$FindBin::RealBin/../etv/js/etv.js")
       , "</script>"
     );
   }
@@ -291,7 +285,7 @@ sub get_opt()
     , $required_source_files, $referred_source_code);
   my ($fh_in, $fh_intermediate_source_file, $fh_out, $fh_required_source_files
     , $fh_referred_source_code);
-  my $standalone = '';
+  my $standalone;
   unless (GetOptions(
     'help|h' => \$help,
     'original-error-trace|c=s' => \$in,
@@ -458,6 +452,10 @@ OPTIONS
     be source code visualization. The file should contain a content of
     files with source code as is separated with:
     ---LDV---path/to/file/with/source/code---LDV---
+
+  --standalone
+    Visualize a given error trace so that it can be viewed standalone
+    via any web browser.
 
 ENVIRONMENT VARIABLES
 
