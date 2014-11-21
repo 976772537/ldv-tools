@@ -258,39 +258,11 @@ function returnProfile($info) {
   return '';
 }
 
-/*
-  // Checks if current user is editor.
-  function checkUserRights($name, $cookie)
-  {
-  	$url = $GLOBALS['url'];
-
-  	// Check first page.
-  	$result = curlGetRequestByCookie($url . "user_list/4");
-  	if (preg_match("/$name/", $result, $array))
-	{
-		return TRUE;
-	}
-
-	// Check next pages.
-	while (preg_match("/<li class=\"pager-next\"><a href=\"(.+)\" title=\"Go to next page\"/", $result, $array))
-	{
-		$url_tmp = $array[1];
-		$result = curlGetRequestByCookie($url_tmp);
-		if (preg_match("/$name/", $result, $array))
-		{
-			return TRUE;
-		}
-	}
-	return FALSE;
-  }
-*/
-// Print login/logout form.
-// TODO: check user rights
 $url = ''; // Stab for access from javascript.
 if ($isAut)
 {
-  // Get linuxtesting url for authorization action.
-  $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
+	// Get linuxtesting url for authorization action.
+	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
 	$url = $linuxtesting->link;
 
 	?>
@@ -308,15 +280,20 @@ if ($isAut)
 					xhr.withCredentials = true;
 				},
 				success: function(data,status,xhr){
-		       	  if (data.search(/<title>(\w+) \| Linux Verification Center<\/title>/) != -1)//TODO
+		       	  if (data.search(/<li class=\"active\" ><a href=\"http:\/\/linuxtesting.org\/user\" class=\"active\">Log in<\/a><\/li>/) == -1)
 		       	  {
-
-		       	    var tmp = data.match(/<title>(\w+) \| Linux Verification Center<\/title>/);
+		       	    var tmp = data.match(/<title>(.+) \| Linux Verification Center<\/title>/);
 		       	    window.user = tmp[1];
+		       	    if (!checkUserRights())
+		       	    {
+		       	      alert(window.user + " is not an Editor on linuxtesting. Logging out.");
+		       	      logoutAction();
+		       	      window.location.reload();
+		       	    }
 		       	  }
 		       	  else
 		       	  {
-
+		       	  
 		       	  }
 				},
 			});
@@ -402,6 +379,33 @@ if ($isAut)
 			document.getElementById("authorization_form_JS").appendChild(logoutTable);
 		}
 		
+		// Function checks if user have is editor on linuxtesting.
+		function checkUserRights()
+		{
+			// Check first page.
+			var url = <?php echo json_encode($url);?> + "user_list/4";
+			var user = window.user;
+			var data = getRequest(url);
+			if (data.search(user) != -1)
+			{
+				return true;
+			}
+			
+			// Check next pages.
+			while (data.search(/<li class=\"pager-next\"><a href=\"(.+)\" title=\"Go to next page\"/) != -1)
+			{
+				var tmp = data.match(/<li class=\"pager-next\"><a href=\"(.+)\" title=\"Go to next page\"/);
+		       	url = tmp[1]; // Get url to "next" page.
+		       	data = getRequest(url);
+		       	if (data.search(user) != -1)
+				{
+					return true;
+				}
+			}
+			
+			return false;
+		}
+		
 		// Post request to login in linuxtesting.
 		function loginAction() {
 			var url = <?php echo json_encode($url);?> + "user/login";
@@ -431,10 +435,7 @@ if ($isAut)
 		       	    else if (data.search(/Sorry, unrecognized username or password./gi) != -1)
 		       	      alert("Unrecognized username or password");
 		       	  }
-				},
-				/*error: function (request, status, error) {
-					alert("Can not send a post request to linuxtesting.");
-				}*/
+				}
 			});
 		}
 		// Post request to logout in linuxtesting.
@@ -449,16 +450,17 @@ if ($isAut)
 				},
 				success: function(data,status, xhr){
 					alert("You have been logged out from linuxtesting successfully.");
-				},
-				/*error: function (request, status, error) {
-					alert("Can not send a post request to linuxtesting.");
-				}*/
+				}
 			});
 		}
 		var kbId, traceId;
-		function publish(data) {
+		function publish(data, url) {
 			var newPublishedRecordId;
-			
+			$.ajaxSetup({ 'error': function() {
+				// Primary for catching unexpected errors with mysql.
+				alert('Something goes wrong while KB was published');
+			}});
+
 			// Check post request status.
 			var tmp = data.match(/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/);
 			if (tmp[1])
@@ -475,7 +477,15 @@ if ($isAut)
 		    , { 'KB id': kbId , 'trace id': traceId , 'ppob id': newPublishedRecordId}
 		    , function(results) {
 		      if (results.errors == '') {
-		        alert("Publishing has been completed.");
+		        if (url.indexOf("submit") > -1)
+		        {
+		          alert("Publishing KB record to the linuxtesting has been completed.\nPublished Bug # " + 
+		            newPublishedRecordId + ".");
+		        }
+		       	else
+		       	{
+		       	  alert("Updating KB record to the linuxtesting Bug # " + newPublishedRecordId + " has been completed.");
+		       	}
 		        window.location.reload();
 		      }
 		      else
@@ -495,13 +505,9 @@ if ($isAut)
 					xhr.withCredentials = true;
 				},
 				success: function(data,status, xhr){
-		       		//alert("Post request has been executed successfully.");
 		       		if (onSuccess)
-		       		  onSuccess(data);
-				},
-				error: function (request, status, error) {
-					//alert("Can not send a post request to linuxtesting.");
-				},
+		       		  onSuccess(data, url);
+				}
 			});
 		}
 		
@@ -522,6 +528,18 @@ if ($isAut)
 				}
 			});
 			return ajaxRequest.responseText;
+		}
+		
+		// Function retunrs true if user is authorized or authorization module wasn't installed and false otherwise.
+		function checkAutorization()
+		{
+			var isAut = <?php echo json_encode("$isAut"); ?>;
+			if (!window.user && isAut)
+			{
+				alert('You are not authorized for this operation.');
+				return false;
+			}
+			return true;
 		}
 		
 		// Executes in page load.

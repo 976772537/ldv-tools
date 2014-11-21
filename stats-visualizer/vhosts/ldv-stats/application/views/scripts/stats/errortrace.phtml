@@ -58,14 +58,9 @@ else {
       $.ajaxSetup({ 'error': function() {
         alert('Something goes wrong while KB was stored');
       }});
-      var isAut = <?php echo json_encode("$isAut"); ?>;
 
-      // Restrictions.
-      if (!window.user && isAut)
-      {
-        alert('You are not authorized for this operation.');
+      if (!checkAutorization())
         return false;
-      }
 
       $.getJSON(
         '<?php echo $this->url(array('action' => 'store-kb')); ?>'
@@ -87,14 +82,8 @@ else {
         alert('Something goes wrong while KB was restored');
       }});
 
-      var isAut = <?php echo json_encode("$isAut"); ?>;
-
-      // Restrictions.
-      if (!window.user && isAut)
-      {
-        alert('You are not authorized for this operation.');
+      if (!checkAutorization())
         return false;
-      }
 
       $.getJSON(
         '<?php echo $this->url(array('action' => 'restore-kb')); ?>'
@@ -135,11 +124,8 @@ else {
       }
 
       // Restrictions.
-      if (!window.user && isAut)
-      {
-        alert('You are not authorized for this operation.');
+      if (!checkAutorization())
         return false;
-      }
       if (!kbId) {
         alert('Can\'t find corresponding KB id for the record to be deleted');
         return false;
@@ -173,7 +159,15 @@ else {
         , { 'KB id': kbId }
         , function(results) {
           if (results.errors == '') {
-            alert("KB record # " + kbId + " successfully has been deleted.");
+            if (publishedRecord)
+            {
+              alert("KB record # " + kbId + " along with corresponding Bug on linuxtesting # " + publishedRecord + 
+                " successfully has been deleted.");
+            }
+            else
+            {
+              alert("KB record # " + kbId + " successfully has been deleted.");
+            }
             window.location.reload();
           }
           else
@@ -227,7 +221,7 @@ else {
 
       var etFile = <?php echo json_encode($et);?>;
 
-      if (publishedRecord) // Update existed Trace into linuxtesting.
+      if (publishedRecord) // Update existed Bug into linuxtesting.
       {
         // Check for unreported.
         var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
@@ -243,7 +237,7 @@ else {
         var sendData = {"verdict": verdict, "status": status, "sync_status": "KB-Synchronized"};
         data = postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData, publish);
       }
-      else // Insert new Trace into linuxtesting.
+      else // Insert new Bug into linuxtesting.
       {
         // Post request for insert.
         var sendData = {
@@ -266,6 +260,11 @@ else {
 
     // Update action.
     $('.SETVKBUpdateKBRecord').click(function() {
+      $.ajaxSetup({ 'error': function() {
+        // Primary for catching unexpected errors with mysql.
+        alert('Something goes wrong while KB was updated.');
+      }});
+    
       var rowCur = $(this).parent().parent();
       var kbId = rowCur.find('.SETVKBId').text();
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
@@ -323,7 +322,7 @@ else {
       if (!tmp[4])
       {
         alert("Cannot extract syncronized status from linuxtesting.");
-       return false;
+        return false;
       }
       var syncStatus = tmp[4];
       
@@ -340,16 +339,8 @@ else {
         , { 'KB id': kbId, 'trace id': traceId, 'verdict' : verdict, 'status' : status, 'sync status' : syncStatus, 'verdict old': verdictOld}
         , function(results) {
           if (results.errors == '') {
-            /*if (results.log != '') {
-              alert("KB record # " + kbId + " successfully has been updated from linuxtesting " + 
-              "(correponding Trace # " + publishedRecord + ").\n" + results.log + $.makeArray(results.output).join('\n'));*/
-              alert("Updating has been completed.");
-              window.location.reload();
-          /*  }
-            else
-            {
-              alert("KB record # " + kbId + " is up to date.");
-            }*/
+            alert("Updating KB record " + kbId + " from linuxtesting Bug # " + publishedRecord + " has been completed.");
+            window.location.reload();
           }
           else
             alert($.makeArray(results.errors).join('\\n'));
@@ -360,7 +351,7 @@ else {
   });
 </script>
 <?php
-  // Plugin for KB record edit action.
+// Plugin for KB record edit action.
 ?>
 <script type='text/javascript'>
   function getRadioValue(radio) {
@@ -444,13 +435,8 @@ else {
 
   $(document).ready(function() {
     $('.SETVKBEditKBRecord').click(function() {
-      var isAut = <?php echo json_encode("$isAut"); ?>;
-    // Restrictions.
-    if (!window.user && isAut)
-      {
-        alert('You are not authorized for this operation.');
+      if (!checkAutorization())
         return false;
-      }
 
       var rowCur = $(this).parent().parent();
       var isNew = rowCur.attr('id') == '' ? false : true;
@@ -560,16 +546,16 @@ else {
           isObsoleteChecked = 'checked';
         else
           isUnreportedChecked = 'checked';
-    if ((kbStatusOld != 'Unreported' && kbStatusOld != 'Obsolete') && !isNew)
-    {
-      $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' form='UpdateKBRecord' />Unreported"
-          + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' form='UpdateKBRecord' />Obsolete"
-          + "<input type='radio' id='KBStatus' name='KBStatus' value='" + kbStatusOld + "' checked form='UpdateKBRecord' />" + kbStatusOld);
-    }
-    else
-    {
+        if ((kbStatusOld != 'Unreported' && kbStatusOld != 'Obsolete') && !isNew)
+        {
+          $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' form='UpdateKBRecord' />Unreported"
+              + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' form='UpdateKBRecord' />Obsolete"
+              + "<input type='radio' id='KBStatus' name='KBStatus' value='" + kbStatusOld + "' checked form='UpdateKBRecord' />" + kbStatusOld);
+        }
+        else
+        {
           $(this).html("<input type='radio' id='KBStatus' name='KBStatus' value='Unreported' " + isUnreportedChecked + " form='UpdateKBRecord' />Unreported"
-          + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' " + isObsoleteChecked + " form='UpdateKBRecord' />Obsolete");
+              + "<input type='radio' id='KBStatus' name='KBStatus' value='Obsolete' " + isObsoleteChecked + " form='UpdateKBRecord' />Obsolete");
         }
       });
       rowCur.find('.SETVKBSynchronizedstatus').parent().each(function() {
@@ -634,26 +620,16 @@ else {
 <script type='text/javascript'>
   $(document).ready(function() {
     $('#SETVKBCreateEmptyKBRecord').click(function() {
-      var isAut = <?php echo json_encode("$isAut"); ?>;
-      // Restrictions.
-      if (!window.user && isAut)
-      {
-        alert('You are not authorized for this operation.');
+      if (!checkAutorization())
         return false;
-      }
       $('#SETVKBNewEmptyKBRecord').show().each(function() {
         $(this).find('.SETVKBEditKBRecord').trigger('click');
       });
       return false;
     });
     $('#SETVKBCreateFilledKBRecord').click(function() {
-      var isAut = <?php echo json_encode("$isAut"); ?>;
-      // Restrictions.
-      if (!window.user && isAut)
-      {
-        alert('You are not authorized for this operation.');
+      if (!checkAutorization())
         return false;
-      }
       $('#SETVKBNewFilledKBRecord').show().each(function() {
         $(this).find('.SETVKBEditKBRecord').trigger('click');
       });
@@ -709,6 +685,8 @@ else {
     }
     foreach ($kbRecord as $columnName => $kbCellValue) {
       if (($columnName == 'Status' || $columnName == 'Synchronized status' || $columnName == 'Published record') && !$isAut)
+        continue;
+      if ($columnName == 'Verifier')
         continue;
       if ($columnName == 'Error trace')
         $kbCellValue = $results['Trace id'];
