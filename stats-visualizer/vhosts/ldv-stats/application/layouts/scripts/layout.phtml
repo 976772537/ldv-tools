@@ -28,13 +28,13 @@ function getGlobals()
 	$host = '';
 	$user = '';
 	$password = 'no';
-	if (preg_match("/\/name\/(\w+)\//", $uri, $array))
+	if (preg_match("/\/name\/(\w+)(\/|$)/", $uri, $array))
 		$db = $array[1];
-	if (preg_match("/\/user\/(\w+)\//", $uri, $array))
+	if (preg_match("/\/user\/(\w+)(\/|$)/", $uri, $array))
 		$user = $array[1];
-	if (preg_match("/\/host\/(\w+)\//", $uri, $array))
+	if (preg_match("/\/host\/(\w+)(\/|$)/", $uri, $array))
 		$host = $array[1];
-	if (preg_match("/\/password\/(\w+)\//", $uri, $array))
+	if (preg_match("/\/password\/(\w+)(\/|$)/", $uri, $array))
 		$password = $array[1];
 	$globals = array();
 	if ($db)
