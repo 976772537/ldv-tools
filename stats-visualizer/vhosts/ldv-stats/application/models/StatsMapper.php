@@ -1276,9 +1276,12 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $result['Restrictions'][$statKey] = $params[$statKey];
       }
     }
-    
+
     // Additionally add verifier name.
-    $result['Restrictions']['Verifier'] = $result['Knowledge base'][0]['Verifier'];
+    if ($result['Knowledge base'])
+    {
+      $result['Restrictions']['Verifier'] = $result['Knowledge base'][0]['Verifier'];
+    }
 
     return $result;
   }
