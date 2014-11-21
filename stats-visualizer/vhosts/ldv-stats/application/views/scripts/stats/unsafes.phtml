@@ -75,7 +75,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
       var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
       publishedRecord = publishedRecord.substring(recordIndex + 7);
-      var kbId = rowCur.find('.SETVKBId').text();
+      var kbId = rowCur.find('.SETVKBKBid').text();
       var isAut = <?php echo json_encode("$isAut"); ?>;
 
       // Do not send any requests to linuxtesting if Analytics Center don't has authorization module.
