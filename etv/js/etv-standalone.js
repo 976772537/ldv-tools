@@ -44,7 +44,7 @@ function resizeTextFieldWidthsAndHeights() {
   resizeTabWidths(true);
 
   // One more magic formula.
-  var screenHeight = $(window).height() - 300;
+  var screenHeight = $(window).height() - 100;
   // Resize just if new heights will be more then the original ones.
   if (originalErrorTraceHeight < screenHeight && originalSrcHeight < screenHeight) {
     $('#ETVErrorTrace').height(screenHeight);
