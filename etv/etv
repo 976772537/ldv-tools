@@ -293,8 +293,8 @@ sub get_opt()
     'intermediate-source-file|i=s' => \$intermediate_source_file,
     'visualized-error-trace|o=s' => \$out,
     'required-source-files|r=s' => \$required_source_files,
-    'referred-source-code|s=s' => \$referred_source_code),
-    'standalone' => \$standalone)
+    'referred-source-code|s=s' => \$referred_source_code,
+    'standalone' => \$standalone))
   {
     warn("Incorrect options may completely change the meaning! Please see help"
       . " to understand how to use this tool");
