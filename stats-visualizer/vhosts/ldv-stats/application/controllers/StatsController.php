@@ -123,7 +123,7 @@ class StatsController extends Zend_Controller_Action
     // Make a form for the profiles update.
     $formUpdateProfiles = new Application_Form_UpdateProfiles();
 
-    if ($this->getRequest()->isPost() && !isset($_POST['authorization_action'])) {
+    if ($this->getRequest()->isPost()) {
       if ($formTasksComparison->isValid($request->getPost())) {
         $taskIdsStr = $formTasksComparison->getValue('SSTaskIds');
         // Replace commas with usual spaces.
@@ -142,7 +142,6 @@ class StatsController extends Zend_Controller_Action
       else if ($formUpdateProfiles->isValid($request->getPost())) {
         // Delete a stored information on a profile.
         $global = new Zend_Session_Namespace();
-      #  print_r($global->profileCurrent);exit;
         unset($global->profileCurrent);
         return $this->_helper->redirector->gotoSimple(
           'index'
@@ -157,7 +156,7 @@ class StatsController extends Zend_Controller_Action
 
     // Make a form for the csv export.
     $formPrintCSV = new Application_Form_PrintCSV();
-    if ($this->getRequest()->isPost() && !isset($_POST['authorization_action'])) {
+    if ($this->getRequest()->isPost()) {
       if ($formPrintCSV->isValid($request->getPost())) {
         return $this->_helper->redirector->gotoSimple(
           'index'
@@ -177,25 +176,6 @@ class StatsController extends Zend_Controller_Action
 
     $statsMapper = new Application_Model_StatsMapper();
     $results = $statsMapper->getErrorTrace($this->_profileInfo, $params);
-
-	// Get verifier name.
-	$traceId = $results['Trace id'];
-	$query = "
-		SELECT 
-			toolsets.verifier as verifier
-		FROM traces
-			LEFT JOIN launches on launches.trace_id=traces.id
-			LEFT JOIN toolsets on launches.toolset_id=toolsets.id
-		WHERE traces.id=$traceId
-		LIMIT 1";
-	$queryResult = $this->mysqlSelectQuery($query);
-	if (!$queryResult)
-	{
-		$error = "There was an error during executing query:$query\nwhile getting non KB specific information";
-		//echo Zend_Json::encode(array('errors' => $error));
-		return;
-	}
-	$results['Restrictions']['Verifier'] = $queryResult['verifier'];
 
     // Write raw representation of error trace directly to the file.
     $errorTraceRawFile = APPLICATION_PATH . "/../data/trace/original";
@@ -342,96 +322,17 @@ class StatsController extends Zend_Controller_Action
   }
 
  /*
-  * Function implements 'publish' action from errortrace page.
-  * Intends to publish or update Traces in linuxtesting from LDV Analytics Center. 
+  * Intends to update already published KB record to linuxtesting
+  * (for 'publish' action from errortrace page).
   */
   public function publishKbRecordAction()
   {
-	// Obtain KB specific data.
-	$traceId=$this->_getParam('trace_id');
-	$ppobId=$this->_getParam('ppob_id');
-	$kbId=$this->_getParam('KB_id');
+	$params = $this->_getAllParams();
+	$statsMapper = new Application_Model_StatsMapper();
+	$statsMapper->updatePublishedKB($this->_profileInfo, $params);
 
-	// Now KB record should be updated (fields "Synchronized status" and "Published record" should be updated).
-	$query = "
-	UPDATE results_kb 
-	SET sync_status = 'Synchronized', published_trace_id = $ppobId
-	WHERE trace_id = $traceId AND kb_id = $kbId";
-	$result = $this->mysqlQuery($query);
-	if (!$result)
-	{
-		// Stop updating.
-		$error = "There was an error during executing query:$query\nwhile updating KB record";
-		echo Zend_Json::encode(array('errors' => $error));
-		return;
-	}
+	// Checking for errors added as event in caller function.
 	echo Zend_Json::encode(array('errors' => ''));
-  }
-
- /*
-  * Function executes mysql select query in LDV Analytics Center database
-  * and returns resulting rows.
-  */
-  protected function mysqlSelectQuery($query)
-  {
-	// Find out database connection settings.
-    $statsMapper = new Application_Model_StatsMapper();
-    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
-
-    $db = $dbConnection['dbname'];
-    $user = $dbConnection['username'];
-    $host = $dbConnection['host'];
-    $passwd = '';
-    if ($dbConnection['password'] != '')
-      $passwd = "LDVDBPASSWD=$dbConnection[password]";
-
-	// Connect to database.
-	$link = mysql_connect($host, $user, $passwd);
-    if (!$link)
-    	return FALSE;
-
-    mysql_query("USE $db");
-    // Execute query.
-    $result = mysql_query($query);
-	if(!$result)
-		return FALSE;
-	$row = mysql_fetch_array($result);
-    
-    // Close connection.
-    mysql_close($link);
-    return $row;
-  }
-
- /*
-  * Function executes mysql query in LDV Analytics Center database.
-  */
-  protected function mysqlQuery($query)
-  {
-	// Find out database connection settings.
-    $statsMapper = new Application_Model_StatsMapper();
-    $dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
-
-    $db = $dbConnection['dbname'];
-    $user = $dbConnection['username'];
-    $host = $dbConnection['host'];
-    $passwd = '';
-    if ($dbConnection['password'] != '')
-      $passwd = "LDVDBPASSWD=$dbConnection[password]";
-
-	// Connect to database.
-	$link = mysql_connect($host, $user, $passwd);
-    if (!$link)
-    	return FALSE;
-
-    mysql_query("USE $db");
-    // Execute query.
-    $result = mysql_query($query);
-	if(!$result)
-		return FALSE;
-
-    // Close connection.
-    mysql_close($link);
-    return TRUE;
   }
 
  /*
@@ -443,24 +344,13 @@ class StatsController extends Zend_Controller_Action
   {
 	// Obtain useful ids.
 	$kbId=$this->_getParam('KB_id');
-	$traceId=$this->_getParam('trace_id');
-	$status=$this->_getParam('status');
 	$verdict=$this->_getParam('verdict');
-	$syncStatus=$this->_getParam('sync_status');
 	$verdictOld=$this->_getParam('verdict_old');
 
 	// Update KB record.
-	$query = "
-	UPDATE kb, results_kb
-	SET verdict = '$verdict', status = '$status', sync_status = 'Synchronized'
-	WHERE kb.id = $kbId AND results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId";
-	$result = $this->mysqlQuery($query);
-	if (!$result)
-	{
-		$error = "There was an error during executing query:$query\nwhile updating KB record";
-		echo Zend_Json::encode(array('errors' => $error));
-		return;
-	}
+	$params = $this->_getAllParams();
+	$statsMapper = new Application_Model_StatsMapper();
+	$statsMapper->updateTakenKB($this->_profileInfo, $params);
 
 	// Run kb-recalc in case of changing status.
 	$output = '';
@@ -548,14 +438,6 @@ class StatsController extends Zend_Controller_Action
         // Regenerate KB cache by means of script application for a given KB id.
         exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --init-cache --new=" . $results['New KB id'] . " 2>&1" , $output, $retCode);
         $result = $output;
-
-        // Set status and sync_status (must be after kb-recalc).
-        $kbId = $results['New KB id'];
-        $status = $this->_getParam('KB_status');
-        $query = "UPDATE results_kb SET status='$status' WHERE kb_id=$kbId";
-        $updateStatusResult = $this->mysqlQuery($query);
-		if (!$updateStatusResult)
-		  $error = "There was an error during executing query:\n$query\nwhile updating status of KB record";
       }
       else
         $error = $results['Errors'];

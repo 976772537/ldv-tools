@@ -1155,6 +1155,33 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 	return $result;
   }
 
+  public function updatePublishedKB($profile, $params){
+    // Connect to DB.
+    $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+    // Obtain specific data.
+    $traceId=$params['trace_id'];
+    $ppobId=$params['ppob_id'];
+    $kbId=$params['KB_id'];
+
+    // Update KB record.
+    $this->_db->query("UPDATE results_kb SET sync_status = 'Synchronized', published_trace_id = $ppobId WHERE trace_id = $traceId AND kb_id = $kbId");
+  }
+
+  public function updateTakenKB($profile, $params){
+    // Connect to DB.
+    $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+    // Obtain specific data.
+    $status=$params['status'];
+    $verdict=$params['verdict'];
+    $traceId=$params['trace_id'];
+    $kbId=$params['KB_id'];
+
+    // Update KB record.
+    $this->_db->query("UPDATE kb, results_kb SET verdict = '$verdict', status = '$status', sync_status = 'Synchronized' WHERE kb.id = $kbId AND results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId");
+  }
+
   public function getErrorTrace($profile, $params) {
     if (array_key_exists('page', $params)) {
       $pageName = $params['page'];
@@ -1231,12 +1258,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $kb = $this->getDbTable('Application_Model_DbTable_KnowledgeBase', NULL, $this->_db);
     $select = $kb
       ->select()->setIntegrityCheck(false);
-    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id');
+    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id', 'Verifier' => 'toolsets.verifier');
 
     $select = $select
       ->from('kb', $values)
       ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
       ->joinLeft('traces', "results_kb.trace_id=traces.id", array())
+      ->joinLeft('launches', "traces.launch_id=launches.id", array())
+      ->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
       ->where("traces.id = ?", $trace_id);
     $result['Knowledge base'] = $kb->fetchAll($select)->toArray();
 
@@ -1247,8 +1276,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $result['Restrictions'][$statKey] = $params[$statKey];
       }
     }
-
-#print_r($result['Knowledge base']);exit;
+    
+    // Additionally add verifier name.
+    $result['Restrictions']['Verifier'] = $result['Knowledge base'][0]['Verifier'];
 
     return $result;
   }
