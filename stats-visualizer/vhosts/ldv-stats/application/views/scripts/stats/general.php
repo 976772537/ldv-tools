@@ -258,6 +258,22 @@ function returnProfile($info) {
   return '';
 }
 
+?>
+<script type='text/javascript'>
+	// Function retunrs true if user is authorized or authorization module wasn't installed and false otherwise.
+	function checkAutorization()
+	{
+		var isAut = <?php echo json_encode("$isAut"); ?>;
+		if (!window.user && isAut)
+		{
+			alert('You are not authorized for this operation.');
+			return false;
+		}
+		return true;
+	}
+</script>
+<?php
+
 $url = ''; // Stab for access from javascript.
 if ($isAut)
 {
@@ -529,19 +545,7 @@ if ($isAut)
 			});
 			return ajaxRequest.responseText;
 		}
-		
-		// Function retunrs true if user is authorized or authorization module wasn't installed and false otherwise.
-		function checkAutorization()
-		{
-			var isAut = <?php echo json_encode("$isAut"); ?>;
-			if (!window.user && isAut)
-			{
-				alert('You are not authorized for this operation.');
-				return false;
-			}
-			return true;
-		}
-		
+
 		// Executes in page load.
 		window.onload = function()
 		{
