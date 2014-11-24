@@ -291,25 +291,34 @@ if ($isAut)
 			$.ajax({
 				url: url,
 				type: "POST",
-				async: false,
+				//async: false,
 				beforeSend: function(xhr){
 					xhr.withCredentials = true;
+				},
+				error: function(error){
+				    alert(error);               
 				},
 				success: function(data,status,xhr){
 		       	  if (data.search(/<li class=\"active\" ><a href=\"http:\/\/linuxtesting.org\/user\" class=\"active\">Log in<\/a><\/li>/) == -1)
 		       	  {
 		       	    var tmp = data.match(/<title>(.+) \| Linux Verification Center<\/title>/);
 		       	    window.user = tmp[1];
-		       	    if (!checkUserRights())
+		       	    // TODO: fix check rights
+		       	    /*if (!checkUserRights())
 		       	    {
 		       	      alert(window.user + " is not an Editor on linuxtesting. Logging out.");
 		       	      logoutAction();
 		       	      window.location.reload();
 		       	    }
+		       	    else
+		       	    {*/
+		       	      // Successful login.
+		       	      logoutForm();
+		       	    //}
 		       	  }
 		       	  else
 		       	  {
-		       	  
+		       	    loginForm();
 		       	  }
 				},
 			});
@@ -325,11 +334,13 @@ if ($isAut)
 			nameField.setAttribute('type',"text");
 			nameField.setAttribute('name',"name");
 			nameField.setAttribute('value', '');
+			nameField.setAttribute('size', '10');
 
 			var passField = document.createElement("input");
 			passField.setAttribute('type',"password");
 			passField.setAttribute('name',"pass");
 			passField.setAttribute('value', '');
+			passField.setAttribute('size', '10');
 
 			var submitButton = document.createElement("input");
 			submitButton.setAttribute('type',"submit");
@@ -359,9 +370,15 @@ if ($isAut)
 			tableRow.appendChild(td);
 			
 			loginTable.appendChild(tableRow);
-			loginForm.appendChild(loginTable);
-
-			document.getElementById("authorization_form_JS").appendChild(loginForm);
+			//loginForm.appendChild(loginTable);
+			loginForm.innerHTML += "&nbsp &nbsp <b>User: </b>";
+			loginForm.appendChild(nameField);
+			loginForm.innerHTML += "<b> Password: </b>";
+			loginForm.appendChild(passField);
+			loginForm.innerHTML += " ";
+			loginForm.appendChild(submitButton);
+			
+			document.getElementById("SSHeaderAut").appendChild(loginForm);
 		}
 
 		// Prints logout form.
@@ -372,10 +389,9 @@ if ($isAut)
 			logoutButton.value = "Logout";
 			logoutButton.onclick = function() {
 				logoutAction();
-				window.location.reload();
 			};
 
-			var logoutTable = document.createElement("table");
+			var logoutTable = document.createElement("div");
 			var tableRow = document.createElement("tr");
 			
 			var td = document.createElement("td");
@@ -390,9 +406,11 @@ if ($isAut)
 			td.appendChild(logoutButton);
 			tableRow.appendChild(td);
 			
-			logoutTable.appendChild(tableRow);
-
-			document.getElementById("authorization_form_JS").appendChild(logoutTable);
+			//logoutTable.appendChild(tableRow);
+			
+			logoutTable.innerHTML += "&nbsp &nbsp <b>User: </b>" + window.user + " ";
+			logoutTable.appendChild(logoutButton);
+			document.getElementById("SSHeaderAut").appendChild(logoutTable);
 		}
 		
 		// Function checks if user have is editor on linuxtesting.
@@ -460,12 +478,13 @@ if ($isAut)
 			$.ajax({
 				url: url,
 				type: "POST",
-				async: false,
+				//async: false,
 				beforeSend: function(xhr){
 					xhr.withCredentials = true;
 				},
 				success: function(data,status, xhr){
 					alert("You have been logged out from linuxtesting successfully.");
+					window.location.reload();
 				}
 			});
 		}
@@ -532,12 +551,12 @@ if ($isAut)
 			var ajaxRequest = $.ajax({
 				url: url,
 				type: "GET",
-				async: false,
+				//async: false,
 				beforeSend: function(xhr){
 					xhr.withCredentials = true;
 				},
 				success: function(data,status, xhr){
-					
+					// TODO fix get
 				},
 				error: function (request, status, error) {
 					alert("Can not send a get request to linuxtesting.");
@@ -550,14 +569,14 @@ if ($isAut)
 		window.onload = function()
 		{
 			checkIfLogin(); // Check if user logged in linuxtesting in current session.
-			if (window.user)
+			/*if (window.user)
 			{
 				logoutForm();
 			}
 			else
 			{
 				loginForm();
-			}
+			}*/
 		};
 		
 	</script>

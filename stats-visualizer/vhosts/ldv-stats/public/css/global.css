@@ -29,21 +29,26 @@ body
 {
   background-color: #EEEEEE;
   height: 30px;
+  font-size: 14pt;
 }
 
 #SSHeaderLogo
 {
   float: left;
-  font-size: 14pt;
   font-weight: bold;
-  padding: 5px;
+  padding: 3px;
+}
+
+#SSHeaderAut
+{
+  float: left;
+  padding: 3px;
 }
 
 #SSHeaderMenu
 {
   float: right;
-  font-size: 14pt;
-  padding: 5px;
+  padding: 3px;
 }
 
 /* Comparison menu style. */
