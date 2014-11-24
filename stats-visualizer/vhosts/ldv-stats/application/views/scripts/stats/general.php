@@ -454,10 +454,14 @@ if ($isAut)
 				beforeSend: function(xhr){
 					xhr.withCredentials = true;
 				},
+				error: function(error){
+					console.log(error);
+					alert("Cannot login in linuxtesting.");
+				},
 				success: function(data,status, xhr){
 		       	  if (data.search(/My account/gi) != -1)
 		       	  {
-		       	    alert("You have been authorized in linuxtesting successfully.");
+		       	    //alert("You have been authorized in linuxtesting successfully.");
 		       	    window.location.reload();
 		       	  }
 		       	  else
@@ -482,8 +486,12 @@ if ($isAut)
 				beforeSend: function(xhr){
 					xhr.withCredentials = true;
 				},
+				error: function(error){
+					console.log(error);
+					alert("Cannot logout from linuxtesting.");
+				},
 				success: function(data,status, xhr){
-					alert("You have been logged out from linuxtesting successfully.");
+					//alert("You have been logged out from linuxtesting successfully.");
 					window.location.reload();
 				}
 			});
@@ -569,20 +577,9 @@ if ($isAut)
 		window.onload = function()
 		{
 			checkIfLogin(); // Check if user logged in linuxtesting in current session.
-			/*if (window.user)
-			{
-				logoutForm();
-			}
-			else
-			{
-				loginForm();
-			}*/
 		};
 		
 	</script>
-
-	<p id="authorization_form_JS">
-	</p>
 
 	<?php
 }
