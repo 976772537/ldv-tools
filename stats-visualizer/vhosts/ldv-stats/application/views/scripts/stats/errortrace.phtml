@@ -135,22 +135,15 @@ else {
         alert('Something goes wrong while KB record was deleted');
       }});
 
-      if (publishedRecord)
+      if (publishedRecord) // Remove form linuxtesting.
       {
-        var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
-        // Check for unreported.
-        var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
-        var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
-        if (tmp[4] != 'Unreported')
-        {
-          alert("Status of Trace # " + publishedRecord + " is no longer 'Unreported'.\n" +
-            "In order to changed it please contact the Expert with access to linuxtesting");
-          return false;
-        }
-        
-        // Remove form linuxtesting.
+        // This feature currently is not supported.
+        alert("Can't delete already published KB record.");
+        return false;
+
+        /*var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
         var sendData = {};
-        postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);
+        postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);*/
       }
       
       // Remove from KB.
@@ -223,19 +216,11 @@ else {
 
       if (publishedRecord) // Update existed Bug into linuxtesting.
       {
-        // Check for unreported.
-        var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
-        var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
-        if (tmp[4] != 'Unreported')
-        {
-          alert("Status of Trace # " + publishedRecord + " is no longer 'Unreported'.\n" +
-            "In order to changed it please contact the Expert with access to linuxtesting");
-          return false;
-        }
-        
-        // Post request for update.
-        var sendData = {"verdict": verdict, "status": status, "sync_status": "KB-Synchronized"};
-        data = postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData, publish);
+        //This feature currently is not supported.
+        alert("Can't publish already published KB record."); 
+
+        /*var sendData = {"verdict": verdict, "status": status, "sync_status": "KB-Synchronized"};
+        data = postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData, publish);*/
       }
       else // Insert new Bug into linuxtesting.
       {
@@ -266,14 +251,12 @@ else {
       }});
     
       var rowCur = $(this).parent().parent();
-      var kbId = rowCur.find('.SETVKBId').text();
-      var publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
+      kbId = rowCur.find('.SETVKBId').text();
+      publishedRecord = rowCur.find('.SETVKBPublishedrecord').text();
       var recordIndex = publishedRecord.lastIndexOf("bug?id=");
-      var traceId = rowCur.find('.SETVKBErrortrace').text();
+      traceId = rowCur.find('.SETVKBErrortrace').text();
       publishedRecord = publishedRecord.substring(recordIndex + 7);
-      var verdictOld = rowCur.find('.SETVKBVerdict').text();
-      var statusOld = rowCur.find('.SETVKBStatus').text();
-      var syncStatusOld = rowCur.find('.SETVKBSynchronizedstatus').text();
+      verdictOld = rowCur.find('.SETVKBVerdict').text();
 
       // Restrictions.
       if (!window.user)
@@ -297,55 +280,8 @@ else {
       var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
 
       // Get verdict, status and sync_status from linuxtesting.
-      var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
-      var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
-      if (!tmp[4])
-      {
-        alert("Cannot extract status from linuxtesting.");
-        return false;
-      }
-      var status = tmp[4];
-      tmp = data.match(/<td><b>Verdict: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(.+)<\/font>/);
-      if (!tmp[4])
-      {
-        alert("Cannot extract verdict from linuxtesting.");
-        return false;
-      }
-      var verdict = tmp[4];
-      if (verdict == 'False alarm')
-      {
-        verdict = 'False positive';
-      }
-      else if (verdict == 'Bug')
-      verdict = 'True positive';
-      tmp = data.match(/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
-      if (!tmp[4])
-      {
-        alert("Cannot extract syncronized status from linuxtesting.");
-        return false;
-      }
-      var syncStatus = tmp[4];
-      
-      // Send post request to change sync status.
-      if (syncStatus != "Synchronized")
-      {
-        var sendData = {'sync_status': 'KB-Synchronized'};
-        postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData);
-      }
+      var data = getRequestUpdate(url + "?action=details_ppob&num=" + publishedRecord);
 
-      // Update KB and run kb-recalc.
-      $.getJSON(
-        '<?php echo $this->url(array('action' => 'get-kb-record')); ?>'
-        , { 'KB id': kbId, 'trace id': traceId, 'verdict' : verdict, 'status' : status, 'sync status' : syncStatus, 'verdict old': verdictOld}
-        , function(results) {
-          if (results.errors == '') {
-            alert("Updating KB record " + kbId + " from linuxtesting Bug # " + publishedRecord + " has been completed.");
-            window.location.reload();
-          }
-          else
-            alert($.makeArray(results.errors).join('\\n'));
-        }
-      );
       return false;
     });
   });

@@ -296,25 +296,15 @@ if ($isAut)
 					xhr.withCredentials = true;
 				},
 				error: function(error){
-				    alert(error);               
+				    console.log(error);
+					alert("Cannot connect to linuxtesting.");
 				},
 				success: function(data,status,xhr){
 		       	  if (data.search(/<li class=\"active\" ><a href=\"http:\/\/linuxtesting.org\/user\" class=\"active\">Log in<\/a><\/li>/) == -1)
 		       	  {
 		       	    var tmp = data.match(/<title>(.+) \| Linux Verification Center<\/title>/);
 		       	    window.user = tmp[1];
-		       	    // TODO: fix check rights
-		       	    /*if (!checkUserRights())
-		       	    {
-		       	      alert(window.user + " is not an Editor on linuxtesting. Logging out.");
-		       	      logoutAction();
-		       	      window.location.reload();
-		       	    }
-		       	    else
-		       	    {*/
-		       	      // Successful login.
-		       	      logoutForm();
-		       	    //}
+		       	    logoutForm();
 		       	  }
 		       	  else
 		       	  {
@@ -346,31 +336,6 @@ if ($isAut)
 			submitButton.setAttribute('type',"submit");
 			submitButton.setAttribute('value',"Login");
 
-			var loginTable = document.createElement("table");
-			var tableRow = document.createElement("tr");
-			
-			var td = document.createElement("td");
-			td.innerHTML = "<b>User:</b>";
-			tableRow.appendChild(td);
-			
-			td = document.createElement("td");
-			td.appendChild(nameField);
-			tableRow.appendChild(td);
-
-			td = document.createElement("td");
-			td.innerHTML = "<b>Password:</b>";
-			tableRow.appendChild(td);
-			
-			td = document.createElement("td");
-			td.appendChild(passField);
-			tableRow.appendChild(td);
-			
-			td = document.createElement("td");
-			td.appendChild(submitButton);
-			tableRow.appendChild(td);
-			
-			loginTable.appendChild(tableRow);
-			//loginForm.appendChild(loginTable);
 			loginForm.innerHTML += "&nbsp &nbsp <b>User: </b>";
 			loginForm.appendChild(nameField);
 			loginForm.innerHTML += "<b> Password: </b>";
@@ -392,21 +357,6 @@ if ($isAut)
 			};
 
 			var logoutTable = document.createElement("div");
-			var tableRow = document.createElement("tr");
-			
-			var td = document.createElement("td");
-			td.innerHTML = "<b>User:</b>";
-			tableRow.appendChild(td);
-			
-			td = document.createElement("td");
-			td.innerHTML = window.user;
-			tableRow.appendChild(td);
-			
-			td = document.createElement("td");
-			td.appendChild(logoutButton);
-			tableRow.appendChild(td);
-			
-			//logoutTable.appendChild(tableRow);
 			
 			logoutTable.innerHTML += "&nbsp &nbsp <b>User: </b>" + window.user + " ";
 			logoutTable.appendChild(logoutButton);
@@ -466,12 +416,8 @@ if ($isAut)
 		       	  }
 		       	  else
 		       	  {
-		       	    if (data.search(/Username field is required./gi) != -1)
-		       	      alert("Username field is required");
-		       	    else if (data.search(/Password field is required./gi) != -1)
-		       	      alert("Password field is required");
-		       	    else if (data.search(/Sorry, unrecognized username or password./gi) != -1)
-		       	      alert("Unrecognized username or password");
+		       	    var tmp = data.match(/<div class=\"messages error\">(\s*)(<ul>)?(\s*)(<li>)?([^.]*)\./);
+		       	    alert(tmp[5]);
 		       	  }
 				}
 			});
@@ -553,26 +499,77 @@ if ($isAut)
 				}
 			});
 		}
-		
-		// Get request.
-		function getRequest(url) {
-			var ajaxRequest = $.ajax({
+
+		// Async update.
+		var verdictOld, publishedRecord;
+		function getRequestUpdate(url) {
+			$.ajax({
 				url: url,
 				type: "GET",
-				//async: false,
 				beforeSend: function(xhr){
 					xhr.withCredentials = true;
 				},
 				success: function(data,status, xhr){
-					// TODO fix get
+				  var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
+				  if (!tmp[4])
+				  {
+					alert("Cannot extract status from linuxtesting.");
+					return false;
+				  }
+				  var status = tmp[4];
+				  tmp = data.match(/<td><b>Verdict: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(.+)<\/font>/);
+				  if (!tmp[4])
+				  {
+					alert("Cannot extract verdict from linuxtesting.");
+					return false;
+				  }
+				  var verdict = tmp[4];
+				  if (verdict == 'False alarm')
+				  {
+					verdict = 'False positive';
+				  }
+				  else if (verdict == 'Bug')
+				  verdict = 'True positive';
+				  tmp = data.match(/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
+				  if (!tmp[4])
+				  {
+					alert("Cannot extract syncronized status from linuxtesting.");
+					return false;
+				  }
+				  var syncStatus = tmp[4];
+				  tmp = data.search(/<td><b>LDV KB record: <\/b><\/td>(\s*)<td><a(\s*)href=\"(.*)\">Link<\/a><\/td>/);
+				  if (tmp==-1)
+				  {
+					alert("Bug " + publishedRecord + " has been deleted on linuxtesting.");
+					publishedRecord = '';
+				  }
+				  
+				  // Send post request to change sync status.
+				  if (syncStatus != "Synchronized" && publishedRecord)
+				  {
+					var sendData = {'sync_status': 'KB-Synchronized'};
+					var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
+					postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData);
+				  }
+
+				  // Update KB and run kb-recalc.
+				  $.getJSON(
+					'<?php echo $this->url(array('action' => 'get-kb-record')); ?>'
+					, { 'KB id': kbId, 'trace id': traceId, 'verdict' : verdict, 'status' : status, 'sync status' : syncStatus, 'verdict old': verdictOld, 'published id': publishedRecord}
+					, function(results) {
+					  if (results.errors == '') {
+						alert("Updating KB record " + kbId + " from linuxtesting Bug # " + publishedRecord + " has been completed.");
+						window.location.reload();
+					  }
+					  else
+						alert($.makeArray(results.errors).join('\\n'));
+					}
+				  );
 				},
 				error: function (request, status, error) {
-					alert("Can not send a get request to linuxtesting.");
 				}
 			});
-			return ajaxRequest.responseText;
 		}
-
 		// Executes in page load.
 		window.onload = function()
 		{

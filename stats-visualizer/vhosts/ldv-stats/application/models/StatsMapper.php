@@ -1177,9 +1177,17 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $verdict=$params['verdict'];
     $traceId=$params['trace_id'];
     $kbId=$params['KB_id'];
+    $publishedId=$params['published_id'];
 
     // Update KB record.
-    $this->_db->query("UPDATE kb, results_kb SET verdict = '$verdict', status = '$status', sync_status = 'Synchronized' WHERE kb.id = $kbId AND results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId");
+    if ($publishedId) // Record is still on linuxtesting - update verdict, status, sync_status.
+    {
+      $this->_db->query("UPDATE kb, results_kb SET verdict = '$verdict', status = '$status', sync_status = 'Synchronized' WHERE kb.id = $kbId AND results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId");
+    }
+    else // Record was deleted on linuxtesting - make it Unpublished.
+    {
+      $this->_db->query("UPDATE results_kb SET status = 'Unreported', sync_status = 'Unpublished', published_trace_id=NULL WHERE results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId");
+    }
   }
 
   public function getErrorTrace($profile, $params) {
