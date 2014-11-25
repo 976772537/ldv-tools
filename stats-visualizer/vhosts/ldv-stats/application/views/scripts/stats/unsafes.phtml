@@ -96,22 +96,12 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
         alert('Something goes wrong while KB record was deleted');
       }});
 
-      if (publishedRecord)
+      if (publishedRecord) // Remove form linuxtesting.
       {
-        var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
-        // Check for unreported.
-        var data = getRequest(url + "?action=details_ppob&num=" + publishedRecord);
-        var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\w+)\">(\w+)<\/font>/);
-        if (tmp[4] != 'Unreported')
-        {
-          alert("Status of Trace # " + publishedRecord + " is no longer 'Unreported'.\n" +
-            "In order to changed it please contact the Expert with access to linuxtesting");
-          return false;
-        }
-        
-        // Remove form linuxtesting.
+        // This path is not possible right now and will not be supported in future.
+        /*var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
         var sendData = {};
-        postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);
+        postRequest(url + "?action=del_ppob&num=" + publishedRecord, sendData);*/
       }
       
       // Remove from KB.
