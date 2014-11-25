@@ -110,7 +110,6 @@ if (isset($_POST['action']) && $_POST['action'] == 'filter')
         , { 'KB id': kbId }
         , function(results) {
           if (results.errors == '') {
-            alert("KB record # " + kbId + " successfully has been deleted.");
             window.location.reload();
           }
           else

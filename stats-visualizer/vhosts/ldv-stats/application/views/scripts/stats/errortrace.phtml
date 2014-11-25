@@ -152,15 +152,6 @@ else {
         , { 'KB id': kbId }
         , function(results) {
           if (results.errors == '') {
-            if (publishedRecord)
-            {
-              alert("KB record # " + kbId + " along with corresponding Bug on linuxtesting # " + publishedRecord + 
-                " successfully has been deleted.");
-            }
-            else
-            {
-              alert("KB record # " + kbId + " successfully has been deleted.");
-            }
             window.location.reload();
           }
           else

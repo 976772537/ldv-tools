@@ -297,7 +297,7 @@ if ($isAut)
 				},
 				error: function(error){
 				    console.log(error);
-					alert("Cannot connect to linuxtesting.");
+					alert("Cannot connect to linuxtesting.org.");
 				},
 				success: function(data,status,xhr){
 		       	  if (data.search(/<li class=\"active\" ><a href=\"http:\/\/linuxtesting.org\/user\" class=\"active\">Log in<\/a><\/li>/) == -1)
@@ -305,7 +305,7 @@ if ($isAut)
 		       	    var tmp = data.match(/<title>(.+) \| Linux Verification Center<\/title>/);
 		       	    if (!tmp)
 		       	    {
-		       	      alert("There was an unexpected error during connecting to linuxtesting.");
+		       	      alert("There was an unexpected error during connecting to linuxtesting.org.");
 		       	      loginForm();
 		       	    }
 		       	    else
@@ -387,7 +387,7 @@ if ($isAut)
 				},
 				error: function(error){
 					console.log(error);
-					alert("Cannot login in linuxtesting.");
+					alert("Cannot login in linuxtesting.org.");
 				},
 				success: function(data,status, xhr){
 		       	  if (data.search(/<a class=\'head\' href=\'http:\/\/linuxtesting.org\/logout\'>logout<\/a>/) != -1)
@@ -400,7 +400,7 @@ if ($isAut)
 		       	    var tmp = data.match(/<div class=\"messages error\">(\s*)(<ul>)?(\s*)(<li>)?([^.]*)\./);
 		       	    if (!tmp)
 		       	    {
-		       	      alert("There was an unexpected error during login to linuxtesting.");
+		       	      alert("There was an unexpected error during login to linuxtesting.org.");
 		       	    }
 		       	    else
 		       	    {
@@ -422,7 +422,7 @@ if ($isAut)
 				},
 				error: function(error){
 					console.log(error);
-					alert("Cannot logout from linuxtesting.");
+					alert("Cannot logout from linuxtesting.org.");
 				},
 				success: function(data,status, xhr){
 					//alert("You have been logged out from linuxtesting successfully.");
@@ -443,7 +443,7 @@ if ($isAut)
 			if (!tmp)
 			{
 				alert("Can't get response for post request from linuxtesting.\n"+
-					"Keep in mind that you need Editor permissions on linuxtesting for this operation to be successful.");
+					"Keep in mind that you need Editor permissions on linuxtesting.org for this operation to be successful.");
 				return false;
 			}
 			if (tmp[1])
@@ -452,7 +452,7 @@ if ($isAut)
 			}
 			else
 			{
-				alert("There was an error during uploading to linuxtesting.");
+				alert("There was an error during uploading to linuxtesting.org.");
 				return false;
 			}
 			$.getJSON(
@@ -460,15 +460,7 @@ if ($isAut)
 		    , { 'KB id': kbId , 'trace id': traceId , 'ppob id': newPublishedRecordId}
 		    , function(results) {
 		      if (results.errors == '') {
-		        if (url.indexOf("submit") > -1)
-		        {
-		          alert("Publishing KB record to the linuxtesting has been completed.\nPublished Bug # " + 
-		            newPublishedRecordId + ".");
-		        }
-		       	else
-		       	{
-		       	  alert("Updating KB record to the linuxtesting Bug # " + newPublishedRecordId + " has been completed.");
-		       	}
+		        alert("Published Bug " + newPublishedRecordId + " to linuxtesting.org.");
 		        window.location.reload();
 		      }
 		      else
@@ -507,20 +499,20 @@ if ($isAut)
 				  var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
 				  if (!tmp)
 				  {
-					alert("Can't get response for post request from linuxtesting.\n"+
-						"Keep in mind that you need Editor permissions on linuxtesting for this operation to be successful.");
+					alert("Can't get response for post request from linuxtesting.org.\n"+
+						"Keep in mind that you need Editor permissions on linuxtesting.org for this operation to be successful.");
 					return false;
 				  }
 				  if (!tmp[4])
 				  {
-					alert("Cannot extract status from linuxtesting.");
+					alert("Cannot extract status from linuxtesting.org.");
 					return false;
 				  }
 				  var status = tmp[4];
 				  tmp = data.match(/<td><b>Verdict: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(.+)<\/font>/);
 				  if (!tmp[4])
 				  {
-					alert("Cannot extract verdict from linuxtesting.");
+					alert("Cannot extract verdict from linuxtesting.org.");
 					return false;
 				  }
 				  var verdict = tmp[4];
@@ -533,14 +525,14 @@ if ($isAut)
 				  tmp = data.match(/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
 				  if (!tmp[4])
 				  {
-					alert("Cannot extract syncronized status from linuxtesting.");
+					alert("Cannot extract syncronized status from linuxtesting.org.");
 					return false;
 				  }
 				  var syncStatus = tmp[4];
 				  tmp = data.search(/<td><b>LDV KB record: <\/b><\/td>(\s*)<td><a(\s*)href=\"(.*)\">Link<\/a><\/td>/);
 				  if (tmp==-1)
 				  {
-					alert("Bug " + publishedRecord + " has been deleted on linuxtesting.");
+					alert("Bug " + publishedRecord + " has been deleted on linuxtesting.org.");
 					publishedRecord = '';
 				  }
 				  
@@ -558,7 +550,7 @@ if ($isAut)
 					, { 'KB id': kbId, 'trace id': traceId, 'verdict' : verdict, 'status' : status, 'sync status' : syncStatus, 'verdict old': verdictOld, 'published id': publishedRecord}
 					, function(results) {
 					  if (results.errors == '') {
-						alert("Updating KB record " + kbId + " from linuxtesting Bug # " + publishedRecord + " has been completed.");
+						alert("Updated from Bug " + publishedRecord + " at linuxtesting.org.");
 						window.location.reload();
 					  }
 					  else
