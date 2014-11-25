@@ -303,8 +303,16 @@ if ($isAut)
 		       	  if (data.search(/<li class=\"active\" ><a href=\"http:\/\/linuxtesting.org\/user\" class=\"active\">Log in<\/a><\/li>/) == -1)
 		       	  {
 		       	    var tmp = data.match(/<title>(.+) \| Linux Verification Center<\/title>/);
-		       	    window.user = tmp[1];
-		       	    logoutForm();
+		       	    if (!tmp)
+		       	    {
+		       	      alert("There was an unexpected error during connecting to linuxtesting.");
+		       	      loginForm();
+		       	    }
+		       	    else
+		       	    {
+		       	      window.user = tmp[1];
+		       	      logoutForm();
+		       	    }
 		       	  }
 		       	  else
 		       	  {
@@ -363,33 +371,6 @@ if ($isAut)
 			document.getElementById("SSHeaderAut").appendChild(logoutTable);
 		}
 		
-		// Function checks if user have is editor on linuxtesting.
-		function checkUserRights()
-		{
-			// Check first page.
-			var url = <?php echo json_encode($url);?> + "user_list/4";
-			var user = window.user;
-			var data = getRequest(url);
-			if (data.search(user) != -1)
-			{
-				return true;
-			}
-			
-			// Check next pages.
-			while (data.search(/<li class=\"pager-next\"><a href=\"(.+)\" title=\"Go to next page\"/) != -1)
-			{
-				var tmp = data.match(/<li class=\"pager-next\"><a href=\"(.+)\" title=\"Go to next page\"/);
-		       	url = tmp[1]; // Get url to "next" page.
-		       	data = getRequest(url);
-		       	if (data.search(user) != -1)
-				{
-					return true;
-				}
-			}
-			
-			return false;
-		}
-		
 		// Post request to login in linuxtesting.
 		function loginAction() {
 			var url = <?php echo json_encode($url);?> + "user/login";
@@ -409,7 +390,7 @@ if ($isAut)
 					alert("Cannot login in linuxtesting.");
 				},
 				success: function(data,status, xhr){
-		       	  if (data.search(/My account/gi) != -1)
+		       	  if (data.search(/<a class=\'head\' href=\'http:\/\/linuxtesting.org\/logout\'>logout<\/a>/) != -1)
 		       	  {
 		       	    //alert("You have been authorized in linuxtesting successfully.");
 		       	    window.location.reload();
@@ -417,7 +398,14 @@ if ($isAut)
 		       	  else
 		       	  {
 		       	    var tmp = data.match(/<div class=\"messages error\">(\s*)(<ul>)?(\s*)(<li>)?([^.]*)\./);
-		       	    alert(tmp[5]);
+		       	    if (!tmp)
+		       	    {
+		       	      alert("There was an unexpected error during login to linuxtesting.");
+		       	    }
+		       	    else
+		       	    {
+		       	      alert(tmp[5]);
+		       	    }
 		       	  }
 				}
 			});
@@ -452,6 +440,12 @@ if ($isAut)
 
 			// Check post request status.
 			var tmp = data.match(/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/);
+			if (!tmp)
+			{
+				alert("Can't get response for post request from linuxtesting.\n"+
+					"Keep in mind that you need Editor permissions on linuxtesting for this operation to be successful.");
+				return false;
+			}
 			if (tmp[1])
 			{
 				newPublishedRecordId = tmp[1];
@@ -511,6 +505,12 @@ if ($isAut)
 				},
 				success: function(data,status, xhr){
 				  var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
+				  if (!tmp)
+				  {
+					alert("Can't get response for post request from linuxtesting.\n"+
+						"Keep in mind that you need Editor permissions on linuxtesting for this operation to be successful.");
+					return false;
+				  }
 				  if (!tmp[4])
 				  {
 					alert("Cannot extract status from linuxtesting.");

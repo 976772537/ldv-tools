@@ -173,6 +173,10 @@ else {
 
     // Publish action.
     $('.SETVKBPublishKBRecord').click(function() {
+      $.ajaxSetup({ 'error': function() {
+        alert('Something goes wrong while KB record was published');
+      }});
+      
       var rowCur = $(this).parent().parent();
       kbId = rowCur.find('.SETVKBId').text();
       traceId = rowCur.find('.SETVKBErrortrace').text();
