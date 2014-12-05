@@ -335,7 +335,7 @@ sub scan_and_run {
                         }
                     }
                     else{
-                        print_debug_warning("Task requires mor memory that it is allowed to use: '$path'");
+                        print_debug_warning("Task requires more memory that it is allowed to use: '$path'");
                     }
                 }
             }
