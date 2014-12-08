@@ -78,20 +78,19 @@ my $cpachecker;
 my $configs_dir = "$installed_frontends_dir/etc/";
 
 # This section check usage of verification cloud
-if(defined $ENV{RCV_REMOTE_HOST}){
+if ($ENV{RCV_REMOTE_HOST}) {
 	unshift @cpachecker_options, 'curl';
-	@cpachecker_options = (@cpachecker_options, '-s');
+	push @cpachecker_options, '-s';
 
 	# Futher check other settings
-	if(defined $ENV{RCV_ACCESS}){
-		@cpachecker_options = ( @cpachecker_options, '-u' );
-		@cpachecker_options = ( @cpachecker_options, $ENV{RCV_ACCESS} );
+	if ($ENV{RCV_ACCESS}) {
+		push @cpachecker_options, '-u', $ENV{RCV_ACCESS};
 	}
-	else{
+	else {
 		die "Please provide '<user>:<password>' pair with environment variable 'RCV_ACCESS' to access verification cloud";
 	}
 }
-else{
+else {
 	# Get a path to the user-specified config, if any, via Perl's ENV hash for
 	# environemnt variables.  If the user hasn't specified the environment
 	# variable, the value of $cpachecker_config will be undef.
@@ -108,7 +107,7 @@ else{
 	my $arch=`uname -m`;
 
 	my $arch_platform;
-	if($arch =~ "x86_64") {
+	if ($arch =~ "x86_64") {
 	 $arch_platform="x86_64-linux";
 	} else {
 	 $arch_platform="x86-linux";
@@ -117,30 +116,29 @@ else{
 	my $arch_platform_path = dirname($cpafullpath)."/../lib/native/$arch_platform";
 
 	$ENV{'JAVA_VM_ARGUMENTS'} = "-Djava.library.path=$arch_platform_path";
-
-	# The interface to get files to analyze for this particular task is
-	# preprocess_all_files. This function gets a list of preprocessors to apply, and
-	# returns a list of preprocessed files to analyze. If you specify certain
-	# preprocessors, such a list will only have one file. If you specify no
-	# preprocessors, you'll get a list of original files. The available
-	# preprocessors include:
-
-	#  - 'cpp' - standard system C preprocessor
-
-	#  - 'cil' - preprocess each file separately with CIL preprocessor; the files
-	#      should already be preprocessed by CPP!  CIL is shipped with LDV by
-	#      default, but you may specify your own CIL executable.  See also
-	#      set_cil_options and set_cil.
-
-	#  - 'cil-merge' - preprocess all files with CIL preprocessor, and merge them
-	#      into one. The files should already be preprocessed by CPP!
-
-	# CPAchecker requires the files to be processed by CIL before passing.  We ship
-	# CIL by default with the toolset, and its path is already adjusted.  You may
-	# redefine it to your own executable before you invoke preprocess_all_files().
-	# Note that you should specify "cilly.asm.exe" instead of simple "cilly" script.
 }
 
+# The interface to get files to analyze for this particular task is
+# preprocess_all_files. This function gets a list of preprocessors to apply, and
+# returns a list of preprocessed files to analyze. If you specify certain
+# preprocessors, such a list will only have one file. If you specify no
+# preprocessors, you'll get a list of original files. The available
+# preprocessors include:
+
+#  - 'cpp' - standard system C preprocessor
+
+#  - 'cil' - preprocess each file separately with CIL preprocessor; the files
+#      should already be preprocessed by CPP!  CIL is shipped with LDV by
+#      default, but you may specify your own CIL executable.  See also
+#      set_cil_options and set_cil.
+
+#  - 'cil-merge' - preprocess all files with CIL preprocessor, and merge them
+#      into one. The files should already be preprocessed by CPP!
+
+# CPAchecker requires the files to be processed by CIL before passing.  We ship
+# CIL by default with the toolset, and its path is already adjusted.  You may
+# redefine it to your own executable before you invoke preprocess_all_files().
+# Note that you should specify "cilly.asm.exe" instead of simple "cilly" script.
 
 #set_cil("/my/path/cil/obj/x86_LINUX/cilly.asm.exe");
 
@@ -202,12 +200,14 @@ $timelimit = convert_time(specified_time => $ENV{'RCV_TIMELIMIT'});
 my $heap_size = get_heap_size($memlimit);
 
 my $cpa_cfg_new = "$tmpdir/wrapper.properties";
-if(defined $ENV{RCV_REMOTE_HOST}){
+if ($ENV{RCV_REMOTE_HOST}) {
 	foreach my $file (@files){
-		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-		@cpachecker_options = ( @cpachecker_options, 'programText@' . $file );
+        #TODO: create an auxiliary function that add a new option to array of CPAchecker options (since the same code is used several times).
+		push @cpachecker_options, '--data-urlencode';
+		push @cpachecker_options, 'programText@' . $file;
 	}
 
+    #TODO: remove this if it will be commented.
 	# This section set limits according to default cloud levels: low, medium, high
 	#my $level = 'medium';
 	#if($memlimit <= 2 && $timelimit <= 300){
@@ -235,41 +235,43 @@ if(defined $ENV{RCV_REMOTE_HOST}){
 	my $fixed_limit = ($memlimit / 1000000) . 'M';
 
 	# Set limits
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'memoryLimitation=' . $fixed_limit );
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'memoryLimitation=' . $fixed_limit;
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'timeLimitation=' . $timelimit;
 
+    #TODO: whether code below matters?
 	# Add soft time limit as we do it locally
 	#@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
 	#@cpachecker_options = ( @cpachecker_options, 'option=limits.time.cpu=' . ($timelimit - 60) );
 
 	# Set heap size
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'heap=' . $heap_size );
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'heap=' . $heap_size;
 
 	# Specify revision if it necessary
-	if(defined $ENV{"SVN_REVISION"}){
-		@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-		@cpachecker_options = ( @cpachecker_options, 'revision=' . $ENV{"SVN_REVISION"} );
+	if ($ENV{"SVN_REVISION"}) {
+		push @cpachecker_options, '--data-urlencode';
+		push @cpachecker_options, 'revision=' . $ENV{"SVN_REVISION"};
 	}
 
 	# Choose config: Cloud accept any configuration from cpachecker trunk
 	# We should provide relative path to it from repository root dir 
 	$cpachecker_config = $ENV{'CPACHECKER_CLOUD_CONFIG'};
-	if(!defined $cpachecker_config){
+	if (!$cpachecker_config) {
 		$cpachecker_config = 'ldv';
 	}
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'configuration=' . $cpachecker_config );
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'configuration=' . $cpachecker_config;
 
+    #TODO: relate this with LDV_DEBUG.
 	# Choose log level
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'option=log.level=FINE' );
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'option=log.level=FINE';
 
 	# Disable java assertions
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'disableJavaAssertions=true' );
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'disableJavaAssertions=true';
 }
 else{
 	@cpachecker_options = ($cpachecker,@files);
@@ -315,7 +317,6 @@ else{
 	}
 
 	close $CPA_CFG;
-
 }
 
 # The array @errlocs contains a single error location. This may be changed in
@@ -352,25 +353,23 @@ my $outputpath;
 # We will need to adjust the trace for seamless integration with LDV, so we'll
 # copy the trace here.
 my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
-if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
+if ($ENV{RCV_REMOTE_HOST} && defined $main) {
 	# Add specification
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'specificationText@' . "$tmpdir/$LDV_errloc_autom");
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'specificationText@' . "$tmpdir/$LDV_errloc_autom";
 
 	# Add mains
-	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	@cpachecker_options = ( @cpachecker_options, 'option=analysis.entryFunction=' . $main);
+	push @cpachecker_options, '--data-urlencode';
+	push @cpachecker_options, 'option=analysis.entryFunction=' . $main;
 
 	$outputpath = $tmpdir;
 	# In CPAchecker, the trace is stored in the separate file in the output path,
 	# and we know its name.
 	$orig_trace_fname = "$outputpath/output/ErrorPath.txt";
 }
-else{
+else {
 	# Add config option to cpachecker call line
-	push @cpachecker_options,
-		"-config","$cpa_cfg_new"
-	;
+	push @cpachecker_options, "-config", "$cpa_cfg_new";
 
 	# Add mains
 	push @cpachecker_options, "-entryfunction", $main;
@@ -380,18 +379,18 @@ else{
 	# Besides, we want to know the exact location of the error path. Write
 	# ErrorPath.txt and other files to outputpath.
 	$outputpath = "$tmpdir/cpa-tmp";
-	push @cpachecker_options, "-outputpath",$outputpath;
+	push @cpachecker_options, "-outputpath", $outputpath;
 
 	# Disable java assertions in "release" mode
 	push @cpachecker_options, "-disable-java-assertions";
 
 	# Set java heap size
-	if($ENV{'CPACHECKER_OPTIONS'} !~ m/-heap\s+[0-9]+m/){
+	if ($ENV{'CPACHECKER_OPTIONS'} !~ m/-heap\s+[0-9]+m/) {
 		push @cpachecker_options, "-heap", $heap_size;
 	}
 
 	# Additional options a user may specify (watch for the spaces in options!)
-	push @cpachecker_options,(split /\s+/,$ENV{'CPACHECKER_OPTIONS'});
+	push @cpachecker_options, (split /\s+/, $ENV{'CPACHECKER_OPTIONS'});
 
 	# In CPAchecker, the trace is stored in the separate file in the output path,
 	# and we know its name.
@@ -447,11 +446,11 @@ else{
 }
 
 # Check that all files provided to the CPAchecker tool are not empty
-if(-z "$tmpdir/$LDV_errloc_autom"){
+if (-z "$tmpdir/$LDV_errloc_autom") {
 	die "An empty file was provided as an automaton specification '$tmpdir/$LDV_errloc_autom'";
 }
 foreach my $file (@files){
-	if(-z $file){
+	if (-z $file) {
 		die "An empty file was provided for checking '$file'";
 	}
 }
@@ -501,30 +500,30 @@ add_automaton(tail_automaton(50), 'stderr');
 #   * the file where gzip-ped debug trace resides
 my ($result, $errcode, $automata_results, $debug_trace);
 my $total_sleeping = 0;
-if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
+if ($ENV{RCV_REMOTE_HOST} && $main) {
 	# Add host and execute request
-	@cpachecker_options = (@cpachecker_options, $ENV{RCV_REMOTE_HOST} . '/runs');
+	push @cpachecker_options, $ENV{RCV_REMOTE_HOST} . '/runs';
 	vsay('NORMAL', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
-	# make request several times in case of problems with a network
+	# Make request several times in case of problems with a network
 	my $connection_limit = $ENV{RCV_SLEEPING_LIMIT} || 7200;
 	vsay('NORMAL', "Ready for pending cloud for '$connection_limit' sec");
 	my $msg = 1;
-	while($total_sleeping < $connection_limit && $msg){
+	while ($total_sleeping < $connection_limit && $msg) {
 		$msg = request_to_server(@cpachecker_options);
-		if($msg){
-			if($total_sleeping < 30){
+		if ($msg) {
+			if ($total_sleeping < 30) {
 				sleep 5;
-				$total_sleeping = $total_sleeping + 5;
+				$total_sleeping += 5;
 			}
-			else{
+			else {
 				sleep 30;
 				# Add also internal subprogramm overhead on retries
-				$total_sleeping = $total_sleeping + 30;
+				$total_sleeping += 30;
 			}
 		}
 	}
-	if($msg){
+	if ($msg) {
 		die $msg;
 	}
 
@@ -533,10 +532,10 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 	my $stdout = "$tmpdir/stdout";
 	my $stderr = "$tmpdir/stderr";
 
-	if(!(-f $stdout && -f $stderr) && !-f $common_file){
+	if (!(-f $stdout && -f $stderr) && !-f $common_file) {
 		die "Cannot find both or one of neccessary files '$stdout' and '$stderr' or '$common_file'";
 	}
-	elsif(-f $common_file){
+	elsif (-f $common_file) {
 		$stderr = $common_file;
 		$stdout = $common_file;
 	}
@@ -555,7 +554,7 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 		kernel_dumped_flag => undef
 	);
 
-	# Read WEb interface output file
+	# Read Web interface output file
 	my $timeout_file = "$tmpdir/runInformation.txt";
 	vsay('DEBUG', "Open file with run info: '$timeout_file'");
 	open my $fd, '<', $timeout_file
@@ -565,17 +564,17 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 		or die "Cannot save file '$timeout_file': $!";
 	chomp @lines;
 	
-	# Parse WEb interface output file
-	foreach my $line (@lines){
-		if($line =~ /^(\w{1,})=/){
+	# Parse Web interface output file
+	foreach my $line (@lines) {
+		if ($line =~ /^(\w+)=/) {
 			my $key = $1;
 			my $val = $';
-			if( !defined $key ){
+			if (!defined $key) {
 				die "Unknown output format of the file: '$tmpdir/runInformation.txt'";
 			}
 			$expected_results{$key} = $val;
 		}
-		else{
+		else {
 			die "Unknown output format of the file: '$tmpdir/runInformation.txt'";
 		}
 	}
@@ -593,7 +592,7 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 
 	# Extract exit code
 	my $original_code = $expected_results{exitCode};
-	if($original_code > 255){
+	if ($original_code > 255){
 		$original_code = int($original_code / 256);
 	}
 	$expected_results{signal} = $original_code & 127;
@@ -603,28 +602,28 @@ if(defined $ENV{RCV_REMOTE_HOST} && defined $main){
 	# Extract signal
 	vsay('TRACE', "Returned exit code, signal and dump flag: '$expected_results{exitCode}', '$expected_results{signal}', '$expected_results{kernel_dumped_flag}'");
 
-	if($expected_results{signal}){
+	if ($expected_results{signal}) {
 		$expected_results{termination_status} = "killed by signal: $expected_results{signal} (Killed)";
 		
-		if($expected_results{memoryLimit} == 0 
+		if ($expected_results{memoryLimit} == 0 
 			|| $expected_results{timeLimit} == 0
-			||  $expected_results{wallTime} == 0){
+			|| $expected_results{wallTime} == 0) {
 			die "One of the resource limits was provided as 0";
 		}
-		else{
+		else {
 			my $mem_pr = int(($expected_results{usedMemory} / $expected_results{memoryLimit}) * 100);
 			my $wall_pr = int(($expected_results{wallTime} / $expected_results{timeLimit}) * 100);
 			my $cpu_pr = int(($expected_results{cpuTime} /$expected_results{timeLimit}) * 100);
 
-			if( 99 <= $mem_pr ){
+			if (99 <= $mem_pr) {
 				$expected_results{termination_status} = $expected_results{termination_status} . "\n\tmemory exhausted";
 				vsay('TRACE', "$mem_pr% of memory exhausted");
 			}
-			elsif( 99 <= $wall_pr ){
+			elsif (99 <= $wall_pr) {
 				$expected_results{termination_status} = $expected_results{termination_status} . "\n\twall time exhausted";
 				vsay('TRACE', "$wall_pr% of wall time exhausted");
 			}
-			elsif( 99 <= $cpu_pr ){
+			elsif (99 <= $cpu_pr) {
 				$expected_results{termination_status} = $expected_results{termination_status} . "\n\ttime exhausted";
 				vsay('TRACE', "$cpu_pr% of cpu time exhausted");
 			}
@@ -674,7 +673,7 @@ EOR
 	($result, $errcode, $automata_results, $debug_trace) = rcv_run([], { stdout => $stdout, stderr => $stderr });
 }
 else{
-	# Start cpachecker and then check its results and prepare report
+	# Start CPAchecker and then check its results and prepare report
 	($result, $errcode, $automata_results, $debug_trace) = run(@cpachecker_options);
 }
 
@@ -894,7 +893,7 @@ sub convert_time
 {
 	my $info = {@_};
 	my $time = $info->{specified_time};
-	if ($time =~ /^(\d+[.]{0,1}\d{0,})(min|ms|s|)$/)
+	if ($time =~ /^(\d+[.]?\d*)(min|ms|s|)$/)
 	{
 		my $res = $1;
 		if ($2 eq "min")
@@ -913,15 +912,16 @@ sub convert_time
 	}
 }
 
+# TODO: what does "wi" means?
 sub convert_wi_time
 {
 	my $in = shift;
 	# Value can be in several parts
 	my @values = split ' ', $in;
 	my $out = 0;
-	if(scalar @values > 0){
-		foreach my $val (@values){
-			$out = $out + convert_time(specified_time => $val);			
+	if (scalar @values > 0) {
+		foreach my $val (@values) {
+			$out += convert_time(specified_time => $val);			
 		}
 	}
 	else{
@@ -930,7 +930,7 @@ sub convert_wi_time
 
 	# Convert to ms	
 	$out = $out * 1000;
-	$out =~ s/[.]\d{1,}//;	
+	$out =~ s/[.]\d+//;	
 	return $out;
 }
 
@@ -938,7 +938,7 @@ sub convert_memory
 {
 	my $info = {@_};
 	my $mem = $info->{specified_mem};
-	if ($mem =~ /^(\d+[.]{0,1}\d{0,})\s{0,}(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|B|)$/)
+	if ($mem =~ /^(\d+[.]?\d*)\s*(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|B|)$/)
 	{
 		my $res = $1;
 		if ($2 eq "Kb")
@@ -965,10 +965,7 @@ sub convert_memory
 		{
 			$res *= 1024 * 1024 * 1024;
 		}
-		if ($2 eq "B")
-		{
-			$res *= 1;
-		}
+
 		return $res;
 	}
 	else
@@ -981,7 +978,7 @@ sub check_limit
 {
 	my $env_variable = $_[0];
 	my $key = $_[1];
-	if (! defined $ENV{$env_variable}) {
+	if (!defined $ENV{$env_variable}) {
 		$ENV{$env_variable} = $limits{$key};
 	} else {
 		$ENV{$env_variable} == $limits{$key} or	die
@@ -995,7 +992,7 @@ sub request_to_server
 	my $msg;
 
 	my $id = `@cpachecker_options`;
-	if(!defined $id || $id =~ /\s/ || $? != 0){
+	if (!defined $id || $id =~ /\s/ || $? != 0) {
 		$msg = "Cannot obtain run id from the cloud, got instead: '$id'";
 		vsay('WARNING', $msg);
 		return $msg;
@@ -1014,34 +1011,34 @@ sub request_to_server
 	my $state;
 	my $ret;
 	my $last_state = '';
-	while(!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING'){
+	while (!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING') {
 		$state = `@opts`;
 		$ret = $?;
-		if($? != 0){
+		if ($? != 0) {
 			$msg = "Cannot check status of results for the id '$id'";
 			vsay('WARNING', $msg);
 			return $msg
 		}
-		else{
-			if($last_state ne $state){
+		else {
+			if ($last_state ne $state) {
 				vsay('NORMAL', "Current state of the task: '$state'");
 				$last_state = $state;
 			}
 		}
 
-		if($state eq 'UNKNOWN'){
+		if ($state eq 'UNKNOWN') {
 			$msg = "Seems that server lost results for the id '$id'";
 			vsay('WARNING', $msg);
 			return $msg;
 		}
-		elsif($state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING'){
+		elsif ($state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING') {
 			sleep 0.5;
 			$total_sleeping = $total_sleeping + 0.5;
 		}
-		elsif($state eq 'FINISHED'){
+		elsif ($state eq 'FINISHED') {
 			last;
 		}
-		else{
+		else {
 			$msg = "Unsupported CPAchecker Web-interface response: '$state'";
 			vsay('WARNING', $msg);
 			return $msg;
@@ -1081,7 +1078,7 @@ sub request_to_server
 
 sub fetch_results
 {
-	my ($zip, $id) =@_;
+	my ($zip, $id) = @_;
 	my $msg;
 
 	my @opts = (
@@ -1095,15 +1092,15 @@ sub fetch_results
 
 	my $code;
 	my $tries = 5;
-	while((!defined $code || $code != 0) && $tries > 0){
+	while ((!defined $code || $code != 0) && $tries > 0) {
 		my $data = `@opts`;
 		$code = $?;
-		if($code == 0){
+		if ($code == 0) {
 			open my $fh, '>', $zip or die "Cannot open file '$zip': $!";
 			print {$fh} $data or die "Cannot write to the file '$zip': $!";
 			close $fh or die "Cannot close file '$zip': $!";
 		}
-		else{
+		else {
 			$msg = "Cannot fetch data, exit code '$?'";
 			vsay('WARNING', $msg);
 			sleep 0.5;
@@ -1113,12 +1110,12 @@ sub fetch_results
 		$tries--;
 	}
 
-	if($code != 0){
+	if ($code != 0) {
 		$msg = "Cannot fetch data from server, exit code '$code': $!";
 		vsay('WARNING', $msg);
 		return $msg;
 	}
-	if(!-f $zip){
+	if (!-f $zip) {
 		$msg = "Cannot fetch data from server, file doesn't exist '$zip'";
 		vsay('WARNING', $msg);
 		return $msg;
@@ -1145,7 +1142,7 @@ sub extract_results
 	vsay('DEBUG', q{Extract results: '} . ( join ' ', @opts ) . q{'});
 	my $code = system(@opts);
 
-	if($code){
+	if ($code) {
 		return $!;
 	}
 

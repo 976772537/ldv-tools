@@ -38,6 +38,7 @@ use IPC::Open3;
 use File::Basename;
 use File::Path qw(mkpath);
 use File::Spec::Functions;
+#TODO: add new dependencies to file INSTALL.
 use File::Copy;
 use FindBin;
 use Readonly;
@@ -318,7 +319,7 @@ sub get_timeout_opts
 {
 	my ($redirected_stdout, $redirected_stderr, $timout_out) = @_;
 
-	if(!defined $timout_out || $timout_out eq ''){
+	if(!$timout_out) {
 		$timout_out = get_timeout_file();
 	}
 
@@ -327,7 +328,6 @@ sub get_timeout_opts
 	my @args = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $context->{limits}->{timelimit},
 		memlimit => $context->{limits}->{memlimit},
-		#pattern => $time_pattern,
 		output => $timout_out,
 		id_str => $timeout_idstr,
 		kill_at_once => $context->{limits}->{kill_at_once},
@@ -379,7 +379,7 @@ sub rcv_run
 	$context->{tailbuf} = [];
 
 	my $errcode;
-	if(defined $remote_opts){
+	if(defined $remote_opts) {
 		my $stdout_file = $remote_opts->{stdout};
 		my $stderr_file = $remote_opts->{stderr};
 		die 'Please, provide correct stdout file' if not defined $stdout_file;
@@ -403,7 +403,7 @@ sub rcv_run
 		}
 		close $fd;
 	}
-	else{
+	else {
 		# Now open3 the commandline we have, and get the result
 		my %child = Utils::open3_callbacks({
 			# Stdout callback

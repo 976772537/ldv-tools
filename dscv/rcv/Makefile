@@ -31,7 +31,7 @@ $(rcv_install_dir)/blast: blast
 	@mkdir -p $(@D)
 	cp $^ $@
 	@chmod +x $@
-        
+
 $(rcv_install_dir)/cpachecker: cpachecker
 	@mkdir -p $(@D)
 	cp $^ $@

@@ -26,11 +26,11 @@
 set_tool_name("BLAST");
 
 my $remote_mode = 0;
-if(defined $ENV{'RCV_REMOTE_HOST'} && $ENV{'RCV_REMOTE_HOST'} ne ''){
+if ($ENV{'RCV_REMOTE_HOST'}) {
 	vsay('INFO', "Going to run BLAST on remote host '$ENV{'RCV_REMOTE_HOST'}'");
 	$remote_mode = 1;
 }
-else{
+else {
 	vsay('INFO', 'Going to run BLAST on this host');
 }
 
@@ -39,26 +39,26 @@ my @files = preprocess_all_files('cpp');
 my $blast_exe;
 my @transfer_files = @files;
 my $docker_blast_image;
-if($remote_mode){
+if ($remote_mode) {
 	$blast_exe = 'pblast.opt';
-	if(defined $ENV{'RCV_DOCKER_IMAGE'} && $ENV{'RCV_DOCKER_IMAGE'} ne ''){
+	if($ENV{'RCV_DOCKER_IMAGE'}) {
 		$docker_blast_image = $ENV{'RCV_DOCKER_IMAGE'};
 	}
-	else{
+	else {
 		$docker_blast_image = 'ubuntu:blast';
 	}
 
 	# Get file basenames
-	@files = map { my $name = fileparse($_);$name; } @files;
+	@files = map { my $name = fileparse($_); $name; } @files;
 }
-else{
+else {
 	# locate blast
 	my $blast_bin_dir = $ENV{'BLAST_PATH'} || "$installed_backends_dir/blast/bin";
 	$blast_exe = "$blast_bin_dir/pblast.opt";
 
 	-d $blast_bin_dir or die "The selected BLAST's backend directory '$blast_bin_dir' is not a directory";
 
-	# Add path for BLAST's supplementary scripts.  Prepending to system's to override other PATHs.
+	# Add path for BLAST's supplementary scripts. Prepending to system's to override other PATHs.
 	my $new_path = "$blast_bin_dir:".$ENV{'PATH'};
 	vsay 30,"Setting PATH to '$new_path'";
 	$ENV{'PATH'} = $new_path;
@@ -170,6 +170,7 @@ unless ($ENV{'BLAST_NOOCAMLTUNE'}){
 	vsay ('NORMAL',sprintf("OCaml machine-specific tuning is not performed."));
 }
 
+#TODO: try to remove all uses of add_time_watch() and the function itself.
 unless($remote_mode){
 	add_time_watch(
 		'PBLAST.OPT' => '.*pblast\.opt.*',
@@ -195,7 +196,8 @@ add_automaton(ocaml_detect());
 add_automaton(tail_automaton(50),'stderr');
 
 my ($result, $errcode, $automata_results, $debug_trace);
-if($remote_mode){
+
+if ($remote_mode) {
 	my @quoted_opts = ();
 	while(scalar @blast_options){
 		my $opt = shift @blast_options;
@@ -207,7 +209,7 @@ if($remote_mode){
 	vsay 'TRACE', q{Going to execute: '} . join (' ', @quoted_opts) . q{'}; 
 	($result, $errcode, $automata_results, $debug_trace) = docker_run(\@quoted_opts, \@transfer_files, $docker_blast_image);
 }
-else{
+else {
  	($result, $errcode, $automata_results, $debug_trace) = run(@blast_options);
 }
 
