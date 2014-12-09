@@ -79,12 +79,11 @@ my $configs_dir = "$installed_frontends_dir/etc/";
 
 # This section check usage of verification cloud
 if ($ENV{RCV_REMOTE_HOST}) {
-	unshift @cpachecker_options, 'curl';
-	push @cpachecker_options, '-s';
+	add_cpa_options('curl', '-s');
 
 	# Futher check other settings
 	if ($ENV{RCV_ACCESS}) {
-		push @cpachecker_options, '-u', $ENV{RCV_ACCESS};
+		add_cpa_options('-u', $ENV{RCV_ACCESS});
 	}
 	else {
 		die "Please provide '<user>:<password>' pair with environment variable 'RCV_ACCESS' to access verification cloud";
@@ -202,57 +201,12 @@ my $heap_size = get_heap_size($memlimit);
 my $cpa_cfg_new = "$tmpdir/wrapper.properties";
 if ($ENV{RCV_REMOTE_HOST}) {
 	foreach my $file (@files){
-        #TODO: create an auxiliary function that add a new option to array of CPAchecker options (since the same code is used several times).
-		push @cpachecker_options, '--data-urlencode';
-		push @cpachecker_options, 'programText@' . $file;
+        add_cpa_cloud_options('programText@' . $file);
 	}
-
-    #TODO: remove this if it will be commented.
-	# This section set limits according to default cloud levels: low, medium, high
-	#my $level = 'medium';
-	#if($memlimit <= 2 && $timelimit <= 300){
-	#	$level = 'low';
-	#}
-	#elsif($memlimit <= 7 && $timelimit <= 900){
-	#	$level = 'medium';
-	#}
-	#elsif($memlimit <= 15 && $timelimit <= 1500){
-	#	$level = 'high';
-	#}
-	#else{
-	#	# Add additional options:
-	#	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	#	@cpachecker_options = ( @cpachecker_options, 'memoryLimitation=' . $memlimit . 'GB' );
-	#	@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	#	@cpachecker_options = ( @cpachecker_options, 'timeLimitation=' . $timelimit );
-	#}
-	# Add level - it is still necessary because beside memory and time limits it 
-	# specifies number of cpu cores
-	#@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	#@cpachecker_options = ( @cpachecker_options, 'limitations=' . $level );
-	
-	# TODO: Remove this when CPA web intf will support bytes as default format
-	my $fixed_limit = ($memlimit / 1000000) . 'M';
-
-	# Set limits
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'memoryLimitation=' . $fixed_limit;
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'timeLimitation=' . $timelimit;
-
-    #TODO: whether code below matters?
-	# Add soft time limit as we do it locally
-	#@cpachecker_options = ( @cpachecker_options, '--data-urlencode' );
-	#@cpachecker_options = ( @cpachecker_options, 'option=limits.time.cpu=' . ($timelimit - 60) );
-
-	# Set heap size
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'heap=' . $heap_size;
 
 	# Specify revision if it necessary
 	if ($ENV{"SVN_REVISION"}) {
-		push @cpachecker_options, '--data-urlencode';
-		push @cpachecker_options, 'revision=' . $ENV{"SVN_REVISION"};
+		add_cpa_cloud_options('revision=' . $ENV{"SVN_REVISION"});
 	}
 
 	# Choose config: Cloud accept any configuration from cpachecker trunk
@@ -261,20 +215,18 @@ if ($ENV{RCV_REMOTE_HOST}) {
 	if (!$cpachecker_config) {
 		$cpachecker_config = 'ldv';
 	}
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'configuration=' . $cpachecker_config;
 
-    #TODO: relate this with LDV_DEBUG.
-	# Choose log level
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'option=log.level=FINE';
-
-	# Disable java assertions
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'disableJavaAssertions=true';
+	# Set options
+	add_cpa_cloud_options(
+		'memoryLimitation=' . $memlimit,
+		'timeLimitation=' . $timelimit,
+		'heap=' . $heap_size,
+		'configuration=' . $cpachecker_config,
+		'disableJavaAssertions=true'
+	);
 }
 else{
-	@cpachecker_options = ($cpachecker,@files);
+	add_cpa_options($cpachecker, @files);
 
 	# MANAGE CONFIGURATION FILES ADJUSTMENTS
 
@@ -354,13 +306,11 @@ my $outputpath;
 # copy the trace here.
 my $adjusted_trace_fname = "$tmpdir/error_trace.txt";
 if ($ENV{RCV_REMOTE_HOST} && defined $main) {
-	# Add specification
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'specificationText@' . "$tmpdir/$LDV_errloc_autom";
-
-	# Add mains
-	push @cpachecker_options, '--data-urlencode';
-	push @cpachecker_options, 'option=analysis.entryFunction=' . $main;
+	# Add specification and mains
+	add_cpa_cloud_options(
+		'specificationText@' . "$tmpdir/$LDV_errloc_autom",
+		'option=analysis.entryFunction=' . $main
+	);
 
 	$outputpath = $tmpdir;
 	# In CPAchecker, the trace is stored in the separate file in the output path,
@@ -369,28 +319,31 @@ if ($ENV{RCV_REMOTE_HOST} && defined $main) {
 }
 else {
 	# Add config option to cpachecker call line
-	push @cpachecker_options, "-config", "$cpa_cfg_new";
-
-	# Add mains
-	push @cpachecker_options, "-entryfunction", $main;
+	add_cpa_options(
+		"-config",
+		"$cpa_cfg_new",
+		"-entryfunction",
+		$main
+	);
 	
 	# We should specify the path for result and temporary files in cpachecker, since
 	# the directory it is invoked is unknown, and may be not writeable at all.
 	# Besides, we want to know the exact location of the error path. Write
 	# ErrorPath.txt and other files to outputpath.
 	$outputpath = "$tmpdir/cpa-tmp";
-	push @cpachecker_options, "-outputpath", $outputpath;
+	add_cpa_options("-outputpath", $outputpath);
 
 	# Disable java assertions in "release" mode
-	push @cpachecker_options, "-disable-java-assertions";
+	add_cpa_options("-disable-java-assertions");
 
 	# Set java heap size
 	if ($ENV{'CPACHECKER_OPTIONS'} !~ m/-heap\s+[0-9]+m/) {
-		push @cpachecker_options, "-heap", $heap_size;
+		add_cpa_options("-heap", $heap_size);
 	}
 
 	# Additional options a user may specify (watch for the spaces in options!)
-	push @cpachecker_options, (split /\s+/, $ENV{'CPACHECKER_OPTIONS'});
+	my @envopts = split /\s+/, $ENV{'CPACHECKER_OPTIONS'};
+	add_cpa_options( @envopts );
 
 	# In CPAchecker, the trace is stored in the separate file in the output path,
 	# and we know its name.
@@ -502,7 +455,7 @@ my ($result, $errcode, $automata_results, $debug_trace);
 my $total_sleeping = 0;
 if ($ENV{RCV_REMOTE_HOST} && $main) {
 	# Add host and execute request
-	push @cpachecker_options, $ENV{RCV_REMOTE_HOST} . '/runs';
+	add_cpa_options($ENV{RCV_REMOTE_HOST} . '/runs');
 	vsay('NORMAL', q{Perform request: '} . ( join ' ', @cpachecker_options ) . q{'});
 	
 	# Make request several times in case of problems with a network
@@ -542,16 +495,17 @@ if ($ENV{RCV_REMOTE_HOST} && $main) {
 
 	# Extract data from report about resource consumption
 	my %expected_results = ( 
-		exitCode => undef,
-		wallTime => undef,
-		cpuTime => undef,
-		usedMemory => undef,
+		command => undef,
+		exitcode => undef,
+		returnvalue => undef,
+		walltime => undef,
+		cputime => undef,
+		memory => undef,
 		memoryLimit => undef,
 		timeLimit => undef,
-		command => undef,
-		termination_status => 'completed in limits',
 		signal => undef,
-		kernel_dumped_flag => undef
+		kernel_dumped_flag => undef,
+		termination_status => 'completed in limits',
 	);
 
 	# Read Web interface output file
@@ -580,10 +534,10 @@ if ($ENV{RCV_REMOTE_HOST} && $main) {
 	}
 
 	# Convert values
-	$expected_results{timeLimit} = convert_wi_time($expected_results{timeLimit});
-	$expected_results{wallTime} = convert_wi_time($expected_results{wallTime});
-	$expected_results{cpuTime} = convert_wi_time($expected_results{cpuTime});
-	$expected_results{usedMemory} = convert_memory('specified_mem', $expected_results{usedMemory});
+	$expected_results{timeLimit} = convert_cloud_time($expected_results{timeLimit});
+	$expected_results{walltime} = convert_cloud_time($expected_results{walltime});
+	$expected_results{cputime} = convert_cloud_time($expected_results{cputime});
+	$expected_results{memory} = convert_memory('specified_mem', $expected_results{memory});
 	$expected_results{memoryLimit} = convert_memory('specified_mem', $expected_results{memoryLimit});
 
 	# TODO: This code is far from perfect, but CPAchecker team promised
@@ -591,29 +545,29 @@ if ($ENV{RCV_REMOTE_HOST} && $main) {
 	# Determine termination status
 
 	# Extract exit code
-	my $original_code = $expected_results{exitCode};
+	my $original_code = $expected_results{exitcode};
 	if ($original_code > 255){
 		$original_code = int($original_code / 256);
 	}
 	$expected_results{signal} = $original_code & 127;
 	$expected_results{kernel_dumped_flag} = $original_code & 128;
-	$expected_results{exitCode} = $original_code >> 8;
+	$expected_results{exitcode} = $original_code >> 8;
 
 	# Extract signal
-	vsay('TRACE', "Returned exit code, signal and dump flag: '$expected_results{exitCode}', '$expected_results{signal}', '$expected_results{kernel_dumped_flag}'");
+	vsay('TRACE', "Returned exit code, signal and dump flag: '$expected_results{exitcode}', '$expected_results{signal}', '$expected_results{kernel_dumped_flag}'");
 
 	if ($expected_results{signal}) {
 		$expected_results{termination_status} = "killed by signal: $expected_results{signal} (Killed)";
 		
 		if ($expected_results{memoryLimit} == 0 
 			|| $expected_results{timeLimit} == 0
-			|| $expected_results{wallTime} == 0) {
+			|| $expected_results{walltime} == 0) {
 			die "One of the resource limits was provided as 0";
 		}
 		else {
-			my $mem_pr = int(($expected_results{usedMemory} / $expected_results{memoryLimit}) * 100);
-			my $wall_pr = int(($expected_results{wallTime} / $expected_results{timeLimit}) * 100);
-			my $cpu_pr = int(($expected_results{cpuTime} /$expected_results{timeLimit}) * 100);
+			my $mem_pr = int(($expected_results{memory} / $expected_results{memoryLimit}) * 100);
+			my $wall_pr = int(($expected_results{walltime} / $expected_results{timeLimit}) * 100);
+			my $cpu_pr = int(($expected_results{cputime} /$expected_results{timeLimit}) * 100);
 
 			if (99 <= $mem_pr) {
 				$expected_results{termination_status} = $expected_results{termination_status} . "\n\tmemory exhausted";
@@ -634,11 +588,11 @@ if ($ENV{RCV_REMOTE_HOST} && $main) {
 		$expected_results{memoryLimit},
 		$expected_results{timeLimit},
 		$expected_results{command},
-		$expected_results{exitCode},
+		$expected_results{exitcode},
 		$expected_results{termination_status},
-		$expected_results{wallTime},
-		$expected_results{cpuTime},
-		$expected_results{usedMemory}
+		$expected_results{walltime},
+		$expected_results{cputime},
+		$expected_results{memory}
 	);
 
 	# Prepare artificial report from cloud one
@@ -912,8 +866,27 @@ sub convert_time
 	}
 }
 
-# TODO: what does "wi" means?
-sub convert_wi_time
+sub add_cpa_cloud_options
+{
+	my @opts = @_;
+
+	while(@opts){
+		my $opt = shift @opts;
+		push @cpachecker_options, '--data-urlencode', $opt;
+	}
+}
+
+sub add_cpa_options
+{
+	my @opts = @_;
+
+	while(@opts){
+		my $opt = shift @opts;
+		push @cpachecker_options, $opt;
+	}
+}
+
+sub convert_cloud_time
 {
 	my $in = shift;
 	# Value can be in several parts
@@ -992,7 +965,7 @@ sub request_to_server
 	my $msg;
 
 	my $id = `@cpachecker_options`;
-	if (!defined $id || $id =~ /\s/ || $? != 0) {
+	if (!defined $id || $id eq '' || $id =~ /\s/ || $? != 0) {
 		$msg = "Cannot obtain run id from the cloud, got instead: '$id'";
 		vsay('WARNING', $msg);
 		return $msg;
@@ -1012,12 +985,15 @@ sub request_to_server
 	my $ret;
 	my $last_state = '';
 	while (!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING') {
-		$state = `@opts`;
+		my $state_msg = `@opts`;
+		$state_msg =~ m{<p>Run state: (PROCESSING|PENDING|WAITING|FINISHED)</p>};
+		$state = $1;
+
 		$ret = $?;
-		if ($? != 0) {
+		if ($? != 0 || !defined $state) {
 			$msg = "Cannot check status of results for the id '$id'";
-			vsay('WARNING', $msg);
-			return $msg
+			vsay('WARNING', $state_msg);
+			return $state_msg;
 		}
 		else {
 			if ($last_state ne $state) {
