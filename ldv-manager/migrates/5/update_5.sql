@@ -7,7 +7,9 @@ ALTER  TABLE `results_kb`
   ADD COLUMN `sync_status` ENUM('Unpublished', 'Synchronized', 'Desynchronized') NOT NULL DEFAULT 'Unpublished' ,
   ADD COLUMN `status` ENUM('Fixed', 'Reported', 'Unreported', 'Rejected', 'Obsolete') NOT NULL DEFAULT 'Unreported' ;
 
-
+ALTER  TABLE `kb` 
+  ADD COLUMN `user` VARCHAR(255) NOT NULL DEFAULT 'Unknown' ,
+  ADD COLUMN `time` DATETIME NULL DEFAULT NULL ;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

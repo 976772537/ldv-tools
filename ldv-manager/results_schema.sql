@@ -259,6 +259,8 @@ CREATE  TABLE IF NOT EXISTS `kb` (
   `verdict` ENUM('False positive', 'True positive', 'Unknown', 'Inconclusive') NOT NULL DEFAULT 'Unknown' ,
   `tags` TEXT NULL DEFAULT NULL ,
   `comment` MEDIUMTEXT NULL DEFAULT NULL ,
+  `user` VARCHAR(255) NOT NULL DEFAULT 'Unknown' ,
+  `time` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`id`) )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
