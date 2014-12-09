@@ -38,7 +38,7 @@ $page = $results['Page'];
 // Deal with POST request for filter.
 if (isset($_POST['action']) && $_POST['action'] == 'filter')
 {
-  $data = array('KB_id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace_id', 'Verdict', 'Tags', 'Status', 'Synchronized_status', 'Published_record');
+  $data = array('KB_id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace_id', 'Verdict', 'Tags', 'Status', 'Synchronized_status', 'Published_record', 'User');
 
   // Fill array with posted data.
   $filter = array('controller' => 'stats',
@@ -140,7 +140,7 @@ if ($page == 'Table') {
   if (isset($results['Unsafes']))
   {
     $unsafes = $results['Unsafes'];
-    $columns = array('KB id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record');
+    $columns = array('KB id', 'Kernel', 'Module', 'Rule', 'Verifier', 'Main', 'Trace id', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record', 'User', 'Time');
     if (!$isAut)
     {
       if(($key = array_search('Status', $columns)) !== false) 
@@ -479,6 +479,11 @@ elseif ($page == 'Knowledge base')
     <tr>
       <td><b>Published record id: </b></td>
       <td><input type="text" name="Published_record" size=30 maxlength=255></td>
+    </tr>
+    
+    <tr>
+      <td><b>User: </b></td>
+      <td><input type="text" name="User" size=30 maxlength=255></td>
     </tr>
 
     <tr class="<?php print(3-$rclass); ?>">

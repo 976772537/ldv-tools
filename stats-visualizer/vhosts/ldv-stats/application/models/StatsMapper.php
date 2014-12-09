@@ -1017,7 +1017,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 		throw new Exception('Page name is not specified');
 	}	
 
-	$kb_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'KB id' => 'kb.id', 'Trace id' => 'results_kb.trace_id', 'Tags' => 'kb.tags', 'Published record' => 'results_kb.published_trace_id');
+	$kb_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'KB id' => 'kb.id', 'Trace id' => 'results_kb.trace_id', 'Tags' => 'kb.tags', 'Published record' => 'results_kb.published_trace_id', 'User' => 'kb.user', 'Time' => 'kb.time');
 	$trace_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'rule_models.name', 'Module' => 'scenarios.executable', 'Verifier' => 'toolsets.verifier', 'Main' => 'scenarios.main', 'Trace id' => 'traces.id');
 	
 	// Get 'extended' verdict:
@@ -1090,7 +1090,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
 		$kb = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
 		$select = $kb
 			->select()->setIntegrityCheck(false);
-		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id');
+		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id', 'User' => 'kb.user', 'Time' => 'kb.time');
 		$select = $select
 			->from('kb', $values)
 			->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
@@ -1266,7 +1266,7 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $kb = $this->getDbTable('Application_Model_DbTable_KnowledgeBase', NULL, $this->_db);
     $select = $kb
       ->select()->setIntegrityCheck(false);
-    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id', 'Verifier' => 'toolsets.verifier');
+    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id', 'Verifier' => 'toolsets.verifier', 'User' => 'kb.user', 'Time' => 'kb.time');
 
     $select = $select
       ->from('kb', $values)

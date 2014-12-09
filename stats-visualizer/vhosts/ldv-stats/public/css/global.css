@@ -571,9 +571,27 @@ body
   background-color: #C080FF;
 }
 
-#SETVKBShowalltraces
+#SETVKBUser
+{
+  background-color: #D080FF;
+}
+
+#SETVKBTime
 {
   background-color: #D090FF;
+}
+
+.SETVKBTime
+{
+  width: 120px;
+  overflow: auto;
+  white-space: pre;
+  height: 50px;
+}
+
+#SETVKBShowalltraces
+{
+  background-color: #D0A0FF;
 }
 
 #SETVKBTags

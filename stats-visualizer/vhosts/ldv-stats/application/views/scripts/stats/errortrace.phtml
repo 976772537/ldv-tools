@@ -592,7 +592,7 @@ else {
     // Print auxiliary column that will contain update action.
     echo "<td class='SETVKBAuxTitle'></td>";
   }
-  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record', 'Show all traces');
+  $columns = array('Id', 'Name', 'Public', 'Task attributes', 'Model', 'Module', 'Main', 'Error trace', 'Script', 'Verdict', 'Tags', 'Comment', 'Status', 'Synchronized status', 'Published record', 'User', 'Time', 'Show all traces');
   if (!$isAut)
   {
     if(($key = array_search('Status', $columns)) !== false) 
