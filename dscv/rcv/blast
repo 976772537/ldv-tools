@@ -170,14 +170,6 @@ unless ($ENV{'BLAST_NOOCAMLTUNE'}){
 	vsay ('NORMAL',sprintf("OCaml machine-specific tuning is not performed."));
 }
 
-#TODO: try to remove all uses of add_time_watch() and the function itself.
-unless($remote_mode){
-	add_time_watch(
-		'PBLAST.OPT' => '.*pblast\.opt.*',
-		'SMT_SOLVER' => 'CHILD:.*smtlibServer.*',
-	);
-}
-
 # Fork and run BLAST in a child process.	Redirect its output (std and err) to a file
 
 add_automaton(safe_unsafe());
