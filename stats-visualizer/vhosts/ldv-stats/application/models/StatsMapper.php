@@ -1807,6 +1807,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $comment = $params['KB_comment'];
     if ($comment == '')
       $comment = new Zend_Db_Expr('NULL');
+      
+    $time = $params['KB_time'];
+    if ($time == '')
+      $time = new Zend_Db_Expr('NULL');
+      
+    $user = $params['KB_user'];
+    if ($user == '')
+      $user = "Unknown";
 
     // Data to be inserted or updated in KB.
     $data = array(
@@ -1819,7 +1827,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       , 'script' => $script
       , 'verdict' => $verdict
       , 'tags' => $tags
-      , 'comment' => $comment);
+      , 'comment' => $comment
+      , 'time' => $time
+      , 'user' => $user);
     if ($isNew) {
       $this->_db->insert('kb', $data);
       $kbNewId = $result['New KB id'] = $this->_db->lastInsertId();

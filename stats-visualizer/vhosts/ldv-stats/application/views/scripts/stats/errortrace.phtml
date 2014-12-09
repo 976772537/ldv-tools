@@ -25,6 +25,8 @@
 
 include 'general.php';
 
+$currentTime = date("Y-m-d H:i:s T");
+
 if ($isAut)
 {
   // Get linuxtesting URL (bug page).
@@ -300,7 +302,7 @@ else {
     return tagsArray.join(';');
   }
 
-  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, statusOld, status, internalStatusOld, tagsOld, tags, commentOld, comment, publishedRecord) {
+  function updateKBRecord(isNew, id, nameOld, name, publicOld, public, taskAttrsOld, taskAttrs, modelOld, model, moduleOld, module, mainOld, main, traceId, scriptOld, script, verdictOld, verdict, statusOld, status, internalStatusOld, tagsOld, tags, commentOld, comment, publishedRecord, user, time) {
     $.ajaxSetup({ 'error': function() {
       if (isNew)
         alert('Something goes wrong while KB record was created');
@@ -345,6 +347,8 @@ else {
           , 'KB comment old': commentOld
           , 'KB comment': comment
           , 'ppob id': publishedRecord
+          , 'KB user': user
+          , 'KB time': time
         }
       , function(results) {
         if (results.errors == '') {
@@ -391,6 +395,8 @@ else {
         var recordIndex = publishedRecord.lastIndexOf("bug?id=");
         publishedRecord = publishedRecord.substring(recordIndex + 7);
       }
+      var time = "<?php print($currentTime); ?>";
+      var user = window.user || '';
 
       rowCur.find('.SETVKBId').each(function() {
         kbId = $(this).text();
@@ -433,6 +439,9 @@ else {
       rowCur.find('.SETVKBScript').parent().each(function() {
         kbScriptOld = $(this).text();
         $(this).html("<textarea id='KBScript' rows='3' cols='40' form='UpdateKBRecord'>" + kbScriptOld + "</textarea>");
+      });
+      rowCur.find('.SETVKBTime').parent().each(function() {
+        $(this).html("<?php print($currentTime); ?>");
       });
       rowCur.find('.SETVKBVerdict').parent().each(function() {
         var isTPChecked = '';
@@ -509,6 +518,8 @@ else {
       kbCommentOld = escape(kbCommentOld);
       kbCommentOld = "'" + kbCommentOld + "'";
       kbInternalStatusOld = "'" + kbInternalStatusOld + "'";
+      time = "'" + time + "'";
+      user = "'" + user + "'";
 
       var submitText = '';
       if (isNew)
@@ -535,7 +546,7 @@ else {
           + kbInternalStatusOld + ", "
           + kbTagsOld + ",  trimTags(getElementById('KBTags').value), "
           + kbCommentOld + ",  getElementById('KBComment').value, '"
-          + publishedRecord + "');"
+          + publishedRecord + "', " + user + ", " + time + ");"
           + " return false;\">"
         + "</form>"
         + "<input type='submit' value='" + submitText + "' form='UpdateKBRecord' />"
@@ -619,6 +630,8 @@ else {
         continue;
       if ($columnName == 'Verifier')
         continue;
+      if ($columnName == 'Time' and $kbCellValue)
+        $kbCellValue .= " UTC"; # Default time zone for LDV Analytics Center.
       if ($columnName == 'Error trace')
         $kbCellValue = $results['Trace id'];
       if ($columnName == 'Published record')
@@ -690,6 +703,10 @@ else {
       $value = $results['Trace id'];
     else if ($columnName == 'Script')
       $value = "return 1 if (call_stacks_ne(\$et, \$kb_et));";
+    else if ($columnName == 'User')
+      $value = "Unknown";
+    else if ($columnName == 'Time')
+      $value = date("Y-m-d H:i:s T");
 
     echo "<td><div class='SETVKB" . preg_replace('/\s*/', '', $columnName) . "'>$value</div></td>";
   }

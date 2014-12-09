@@ -190,6 +190,8 @@ if ($page == 'Table') {
         $rule = $kbCellValue;
       if ($columnName == 'Main')
         $main = $kbCellValue;
+      if ($columnName == 'Time' and $kbCellValue)
+        $kbCellValue .= " UTC"; # Default time zone for LDV Analytics Center.
 
       if ($columnName == 'Trace id')
       {
