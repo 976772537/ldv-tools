@@ -38,7 +38,6 @@ use IPC::Open3;
 use File::Basename;
 use File::Path qw(mkpath);
 use File::Spec::Functions;
-#TODO: add new dependencies to file INSTALL.
 use File::Copy;
 use FindBin;
 use Readonly;
