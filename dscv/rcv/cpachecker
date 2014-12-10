@@ -79,7 +79,7 @@ my $configs_dir = "$installed_frontends_dir/etc/";
 
 # This section check usage of verification cloud
 if ($ENV{RCV_REMOTE_HOST}) {
-	add_cpa_options('curl', '-s');
+	add_cpa_options('curl', '-s', '-H', '"Accept: text/plain"');
 
 	# Futher check other settings
 	if ($ENV{RCV_ACCESS}) {
@@ -976,6 +976,8 @@ sub request_to_server
 	my @opts = (
 		'curl',
 		'-s',
+		'-H',
+		'"Accept: text/plain"',
 		'-u',
 		$ENV{RCV_ACCESS},
 		"$ENV{RCV_REMOTE_HOST}/runs/$id/state"
@@ -985,15 +987,13 @@ sub request_to_server
 	my $ret;
 	my $last_state = '';
 	while (!defined $state || $state eq 'WAITING' || $state eq 'PROCESSING' || $state eq 'PENDING') {
-		my $state_msg = `@opts`;
-		$state_msg =~ m{<p>Run state: (PROCESSING|PENDING|WAITING|FINISHED)</p>};
-		$state = $1;
-
+		$state = `@opts`;
+		
 		$ret = $?;
 		if ($? != 0 || !defined $state) {
 			$msg = "Cannot check status of results for the id '$id'";
-			vsay('WARNING', $state_msg);
-			return $state_msg;
+			vsay('WARNING', $state);
+			return $msg;
 		}
 		else {
 			if ($last_state ne $state) {
