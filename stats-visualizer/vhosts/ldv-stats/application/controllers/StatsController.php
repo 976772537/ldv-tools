@@ -20,9 +20,10 @@ class StatsController extends Zend_Controller_Action
 {
   protected $_globals;
   protected $_profileInfo;
-
+  
   public function init()
   {
+
     // Disable rendering and layout printing for AJAX requests.
     if ($this->getRequest()->isXmlHttpRequest()) {
       $this->_helper->viewRenderer->setNoRender();
@@ -141,7 +142,6 @@ class StatsController extends Zend_Controller_Action
       else if ($formUpdateProfiles->isValid($request->getPost())) {
         // Delete a stored information on a profile.
         $global = new Zend_Session_Namespace();
-      #  print_r($global->profileCurrent);exit;
         unset($global->profileCurrent);
         return $this->_helper->redirector->gotoSimple(
           'index'
@@ -156,7 +156,6 @@ class StatsController extends Zend_Controller_Action
 
     // Make a form for the csv export.
     $formPrintCSV = new Application_Form_PrintCSV();
-
     if ($this->getRequest()->isPost()) {
       if ($formPrintCSV->isValid($request->getPost())) {
         return $this->_helper->redirector->gotoSimple(
@@ -243,6 +242,23 @@ class StatsController extends Zend_Controller_Action
     }
   }
 
+  public function unsafesAction()
+  {
+	// Get all parameters including page name, trace id and so on.
+	$params = $this->_getAllParams();
+	$page = $params['page'];
+	$statsMapper = new Application_Model_StatsMapper();
+	$this->view->entries = array();
+	if ($page == 'Table') // Main page with table.
+	{
+		$results = $statsMapper->getUnsafes($this->_profileInfo, $params);
+		$this->view->entries = array_merge($this->view->entries, $results);
+	}
+	$this->view->entries['Globals'] = $this->_globals;
+	$this->view->entries['Profile'] = array('name' => $this->_profileInfo->profileName, 'user' => $this->_profileInfo->profileUser);
+	$this->view->entries['Page'] = $page;
+  }
+
   public function comparisonAction()
   {
     // Get all parameters including page name, statistics key names and values
@@ -305,6 +321,63 @@ class StatsController extends Zend_Controller_Action
     echo Zend_Json::encode(array('result' => $result, 'errors' => $error));
   }
 
+ /*
+  * Intends to update already published KB record to linuxtesting
+  * (for 'publish' action from errortrace page).
+  */
+  public function publishKbRecordAction()
+  {
+	$params = $this->_getAllParams();
+	$statsMapper = new Application_Model_StatsMapper();
+	$statsMapper->updatePublishedKB($this->_profileInfo, $params);
+
+	// Checking for errors added as event in caller function.
+	echo Zend_Json::encode(array('errors' => ''));
+  }
+
+ /*
+  * Function implements 'update' action from errortrace page.
+  * Intends to update KB record in LDV Analytics Center from linuxtesting.
+  * Only fields 'status' and 'verdict' will be updated.
+  */
+  public function getKbRecordAction()
+  {
+	// Obtain useful ids.
+	$kbId=$this->_getParam('KB_id');
+	$verdict=$this->_getParam('verdict');
+	$verdictOld=$this->_getParam('verdict_old');
+
+	// Update KB record.
+	$params = $this->_getAllParams();
+	$statsMapper = new Application_Model_StatsMapper();
+	$statsMapper->updateTakenKB($this->_profileInfo, $params);
+
+	// Run kb-recalc in case of changing status.
+	$output = '';
+	if ($verdictOld != $verdict) 
+	{
+    	$kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
+    	$kbRecalc = $kbRecalcConfig->script;
+		$statsMapper = new Application_Model_StatsMapper();
+    	$dbConnection = $statsMapper->connectToDb($this->_profileInfo->dbHost, $this->_profileInfo->dbName, $this->_profileInfo->dbUser, $this->_profileInfo->dbPassword, $this->_getAllParams());
+		$db = $dbConnection['dbname'];
+		$user = $dbConnection['username'];
+		$host = $dbConnection['host'];
+		$passwd = '';
+		if ($dbConnection['password'] != '')
+			$passwd = "LDVDBPASSWD=$dbConnection[password]";
+        exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --update-result=$kbId 2>&1" , $output, $retCode);
+    }
+	// Successful return.
+	// Log keeps all updated fields. If it is empty, then nothing was actually updated.
+    echo Zend_Json::encode(array('output' => $output, 'errors' => ''));
+  }
+
+ /*
+  * Function implements 'delete' action from errortrace page.
+  * Intends to delete KB record from LDV Analytics Center if it does not have published record id.
+  * Otherwise it will delete not only KB record but also corresponding Trace from linuxtesting.
+  */
   public function deleteKbRecordAction()
   {
     // Find out database connection settings.
@@ -321,8 +394,11 @@ class StatsController extends Zend_Controller_Action
     $kbRecalcConfig = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'kb-recalc');
     $kbRecalc = $kbRecalcConfig->script;
 
-    // Delete KB id.
-    exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --delete=" . $this->_getParam('KB_id') . " 2>&1" , $output, $retCode);
+	// Obtain kb_id.
+	$kbId=$this->_getParam('KB_id');
+
+    // Delete KB record.
+    exec("LDV_DEBUG=30 LDVDB=$db LDVUSER=$user LDVDBHOST=$host $passwd $kbRecalc --delete=$kbId 2>&1" , $output, $retCode);
 
     // TODO: it should be filed from the output.
     $result = '';

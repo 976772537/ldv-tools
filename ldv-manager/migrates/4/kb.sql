@@ -6,7 +6,6 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL';
 -- -----------------------------------------------------
 -- Table `kb`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `kb` ;
 SHOW WARNINGS;
 CREATE  TABLE IF NOT EXISTS `kb` (
   `id` INT NOT NULL AUTO_INCREMENT ,
@@ -30,7 +29,6 @@ SHOW WARNINGS;
 -- -----------------------------------------------------
 -- Table `results_kb`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `results_kb` ;
 SHOW WARNINGS;
 CREATE  TABLE IF NOT EXISTS `results_kb` (
   `trace_id` INT(10) UNSIGNED NOT NULL ,
@@ -57,7 +55,6 @@ SHOW WARNINGS;
 -- -----------------------------------------------------
 -- Table `results_kb_calculated`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `results_kb_calculated` ;
 SHOW WARNINGS;
 CREATE  TABLE IF NOT EXISTS `results_kb_calculated` (
   `trace_id` INT(10) UNSIGNED NOT NULL ,

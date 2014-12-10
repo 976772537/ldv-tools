@@ -16,6 +16,10 @@
  * limitations under the License.
  */
 
+// Get authorization flag.
+$aut = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'authorization');
+$isAut = $aut->set;
+
 // Count the number of tree leaves for a given array.
 function countLeaves($array) {
   if (is_null($array)) {
@@ -254,4 +258,318 @@ function returnProfile($info) {
   return '';
 }
 
+?>
+<script type='text/javascript'>
+	// Function retunrs true if user is authorized or authorization module wasn't installed and false otherwise.
+	function checkAutorization()
+	{
+		var isAut = <?php echo json_encode("$isAut"); ?>;
+		if (!window.user && isAut)
+		{
+			alert('You are not authorized for this operation.');
+			return false;
+		}
+		return true;
+	}
+</script>
+<?php
+
+$url = ''; // Stab for access from javascript.
+if ($isAut)
+{
+	// Get linuxtesting url for authorization action.
+	$linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting');
+	$url = $linuxtesting->link;
+
+	?>
+	<script type='text/javascript'>
+		window.user = ""; // Global var - keeps the name of currently logged user.
+
+		function checkIfLogin()
+		{
+			var url = <?php echo json_encode($url);?> + "user";
+			$.ajax({
+				url: url,
+				type: "POST",
+				//async: false,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				error: function(error){
+				    console.log(error);
+					alert("Cannot connect to linuxtesting.org.");
+				},
+				success: function(data,status,xhr){
+		       	  if (data.search(/<li class=\"active\" ><a href=\"http:\/\/linuxtesting.org\/user\" class=\"active\">Log in<\/a><\/li>/) == -1)
+		       	  {
+		       	    var tmp = data.match(/<title>(.+) \| Linux Verification Center<\/title>/);
+		       	    if (!tmp)
+		       	    {
+		       	      alert("There was an unexpected error during connecting to linuxtesting.org.");
+		       	      loginForm();
+		       	    }
+		       	    else
+		       	    {
+		       	      window.user = tmp[1];
+		       	      logoutForm();
+		       	    }
+		       	  }
+		       	  else
+		       	  {
+		       	    loginForm();
+		       	  }
+				},
+			});
+		}
+
+		// Prints login form.
+		function loginForm() {
+			var loginForm = document.createElement("form");
+			loginForm.setAttribute('id',"login_form");
+			loginForm.setAttribute('onsubmit',"loginAction(); return false;");
+
+			var nameField = document.createElement("input");
+			nameField.setAttribute('type',"text");
+			nameField.setAttribute('name',"name");
+			nameField.setAttribute('value', '');
+			nameField.setAttribute('size', '10');
+
+			var passField = document.createElement("input");
+			passField.setAttribute('type',"password");
+			passField.setAttribute('name',"pass");
+			passField.setAttribute('value', '');
+			passField.setAttribute('size', '10');
+
+			var submitButton = document.createElement("input");
+			submitButton.setAttribute('type',"submit");
+			submitButton.setAttribute('value',"Login");
+
+			loginForm.innerHTML += "&nbsp &nbsp <b>User: </b>";
+			loginForm.appendChild(nameField);
+			loginForm.innerHTML += "<b> Password: </b>";
+			loginForm.appendChild(passField);
+			loginForm.innerHTML += " ";
+			loginForm.appendChild(submitButton);
+			
+			document.getElementById("SSHeaderAut").appendChild(loginForm);
+		}
+
+		// Prints logout form.
+		function logoutForm() {
+
+			var logoutButton = document.createElement("input");
+			logoutButton.type = "button";
+			logoutButton.value = "Logout";
+			logoutButton.onclick = function() {
+				logoutAction();
+			};
+
+			var logoutTable = document.createElement("div");
+			
+			logoutTable.innerHTML += "&nbsp &nbsp <b>User: </b>" + window.user + " ";
+			logoutTable.appendChild(logoutButton);
+			document.getElementById("SSHeaderAut").appendChild(logoutTable);
+		}
+		
+		// Post request to login in linuxtesting.
+		function loginAction() {
+			var url = <?php echo json_encode($url);?> + "user/login";
+			name = document.getElementById('login_form').name.value;
+			pass = document.getElementById('login_form').pass.value;
+			$.ajax({
+				url: url,
+				type: "POST",
+				data: {"name": name, "pass": pass, "form_id": "user_login"},
+				async: true,
+				
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				error: function(error){
+					console.log(error);
+					alert("Cannot login in linuxtesting.org.");
+				},
+				success: function(data,status, xhr){
+		       	  if (data.search(/<a class=\'head\' href=\'http:\/\/linuxtesting.org\/logout\'>logout<\/a>/) != -1)
+		       	  {
+		       	    //alert("You have been authorized in linuxtesting successfully.");
+		       	    window.location.reload();
+		       	  }
+		       	  else
+		       	  {
+		       	    var tmp = data.match(/<div class=\"messages error\">(\s*)(<ul>)?(\s*)(<li>)?([^.]*)\./);
+		       	    if (!tmp)
+		       	    {
+		       	      alert("There was an unexpected error during login to linuxtesting.org.");
+		       	    }
+		       	    else
+		       	    {
+		       	      alert(tmp[5]);
+		       	    }
+		       	  }
+				}
+			});
+		}
+		// Post request to logout in linuxtesting.
+		function logoutAction() {
+			var url = <?php echo json_encode($url);?> + "logout";
+			$.ajax({
+				url: url,
+				type: "POST",
+				//async: false,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				error: function(error){
+					console.log(error);
+					alert("Cannot logout from linuxtesting.org.");
+				},
+				success: function(data,status, xhr){
+					//alert("You have been logged out from linuxtesting successfully.");
+					window.location.reload();
+				}
+			});
+		}
+		var kbId, traceId;
+		function publish(data, url) {
+			var newPublishedRecordId;
+			$.ajaxSetup({ 'error': function() {
+				// Primary for catching unexpected errors with mysql.
+				alert('Something goes wrong while KB was published');
+			}});
+
+			// Check post request status.
+			var tmp = data.match(/<h1> Details for Public Pool of Bugs issue # (\d+)<\/h1>/);
+			if (!tmp)
+			{
+				alert("Can't get response for post request from linuxtesting.\n"+
+					"Keep in mind that you need Editor permissions on linuxtesting.org for this operation to be successful.");
+				return false;
+			}
+			if (tmp[1])
+			{
+				newPublishedRecordId = tmp[1];
+			}
+			else
+			{
+				alert("There was an error during uploading to linuxtesting.org.");
+				return false;
+			}
+			$.getJSON(
+		    '<?php echo $this->url(array('action' => 'publish-kb-record')); ?>'
+		    , { 'KB id': kbId , 'trace id': traceId , 'ppob id': newPublishedRecordId}
+		    , function(results) {
+		      if (results.errors == '') {
+		        alert("Published Bug " + newPublishedRecordId + " to linuxtesting.org.");
+		        window.location.reload();
+		      }
+		      else
+		        alert($.makeArray(results.errors).join('\\n'));
+		    }
+		  );
+		}
+		
+		// Post request.
+		function postRequest(url, data, onSuccess) {
+			$.ajax({
+				url: url,
+				type: "POST",
+				data: data,
+				async: true,
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				success: function(data,status, xhr){
+		       		if (onSuccess)
+		       		  onSuccess(data, url);
+				}
+			});
+		}
+
+		// Async update.
+		var verdictOld, publishedRecord;
+		function getRequestUpdate(url) {
+			$.ajax({
+				url: url,
+				type: "GET",
+				beforeSend: function(xhr){
+					xhr.withCredentials = true;
+				},
+				success: function(data,status, xhr){
+				  var tmp = data.match(/<td><b>Status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
+				  if (!tmp)
+				  {
+					alert("Can't get response for post request from linuxtesting.org.\n"+
+						"Keep in mind that you need Editor permissions on linuxtesting.org for this operation to be successful.");
+					return false;
+				  }
+				  if (!tmp[4])
+				  {
+					alert("Cannot extract status from linuxtesting.org.");
+					return false;
+				  }
+				  var status = tmp[4];
+				  tmp = data.match(/<td><b>Verdict: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(.+)<\/font>/);
+				  if (!tmp[4])
+				  {
+					alert("Cannot extract verdict from linuxtesting.org.");
+					return false;
+				  }
+				  var verdict = tmp[4];
+				  if (verdict == 'False alarm')
+				  {
+					verdict = 'False positive';
+				  }
+				  else if (verdict == 'Bug')
+				  verdict = 'True positive';
+				  tmp = data.match(/<td><b>Synchronized status: <\/b><\/td>(\s*)<td>(\s*)<font color=\"(\S+)\">(\w+)<\/font>/);
+				  if (!tmp[4])
+				  {
+					alert("Cannot extract syncronized status from linuxtesting.org.");
+					return false;
+				  }
+				  var syncStatus = tmp[4];
+				  tmp = data.search(/<td><b>LDV KB record: <\/b><\/td>(\s*)<td><a(\s*)href=\"(.*)\">Link<\/a><\/td>/);
+				  if (tmp==-1)
+				  {
+					alert("Bug " + publishedRecord + " has been deleted on linuxtesting.org.");
+					publishedRecord = '';
+				  }
+				  
+				  // Send post request to change sync status.
+				  if (syncStatus != "Synchronized" && publishedRecord)
+				  {
+					var sendData = {'sync_status': 'KB-Synchronized'};
+					var url = <?php echo json_encode($url);?> + "/results/impl_reports_admin";
+					postRequest(url + "?action=update_ppob&num=" + publishedRecord, sendData);
+				  }
+
+				  // Update KB and run kb-recalc.
+				  $.getJSON(
+					'<?php echo $this->url(array('action' => 'get-kb-record')); ?>'
+					, { 'KB id': kbId, 'trace id': traceId, 'verdict' : verdict, 'status' : status, 'sync status' : syncStatus, 'verdict old': verdictOld, 'published id': publishedRecord}
+					, function(results) {
+					  if (results.errors == '') {
+						alert("Updated from Bug " + publishedRecord + " at linuxtesting.org.");
+						window.location.reload();
+					  }
+					  else
+						alert($.makeArray(results.errors).join('\\n'));
+					}
+				  );
+				},
+				error: function (request, status, error) {
+				}
+			});
+		}
+		// Executes in page load.
+		window.onload = function()
+		{
+			checkIfLogin(); // Check if user logged in linuxtesting in current session.
+		};
+		
+	</script>
+
+	<?php
+}
 ?>

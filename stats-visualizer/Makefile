@@ -55,6 +55,10 @@ STATS_CONFIG = configs
 STATS_CONFIG_DATA = data.ini
 STATS_CONFIG_ERROR_TRACE_VISUALIZER = [error-trace-visualizer]
 STATS_CONFIG_KB_RECALC = [kb-recalc]
+STATS_CONFIG_LINUXTESTING = [linuxtesting]
+STATS_CONFIG_LINUXTESTING_BUG = [linuxtesting-bug]
+STATS_CONFIG_LINUXTESTING_ADMIN = [linuxtesting-admin]
+STATS_CONFIG_AUTHORIZATION = [authorization]
 STATS_CONFIG_SCRIPT = script=
 STATS_CONFIG_MODEL_DB = [model-database]
 STATS_CONFIG_RULE_DB = [rule-database]
@@ -96,9 +100,9 @@ install:
 	@if [ ! -d $(LDV_STATS_CONF_DIR) ]; then echo 'The specified web server configuration directory "$(LDV_STATS_CONF_DIR)" does not exist' && exit 1; fi;
 	@if [ ! -d $(LDV_STATS_VHOSTS_CONF_DIR) ]; then echo 'The specified web server virtual hosts configuration directory "$(LDV_STATS_VHOSTS_CONF_DIR)" does not exist' && exit 1; fi;
 	@if [ ! -d $(LDV_STATS_VHOSTS_DIR) ]; then echo 'The specified web server virtual hosts directory "$(LDV_STATS_VHOSTS_DIR)" does not exist' && exit 1; fi;
-
 	@if [ ! -n "$(LDV_STATS_PORT)" ]; then echo 'The default LDV_STATS_PORT "$(DEFAULT_PORT)" is used' && export LDV_STATS_PORT=$(DEFAULT_PORT); else echo 'LDV_STATS_PORT is $(LDV_STATS_PORT)'; export LDV_STATS_PORT=$(LDV_STATS_PORT); fi; \
 	if [ ! -n "$(LDV_STATS_APPLICATION_ENV)" ]; then echo 'The default LDV_STATS_APPLICATION_ENV "$(DEFAULT_APPLICATION_ENV)" is used' && export LDV_STATS_APPLICATION_ENV=$(DEFAULT_APPLICATION_ENV); else echo 'LDV_STATS_APPLICATION_ENV is $(LDV_STATS_APPLICATION_ENV)'; export LDV_STATS_APPLICATION_ENV=$(LDV_STATS_APPLICATION_ENV); fi; \
+	if [ -n "$(LDV_AUTHORIZATION)" ]; then echo 'LDV Analytics Center will be installed among with authorization module.'; export LDV_AUTHORIZATION=true; fi; \
 	\
 	export WEB_SERVER_CONF_ABS=`readlink -f $(LDV_STATS_CONF_DIR)/$(WEB_SERVER_CONF)`; \
 	export WEB_SERVER_VHOSTS_CONF_ABS=`readlink -f $(LDV_STATS_VHOSTS_CONF_DIR)/$(WEB_SERVER_VHOSTS_CONF)`; \
@@ -109,7 +113,6 @@ install:
 	    -e 's|$(WEB_SERVER_VHOSTS_CONF_STATS_ROOT)|$(STATS_DIR)/$(STATS_ROOT)|g' \
 	    -e "s|$(WEB_SERVER_VHOSTS_CONF_APPLICATION_ENV)|$$LDV_STATS_APPLICATION_ENV|g" \
 	  | if [ $$WEB_SERVER_CONF_ABS == $$WEB_SERVER_VHOSTS_CONF_ABS ]; then echo '' >> $$WEB_SERVER_VHOSTS_CONF_ABS && cat >> $$WEB_SERVER_VHOSTS_CONF_ABS && echo 'Concatenate virtual host configuration to general configuration'; else cat > $$WEB_SERVER_VHOSTS_CONF_ABS && echo 'Write virtual host configuration and general configuration to different files'; fi;
-
 	cp -r $(VHOST_DIR)/$(STATS_DIR) $(LDV_STATS_VHOSTS_DIR) || exit 1;
 	@if [ ! -d $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) ]; then mkdir -p $(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR) || exit 1; fi
 	ln -sfT "$(prefix)/$(ZEND_FRAMEWORK_DIR)" "$(LDV_STATS_VHOSTS_DIR)/$(ZEND_FRAMEWORK_LIBRARY_DIR)/$(ZEND_FRAMEWORK_LINK)" || exit 1;
@@ -132,9 +135,16 @@ install:
 	@echo Add pathes to scripts and model/rule databases to the statistics server script configuration file
 	export ETV="$(STATS_CONFIG_ERROR_TRACE_VISUALIZER)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(ERROR_TRACE_VISUALIZER)"; \
 	export KBR="$(STATS_CONFIG_KB_RECALC)\n$(STATS_CONFIG_SCRIPT)$(bindir)/$(KB_RECALC)"; \
+	export LINUXTESTING="$(STATS_CONFIG_LINUXTESTING)\nlink=http://linuxtesting.org/"; \
+	export LINUXTESTING_BUG="$(STATS_CONFIG_LINUXTESTING_BUG)\nlink=http://linuxtesting.org/results/bug"; \
+	export LINUXTESTING_ADMIN="$(STATS_CONFIG_LINUXTESTING_ADMIN)\nlink=http://linuxtesting.org/results/impl_reports_admin"; \
+	export AUT="$(STATS_CONFIG_AUTHORIZATION)\nset=$(LDV_AUTHORIZATION)"; \
 	export MODEL_DB="$(STATS_CONFIG_MODEL_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_MODEL_DB_FILE)"; \
 	export RULE_DB="$(STATS_CONFIG_RULE_DB)\n$(STATS_CONFIG_FILE)$(prefix)/$(STATS_CONFIG_RULE_DB_FILE)"; \
-	printf "$$ETV\n$$KBR\n$$MODEL_DB\n$$RULE_DB\n" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA)
+	if [ -n "$(LDV_AUTHORIZATION)" ]; then \
+	printf "$$ETV\n$$KBR\n$$MODEL_DB\n$$RULE_DB\n$$LINUXTESTING\n$$LINUXTESTING_BUG\n$$LINUXTESTING_ADMIN\n$$AUT\n" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA); \
+	else printf "$$ETV\n$$KBR\n$$MODEL_DB\n$$RULE_DB\n$$AUT\n" > $(LDV_STATS_VHOSTS_DIR)/$(STATS_DIR)/$(STATS_APPLICATION)/$(STATS_CONFIG)/$(STATS_CONFIG_DATA); \
+	fi
 
 test:
 	@echo The statistics server doesn\'t have any test

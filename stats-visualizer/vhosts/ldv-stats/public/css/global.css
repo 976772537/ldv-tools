@@ -29,21 +29,26 @@ body
 {
   background-color: #EEEEEE;
   height: 30px;
+  font-size: 14pt;
 }
 
 #SSHeaderLogo
 {
   float: left;
-  font-size: 14pt;
   font-weight: bold;
-  padding: 5px;
+  padding: 3px;
+}
+
+#SSHeaderAut
+{
+  float: left;
+  padding: 3px;
 }
 
 #SSHeaderMenu
 {
   float: right;
-  font-size: 14pt;
-  padding: 5px;
+  padding: 3px;
 }
 
 /* Comparison menu style. */
@@ -433,6 +438,31 @@ body
   color: #9200ED;
 }
 
+.SSKBRejected
+{
+  color: #D68A00;
+}
+
+.SSKBFixed, .SSKBSynchronized
+{
+  color: #00A100;
+}
+
+.SSKBReported
+{
+  color: #0000FF;
+}
+
+.SSKBUnreported, .SSKBDesynchronized
+{
+  color: #FF0000;
+}
+
+.SSKBUnpublished, .SSKBObsolete
+{
+  color: #9200ED;
+}
+
 .SSKBFitNote
 {
   color: #FF0000;
@@ -496,7 +526,7 @@ body
   background-color: #91C4CE;
 }
 
-#SETVKBId
+#SETVKBId, #SETVKBKBid
 {
   background-color: #00D1FB;
 }
@@ -506,12 +536,12 @@ body
   background-color: #00AFD2;
 }
 
-#SETVKBTaskattributes, #SETVKBModel, #SETVKBModule, #SETVKBMain
+#SETVKBTaskattributes, #SETVKBModel, #SETVKBModule, #SETVKBMain, #SETVKBKernel, #SETVKBRule, #SETVKBVerifier
 {
   background-color: #55C5FF;
 }
 
-#SETVKBErrortrace
+#SETVKBErrortrace, #SETVKBTraceid
 {
   background-color: #0D70DB;
 }
@@ -524,6 +554,44 @@ body
 #SETVKBVerdict
 {
   background-color: #768DFF;
+}
+
+#SETVKBStatus
+{
+  background-color: #A080FF;
+}
+
+#SETVKBSynchronizedstatus
+{
+  background-color: #B080FF;
+}
+
+#SETVKBPublishedrecord
+{
+  background-color: #C080FF;
+}
+
+#SETVKBUser
+{
+  background-color: #D080FF;
+}
+
+#SETVKBTime
+{
+  background-color: #D090FF;
+}
+
+.SETVKBTime
+{
+  width: 150px;
+  overflow: auto;
+  white-space: pre;
+  height: 50px;
+}
+
+#SETVKBShowalltraces
+{
+  background-color: #D0A0FF;
 }
 
 #SETVKBTags
