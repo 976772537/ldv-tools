@@ -19,6 +19,7 @@ all: $(patsubst %,backends/%-subdir-all,$(backends))
 
 # Installation
 export rcv_install_dir=$(dscv_install_dir)/rcv
+
 frontend_target=$(rcv_install_dir)/$1
 backend_install_dir=$(rcv_install_dir)/backends/$1
 

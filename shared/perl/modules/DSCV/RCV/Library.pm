@@ -25,7 +25,7 @@ use DSCV::RCV::Utils;
 use strict;
 use vars qw(@ISA @EXPORT_OK @EXPORT);
 # List here the functions available to the user (don't forget the & in front of them)
-@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &add_automaton &result &tail_automaton &set_limits &set_cil_options);
+@EXPORT=qw(&preprocess_all_files &set_tool_name &add_time_watch &run &docker_run &rcv_run &add_automaton &result &tail_automaton &set_limits &set_cil_options &get_timeout_file);
 use base qw(Exporter);
 
 use LDV::Utils;
@@ -38,7 +38,10 @@ use IPC::Open3;
 use File::Basename;
 use File::Path qw(mkpath);
 use File::Spec::Functions;
+use File::Copy;
 use FindBin;
+use Readonly;
+use UUID::Generator::PurePerl;
 my $fix_file_exe = "$FindBin::RealBin/../build-cmd-extractor/fix_for_compile.pl";
 
 # Global context; altered by the user from the env
@@ -304,31 +307,50 @@ sub set_tool_name
 	LDV::Utils::push_instrument($name);
 }
 
-my $automata_discarded = '';
-my $automata_added = '';
-# Runs the verifier, packaging the trace into the indexed trace file.
-# May be called multiple times
-sub run
+sub get_timeout_file 
 {
-	my @args = @_;
-	local $_;
+	return $context->{timestats_file};
+}
 
-	my $timeout_idstr = "DSCV_TIMEOUT ";
+my $timeout_idstr = "DSCV_TIMEOUT ";
+# Return current timeout script settings
+sub get_timeout_opts 
+{
+	my ($redirected_stdout, $redirected_stderr, $timout_out) = @_;
+
+	if(!$timout_out) {
+		$timout_out = get_timeout_file();
+	}
+
 	# Guard the command line with the timeout script
 	my $time_pattern = join(';',map{ sprintf("%s,%s",$context->{timewatches}->{$_},$_) } keys %{$context->{timewatches}});
-	@args = DSCV::RCV::Utils::set_up_timeout({
+	my @args = DSCV::RCV::Utils::set_up_timeout({
 		timelimit => $context->{limits}->{timelimit},
 		memlimit => $context->{limits}->{memlimit},
-		output => $context->{timestats_file},
+		output => $timout_out,
 		id_str => $timeout_idstr,
 		kill_at_once => $context->{limits}->{kill_at_once},
-		ldvdir => 'ldv'
-		},@args
+		ldvdir => 'ldv',
+		redirected_stderr => $redirected_stderr,
+		redirected_stdout => $redirected_stdout
+		}
 	);
 	# NOTE that the timestats file is common for several runs! This is done to get the statistics on all the runs in one place.
 
-	vsay ('NORMAL',sprintf ("Running %s for %s, entry %s...",$context->{name},$context->{dbg_target}, join(", ",@{$context->{entries}})));
-	vsay ('INFO',(map {($_ eq '')? '""' : $_} @args),"\n");
+	return @args;
+}
+
+# Runs the verifier, packaging the trace into the indexed trace file.
+# May be called multiple times
+my $automata_discarded = '';
+my $automata_added = '';
+sub rcv_run
+{
+	my ($opts_list, $remote_opts) = @_;
+
+	my @args = @{$opts_list};
+
+	local $_;
 
 	# Determine the id of the current run.  We'll need it if we need several runs in one verification task.
 	my $run_id = $context->{next_run_id}++;
@@ -355,24 +377,54 @@ sub run
 	# Prepare tail buffer
 	$context->{tailbuf} = [];
 
-	# Now open3 the commandline we have, and get the result
-	my %child = Utils::open3_callbacks({
-		# Stdout callback
-		out => sub{ my $line = shift;
+	my $errcode;
+	if(defined $remote_opts) {
+		my $stdout_file = $remote_opts->{stdout};
+		my $stderr_file = $remote_opts->{stderr};
+		die 'Please, provide correct stdout file' if not defined $stdout_file;
+		die 'Please, provide correct stderr file' if not defined $stderr_file;
+
+		# Read stdout
+		open my $fd, '<', $stdout_file
+			or die "Can't open file with collected stdout '$stdout_file'";
+		while(my $line = <$fd>){
 			$out_atmt->chew_line($line);
 			print $DEBUG_TRACE $line;
-		},
-		# Stderr callback
-		'err' => sub{ my $line = shift;
+		}
+		close $fd;
+
+		# Read stderr
+		open my $fd, '<', $stderr_file
+			or die "Can't open file with collected stdout '$stderr_file'";
+		while(my $line = <$fd>){
 			$err_atmt->chew_line($line);
 			print $DEBUG_TRACE $line;
-		},
-		close_out=>sub{ vsay ('TRACE',"Child's stdout stream closed.\n");},
-		close_err=>sub{ vsay ('TRACE',"Child's stderr stream closed.\n");},
-		},
-		# Instrument call string
-		@args
-	);
+		}
+		close $fd;
+	}
+	else {
+		# Now open3 the commandline we have, and get the result
+		my %child = Utils::open3_callbacks({
+			# Stdout callback
+			out => sub{ my $line = shift;
+				$out_atmt->chew_line($line);
+				print $DEBUG_TRACE $line;
+			},
+			# Stderr callback
+			'err' => sub{ my $line = shift;
+				$err_atmt->chew_line($line);
+				print $DEBUG_TRACE $line;
+			},
+			close_out=>sub{ vsay ('TRACE',"Child's stdout stream closed.\n");},
+			close_err=>sub{ vsay ('TRACE',"Child's stderr stream closed.\n");},
+			},
+			# Instrument call string
+			join(' ', @args)
+		);
+
+		$errcode = $?;
+		vsay ('TRACE',"wait3 return value: $errcode\n");
+	}
 
 	# Close gzipped trace
 	close $DEBUG_TRACE;
@@ -440,7 +492,182 @@ sub run
 	$automata_discarded = 1;
 
 	return ($result, $errcode, $atmt_results, $debug_trace);
+}
 
+# Run RCV on this host and look after its progress
+sub run
+{
+	my @args = @_;
+	local $_;
+
+	my @timeout_opts = get_timeout_opts();
+	unshift @args, @timeout_opts;	
+
+	vsay ('NORMAL',sprintf ("Running %s for %s, entry %s...",$context->{name},$context->{dbg_target}, join(", ",@{$context->{entries}})));
+	vsay ('INFO',(map {($_ eq '')? '""' : $_} @args),"\n");
+
+	return rcv_run(\@args);
+}
+
+# Send data to docker server on remote host and then retrieve
+# results from there
+sub docker_run
+{
+	my ($options_ptrlist, $transfer_files_ptrlist, $docker_image) = @_;
+	my @args = @{$options_ptrlist};
+	my @transfer_files = @{$transfer_files_ptrlist};
+
+	Readonly my $STDOUT_FILENAME => 'stdout.txt';
+	Readonly my $STDERR_FILENAME => 'stderr.txt';
+	Readonly my $TIMOUT_OUT => 'timout_report.txt';
+	Readonly my $CONTROL_FILE_NAME => 'control.cfg';
+	Readonly my $ARCHIVE_NAME => 'results.tar';
+	Readonly my $VERIFICATION_NESTED_STATE => 'ready';
+	Readonly my $DOCKER_DONE_FILE => '.done';
+
+	# get options for timout script
+	my @timeout_opts = get_timeout_opts($STDOUT_FILENAME, $STDERR_FILENAME, $TIMOUT_OUT);
+	
+	# remove absolute path from timout scipt name
+	$timeout_opts[0] = fileparse($timeout_opts[0]);
+
+	unshift @args, @timeout_opts;
+
+	# Generate id 
+	my $ug = UUID::Generator::PurePerl->new();
+	my $run_id = $ug->generate_v1();
+	$run_id = $run_id->as_string; 
+	vsay('TRACE', "RCV launch id is '$run_id'");
+
+	# Prepare dir with files
+	my $workdir = get_tmp_dir();
+	my $full_path = "$workdir/$run_id";
+	mkpath $full_path;
+	vsay('DEBUG', "Copy data before sending to a remote host to '$full_path'");
+
+	foreach my $file (@transfer_files){
+		copy($file, $full_path) 
+			or die "Copy failed: $!"; 
+	}
+
+	# First, send data
+	my @cmd = (
+		'rsync',
+		'-q',
+		'-r',
+		$full_path,
+		"$ENV{'RCV_REMOTE_HOST'}/"
+	);
+	vsay('DEBUG', q{Sending data to remote host: '} . (join ' ', @cmd) . q{'});
+	system(@cmd) and die "Cannot send dir '$full_path' to '$ENV{'RCV_REMOTE_HOST'}': $!";
+
+	# Then prepare control file content
+	my %limits = get_limits();
+	my %cfg_hash = (
+		'status' => $VERIFICATION_NESTED_STATE,
+		'image' => $docker_image,
+		'memlimit' => $limits{memlimit},
+		'command' => (join ' ', @args),
+		'priority' => 'LOW',
+	);
+
+	# There are two accepted priority levels: LOW and HIGH
+	if(defined $ENV{TASK_PRIORITY} && $ENV{TASK_PRIORITY} eq 'HIGH' ){
+		$cfg_hash{priority} = $ENV{TASK_PRIORITY};
+	}
+
+	# Prepare run command and control file
+	my $control_file = "$full_path/$CONTROL_FILE_NAME";
+	my @strings = ();
+	foreach my $key (keys %cfg_hash){
+	    push @strings, $key . ': ' . $cfg_hash{$key} . "\n";
+	}
+
+	# Print strings
+	vsay('TRACE', "Save control file to '$control_file'");
+	open my $fd, '>', $control_file
+		or die "Cannot open file '$control_file': $!";
+	foreach (@strings) {
+        print {$fd} $_
+                or "Cannot write file '$control_file': $!";
+	}
+	close $fd
+		or die "Cannot close file '$control_file': $!";
+
+	# Send it
+	@cmd = (
+		'rsync',
+		'-q',
+		$control_file,
+		"$ENV{'RCV_REMOTE_HOST'}/$run_id/"
+	);
+	vsay('DEBUG', q{Sending control file to remote host: '} . (join ' ', @cmd) . q{'});
+	system(@cmd) and die "Cannot send control file '$control_file' to '$ENV{'RCV_REMOTE_HOST'}/$run_id/'";
+
+	# Wait, periodically checking it
+	@cmd = (
+		'rsync',
+		'-q',
+		'--dry-run',
+		"$ENV{'RCV_REMOTE_HOST'}/$run_id/$DOCKER_DONE_FILE",
+		"$full_path/"
+	);
+	vsay('TRACE', q{Waiting until file will appear on server: '} . (join ' ', @cmd) . q{'});
+	my $retval;
+	# 5888 - rsync missing file ret code
+	# TODO: Should we add '--dry-run'
+	while(!defined $retval || $retval == 5888){
+		$retval = system( 
+			'sh' => (
+				'-c' => '"$@" 2>/dev/null',
+				'--',
+				@cmd
+			)
+		);
+		sleep 1;
+	}
+	if($retval){
+		die "Cannot copy file from the remote host, rsync failed: '$retval'";
+	}
+
+	# Send results back
+	@cmd = (
+		'rsync',
+		'-q',
+		"$ENV{'RCV_REMOTE_HOST'}/$run_id/$ARCHIVE_NAME",
+		$full_path
+	);
+	vsay('DEBUG', q{Retrieving results: '} . (join ' ', @cmd) . q{'});
+	system(@cmd) and die "Cannot retrieve results from there '$ENV{'RCV_REMOTE_HOST'}/$run_id/$ARCHIVE_NAME'";
+
+	# Unpacking them
+	@cmd = (
+		'tar',
+		'-xf',
+		"$full_path/$ARCHIVE_NAME",
+		'-C',
+		$full_path
+	);
+	vsay('DEBUG', q{Unpacking archive: '} . (join ' ', @cmd) . q{'});
+	system(
+		'sh' => (
+			'-c' => '"$@" >/dev/null 2>&1',
+			'--',
+			@cmd
+		)
+	) and die "Cannot unpack archive '$full_path/$ARCHIVE_NAME'";
+
+	# Replace common timout file
+	vsay('TRACE', "Copy '$full_path/$TIMOUT_OUT' to '$context->{timestats_file}'");
+	copy("$full_path/$TIMOUT_OUT", $context->{timestats_file})
+		or die "Copy failed: $!";
+
+	my %run_params = (
+		'stdout' => "$full_path/$STDOUT_FILENAME",
+		'stderr' => "$full_path/$STDERR_FILENAME"
+	);
+
+	return rcv_run(\@args, \%run_params);
 }
 
 # Add stream automaton to the next run.  After the automata, you should specify one or more of strings 'stdout', 'stderr'.  The automata will be used to parse the streams you've specified for each of them.
