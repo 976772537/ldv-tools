@@ -1,0 +1,13 @@
+driver=68_1a--test-freenull.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-freenull/freenull.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=68_1a--test-safe.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-safe/safe.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=68_1a--test-singlefree.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-singlefree/singlefree.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-singlealloc.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-singlealloc/singlealloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-twourb.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-twourb/twourb.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=68_1a--test-allocfail.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-allocfail/allocfail.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-allocsuccess.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-allocsuccess/allocsuccess.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-freeassume.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-freeassume/freeassume.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=68_1a--test-coherentfree.tar.bz2;origin=external;kernel=linux-2.6.37;model=68_1a;module=drivers/68_1a/test-coherentfree/coherentfree.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-coherentalloc.tar.bz2;origin=external;kernel=linux-2.6.37;model=68_1a;module=drivers/68_1a/test-coherentalloc/coherentalloc.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-kzallocstruct.tar.bz2;origin=external;kernel=linux-2.6.37;model=68_1a;module=drivers/68_1a/test-kzallocstruct/kzallocstruct.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-savedatacheck.tar.bz2;origin=external;kernel=linux-2.6.31.6;model=68_1a;module=drivers/68_1a/test-savedatacheck/savedatacheck.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=68_1a--test-saveinstruct.tar.bz2;origin=external;kernel=linux-2.6.37;model=68_1a;module=drivers/68_1a/test-saveinstruct/saveinstruct.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
