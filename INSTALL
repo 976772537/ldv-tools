@@ -67,6 +67,7 @@ MINIMAL PREREQUISITES
 	o gzip
 	o bzip2
 	o xz
+	o curl
 
 ADDITIONAL PREREQUISITES
 

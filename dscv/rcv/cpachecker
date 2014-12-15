@@ -1060,6 +1060,8 @@ sub fetch_results
 	my @opts = (
 		'curl',
 		'-s',
+		'-o',
+		$zip,
 		'-u',
 		$ENV{RCV_ACCESS},
 		"$ENV{RCV_REMOTE_HOST}/runs/$id/result"
@@ -1069,15 +1071,10 @@ sub fetch_results
 	my $code;
 	my $tries = 5;
 	while ((!defined $code || $code != 0) && $tries > 0) {
-		my $data = `@opts`;
-		$code = $?;
-		if ($code == 0) {
-			open my $fh, '>', $zip or die "Cannot open file '$zip': $!";
-			print {$fh} $data or die "Cannot write to the file '$zip': $!";
-			close $fh or die "Cannot close file '$zip': $!";
-		}
-		else {
-			$msg = "Cannot fetch data, exit code '$?'";
+		my $code = system(@opts);
+
+		if ($code != 0) {
+			$msg = "Cannot fetch data, exit code '$code'";
 			vsay('WARNING', $msg);
 			sleep 0.5;
 			$total_sleeping = $total_sleeping + 0.5;
