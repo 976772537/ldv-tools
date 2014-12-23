@@ -1979,7 +1979,7 @@ sub process_cmd_ld()
     {
       my $in = "$tool_model_common_dir/$ldv_model_common";
       my $out = "$tool_model_common_dir/$ldv_model_common_o";
-      
+
       my $cmd_cc_aux = new XML::Twig::Elt('cc');
       $cmd_cc_aux->set_att('id' => "$id_attr-common-model");
 
@@ -1997,6 +1997,13 @@ sub process_cmd_ld()
       else
       {
           # Like in process_cmd_cc().
+          my @opts = @{$ldv_model_common_opts};
+          # To fix issue #1285 (http://forge.ispras.ru/issues/1285).
+          foreach (@opts)
+          {
+              s/\"/\\\"/g;
+          }
+
           my @args = (
               $ldv_timeout_script,
               @ldv_timeout_script_opts,
@@ -2006,7 +2013,7 @@ sub process_cmd_ld()
               , '--stage', 'C-backend'
               , '--out', "$out.c"
               , '--general-opts', "-I$ldv_model_dir -I$ldv_model_include_dir"
-              , '--', map("\"$ARG\"", @{$ldv_model_common_opts})
+              , '--', map("\"$ARG\"", @opts)
           );
 
           chdir($ldv_model_common_cwd)
@@ -2020,7 +2027,7 @@ sub process_cmd_ld()
 
           # From now input file is output file of C-backend.
           $in = "$out.c";
-          
+
           print_debug_trace("Go to the initial directory");
           chdir($tool_working_dir)
             or die("Can't change directory to '$tool_working_dir'");
