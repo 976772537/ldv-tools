@@ -30,7 +30,9 @@ static int misc_open(struct inode * inode, struct file * file)
 	err = device_create_file(dev, &dev_attr_test2);
 	if (err)
 		return -1;
-	return 0;
+ 
+	/* TODO: without model for device_remove_file() this test will be Unsafe. */
+	return -1;
 }
 
 static int __init my_init(void)

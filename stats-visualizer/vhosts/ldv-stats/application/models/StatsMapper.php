@@ -1009,6 +1009,187 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     return $result;
   }
 
+  public function getUnsafes($profile, $params) {
+	if (array_key_exists('page', $params)) {
+		$pageName = $params['page'];
+	}
+	else {
+		throw new Exception('Page name is not specified');
+	}	
+
+	$kb_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'kb.model', 'Module' => 'kb.module', 'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'KB id' => 'kb.id', 'Trace id' => 'results_kb.trace_id', 'Tags' => 'kb.tags', 'Published record' => 'results_kb.published_trace_id', 'User' => 'kb.user', 'Time' => 'kb.time');
+	$trace_restrictions = array('Kernel' => 'environments.version', 'Rule' => 'rule_models.name', 'Module' => 'scenarios.executable', 'Verifier' => 'toolsets.verifier', 'Main' => 'scenarios.main', 'Trace id' => 'traces.id');
+	
+	// Get 'extended' verdict:
+	// - standart values: 'True positive', 'False positive', 'Unknown';
+	// - any trace without KB records: 'Unmarked';
+	// - any trace with KB record: <anything else> -> 'All'.
+	$isUnmarked = false;
+	$conditions = "";
+
+	$isNullTraceId = false;
+	if (array_key_exists('Trace id', $params) && $params['Trace id'] == 'NULL')
+	{
+		$isNullTraceId = true;
+		unset($params['Trace id']);
+	}
+		
+	if (array_key_exists('Verdict', $params))
+	{
+		$tmpVerdict = $params['Verdict'];
+		if ($tmpVerdict == 'True positive' || $tmpVerdict == 'False positive' || $tmpVerdict == 'Unknown')
+		{
+			//$verdict = $tmpVerdict;
+			$kb_restrictions['Verdict'] = 'kb.verdict';
+		}
+		elseif ($tmpVerdict == 'Unassociated')
+		{
+			$isUnmarked = true;
+			$conditions = " ";
+			$result['Restrictions']['Verdict'] = 'Unassociated';
+		}
+		else
+		{
+			$conditions = "kb.verdict like '%'";
+			$result['Restrictions']['Verdict'] = 'All';
+		}
+	}
+	else
+	{
+		$conditions = "kb.verdict like '%'";
+		$result['Restrictions']['Verdict'] = 'All';
+	}
+
+	// Connect to the profile database and remember connection settings.
+	$result['Database connection'] = $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+	if (!$isUnmarked)
+	{
+		
+		foreach (array_keys($kb_restrictions) as $key) 
+		{
+			$dbKey = $kb_restrictions[$key];
+			if (array_key_exists($key, $params)) 
+			{
+				$result['Restrictions'][$key] = $params[$key];
+				if ($key == 'KB id' || $key == 'Trace id' || $key == 'Published record')
+				{
+					$newCondition = "$dbKey in ($params[$key])";
+				}
+				else
+				{
+					$newCondition = "$dbKey like '$params[$key]'";
+				}
+				if (!$conditions)
+					$conditions = $newCondition;
+				else
+					$conditions = $conditions . " and " . $newCondition;
+			}
+		}
+
+		$kb = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
+		$select = $kb
+			->select()->setIntegrityCheck(false);
+		$values = array('KB id' => 'kb.id', 'Kernel' => 'environments.version', 'Module' => 'kb.module', 'Rule' => 'kb.model',  'Verifier' => 'toolsets.verifier', 'Main' => 'kb.main', 'Trace id' => 'results_kb.trace_id', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id', 'User' => 'kb.user', 'Time' => 'kb.time');
+		$select = $select
+			->from('kb', $values)
+			->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
+			->joinLeft('traces', "results_kb.trace_id=traces.id", array())
+			->joinLeft('launches', "traces.launch_id=launches.id", array())
+			->joinLeft('environments', "launches.environment_id=environments.id", array())
+			->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
+			->where($conditions);
+		$result['Unsafes'] = $kb->fetchAll($select)->toArray();
+		if ($isNullTraceId)
+		{
+			$tmp = "";
+			foreach ($result['Unsafes'] as $key => $row)
+			{
+				$tmp .= $row['Trace id'] . "\n";
+				if ($row['Trace id'])
+					unset($result['Unsafes'][$key]);
+			}
+		}
+	}
+	else
+	{
+		// Got Unassociated restrictions.
+		foreach (array_keys($trace_restrictions) as $key) 
+		{
+			$dbKey = $trace_restrictions[$key];
+			if (array_key_exists($key, $params)) 
+			{
+				$result['Restrictions'][$key] = $params[$key];
+				if ($key == 'Trace id')
+				{
+					$newCondition = "$dbKey in ($params[$key])";
+				}
+				else
+				{
+					$newCondition = "$dbKey like '$params[$key]'";
+				}
+				if (!$conditions)
+					$conditions = $newCondition;
+				else
+					$conditions = $conditions . " and " . $newCondition;
+			}
+		}
+
+		$trace = $this->getDbTable('Application_Model_DbTable_Traces', NULL, $this->_db);
+		$select = $trace
+			->select()->setIntegrityCheck(false);
+		$values = array('Kernel' => 'environments.version', 'Module' => 'scenarios.executable', 'Rule' => 'rule_models.name', 'Verifier' => 'toolsets.verifier', 'Main' => 'scenarios.main', 'Trace id' => 'traces.id');
+		$select = $select
+			->from('traces', $values)
+			->joinLeft('launches', "traces.launch_id=launches.id", array())
+			->joinLeft('environments', "launches.environment_id=environments.id", array())
+			->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
+			->joinLeft('scenarios', "launches.scenario_id=scenarios.id", array())
+			->joinLeft('rule_models', "launches.rule_model_id=rule_models.id", array())
+			->where("traces.result = 'unsafe' $conditions")
+			->where("traces.id NOT IN (SELECT results_kb.trace_id FROM results_kb)")
+			->order('Trace id');
+		$result['Unmarked unsafes'] = $trace->fetchAll($select)->toArray();
+	}
+	
+	return $result;
+  }
+
+  public function updatePublishedKB($profile, $params){
+    // Connect to DB.
+    $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+    // Obtain specific data.
+    $traceId=$params['trace_id'];
+    $ppobId=$params['ppob_id'];
+    $kbId=$params['KB_id'];
+
+    // Update KB record.
+    $this->_db->query("UPDATE results_kb SET sync_status = 'Synchronized', published_trace_id = $ppobId WHERE trace_id = $traceId AND kb_id = $kbId");
+  }
+
+  public function updateTakenKB($profile, $params){
+    // Connect to DB.
+    $this->connectToDb($profile->dbHost, $profile->dbName, $profile->dbUser, $profile->dbPassword, $params);
+
+    // Obtain specific data.
+    $status=$params['status'];
+    $verdict=$params['verdict'];
+    $traceId=$params['trace_id'];
+    $kbId=$params['KB_id'];
+    $publishedId=$params['published_id'];
+
+    // Update KB record.
+    if ($publishedId) // Record is still on linuxtesting - update verdict, status, sync_status.
+    {
+      $this->_db->query("UPDATE kb, results_kb SET verdict = '$verdict', status = '$status', sync_status = 'Synchronized' WHERE kb.id = $kbId AND results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId");
+    }
+    else // Record was deleted on linuxtesting - make it Unpublished.
+    {
+      $this->_db->query("UPDATE results_kb SET status = 'Unreported', sync_status = 'Unpublished', published_trace_id=NULL WHERE results_kb.kb_id = $kbId AND results_kb.trace_id = $traceId");
+    }
+  }
+
   public function getErrorTrace($profile, $params) {
     if (array_key_exists('page', $params)) {
       $pageName = $params['page'];
@@ -1085,11 +1266,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $kb = $this->getDbTable('Application_Model_DbTable_KnowledgeBase', NULL, $this->_db);
     $select = $kb
       ->select()->setIntegrityCheck(false);
+    $values = array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment', 'Status' => 'results_kb.status', 'Synchronized status' => 'results_kb.sync_status', 'Published record' => 'results_kb.published_trace_id', 'Verifier' => 'toolsets.verifier', 'User' => 'kb.user', 'Time' => 'kb.time');
+
     $select = $select
-      ->from('kb',
-        array('Id' => 'kb.id', 'Name' => 'kb.name', 'Public' => 'kb.public', 'Task attributes' => 'kb.task_attributes', 'Model' => 'kb.model', 'Module' => 'kb.module', 'Main' => 'kb.main', 'Error trace' => 'kb.error_trace', 'Script' => 'kb.script', 'Verdict' => 'kb.verdict', 'Tags' => 'kb.tags', 'Comment' => 'kb.comment'))
+      ->from('kb', $values)
       ->joinLeft('results_kb', "results_kb.kb_id=kb.id", array())
       ->joinLeft('traces', "results_kb.trace_id=traces.id", array())
+      ->joinLeft('launches', "traces.launch_id=launches.id", array())
+      ->joinLeft('toolsets', "launches.toolset_id=toolsets.id", array())
       ->where("traces.id = ?", $trace_id);
     $result['Knowledge base'] = $kb->fetchAll($select)->toArray();
 
@@ -1101,7 +1285,11 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       }
     }
 
-#print_r($result['Knowledge base']);exit;
+    // Additionally add verifier name.
+    if ($result['Knowledge base'])
+    {
+      $result['Restrictions']['Verifier'] = $result['Knowledge base'][0]['Verifier'];
+    }
 
     return $result;
   }
@@ -1585,6 +1773,26 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       die("KB verdict isn't specified");
     }
     $verdict = $params['KB_verdict'];
+    
+    if (!array_key_exists('KB_status', $params)) {
+      die("KB status isn't specified");
+    }
+    $status = $params['KB_status'];
+    
+    if (!array_key_exists('KB_verdict_old', $params)) {
+      die("Old KB verdict isn't specified");
+    }
+    $verdictOld = $params['KB_verdict_old'];
+    
+    if (!array_key_exists('KB_status_old', $params)) {
+      die("Old KB status isn't specified");
+    }
+    $statusOld = $params['KB_status_old'];
+    
+    if (!array_key_exists('KB_internal_status_old', $params)) {
+      die("Old KB internal status isn't specified");
+    }
+    $internalStatus = $params['KB_internal_status_old'];
 
     if (!array_key_exists('KB_tags', $params)) {
       die("KB tags isn't specified");
@@ -1599,6 +1807,14 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
     $comment = $params['KB_comment'];
     if ($comment == '')
       $comment = new Zend_Db_Expr('NULL');
+      
+    $time = $params['KB_time'];
+    if ($time == '')
+      $time = new Zend_Db_Expr('NULL');
+      
+    $user = $params['KB_user'];
+    if ($user == '')
+      $user = "Unknown";
 
     // Data to be inserted or updated in KB.
     $data = array(
@@ -1611,7 +1827,9 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
       , 'script' => $script
       , 'verdict' => $verdict
       , 'tags' => $tags
-      , 'comment' => $comment);
+      , 'comment' => $comment
+      , 'time' => $time
+      , 'user' => $user);
     if ($isNew) {
       $this->_db->insert('kb', $data);
       $kbNewId = $result['New KB id'] = $this->_db->lastInsertId();
@@ -1620,8 +1838,13 @@ class Application_Model_StatsMapper extends Application_Model_GeneralMapper
         $this->_db->query("UPDATE kb SET error_trace = (SELECT traces.error_trace FROM traces WHERE traces.id=$traceId) WHERE kb.id=$kbNewId");
       }
     }
-    else
+    else {
       $this->_db->update('kb', $data, "id = $id");
+      $this->_db->query("UPDATE results_kb SET status='$status' WHERE kb_id=$id AND trace_id=$traceId");
+      if ($traceId && ($statusOld != $status || $verdictOld != $verdict) && $internalStatus == "Synchronized") {
+        $this->_db->query("UPDATE results_kb SET sync_status='Desynchronized' WHERE kb_id=$id AND trace_id=$traceId");
+      }
+    }
 
     return $result;
   }

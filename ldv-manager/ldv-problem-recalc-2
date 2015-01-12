@@ -1,0 +1,441 @@
+#! /usr/bin/perl -w
+
+use DBI;
+use English;
+use FindBin;
+use Env
+  qw(LDVDBHOST LDVDB LDVUSER LDVDBPASSWD LDV_TASK_NAME LDV_TASK_ID LDV_UPLOAD_DEBUG LDV_DEBUG);
+use Getopt::Long qw(GetOptions);
+Getopt::Long::Configure qw(posix_default no_ignore_case);
+use strict;
+# TODO: do not use this library!
+use File::Slurp;
+use Cwd;
+# TODO: do not use this library!
+use Term::ReadKey;
+
+# Add some local Perl packages.
+use lib("$FindBin::RealBin/../shared/perl");
+
+# Add some nonstandard local Perl packages.
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
+  check_system_call);
+
+################################################################################
+# Subroutine prototypes.
+################################################################################
+
+# Connects to data base.
+# args: no.
+# retn: data base handler DBI.
+sub connect_to_db();
+
+# Parses command line.
+# args: no.
+# retn: array of upload file names.
+sub parse_command_line();
+
+# Prints help and exits with code '1'.
+# args: no.
+# retn: nothing.
+sub help();
+
+# Disconnects from data base.
+# args: no.
+# retn: nothing.
+sub disconnect_from_db();
+
+# Upload hash to data base.
+# args: parsed hash.
+# retn: nothing.
+sub recalc();
+
+# SQL insert query.
+# args: sql query.
+# retn: id of inserted row.
+sub sql_insert($);
+
+# SQL select query.
+# args: sql query.
+# retn: id of found row or 0.
+sub sql_select($);
+
+# SQL query.
+# args: sql query.
+# retn: nothing.
+sub sql_query($);
+
+sub add_problems(%);
+
+sub init_problems();
+
+################################################################################
+# Global variables.
+################################################################################
+
+# The default database host and password. They're used when no host is specified
+# through the environment variables.
+my $db_host = $LDVDBHOST || 'localhost';
+my $db_password = $LDVDBPASSWD || '';
+
+my $no_clear = '';
+my $last_from = 0;
+
+# Names of the components.
+my @ldv_components =
+  ( 'build', 'maingen', 'dscv', 'ri', 'rcv' );
+
+# Names of the verifiers.
+my @ldv_verifiers = ( 'blast', 'cbmc', 'cpachecker', 'ufo' );
+
+################################################################################
+# Main section.
+################################################################################
+
+get_debug_level( "ldv-problem-recalc", $LDV_DEBUG, $LDV_UPLOAD_DEBUG );
+
+parse_command_line();
+
+my %problems_functions = init_problems();
+
+my $dbh = connect_to_db();
+
+recalc();
+
+################################################################################
+# Subroutines.
+################################################################################
+
+sub connect_to_db() {
+    # Check environment variables.
+    if ( !$LDVDB )
+    {
+        die "Error: Database was not specified. Please specify it with environment variable LDVDB.";
+    }
+    if ( !$LDVUSER )
+    {
+        die "Error: User was not specified. Please specify it with environment variable LDVUSER.";
+    }
+    # Connect to Database.
+    my $db_handler =
+      DBI->connect( "DBI:mysql:$LDVDB:$db_host", $LDVUSER, $db_password )
+      or die("Can't connect to the database: $DBI::errstr");
+    print_debug_normal(
+        "Connection to the data base $LDVDB has been established");
+    print_debug_normal("Host name is: $db_host");
+    print_debug_normal("User name is: $LDVUSER");
+    if ( $db_password eq '' ) {
+        print_debug_normal("Using password: NO");
+    }
+    else {
+        print_debug_normal("Using password: YES");
+    }
+    return $db_handler;
+}
+
+# Format: <upload> [options] -- <report_to_be_uploaded>.
+# In case of any error help will be printed and execution of the program will be stopped.
+# Returns arrray of all file names for upload.
+sub parse_command_line() {
+
+    my $print_help  = 0;
+
+    # Parsing options.
+	# TODO: one may optionally provide a password through command-line options. See mysql --help (-p --password).
+    my $is_password = 0;
+    GetOptions(
+        'help|h' => \$print_help, # Print help.
+        'p|password'      => \$is_password, # Ask password.
+        'no-clear' => \$no_clear, # Do not clear all records in problems table.
+        'last=i' => \$last_from, # Recalculate problems only for from last <task id>.
+    ) or help();
+
+    # Print help.
+    help() if ($print_help);
+
+    # Password promt.
+    if ($is_password) {
+        print_debug_normal("Enter password for data base");
+        ReadMode 'noecho';
+        $db_password = ReadLine 0;
+        chomp $db_password;
+        ReadMode 'normal';
+        # Set this passwor for KB Recalc.
+        $ENV{LDVDBPASSWD} = $db_password;
+    }
+}
+
+# Print help and exit.
+sub help() {
+    print( STDERR << "EOM");
+
+NAME
+  $PROGRAM_NAME: the tool is intended to recalculate problems in the database.
+
+SYNOPSIS
+  $PROGRAM_NAME [option...]
+
+OPTIONS
+
+  -h, --help
+    Print this help and exit with a error.
+    Use password to access the data base.
+  --no-clear
+    Do not clear all records in problems table.
+  --last=<task_id>
+    Recalculate problems only from last <task_id>.
+
+ENVIRONMENT VARIABLES
+
+  LDV_UPLOAD_DEBUG
+    It is an optional environment variable that specifies a debug
+    level. It uses the standard designatures to distinguish different
+    debug information printings. Each next level includes all previous
+    levels and its own messages.
+
+  LDV_TASK_ID
+    The id of the task, which should be recalculated.
+    Has more priority then --last option.
+  
+
+  LDVDBHOST, LDVDB, LDVUSER, LDVDBPASSWD
+    Keeps settings (host, database, user and password) for connection
+    to the database. Note that LDVDB and LDVUSER must always be
+    presented!
+
+EOM
+
+    exit(1);
+}
+
+sub disconnect_from_db() {
+    if ($dbh) {
+        $dbh->disconnect;
+        print_debug_normal("Disconnecting from data base");
+    }
+}
+
+sub recalc() {
+
+    # Lock tables.
+    print_debug_normal("Acquiring lock 'ldv_problem_recalc_lock'");
+    sql_query("SELECT GET_LOCK('ldv_problem_recalc_lock', -1);");
+
+    # Start transaction.
+    print_debug_normal("Starting commit");
+    $dbh->begin_work;
+
+    # Clear all old problems - tables problems.
+    if (!$no_clear && !$last_from && !$LDV_TASK_ID)
+    {
+        print_debug_normal("Clearing old problems");
+        sql_query("DELETE FROM problems;");
+    }
+    
+    # Clear all problems for specified task_id.
+    if (!$no_clear && $last_from > 0 && !$LDV_TASK_ID)
+    {
+        print_debug_normal("Clearing old problems for tasks from id $last_from");
+        sql_query("
+            DELETE problems_stats 
+            FROM problems_stats, stats, traces, launches, tasks 
+            WHERE problems_stats.stats_id=stats.id AND 
+                stats.trace_id=traces.id AND 
+                traces.launch_id=launches.id AND 
+                launches.task_id=tasks.id AND 
+                tasks.id>$last_from;");
+    }
+
+    # Clear all problems for specified task_id.
+    if (!$no_clear && $LDV_TASK_ID)
+    {
+        print_debug_normal("Clearing old problems for tasks id = $LDV_TASK_ID");
+        sql_query("
+            DELETE problems_stats 
+            FROM problems_stats, stats, traces, launches, tasks 
+            WHERE problems_stats.stats_id=stats.id AND 
+                stats.trace_id=traces.id AND 
+                traces.launch_id=launches.id AND 
+                launches.task_id=tasks.id AND 
+                tasks.id=$LDV_TASK_ID;");
+    }
+
+    # Get required info.
+    print_debug_normal("Calculating new problems");
+    my $query;
+    if (!$LDV_TASK_ID)
+    {
+        $query = "
+            SELECT stats.id, stats.kind, traces.verifier, stats.description
+            FROM launches
+                LEFT JOIN tasks ON launches.task_id=tasks.id
+                LEFT JOIN traces ON traces.launch_id=launches.id
+                LEFT JOIN stats ON stats.trace_id=traces.id
+            WHERE tasks.id>$last_from AND traces.result='unknown'";
+    }
+    else
+    {
+        $query = "
+            SELECT stats.id, stats.kind, traces.verifier, stats.description
+            FROM launches
+                LEFT JOIN tasks ON launches.task_id=tasks.id
+                LEFT JOIN traces ON traces.launch_id=launches.id
+                LEFT JOIN stats ON stats.trace_id=traces.id
+            WHERE tasks.id=$LDV_TASK_ID AND traces.result='unknown'";
+    }
+    my $db_query = $dbh->prepare($query)
+      or die( "Can't prepare a query: " . $dbh->errstr );
+    $db_query->execute or die( "Can't execute a query: $query\n" . $dbh->errstr );
+    while (my @row = $db_query->fetchrow_array)
+    {
+        my $cur_stats = $row[0];
+        my $cur_component = $row[1];
+        my $cur_verifier = $row[2];
+        my $cur_desc = $row[3];
+        add_problems(
+            component => "$cur_component",
+            desc      => "$cur_desc",
+            stats_id  => $cur_stats
+        );
+        if ( $cur_component eq "rcv" ) {
+            add_problems(
+                component => "$cur_verifier",
+                desc      => "$cur_desc",
+                stats_id  => $cur_stats
+            );
+        }
+    }
+
+    $dbh->commit;
+    print_debug_normal("Commit has been completed");
+    
+    print_debug_normal("Releasing lock 'ldv_problem_recalc_lock'");
+    sql_query("SELECT RELEASE_LOCK('ldv_problem_recalc_lock');");
+
+    print_debug_normal("Problems have been successfully recalculated in database.");
+}
+
+sub sql_select($) {
+    my $query = shift;
+    print_debug_all($query);
+
+    my $db_query = $dbh->prepare($query)
+      or die( "Can't prepare a query: " . $dbh->errstr );
+
+    $db_query->execute or die( "Can't execute a query: $query\n" . $dbh->errstr );
+
+    my @row = $db_query->fetchrow_array;
+
+    return $row[0] || 0;
+}
+
+sub sql_insert($) {
+    my $query = shift;
+    print_debug_all($query);
+
+    my $db_query = $dbh->prepare($query)
+      or die( "Can't prepare a query: " . $dbh->errstr );
+
+    $db_query->execute or die( "Can't execute a query: $query\n" . $dbh->errstr );
+
+    return $db_query->{mysql_insertid};
+}
+
+sub sql_query($) {
+    my $query = shift;
+    print_debug_all($query);
+
+    my $db_query = $dbh->do($query)
+      or die( "Can't do a query: $query\n" . $dbh->errstr );
+}
+
+# Adds record in problems and problems_stats for specific component.
+sub add_problems(%) {
+    my %info = @_;
+    my $component =
+      $info{component}; # {rcv, rule-instrumentor, dscv, drv-env-gen, build-cmd-extractor, blast, cbmc, cpachecker, ufo}
+    my $cur_desc     = $info{desc};
+    my $cur_stats_id = $info{stats_id};
+    my @result       = ();
+    if ( $cur_desc )    # In case of build failed.
+    {
+        foreach my $arg (@ldv_components) {
+            if ( $component eq $arg ) {
+                eval $problems_functions{$arg};
+                die $@ if $@;
+            }
+        }
+        foreach my $arg (@ldv_verifiers) {
+            if ( $component eq $arg ) {
+                eval $problems_functions{$arg};
+                die $@ if $@;
+            }
+        }
+
+        my $tmp_res;
+        foreach my $prob (@result) {
+            chomp($prob);
+            next if ( $prob =~ /^\s*$/ );
+            $tmp_res = sql_select("SELECT id FROM problems WHERE problems.name = '$prob' LIMIT 1;") || 
+                sql_insert("INSERT INTO problems (name) VALUES ('$prob');");
+            sql_query("INSERT INTO problems_stats (stats_id, problem_id) VALUES ($cur_stats_id, $tmp_res);");
+        }
+    }
+}
+
+# Auto generate problem functions, which return array of all problems for specified component and its description.
+
+# Get text for problem functions
+sub init_problems() {
+    my $problem_dir = "$FindBin::RealBin/../ldv-manager/problems/";
+    my %result_problems;
+    my $text;
+
+    # Component 'build'.
+    $text = read_file("$problem_dir/build/build");
+    $text = change_problems_text($text);
+    $result_problems{'build'} = $text;
+
+    # Component 'deg' (No specified problems).
+    $result_problems{'maingen'} = "";
+
+    # Component 'dscv'.
+    $text                    = read_file("$problem_dir/dscv/problems");
+    $text                    = change_problems_text($text);
+    $result_problems{'dscv'} = $text;
+
+    # Component 'rcv'.
+    $text                   = read_file("$problem_dir/rcv/generic");
+    $text                   = change_problems_text($text);
+    $result_problems{'rcv'} = $text;
+
+    # Component 'ri'.
+    $text = read_file("$problem_dir/ri/aspectator");
+    $text = change_problems_text($text);
+    $result_problems{'ri'} = $text;
+
+    # Verifiers.
+    foreach my $verifier (@ldv_verifiers) {
+        $text                         = read_file("$problem_dir/rcv/$verifier");
+        $text                         = change_problems_text($text);
+        $result_problems{"$verifier"} = $text;
+    }
+    return %result_problems;
+}
+
+sub change_problems_text($) {
+    my $text = shift;
+    $text =~ s/\$\\ = "\\n";\n//g;
+    $text =~ s/\$, = "\\n";\n//g;
+    $text =~ s/ and print "/ and push(\@result,  "/g;
+    $text =~ s/";\n/");\n/g;
+    $text =~ s/while \(<>\){/foreach\(\$cur_desc\){/g;
+    return $text;
+}
+
+# Actions which should be completed in case of any errors or after finishing uploading.
+END {
+    disconnect_from_db();
+}
+

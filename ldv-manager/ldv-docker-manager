@@ -1,0 +1,591 @@
+#!/usr/bin/perl -w
+
+##############################################################################
+# Copyright (C) 2014
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+##############################################################################
+
+use warnings;
+use strict;
+use Getopt::Long;
+use File::Path qw(make_path remove_tree);
+use Env qw(DOCKER_OPTS);
+use File::stat;
+use File::Touch;
+use FindBin;
+use Fcntl qw(:flock);
+use threads;
+use threads::shared;
+use File::Pid;
+use Readonly;
+
+# Add some local Perl packages.
+use lib("$FindBin::RealBin/../shared/perl");
+
+use LDV::Utils qw(vsay print_debug_warning print_debug_normal print_debug_info
+  print_debug_debug print_debug_trace print_debug_all get_debug_level
+  check_system_call);
+
+my $benchmark_path;
+my $control_file;
+my $confirmation_file;
+my $keep_time = 0;
+my $memlimit = 0;
+my $help_flag = 0;
+my $task_limit = 1;
+my $queue_keep = 0;
+my $cnt_workdir = '/work';
+my $debug_level = 'NORMAL';
+my @pool;
+my $thread_flag = 0;
+
+# Constants
+Readonly::Scalar my $queue_file => '.queued';
+Readonly::Scalar my $pidlock => '/var/run/ldv_docker_daemon.pid';
+Readonly::Scalar my $lockfile => '/tmp/ldv-docker-manager.lock';
+
+# Shared vars
+my $free_mem : shared = 0;
+my @verification_queue : shared = ();
+
+# General docker opts
+my @docker_opts = (
+    'docker',
+    'run',
+    '-i',
+    '-t',
+    '-d',
+    '--privileged=true',
+);
+
+# Lock file
+open(my $fhpid, '>', $lockfile) or die "Cannot open '$lockfile': $!";
+flock($fhpid, LOCK_EX|LOCK_NB) or die "Cannot lock '$lockfile': $!";
+
+$SIG{INT} = sub { 
+    if(!$thread_flag){
+        print_debug_debug("Joining threads");
+        foreach my $thr (@pool){
+            # Send a signal to a thread
+            $thr->kill('SIGUSR1');
+            $thr->join;
+        }
+        print_debug_debug("Remove created queue locks");
+        foreach my $path (@verification_queue){
+            if(-f $path.'/'.$queue_file){
+                print_debug_trace("Removing lock '$path/$queue_file'");
+                remove_tree $path.'/'.$queue_file;
+            }
+        }
+        print_debug_normal("Unlock '$lockfile'");
+        close $fhpid;
+        die "Killed by signal";
+    }
+};
+
+main();
+close $fhpid;
+exit 0;
+
+##############################################################################
+# Usage      : main()
+# Purpose    : Main script routine.
+# Returns    : 0.
+# Parameters : None.
+sub main {
+    # Check options
+    GetOptions(
+        '--workdir|w=s'         => \$benchmark_path,
+        '--task|t=s'            => \$control_file,
+        '--confirmation|c=s'    => \$confirmation_file,
+        '--keep|k=s'            => \$keep_time,
+        '--taskkeep|p'          => \$queue_keep,
+        '--memlimit|m=s'        => \$memlimit,
+        '--runs|r=s'            => \$task_limit,
+        '--debug|d=s'           => \$debug_level,
+        '--help|h'              => \$help_flag,
+    ) or help();
+
+    # Check necessary options
+    if($help_flag || !defined $benchmark_path || !defined $control_file || !defined $confirmation_file){
+        help();
+    }
+
+    # Specify debug level.
+    my $debug_level = get_debug_level('ldv-docker-manager', $debug_level, $debug_level);
+    print_debug_normal("Starting...");
+
+    # Create data file if it doesn't exist
+    if(!-d $benchmark_path){
+        print_debug_debug("Trying to make dir '$benchmark_path'");
+        make_path $benchmark_path;
+    }
+    print_debug_trace("Going to use dir '$benchmark_path'");
+
+    # Convert mem limit in bytes
+    $memlimit = convert_memory($memlimit);
+    $free_mem = $memlimit;
+
+    # Add more default commands
+    if(defined $ENV{DOCKER_OPTS}){
+        print_debug_debug("Add following options to default for docker run: '$ENV{DOCKER_OPTS}'");
+        push @docker_opts, $ENV{DOCKER_OPTS};
+    }
+
+    # Run infinite loop 
+    scan_and_run();
+
+    return 0;
+}
+
+##############################################################################
+# Usage      : run_tasks()
+# Purpose    : Run worker threads that run docker on each task from the queue.
+# Returns    : None.
+# Parameters : None.
+sub run_tasks{
+    print_debug_normal("Run worker threads: '$task_limit'");
+
+    @pool = map{
+        threads->create( 
+            sub {
+                # Wait for a signal
+                my $lock;
+                $thread_flag = 1;
+                $SIG{USR1} = sub {
+                    print_debug_debug("Terminating working thread");
+                    if(defined $lock && -f $lock){
+                        print_debug_trace("Removing lock '$lock'");
+                        remove_tree $lock;
+                    }
+                    threads->exit();
+                };
+
+                # Thread will loop until no more work
+                while (1) {
+                    if(scalar @verification_queue == 0){
+                        sleep 0.3;
+                    }
+                    else{
+                        # Get filename
+                        my $task_path;
+                        {
+                            lock(@verification_queue);
+                            $task_path = shift @verification_queue;
+                        }
+
+                        # If this file exists
+                        if(defined $task_path){
+                            $lock = $task_path.'/'.$queue_file;
+                            print_debug_debug("Going to process task in '$task_path'");
+                            if(-f "$task_path/$control_file"){
+                                # Extract options
+                                my $cfg =  extract_task("$task_path/$control_file");
+                                if(defined $cfg){
+                                    # Wait until enought memory would be available
+                                    my $proceed = 0;
+                                    print_debug_debug("Wait when enought amount of memory will be available");
+                                    while(!$proceed){
+                                        {
+                                            lock $free_mem;
+                                            if($free_mem > $cfg->{memlimit}){
+                                                $free_mem = $free_mem - $cfg->{memlimit};
+                                                $proceed = 1;
+                                                last;
+                                            }
+                                        }
+                                        sleep 0.5;
+                                    }
+
+                                    # Run docker
+                                    invoke_docker($cfg, $task_path);
+                                    {
+                                        lock $free_mem;
+                                        $free_mem = $free_mem + $cfg->{memlimit};
+                                    }
+
+                                    # Remove queue lock file 
+                                    print_debug_debug("Remove queue lock '$task_path/$queue_file'");
+                                    remove_tree $task_path.'/'.$queue_file;
+                                }
+                                else{
+                                    print_debug_warning("Cannot process '$task_path'");
+                                }   
+                            }
+                            else{
+                                print_debug_warning("Task file does not exist in '$task_path'");
+                            }
+                            $lock = undef;                             
+                        }
+                    }
+                }
+            }
+        )
+    } 1 .. $task_limit;
+
+    return 0;
+}
+
+##############################################################################
+# Usage      : scan_and_clean
+# Purpose    : Scan dir with tasks and delete old one.
+# Returns    : nothing.
+# Parameters : None.
+sub clean {
+    print_debug_trace("Scanning directory to keep it clean '$benchmark_path'");
+    opendir my $dh, $benchmark_path 
+        or die "Could not open dir '$benchmark_path'";
+    while(my $dir = readdir $dh){
+        # Try to copy all dirs using its names as container id
+        my $path = "$benchmark_path/$dir";
+        
+        if(-d $path && -f "$path/$confirmation_file" && !-f "$path/$queue_file"){
+            if(check_timestamp("$path/$confirmation_file", $keep_time)){
+                print_debug_normal("Remove processed task '$path'");
+                remove_tree "$path";
+            }
+        }
+        elsif(-d $path && -f "$path/$control_file" && !-f "$path/$queue_file"){
+                if(check_timestamp("$path/$control_file", $queue_keep)){
+                print_debug_normal("Remove unprocessed old task '$path'");
+                remove_tree "$path";
+            }
+        }
+    }
+    closedir $dh or die "Could not close dir '$benchmark_path'";
+}
+
+##############################################################################
+# Usage      : check_timestamp($file, $keep_time)
+# Purpose    : Check that file was last modified $keep_time seconds ago and if
+#              it is older - return 1. Return 0 otherwise. 
+# Returns    : 0 or 1.
+# Parameters : File, period in seconds.
+sub check_timestamp {
+    my ($file, $keep_time) = @_;
+
+    my $now = time;
+    my $timestamp = stat($file)->mtime;
+    my $diff = $now - $timestamp;
+    
+    return ($diff >= $keep_time);
+}
+
+##############################################################################
+# Usage      : scan($benchmark_path)
+# Purpose    : Read disk and wait for the new tasks forever.
+# Returns    : nothing.
+# Parameters : Path to dir with expected benchmars.
+sub scan_and_run {
+    
+    # Run workers
+    run_tasks();
+
+    # List of already copied dirs
+    my %skip = (
+        '.'     => 0,
+        '..'    => 0, 
+    );
+
+    # Scanning loop
+    print_debug_info("Start awating tasks in '$benchmark_path'");
+    my $last_clean = 0;
+    while(1){
+        # Clean dir
+        my $diff = time - $last_clean;
+        if(($keep_time || $queue_keep) && ($diff > $keep_time)){
+            clean();
+            $last_clean = time;
+        }
+
+        # Look for tasks
+        opendir my $dh, $benchmark_path 
+            or die "Could not open dir '$benchmark_path'";
+        while(my $dir = readdir $dh){
+            # Try to copy all dirs using its names as container id
+            my $path = "$benchmark_path/$dir";
+            
+            if(-d $path && !defined $skip{$dir} && !-f "$path/$queue_file" ){
+                print_debug_trace("Looking for task file : '$path/$control_file'");                
+                my $config = extract_task("$path/$control_file", $path);
+                if(defined $config){
+                    if($config->{memlimit} <= $memlimit){
+                        print_debug_trace("Push task to the queue: '$path'"); 
+                        if($config->{priority} eq "HIGH"){
+                            lock @verification_queue;
+                            `touch $path/$queue_file`;
+                            unshift @verification_queue, $path;       
+                        }
+                        else{
+                            lock @verification_queue;
+                            `touch $path/$queue_file`;
+                            push @verification_queue, $path;       
+                        }
+                    }
+                    else{
+                        print_debug_warning("Task requires more memory that it is allowed to use: '$path'");
+                    }
+                }
+            }
+        }
+        closedir $dh or die "Could not close dir '$benchmark_path'";
+        sleep 0.3;
+    }
+}
+
+##############################################################################
+# Usage      : is_claim_checking($control_file)
+# Purpose    : Check status of copied here data. If status - ready for check
+#              then docker can be invoked
+# Returns    : nothing or hash with config (success).
+# Parameters : file with config.
+sub extract_task {
+    my ($control_file, $path) = @_;
+
+    # Check existance
+    if(!-f $control_file){
+        return;
+    }
+
+    # Try to open and parse it
+    # print "Going to parse control file: '$control_file'\n";               
+    my $cfg = parse_config($control_file);
+    if(defined $path){
+        $cfg->{path} = $path;
+    }
+    $cfg->{memlimit} = convert_memory($cfg->{memlimit});
+    if(defined $cfg->{'status'} && $cfg->{'status'} eq "ready"){
+        return $cfg;
+    }   
+    else{
+        return;
+    }
+}
+
+##############################################################################
+# Usage      : parse_config($file)
+# Purpose    : Parse config file and return hash. Expect that config contains  
+#              following rows"<key>: <value>\n", so return hash with $key=>$v.
+# Returns    : hash.
+# Parameters : file.
+sub parse_config {
+    my ($file) = @_;
+
+    # Extract strings
+    open my $fd, "<", $file
+        or die "Could not open file '$file'";
+    my @strings = <$fd>;
+    close $fd;
+
+    # Remove endings
+    chomp @strings;
+
+    # Parse them
+    my %ret = ();
+    foreach my $string (@strings){
+        my ($key, $value) = split ': ', $string;
+        $ret{$key} = $value;
+    }   
+
+    return \%ret;
+}
+
+##############################################################################
+# Usage      : invoke_docker($cfg)
+# Purpose    : Run docker for given data.
+# Returns    : Docker exit status.
+# Parameters : Hash with options, path to data, list ptr with default docker 
+#              options.
+sub invoke_docker {
+    my ($cfg, $path) = @_;
+
+    # Prepare options
+    my @docker_run = (
+        @docker_opts,
+        '-v', "\"$path:$cnt_workdir:rw\"",
+        '-w', $cnt_workdir,
+        $cfg->{image},
+        'wait_then_run.pl',
+        $cfg->{command},
+    );
+
+    # Run docker
+    print_debug_normal("Run container: '" . (join ' ', @docker_run) . "'");
+    my $cnt_id = `@docker_run`;
+    chomp $cnt_id;
+    print_debug_debug("Got container id: '$cnt_id'");
+
+    # TODO: Implement simultaneous run
+    # Wait for container termination
+    my $exit_code = `docker wait $cnt_id`;
+    chomp $exit_code;
+
+    # Change status
+    $cfg->{status} = $exit_code;
+    update_config($cfg, "$path/$control_file");
+    print_debug_debug("Create confirmation file '$path/$confirmation_file'");
+    system("touch $path/$confirmation_file");
+    if(check_system_call()){
+        die "Cannot create file '$path/$confirmation_file'";
+    }
+    print_debug_normal("Task is finished");
+   
+    # Remove container
+    #my $rm_cmd = "docker rm -v $cnt_id";
+    #print "Remove container: '$rm_cmd'\n";
+    #system($rm_cmd)
+    #   or warn "Cannot remove container with id '$cnt_id'";
+
+    return 0;
+}
+
+##############################################################################
+# Usage      : update_config($cfg, $file)
+# Purpose    : Save current properties to benchmark control file.
+# Returns    : nothing.
+# Parameters : Current options hash, path to control file.
+sub update_config {
+    my ($cfg, $file)  = @_;
+
+    # Prepare text
+    my @strings = ();
+    foreach my $key (keys %{$cfg}){
+        push @strings, $key . ': ' . $cfg->{$key} . "\n";
+    }
+
+    # Extract strings
+    print_debug_trace("Going to update task file '$file'");
+    open my $fd, ">", $file
+        or die "Cannot open control file '$file'";
+    foreach my $s (@strings) {
+        print {$fd} $s;
+    }
+    close $fd 
+        or die "Cannot save control file '$file'";
+        print_debug_trace("Updated file '$file'");
+
+    return 0;
+}
+
+##############################################################################
+# Usage      : help
+# Purpose    : print help message and terminate program.
+# Returns    : nothing.
+# Parameters : None.
+sub help {
+    print(STDERR << "EOM");
+
+NAME
+  ldv-docker-manager: the tool is intended to perform run of reachability C verifiers
+  on the host in docker containers. The tool always waits for tasks in subdirectories 
+  of the workdir and looks there for taks file in corresponding format. If file is 
+  found, this script extract command and run docker. After that save its results in the
+  same subdir and create report file. It is possible to handle several benchmarks on the
+  machine without violations and share resources wisely.
+
+SYNOPSIS
+  ldv-docker-manager [option...]
+
+OPTIONS
+
+    --workdir, -w <dir>
+
+        Directory where script expects task creation.
+
+    --task, -t <filename>
+
+        Name of the file with command to run.
+
+    --confirmation, -c <filename>
+
+        Name of the file which script creates after docker task termination.
+
+    --keep, -k <sec>
+
+        Seconds before finished results can be deleted.
+
+    --taskqueue, -p <sec>
+
+        Seconds before unprocessed tasks can be deleted.
+
+    --memlimit, -m <memlimit>
+    
+        Maximum memory which can be occupied by tasks simultaneously.
+
+    --runs, -r <num>
+
+        Maximum number of tasks which can run simultaneously.
+
+    --debug, -d <level>
+
+    Verbosity level as it is expected in LDV Tools in common.
+
+    --help, -h
+
+EOM
+
+  exit(1);
+}
+
+##############################################################################
+# Usage      : convert_memory(<value with units>)
+# Purpose    : Get memory limit in a wide range of units and return number of
+#              memory in bytes.
+# Returns    : mem in bytes.
+# Parameters : Mem in arbitrary units.
+sub convert_memory
+{
+    my ($mem) = @_;
+    if ($mem =~ /^(\d+[.]{0,1}\d{0,})\s{0,}(Kb|Mb|MB|GB|Gb|Kib|Mib|Gib|B|)$/)
+    {
+        my $res = $1;
+        if ($2 eq "Kb")
+        {
+            $res *= 1000;
+        }
+        if ($2 eq "Mb")
+        {
+            $res *= 1000 * 1000;
+        }
+        if ($2 eq "Gb")
+        {
+            $res *= 1000 * 1000 * 1000;
+        }
+        if ($2 eq "Kib")
+        {
+            $res *= 1024;
+        }
+        if ($2 eq "Mib" || $2 eq "MB")
+        {
+            $res *= 1024 * 1024;
+        }
+        if ($2 eq "Gib" || $2 eq "GB")
+        {
+            $res *= 1024 * 1024 * 1024;
+        }
+        if ($2 eq "B")
+        {
+            $res *= 1;
+        }
+        return $res;
+    }
+    else
+    {
+        die "Wrong format for memory limit option: <number><Kb|Mb|MB|GB|Gb|Kib|Mib|Gib> was expected";
+    }
+}
+
+#ubuntu:blast wait_then_run.pl
+#res-manager -d ldv -o result.txt -s stdout.txt -e stderr.txt -m 10Gb -t 900 ocamltune pblast.opt cdc-phonet.o.i ldv_common_model.i -predH 7 -craig 2 -ignoredupfn -nosserr -enable-recursion -nolabelmeanssafe -main entry_point -L LDV_ERROR -cldepth 0 -alias "" -lattice -include-lattice symb -stop-sep -merge bdd -v "/work/ldvuser/docker_blast/7ec1594382e39fd975d8be6292d436c20e71a115e9a6504b96c8fdd9b69c0d0b:/work:rw" -i -t --workdir=/work --privileged=true ubuntu:blast wait_then_run.pl

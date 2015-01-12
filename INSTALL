@@ -49,7 +49,9 @@ MINIMAL PREREQUISITES
 		- File::Temp
 		- Term::ReadKey
 		- XML::LibXML::SAX
-		- XML::Simple;
+		- XML::Simple
+		- UUID::Generator::PurePerl
+		- Readonly
 	o CPIO archiver
 	o PAX archiver
 	o Ruby gem manager
@@ -65,6 +67,7 @@ MINIMAL PREREQUISITES
 	o gzip
 	o bzip2
 	o xz
+	o curl
 
 ADDITIONAL PREREQUISITES
 

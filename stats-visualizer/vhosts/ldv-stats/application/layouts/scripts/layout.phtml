@@ -17,8 +17,35 @@
  */
 function toolNameVersion()
 {
-  $version = '0.09';
+  $version = '0.11';
   return "LDV Analytics Center $version";
+}
+
+function getGlobals()
+{
+	$uri = $_SERVER['REQUEST_URI'];
+	$db = '';
+	$host = '';
+	$user = '';
+	$password = 'no';
+	if (preg_match("/\/name\/(\w+)(\/|$)/", $uri, $array))
+		$db = $array[1];
+	if (preg_match("/\/user\/(\w+)(\/|$)/", $uri, $array))
+		$user = $array[1];
+	if (preg_match("/\/host\/(\w+)(\/|$)/", $uri, $array))
+		$host = $array[1];
+	if (preg_match("/\/password\/(\w+)(\/|$)/", $uri, $array))
+		$password = $array[1];
+	$globals = array();
+	if ($db)
+		$globals['name'] = $db;
+	if ($host)
+		$globals['host'] = $host;
+	if ($user)
+		$globals['user'] = $user;
+	if ($password)
+		$globals['password'] = $password;
+	return $globals;
 }
 
 echo $this->doctype(), "\n"
@@ -31,6 +58,7 @@ echo $this->doctype(), "\n"
   <?php
     $baseUrl = $this->baseUrl();
     $this->headLink()->appendStylesheet("$baseUrl/css/global.css");
+    $this->headLink()->appendStylesheet("$baseUrl/css/etv-analytics-center.css");
     $this->headScript()->appendFile("$baseUrl/jslib/jquery-1.4.2.min.js", 'text/javascript');
     $this->headScript()->appendFile("$baseUrl/jslib/jquery.jeditable.mini.js", 'text/javascript');
     echo $this->headLink();
@@ -40,11 +68,13 @@ echo $this->doctype(), "\n"
 <body>
 <div id="SSHeader">
   <div id="SSHeaderLogo"><?php echo toolNameVersion() ?></div>
+  <div id="SSHeaderAut"></div>
   <div id="SSHeaderMenu" >
     <!--<a href="<?php echo $this->url(array('controller'=>'stats', 'action'=>'index'), 'default', true) ?>">Show statistics</a> &nbsp &nbsp-->
     <!--<a href="<?php echo $this->url(array('controller'=>'stats', 'action'=>'signdb'), 'default', true) ?>">Sign database connection</a> &nbsp &nbsp-->
+    <a href="<?php echo $this->url(array_merge(getGlobals(),array('controller' => 'stats', 'action' => 'unsafes', 'page' => 'Knowledge base')), 'default', true); ?>">Knowledge Base</a> &nbsp &nbsp
     <a href="<?php echo $this->url(array('controller'=>'index', 'action'=>'index'), 'default', true) ?>">Help</a> &nbsp &nbsp
-    <a href="mailto:joker@ispras.ru?subject=Questions about <?php echo toolNameVersion() ?>">Support</a>
+    <a href="mailto:novikov@ispras.ru?subject=Questions about <?php echo toolNameVersion() ?>">Support</a>
   </div>
 </div>
 

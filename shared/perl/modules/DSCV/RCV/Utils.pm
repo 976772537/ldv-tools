@@ -57,6 +57,8 @@ sub set_up_timeout
 	my $output = $resource_spec->{output};
 	my $idstr = $resource_spec->{id_str};
 	my $walltimelimit = $ENV{'RCV_WALLTIMELIMIT'};
+	my $redirected_stdout = $resource_spec->{redirected_stdout};
+	my $redirected_stderr = $resource_spec->{redirected_stderr};
 
 	unshift @cmdline,"-t",$timelimit if $timelimit;
 	unshift @cmdline,"-m",$memlimit if $memlimit;
@@ -65,6 +67,8 @@ sub set_up_timeout
 	unshift @cmdline,"-d", "ldv";
 	unshift @cmdline,"-w", $walltimelimit if $walltimelimit;
 	unshift @cmdline,"-w", "0" if $ENV{'RCV_NOWALLTIMELIMIT'};
+	unshift @cmdline,"-s", $redirected_stdout if $redirected_stdout;
+	unshift @cmdline,"-e", $redirected_stderr if $redirected_stderr;
 	unshift @cmdline,$timeout;
 
 	$ENV{'TIMEOUT_IDSTR'} = $idstr;
