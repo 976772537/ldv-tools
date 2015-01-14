@@ -258,10 +258,8 @@ else{
 	say $CPA_CFG "# this automaton defines which locations are the error locations";
 	say $CPA_CFG "specification = $tmpdir/$LDV_errloc_autom";
 
-	#if($timelimit>60) {
-	#    say $CPA_CFG "# Set CPAchecker internal time limit";
-	#    say $CPA_CFG "limits.time.wall=".($timelimit - 60)."s";
-	#}
+	say $CPA_CFG "# Remove CPAchecker internal time limits";
+	say $CPA_CFG "limits.time.cpu=-1ns";
 
 	if ($no_cil)
 	{
