@@ -316,6 +316,15 @@ if ($ENV{RCV_REMOTE_HOST} && defined $main) {
 	# In CPAchecker, the trace is stored in the separate file in the output path,
 	# and we know its name.
 	$orig_trace_fname = "$outputpath/output/ErrorPath.txt";
+
+	# Add additional options
+	if( $ENV{'CPACHECKER_OPTIONS'} ){
+		my @additional_opts = split q{ }, $ENV{'CPACHECKER_OPTIONS'};
+
+		foreach my $opt ( @additional_opts ){
+			add_cpa_cloud_options( 'option=' . $opt );
+		}
+	}
 }
 else {
 	# Add config option to cpachecker call line
@@ -342,8 +351,13 @@ else {
 	}
 
 	# Additional options a user may specify (watch for the spaces in options!)
-	my @envopts = split /\s+/, $ENV{'CPACHECKER_OPTIONS'};
-	add_cpa_options( @envopts );
+	if( $ENV{'CPACHECKER_OPTIONS'} ){
+		my @additional_opts = split q{ }, $ENV{'CPACHECKER_OPTIONS'};
+
+		foreach my $opt ( @additional_opts ){
+			add_cpa_options( '-setprop ' . $opt );
+		}
+	}
 
 	# In CPAchecker, the trace is stored in the separate file in the output path,
 	# and we know its name.
