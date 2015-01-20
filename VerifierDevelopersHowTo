@@ -135,7 +135,7 @@ CPACHECKER_CONFIG=/path/to/config.cfg
 CPACHECKER_OPTIONS=
   Additional options for CPAchecker.  You should not set "-config" option
   here. For instance, 'limits.time.wall=240s' sets a limit for wall time
-  used by CPAchecker. Options should be specified withoud using spaces, since
+  used by CPAchecker. Options should be specified without using spaces, since
   it is necessary to extract each option separately and add prefix which is 
   different for CPAchecker cloud web-interface and console tool respectively.
 
