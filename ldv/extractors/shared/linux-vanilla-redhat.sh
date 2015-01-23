@@ -155,8 +155,60 @@ if [ $? -ne 0 ]; then
         ldv_print "ERROR: Can't apply complex patch.";
         exit 1;
 fi;
+#
+# IV.
+#
+# Fix include/linux/kernel.h as workaround for CPAchecker without CIL bug #195
+#
+KERNEL_INCLUDE_KERNEL_H=$KERNEL_MAKEFILE_DIR"/include/linux/kernel.h";
+if [ ! -f "$KERNEL_INCLUDE_KERNEL_H" ]; then
+	ldv_print "ERROR: Can't find include/linux/kernel.h: \"$KERNEL_INCLUDE_KERNEL_H\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.build !"; fi;
+	cp $KERNEL_BACKUP_MAKEFILE_MODPOST $KERNEL_MAKEFILE_MODPOST;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.modpost !"; fi;
+	exit 1;
+fi;
+#
+# Create backup for ./scripts/Makefile.modpost
+#
+KERNEL_BACKUP_INCLUDE_KERNEL_H=$KERNEL_MAKEFILE_DIR"/include/linux/kernel.h.bcebackup";
+cp $KERNEL_INCLUDE_KERNEL_H $KERNEL_BACKUP_INCLUDE_KERNEL_H;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Failed to copy kernel.h from: \"$KERNEL_INCLUDE_KERNEL_H\" to \"$KERNEL_BACKUP_INCLUDE_KERNEL_H\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.build !"; fi;
+	cp $KERNEL_BACKUP_MAKEFILE_MODPOST $KERNEL_MAKEFILE_MODPOST;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.modpost !"; fi;
+	exit 1;
+fi;
+#
+# test if a FILE exists and write permission is granted or not
+#
+if [ ! -w "$KERNEL_INCLUDE_KERNEL_H" ]; then
+	ldv_print "ERROR: Kernel kernel.h: \"$KERNEL_INCLUDE_KERNEL_H\" -  not writable.";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.build !"; fi;
+	cp $KERNEL_BACKUP_MAKEFILE_MODPOST $KERNEL_MAKEFILE_MODPOST;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.modpost !"; fi;
+	exit 1;
+fi;
+#
+# patch it...
+#
+sed -i -e 's/#define _THIS_IP_ .*/#define _THIS_IP_ ({0;})/' $KERNEL_INCLUDE_KERNEL_H;
+if [ $? -ne 0 ]; then
+	ldv_print "ERROR: Failed patch kernel.h: \"$KERNEL_INCLUDE_KERNEL_H\".";
+	cp $KERNEL_BACKUP_MAKEFILE_BUILD $KERNEL_MAKEFILE_BUILD;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.build !"; fi;
+	cp $KERNEL_BACKUP_MAKEFILE_MODPOST $KERNEL_MAKEFILE_MODPOST;
+	if [ $? -ne 0 ]; then ldv_print "WARNING: Can't recover Makefile.modpost !"; fi;
+	exit 1;
+fi;
 
-
+#
+#
+#
 echo "kernel-make-dir=$KERNEL_MAKEFILE_DIR" >> $1;
 echo "status=prepared" >> $1;
 
