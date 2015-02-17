@@ -259,6 +259,8 @@ CREATE  TABLE IF NOT EXISTS `kb` (
   `verdict` ENUM('False positive', 'True positive', 'Unknown', 'Inconclusive') NOT NULL DEFAULT 'Unknown' ,
   `tags` TEXT NULL DEFAULT NULL ,
   `comment` MEDIUMTEXT NULL DEFAULT NULL ,
+  `user` VARCHAR(255) NOT NULL DEFAULT 'Unknown' ,
+  `time` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`id`) )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
@@ -272,6 +274,9 @@ CREATE  TABLE IF NOT EXISTS `results_kb` (
   `trace_id` INT(10) UNSIGNED NOT NULL ,
   `kb_id` INT NOT NULL ,
   `fit` ENUM('Exact', 'Require script', 'TBD') NOT NULL DEFAULT 'TBD' ,
+  `published_trace_id` INT NULL DEFAULT NULL,
+  `sync_status` ENUM('Unpublished', 'Synchronized', 'Desynchronized') NOT NULL DEFAULT 'Unpublished',
+  `status` ENUM('Fixed', 'Reported', 'Unreported', 'Rejected', 'Obsolete') NOT NULL DEFAULT 'Unreported',
   PRIMARY KEY (`trace_id`, `kb_id`) ,
   INDEX `fk_results_kb_1` (`kb_id` ASC) ,
   INDEX `fk_results_kb_2` (`trace_id` ASC) ,
@@ -464,4 +469,4 @@ delimiter ;
 -- ----------------------------
 -- INSERT DATABASE PARAMETERS
 -- ----------------------------
-insert into db_properties (name, value) values ("version","4");
+insert into db_properties (name, value) values ("version","5");

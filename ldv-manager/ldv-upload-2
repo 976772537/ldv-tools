@@ -777,7 +777,7 @@ sub add_component(%) {
         $component_name_stats = 'build'
           if $component_name eq 'build-cmd-extractor';
         $component_name_stats = 'maingen' if $component_name eq 'drv-env-gen';
-        $component_name_stats = 'ri' if $component_name eq 'rule-instrumetor';
+        $component_name_stats = 'ri' if $component_name eq 'rule-instrumentor';
         if ( $component_name_stats eq "maingen" ) {
             my $cur_loc = $component->{loc} || 0;
             sql_query(

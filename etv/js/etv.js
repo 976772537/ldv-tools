@@ -104,7 +104,7 @@ $(document).ready(function() {
       return '';
     }
     srcStr.addClass('ETVMarked');
-    srcStr.parent().scrollTop(0).scrollTop(srcStr.position().top - srcStr.parent().position().top - 50);
+    srcStr.parent().scrollTop(0).scrollTop(srcStr.position().top - srcStr.parent().position().top - 0.33 * $('.ETVSrc').height());
     return false;
   });
 });

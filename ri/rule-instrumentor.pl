@@ -592,6 +592,9 @@ sub create_configs($$)
     }
   }
 
+  # To fix bug 4402 http://forge.ispras.ru/issues/4402.
+  $isconfig = 1;
+
   return @config_dir;
 }
 
@@ -1527,6 +1530,12 @@ sub process_cmd_cc()
     # Keep CIF intermediate files for debug levels higher then DEBUG.
     push(@keep, '--keep') if (LDV::Utils::check_verbosity('DEBUG'));
 
+    # To fix issue #1285 (http://forge.ispras.ru/issues/1285).
+    foreach (@opts)
+    {
+      s/\"/\\\"/g;
+    }
+
     my @args = (
       $ldv_timeout_script,
       @ldv_timeout_script_opts,
@@ -1968,6 +1977,9 @@ sub process_cmd_ld()
     # source files that form a driver (module).
     if ($ischeck)
     {
+      my $in = "$tool_model_common_dir/$ldv_model_common";
+      my $out = "$tool_model_common_dir/$ldv_model_common_o";
+
       my $cmd_cc_aux = new XML::Twig::Elt('cc');
       $cmd_cc_aux->set_att('id' => "$id_attr-common-model");
 
@@ -1975,13 +1987,53 @@ sub process_cmd_ld()
       $cmd_cc_aux_cwd->paste('last_child', $cmd_cc_aux);
 
       if ($kind_isplain)
-        {
+      {
           print_debug_trace("Copy a common model to a common model directory");
           copy("$ldv_model_dir/$ldv_model{common}", "$tool_model_common_dir/$ldv_model_common") or
             die("Can't copy from '$ldv_model_dir/$ldv_model{common}' to '$tool_model_common_dir/$ldv_model_common'");
-        }
+      }
+      # Process common model with help of CIF (otherwise it confuses CIL and
+      # other frontends).
+      else
+      {
+          # Like in process_cmd_cc().
+          my @opts = @{$ldv_model_common_opts};
+          # To fix issue #1285 (http://forge.ispras.ru/issues/1285).
+          foreach (@opts)
+          {
+              s/\"/\\\"/g;
+          }
 
-      my $cmd_cc_aux_in = new XML::Twig::Elt('in', "$tool_model_common_dir/$ldv_model_common");
+          my @args = (
+              $ldv_timeout_script,
+              @ldv_timeout_script_opts,
+              "--reference=$id_attr-common-model",
+              $ldv_aspectator
+              , '--in', $in
+              , '--stage', 'C-backend'
+              , '--out', "$out.c"
+              , '--general-opts', "-I$ldv_model_dir -I$ldv_model_include_dir"
+              , '--', map("\"$ARG\"", @opts)
+          );
+
+          chdir($ldv_model_common_cwd)
+            or die("Can't change directory to '$ldv_model_common_cwd'");
+
+          print_debug_info("Execute the command '@args'");
+          my ($status, $desc) = exec_status_and_desc(@args);
+
+          # Return on failure.
+          return ($status, $desc) if ($status);
+
+          # From now input file is output file of C-backend.
+          $in = "$out.c";
+
+          print_debug_trace("Go to the initial directory");
+          chdir($tool_working_dir)
+            or die("Can't change directory to '$tool_working_dir'");
+      }
+
+      my $cmd_cc_aux_in = new XML::Twig::Elt('in', $in);
       $cmd_cc_aux_in->paste('last_child', $cmd_cc_aux);
 
       foreach my $ldv_model_common_opt (@{$ldv_model_common_opts})
@@ -1998,7 +2050,7 @@ sub process_cmd_ld()
       $cmd_cc_aux_opt = new XML::Twig::Elt('opt' => "-I$ldv_model_include_dir");
       $cmd_cc_aux_opt->paste('last_child', $cmd_cc_aux);
 
-      my $cmd_cc_aux_out = new XML::Twig::Elt('out', "$tool_model_common_dir/$ldv_model_common_o");
+      my $cmd_cc_aux_out = new XML::Twig::Elt('out', $out);
       $cmd_cc_aux_out->paste('last_child', $cmd_cc_aux);
 
       print_debug_trace("Print auxiliary common model CC command");

@@ -52,6 +52,8 @@ while (<>){
 	
 	/The walltime limit of (\d+)s has elapsed/ and print "Time exhausted";
 	/Shutdown requested \(The CPU-time limit of (.*) has elapsed/ and print "CPU timelimit";
+	/CRITICAL - VerifierCloud run executor: OSError 2 while waiting for termination of \/bin\/sh/ and print "Cloud timeout";
+	/An empty file was provided for checking/ and print "Empty entry";
 
 	# CPAchecker without CIL
 	/Unrecognized C code \(Unhandled initializer\)/ and print "Unhandled initializer";

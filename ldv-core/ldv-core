@@ -257,7 +257,7 @@ sub start_next {
 					push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
 				}
 				my $check_only = $ENV{'CHECK_ONLY'};
-				if(-f "$check_only")
+				if(defined $check_only && -f $check_only)
 				{
 					my $module_filter_report = $config->{'csd_tempdir'} . "/module-filter-report";
 					my @filter_args = ("$config->{'module-filter'}",
