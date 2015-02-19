@@ -5,6 +5,7 @@ $\ = "\n";
 $, = "\n";
 while (<>){
 	chomp;
+	/Error: Refinement failed: Counterexample could not be ruled out and was found again/ and print "Repeated counterexample";
 	/unknown character literal in line (\d+): '\\v'/ and print "\\v";
 	/Cannot access field ldv_(.*) in struct/ and print "Auto-generated ldv_ field";
 	/Syntax error: \*\) 0 \)/ and print "Cast to local struct";
@@ -15,11 +16,12 @@ while (<>){
 	/Unsupported statement type CASTIfStatement at end of compound-statement/ and print "Unsupported CASTIfStatement";
 	/Invalid C code because of undefined identifiers mentioned above\.\)/ and print "Undefined identifiers";
 	/Accessing unknown field (.*) in struct/ and print "Unknown field";
+	/AssertionError: Tried to start tracking for a non-existent field (.*)/ and print "Non-existent field";
+	/Cannot access field (.*) in/ and print "Cannot access field";
+	/Cannot access the field (.*) in/ and print "Cannot access field";
 	/Duplicate function (.*)\)/ and print "Duplicate function";
 	/Missing \';\'/ and print "Missing semicolon";
 	/Initializer of global variable has side effect/ and print "Init global";
-	/Cannot access field (.*) in/ and print "Cannot access field";
-	/Cannot access the field (.*) in/ and print "Cannot access field";
 	/Shadowing types are currently not supported/ and print "Shadowing types";
 	/Invalid type encountered/ and print "Invalid type";
 	/Syntax error/ and print "Syntax_error";
