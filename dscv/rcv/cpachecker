@@ -237,7 +237,7 @@ else{
 
 	# If no config file is specified ($cpachecker_config, which was set up at the
 	# beginning of the script), use the default one.
-	my $cpa_cfg = $cpachecker_config || "$configs_dir/default.properties";
+	my $cpa_cfg = $cpachecker_config || "$installed_backends_dir/cpachecker/config/ldv.properties";
 
 	# Get the full path of the config file specified
 	my $cpa_cfg_fullpath = File::Spec->rel2abs($cpa_cfg);
@@ -258,10 +258,8 @@ else{
 	say $CPA_CFG "# this automaton defines which locations are the error locations";
 	say $CPA_CFG "specification = $tmpdir/$LDV_errloc_autom";
 
-	#if($timelimit>60) {
-	#    say $CPA_CFG "# Set CPAchecker internal time limit";
-	#    say $CPA_CFG "limits.time.wall=".($timelimit - 60)."s";
-	#}
+	say $CPA_CFG "# Remove CPAchecker internal time limits";
+	say $CPA_CFG "limits.time.cpu=-1ns";
 
 	if ($no_cil)
 	{

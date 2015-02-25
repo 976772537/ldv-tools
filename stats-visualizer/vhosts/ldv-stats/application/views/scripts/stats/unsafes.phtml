@@ -21,7 +21,7 @@ include 'general.php';
 if ($isAut)
 {
   // Get linuxtesting URL (bug page).
-  $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-bug');
+  $linuxtesting = new Zend_Config_Ini(APPLICATION_PATH . '/configs/data.ini', 'linuxtesting-admin');
   $ltBugURL = $linuxtesting->link;
 }
 
@@ -212,7 +212,7 @@ if ($page == 'Table') {
       if ($columnName == 'Published record')
       {
         if ($kbCellValue)
-          $link = "$ltBugURL?id=$kbCellValue";
+          $link = "$ltBugURL?action=details_ppob&num=$kbCellValue";
         else
           $link = "";
         $kbCellValue = "<a href='$link'>$link</a>"; 
