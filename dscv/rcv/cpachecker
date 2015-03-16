@@ -532,16 +532,15 @@ if ($ENV{RCV_REMOTE_HOST} && $main) {
 	
 	# Parse Web interface output file
 	foreach my $line (@lines) {
-		if ($line =~ /^(\w+)=/) {
-			my $key = $1;
-			my $val = $';
-			if (!defined $key) {
-				die "Unknown output format of the file: '$tmpdir/runInformation.txt'";
-			}
-			$expected_results{$key} = $val;
-		}
-		else {
+		my $tmp = $line;
+		chomp $tmp;
+		my ($key, $val) = split q{=}, $tmp;
+
+		if ( !defined $key && !defined $val ) {
 			die "Unknown output format of the file: '$tmpdir/runInformation.txt'";
+		}
+		else{
+			$expected_results{$key} = $val;
 		}
 	}
 

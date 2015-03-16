@@ -342,7 +342,7 @@ sub parse_xml_file($) {
     my $data = $xml->XMLin(
         $stats_fname,
         SuppressEmpty => 1,
-        ForceArray    => [ 'ld', 'sources', 'time' ]
+        ForceArray    => [ 'ld', 'sources', 'time', 'sourcefile' ]
     );    # get data structure for xml file representating
 
     $time_before = time - $time_before;

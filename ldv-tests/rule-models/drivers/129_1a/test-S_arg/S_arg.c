@@ -12,6 +12,7 @@ static int __init my_init(void)
 	const unsigned long *addr;
 	static int i;
 	i = find_next_zero_bit(addr, 5, 0);
+	i = find_next_zero_bit(addr, 0, 0);
 	return 0;
 }
 

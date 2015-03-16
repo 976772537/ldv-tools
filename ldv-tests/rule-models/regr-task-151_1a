@@ -1,0 +1,4 @@
+driver=151_1a--test-sysfs_group.tar.bz2;origin=external;kernel=linux-3.5;model=151_1a;module=drivers/151_1a/test-sysfs_group/S-sysfs-single-obj-single-group-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=151_1a--test-sysfs_group.tar.bz2;origin=external;kernel=linux-3.5;model=151_1a;module=drivers/151_1a/test-sysfs_group/S-sysfs-single-obj-mult-group-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=151_1a--test-sysfs_group.tar.bz2;origin=external;kernel=linux-3.5;model=151_1a;module=drivers/151_1a/test-sysfs_group/U-sysfs-single-obj-single-group-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=151_1a--test-sysfs_group.tar.bz2;origin=external;kernel=linux-3.5;model=151_1a;module=drivers/151_1a/test-sysfs_group/U-sysfs-single-obj-mult-group-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe

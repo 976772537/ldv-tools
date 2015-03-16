@@ -1,0 +1,7 @@
+driver=152_1a--test-ioremap.tar.bz2;origin=external;kernel=linux-3.5;model=152_1a;module=drivers/152_1a/test-ioremap/S-single-ioremap-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=152_1a--test-ioremap.tar.bz2;origin=external;kernel=linux-3.5;model=152_1a;module=drivers/152_1a/test-ioremap/S-single-ioremap-cache-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=152_1a--test-ioremap.tar.bz2;origin=external;kernel=linux-3.5;model=152_1a;module=drivers/152_1a/test-ioremap/S-multiple-ioremap-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=safe
+driver=152_1a--test-ioremap.tar.bz2;origin=external;kernel=linux-3.5;model=152_1a;module=drivers/152_1a/test-ioremap/U-multiple-ioremap-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=152_1a--test-ioremap.tar.bz2;origin=external;kernel=linux-3.5;model=152_1a;module=drivers/152_1a/test-ioremap/U-multiple-unmap-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=152_1a--test-ioremap.tar.bz2;origin=external;kernel=linux-3.5;model=152_1a;module=drivers/152_1a/test-ioremap/U-no-unmap-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
+driver=152_1a--test-ioremap.tar.bz2;origin=external;kernel=linux-3.5;model=152_1a;module=drivers/152_1a/test-ioremap/U-only-unmap-test.ko;main=ldv_main0_sequence_infinite_withcheck_stateful;verdict=unsafe
