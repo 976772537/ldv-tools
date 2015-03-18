@@ -7,6 +7,7 @@ all:
 
 # Install needed executables to specified path.
 install:
-	mkdir -p ../build-project
-	cp test.txt ../build-project
-	cp test.py ../build-project
+	touch tmp.txt
+	mkdir -p build-project
+	cp test.txt build
+	cp test.py build
