@@ -9,6 +9,3 @@ if in_data == 'Some text\n':
 else:
     print 'FAIL'
     exit(1)
-if 2 > 1:
-    print 'OK'
-    exit(0)
