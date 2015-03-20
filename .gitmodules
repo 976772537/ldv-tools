@@ -1,0 +1,3 @@
+[submodule "ldv-sub"]
+	path = ldv-sub
+	url = git@ldvdev:ldv-sub.git
