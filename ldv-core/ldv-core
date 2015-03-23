@@ -70,6 +70,7 @@ GetOptions(
 
 use File::Path qw(make_path remove_tree);
 use LDV::Utils;
+use LDV::QueueUtils;
 use IPC::Open3;
 use File::Spec::Functions qw(splitpath catfile);
 LDV::Utils::set_verbosity($config->{verbosity});
@@ -105,6 +106,11 @@ vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
 
 # Initialize config (create dirs, files and etc)
 init_config;
+
+# Set shared queue params
+$ENV{'COMMANDS_DIR'} = $config->{'commands_dir'};
+$ENV{'COMMANDS_INDEX'} = $config->{'commands_index'};
+init_queue($ENV{'COMMANDS_DIR'}, $ENV{'COMMANDS_INDEX'});
 
 # Prepare driver and kernel for work with Build Command Extractor
 # (Unpack driver and kernel, copy ...)
@@ -657,6 +663,7 @@ sub init_config {
 	$config->{'workdir'} || die"Please, specify WORKDIR environment variable options.";
 	$config->{'workdir'} = abs_path($config->{'workdir'});
 	
+
 	# path to file with path targets
 	$config->{'pout'} = "$config->{'workdir'}/patchmod.xml";
 	$config->{'rule-models'}   or die"Please, specify --rule-models options.";
@@ -677,6 +684,10 @@ sub init_config {
 	$config->{'bce_tempdir'} = "$config->{'workdir'}/bce_tempdir";
 	$config->{'ldv_tempdir'} = "$config->{'workdir'}/ldv_tempdir";
 	$config->{'csd_tempdir'} = "$config->{'workdir'}/csd_deg_dscv";
+	
+	$config->{'commands_dir'} = "$config->{'workdir'}/ldv_tempdir/build_commands";
+	$config->{'commands_index'} = "$config->{'commands_dir'}/index.txt";
+
 	if($config->{'cmdstream'}) {
 		$config->{'cmdstream'} = abs_path($config->{'cmdstream'});
 		-f $config->{'cmdstream'} or die"Cmd stream file not exists \"$config->{'cmdstream'}\".";

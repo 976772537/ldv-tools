@@ -18,7 +18,15 @@
 ################################################################################
 
 use FindBin;
+use Env;
 use SOAP::Lite service =>"$ENV{'WSDLADDR'}?wsdl";
+
+BEGIN {
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+}
+
+use LDV::QueueUtils qw(post_message);
 
 my $as_gcc = "$FindBin::Bin/../cmd-utils/as_gcc";
 if(!$as_gcc || !(-f $as_gcc)) {
@@ -37,6 +45,8 @@ if(!($module_file =~ s/\.ko$/\.o/))
 		exit 1;
 	}
 }
+
+post_message($ENV{COMMANDS_INDEX}, "ldm", $module_file);
 
 if(isExistsLD(SOAP::Data-> type("string") -> name ("arg0") -> value ($module_file)) eq 'true') {
 	marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($module_file));

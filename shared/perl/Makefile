@@ -3,7 +3,7 @@
 
 # Installation
 # Perl modules config
-perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm Utils.pm File/Cat.pm MetaUtils.pm \
+perl_modules=File/Copy/Recursive.pm StreamAutomaton.pm LDV/Utils.pm LDV/QueueUtils.pm Utils.pm File/Cat.pm MetaUtils.pm \
 	DSCV/RCV/Utils.pm \
 	DSCV/RCV/Library.pm \
 	DSCV/RCV/Coverage.pm
