@@ -82,29 +82,4 @@ sub post_data_message {
 	# post short message
 	post_message($index, $type, "$collection/$data_file");
 }
-
-# Add special message which ends collecting
-sub finish_collecting {
-	return;
-}
-
-# Add artificial LDM command
-sub add_ldm_command {
-	return;
-}
-
-# Check that command collecting is finished
-sub is_finished {
-	return;
-}
-
-# Add new command or message to index file
-sub __post_to_index {
-	return;
-}
-
-# Add coomand to the collection
-sub __save_to_collection {
-	return;
-}
  

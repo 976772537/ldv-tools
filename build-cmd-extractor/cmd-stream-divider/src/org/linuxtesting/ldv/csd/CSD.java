@@ -56,6 +56,9 @@ public class CSD {
 			if(file_queue_flag) {
 				FileQueue fq = new FileQueue(vo_index, commands_index, cmdstream);
 				if(fq.wait_on_queue()) {
+					System.exit(0);
+				}
+				else{
 					System.exit(-1);
 				}
 			}

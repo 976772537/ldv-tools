@@ -154,7 +154,7 @@ sub print_cmd
 		$cmdstream->set_pretty_print('indented');
 		
 		# Send command
-		if($ENV{INTERACT_WITHIN_FILES} eq 'true') {
+		if($ENV{INTERACT_WITHIN_FILES}) {
 			my $workdir = getcwd();
 			my $out_file = $cmd->{out} . q{.xml};
 			$out_file =~ s/^$workdir//;
