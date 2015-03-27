@@ -156,8 +156,16 @@ sub print_cmd
 		# Send command
 		if($ENV{INTERACT_WITHIN_FILES}) {
 			my $workdir = getcwd();
-			my $out_file = $cmd->{out} . q{.xml};
+			my $out_file;
+			if($link){
+				$out_file = $cmd->{out} . q{.ld.xml};
+			}
+			else{
+				$out_file = $cmd->{out} . q{.xml};
+			}
+			
 			$out_file =~ s/^$workdir//;
+
 			post_data_message($ENV{COMMANDS_DIR}, $ENV{COMMANDS_INDEX}, $out_file, 'bcmd', $cmdstream->sprint);
 		}
 		else{

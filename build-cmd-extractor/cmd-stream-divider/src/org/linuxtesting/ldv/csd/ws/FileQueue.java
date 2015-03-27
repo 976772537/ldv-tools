@@ -77,10 +77,6 @@ public class FileQueue {
 		Logger.trace("Got '" + type + "' message: " + data);
 		if(type.equals("ldm")){
 			// Mark LDM messages
-			if(!cmdstream.isExistsLD(data)){
-				data.replaceFirst(".o", ".ko");
-				
-			}
 			Logger.trace("Mark coammnd " + data);
 			cmdstream.marker(data);
 		}
