@@ -13,16 +13,18 @@ use base qw(Exporter);
 
 # Initialize queue
 sub init_queue {
-	my ($collection, $index) = @_;
+	my ($index, $collection) = @_;
 
 	# Recreate collection
-	if (-d $collection) {
-		remove_tree $collection;
+	if($collection) {
+		if (-e $collection) {
+			remove_tree $collection;
+		}
+		make_path $collection;
 	}
-	make_path $collection;
 
 	# Recreate index file
-	if (-f $index) {
+	if (-e $index) {
 		remove_tree $index;
 	}
 	open my $fh, '>', $index or die "Cannot open index file '$index'";
@@ -31,11 +33,11 @@ sub init_queue {
 	return;
 }
 
-# Add new command to both collection and message to index file 
+# Add new command to both collection and message to index file.
 sub post_message {
 	my ($index, $type, $message) = @_;
 
-	if ($type =~ /[\n|::]/g || $message =~ /[\n|::]/g) {
+	if ($type =~ /\n|::/g || $message =~ /\n|::/g) {
 		die "One can post only one-line messages without '::' to the index of the queue";
 	}
 	else {
@@ -55,6 +57,8 @@ sub post_message {
 	return;
 }
 
+# Send message with data: save data to file and add to the index type with
+# path to the file in the collection.
 sub post_data_message {
 	my ($collection, $index, $data_file, $type, $data) = @_;
 

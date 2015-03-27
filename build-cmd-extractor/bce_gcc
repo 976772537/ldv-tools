@@ -19,7 +19,7 @@
 
 use FindBin;
 use Env;
-use SOAP::Lite service =>"$ENV{'WSDLADDR'}?wsdl";
+use SOAP::Lite;
 
 BEGIN {
         $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
@@ -46,18 +46,25 @@ if(!($module_file =~ s/\.ko$/\.o/))
 	}
 }
 
-post_message($ENV{COMMANDS_INDEX}, "ldm", $module_file);
-
-if(isExistsLD(SOAP::Data-> type("string") -> name ("arg0") -> value ($module_file)) eq 'true') {
-	marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($module_file));
-} else {
-	# Else you must send artificial command !
-	@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
-#	my $cmd_id = 0;
-#	foreach (@as_gcc_out) {
-#		/<ID>(.*)<\/ID>/ or next;
-#		
-#	}
-	marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($ARGV[0]));
+# Send within file queue
+if($ENV{INTERACT_WITHIN_FILES} eq 'true') {
+	post_message($ENV{COMMANDS_INDEX}, "ldm", $module_file);
 }
+else{
+	SOAP::Lite->service => "$ENV{'WSDLADDR'}?wsdl";
+
+	if(isExistsLD(SOAP::Data-> type("string") -> name ("arg0") -> value ($module_file)) eq 'true') {
+		marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($module_file));
+	} else {
+		# Else you must send artificial command !
+		@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
+	#	my $cmd_id = 0;
+	#	foreach (@as_gcc_out) {
+	#		/<ID>(.*)<\/ID>/ or next;
+	#		
+	#	}
+		marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($ARGV[0]));
+	}
+}
+
 
