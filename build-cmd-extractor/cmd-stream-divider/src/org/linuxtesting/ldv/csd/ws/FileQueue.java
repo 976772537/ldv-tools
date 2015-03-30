@@ -141,6 +141,7 @@ public class FileQueue {
 	
 		// Initialize starting reading position
 		long position = 0;
+		String previous_chunk = "";
 		
 		// Read index file in a fixed periods
 		while (this.still_building || !cmdstream.isEmpty()) {
@@ -201,24 +202,28 @@ public class FileQueue {
 			// Append data
 			Logger.trace("Check what we have read");
 			if(summary.length > 0){
-		        String chunk = new String( summary, Charset.forName("UTF-8") );
-				if(chunk.endsWith("\n")) {
-					String [] messages = chunk.split("\\n");
-					
-					// Process each line separately
-					Logger.trace("Grab " + messages.length + " messages");
-					for(String message : messages ) {
-			        	if(!process_message(message)) {
-			        		Logger.err("Incorrect message format: " + message);
-			        		return false;
-			        	}
-			        }
+		        String chunk = previous_chunk + (new String( summary, Charset.forName("UTF-8")));
+		        String [] messages = chunk.split("\\n");
+		        int max;
+		        
+				if(chunk.endsWith("\n")) {				
+					previous_chunk = "";
+					max = messages.length;
 				}
 				else {
-					Logger.err("Something wrong with read/write synchronization");
-					return false;
-				}					        
-			}
+					previous_chunk = messages[messages.length -1];
+					max = messages.length - 1;
+				}
+				
+				// Process each line separately
+				Logger.trace("Grab " + max + " messages");
+				for(int idx = 0; idx < max; idx++ ){
+					if(!process_message(messages[idx])) {
+						Logger.err("Incorrect message format: " + messages[idx]);
+		        		return false;
+		        	}
+				}
+			}			
  			
 			// If any commands are ready, then put it for other components
 			if(!cmdstream.isEmpty()){
