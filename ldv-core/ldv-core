@@ -96,6 +96,12 @@ sub detect_type;
 #             MAIN 					#
 #########################################################
 
+# Set shared file queue as default communication method
+if(!$ENV{INTERACT_WITHIN_FILES}){
+	$ENV{INTERACT_WITHIN_FILES} = 'true';
+}
+
+
 # Set shared queue params
 if($ENV{INTERACT_WITHIN_FILES}) {
 	# Initialize config (create dirs, files and etc)
@@ -697,7 +703,7 @@ sub start_bce {
 # Command Stream Divider starter
 #
 sub start_csd {
-	vsay 'NORMAL', "Starting CSD (WSDL)...\n";
+	vsay 'NORMAL', "Starting CSD ...\n";
 	my $csd_state_file = $config->{'csd_state'};
 	if (-f $csd_state_file){
 		vsay 'DEBUG', "CSD state file '$csd_state_file' already exists; removing it...";
