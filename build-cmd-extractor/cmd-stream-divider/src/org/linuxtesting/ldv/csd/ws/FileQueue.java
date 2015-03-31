@@ -25,7 +25,7 @@ import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
+//import java.nio.channels.FileLock;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -89,15 +89,20 @@ public class FileQueue {
 					cmdstream.processCmdStream(xmlcommand);
 				} catch (NamingException e) {
 					e.printStackTrace();
+					return false;
 				} catch (ParserConfigurationException e) {
 					e.printStackTrace();
+					return false;
 				} catch (SAXException e) {
 					e.printStackTrace();
+					return false;
 				} catch (IOException e) {
 					e.printStackTrace();
+					return false;
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
+				return false;
 			}			
 		}
 		else if (type.equals("end")) {
@@ -127,9 +132,8 @@ public class FileQueue {
 			return true;
 		} catch (IOException e) {
 			e.printStackTrace();
+			return false;
 		}
-				
-		return false;
 	}
 	
 	/*
@@ -145,7 +149,7 @@ public class FileQueue {
 		
 		// Read index file in a fixed periods
 		while (this.still_building || !cmdstream.isEmpty()) {
-			FileLock lock = null;
+			//FileLock lock = null;
 			byte [] summary = {};
 			
 			// Read in buffer as much as possible
@@ -159,7 +163,7 @@ public class FileQueue {
 							
 				// Go to position
 				inChannel.position(position);
-				lock = inChannel.lock();
+				//lock = inChannel.lock();
 				
 				// Read with help of a buffer
 				ByteBuffer buffer = ByteBuffer.allocate(1024);
@@ -188,7 +192,7 @@ public class FileQueue {
 				position = inChannel.position();
 								
 				// Close file
-				lock.release();
+				//lock.release();
 				inChannel.close();
 				aFile.close();	        
 			} catch (FileNotFoundException e) {

@@ -361,6 +361,7 @@ sub start_next {
 		else {
 			# Use file queue instead of SOAP
 			my $file_position;
+			my $prefix = q{};
 			my $still_building = 1;
 
 			vsay 'DEBUG', q{Going to use File Queues to get verification objects: '}
@@ -387,6 +388,20 @@ sub start_next {
 
 				# Look what we have read
 				if(@strings) {
+					# Add chunk from previous read if necessary
+					if($prefix ne q{}){
+						$strings[0] = $prefix . $strings[0];
+					}
+
+					# Check correctness of the last string
+					my $last_indx = scalar @strings;
+					if($strings[$last_indx-1] =~ /\n$/xms) {
+						$prefix = q{};
+					}
+					else {
+						$prefix = pop @strings;
+					}
+
 					vsay 'DEBUG', "Got messges: " . (scalar @strings);
 					for (my $c = 0; $c < scalar @strings; $c++){
 						chomp $strings[$c];
