@@ -5,8 +5,26 @@ $\ = "\n";
 $, = "\n";
 while (<>){
 	chomp;
-	/Error: Parsing failed \(unknown character literal in line (\d+): '\\v'/ and print "\\v";
-	/Syntax error in line / and print "Syntax_error";
+	/Error: Refinement failed: Counterexample could not be ruled out and was found again/ and print "Repeated counterexample";
+	/unknown character literal in line (\d+): '\\v'/ and print "\\v";
+	/Cannot access field ldv_(.*) in struct/ and print "Auto-generated ldv_ field";
+	/Syntax error: \*\) 0 \)/ and print "Cast to local struct";
+	/Syntax error: volatile \*\) 0 \)/ and print "Cast to local struct";
+	/Syntax error: const \*\) 0 \)/ and print "Cast to local struct";
+	/Syntax error: (\w+) = \( struct/ and print "Cast to local struct";
+	/Syntax error: (\w+) = \( union/ and print "Cast to local struct";
+	/Unsupported statement type CASTIfStatement at end of compound-statement/ and print "Unsupported CASTIfStatement";
+	/Invalid C code because of undefined identifiers mentioned above\.\)/ and print "Undefined identifiers";
+	/Accessing unknown field (.*) in struct/ and print "Unknown field";
+	/AssertionError: Tried to start tracking for a non-existent field (.*)/ and print "Non-existent field";
+	/Cannot access field (.*) in/ and print "Cannot access field";
+	/Cannot access the field (.*) in/ and print "Cannot access field";
+	/Duplicate function (.*)\)/ and print "Duplicate function";
+	/Missing \';\'/ and print "Missing semicolon";
+	/Initializer of global variable has side effect/ and print "Init global";
+	/Shadowing types are currently not supported/ and print "Shadowing types";
+	/Invalid type encountered/ and print "Invalid type";
+	/Syntax error/ and print "Syntax_error";
 	/Expression is not free of side-effects/ and print "Side";
 	/Invalid configuration: Function ldv_main(.*) not found!/ and print "Main not found";
 	/unknown initializer: CASTDesignatedInitializer/ and print "CASTDesignatedInitializer";
@@ -33,9 +51,24 @@ while (<>){
 	/Unrecognized C code/ and print "Unrecognized C code";
 	/IllegalArgumentException: Can't add cast/ and print "Can't add cast";
 	/IllegalArgumentException: Can't assign different types/ and print "Different types";
+	
+	/The walltime limit of (\d+)s has elapsed/ and print "Time exhausted";
+	/Shutdown requested \(The CPU-time limit of (.*) has elapsed/ and print "CPU timelimit";
 	/CRITICAL - VerifierCloud run executor: OSError 2 while waiting for termination of \/bin\/sh/ and print "Cloud timeout";
 	/An empty file was provided for checking/ and print "Empty entry";
 
+	# CPAchecker without CIL
+	/Unrecognized C code \(Unhandled initializer\)/ and print "Unhandled initializer";
+	/Name of global variable (.*) from line (.*) is reused as function declaration:/ and print "Global name as function";
+	/is no CLeftHandside but should be\.:/ and print "No CLeftHandside";
+	/Variable (.*) initialized for the second time/ and print "Init variable twice";
+	/Variable (.*) already declared/ and print "Variable redeclaration";
+	/unusual calculation BINARY_AND with (.*) pointer-operand/ and print "Unusual BINARY_AND";
+	/IllegalArgumentException: Cannot change type of variable/ and print "Change type";
+	/NullPointerException/ and print "NullPointerException";
+	/IllegalArgumentException: Type (.*) has no default value/ and print "No default value";
+	/IllegalArgumentException: Impossible structure assignment due to incompatible types/ and print "Incompatible types";
+	/IllegalArgumentException/ and print "IllegalArgumentException";
 	# CIL errors
 	# subtypes of CIL_parse_error
 	# Error: global static initializer
