@@ -46,7 +46,7 @@ public class CSD {
 	public static volatile boolean term = false;
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
-		   if(!getOpts(args)) 
+			if(!getOpts(args)) 
 			System.exit(-1);
 		
 			// Create new cmdstream
@@ -64,8 +64,8 @@ public class CSD {
 			}
 			else{
 				// Create web service
-	            CSDWebService ws = new CSDWebService(cmdstream);
-	                        
+				CSDWebService ws = new CSDWebService(cmdstream);
+							
 				// Start web service
 				Endpoint.publish(wsdlAddr, ws);
 			}
@@ -93,7 +93,7 @@ public class CSD {
 			} else
 			if(args[i].contains("--state-file=")) {
 				statefile = args[i].replace("--state-file=", "").trim();
-			} else            
+			} else
 			if(args[i].equals("--full-copy")) {
 				fullcopy = true;
 			} else

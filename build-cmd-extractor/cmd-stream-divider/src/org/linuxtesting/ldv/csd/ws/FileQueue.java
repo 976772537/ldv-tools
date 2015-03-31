@@ -58,24 +58,24 @@ public class FileQueue {
 	/*
 	 * Parse command message and process according to its type
 	 */
-	private boolean process_message(String msg){
+	private boolean process_message(String msg) {
 		// Determine command type and data
 		String [] parts = msg.split("::");
 		String type;
 		String data = "";
 		if (parts.length == 1) {
-        	type = parts[0];
-        } 
+			type = parts[0];
+		} 
 		else if (parts.length == 2) {
-        	type = parts[0];
-        	data = parts[1];
-        } 
+			type = parts[0];
+			data = parts[1];
+		} 
 		else {
-            return false;
-        }
+			return false;
+		}
 		
 		Logger.trace("Got '" + type + "' message: " + data);
-		if(type.equals("ldm")){
+		if(type.equals("ldm")) {
 			// Mark LDM messages
 			Logger.trace("Mark coammnd " + data);
 			cmdstream.marker(data);
@@ -154,43 +154,43 @@ public class FileQueue {
 			try {
 				// Open
 				aFile = new RandomAccessFile
-				        (this.index_path, "rw");
+						(this.index_path, "rw");
 				FileChannel inChannel = aFile.getChannel();
-     	       				
-		        // Go to position
-		        inChannel.position(position);
-		        lock = inChannel.lock();
+							
+				// Go to position
+				inChannel.position(position);
+				lock = inChannel.lock();
 				
 				// Read with help of a buffer
-		        ByteBuffer buffer = ByteBuffer.allocate(1024);
-		        int num = inChannel.read(buffer);
-		        while(num != -1)
-		        {
-		        	// Reset buffer position
-		        	buffer.rewind();
-		        	
-		        	// Read new data to the summary byte array
-		        	byte recent[] = buffer.array();
-		        	ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-		        	outputStream.write( summary );
-		        	outputStream.write( recent, 0, num);
-		        	byte result[] = outputStream.toByteArray();
-		        	summary = result;
-		          
-		        	// Reset buffer position
-		            buffer.clear();
-		            
-		            // Read more
-		            num = inChannel.read(buffer);
-		        }
-		        
-		        // Save current position
-		        position = inChannel.position();
-		        		        
-		        // Close file
-		        lock.release();
-		        inChannel.close();
-		        aFile.close();	        
+				ByteBuffer buffer = ByteBuffer.allocate(1024);
+				int num = inChannel.read(buffer);
+				while(num != -1)
+				{
+					// Reset buffer position
+					buffer.rewind();
+					
+					// Read new data to the summary byte array
+					byte recent[] = buffer.array();
+					ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+					outputStream.write( summary );
+					outputStream.write( recent, 0, num);
+					byte result[] = outputStream.toByteArray();
+					summary = result;
+				  
+					// Reset buffer position
+					buffer.clear();
+					
+					// Read more
+					num = inChannel.read(buffer);
+				}
+				
+				// Save current position
+				position = inChannel.position();
+								
+				// Close file
+				lock.release();
+				inChannel.close();
+				aFile.close();	        
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 				return false;
@@ -201,11 +201,11 @@ public class FileQueue {
 					
 			// Append data
 			Logger.trace("Check what we have read");
-			if(summary.length > 0){
-		        String chunk = previous_chunk + (new String( summary, Charset.forName("UTF-8")));
-		        String [] messages = chunk.split("\\n");
-		        int max;
-		        
+			if(summary.length > 0) {
+				String chunk = previous_chunk + (new String( summary, Charset.forName("UTF-8")));
+				String [] messages = chunk.split("\\n");
+				int max;
+				
 				if(chunk.endsWith("\n")) {				
 					previous_chunk = "";
 					max = messages.length;
@@ -217,16 +217,16 @@ public class FileQueue {
 				
 				// Process each line separately
 				Logger.trace("Grab " + max + " messages");
-				for(int idx = 0; idx < max; idx++ ){
+				for(int idx = 0; idx < max; idx++ ) {
 					if(!process_message(messages[idx])) {
 						Logger.err("Incorrect message format: " + messages[idx]);
-		        		return false;
-		        	}
+						return false;
+					}
 				}
 			}			
- 			
+			
 			// If any commands are ready, then put it for other components
-			if(!cmdstream.isEmpty()){
+			if(!cmdstream.isEmpty()) {
 				while(!cmdstream.isEmpty()) {
 					// Fetch command from the stream
 					Logger.norm("Going to save verification object...");
@@ -234,22 +234,22 @@ public class FileQueue {
 					Logger.norm("Got verification object string\""+command+"\"...");
 					
 					// Put command to vo collection
-					if(command.length() > 0 && !command.equals("")){
+					if(command.length() > 0 && !command.equals("")) {
 						boolean ret = post_vo_message("vo", command);
-						if(!ret){
+						if(!ret) {
 							return false;
 						}
 					}
 				}
 			}
 			else {
-	 			// Sleep a second	
+				// Sleep a second	
 				Logger.trace("Finalize iteration, sleep a while ...");
-	 			try {
-	 			    Thread.sleep(1000); //1000 milliseconds.
-	 			} catch(InterruptedException ex) {
-	 			    Thread.currentThread().interrupt();
-	 			}
+				try {
+					Thread.sleep(1000); //1000 milliseconds.
+				} catch(InterruptedException ex) {
+					Thread.currentThread().interrupt();
+				}
 			} 			
 		}
 		Logger.norm("Stop monitoring queues");

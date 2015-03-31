@@ -61,25 +61,25 @@ public class Command implements Cloneable {
 	}
 	
 	public Command clone() {
-	    //shallow copy
-	    try {
-	      Command clonedCmd = (Command) super.clone();
-	      clonedCmd.setCwd(new String(this.cwd));
+		//shallow copy
+		try {
+		  Command clonedCmd = (Command) super.clone();
+		  clonedCmd.setCwd(new String(this.cwd));
 
-	  	  List<String> c_in = new ArrayList<String>();
-	  	  for(int i=0; i<in.size(); i++)
-	  		  c_in.add(new String(in.get(i)));
-	  	  in = c_in;
-	  	  
-	  	  List<String> c_out = new ArrayList<String>();
-	  	  for(int i=0; i<out.size(); i++)
-	  		  c_out.add(new String(out.get(i)));
-	  	  out = c_out;
-	      
-	      return clonedCmd;
-	    } catch (CloneNotSupportedException e) {
-	      return null;
-	    }
+		  List<String> c_in = new ArrayList<String>();
+		  for(int i=0; i<in.size(); i++)
+			  c_in.add(new String(in.get(i)));
+		  in = c_in;
+		  
+		  List<String> c_out = new ArrayList<String>();
+		  for(int i=0; i<out.size(); i++)
+			  c_out.add(new String(out.get(i)));
+		  out = c_out;
+		  
+		  return clonedCmd;
+		} catch (CloneNotSupportedException e) {
+		  return null;
+		}
 	}
 	
 	
