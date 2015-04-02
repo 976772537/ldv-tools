@@ -11,8 +11,17 @@
 # 	as_gcc -march=x86 -I include/path -o file.o -Ddefine -Dqwetyr file1.c -I another/dir file2.c
 
 use strict;
-
+use FindBin;
 use Fcntl qw(LOCK_EX SEEK_SET);
+use Env;
+
+BEGIN {
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+}
+
+use LDV::QueueUtils qw(post_data_message);
+
 # To prevent meaningless module warnings use this instead of use.
 BEGIN { $SIG{'__WARN__'} = sub{}; require SOAP::Lite; SOAP::Lite->import(); $SIG{__WARN__}='DEFAULT'; }
 
@@ -128,7 +137,7 @@ sub print_cmd
 	XML::Twig::Elt->new("in",$_)->paste('last_child',$tcmd) for @{$cmd->{in}};
 	XML::Twig::Elt->new("cwd",getcwd())->paste('last_child',$tcmd);
 
-	if($ENV{'WSDLADDR'}) {
+	if($ENV{'WSDLADDR'} || $ENV{INTERACT_WITHIN_FILES}) {
 		my $isinclude=0;
 		foreach my $opt (@{$cmd->{opts}}) {
 			my $optT = XML::Twig::Elt->new("opt",$opt);
@@ -143,10 +152,29 @@ sub print_cmd
 
 		my $cmdstream = XML::Twig::Elt->new('cmdstream', $tcmd);
 		$cmdstream->set_pretty_print('indented');
-		my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
-		$csd->sendCommand(SOAP::Data-> type ("string") -> name ("arg0") -> value ($cmdstream->sprint));
+		
+		# Send command
+		if($ENV{INTERACT_WITHIN_FILES}) {
+			my $workdir = getcwd();
+			my $out_file;
+			if($link){
+				$out_file = $cmd->{out} . q{.ld.xml};
+			}
+			else{
+				$out_file = $cmd->{out} . q{.xml};
+			}
+			
+			$out_file =~ s/^$workdir//;
+
+			post_data_message($ENV{COMMANDS_DIR}, $ENV{COMMANDS_INDEX}, $out_file, 'bcmd', $cmdstream->sprint);
+		}
+		else{
+			my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
+			$csd->sendCommand(SOAP::Data-> type ("string") -> name ("arg0") -> value ($cmdstream->sprint));
+		}
+
 	} else {
-        	XML::Twig::Elt->new("opt",$_)->paste('last_child',$tcmd) for @{$cmd->{opts}};
+        XML::Twig::Elt->new("opt",$_)->paste('last_child',$tcmd) for @{$cmd->{opts}};
 		$tcmd->set_pretty_print('indented');
 		$tcmd->print();		
 	}

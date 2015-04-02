@@ -30,17 +30,17 @@ import org.linuxtesting.ldv.csd.utils.Logger;
 public class FSOperationBase {
 	
 	public static void removeDirectoryRecursive(File source) {
-    	if (source.exists()) {
-    		String[] children = source.list();
-    		if(children!=null) {
-    			for (int i=0; i<children.length; i++) {
-    				String inner = source.getAbsolutePath()+'/'+children[i];
-    				removeDirectoryRecursive(new File(inner));
-    			}
-    		}
-    		source.delete();
-        } 
-    }
+		if (source.exists()) {
+			String[] children = source.list();
+			if(children!=null) {
+				for (int i=0; i<children.length; i++) {
+					String inner = source.getAbsolutePath()+'/'+children[i];
+					removeDirectoryRecursive(new File(inner));
+				}
+			}
+			source.delete();
+		} 
+	}
 	
 	public static boolean CopyFile(String srcFilename, String dstFilename)
 	{
@@ -77,26 +77,26 @@ public class FSOperationBase {
 	}
 	
 	public static void copyDirectory(File sourceLocation , File targetLocation) throws IOException {
-    	if (sourceLocation.isDirectory()) {
-    		if (!targetLocation.exists())
-            	targetLocation.mkdir();
+		if (sourceLocation.isDirectory()) {
+			if (!targetLocation.exists())
+				targetLocation.mkdir();
 
-    		String[] children = sourceLocation.list();
-    		for (int i=0; i<children.length; i++) {
-    			copyDirectory(new File(sourceLocation, children[i]), 
-    					new File(targetLocation, children[i]));
-    		}
-        } else {
-            InputStream in = new FileInputStream(sourceLocation);
-            OutputStream out = new FileOutputStream(targetLocation);
-            byte[] buf = new byte[1024];
-            int len;
-            while ((len = in.read(buf)) > 0) {
-                out.write(buf, 0, len);
-            }
-            in.close();
-            out.close();
-        }
-    }
+			String[] children = sourceLocation.list();
+			for (int i=0; i<children.length; i++) {
+				copyDirectory(new File(sourceLocation, children[i]), 
+						new File(targetLocation, children[i]));
+			}
+		} else {
+			InputStream in = new FileInputStream(sourceLocation);
+			OutputStream out = new FileOutputStream(targetLocation);
+			byte[] buf = new byte[1024];
+			int len;
+			while ((len = in.read(buf)) > 0) {
+				out.write(buf, 0, len);
+			}
+			in.close();
+			out.close();
+		}
+	}
 	
 }

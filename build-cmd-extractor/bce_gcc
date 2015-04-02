@@ -18,7 +18,16 @@
 ################################################################################
 
 use FindBin;
-use SOAP::Lite service =>"$ENV{'WSDLADDR'}?wsdl";
+use Env;
+use SOAP::Lite;
+use Cwd;
+
+BEGIN {
+        $ENV{'LDV_HOME'} ||= "$FindBin::Bin/..";
+        push @INC,"$ENV{'LDV_HOME'}/shared/perl";
+}
+
+use LDV::QueueUtils qw(post_message);
 
 my $as_gcc = "$FindBin::Bin/../cmd-utils/as_gcc";
 if(!$as_gcc || !(-f $as_gcc)) {
@@ -38,16 +47,35 @@ if(!($module_file =~ s/\.ko$/\.o/))
 	}
 }
 
-if(isExistsLD(SOAP::Data-> type("string") -> name ("arg0") -> value ($module_file)) eq 'true') {
-	marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($module_file));
-} else {
-	# Else you must send artificial command !
-	@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
-#	my $cmd_id = 0;
-#	foreach (@as_gcc_out) {
-#		/<ID>(.*)<\/ID>/ or next;
-#		
-#	}
-	marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($ARGV[0]));
+# Send within file queue
+if($ENV{INTERACT_WITHIN_FILES}) {
+	my $workdir = getcwd();
+	my $expected_command_file = $module_file . q{.ld.xml};
+	$expected_command_file =~ s/^$workdir/$ENV{COMMANDS_DIR}/;
+
+	if( -e $expected_command_file ) {
+		post_message($ENV{COMMANDS_INDEX}, "ldm", $module_file);
+	} else {
+		# Else you must send artificial command !
+		@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
+		post_message($ENV{COMMANDS_INDEX}, "ldm", $ARGV[0]);
+	}
 }
+else{
+	my $csd = SOAP::Lite -> service("$ENV{'WSDLADDR'}?wsdl");
+
+	if($csd->isExistsLD(SOAP::Data-> type("string") -> name ("arg0") -> value ($module_file)) eq 'true') {
+		$csd->marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($module_file));
+	} else {
+		# Else you must send artificial command !
+		@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
+	#	my $cmd_id = 0;
+	#	foreach (@as_gcc_out) {
+	#		/<ID>(.*)<\/ID>/ or next;
+	#		
+	#	}
+		$csd->marker(SOAP::Data-> type ("string") -> name ("arg0") -> value ($ARGV[0]));
+	}
+}
+
 

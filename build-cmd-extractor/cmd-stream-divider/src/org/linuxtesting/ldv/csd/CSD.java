@@ -18,11 +18,13 @@ package org.linuxtesting.ldv.csd;
 
 import java.io.File;
 import java.io.IOException;
+
 import javax.xml.ws.Endpoint;
 
 import org.linuxtesting.ldv.csd.cmdstream.CmdStream;
 import org.linuxtesting.ldv.csd.utils.Logger;
 import org.linuxtesting.ldv.csd.ws.CSDWebService;
+import org.linuxtesting.ldv.csd.ws.FileQueue;
 
 public class CSD {
 	
@@ -36,22 +38,37 @@ public class CSD {
 	private static String WORK_DIR = null;
 	private static final String usageString = "csd: USAGE: WORK_DIR=workdir <LDV_DEBUG=level> java -ea -jar cmd-stream-divider.jar --basedir=basedir --cmdfile=cmdxmlin --cmdfile-out=outfilename --state-file=statefile";
 	private static final String name = "CSD";
+	private static String vo_index;
+	private static String commands_index;
+	private static boolean file_queue_flag = false;
 	public static String tagbd;
 	
 	public static volatile boolean term = false;
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
-		   if(!getOpts(args)) 
+			if(!getOpts(args)) 
 			System.exit(-1);
 		
 			// Create new cmdstream
 			CmdStream cmdstream = new CmdStream(WORK_DIR+"/"+basedir,tagbd, fullcopy,statefile);
 			
-			// Create web service
-                        CSDWebService ws = new CSDWebService(cmdstream);
-                        
-			// Start web service
-			Endpoint.publish(wsdlAddr, ws);
+			// Start FileQueue processing
+			if(file_queue_flag) {
+				FileQueue fq = new FileQueue(vo_index, commands_index, cmdstream);
+				if(fq.wait_on_queue()) {
+					System.exit(0);
+				}
+				else{
+					System.exit(-1);
+				}
+			}
+			else{
+				// Create web service
+				CSDWebService ws = new CSDWebService(cmdstream);
+							
+				// Start web service
+				Endpoint.publish(wsdlAddr, ws);
+			}
 	}
 	
 	private static boolean getOpts(String[] args) {
@@ -76,7 +93,7 @@ public class CSD {
 			} else
 			if(args[i].contains("--state-file=")) {
 				statefile = args[i].replace("--state-file=", "").trim();
-			} else            
+			} else
 			if(args[i].equals("--full-copy")) {
 				fullcopy = true;
 			} else
@@ -114,12 +131,7 @@ public class CSD {
 			Logger.warn("Temp directory: \""+WORK_DIR+"/"+basedir+"\" - already exists.");
 			//return false;
 		} 
-		
-		if(wsdlAddr==null || wsdlAddr.length()==0) {
-			Logger.err("Setup option \"--wsdladdr\" - and try again.");
-			return false;			
-		}
-		
+				
 		if(statefile==null || statefile.length()==0) {
 			Logger.err("Setup option \"--state-file\" - and try again.");
 			return false;			
@@ -134,6 +146,26 @@ public class CSD {
 		if(cmdfileout==null || cmdfileout.length()==0) {
 			Logger.warn("Option \"--cmdfile-out\" - not set. Use default \"cmd_after_csd\".");
 			cmdfileout="cmd_after_csd";		
+		}
+		
+		vo_index = System.getenv("VO_INDEX");
+		commands_index = System.getenv("COMMANDS_INDEX");
+		file_queue_flag = Boolean.parseBoolean(System.getenv("INTERACT_WITHIN_FILES"));
+		if(file_queue_flag) {
+			if(vo_index==null || vo_index.length()==0){
+				Logger.err("Setup VO_INDEX var before!");
+				return false;
+			}
+			if(commands_index==null || commands_index.length()==0){
+				Logger.err("Setup COMMANDS_INDEX var before!");
+				return false;
+			}
+		}
+		else{
+			if(wsdlAddr==null || wsdlAddr.length()==0) {
+				Logger.err("Setup option \"--wsdladdr\" - and try again.");
+				return false;			
+			}
 		}
 				
 		return true;

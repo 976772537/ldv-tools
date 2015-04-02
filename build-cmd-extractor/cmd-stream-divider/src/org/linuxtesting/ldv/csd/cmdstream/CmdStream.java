@@ -96,7 +96,7 @@ public class CmdStream {
 	public static Map<String, Command> badCmdHash = new HashMap<String, Command>();
 	private String statefile;
 
-	public static boolean isExistsLD(String cmd) {
+	public boolean isExistsLD(String cmd) {
 		Logger.trace("Called isExistsLD for command \"" + cmd + "\".");
 		if (fullCmdHash.containsKey(cmd)) {
 			Logger.trace("Command \"" + cmd + "\" exists.");

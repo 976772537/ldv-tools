@@ -27,7 +27,7 @@ public class CommandLD extends Command implements Cloneable {
 	private List<String> mains = new ArrayList<String>();
 	
 	public Command clone() {
-	    return super.clone();
+		return super.clone();
 	}
 
 	

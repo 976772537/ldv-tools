@@ -25,7 +25,7 @@ import org.w3c.dom.Node;
 public class CommandCC extends Command implements Cloneable {
 
 	public Command clone() {
-	    return super.clone();
+		return super.clone();
 	}
 
 	

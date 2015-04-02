@@ -70,6 +70,7 @@ GetOptions(
 
 use File::Path qw(make_path remove_tree);
 use LDV::Utils;
+use LDV::QueueUtils qw(init_queue post_message);
 use IPC::Open3;
 use File::Spec::Functions qw(splitpath catfile);
 LDV::Utils::set_verbosity($config->{verbosity});
@@ -95,31 +96,50 @@ sub detect_type;
 #             MAIN 					#
 #########################################################
 
-# Generate unique number for CSD Server name 
-my $wsdl_uid="$$".`date +%Y%H%M%S`;
-chomp $wsdl_uid;
+# Set shared file queue as default communication method
+if(!$ENV{INTERACT_WITHIN_FILES}){
+	$ENV{INTERACT_WITHIN_FILES} = 'true';
+}
 
-# Find free port and generate adress for starting CSD Server
-$ENV{'WSDLADDR'} = "http://localhost:".find_unused_port()."/csd$wsdl_uid";
-vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
 
-# Initialize config (create dirs, files and etc)
-init_config;
+# Set shared queue params
+if($ENV{INTERACT_WITHIN_FILES}) {
+	# Initialize config (create dirs, files and etc)
+	init_config();
+
+	$ENV{'COMMANDS_DIR'} = $config->{'commands_dir'};
+	$ENV{'COMMANDS_INDEX'} = $config->{'commands_index'};
+	$ENV{'VO_INDEX'} = $config->{'vo_index'};
+	init_queue($config->{'commands_index'}, $config->{'commands_dir'});
+	init_queue($config->{'vo_index'});
+}
+else {
+	# Generate unique number for CSD Server name 
+	my $wsdl_uid="$$".`date +%Y%H%M%S`;
+	chomp $wsdl_uid;
+
+	# Find free port and generate adress for starting CSD Server
+	$ENV{'WSDLADDR'} = "http://localhost:".find_unused_port()."/csd$wsdl_uid";
+	vsay 'TRACE', "WSDL Address is $ENV{'WSDLADDR'}\n";
+
+	# Initialize config (create dirs, files and etc)
+	init_config();
+}
 
 # Prepare driver and kernel for work with Build Command Extractor
 # (Unpack driver and kernel, copy ...)
-prepare_driver;
+prepare_driver();
 
 #
 # Process 1: Starting Command Stream Divider server 
 #
-my $csd_pid = start_csd;
+my $csd_pid = start_csd();
 is_exists($csd_pid) or die"Starting CSD failed: $!";
 
 #
 # Process 2: Starting Build Command Extractor
 #
-my $bce_pid = start_bce;
+my $bce_pid = start_bce();
 if(!is_exists($bce_pid)) {
 	vsay 'TRACE', "Try to kill CSD...\n";
 	kill 9, $csd_pid;
@@ -149,31 +169,49 @@ if ($? == 0){
 }
 
 #
-# Try to connect to CSD and white while verification process is finished.
-# There are two ways to determine it:
+# Stop CSD
 #
-#   1. - stack with commands is empty and bce finished (see before).
-#        (BCE is dead and new commands are not received to CSD cmd stack.)
-#  
-#   2. - Verification process already finished (failed) and stack is not empty. 
-#
-my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
+if($ENV{INTERACT_WITHIN_FILES}) {
+	#
+	# Inform that BCE has stopped
+	post_message($config->{'commands_index'}, 'end', '');
 
-vsay 'DEBUG', "Wait until CSD is empty...\n";
-
-# Due to memory leak in SOAP::Lite, we can't call isEmpty() directly many times; instead we call an external program
-#while($csd->isEmpty() eq 'false') {
-while(system($config->{'is-empty'})) {
-	is_exists($next_pid) or last;
-	sleep 1;
+	# Wait untill CSD finishes
+	waitpid $csd_pid, 0;
+	if ($? == 0){
+		vsay 'TRACE', "CSD successfully finished\n";
+	}else{
+		vsay 'WARNING', "CSD failed, see '$config->{'ldv_tempdir'}/bce_err.log'.\n";
+	}
 }
+else {
+	#
+	# Try to connect to CSD and white while verification process is finished.
+	# There are two ways to determine it:
+	#
+	#   1. - stack with commands is empty and bce finished (see before).
+	#        (BCE is dead and new commands are not received to CSD cmd stack.)
+	#  
+	#   2. - Verification process already finished (failed) and stack is not empty. 
+	#
+	my $csd = SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');
 
-#
-# kill CSD
-#
-vsay 'TRACE', "Kill CSD and reap it...\n";
-kill 9, $csd_pid;
-waitpid $csd_pid, 0;
+	vsay 'DEBUG', "Wait until CSD is empty...\n";
+
+	# Due to memory leak in SOAP::Lite, we can't call isEmpty() directly many times; instead we call an external program
+	#while($csd->isEmpty() eq 'false') {
+	while(system($config->{'is-empty'})) {
+		is_exists($next_pid) or last;
+		sleep 1;
+	}
+
+	#
+	# kill CSD
+	#
+	vsay 'TRACE', "Kill CSD and reap it...\n";
+	kill 9, $csd_pid;
+	waitpid $csd_pid, 0;
+}
 
 #
 # Wait until verification process finished her works. Verification
@@ -201,10 +239,15 @@ sub start_next {
 	my $pid = fork;
 	#return $pid unless defined $pid;
 	unless ($pid) {
-		vsay 'NORMAL', "Connect to CSD WSDL Service...\n";
-		my $csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl') };
+		my $csd;
+
+		unless($ENV{INTERACT_WITHIN_FILES}) {
+			vsay 'NORMAL', "Connect to CSD WSDL Service...\n";
+			$csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl') };
+		}
+
 		my $old_workdir = $ENV{'WORK_DIR'};
-	
+
 		# eval block for watcher scope
 		eval {
 
@@ -217,97 +260,174 @@ sub start_next {
 			die "Fatal error: $@";
 		}
 
+		sub process_command {
+			my ($command, $tasks, $old_workdir) = @_;
+
+			my $cmd_after_csd = "$command/cmd_after_csd.xml";
+			vsay 'TRACE', "Calling external interface to submit task\n";
+			vsay 'NORMAL', "Prepared command in: $command\n";
+			vsay 'NORMAL', "Calling drv-env-gen...\n";
+			#make_path("$command/deg");
+			$ENV{'WORK_DIR'} = $command;
+
+			# Since we don't wipe a re-used working dir, we have to remove state-files if they exist
+			ensure_removed("$command/deg.state", "DEG state file");
+			ensure_removed("$command/cmd_after_deg.xml", "DEG output cmdfile");
+
+			my @deg_args = (
+				$config->{'deg'},
+				"--basedir=deg",
+				"--cmdfile=$cmd_after_csd",
+				"--cmdfile-out=$command/cmd_after_deg.xml",
+				"--state-file=$command/deg.state"
+			);
+
+			$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver_name'}";
+
+			if($config->{'cmdstream'}) {
+				push @deg_args,"--kernel-driver";
+			} else {
+				push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
+			}
+			my $check_only = $ENV{'CHECK_ONLY'};
+			if(defined $check_only && -f $check_only) {
+				my $module_filter_report = $config->{'csd_tempdir'} . "/module-filter-report";
+				my @filter_args = ("$config->{'module-filter'}",
+									"--xml_file=$cmd_after_csd",
+									"--check_only=$check_only",
+									"--results=$module_filter_report");
+				vsay 'DEBUG', "@filter_args";
+				system(@filter_args);
+				my $filter_result = check_system_call();
+				vsay 'TRACE', "module-filter exited with value '$filter_result'";
+				die "Module filter failed" unless(($filter_result == 0) or ($filter_result == 61));
+				unless($filter_result)
+				{
+					vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
+					system(@deg_args) and die"$!";
+				}
+			}
+			else {
+				vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
+				system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
+			}
+			$ENV{'WORK_DIR'} = $old_workdir;
+
+			$command =~ m/.*\/+([0-9]+)/ and my $cid=$1;	
+			$tasks->{$cid}->{state} = 'wait';
+			$tasks->{$cid}->{path} = $command;
+			vsay 'TRACE', "Calling external interface to submit task for CID=$cid\n";
+		
+			scheduler_send_task($tasks->{$cid}, $cid);
+
+
+			vsay 'NORMAL', "Wait for command...\n";
+		}
+
 		$SIG{QUIT} = \&kill_watcher;
-		# Terminage signal is used for graceful termination on shutdown.  If a node in a cluster is shut down it's not an integration error.
+		# Terminage signal is used for graceful termination on shutdown. If a node in a cluster is shut down it's not an integration error.
 		$SIG{TERM} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 		# Interrupt signal (Ctrl+C) is used to control cluster outside of a cloud; do not make it an integration error.
 		$SIG{INT} = \&kill_watcher unless $ENV{'LDV_IN_CLUSTER'};
 
-		# We will only tolerate this many SOAP errors
-		my $retries = 10;
 		my $tasks = {};
-		while(is_exists($csd_pid)){
-			vsay 'TRACE', "Trying to fetch next command...\n";
-			my $command =  eval{ return $csd->getCommand(); };
-			if($command) {
-				my $cmd_after_csd = "$command/cmd_after_csd.xml";
-				vsay 'TRACE', "Calling external interface to submit task\n";
-				vsay 'NORMAL', "Prepared command in: $command\n";
-				vsay 'NORMAL', "Calling drv-env-gen...\n";
-				#make_path("$command/deg");
-				$ENV{'WORK_DIR'} = $command;
-
-				# Since we don't wipe a re-used working dir, we have to remove state-files if they exist
-				ensure_removed("$command/deg.state", "DEG state file");
-				ensure_removed("$command/cmd_after_deg.xml", "DEG output cmdfile");
-
-				my @deg_args = (
-					$config->{'deg'},
-					"--basedir=deg",
-					"--cmdfile=$cmd_after_csd",
-					"--cmdfile-out=$command/cmd_after_deg.xml",
-					"--state-file=$command/deg.state"
-				);
-
-				$config->{'kernel-driver'} or push @deg_args,"--driver-name=$config->{'driver_name'}";
-
-				if($config->{'cmdstream'}) {
-					push @deg_args,"--kernel-driver";
-				} else {
-					push @deg_args,"--kernel-driver" if $config->{'kernel-driver'};
-				}
-				my $check_only = $ENV{'CHECK_ONLY'};
-				if(defined $check_only && -f $check_only)
-				{
-					my $module_filter_report = $config->{'csd_tempdir'} . "/module-filter-report";
-					my @filter_args = ("$config->{'module-filter'}",
-										"--xml_file=$cmd_after_csd",
-										"--check_only=$check_only",
-										"--results=$module_filter_report");
-					vsay 'DEBUG', "@filter_args";
-					system(@filter_args);
-					my $filter_result = check_system_call();
-					vsay 'TRACE', "module-filter exited with value '$filter_result'";
-					die "Module filter failed" unless(($filter_result == 0) or ($filter_result == 61));
-					unless($filter_result)
-					{
-						vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
-						system(@deg_args) and die"$!";
-					}
-				}
-				else
-				{
-					vsay 'TRACE', "$ENV{'WORK_DIR'} @deg_args\n";
-					system(@deg_args) and die"$!"; # if it die -> create corresponding report! and die"$!";
-				}
-				$ENV{'WORK_DIR'} = $old_workdir;
-
-				$command =~ m/.*\/+([0-9]+)/ and my $cid=$1;	
-				$tasks->{$cid}->{state} = 'wait';
-				$tasks->{$cid}->{path} = $command;
-				vsay 'TRACE', "Calling external interface to submit task for CID=$cid\n";
-			
-				scheduler_send_task($tasks->{$cid}, $cid);
-
-
-				vsay 'NORMAL', "Wait for command...\n";
-			} else {
-				# If command is null, there may be two situations.
-				# First, it may be an error in SOAP...
-				if ($@){
-					vsay 'WARNING', "SOAP error: $@.";
-					if ($retries > 0){
-						$retries--;
-						vsay 'WARNING', "Will make $retries more retries.";
+		unless($ENV{INTERACT_WITHIN_FILES}) {
+			# We will only tolerate this many SOAP errors
+			my $retries = 10;
+			while(is_exists($csd_pid)) {
+				vsay 'TRACE', "Trying to fetch next command...\n";
+				my $command =  eval{ return $csd->getCommand(); };
+				if($command) {
+					process_command($command, $tasks, $old_workdir);
+				} 
+				else {
+					# If command is null, there may be two situations.
+					# First, it may be an error in SOAP...
+					if ($@){
+						vsay 'WARNING', "SOAP error: $@.";
+						if ($retries > 0){
+							$retries--;
+							vsay 'WARNING', "Will make $retries more retries.";
+						}else{
+							die "Too many SOAP errors";
+						}
 					}else{
-						die "Too many SOAP errors";
+						# OR, CSD doesn't have a command readily available; then, retry
+						vsay 'DEBUG', "No command available atm.  Waiting for more.";
 					}
-				}else{
-					# OR, CSD doesn't have a command readily available; then, retry
-					vsay 'DEBUG', "No command available atm.  Waiting for more.";
 				}
 			}
 		}
+		else {
+			# Use file queue instead of SOAP
+			my $file_position;
+			my $prefix = q{};
+			my $still_building = 1;
+
+			vsay 'DEBUG', q{Going to use File Queues to get verification objects: '}
+				. $config->{'vo_index'} . q{'};
+			while($still_building) {
+				# Try to read some commands
+				# Open
+				open my $fd, '<', $config->{'vo_index'}
+					or die q{Cannot open file '} . $config->{'vo_index'} . q{'};
+			    
+				# Seek
+				if($file_position){
+					seek($fd, $file_position, 0);
+				}
+
+				# Read
+				my @strings = <$fd>;
+
+				# Save position
+				$file_position = tell($fd);
+
+				# close for a while
+				close $fd;
+
+				# Look what we have read
+				if(@strings) {
+					# Add chunk from previous read if necessary
+					if($prefix ne q{}){
+						$strings[0] = $prefix . $strings[0];
+					}
+
+					# Check correctness of the last string
+					my $last_indx = scalar @strings;
+					if($strings[$last_indx-1] =~ /\n$/xms) {
+						$prefix = q{};
+					}
+					else {
+						$prefix = pop @strings;
+					}
+
+					vsay 'DEBUG', "Got messges: " . (scalar @strings);
+					for (my $c = 0; $c < scalar @strings; $c++){
+						chomp $strings[$c];
+
+						my ($type, $value) = split q{::}, $strings[$c];
+
+						if($type eq q{vo}) {
+							if(defined $value && $value ne q{}) {
+								process_command($value, $tasks, $old_workdir);
+							}
+							else {
+								die "Got verification object message without command itself";
+							}
+						} 	
+						elsif($type eq q{end}) {
+							vsay 'DEBUG', "CSD informed us that no verification objects will appear";
+							$still_building = 0;
+						}
+						else{
+							die q{Message with unknown type: '} . $strings[$c] . q{'};
+						}
+					}
+				}
+			}
+		}
+
 		vsay 'NORMAL', "CSD has been terminated.";
 
 		vsay 'NORMAL', "Sleep while all tasks verified.\n";
@@ -598,7 +718,7 @@ sub start_bce {
 # Command Stream Divider starter
 #
 sub start_csd {
-	vsay 'NORMAL', "Starting CSD (WSDL)...\n";
+	vsay 'NORMAL', "Starting CSD ...\n";
 	my $csd_state_file = $config->{'csd_state'};
 	if (-f $csd_state_file){
 		vsay 'DEBUG', "CSD state file '$csd_state_file' already exists; removing it...";
@@ -609,12 +729,15 @@ sub start_csd {
 		'-Xmx256M',
 		'-jar',
 		$config->{'csd'},
-		"--wsdladdr=$ENV{'WSDLADDR'}",
 		'--basedir=csd_deg_dscv',
 		'--cmdfile-out=cmd_after_csd',
 		"--state-file=$config->{'csd_state'}",
 #		"--tagbd=$config->{'env'}",
 	);
+
+	unless($ENV{INTERACT_WITHIN_FILES}){
+		push @csd_options, "--wsdladdr=$ENV{'WSDLADDR'}";
+	}
 
 	if($config->{'kernel-driver'} || $config->{ptarget}) {
 		push @csd_options,"--tagbd=$config->{'env'}";
@@ -625,15 +748,17 @@ sub start_csd {
 	
 	my $pid = parallel_run "@csd_options", "$config->{'ldv_tempdir'}/csd_err.log", "$config->{'ldv_tempdir'}/csd_out.log";
 
-	my $csd = undef;
-	vsay 'TRACE', "Wait for CSD service...\n";
-	while(!$csd) {
-		$csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');};
-		waitpid $pid, WNOHANG;
-		if(!$csd and !is_exists($pid)) {
-			die"CSD process is died!\n";
+	unless($ENV{INTERACT_WITHIN_FILES}) {
+		my $csd = undef;
+		vsay 'TRACE', "Wait for CSD service...\n";
+		while(!$csd) {
+			$csd = eval{ return SOAP::Lite -> service($ENV{'WSDLADDR'}.'?wsdl');};
+			waitpid $pid, WNOHANG;
+			if(!$csd and !is_exists($pid)) {
+				die"CSD process is died!\n";
+			}
+			sleep 2;		
 		}
-		sleep 2;
 	}
 	vsay 'NORMAL', "CSD Started\n";
 	return $pid;
@@ -657,6 +782,7 @@ sub init_config {
 	$config->{'workdir'} || die"Please, specify WORKDIR environment variable options.";
 	$config->{'workdir'} = abs_path($config->{'workdir'});
 	
+
 	# path to file with path targets
 	$config->{'pout'} = "$config->{'workdir'}/patchmod.xml";
 	$config->{'rule-models'}   or die"Please, specify --rule-models options.";
@@ -677,6 +803,13 @@ sub init_config {
 	$config->{'bce_tempdir'} = "$config->{'workdir'}/bce_tempdir";
 	$config->{'ldv_tempdir'} = "$config->{'workdir'}/ldv_tempdir";
 	$config->{'csd_tempdir'} = "$config->{'workdir'}/csd_deg_dscv";
+	
+	if($ENV{INTERACT_WITHIN_FILES}) {
+		$config->{'commands_dir'} = "$config->{'workdir'}/ldv_tempdir/build_commands";
+		$config->{'commands_index'} = "$config->{'commands_dir'}/index.txt";
+		$config->{'vo_index'} = "$config->{'workdir'}/ldv_tempdir/vo_index.txt";
+	}
+
 	if($config->{'cmdstream'}) {
 		$config->{'cmdstream'} = abs_path($config->{'cmdstream'});
 		-f $config->{'cmdstream'} or die"Cmd stream file not exists \"$config->{'cmdstream'}\".";
