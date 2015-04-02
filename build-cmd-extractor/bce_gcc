@@ -50,16 +50,25 @@ if(!($module_file =~ s/\.ko$/\.o/))
 # Send within file queue
 if($ENV{INTERACT_WITHIN_FILES}) {
 	my $workdir = getcwd();
-	my $expected_command_file = $module_file . q{.ld.xml};
-	$expected_command_file =~ s/^$workdir/$ENV{COMMANDS_DIR}/;
 
-	if( -e $expected_command_file ) {
-		post_message($ENV{COMMANDS_INDEX}, "ldm", $module_file);
-	} else {
-		# Else you must send artificial command !
-		@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
-		post_message($ENV{COMMANDS_INDEX}, "ldm", $ARGV[0]);
+	my $expected_command_file;
+	my $file = $module_file;
+	if($file =~ /driver_unpacked\//){
+		# External driver
+		$expected_command_file = $ENV{COMMANDS_DIR} . q{/} . $' . q{.ld.xml};
 	}
+	else{
+		# Kernel driver
+		$expected_command_file = $file . q{.ld.xml};
+		$expected_command_file =~ s/^$workdir/$ENV{COMMANDS_DIR}/;
+	}
+
+	if( !-e $expected_command_file ) {
+		# Create artificial command
+		@as_gcc_out = `$as_gcc $module_file -o $ARGV[0]`;
+		$file = $ARGV[0];
+	}
+	post_message($ENV{COMMANDS_INDEX}, "ldm", $file);
 }
 else{
 	my $csd = SOAP::Lite -> service("$ENV{'WSDLADDR'}?wsdl");

@@ -156,15 +156,23 @@ sub print_cmd
 		# Send command
 		if($ENV{INTERACT_WITHIN_FILES}) {
 			my $workdir = getcwd();
-			my $out_file;
-			if($link){
-				$out_file = $cmd->{out} . q{.ld.xml};
+			my $out_file = $cmd->{out};
+
+			if($out_file =~ /driver_unpacked\//){
+				# External driver
+				$out_file = $';
 			}
 			else{
-				$out_file = $cmd->{out} . q{.xml};
+				# Kernel driver				
+				$out_file =~ s/^$workdir//;
 			}
-			
-			$out_file =~ s/^$workdir//;
+
+			if($link){
+				$out_file = $out_file . q{.ld.xml};
+			}
+			else{
+				$out_file = $out_file . q{.xml};
+			}
 
 			post_data_message($ENV{COMMANDS_DIR}, $ENV{COMMANDS_INDEX}, $out_file, 'bcmd', $cmdstream->sprint);
 		}
