@@ -16,6 +16,7 @@
  */
 package org.linuxtesting.ldv.csd.ws;
 
+import java.io.File;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -24,12 +25,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.util.Scanner;
 import java.nio.channels.FileChannel;
 //import java.nio.channels.FileLock;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import javax.naming.NamingException;
 import javax.xml.parsers.ParserConfigurationException;
@@ -83,7 +82,7 @@ public class FileQueue {
 		else if (type.equals("bcmd")) {
 			Logger.trace("Read XML command from a file " + data);
 			try {
-				String xmlcommand = new String(Files.readAllBytes(Paths.get(data)), StandardCharsets.UTF_8);
+				String xmlcommand = new Scanner(new File(data)).useDelimiter("\\A").next();
 				Logger.trace("Got the following command \n" + xmlcommand);
 				try {
 					cmdstream.processCmdStream(xmlcommand);
