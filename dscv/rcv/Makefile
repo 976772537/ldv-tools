@@ -5,7 +5,7 @@ backends=blast
 else
 backends=
 endif
-frontends=blast cpachecker ufo cbmc
+frontends=blast cpachecker ufo cbmc svcomp
 
 # PTRSAFE
 ifneq ($(LDV_PTRSAFE),)
@@ -26,6 +26,9 @@ backend_install_dir=$(rcv_install_dir)/backends/$1
 install: $(patsubst %,backends/%-subdir-install,$(backends)) $(foreach frontend,$(frontends),$(call frontend_target,$(frontend)))
 
 clean: $(patsubst %,backends/%-subdir-clean,$(backends))
+
+PROPERTY_FILE=PropertyERROR.prp
+PROPERTY_FILE_DST=$(rcv_install_dir)/$(PROPERTY_FILE)
 
 $(rcv_install_dir)/blast: blast
 	@mkdir -p $(@D)
@@ -51,6 +54,12 @@ $(rcv_install_dir)/cbmc: cbmc
 	@mkdir -p $(@D)
 	cp $^ $@
 	@chmod +x $@
+
+$(rcv_install_dir)/svcomp: svcomp
+	@mkdir -p $(@D)
+	cp $^ $@
+	@chmod +x $@
+	cp $(PROPERTY_FILE) $(PROPERTY_FILE_DST) 
 
 define mksubdir
 $1-subdir-%:

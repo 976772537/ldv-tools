@@ -1,0 +1,150 @@
+#!/usr/bin/perl
+
+################################################################################
+# Copyright (C) 2015
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# RCV Frontend for SV-COMP tools.
+
+use strict;
+
+# To distinguish when the wrapper works in logs, set up a unique name for the
+# verifier.
+
+my $SVCOMP_TOOL_NAME='seahorn';
+my $tool_name=$SVCOMP_TOOL_NAME;
+
+my $tool_cmd='seahorn-svcomp-par.py -m64';
+
+set_tool_name($tool_name);
+
+# --cex=seahorn_cex.txt --spec=PropertyERROR.prp ast.main3.c';
+
+
+set_cil_options(
+    "--printCilAsIs",
+    "--decil",
+    "--noLowerConstants",
+    "--noInsertImplicitCasts",
+    "--useLogicalOperators",      
+    "--ignore-merge-conflicts",
+    "--no-convert-direct-calls",  # Don't transform simple function calls to calls-by-pointers
+    "--no-convert-field-offsets", # Don't transform s->f to pointer arithmetic
+    "--no-split-structs",         # Don't transform structure fields into variables or arrays
+    "--rmUnusedInlines"
+);
+
+# Now, as CIL script and options are prepared, let's invoke the preprocessing.
+my @files = preprocess_all_files('cpp','cil-merge');
+
+# Since we now got the files (one file, to be exact), we may start to form a
+# command line for CBMC.
+my @tool_options = ($tool_cmd);
+
+my $spec_file = "$installed_frontends_dir/PropertyERROR.prp";
+
+push(@tool_options, "--spec=$spec_file");
+
+# Check the number of entry points 
+die "You can only specify one main for SVCOMP!" if (scalar @mains != 1);
+
+my $main = $mains[0];
+
+system("mkdir $tmpdir/svcomp_tmp/");
+
+my $orig_trace_fname = "$tmpdir/ErrorPath.txt";
+my $final_trace_fname = "$tmpdir/error_trace.txt";
+
+push(@tool_options, "--cex=$orig_trace_fname");
+
+add_automaton(seahorn_verdict());
+add_automaton(tail_automaton(150),'stderr');
+
+my $svcomp_file = "$tmpdir/svcomp_tmp/svcomp_file.c";
+system("sed -e 's/\\bERROR\\b/NON_ERROR/g' @files | sed -e 's/LDV_ERROR/ERROR/g' | sed -e 's/$main/main/g' > $svcomp_file");
+system("sed -i -e 's/goto ERROR;/__VERIFIER_error();/' $svcomp_file");
+system("sed -i '1i extern void __VERIFIER_error() __attribute__ ((__noreturn__));' $svcomp_file");
+
+
+#my $tmp_file = "$tmpdir/svcomp_tmp/tmp_svcomp.c";
+#system("sed -e 's/^#line.*//g' $svcomp_file > $tmp_file");
+
+push (@tool_options, $svcomp_file);
+
+my ($result, $errcode, $automata_results, $debug_trace) = run(@tool_options);
+
+# NOTE that you should re-add automata with a fresh state if you plan to perform more runs.
+
+# Now calculate the description and verdict.  Verdict was calculated by our
+# automaton (if it succeeded).  However, if CBMC has been terminated
+# abnormally, the relevant bucket contains an undefined value; assume an unknown
+# verdict
+my $verdict = $automata_results->{VERDICT} || 'unknown';
+
+# Let's prepare the description string step-by-step
+my $description = '';
+
+if ($verdict eq 'unknown') {
+        my @errbuf = @{$automata_results->{'TAIL'}};
+        local $_;
+        for my $ln (@errbuf){
+		$description .= $ln."\n";
+       }
+}
+
+# Add header to the Error trace
+local $_;
+if ($verdict eq 'unsafe') {
+ open(ORIG_TRACE, '<', $orig_trace_fname) or die "Can't open file with origin SVCOMP trace: \"$orig_trace_fname\", $!";
+ open(TRACE_FILE, '>', $final_trace_fname) or die "Can't open file with adjsuted SVCOMP trace: \"$final_trace_fname\", $!";
+ print TRACE_FILE "SVCOMP error trace v0.1\n";
+ while(<ORIG_TRACE>)
+ {
+ 	print TRACE_FILE $_
+ }
+ close TRACE_FILE;
+ close ORIG_TRACE;
+}
+
+# Return results.  The "verdict", "description", and "error_trace" are
+# obligatory.  You may add more hash entries, the values should contain files,
+# and the keys will distinguish these files by meaning.  The files you've
+# specified this way will be stored in the package with results and associated
+# with the respective launches that generated them.
+result(
+	verdict => $verdict,
+	description => $description,
+	error_trace => $final_trace_fname,
+ 	coverage => "",
+);
+
+
+# SVCOMP wrapper ends
+# DO NOT INVOKE "exit" FROM HERE!!!
+
+#===================
+#  AUTOMATA
+#===================
+sub seahorn_verdict
+{
+        return sub {
+                my $l=shift or return undef;
+                $l =~ /Result TRUE/ and return {'VERDICT' => 'safe'};
+                $l =~ /Result FALSE/ and return {'VERDICT' => 'unsafe'};
+                #$l =~ /Result UNKNOWN/ and return {'VERDICT' => 'unknown'};
+                return undef;
+        };
+}

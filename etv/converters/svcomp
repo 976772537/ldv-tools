@@ -1,0 +1,84 @@
+use Env qw(LDV_DEBUG LDV_CPACHECKER_ET_CONV_DEBUG);
+
+use strict;
+use XML::Twig;
+
+my $lineNumberInOrigin = 'lineNumberInOrigin';
+my $originFileName = 'originFileName';
+my $enterFunction = 'enterFunction';
+my $returnFromFunction = 'returnFromFunction';
+my $assumption = 'assumption';
+my $sourcecode = 'sourcecode';
+my $tokenSet = 'tokenSet';
+my $negativeCase = 'negativeCase';
+
+sub handle_key 
+{
+        my ($twig, $key) = @_;
+        my $name = $key->att("attr.name");
+        my $for = $key->att("for");
+        my $id = $key->att('id');
+        print "name $name = ";
+        if($for eq 'edge') {
+           if($name eq 'lineNumberInOrigin') {
+              $lineNumberInOrigin = $id;
+           } elsif($name eq 'originFileName') {
+              $originFileName = $id;
+           } elsif($name eq 'enterFunction') {
+              $enterFunction = $id;
+           } elsif($name eq 'returnFromFunction') {
+              $returnFromFunction = $id;
+           } elsif($name eq 'assumption') {
+              $assumption = $id;
+           } elsif($name eq 'sourcecode') {
+              $sourcecode = $id;
+           } elsif($name eq 'tokenSet') {
+              $tokenSet = $id;
+           } elsif($name eq 'negativeCase') {
+              $negativeCase = $id;
+           }
+       }
+}
+
+sub handle_edge
+{
+        my ($twig, $edge) = @_;
+	my @data= $edge->children;
+        my $line;
+        my $file;
+        my $type = 'BLOCK';
+        my $text;
+        foreach(@data) {
+           my $d = $_;
+           my $key = $d->att("key");
+           if($key eq $lineNumberInOrigin) {
+              $line = $d->text;
+           } elsif($key eq $originFileName) {
+              $file = $d->text;
+           } elsif($key eq $enterFunction) {
+              $type = 'CALL';
+              $text .= $d->text;
+           } elsif($key eq $returnFromFunction) {
+              $type = 'RETURN';
+              $text .= $d->text;
+           } elsif($key eq $assumption) {
+              #$type = 'ASSUME';
+              $text .= " assumption ".$d->text;
+           } elsif($key eq $sourcecode) {
+              $text .= " source ".$d->text;
+           } elsif($key eq $tokenSet) {
+              $text .= " tokens ".$d->text;
+           } elsif($key eq $negativeCase) {
+              $text .= " if ".$d->text;
+           }
+       }
+       my $res = "$line \"$file\" $type : $text\n";
+       push(@et_conv_array, $res);
+}
+
+push(@et_conv_array, "Error trace common format v0.1\n");
+
+my $t = XML::Twig->new( twig_handlers => { 'key' => \&handle_key, 'edge' => \&handle_edge } );
+my $scalar = join('', @et_array) ;
+$t->parse($scalar);
+
