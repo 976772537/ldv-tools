@@ -47,30 +47,42 @@ sub handle_edge
         my $line;
         my $file;
         my $type = 'BLOCK';
-        my $text;
+        my $text = "";
         foreach(@data) {
            my $d = $_;
-           my $key = $d->att("key");
-           if($key eq $lineNumberInOrigin) {
-              $line = $d->text;
-           } elsif($key eq $originFileName) {
-              $file = $d->text;
-           } elsif($key eq $enterFunction) {
-              $type = 'CALL';
-              $text .= $d->text;
-           } elsif($key eq $returnFromFunction) {
-              $type = 'RETURN';
-              $text .= $d->text;
-           } elsif($key eq $assumption) {
-              #$type = 'ASSUME';
-              $text .= " assumption ".$d->text;
-           } elsif($key eq $sourcecode) {
-              $text .= " source ".$d->text;
-           } elsif($key eq $tokenSet) {
-              $text .= " tokens ".$d->text;
-           } elsif($key eq $negativeCase) {
-              $text .= " if ".$d->text;
+           if($d->gi() eq 'data') {
+             my $key = $d->att("key");
+             if(defined $key) {
+               if($key eq $lineNumberInOrigin) {
+                  $line = $d->text;
+               } elsif($key eq $originFileName) {
+                  $file = $d->text;
+               } elsif($key eq $enterFunction) {
+                  $type = 'CALL';
+                  $text .= $d->text;
+               } elsif($key eq $returnFromFunction) {
+                  $type = 'RETURN';
+                  $text .= $d->text;
+               } elsif($key eq $assumption) {
+                  #$type = 'ASSUME';
+                  $text .= " assumption ".$d->text;
+               } elsif($key eq $sourcecode) {
+                  $text .= " source ".$d->text;
+               } elsif($key eq $tokenSet) {
+                  $text .= " tokens ".$d->text;
+               } elsif($key eq $negativeCase) {
+                  $text .= " if ".$d->text;
+               }
+             } else {
+                print_debug_warning("key not found for element ".$d->gi().": ".$d->text);
+             }
            }
+       }
+       if($text eq "") {
+         #workaround for warning:
+         #Use of uninitialized value $exprs[0] in concatenation (.) or string at 
+         #/bin/etv line 1125
+         $text = "*";
        }
        my $res = "$line \"$file\" $type : $text\n";
        push(@et_conv_array, $res);
