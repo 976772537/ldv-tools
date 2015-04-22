@@ -145,6 +145,7 @@ foreach my $index (@del_indexes)
 }
 
 # Convert a raw error trace into the common format line by line.
+my $highlighted = '';
 while (@et_raw)
 {
   my $str = shift(@et_raw);
@@ -168,6 +169,11 @@ while (@et_raw)
     $kind = 'INIT';
     $text = ': __CPAchecker_initialize()';
     $isinit = 1;
+  }
+  elsif ($val eq 'highlight')
+  {
+    $highlighted = 'HIGHLIGHT';
+    next;
   }
   elsif ($val eq 'Function start dummy edge')
   {
@@ -271,6 +277,11 @@ while (@et_raw)
     $type = 'BLOCK';
     $text = ": while;";
   }
+  elsif ($val =~ /^switch (.*)$/)
+  {
+    $type = 'BLOCK';
+    $text = ": switch $1";
+  }
   else
   {
     print_debug_warning("CPAchecker node value '$val' wasn't recognized");
@@ -278,7 +289,11 @@ while (@et_raw)
   }
 
   push(@et_conv_array
-    , join(' ', ($line, $src, $type, $kind, $skip_reason, $text)));
+    , join(' ', ($line, $src, $type, $highlighted, $kind, $skip_reason, $text)));
+
+  if ($highlighted eq 'HIGHLIGHT') {
+    $highlighted = '';
+  } 
 }
 
 {
