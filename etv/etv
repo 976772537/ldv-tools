@@ -854,6 +854,7 @@ sub visualize_et_node($$$$$)
   my $line = $node{'line'} // 0;
   my $type = $node{'type'} // '';
   my $kind = $node{'kind'} // '';
+  my $highlight = $node('highlight'};
   my $formal_arg_names = $node{'formal_arg_names'} // [];
   my $skip_reason = $node{'skip_reason'} // '';
   my $text = $node{'text'} // '';
@@ -993,6 +994,10 @@ sub visualize_et_node($$$$$)
       . $deg_comment->{'comment'} || '';
 
   }
+  
+  if (defined $highlight) {
+    $class = 'ETVModelCall';
+  }   
 
   if ($type eq 'ROOT')
   {

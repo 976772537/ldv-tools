@@ -33,7 +33,7 @@ input:  #empty
 ;
 str:    node '\n' { return $ARG[1]; }
 ;
-node:   line file type kind skip_reason formal_arg_names_list text
+node:   line file type highlight kind skip_reason formal_arg_names_list text
 {
   my $parser = $ARG[0];
 
@@ -44,10 +44,11 @@ node:   line file type kind skip_reason formal_arg_names_list text
     'line' => $ARG[1]
     , 'file' => $parser->YYData->{FILE}
     , 'type' => $ARG[3]
-    , 'kind' => $ARG[4]
-    , 'skip_reason' => $ARG[5]
-    , 'formal_arg_names' => $ARG[6]
-    , 'text' => $ARG[7]);
+    , 'highlight' => $ARG[4]
+    , 'kind' => $ARG[5]
+    , 'skip_reason' => $ARG[6]
+    , 'formal_arg_names' => $ARG[7]
+    , 'text' => $ARG[8]);
 
   # Do nothing when we encounter a line consisting just of whitespaces.
   return undef
@@ -69,6 +70,7 @@ node:   line file type kind skip_reason formal_arg_names_list text
       , 'file' => undef
       , 'type' => 'ROOT'
       , 'kind' => undef
+      , 'highlight' => undef
       , 'skip_reason' => undef
       , 'formal_arg_names' => undef
       , 'text' => undef};
@@ -116,6 +118,9 @@ type:   #empty
 ;
 kind:   #empty
         | KIND { return $ARG[1]; }
+;
+highlight:   #empty
+        | HIGHLIGHT { return $ARG[1]; }
 ;
 skip_reason:   #empty
         | SKIP_REASON { return $ARG[1]; }

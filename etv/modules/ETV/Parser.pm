@@ -489,7 +489,7 @@ sub _Parse {
 #End of include--------------------------------------------------
 
 
-#line 18 "shared/perl/modules/ETV/Parser.ym"
+#line 18 "Parser.ym"
 
 use English;
 
@@ -563,71 +563,83 @@ sub new {
 	},
 	{#State 11
 		ACTIONS => {
-			'KIND' => 13
+			'HIGHLIGHT' => 13
 		},
-		DEFAULT => -11,
+		DEFAULT => -13,
 		GOTOS => {
-			'kind' => 12
+			'highlight' => 12
 		}
 	},
 	{#State 12
 		ACTIONS => {
-			'SKIP_REASON' => 14
+			'KIND' => 15
 		},
-		DEFAULT => -13,
+		DEFAULT => -11,
 		GOTOS => {
-			'skip_reason' => 15
+			'kind' => 14
 		}
 	},
 	{#State 13
-		DEFAULT => -12
-	},
-	{#State 14
 		DEFAULT => -14
 	},
-	{#State 15
+	{#State 14
 		ACTIONS => {
-			'ARG_NAME' => 19
+			'SKIP_REASON' => 16
 		},
 		DEFAULT => -15,
 		GOTOS => {
-			'formal_arg_names_list' => 16,
-			'formal_arg_names' => 18,
-			'arg_name' => 17
+			'skip_reason' => 17
 		}
+	},
+	{#State 15
+		DEFAULT => -12
 	},
 	{#State 16
-		ACTIONS => {
-			'TEXT' => 20
-		},
-		DEFAULT => -20,
-		GOTOS => {
-			'text' => 21
-		}
+		DEFAULT => -16
 	},
 	{#State 17
-		DEFAULT => -18
+		ACTIONS => {
+			'ARG_NAME' => 21
+		},
+		DEFAULT => -17,
+		GOTOS => {
+			'formal_arg_names_list' => 18,
+			'formal_arg_names' => 20,
+			'arg_name' => 19
+		}
 	},
 	{#State 18
 		ACTIONS => {
-			'ARG_NAME' => 19
+			'TEXT' => 22
 		},
-		DEFAULT => -16,
+		DEFAULT => -22,
 		GOTOS => {
-			'arg_name' => 22
+			'text' => 23
 		}
 	},
 	{#State 19
-		DEFAULT => -19
+		DEFAULT => -20
 	},
 	{#State 20
-		DEFAULT => -21
+		ACTIONS => {
+			'ARG_NAME' => 21
+		},
+		DEFAULT => -18,
+		GOTOS => {
+			'arg_name' => 24
+		}
 	},
 	{#State 21
-		DEFAULT => -4
+		DEFAULT => -21
 	},
 	{#State 22
-		DEFAULT => -17
+		DEFAULT => -23
+	},
+	{#State 23
+		DEFAULT => -4
+	},
+	{#State 24
+		DEFAULT => -19
 	}
 ],
                                   yyrules  =>
@@ -641,7 +653,7 @@ sub new {
 	[#Rule 2
 		 'input', 2,
 sub
-#line 25 "shared/perl/modules/ETV/Parser.ym"
+#line 25 "Parser.ym"
 {
   my $parser = $ARG[0];
 
@@ -654,13 +666,13 @@ sub
 	[#Rule 3
 		 'str', 2,
 sub
-#line 34 "shared/perl/modules/ETV/Parser.ym"
+#line 34 "Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 4
-		 'node', 7,
+		 'node', 8,
 sub
-#line 37 "shared/perl/modules/ETV/Parser.ym"
+#line 37 "Parser.ym"
 {
   my $parser = $ARG[0];
 
@@ -671,10 +683,11 @@ sub
     'line' => $ARG[1]
     , 'file' => $parser->YYData->{FILE}
     , 'type' => $ARG[3]
-    , 'kind' => $ARG[4]
-    , 'skip_reason' => $ARG[5]
-    , 'formal_arg_names' => $ARG[6]
-    , 'text' => $ARG[7]);
+    , 'highlight' => $ARG[4]
+    , 'kind' => $ARG[5]
+    , 'skip_reason' => $ARG[6]
+    , 'formal_arg_names' => $ARG[7]
+    , 'text' => $ARG[8]);
 
   # Do nothing when we encounter a line consisting just of whitespaces.
   return undef
@@ -696,6 +709,7 @@ sub
       , 'file' => undef
       , 'type' => 'ROOT'
       , 'kind' => undef
+      , 'highlight' => undef
       , 'skip_reason' => undef
       , 'formal_arg_names' => undef
       , 'text' => undef};
@@ -710,6 +724,8 @@ sub
   }
   else
   {
+    #my @tmp_arr = %node;
+    #print "@tmp_arr\n";
     $parser->YYData->{ERRMSG} = "Node parents are unbalanced";
     $parser->YYError;
     return undef;
@@ -738,7 +754,7 @@ sub
 	[#Rule 6
 		 'line', 1,
 sub
-#line 109 "shared/perl/modules/ETV/Parser.ym"
+#line 111 "Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 7
@@ -747,7 +763,7 @@ sub
 	[#Rule 8
 		 'file', 1,
 sub
-#line 112 "shared/perl/modules/ETV/Parser.ym"
+#line 114 "Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 9
@@ -756,7 +772,7 @@ sub
 	[#Rule 10
 		 'type', 1,
 sub
-#line 115 "shared/perl/modules/ETV/Parser.ym"
+#line 117 "Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 11
@@ -765,52 +781,61 @@ sub
 	[#Rule 12
 		 'kind', 1,
 sub
-#line 118 "shared/perl/modules/ETV/Parser.ym"
+#line 120 "Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 13
-		 'skip_reason', 0, undef
+		 'highlight', 0, undef
 	],
 	[#Rule 14
-		 'skip_reason', 1,
+		 'highlight', 1,
 sub
-#line 121 "shared/perl/modules/ETV/Parser.ym"
+#line 123 "Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 15
-		 'formal_arg_names_list', 0, undef
+		 'skip_reason', 0, undef
 	],
 	[#Rule 16
-		 'formal_arg_names_list', 1,
+		 'skip_reason', 1,
 sub
-#line 124 "shared/perl/modules/ETV/Parser.ym"
+#line 126 "Parser.ym"
 { return $ARG[1]; }
 	],
 	[#Rule 17
-		 'formal_arg_names', 2,
-sub
-#line 126 "shared/perl/modules/ETV/Parser.ym"
-{ my @formal_arg_names = (@{$ARG[1]}, $ARG[2]); return \@formal_arg_names; }
+		 'formal_arg_names_list', 0, undef
 	],
 	[#Rule 18
-		 'formal_arg_names', 1,
+		 'formal_arg_names_list', 1,
 sub
-#line 127 "shared/perl/modules/ETV/Parser.ym"
-{ my @formal_arg_names = ($ARG[1]); return \@formal_arg_names; }
-	],
-	[#Rule 19
-		 'arg_name', 1,
-sub
-#line 129 "shared/perl/modules/ETV/Parser.ym"
+#line 129 "Parser.ym"
 { return $ARG[1]; }
 	],
+	[#Rule 19
+		 'formal_arg_names', 2,
+sub
+#line 131 "Parser.ym"
+{ my @formal_arg_names = (@{$ARG[1]}, $ARG[2]); return \@formal_arg_names; }
+	],
 	[#Rule 20
-		 'text', 0, undef
+		 'formal_arg_names', 1,
+sub
+#line 132 "Parser.ym"
+{ my @formal_arg_names = ($ARG[1]); return \@formal_arg_names; }
 	],
 	[#Rule 21
+		 'arg_name', 1,
+sub
+#line 134 "Parser.ym"
+{ return $ARG[1]; }
+	],
+	[#Rule 22
+		 'text', 0, undef
+	],
+	[#Rule 23
 		 'text', 1,
 sub
-#line 132 "shared/perl/modules/ETV/Parser.ym"
+#line 137 "Parser.ym"
 { return $ARG[1]; }
 	]
 ],
@@ -818,7 +843,7 @@ sub
     bless($self,$class);
 }
 
-#line 134 "shared/perl/modules/ETV/Parser.ym"
+#line 139 "Parser.ym"
 
 
 

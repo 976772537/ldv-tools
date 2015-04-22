@@ -180,6 +180,7 @@ sub _Lexer($)
     s/^(BLOCK|DECLARATION|CALL|ASSUME|RETURN|NOP)// and return ('TYPE', $1);
     s/^(INIT|ENTRY|SKIP)// and return ('KIND', $1);
     s/^\(\"([^\"]+)\"\)// and return ('SKIP_REASON', $1);
+    s/^HIGHLIGHT// and return ('HIGHLIGHT', 'H');
     s/^\'([^\']+)\'// and return ('ARG_NAME', $1);
     s/^\:\s*(.*)\s*\n?$/\n/ and return ('TEXT', $1);
     s/^(.)//s and return ($1, $1);
@@ -503,7 +504,7 @@ sub parse_et($)
 
         $et_conv_array_ref
           = convert_et_to_common('cpachecker', $opts);
-
+	
         return parse_et({'error trace' => $et_conv_array_ref});
       }
     }
@@ -562,6 +563,7 @@ sub parse_et_as_plain_text($)
     , 'file' => undef
     , 'type' => 'ROOT'
     , 'kind' => undef
+    , 'highlight' => undef
     , 'skip_reason' => undef
     , 'formal_arg_names' => undef
     , 'text' => undef};
@@ -575,6 +577,7 @@ sub parse_et_as_plain_text($)
       , 'file' => undef
       , 'type' => undef
       , 'kind' => undef
+      , 'highlight' => undef
       , 'skip_reason' => undef
       , 'formal_arg_names' => undef
       , 'text' => $line};
