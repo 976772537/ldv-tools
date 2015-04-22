@@ -122,7 +122,7 @@ sub gen_coverage_report
 		if ($str =~ /^DA:(\d+),(.+)$/)
 		{
 			my $location = $1;
-			my $orig_location = $src_map{$location} or die("Can't get original location for line '$1'");
+			my $orig_location = $src_map{$location} or next top;
 		 
 			foreach my $skip (@skipped_lines)
 			{
