@@ -1,0 +1,154 @@
+#!/usr/bin/perl
+
+################################################################################
+# Copyright (C) 2015
+# Institute for System Programming, Russian Academy of Sciences (ISPRAS).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# RCV Frontend for SV-COMP tools.
+
+use strict;
+
+sub prepare_tool_options($);
+
+# To distinguish when the wrapper works in logs, set up a unique name for the
+# verifier.
+
+die "Please define SVCOMP_TOOL_NAME environment variable" if not defined $ENV{'SVCOMP_TOOL_NAME'};
+my $tool_name=$ENV{'SVCOMP_TOOL_NAME'};
+set_tool_name($tool_name);
+
+set_cil_options(
+    "--printCilAsIs",
+    "--decil",
+    "--noLowerConstants",
+    "--noInsertImplicitCasts",
+    "--useLogicalOperators",      
+    "--ignore-merge-conflicts",
+    "--no-convert-direct-calls",  # Don't transform simple function calls to calls-by-pointers
+    "--no-convert-field-offsets", # Don't transform s->f to pointer arithmetic
+    "--no-split-structs",         # Don't transform structure fields into variables or arrays
+    "--rmUnusedInlines"
+);
+
+# Now, as CIL script and options are prepared, let's invoke the preprocessing.
+my @files = preprocess_all_files('cpp','cil-merge');
+
+# Check the number of entry points 
+die "You can only specify one main for SVCOMP!" if (scalar @mains != 1);
+
+my $main = $mains[0];
+
+system("mkdir $tmpdir/svcomp_tmp/");
+
+my $svcomp_output_trace = "$tmpdir/ErrorPath.txt";
+my $final_trace_fname = "$tmpdir/error_trace.txt";
+my $svcomp_input_file = "$tmpdir/svcomp_tmp/svcomp_file.c";
+
+system("sed -e 's/\\bERROR\\b/NON_ERROR/g' @files | sed -e 's/LDV_ERROR/ERROR/g' | sed -e 's/$main/main/g' > $svcomp_input_file");
+system("sed -i -e 's/goto ERROR;/__VERIFIER_error();/' $svcomp_input_file");
+system("sed -i '1i extern void __VERIFIER_error() __attribute__ ((__noreturn__));' $svcomp_input_file");
+
+my $svcomp_spec_file = "$installed_frontends_dir/PropertyERROR.prp";
+
+#my $tmp_file = "$tmpdir/svcomp_tmp/tmp_svcomp.c";
+#system("sed -e 's/^#line.*//g' $svcomp_input_file > $tmp_file");
+my $tool_options_array_ref = prepare_tool_options($tool_name);
+
+add_automaton(tail_automaton(150),'stderr');
+my ($result, $errcode, $automata_results, $debug_trace) = run(@{$tool_options_array_ref});
+
+# NOTE that you should re-add automata with a fresh state if you plan to perform more runs.
+
+# Now calculate the description and verdict.  Verdict was calculated by our
+# automaton (if it succeeded).  However, if CBMC has been terminated
+# abnormally, the relevant bucket contains an undefined value; assume an unknown
+# verdict
+my $verdict = $automata_results->{VERDICT} || 'unknown';
+
+# Let's prepare the description string step-by-step
+my $description = '';
+
+if ($verdict eq 'unknown') {
+        my @errbuf = @{$automata_results->{'TAIL'}};
+        local $_;
+        for my $ln (@errbuf){
+		$description .= $ln."\n";
+       }
+}
+
+# Add header to the Error trace
+local $_;
+if ($verdict eq 'unsafe') {
+ open(ORIG_TRACE, '<', $svcomp_output_trace) or die "Can't open file with origin SVCOMP trace: \"$svcomp_output_trace\", $!";
+ open(TRACE_FILE, '>', $final_trace_fname) or die "Can't open file with adjsuted SVCOMP trace: \"$final_trace_fname\", $!";
+ print TRACE_FILE "SVCOMP error trace v0.1\n";
+ while(<ORIG_TRACE>)
+ {
+ 	print TRACE_FILE $_
+ }
+ close TRACE_FILE;
+ close ORIG_TRACE;
+}
+
+# Return results.  The "verdict", "description", and "error_trace" are
+# obligatory.  You may add more hash entries, the values should contain files,
+# and the keys will distinguish these files by meaning.  The files you've
+# specified this way will be stored in the package with results and associated
+# with the respective launches that generated them.
+result(
+	verdict => $verdict,
+	description => $description,
+	error_trace => $final_trace_fname,
+ 	coverage => "",
+);
+
+
+# SVCOMP wrapper ends
+# DO NOT INVOKE "exit" FROM HERE!!!
+
+sub prepare_tool_options($) {
+  my $engine = shift;
+
+  # Here the tool options should be written to.
+  my @tool_options;
+
+  my $svcomp_tool_script = "$FindBin::RealBin/../dscv/rcv/svcomp-$engine";
+  if (-f $svcomp_tool_script)
+  {
+    open(TOOL_SCRIPT, '<', $svcomp_tool_script)
+      or die("Can't open file '$svcomp_tool_script' for read: $!");
+    my $tool_script = join("", <TOOL_SCRIPT>);
+    close(TOOL_SCRIPT)
+      or die("Can't close file handler for '$svcomp_tool_script': $!");
+
+    print_debug_info("Evaluate '$engine' tool '$svcomp_tool_script'");
+    my $ret = eval("$tool_script\n0;");
+
+    if ($@)
+    {
+      die("Can't execute tool script " . " '$tool_script': $@");
+    }
+
+    print_debug_debug("Tool script was executed successfully");
+    return \@tool_options;
+  }
+  else
+  {
+    die("Tool script for engine '$engine' doesn't exist.");
+  }
+}
+
+
