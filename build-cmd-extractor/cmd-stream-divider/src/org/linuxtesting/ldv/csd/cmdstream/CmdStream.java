@@ -345,7 +345,7 @@ public class CmdStream {
 				FSOperationBase.copyDirectory(oldDriverDir, newDriverDir);
 			}
 		} catch (IOException e) {
-			Logger.err("Can't copy directory.");
+			Logger.err("Can't copy directory:" + e);
 			System.exit(1);
 		}
 		List<Command> lCmdList = cmdlist;
