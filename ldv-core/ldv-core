@@ -757,7 +757,7 @@ sub start_csd {
 		push @csd_options,"--tagbd=$config->{'env'}";
 	} else {
 		push @csd_options,"--tagbd=$config->{'driver'}";
-		push @csd_options,"--full-copy";
+#		push @csd_options,"--full-copy";
 	}
 	
 	my $pid = parallel_run "@csd_options", "$config->{'ldv_tempdir'}/csd_err.log", "$config->{'ldv_tempdir'}/csd_out.log";
