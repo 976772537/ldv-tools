@@ -740,7 +740,7 @@ sub start_csd {
 	}
 
 	my @csd_options = ('java',
-		'-Xmx256M',
+		'-Xmx512M',
 		'-jar',
 		$config->{'csd'},
 		'--basedir=csd_deg_dscv',
