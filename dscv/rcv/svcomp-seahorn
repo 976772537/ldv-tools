@@ -1,0 +1,25 @@
+use Env qw(LDV_DEBUG);
+use strict;
+
+#example seahorn-svcomp-par.py -m64 --cex=seahorn_cex.txt --spec=PropertyERROR.prp ast.main3.c';
+push(@tool_options, "seahorn-svcomp-par.py");
+push(@tool_options, "-m64");
+push(@tool_options, "--spec=$svcomp_spec_file");
+push(@tool_options, "--cex=$svcomp_output_trace");
+push(@tool_options, $svcomp_input_file);
+
+add_automaton(seahorn_verdict());
+
+#===================
+#  AUTOMATA
+#===================
+
+sub seahorn_verdict
+{
+        return sub {
+                my $l=shift or return undef;
+                $l =~ /Result TRUE/ and return {'VERDICT' => 'safe'};
+                $l =~ /Result FALSE/ and return {'VERDICT' => 'unsafe'};
+                return undef;
+        };
+}

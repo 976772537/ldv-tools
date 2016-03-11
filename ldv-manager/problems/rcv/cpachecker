@@ -13,6 +13,9 @@ while (<>){
 	/Syntax error: const \*\) 0 \)/ and print "Cast to local struct";
 	/Syntax error: (\w+) = \( struct/ and print "Cast to local struct";
 	/Syntax error: (\w+) = \( union/ and print "Cast to local struct";
+	/Syntax error: else/ and print "Cast to local struct";
+	/Syntax error: (\w+) =\s+(.*)\s+ \( struct/ and print "Cast to local struct";
+	/Syntax error: \( struct/ and print "Cast to local struct";
 	/Unsupported statement type CASTIfStatement at end of compound-statement/ and print "Unsupported CASTIfStatement";
 	/Invalid C code because of undefined identifiers mentioned above\.\)/ and print "Undefined identifiers";
 	/Accessing unknown field (.*) in struct/ and print "Unknown field";
@@ -51,7 +54,9 @@ while (<>){
 	/Unrecognized C code/ and print "Unrecognized C code";
 	/IllegalArgumentException: Can't add cast/ and print "Can't add cast";
 	/IllegalArgumentException: Can't assign different types/ and print "Different types";
-	
+
+	/IllegalArgumentException: To assign to\/from arrays\/structures\/unions use makeDestructiveAssignment/ and print "DestructiveAssignment";
+	/Syntax error: char const __PRETTY_FUNCTION__/ and print "__PRETTY_FUNCTION__";
 	/The walltime limit of (\d+)s has elapsed/ and print "Time exhausted";
 	/Shutdown requested \(The CPU-time limit of (.*) has elapsed/ and print "CPU timelimit";
 	/CRITICAL - VerifierCloud run executor: OSError 2 while waiting for termination of \/bin\/sh/ and print "Cloud timeout";

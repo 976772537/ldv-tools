@@ -799,7 +799,7 @@ sub get_heap_size
 {
 	my $heap_size = shift;
 	$heap_size = $heap_size * 3 / 4;
-	$heap_size = $heap_size / 1000000 . 'm';
+	$heap_size = sprintf( "%d", $heap_size / 1000000 ) . 'm';
 	return $heap_size;
 }
 

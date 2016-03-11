@@ -120,6 +120,7 @@ my @et_cpachecker_formats = ('1.1', '1.2');
 my $et_ufo_format = '0.1';
 my $et_blast_format = '2.7';
 my $et_cbmc_format = '4.5';
+my $et_svcomp_format = '0.1';
 
 
 ################################################################################
@@ -526,6 +527,16 @@ sub parse_et($)
 
       $et_conv_array_ref
         = convert_et_to_common('ufo', $opts);
+
+      return parse_et({'error trace' => $et_conv_array_ref});
+    }
+    elsif ($format =~ /^SVCOMP error trace.*/)
+    {
+      print_debug_debug("A given error trace of SVCOMP tool has supported format"
+        . " ('$et_svcomp_format')");
+
+      $et_conv_array_ref
+        = convert_et_to_common('svcomp', $opts);
 
       return parse_et({'error trace' => $et_conv_array_ref});
     }

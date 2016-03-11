@@ -363,10 +363,11 @@ sub start_next {
 			my $file_position;
 			my $prefix = q{};
 			my $still_building = 1;
+			my $additional_attempt = 0;
 
 			vsay 'DEBUG', q{Going to use File Queues to get verification objects: '}
 				. $config->{'vo_index'} . q{'};
-			while($still_building) {
+			while($still_building || $additional_attempt) {
 				# Try to read some commands
 				# Open
 				open my $fd, '<', $config->{'vo_index'}
@@ -424,6 +425,19 @@ sub start_next {
 							die q{Message with unknown type: '} . $strings[$c] . q{'};
 						}
 					}
+				}
+
+				# Check CSD process status
+				if($still_building && !is_exists($csd_pid)) {
+					# CSD died without sign that building has been finished. That is bad.
+					vsay 'NORMAL', "Seems that CSD died, check commands last time";
+					$additional_attempt = 1;
+					$still_building = 0;
+				}
+				elsif($additional_attempt && !is_exists($csd_pid)){
+					# We grabbed last commands and can be sure that no commands will appear
+					$still_building = 0;
+					$additional_attempt = 0;
 				}
 			}
 		}
@@ -726,7 +740,7 @@ sub start_csd {
 	}
 
 	my @csd_options = ('java',
-		'-Xmx256M',
+		'-Xmx512M',
 		'-jar',
 		$config->{'csd'},
 		'--basedir=csd_deg_dscv',
@@ -743,7 +757,7 @@ sub start_csd {
 		push @csd_options,"--tagbd=$config->{'env'}";
 	} else {
 		push @csd_options,"--tagbd=$config->{'driver'}";
-		push @csd_options,"--full-copy";
+#		push @csd_options,"--full-copy";
 	}
 	
 	my $pid = parallel_run "@csd_options", "$config->{'ldv_tempdir'}/csd_err.log", "$config->{'ldv_tempdir'}/csd_out.log";
