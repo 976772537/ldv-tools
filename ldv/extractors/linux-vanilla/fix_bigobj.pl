@@ -74,6 +74,8 @@ sub patch_kbuild_include {
 		/^(\s*\@set -e;\s*\\\s*)$/ and $state==2 and $_ = "$1\tif \[ \! \"\$\@\" = \"drivers\/built-in\.o\" \]; then\t\\\n" and $state=3;
 		/^\s*\$\(echo-cmd\) \$\(cmd_\$\(1\)\);\s*\\\s*$/ and $state==3 and $state=4;
 		/^(.*'cmd_\$\@ := \$\(make-cmd\)' > \$\(dot-target\)\.cmd)\)\s*$/ and $state==4 and $_="$1; \\\n\tfi)\n" and $state=1;
+		# Changed regexp in order to support kernels >= 4.6-rc1.
+		/^(.*'cmd_\$\@ := \$\(make-cmd\)' > \$\(dot-target\)\.cmd), \@\:\)\s*$/ and $state==4 and $_="$1; \\\n\tfi)\n" and $state=1;
 		print FILE;
 	}
 	close FILE or die("Can't close Kbuild.include after patching: $!");
